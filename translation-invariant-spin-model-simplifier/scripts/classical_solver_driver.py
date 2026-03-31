@@ -19,6 +19,30 @@ def unit_vector(theta, phi):
     )
 
 
+def build_classical_state(spins, method, converged=True):
+    site_frames = []
+    for index, spin in enumerate(spins):
+        vector = np.array(spin, dtype=float)
+        site_frames.append(
+            {
+                "site": index,
+                "spin_length": float(np.linalg.norm(vector)),
+                "direction": vector.tolist(),
+            }
+        )
+    return {
+        "site_frames": site_frames,
+        "ordering": {
+            "kind": "commensurate",
+            "q_vector": [0.0, 0.0, 0.0],
+        },
+        "provenance": {
+            "method": method,
+            "converged": bool(converged),
+        },
+    }
+
+
 def classical_energy(model, spins):
     energy = 0.0
     for bond in model["bonds"]:
@@ -62,7 +86,12 @@ def solve_variational(model, starts=16, seed=0):
             best = result
 
     spins = [unit_vector(best.x[2 * index], best.x[2 * index + 1]).tolist() for index in range(n_spins)]
-    return {"method": "variational", "energy": float(best.fun), "spins": spins}
+    return {
+        "method": "variational",
+        "energy": float(best.fun),
+        "spins": spins,
+        "classical_state": build_classical_state(spins, method="variational", converged=bool(best.success)),
+    }
 
 
 def random_spin(rng):
