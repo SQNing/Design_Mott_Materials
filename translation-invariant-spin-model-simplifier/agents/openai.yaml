@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spin Model Simplifier"
+  short_description: "Simplify and solve periodic spin models"
+  default_prompt: "Use $translation-invariant-spin-model-simplifier to simplify this periodic spin Hamiltonian and run classical and spin-wave analysis."
