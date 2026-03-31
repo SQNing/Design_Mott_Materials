@@ -94,6 +94,7 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - `2026-03-31`: Continued the same Obsidian running log with an integrated interpretation section. The note now states the preferred current classical conclusion for the worked example: `y`-axis ferromagnetism at `Q = (0, 0)`, with the scalar-exchange spin-wave continuation marked explicitly as a proxy rather than a full anisotropic theory.
 - `2026-03-31`: User ended the live test flow and requested a fresh code review of the skill. Follow-up review found new correctness issues in the current implementation around anisotropic template labeling, thermodynamic observable calculation, exact-diagonalization scope handling, and the classical-driver CLI workflow. No business-code changes were made in this round.
 - `2026-03-31`: User requested additional online research on the best LSWT method and relevant open-source packages. Updated the skill docs to encode the recommended local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method, and added package guidance for SpinW and Sunny.jl in `references/lsw-packages.md`. Verified that the updated skill still passes `quick_validate.py`.
+- `2026-03-31`: Updated the repository-level `README.md` with a quick-install section for `translation-invariant-spin-model-simplifier`. The new text covers Codex-native install via `$skill-installer`, a manual `cp -R` fallback into `~/.codex/skills`, optional validation, and the basic invocation pattern.
 
 ## Next Actions
 

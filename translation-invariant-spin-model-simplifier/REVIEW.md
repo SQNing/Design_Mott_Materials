@@ -72,6 +72,7 @@
   - `2026-03-31`: The same Obsidian note was extended with an explicit interpretation section. It now records that the strongest current classical conclusion for the tested nearest-neighbor square-lattice `XYZ` case is a `y`-axis ferromagnet at `Q = (0, 0)`, while keeping the scalar-exchange spin-wave continuation labeled as an approximation.
   - `2026-03-31`: Follow-up code review after live use identified four unresolved correctness issues in the current implementation: exact diagonalization scope is overstated, thermodynamic observables are miscomputed, anisotropic `XYZ` models are misclassified as `xxz`, and the classical-driver CLI does not actually execute the staged workflow it advertises.
   - `2026-03-31`: Additional online research was incorporated into the skill docs. The LSW guidance now encodes the standard local-frame Holstein-Primakoff plus paraunitary-Bogoliubov pipeline and adds explicit open-source package guidance for SpinW and Sunny.jl. The updated skill still validates.
+  - `2026-03-31`: The repository `README.md` was expanded from a placeholder into a usable installation note for collaborators. It now documents quick install via `$skill-installer`, manual local installation into `~/.codex/skills`, optional validation, and invocation of the skill.
 
 ## Risks
 
