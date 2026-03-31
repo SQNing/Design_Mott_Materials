@@ -17,6 +17,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 8. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`, which now validates explicit bilinear spin scope, builds an LSWT payload, and orchestrates a `Sunny.jl` backend when available.
 9. Generate result plots with `scripts/render_plots.py`, including `lswt_dispersion.png`, `classical_state.png`, and a reusable `plot_payload.json`.
 10. Render the final report with `scripts/render_report.py`.
+11. When a durable run directory is desired, write the full result bundle with `scripts/write_results_bundle.py` so `report.txt`, plot files, and bundle metadata are materialized together.
 
 ## Input Notes
 
@@ -29,6 +30,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Treat the current LSWT path as first-stage support for explicit bilinear spin models with a classical reference state, not as a general solver for arbitrary many-body local terms.
 - The currently verified Sunny-backed success path is a one-sublattice ferromagnetic Heisenberg-like example with a consistent classical reference state and a short `q_path`.
 - The currently verified plotting path covers the same minimal Sunny example and writes both image files and a reusable plotting payload.
+- The current bundle-writing path can materialize a run directory containing `report.txt`, `plot_payload.json`, `lswt_dispersion.png`, `classical_state.png`, and a small bundle manifest.
 
 ## Output Requirements
 
