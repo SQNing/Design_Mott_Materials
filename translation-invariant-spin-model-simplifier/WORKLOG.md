@@ -96,6 +96,9 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - `2026-03-31`: User requested additional online research on the best LSWT method and relevant open-source packages. Updated the skill docs to encode the recommended local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method, and added package guidance for SpinW and Sunny.jl in `references/lsw-packages.md`. Verified that the updated skill still passes `quick_validate.py`.
 - `2026-03-31`: Added a new random anisotropic mixed-`xz` bond example to the Obsidian running log. This live run reproduced the known simplification issue where the current `template-map` helper labels a generic anisotropic bilinear model as `xxz`.
 - `2026-03-31`: Continued the same mixed-`xz` example through the selected `energy-pruned` and `variational` branch. The current helper found a one-sublattice state along `±(x+z)/sqrt(2)` with bond energy `-0.0881627285`, matching the simple analytic one-sublattice reference. The result and its thermodynamic-caution note were appended to the Obsidian running log.
+- `2026-03-31`: A direct Luttinger-Tisza check on the same pruned mixed-`xz` model overturned the one-sublattice variational interpretation. The true classical minimum is a `y`-axis Néel state at `Q = (pi, pi)` with bond energy `-0.8625923825` and site energy `-1.7251847650`. The Obsidian running log was updated with this correction.
+- `2026-03-31`: Generated a plot summary for the pruned mixed-`xz` test case and saved it to `/Users/sqning/Documents/Obsidian Vault/attachments/translation-invariant-spin-model-simplifier/2026-03-31-pruned-mixed-xz-results.png`. Embedded the figure into the same Obsidian running log.
+- `2026-03-31`: Generated a second, presentation-oriented figure for the corrected mixed-`xz` ordered state and ordering vector. Saved it to `/Users/sqning/Documents/Obsidian Vault/attachments/translation-invariant-spin-model-simplifier/2026-03-31-pruned-mixed-xz-neel-order.png` and embedded it into the same Obsidian running log.
 
 ## Next Actions
 
@@ -109,6 +112,7 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - Obsidian logging convention: `Append future calculation summaries to /Users/sqning/Documents/Obsidian Vault/2026-03-31-spin-model-simplifier-live-results.md`
 - Follow-up review status: `Current implementation has unresolved correctness findings despite the earlier baseline acceptance`
 - LSW package guidance: `Prefer SpinW or Sunny.jl over weak in-skill approximations when the current helper scripts are too narrow for the model`
+- New live-use finding: `The current variational helper uses a one-sublattice ansatz and can miss lower multi-sublattice classical states`
 - Branch/commit workflow: `TBD`, because the skill path is not under a local git repository
 
 ## Handoff Note

@@ -105,3 +105,6 @@ Current decision: `The baseline scaffold and tests still stand, but the follow-u
 - If a future run needs a stronger LSWT path before the in-skill scripts are fixed, prefer SpinW or Sunny.jl according to the new `references/lsw-packages.md` guidance.
 - Live use already reproduced the template-classification bug on a mixed-`xz` random bond example, so that issue is no longer only theoretical.
 - Live use also confirmed that the current `variational` helper can recover the expected one-sublattice minimum for the pruned mixed-`xz` example, but the associated thermodynamic outputs remain subject to the already-recorded thermodynamics correctness finding.
+- Live use then showed that the same one-sublattice variational result is not the true global classical minimum: a direct Luttinger-Tisza analysis found a lower `y`-axis Néel state at `Q = (pi, pi)`. This is a concrete correctness gap in the current classical solver scope, not just a documentation limitation.
+- The mixed-`xz` test case now has a saved plot artifact in the Obsidian vault summarizing the LT landscape, the constrained-vs-corrected energy comparison, and the current helper thermodynamic outputs.
+- The same test case now also has a presentation-oriented plot artifact showing the corrected `y`-axis Néel pattern and ordering vector `Q = (pi, pi)`.
