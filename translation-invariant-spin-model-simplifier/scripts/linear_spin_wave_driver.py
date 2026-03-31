@@ -73,7 +73,11 @@ def run_linear_spin_wave(model, julia_cmd=None):
     if not sunny_available:
         return _error("missing-sunny-package", message or "Sunny.jl is not installed in the selected Julia environment")
 
-    return run_backend(payload_result["payload"], julia_cmd=julia_cmd)
+    result = run_backend(payload_result["payload"], julia_cmd=julia_cmd)
+    if isinstance(result, dict):
+        result.setdefault("path", payload_result["payload"].get("path", {}))
+        result.setdefault("spatial_dimension", payload_result["payload"].get("spatial_dimension"))
+    return result
 
 
 def exact_diagonalization_branch(model):

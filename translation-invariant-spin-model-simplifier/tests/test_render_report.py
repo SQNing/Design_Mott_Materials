@@ -18,6 +18,9 @@ class RenderReportTests(unittest.TestCase):
                 "recommended_method": "variational",
                 "chosen_method": "variational",
                 "method_note": "Variational minimum used as the classical reference state.",
+                "energy_per_unit_cell": -1.5,
+                "magnetic_supercell_energy": -3.0,
+                "magnetic_periods": [1, 2, 1],
             },
             "lswt": {
                 "status": "ok",
@@ -35,6 +38,8 @@ class RenderReportTests(unittest.TestCase):
         text = render_text(payload)
         self.assertIn("Recommended simplification", text)
         self.assertIn("Chosen classical method", text)
+        self.assertIn("Classical energy per unit cell", text)
+        self.assertIn("Magnetic supercell energy", text)
         self.assertIn("Sunny.jl", text)
         self.assertIn("LSWT status: ok", text)
         self.assertIn("classical_state.png", text)

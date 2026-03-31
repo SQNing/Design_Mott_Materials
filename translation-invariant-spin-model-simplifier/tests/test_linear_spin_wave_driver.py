@@ -87,6 +87,8 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["backend"]["name"], "Sunny.jl")
         self.assertEqual(result["linear_spin_wave"]["dispersion"][0]["omega"], 0.0)
+        self.assertIn("path", result)
+        self.assertIn("labels", result["path"])
 
     def test_exact_diagonalization_branch_solves_spin_half_dimer(self):
         model = {"local_dim": 2, "cluster_size": 2, "exchange": 1.0}

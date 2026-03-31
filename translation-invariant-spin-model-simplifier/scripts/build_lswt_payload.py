@@ -1,11 +1,181 @@
 #!/usr/bin/env python3
 import json
+import math
 import sys
 from pathlib import Path
+
+from lattice_geometry import build_isotropic_heisenberg_bonds_from_parameters, resolve_lattice_vectors
 
 
 def _error(code, message):
     return {"status": "error", "error": {"code": code, "message": message}}
+
+
+def _vector_norm(vector):
+    return math.sqrt(sum(float(value) * float(value) for value in vector))
+
+
+def _active_axes_from_positions(positions, tolerance=1e-9):
+    if not positions:
+        return [False, False, False]
+    active = [False, False, False]
+    for axis in range(3):
+        values = [float(position[axis]) if axis < len(position) else 0.0 for position in positions]
+        if max(values) - min(values) > tolerance:
+            active[axis] = True
+    return active
+
+
+def _dimension_hint_from_lattice_kind(lattice):
+    kind = str(lattice.get("kind", "")).lower()
+    if any(token in kind for token in {"chain", "1d"}):
+        return 1
+    if any(token in kind for token in {"square", "rect", "triang", "honeycomb", "kagome", "2d"}):
+        return 2
+    if any(token in kind for token in {"cubic", "orthorhombic", "tetragonal", "hexagonal", "3d"}):
+        return 3
+    return 0
+
+
+def infer_spatial_dimension(lattice, bonds):
+    active_axes = _active_axes_from_positions(lattice.get("positions") or [])
+    for bond in bonds:
+        vector = bond.get("vector", [])
+        for axis in range(min(3, len(vector))):
+            if abs(float(vector[axis])) > 1e-9:
+                active_axes[axis] = True
+
+    active_dimension = 0
+    for axis, is_active in enumerate(active_axes):
+        if is_active:
+            active_dimension = axis + 1
+
+    kind_dimension = _dimension_hint_from_lattice_kind(lattice)
+    if active_dimension > 0:
+        if kind_dimension in {1, 2}:
+            return max(active_dimension, kind_dimension)
+        return active_dimension
+
+    explicit_dimension = lattice.get("dimension")
+    if isinstance(explicit_dimension, int) and explicit_dimension > 0:
+        return explicit_dimension
+
+    if kind_dimension > 0:
+        return kind_dimension
+    return 1
+
+
+def _lattice_family(lattice, spatial_dimension):
+    kind = str(lattice.get("kind", "")).lower()
+    vectors = resolve_lattice_vectors(lattice)
+    lengths = [_vector_norm(vector) for vector in vectors]
+    if spatial_dimension == 1:
+        return "chain"
+    if spatial_dimension == 2:
+        if "square" in kind:
+            return "square"
+        if "rect" in kind:
+            return "rectangular"
+        if len(lengths) >= 2 and abs(lengths[0] - lengths[1]) <= 1e-9:
+            return "square"
+        return "rectangular"
+    if "cubic" in kind:
+        return "cubic"
+    if "orthorhombic" in kind:
+        return "orthorhombic"
+    if len(lengths) >= 3 and abs(lengths[0] - lengths[1]) <= 1e-9 and abs(lengths[1] - lengths[2]) <= 1e-9:
+        return "cubic"
+    return "orthorhombic"
+
+
+def _default_high_symmetry_nodes(spatial_dimension, lattice_family):
+    if spatial_dimension == 1:
+        return {
+            "labels": ["G", "X"],
+            "points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+        }
+    if spatial_dimension == 2 and lattice_family == "square":
+        return {
+            "labels": ["G", "X", "M", "G"],
+            "points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.0, 0.0]],
+        }
+    if spatial_dimension == 2:
+        return {
+            "labels": ["G", "X", "S", "Y", "G"],
+            "points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.5, 0.0], [0.0, 0.0, 0.0]],
+        }
+    if lattice_family == "cubic":
+        return {
+            "labels": ["G", "X", "M", "G", "R", "X"],
+            "points": [
+                [0.0, 0.0, 0.0],
+                [0.5, 0.0, 0.0],
+                [0.5, 0.5, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.5, 0.5, 0.5],
+                [0.5, 0.0, 0.0],
+            ],
+        }
+    return {
+        "labels": ["G", "X", "S", "Y", "G", "Z", "U", "R", "T", "Z"],
+        "points": [
+            [0.0, 0.0, 0.0],
+            [0.5, 0.0, 0.0],
+            [0.5, 0.5, 0.0],
+            [0.0, 0.5, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.5],
+            [0.5, 0.0, 0.5],
+            [0.5, 0.5, 0.5],
+            [0.0, 0.5, 0.5],
+            [0.0, 0.0, 0.5],
+        ],
+    }
+
+
+def _interpolate_q_path(nodes, samples_per_segment):
+    samples_per_segment = max(1, int(samples_per_segment))
+    q_path = []
+    node_indices = []
+    for start_index in range(len(nodes) - 1):
+        node_indices.append(len(q_path))
+        start = nodes[start_index]
+        end = nodes[start_index + 1]
+        for step in range(samples_per_segment):
+            weight = float(step) / float(samples_per_segment)
+            q_path.append(
+                [start[axis] * (1.0 - weight) + end[axis] * weight for axis in range(3)]
+            )
+    node_indices.append(len(q_path))
+    q_path.append(list(nodes[-1]))
+    return q_path, node_indices
+
+
+def _resolve_q_path(model, lattice, bonds):
+    spatial_dimension = infer_spatial_dimension(lattice, bonds)
+    lattice_family = _lattice_family(lattice, spatial_dimension)
+    q_samples = int(model.get("q_samples", 32))
+    explicit_q_path = model.get("q_path", [])
+    if explicit_q_path:
+        if len(explicit_q_path) <= 10:
+            q_path, node_indices = _interpolate_q_path(explicit_q_path, samples_per_segment=q_samples)
+            labels = [f"Q{index}" for index in range(len(explicit_q_path))]
+        else:
+            q_path = explicit_q_path
+            step = max(1, len(explicit_q_path) - 1)
+            node_indices = [0, step]
+            labels = ["Q0", "Q1"]
+    else:
+        nodes = _default_high_symmetry_nodes(spatial_dimension, lattice_family)
+        q_path, node_indices = _interpolate_q_path(nodes["points"], samples_per_segment=q_samples)
+        labels = nodes["labels"]
+
+    return {
+        "spatial_dimension": spatial_dimension,
+        "lattice_family": lattice_family,
+        "q_path": q_path,
+        "path": {"labels": labels, "node_indices": node_indices},
+    }
 
 
 def normalize_exchange_matrix(term):
@@ -39,6 +209,13 @@ def validate_lswt_scope(model):
     if simplified_model.get("three_body_terms"):
         return _error("unsupported-model-scope", "higher-body terms are outside first-stage Sunny-backed LSWT scope")
     bonds = simplified_model.get("bonds", model.get("bonds", []))
+    if not bonds and simplified_model.get("template") == "heisenberg":
+        exchange_mapping = model.get("exchange_mapping", {})
+        bonds, _shell_map = build_isotropic_heisenberg_bonds_from_parameters(
+            model.get("lattice", {}),
+            model.get("parameters", {}),
+            shell_map_override=exchange_mapping.get("shell_map", {}),
+        )
     if not bonds:
         return _error("unsupported-model-scope", "at least one bilinear bond is required for LSWT payload construction")
     if "classical_state" not in model:
@@ -52,16 +229,21 @@ def build_lswt_payload(model):
         return scope_error
 
     simplified_model = model.get("simplified_model", {})
+    shell_map = {}
     bonds = simplified_model.get("bonds", model.get("bonds", []))
+    if not bonds and simplified_model.get("template") == "heisenberg":
+        exchange_mapping = model.get("exchange_mapping", {})
+        bonds, shell_map = build_isotropic_heisenberg_bonds_from_parameters(
+            model.get("lattice", {}),
+            model.get("parameters", {}),
+            shell_map_override=exchange_mapping.get("shell_map", {}),
+        )
     reference_frames = build_reference_frames(model["classical_state"])
     site_count = max(frame["site"] for frame in reference_frames) + 1
     lattice = model.get("lattice", {})
     positions = lattice.get("positions") or [[0.0, 0.0, 0.0] for _ in range(site_count)]
-    lattice_vectors = lattice.get("lattice_vectors") or [
-        [1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [0.0, 0.0, 1.0],
-    ]
+    lattice_vectors = resolve_lattice_vectors(lattice)
+    q_path_summary = _resolve_q_path(model, lattice, bonds)
     payload = {
         "backend": "Sunny.jl",
         "lattice": lattice,
@@ -87,9 +269,12 @@ def build_lswt_payload(model):
             for frame in reference_frames
         ],
         "ordering": model["classical_state"].get("ordering", {}),
-        "q_path": model.get("q_path", []),
+        "q_path": q_path_summary["q_path"],
         "q_grid": model.get("q_grid", []),
         "q_samples": int(model.get("q_samples", 64)),
+        "spatial_dimension": q_path_summary["spatial_dimension"],
+        "path": q_path_summary["path"],
+        "shell_map": shell_map,
     }
     return {"status": "ok", "payload": payload}
 

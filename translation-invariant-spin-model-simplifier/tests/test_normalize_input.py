@@ -153,6 +153,59 @@ class NormalizeInputTests(unittest.TestCase):
         self.assertEqual(normalized["user_notes"], payload["description"])
         self.assertEqual(normalized["local_hilbert"]["dimension"], 3)
 
+    def test_controlled_natural_language_populates_structured_lattice_and_solver_hints(self):
+        payload = {
+            "representation": "natural_language",
+            "description": (
+                "Orthorhombic lattice with a=3, b=8, c=8, alpha=90, beta=90, gamma=90. "
+                "One magnetic atom at (0, 0, 0). "
+                "Use J1 and J2 defined by first and second distance shells. "
+                "Use LT then LSWT."
+            ),
+        }
+        normalized = normalize_input(payload)
+        self.assertEqual(normalized["lattice"]["kind"], "orthorhombic")
+        self.assertAlmostEqual(normalized["lattice"]["cell_parameters"]["a"], 3.0, places=9)
+        self.assertEqual(normalized["lattice"]["positions"], [[0.0, 0.0, 0.0]])
+        self.assertEqual(normalized["exchange_mapping"]["shell_map"], {"J1": 1, "J2": 2})
+        self.assertEqual(normalized["solver_preferences"]["classical"], "luttinger-tisza")
+        self.assertTrue(normalized["solver_preferences"]["lswt"])
+        self.assertEqual(normalized["interaction"]["status"], "ok")
+
+    def test_ambiguous_controlled_natural_language_surfaces_clarification_question(self):
+        payload = {
+            "representation": "natural_language",
+            "description": (
+                "Orthorhombic lattice with a=3, b=8, c=8, alpha=90, beta=90, gamma=90. "
+                "One magnetic atom at (0, 0, 0). J1=-1, J2=2. Use LT."
+            ),
+        }
+        normalized = normalize_input(payload)
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["question"]["id"], "exchange_mapping")
+
+    def test_structured_natural_language_preserves_explicit_lattice_when_parser_has_no_override(self):
+        payload = {
+            "representation": "natural_language",
+            "description": "Spin-1/2 Heisenberg model.",
+            "lattice": {
+                "kind": "orthorhombic",
+                "positions": [[0.0, 0.0, 0.0]],
+                "cell_parameters": {
+                    "a": 3.0,
+                    "b": 8.0,
+                    "c": 8.0,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 90.0,
+                },
+            },
+        }
+        normalized = normalize_input(payload)
+        self.assertEqual(normalized["lattice"]["kind"], "orthorhombic")
+        self.assertEqual(normalized["lattice"]["positions"], [[0.0, 0.0, 0.0]])
+        self.assertAlmostEqual(normalized["lattice"]["cell_parameters"]["a"], 3.0, places=9)
+
     def test_blank_freeform_input_is_rejected(self):
         with self.assertRaises(ValueError):
             normalize_freeform_text("   ")

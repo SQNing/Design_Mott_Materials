@@ -125,6 +125,55 @@ class RenderPlotsTests(unittest.TestCase):
             self.assertTrue((output_dir / "classical_state.png").exists())
             self.assertGreater((output_dir / "classical_state.png").stat().st_size, 0)
 
+    def test_render_plots_expands_commensurate_state_to_at_least_two_by_two_magnetic_cells(self):
+        payload = {
+            "model_name": "stripe-demo",
+            "lattice": {
+                "kind": "rectangular",
+                "lattice_vectors": [[3.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 8.0]],
+                "positions": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+            },
+            "classical": {
+                "chosen_method": "luttinger-tisza",
+                "classical_state": {
+                    "site_frames": [
+                        {"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]},
+                        {"site": 1, "spin_length": 0.5, "direction": [0.0, 0.0, -1.0]},
+                    ],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.5, 0.0]},
+                    "provenance": {"method": "luttinger-tisza", "converged": True},
+                },
+            },
+            "lswt": {
+                "status": "ok",
+                "backend": {"name": "Sunny.jl"},
+                "path": {"labels": ["G", "X", "S", "Y", "G"], "node_indices": [0, 8, 16, 24, 32]},
+                "linear_spin_wave": {
+                    "dispersion": [
+                        {"q": [0.0, 0.0, 0.0], "bands": [0.0], "omega": 0.0},
+                        {"q": [0.5, 0.0, 0.0], "bands": [1.0], "omega": 1.0},
+                    ]
+                },
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            render_plots(payload, output_dir=tmpdir)
+            plot_payload = json.loads((Path(tmpdir) / "plot_payload.json").read_text(encoding="utf-8"))
+            self.assertEqual(plot_payload["classical_state"]["magnetic_periods"], [1, 2, 1])
+            self.assertEqual(plot_payload["classical_state"]["repeat_cells"], [2, 4, 1])
+            self.assertEqual(plot_payload["classical_state"]["spatial_dimension"], 2)
+            self.assertEqual(len(plot_payload["classical_state"]["expanded_sites"]), 16)
+            self.assertEqual(len(plot_payload["classical_state"]["basis_legend"]), 2)
+            self.assertEqual(plot_payload["classical_state"]["render_mode"], "structure")
+            self.assertTrue(plot_payload["classical_state"]["unit_cell_segments"])
+            self.assertEqual(plot_payload["classical_state"]["view"]["projection"], "3d")
+            self.assertEqual(plot_payload["classical_state"]["style"]["atom_fill"], "#c9c9c9")
+            self.assertEqual(plot_payload["classical_state"]["style"]["spin_color"], "#d00000")
+            self.assertGreater(plot_payload["classical_state"]["style"]["arrow_length_factor"], 0.3)
+            self.assertEqual(plot_payload["classical_state"]["display_rotation"]["kind"], "global")
+            self.assertEqual(len(plot_payload["classical_state"]["lattice_labels"]), 2)
+            self.assertEqual(plot_payload["classical_state"]["lattice_labels"][0]["text"], "a1")
+
 
 if __name__ == "__main__":
     unittest.main()

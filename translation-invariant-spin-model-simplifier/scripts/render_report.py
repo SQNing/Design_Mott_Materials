@@ -16,6 +16,12 @@ def render_text(payload):
     )
     lines.append(f"Projection status: {payload['projection']['status']}")
     lines.append(f"Chosen classical method: {payload['classical']['chosen_method']}")
+    if "energy_per_unit_cell" in payload["classical"]:
+        lines.append(f"Classical energy per unit cell: {payload['classical']['energy_per_unit_cell']}")
+    if "magnetic_supercell_energy" in payload["classical"]:
+        lines.append(f"Magnetic supercell energy: {payload['classical']['magnetic_supercell_energy']}")
+    if "magnetic_periods" in payload["classical"]:
+        lines.append(f"Magnetic periods: {payload['classical']['magnetic_periods']}")
     if payload["classical"].get("method_note"):
         lines.append(f"Classical note: {payload['classical']['method_note']}")
 

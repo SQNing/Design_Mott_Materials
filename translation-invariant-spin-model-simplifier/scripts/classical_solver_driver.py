@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
+from lattice_geometry import build_isotropic_heisenberg_bonds_from_parameters
+
 
 def unit_vector(theta, phi):
     return np.array(
@@ -44,13 +46,153 @@ def build_classical_state(spins, method, converged=True):
 
 
 def classical_energy(model, spins):
+    bonds = resolve_model_bonds(model)
     energy = 0.0
-    for bond in model["bonds"]:
+    for bond in bonds:
         matrix = np.array(bond["matrix"], dtype=float)
         s_i = spins[bond["source"]]
         s_j = spins[bond["target"]]
         energy += float(s_i @ matrix @ s_j)
     return energy
+
+
+def resolve_model_bonds(model):
+    explicit_bonds = model.get("bonds", [])
+    if explicit_bonds:
+        return explicit_bonds
+    simplified_model = model.get("simplified_model", {})
+    simplified_bonds = simplified_model.get("bonds", [])
+    if simplified_bonds:
+        return simplified_bonds
+    if simplified_model.get("template") == "heisenberg":
+        exchange_mapping = model.get("exchange_mapping", {})
+        bonds, _shell_map = build_isotropic_heisenberg_bonds_from_parameters(
+            model.get("lattice", {}),
+            model.get("parameters", {}),
+            shell_map_override=exchange_mapping.get("shell_map", {}),
+        )
+        if bonds:
+            return bonds
+    return []
+
+
+def _is_isotropic_exchange(matrix, tolerance=1e-9):
+    diagonal = [float(matrix[index][index]) for index in range(3)]
+    average = sum(diagonal) / 3.0
+    for row in range(3):
+        for col in range(3):
+            value = float(matrix[row][col])
+            if row == col:
+                if abs(value - average) > tolerance:
+                    return False, average
+            elif abs(value) > tolerance:
+                return False, average
+    return True, average
+
+
+def _active_spatial_dimension(model):
+    lattice = model.get("lattice", {})
+    positions = lattice.get("positions") or []
+    active = [False, False, False]
+    if positions:
+        for axis in range(3):
+            values = [float(position[axis]) if axis < len(position) else 0.0 for position in positions]
+            if max(values) - min(values) > 1e-9:
+                active[axis] = True
+    for bond in resolve_model_bonds(model):
+        vector = bond.get("vector", [])
+        for axis in range(min(3, len(vector))):
+            if abs(float(vector[axis])) > 1e-9:
+                active[axis] = True
+    kind = str(lattice.get("kind", "")).lower()
+    if any(token in kind for token in {"square", "rect", "triang", "honeycomb", "kagome", "2d"}):
+        return max(2, sum(1 for axis in active if axis))
+    if any(token in kind for token in {"cubic", "orthorhombic", "tetragonal", "3d"}):
+        return max(3, sum(1 for axis in active if axis))
+    explicit = lattice.get("dimension")
+    if isinstance(explicit, int):
+        return max(explicit, sum(1 for axis in active if axis), 1)
+    return max(sum(1 for axis in active if axis), 1)
+
+
+def _commensurability_kind(q_vector, tolerance=1e-6, max_denominator=6):
+    for value in q_vector:
+        if abs(value) <= tolerance:
+            continue
+        matched = False
+        for denominator in range(1, max_denominator + 1):
+            rounded = round(value * denominator) / float(denominator)
+            if abs(rounded - value) <= tolerance:
+                matched = True
+                break
+        if not matched:
+            return "incommensurate"
+    return "commensurate"
+
+
+def _magnetic_periods_from_q(q_vector, dimension, max_denominator=24, tolerance=1e-6):
+    periods = [1, 1, 1]
+    for axis in range(min(3, int(dimension))):
+        value = float(q_vector[axis]) if axis < len(q_vector) else 0.0
+        if abs(value) <= tolerance:
+            periods[axis] = 1
+            continue
+        matched = None
+        for denominator in range(1, max_denominator + 1):
+            rounded = round(value * denominator) / float(denominator)
+            if abs(rounded - value) <= tolerance:
+                matched = denominator
+                break
+        periods[axis] = matched or 1
+    return periods
+
+
+def solve_luttinger_tisza(model, grid_size=33):
+    bonds = resolve_model_bonds(model)
+    if not bonds:
+        raise ValueError("luttinger-tisza requires at least one bond")
+
+    dimension = _active_spatial_dimension(model)
+    values = np.linspace(0.0, 0.5, int(grid_size))
+    bond_terms = []
+    for bond in bonds:
+        isotropic, coupling = _is_isotropic_exchange(bond["matrix"])
+        if not isotropic:
+            raise ValueError("luttinger-tisza currently supports isotropic bilinear exchange only")
+        vector = [float(component) for component in bond.get("vector", [0.0, 0.0, 0.0])]
+        while len(vector) < 3:
+            vector.append(0.0)
+        bond_terms.append((coupling, vector))
+
+    best_energy = None
+    best_q = [0.0, 0.0, 0.0]
+    for q_components in np.ndindex(*(len(values),) * dimension):
+        q_vector = [0.0, 0.0, 0.0]
+        for axis in range(dimension):
+            q_vector[axis] = float(values[q_components[axis]])
+        energy = 0.0
+        for coupling, vector in bond_terms:
+            phase = 2.0 * math.pi * sum(q_vector[axis] * vector[axis] for axis in range(3))
+            energy += coupling * math.cos(phase)
+        if best_energy is None or energy < best_energy - 1e-12:
+            best_energy = energy
+            best_q = q_vector
+
+    magnetic_periods = _magnetic_periods_from_q(best_q, dimension)
+    magnetic_cell_size = int(np.prod(magnetic_periods[:dimension])) if dimension > 0 else 1
+    classical_state = build_classical_state([[0.0, 0.0, 1.0]], method="luttinger-tisza", converged=True)
+    classical_state["ordering"] = {"kind": _commensurability_kind(best_q), "q_vector": best_q}
+    classical_state["provenance"]["grid_size"] = int(grid_size)
+    return {
+        "method": "luttinger-tisza",
+        "energy": float(best_energy),
+        "energy_per_unit_cell": float(best_energy),
+        "magnetic_supercell_energy": float(best_energy * magnetic_cell_size),
+        "magnetic_periods": magnetic_periods,
+        "q_vector": best_q,
+        "spins": [[0.0, 0.0, 1.0]],
+        "classical_state": classical_state,
+    }
 
 
 def recommend_method(model):
@@ -71,8 +213,11 @@ def choose_method(model, user_choice=None, timed_out=False):
 
 
 def solve_variational(model, starts=16, seed=0):
+    bonds = resolve_model_bonds(model)
+    if not bonds:
+        raise ValueError("variational solver requires at least one bond")
     rng = np.random.default_rng(seed)
-    n_spins = max(max(bond["source"], bond["target"]) for bond in model["bonds"]) + 1
+    n_spins = max(max(bond["source"], bond["target"]) for bond in bonds) + 1
     best = None
 
     def objective(params):
@@ -116,8 +261,11 @@ def metropolis_step(model, spins, temperature, rng):
 
 
 def estimate_thermodynamics(model, temperatures, sweeps=100, burn_in=50, seed=0):
+    bonds = resolve_model_bonds(model)
+    if not bonds:
+        raise ValueError("thermodynamics estimation requires at least one bond")
     rng = np.random.default_rng(seed)
-    n_spins = max(max(bond["source"], bond["target"]) for bond in model["bonds"]) + 1
+    n_spins = max(max(bond["source"], bond["target"]) for bond in bonds) + 1
     spins = np.array([random_spin(rng) for _ in range(n_spins)])
     grid = []
     energy_samples = []
@@ -165,11 +313,20 @@ def main():
     parser.add_argument("input", nargs="?")
     parser.add_argument("--starts", type=int, default=16)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--method", choices=["auto", "variational", "luttinger-tisza"], default="auto")
+    parser.add_argument("--lt-grid-size", type=int, default=33)
     args = parser.parse_args()
 
     payload = _load_payload(args.input)
     payload.setdefault("recommended_method", recommend_method(payload))
-    payload["variational_result"] = solve_variational(payload, starts=args.starts, seed=args.seed)
+    chosen_method = args.method
+    if chosen_method == "auto":
+        chosen_method = payload["recommended_method"]
+    payload["chosen_method"] = chosen_method
+    if chosen_method == "luttinger-tisza":
+        payload["luttinger_tisza_result"] = solve_luttinger_tisza(payload, grid_size=args.lt_grid_size)
+    else:
+        payload["variational_result"] = solve_variational(payload, starts=args.starts, seed=args.seed)
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 
