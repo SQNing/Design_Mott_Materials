@@ -16,9 +16,26 @@ def render_text(payload):
     )
     lines.append(f"Projection status: {payload['projection']['status']}")
     lines.append(f"Chosen classical method: {payload['classical']['chosen_method']}")
-    lines.append("Linear spin-wave points:")
-    for point in payload.get("linear_spin_wave", {}).get("dispersion", []):
-        lines.append(f"- q={point['q']} omega={point['omega']}")
+    if payload["classical"].get("method_note"):
+        lines.append(f"Classical note: {payload['classical']['method_note']}")
+
+    lswt = payload.get("lswt", {})
+    if lswt:
+        backend_name = lswt.get("backend", {}).get("name", "unknown")
+        lines.append(f"LSWT backend: {backend_name}")
+        lines.append(f"LSWT status: {lswt.get('status', 'unknown')}")
+        if lswt.get("status") == "ok":
+            lines.append("Linear spin-wave points:")
+            for point in lswt.get("linear_spin_wave", {}).get("dispersion", []):
+                lines.append(f"- q={point['q']} omega={point['omega']}")
+        elif "error" in lswt:
+            lines.append(f"LSWT stop reason: {lswt['error']['code']}")
+            lines.append(f"Detail: {lswt['error']['message']}")
+            lines.append("Next step: Keep the classical result and install or enable the LSWT backend for this model.")
+    else:
+        lines.append("Linear spin-wave points:")
+        for point in payload.get("linear_spin_wave", {}).get("dispersion", []):
+            lines.append(f"- q={point['q']} omega={point['omega']}")
     return "\n".join(lines)
 
 
