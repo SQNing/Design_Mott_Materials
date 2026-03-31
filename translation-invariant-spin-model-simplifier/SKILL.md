@@ -14,7 +14,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 5. Ask whether to project to a spin model if the current basis is not already explicit.
 6. Present classical solver options and recommend one default.
 7. Run classical ground-state and thermodynamics calculations with `scripts/classical_solver_driver.py`.
-8. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`.
+8. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`, which now validates explicit bilinear spin scope, builds an LSWT payload, and orchestrates a `Sunny.jl` backend when available.
 9. Render the final report with `scripts/render_report.py`.
 
 ## Input Notes
@@ -25,6 +25,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Read `references/simplification-heuristics.md` before choosing a default candidate.
 - Read `references/classical-methods.md`, `references/lsw-assumptions.md`, `references/lsw-method.md`, and `references/lsw-packages.md` before running solvers.
 - Read `references/fallback-rules.md` whenever a timeout or unsupported-scope branch is triggered.
+- Treat the current LSWT path as first-stage support for explicit bilinear spin models with a classical reference state, not as a general solver for arbitrary many-body local terms.
 
 ## Output Requirements
 
@@ -33,3 +34,4 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Always list dropped terms, projection decisions, solver choices, and unsupported features.
 - When discussing LSW for a known classical ground state, default to the local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method unless you explicitly state that a narrower approximation is being used.
 - If an open-source package such as SpinW or Sunny.jl is the better path for the current model, say so explicitly instead of pretending the in-skill helper scripts are sufficient.
+- If `Sunny.jl` is unavailable or the model is outside first-stage bilinear scope, stop after the classical stage and explain the failure clearly instead of emitting a proxy scalar-exchange result.

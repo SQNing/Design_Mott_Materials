@@ -46,6 +46,7 @@
   - `scripts/classical_solver_driver.py` thermodynamic observables are computed from cross-temperature aggregates instead of per-temperature fluctuation samples
   - `scripts/generate_simplifications.py` mislabels fully anisotropic `XYZ` models as `xxz`
   - `scripts/classical_solver_driver.py` CLI always runs the variational branch and omits thermodynamics, regardless of the advertised staged workflow
+  - `scripts/run_sunny_lswt.jl` is currently a structured backend scaffold and does not yet construct full Sunny models from the LSWT payload
 - Review state change:
   - `2026-03-31`: User explicitly resumed the mainline flow. Review tracking remains active, with Task 4 now the next review target.
   - `2026-03-31`: User indicated they were leaving and granted permissions in this context window, so review and implementation may continue autonomously in-session.
@@ -72,6 +73,8 @@
   - `2026-03-31`: The same Obsidian note was extended with an explicit interpretation section. It now records that the strongest current classical conclusion for the tested nearest-neighbor square-lattice `XYZ` case is a `y`-axis ferromagnet at `Q = (0, 0)`, while keeping the scalar-exchange spin-wave continuation labeled as an approximation.
   - `2026-03-31`: Follow-up code review after live use identified four unresolved correctness issues in the current implementation: exact diagonalization scope is overstated, thermodynamic observables are miscomputed, anisotropic `XYZ` models are misclassified as `xxz`, and the classical-driver CLI does not actually execute the staged workflow it advertises.
   - `2026-03-31`: Additional online research was incorporated into the skill docs. The LSW guidance now encodes the standard local-frame Holstein-Primakoff plus paraunitary-Bogoliubov pipeline and adds explicit open-source package guidance for SpinW and Sunny.jl. The updated skill still validates.
+  - `2026-03-31`: Follow-up implementation for Sunny-backed LSWT orchestration landed on branch `codex/sunny-lswt`. The Python path now emits a structured `classical_state`, validates first-stage bilinear scope through `scripts/build_lswt_payload.py`, routes LSWT requests through a `Sunny.jl`-named backend path, and reports explicit partial-stop states when Julia or Sunny are unavailable.
+  - `2026-03-31`: Fresh verification on the follow-up branch passed with `40` Python tests and `1` Julia-dependent skip under the current environment, confirming that the new orchestration layer did not break the existing tested workflow.
 
 ## Risks
 
@@ -83,13 +86,13 @@
   - If business-code work resumes without updating these recovery docs after each phase, the recovery trail will drift.
 - Residual risks:
   - Numerical verification in this tool environment still depends on using `python`, the Miniforge interpreter path, or a non-login shell because login-shell `python3` inside the skill directory resolves to `/usr/bin/python3` without `numpy`.
-  - The current LSW implementation is narrower than the skill’s broader simplification/classical scope: full anisotropic `XYZ` bond models are not yet supported directly in `scripts/linear_spin_wave_driver.py`.
+  - The current LSW implementation is narrower than the skill’s broader simplification/classical scope: the Python side now validates and orchestrates Sunny-backed LSWT for explicit bilinear scope, but the Julia backend is still a scaffold rather than a fully implemented Sunny model-construction pipeline.
   - Classical LT support for anisotropic cases is currently ad hoc and analytical for simple cases like nearest-neighbor square-lattice `XYZ`; it is not yet encoded as a general helper path in the skill scripts.
   - The current review state is no longer “fully clear at claimed scope”: the follow-up findings above should be resolved before treating the solver paths as broadly reliable.
 
 ## Decision
 
-Current decision: `The baseline scaffold and tests still stand, but the follow-up review found unresolved correctness issues. Treat the current skill as partially working with known gaps, not as fully reliable at its claimed solver scope.`
+Current decision: `The baseline scaffold remains partially working with known gaps, and the new Sunny-backed follow-up improves scope handling and reporting but is not yet a complete end-to-end LSWT backend because the Julia runner is still a scaffold.`
 
 ## Follow-ups
 
@@ -103,6 +106,7 @@ Current decision: `The baseline scaffold and tests still stand, but the follow-u
 - If reusable LT support for fully anisotropic cases is requested later, treat that as a new implementation follow-up rather than assuming the current helper scripts already provide it.
 - If corrective work is requested next, prioritize: 1) fix ED scope handling, 2) fix thermodynamic observable formulas, 3) fix anisotropic template classification, 4) make the classical-driver CLI honor the advertised workflow.
 - If a future run needs a stronger LSWT path before the in-skill scripts are fixed, prefer SpinW or Sunny.jl according to the new `references/lsw-packages.md` guidance.
+- Complete the remaining Sunny implementation by replacing the current Julia scaffold with actual system construction, classical-state injection, and LSWT evaluation.
 - Live use already reproduced the template-classification bug on a mixed-`xz` random bond example, so that issue is no longer only theoretical.
 - Live use also confirmed that the current `variational` helper can recover the expected one-sublattice minimum for the pruned mixed-`xz` example, but the associated thermodynamic outputs remain subject to the already-recorded thermodynamics correctness finding.
 - Live use then showed that the same one-sublattice variational result is not the true global classical minimum: a direct Luttinger-Tisza analysis found a lower `y`-axis Néel state at `Q = (pi, pi)`. This is a concrete correctness gap in the current classical solver scope, not just a documentation limitation.
