@@ -26,6 +26,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Read `references/classical-methods.md`, `references/lsw-assumptions.md`, `references/lsw-method.md`, and `references/lsw-packages.md` before running solvers.
 - Read `references/fallback-rules.md` whenever a timeout or unsupported-scope branch is triggered.
 - Treat the current LSWT path as first-stage support for explicit bilinear spin models with a classical reference state, not as a general solver for arbitrary many-body local terms.
+- The currently verified Sunny-backed success path is a one-sublattice ferromagnetic Heisenberg-like example with a consistent classical reference state and a short `q_path`.
 
 ## Output Requirements
 
@@ -35,3 +36,4 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - When discussing LSW for a known classical ground state, default to the local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method unless you explicitly state that a narrower approximation is being used.
 - If an open-source package such as SpinW or Sunny.jl is the better path for the current model, say so explicitly instead of pretending the in-skill helper scripts are sufficient.
 - If `Sunny.jl` is unavailable or the model is outside first-stage bilinear scope, stop after the classical stage and explain the failure clearly instead of emitting a proxy scalar-exchange result.
+- If the supplied classical reference state is not an energy minimum for the selected model, surface the backend instability clearly instead of coercing a dispersion from an unstable state.

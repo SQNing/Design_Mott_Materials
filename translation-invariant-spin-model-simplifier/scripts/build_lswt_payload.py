@@ -53,9 +53,20 @@ def build_lswt_payload(model):
 
     simplified_model = model.get("simplified_model", {})
     bonds = simplified_model.get("bonds", model.get("bonds", []))
+    reference_frames = build_reference_frames(model["classical_state"])
+    site_count = max(frame["site"] for frame in reference_frames) + 1
+    lattice = model.get("lattice", {})
+    positions = lattice.get("positions") or [[0.0, 0.0, 0.0] for _ in range(site_count)]
+    lattice_vectors = lattice.get("lattice_vectors") or [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
     payload = {
         "backend": "Sunny.jl",
-        "lattice": model.get("lattice", {}),
+        "lattice": lattice,
+        "lattice_vectors": lattice_vectors,
+        "positions": positions,
         "template": simplified_model.get("template", "generic"),
         "bonds": [
             {
@@ -66,10 +77,19 @@ def build_lswt_payload(model):
             }
             for term in bonds
         ],
-        "reference_frames": build_reference_frames(model["classical_state"]),
+        "reference_frames": reference_frames,
+        "moments": [
+            {
+                "site": int(frame["site"]),
+                "spin": float(frame["spin_length"]),
+                "g": 2.0,
+            }
+            for frame in reference_frames
+        ],
         "ordering": model["classical_state"].get("ordering", {}),
         "q_path": model.get("q_path", []),
         "q_grid": model.get("q_grid", []),
+        "q_samples": int(model.get("q_samples", 64)),
     }
     return {"status": "ok", "payload": payload}
 
