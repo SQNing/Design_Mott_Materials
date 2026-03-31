@@ -24,12 +24,21 @@ class RenderReportTests(unittest.TestCase):
                 "backend": {"name": "Sunny.jl"},
                 "linear_spin_wave": {"dispersion": [{"q": [0.0, 0.0, 0.0], "omega": 0.0}]},
             },
+            "plots": {
+                "status": "ok",
+                "plots": {
+                    "classical_state": {"status": "ok", "path": "/tmp/classical_state.png"},
+                    "lswt_dispersion": {"status": "ok", "path": "/tmp/lswt_dispersion.png"},
+                },
+            },
         }
         text = render_text(payload)
         self.assertIn("Recommended simplification", text)
         self.assertIn("Chosen classical method", text)
         self.assertIn("Sunny.jl", text)
         self.assertIn("LSWT status: ok", text)
+        self.assertIn("classical_state.png", text)
+        self.assertIn("lswt_dispersion.png", text)
 
     def test_render_text_reports_partial_stop_when_lswt_does_not_run(self):
         payload = {
@@ -49,11 +58,24 @@ class RenderReportTests(unittest.TestCase):
                     "message": "Sunny.jl is not available in the active Julia environment",
                 },
             },
+            "plots": {
+                "status": "partial",
+                "plots": {
+                    "classical_state": {"status": "ok", "path": "/tmp/classical_state.png"},
+                    "lswt_dispersion": {
+                        "status": "skipped",
+                        "path": None,
+                        "reason": "missing-sunny-package: Sunny.jl is not available in the active Julia environment",
+                    },
+                },
+            },
         }
         text = render_text(payload)
         self.assertIn("Classical result remains valid", text)
         self.assertIn("missing-sunny-package", text)
         self.assertIn("Next step", text)
+        self.assertIn("Plot status: partial", text)
+        self.assertIn("Plot skip", text)
 
 
 if __name__ == "__main__":

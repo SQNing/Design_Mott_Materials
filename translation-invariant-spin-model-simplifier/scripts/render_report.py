@@ -36,6 +36,16 @@ def render_text(payload):
         lines.append("Linear spin-wave points:")
         for point in payload.get("linear_spin_wave", {}).get("dispersion", []):
             lines.append(f"- q={point['q']} omega={point['omega']}")
+
+    plots = payload.get("plots", {})
+    if plots:
+        lines.append(f"Plot status: {plots.get('status', 'unknown')}")
+        plot_items = plots.get("plots", {})
+        for name, metadata in plot_items.items():
+            if metadata.get("status") == "ok" and metadata.get("path"):
+                lines.append(f"Plot file ({name}): {metadata['path']}")
+            elif metadata.get("status") == "skipped":
+                lines.append(f"Plot skip ({name}): {metadata.get('reason', 'not generated')}")
     return "\n".join(lines)
 
 

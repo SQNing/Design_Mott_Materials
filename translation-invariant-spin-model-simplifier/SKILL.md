@@ -15,7 +15,8 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 6. Present classical solver options and recommend one default.
 7. Run classical ground-state and thermodynamics calculations with `scripts/classical_solver_driver.py`.
 8. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`, which now validates explicit bilinear spin scope, builds an LSWT payload, and orchestrates a `Sunny.jl` backend when available.
-9. Render the final report with `scripts/render_report.py`.
+9. Generate result plots with `scripts/render_plots.py`, including `lswt_dispersion.png`, `classical_state.png`, and a reusable `plot_payload.json`.
+10. Render the final report with `scripts/render_report.py`.
 
 ## Input Notes
 
@@ -27,6 +28,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Read `references/fallback-rules.md` whenever a timeout or unsupported-scope branch is triggered.
 - Treat the current LSWT path as first-stage support for explicit bilinear spin models with a classical reference state, not as a general solver for arbitrary many-body local terms.
 - The currently verified Sunny-backed success path is a one-sublattice ferromagnetic Heisenberg-like example with a consistent classical reference state and a short `q_path`.
+- The currently verified plotting path covers the same minimal Sunny example and writes both image files and a reusable plotting payload.
 
 ## Output Requirements
 
@@ -37,3 +39,4 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - If an open-source package such as SpinW or Sunny.jl is the better path for the current model, say so explicitly instead of pretending the in-skill helper scripts are sufficient.
 - If `Sunny.jl` is unavailable or the model is outside first-stage bilinear scope, stop after the classical stage and explain the failure clearly instead of emitting a proxy scalar-exchange result.
 - If the supplied classical reference state is not an energy minimum for the selected model, surface the backend instability clearly instead of coercing a dispersion from an unstable state.
+- When plotting succeeds, preserve both the generated figure files and `plot_payload.json` so the same result can be redrawn later without rerunning the full workflow.

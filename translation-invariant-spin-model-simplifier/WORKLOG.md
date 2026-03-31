@@ -101,6 +101,9 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - `2026-03-31`: Generated a second, presentation-oriented figure for the corrected mixed-`xz` ordered state and ordering vector. Saved it to `/Users/sqning/Documents/Obsidian Vault/attachments/translation-invariant-spin-model-simplifier/2026-03-31-pruned-mixed-xz-neel-order.png` and embedded it into the same Obsidian running log.
 - `2026-03-31`: Began the Sunny-backed LSWT follow-up implementation on branch `codex/sunny-lswt`. Added a structured `classical_state` output to `scripts/classical_solver_driver.py`, a backend-neutral LSWT payload builder at `scripts/build_lswt_payload.py`, a Python LSWT orchestrator path in `scripts/linear_spin_wave_driver.py`, a Julia scaffold at `scripts/run_sunny_lswt.jl`, and report updates for explicit Sunny success or partial-stop states.
 - `2026-03-31`: Verified the follow-up implementation phase with `python3 -m unittest discover -s /Users/mengsu/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests -v`, which passed with `40` tests and `1` Julia-dependent skip in the current environment.
+- `2026-03-31`: Installed local Julia dependencies for the new backend path, including `Sunny.jl` and `JSON3.jl`, then verified that `julia -e 'using Sunny; println(\"Sunny OK\")'` succeeds.
+- `2026-03-31`: Reached a real Sunny-backed minimal success case for a one-sublattice ferromagnetic Heisenberg example. The contract test in `tests/test_run_sunny_lswt_contract.py` now asserts a successful backend result instead of only structured failure handling.
+- `2026-03-31`: Added first-stage plotting support through `scripts/render_plots.py`. The plotting layer now writes `plot_payload.json`, `lswt_dispersion.png`, and `classical_state.png`, and the real minimal Sunny example passes through `run_linear_spin_wave -> render_plots` in `tests/test_render_plots.py`.
 
 ## Next Actions
 
@@ -109,7 +112,7 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - Session autonomy status: `Continue autonomously in current context window`
 - Dependency status for later numeric tasks: `TBD`, but the environment already lacked `numpy` during Task 3
 - Task 5 execution note: `Use python, a non-login shell, or an explicit Miniforge interpreter path for local verification commands that require numpy/scipy`
-- Known live-use limitation: `scripts/linear_spin_wave_driver.py` now builds structured LSWT payloads and orchestrates a `Sunny.jl` backend, but the Julia runner remains a scaffold and returns structured stop states until full Sunny model construction lands
+- Known live-use limitation: `scripts/linear_spin_wave_driver.py` and `scripts/run_sunny_lswt.jl` now support a minimal ferromagnetic Heisenberg Sunny example and plotting, but broader lattice/model coverage still needs more validation
 - Known live-use workaround: `Nearest-neighbor square-lattice XYZ cases can still be analyzed classically with a direct Luttinger-Tisza calculation outside the current helper scripts`
 - Obsidian logging convention: `Append future calculation summaries to /Users/sqning/Documents/Obsidian Vault/2026-03-31-spin-model-simplifier-live-results.md`
 - Follow-up review status: `Current implementation has unresolved correctness findings despite the earlier baseline acceptance`
@@ -119,4 +122,4 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 
 ## Handoff Note
 
-Current accepted state is: the original skill baseline remains documented, and a new follow-up branch now adds a first-stage Sunny-backed LSWT orchestration scaffold with green Python tests. The most important environment note is the interpreter-path split in this tool environment: numerical verification should use `python`, the explicit Miniforge Python path, or a non-login shell so `numpy` and `scipy` remain available. The most important remaining LSWT limitation is that the Julia runner is still a structured scaffold, not yet a full Sunny system-construction implementation.
+Current accepted state is: the original skill baseline remains documented, and the main branch now includes a first-stage Sunny-backed LSWT path plus automatic plotting support. The most important environment note is the interpreter-path split in this tool environment: numerical verification should use `python`, the explicit Miniforge Python path, or a non-login shell so `numpy` and `scipy` remain available. The most important remaining LSWT limitation is that only a minimal ferromagnetic Heisenberg Sunny example is fully verified end-to-end so far.
