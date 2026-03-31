@@ -25,6 +25,20 @@ class ClassicalSolverDriverTests(unittest.TestCase):
         spins = np.array(result["spins"])
         self.assertAlmostEqual(float(np.linalg.norm(spins[0])), 1.0, places=6)
 
+    def test_variational_solver_emits_structured_classical_state_for_lswt(self):
+        model = {
+            "lattice": {"sublattices": 1},
+            "bonds": [{"source": 0, "target": 0, "matrix": [[-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]]}],
+        }
+        result = solve_variational(model, starts=8, seed=3)
+        self.assertIn("classical_state", result)
+        self.assertIn("site_frames", result["classical_state"])
+        self.assertIn("ordering", result["classical_state"])
+        self.assertEqual(result["classical_state"]["provenance"]["method"], "variational")
+        self.assertTrue(result["classical_state"]["provenance"]["converged"])
+        self.assertEqual(len(result["classical_state"]["site_frames"]), 1)
+        self.assertAlmostEqual(result["classical_state"]["site_frames"][0]["spin_length"], 1.0, places=6)
+
     def test_timeout_selects_recommended_classical_method(self):
         model = {"lattice": {"sublattices": 1}, "simplified_model": {"template": "heisenberg"}}
         choice = choose_method(model, user_choice=None, timed_out=True)
