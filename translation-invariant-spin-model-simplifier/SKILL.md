@@ -23,7 +23,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
 - Read `references/input-schema.md` for required normalized fields.
 - Read `references/simplification-heuristics.md` before choosing a default candidate.
-- Read `references/classical-methods.md` and `references/lsw-assumptions.md` before running solvers.
+- Read `references/classical-methods.md`, `references/lsw-assumptions.md`, `references/lsw-method.md`, and `references/lsw-packages.md` before running solvers.
 - Read `references/fallback-rules.md` whenever a timeout or unsupported-scope branch is triggered.
 
 ## Output Requirements
@@ -31,3 +31,5 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Always show 2-3 simplification candidates with trade-offs.
 - Always state the recommendation and any auto-choice timeout rule.
 - Always list dropped terms, projection decisions, solver choices, and unsupported features.
+- When discussing LSW for a known classical ground state, default to the local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method unless you explicitly state that a narrower approximation is being used.
+- If an open-source package such as SpinW or Sunny.jl is the better path for the current model, say so explicitly instead of pretending the in-skill helper scripts are sufficient.

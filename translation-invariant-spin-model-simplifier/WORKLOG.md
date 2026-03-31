@@ -91,6 +91,9 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - `2026-03-31`: Live skill use also confirmed that the current square-lattice nearest-neighbor `XYZ` example is analytically solvable with a Luttinger-Tisza step outside the helper scripts. For `Jx = 0.806344`, `Jy = -0.864643`, `Jz = 0.345462`, the LT minimum is the `y` channel at ordering vector `(0, 0)`, corresponding to a ferromagnetic state polarized along `±y` with physical energy per site `2 Jy = -1.7292869506`.
 - `2026-03-31`: Added a live-results summary note to the Obsidian vault at `/Users/sqning/Documents/Obsidian Vault/2026-03-31-spin-model-simplifier-live-results.md`, capturing the generated bond Hamiltonian, chosen simplification, variational classical result, approximate scalar-exchange LSW continuation, and direct Luttinger-Tisza solution.
 - `2026-03-31`: User requested that future calculation summaries continue updating the same Obsidian note at `/Users/sqning/Documents/Obsidian Vault/2026-03-31-spin-model-simplifier-live-results.md` rather than creating new notes for each follow-up.
+- `2026-03-31`: Continued the same Obsidian running log with an integrated interpretation section. The note now states the preferred current classical conclusion for the worked example: `y`-axis ferromagnetism at `Q = (0, 0)`, with the scalar-exchange spin-wave continuation marked explicitly as a proxy rather than a full anisotropic theory.
+- `2026-03-31`: User ended the live test flow and requested a fresh code review of the skill. Follow-up review found new correctness issues in the current implementation around anisotropic template labeling, thermodynamic observable calculation, exact-diagonalization scope handling, and the classical-driver CLI workflow. No business-code changes were made in this round.
+- `2026-03-31`: User requested additional online research on the best LSWT method and relevant open-source packages. Updated the skill docs to encode the recommended local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method, and added package guidance for SpinW and Sunny.jl in `references/lsw-packages.md`. Verified that the updated skill still passes `quick_validate.py`.
 
 ## Next Actions
 
@@ -102,6 +105,8 @@ Maintain an accurate recovery trail for the current skill implementation and rev
 - Known live-use limitation: `scripts/linear_spin_wave_driver.py` does not yet support full anisotropic `XYZ` bond models end-to-end
 - Known live-use workaround: `Nearest-neighbor square-lattice XYZ cases can still be analyzed classically with a direct Luttinger-Tisza calculation outside the current helper scripts`
 - Obsidian logging convention: `Append future calculation summaries to /Users/sqning/Documents/Obsidian Vault/2026-03-31-spin-model-simplifier-live-results.md`
+- Follow-up review status: `Current implementation has unresolved correctness findings despite the earlier baseline acceptance`
+- LSW package guidance: `Prefer SpinW or Sunny.jl over weak in-skill approximations when the current helper scripts are too narrow for the model`
 - Branch/commit workflow: `TBD`, because the skill path is not under a local git repository
 
 ## Handoff Note
