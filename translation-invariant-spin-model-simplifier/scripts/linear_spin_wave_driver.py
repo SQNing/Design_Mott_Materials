@@ -1,36 +1,79 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import math
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
 
+from build_lswt_payload import build_lswt_payload
 
-def linear_spin_wave_summary(model):
-    spin = float(model.get("spin", 0.5))
-    exchange = float(model.get("exchange", 1.0))
-    q_grid = model.get("q_grid", [0.0, math.pi / 2.0, math.pi])
-    dispersion = []
-    for q in q_grid:
-        omega = max(0.0, 2.0 * spin * exchange * (1.0 - math.cos(q)))
-        dispersion.append({"q": float(q), "omega": float(omega)})
 
-    omegas = [point["omega"] for point in dispersion]
-    return {
-        "dispersion": dispersion,
-        "density_of_states": {
-            "omega_min": float(min(omegas)),
-            "omega_max": float(max(omegas)),
-            "count": len(omegas),
-        },
-        "thermodynamics": {
-            "free_energy": [float(0.5 * omega) for omega in omegas],
-            "specific_heat": [float(omega / (1.0 + omega)) for omega in omegas],
-            "entropy": [float(math.log1p(omega)) for omega in omegas],
-        },
-    }
+def detect_julia():
+    return shutil.which("julia")
+
+
+def check_sunny_available(julia_cmd):
+    try:
+        completed = subprocess.run(
+            [julia_cmd, "-e", "using Sunny"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        return False, str(exc)
+    if completed.returncode != 0:
+        message = completed.stderr.strip() or completed.stdout.strip() or "Sunny.jl is not available"
+        return False, message
+    return True, None
+
+
+def _error(code, message):
+    return {"status": "error", "error": {"code": code, "message": message}}
+
+
+def run_backend(payload, julia_cmd):
+    runner = Path(__file__).with_name("run_sunny_lswt.jl")
+    if not runner.exists():
+        return _error("backend-execution-failed", "Sunny LSWT runner script is missing")
+
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as handle:
+        json.dump(payload, handle)
+        input_path = handle.name
+
+    completed = subprocess.run(
+        [julia_cmd, str(runner), input_path],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        message = completed.stderr.strip() or completed.stdout.strip() or "Sunny backend execution failed"
+        return _error("backend-execution-failed", message)
+    try:
+        return json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        return _error("result-parse-failed", f"Could not parse Sunny backend output: {exc}")
+
+
+def run_linear_spin_wave(model, julia_cmd=None):
+    payload_result = build_lswt_payload(model)
+    if payload_result["status"] != "ok":
+        return payload_result
+
+    julia_cmd = julia_cmd or detect_julia()
+    if not julia_cmd:
+        return _error("missing-julia-runtime", "Julia runtime is required for Sunny-backed LSWT")
+
+    sunny_available, message = check_sunny_available(julia_cmd)
+    if not sunny_available:
+        return _error("missing-sunny-package", message or "Sunny.jl is not installed in the selected Julia environment")
+
+    return run_backend(payload_result["payload"], julia_cmd=julia_cmd)
 
 
 def exact_diagonalization_branch(model):
@@ -61,9 +104,10 @@ def _load_payload(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
+    parser.add_argument("--julia", default=None)
     args = parser.parse_args()
     payload = _load_payload(args.input)
-    output = {"linear_spin_wave": linear_spin_wave_summary(payload)}
+    output = run_linear_spin_wave(payload, julia_cmd=args.julia)
     if "cluster_size" in payload and "local_dim" in payload:
         output["exact_diagonalization"] = exact_diagonalization_branch(payload)
     print(json.dumps(output, indent=2, sort_keys=True))
