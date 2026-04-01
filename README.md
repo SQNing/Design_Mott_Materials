@@ -2,6 +2,12 @@
 
 This repository currently includes the Codex skill [`translation-invariant-spin-model-simplifier`](/Users/sqning/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier), which simplifies periodic spin Hamiltonians and prepares them for classical and linear-spin-wave analysis.
 
+Current classical-stage highlights:
+
+- geometry-aware shell mapping from lattice parameters plus fractional magnetic-atom coordinates
+- classical `variational` solving that expands the magnetic supercell until the energy density converges, with early stopping once consecutive scans stabilize and a default search cap of `6x6x6` in 3D
+- first-stage Sunny-backed LSWT support for explicit bilinear spin models with a validated classical reference state
+
 ## Quick Install
 
 ### Install Directly From GitHub In Codex
@@ -47,3 +53,5 @@ Then provide one of:
 - an operator expression
 - a local matrix or tensor
 - a natural-language model description
+
+For translation-invariant Heisenberg-like models, the current variational ground-state helper does not stay locked to a single crystallographic unit cell. It scans progressively larger magnetic supercells, tracks the energy per spin, and stops early when the result is converged.
