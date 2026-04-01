@@ -13,12 +13,14 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 4. Generate 2-3 simplification candidates with `scripts/generate_simplifications.py`.
 5. Ask the user to choose a simplified Hamiltonian and mark one recommendation.
 6. Ask whether to project to a spin model if the current basis is not already explicit.
-7. Present classical solver options and recommend one default.
-8. Run classical ground-state and thermodynamics calculations with `scripts/classical_solver_driver.py`.
-9. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`, which validates explicit bilinear spin scope, builds an LSWT payload, and orchestrates a `Sunny.jl` backend when available.
-10. Generate result plots with `scripts/render_plots.py`, including `lswt_dispersion.png`, `classical_state.png`, and a reusable `plot_payload.json`.
-11. Render the final report with `scripts/render_report.py`.
-12. When a durable run directory is desired, write the full result bundle with `scripts/write_results_bundle.py` so `report.txt`, plot files, and bundle metadata are materialized together.
+7. Present classical solver options and recommend one default. Use `scripts/decision_gates.py` to surface the next clarification question when the method or next stage has not been confirmed yet.
+8. Run classical ground-state calculations with `scripts/classical_solver_driver.py`.
+9. Ask whether to continue to thermodynamics, linear spin wave, and optional small-cluster ED. Use the stage helpers in `scripts/decision_gates.py` so the workflow remains one-question-at-a-time instead of forcing a single all-in-one run.
+10. Run thermodynamics with `scripts/classical_solver_driver.py` when the user confirms it.
+11. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`, which validates explicit bilinear spin scope, builds an LSWT payload, and orchestrates a `Sunny.jl` backend when available.
+12. Generate result plots with `scripts/render_plots.py`, including `lswt_dispersion.png`, `classical_state.png`, and a reusable `plot_payload.json`.
+13. Render the final report with `scripts/render_report.py`.
+14. When a durable run directory is desired, write the full result bundle with `scripts/write_results_bundle.py` so `report.txt`, plot files, and bundle metadata are materialized together.
 
 ## Input Notes
 
@@ -29,6 +31,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - Read `references/classical-methods.md`, `references/lsw-assumptions.md`, `references/lsw-method.md`, and `references/lsw-packages.md` before running solvers.
 - Read `references/fallback-rules.md` whenever a timeout or unsupported-scope branch is triggered.
 - The current controlled natural-language path extracts lattice kind, cell parameters, magnetic-atom fractional coordinates, shell-based `J1/J2/J3...` mappings, and basic solver hints. High-ambiguity cases surface `interaction.status = needs_input` instead of silently guessing.
+- The current semi-interactive stage gates live in `scripts/decision_gates.py`. They cover the next classical-method question, whether to run thermodynamics, whether to continue to LSWT, how to choose the LSWT `q_path`, and whether to run optional small-cluster ED.
 - For Heisenberg-like shell models, `scripts/lattice_geometry.py` can derive lattice vectors from cell parameters, enumerate neighbor shells from geometry, and map `J1/J2/J3...` to explicit bonds. If `exchange_mapping.shell_map` is present, use that override instead of assuming `J_n -> shell n`.
 - Classical ground-state support currently includes `luttinger-tisza` and `variational`. Thermodynamic estimates use the Metropolis helper in `scripts/classical_solver_driver.py`. `annealing` is documented as a future method, not a live implementation.
 - The current LT helper is limited to isotropic bilinear exchange and is best treated as a first-stage solver for single-sublattice Heisenberg/XXZ-like models.
