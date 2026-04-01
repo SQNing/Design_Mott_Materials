@@ -154,6 +154,17 @@ def _magnetic_periods_from_q(q_vector, dimension, max_denominator=24, tolerance=
     return periods
 
 
+def _classical_method_needs_input(recommended):
+    return {
+        "status": "needs_input",
+        "question": {
+            "id": "classical_method",
+            "prompt": f"Choose the classical ground-state solver. Recommended: {recommended}.",
+            "options": ["luttinger-tisza", "variational"],
+        },
+    }
+
+
 def _enumerate_supercell_periods(dimension, max_magnetic_period):
     max_magnetic_period = max(1, int(max_magnetic_period))
     dimension = max(1, min(3, int(dimension)))
@@ -225,6 +236,7 @@ def solve_luttinger_tisza(model, grid_size=33):
         raise ValueError("luttinger-tisza requires at least one bond")
 
     dimension = _active_spatial_dimension(model)
+    sublattice_count = _site_count_from_model(model)
     values = np.linspace(0.0, 0.5, int(grid_size))
     bond_terms = []
     for bond in bonds:
@@ -234,25 +246,38 @@ def solve_luttinger_tisza(model, grid_size=33):
         vector = [float(component) for component in bond.get("vector", [0.0, 0.0, 0.0])]
         while len(vector) < 3:
             vector.append(0.0)
-        bond_terms.append((coupling, vector))
+        bond_terms.append((bond["source"], bond["target"], coupling, vector))
 
     best_energy = None
     best_q = [0.0, 0.0, 0.0]
+    best_mode = None
     for q_components in np.ndindex(*(len(values),) * dimension):
         q_vector = [0.0, 0.0, 0.0]
         for axis in range(dimension):
             q_vector[axis] = float(values[q_components[axis]])
-        energy = 0.0
-        for coupling, vector in bond_terms:
-            phase = 2.0 * math.pi * sum(q_vector[axis] * vector[axis] for axis in range(3))
-            energy += coupling * math.cos(phase)
+        exchange_matrix = np.zeros((sublattice_count, sublattice_count), dtype=complex)
+        for source, target, coupling, vector in bond_terms:
+            phase = np.exp(2.0j * math.pi * sum(q_vector[axis] * vector[axis] for axis in range(3)))
+            contribution = 0.5 * coupling * phase
+            exchange_matrix[source, target] += contribution
+            exchange_matrix[target, source] += np.conjugate(contribution)
+        eigenvalues, eigenvectors = np.linalg.eigh(exchange_matrix)
+        best_index = int(np.argmin(eigenvalues.real))
+        energy = float(sublattice_count * eigenvalues[best_index].real)
         if best_energy is None or energy < best_energy - 1e-12:
             best_energy = energy
             best_q = q_vector
+            best_mode = eigenvectors[:, best_index]
 
     magnetic_periods = _magnetic_periods_from_q(best_q, dimension)
     magnetic_cell_size = int(np.prod(magnetic_periods[:dimension])) if dimension > 0 else 1
-    classical_state = build_classical_state([[0.0, 0.0, 1.0]], method="luttinger-tisza", converged=True)
+    reference_site = int(np.argmax(np.abs(best_mode))) if best_mode is not None else 0
+    reference_phase = np.angle(best_mode[reference_site]) if best_mode is not None else 0.0
+    spins = []
+    for site in range(sublattice_count):
+        phase = float(np.angle(best_mode[site]) - reference_phase) if best_mode is not None else 0.0
+        spins.append([math.cos(phase), math.sin(phase), 0.0])
+    classical_state = build_classical_state(spins, method="luttinger-tisza", converged=True)
     classical_state["ordering"] = {"kind": _commensurability_kind(best_q), "q_vector": best_q}
     classical_state["provenance"]["grid_size"] = int(grid_size)
     return {
@@ -262,15 +287,16 @@ def solve_luttinger_tisza(model, grid_size=33):
         "magnetic_supercell_energy": float(best_energy * magnetic_cell_size),
         "magnetic_periods": magnetic_periods,
         "q_vector": best_q,
-        "spins": [[0.0, 0.0, 1.0]],
+        "spins": spins,
         "classical_state": classical_state,
     }
 
 
 def recommend_method(model):
-    if model.get("lattice", {}).get("sublattices", 1) == 1 and model.get("simplified_model", {}).get(
-        "template"
-    ) in {"heisenberg", "xxz"}:
+    template = model.get("simplified_model", {}).get("template")
+    if template == "heisenberg":
+        return "luttinger-tisza"
+    if model.get("lattice", {}).get("sublattices", 1) == 1 and template == "xxz":
         return "luttinger-tisza"
     return "variational"
 
@@ -440,6 +466,7 @@ def main():
     parser.add_argument("--starts", type=int, default=16)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--method", choices=["auto", "variational", "luttinger-tisza"], default="auto")
+    parser.add_argument("--allow-auto-select", action="store_true")
     parser.add_argument("--lt-grid-size", type=int, default=33)
     parser.add_argument("--max-magnetic-period", type=int, default=6)
     parser.add_argument("--energy-tolerance", type=float, default=1e-4)
@@ -447,9 +474,15 @@ def main():
 
     payload = _load_payload(args.input)
     payload.setdefault("recommended_method", recommend_method(payload))
-    chosen_method = args.method
-    if chosen_method == "auto":
-        chosen_method = payload["recommended_method"]
+    if args.method == "auto":
+        choice = choose_method(payload, allow_auto_select=args.allow_auto_select)
+        if choice.get("method") is None:
+            payload["interaction"] = _classical_method_needs_input(payload["recommended_method"])
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+        chosen_method = choice["method"]
+    else:
+        chosen_method = args.method
     payload["chosen_method"] = chosen_method
     if chosen_method == "luttinger-tisza":
         payload["luttinger_tisza_result"] = solve_luttinger_tisza(payload, grid_size=args.lt_grid_size)
