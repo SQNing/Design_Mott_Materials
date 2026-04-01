@@ -11,9 +11,9 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 2. If normalization returns `interaction.status = needs_input`, stop and ask the user the reported clarification question before continuing.
 3. Decompose matrix or tensor local terms with `scripts/decompose_local_term.py`.
 4. Generate 2-3 simplification candidates with `scripts/generate_simplifications.py`.
-5. Ask the user to choose a simplified Hamiltonian and mark one recommendation.
+5. Ask the user to choose a simplified Hamiltonian and mark one recommendation. Do not auto-select unless the user explicitly asks for automatic continuation.
 6. Ask whether to project to a spin model if the current basis is not already explicit.
-7. Present classical solver options and recommend one default. Use `scripts/decision_gates.py` to surface the next clarification question when the method or next stage has not been confirmed yet.
+7. Present classical solver options and recommend one default. Use `scripts/decision_gates.py` to surface the next clarification question when the method or next stage has not been confirmed yet. Do not auto-run a stage unless the user explicitly says to auto-run or auto-continue.
 8. Run classical ground-state calculations with `scripts/classical_solver_driver.py`.
 9. Ask whether to continue to thermodynamics, linear spin wave, and optional small-cluster ED. Use the stage helpers in `scripts/decision_gates.py` so the workflow remains one-question-at-a-time instead of forcing a single all-in-one run.
 10. Run thermodynamics with `scripts/classical_solver_driver.py` when the user confirms it.
@@ -26,12 +26,15 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 
 - Support operator expressions, local matrices or tensors, and controlled natural-language model descriptions.
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
-- Read `references/input-schema.md` for required normalized fields.
-- Read `references/simplification-heuristics.md` before choosing a default candidate.
-- Read `references/classical-methods.md`, `references/lsw-assumptions.md`, `references/lsw-method.md`, and `references/lsw-packages.md` before running solvers.
-- Read `references/fallback-rules.md` whenever a timeout or unsupported-scope branch is triggered.
+- Required normalized payload keys are: `system`, `local_hilbert`, `lattice`, `local_term`, `parameters`, `symmetry_hints`, `projection`, `timeouts`, `user_notes`, and `provenance`.
+- `local_term.representation.kind` supports `operator`, `matrix`, and `natural_language`.
+- Apply the default simplification in this order: merge symmetry-equivalent terms, prune terms that are parametrically small relative to the dominant coupling, then map the retained operator content onto a named template such as Heisenberg or XXZ when that mapping is faithful.
+- Classical-method guidance: recommend `luttinger-tisza` for single-sublattice isotropic bilinear Heisenberg or XXZ-like models when its assumptions hold; otherwise recommend `variational`. Treat `annealing` as future scope, not a live implementation.
+- Fallback rule: stop and ask whenever the model is ambiguous, out of supported scope, or needs a stage decision. Do not auto-continue unless the user explicitly asks for automatic continuation.
+- LSWT method guidance: for a known classical ground state, default to a local-frame Holstein-Primakoff expansion plus paraunitary Bogoliubov diagonalization. If the helper scripts are too narrow for the model, say so and prefer an established package such as SpinW or Sunny.jl instead of forcing an uncontrolled approximation.
 - The current controlled natural-language path extracts lattice kind, cell parameters, magnetic-atom fractional coordinates, shell-based `J1/J2/J3...` mappings, and basic solver hints. High-ambiguity cases surface `interaction.status = needs_input` instead of silently guessing.
 - The current semi-interactive stage gates live in `scripts/decision_gates.py`. They cover the next classical-method question, whether to run thermodynamics, whether to continue to LSWT, how to choose the LSWT `q_path`, and whether to run optional small-cluster ED.
+- The workflow is strictly semi-interactive by default: recommendations are allowed, but automatic continuation is only allowed when the user explicitly asks for it.
 - For Heisenberg-like shell models, `scripts/lattice_geometry.py` can derive lattice vectors from cell parameters, enumerate neighbor shells from geometry, and map `J1/J2/J3...` to explicit bonds. If `exchange_mapping.shell_map` is present, use that override instead of assuming `J_n -> shell n`.
 - Classical ground-state support currently includes `luttinger-tisza` and `variational`. Thermodynamic estimates use the Metropolis helper in `scripts/classical_solver_driver.py`. `annealing` is documented as a future method, not a live implementation.
 - The current LT helper is limited to isotropic bilinear exchange and is best treated as a first-stage solver for single-sublattice Heisenberg/XXZ-like models.
@@ -44,7 +47,7 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 ## Output Requirements
 
 - Always show 2-3 simplification candidates with trade-offs.
-- Always state the recommendation and any auto-choice timeout rule.
+- Always state the recommendation and whether the user explicitly enabled automatic continuation.
 - When normalization or later decision gates report `interaction.status = needs_input`, stop and ask the user the question before continuing to solver stages.
 - Always list dropped terms, projection decisions, solver choices, and unsupported features.
 - When using geometry-derived shell models, report how `J1/J2/J3...` were mapped to distance shells and call out any user-provided shell overrides.

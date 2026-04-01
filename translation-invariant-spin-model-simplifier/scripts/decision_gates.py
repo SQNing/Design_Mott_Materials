@@ -18,8 +18,13 @@ def _needs_input(question_id, prompt, recommended=None, options=None):
     return payload
 
 
-def classical_stage_decision(model, user_choice=None, timed_out=False):
-    choice = choose_method(model, user_choice=user_choice, timed_out=timed_out)
+def classical_stage_decision(model, user_choice=None, timed_out=False, allow_auto_select=False):
+    choice = choose_method(
+        model,
+        user_choice=user_choice,
+        timed_out=timed_out,
+        allow_auto_select=allow_auto_select,
+    )
     if choice.get("method") is None:
         recommended = choice.get("recommended")
         return _needs_input(

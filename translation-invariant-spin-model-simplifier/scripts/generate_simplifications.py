@@ -53,20 +53,20 @@ def template_candidate(terms):
     }
 
 
-def resolve_candidate_choice(summary, user_choice=None, timed_out=False):
+def resolve_candidate_choice(summary, user_choice=None, timed_out=False, allow_auto_select=False):
     if user_choice is not None:
         return {"selected": int(user_choice), "auto_selected": False}
-    if timed_out:
+    if allow_auto_select:
         return {"selected": int(summary["recommended"]), "auto_selected": True}
     return {"selected": None, "auto_selected": False}
 
 
-def resolve_projection_choice(needs_projection, user_choice=None, timed_out=False):
+def resolve_projection_choice(needs_projection, user_choice=None, timed_out=False, allow_auto_select=False):
     if not needs_projection:
         return {"action": "not-needed", "auto_selected": False}
     if user_choice in {"project", "truncate"}:
         return {"action": user_choice, "auto_selected": False}
-    if timed_out:
+    if allow_auto_select:
         return {"action": "apply-default-projection", "auto_selected": True}
     return {"action": "await-user-choice", "auto_selected": False}
 

@@ -275,11 +275,11 @@ def recommend_method(model):
     return "variational"
 
 
-def choose_method(model, user_choice=None, timed_out=False):
+def choose_method(model, user_choice=None, timed_out=False, allow_auto_select=False):
     if user_choice is not None:
         return {"method": user_choice, "auto_selected": False}
     recommended = recommend_method(model)
-    if timed_out:
+    if allow_auto_select:
         return {"method": recommended, "auto_selected": True}
     return {"method": None, "auto_selected": False, "recommended": recommended}
 
