@@ -45,6 +45,13 @@ def build_classical_state(spins, method, converged=True):
     }
 
 
+def _site_count_from_model(model):
+    bonds = resolve_model_bonds(model)
+    if bonds:
+        return max(max(bond["source"], bond["target"]) for bond in bonds) + 1
+    return int(model.get("lattice", {}).get("sublattices", 1))
+
+
 def classical_energy(model, spins):
     bonds = resolve_model_bonds(model)
     energy = 0.0
@@ -147,6 +154,71 @@ def _magnetic_periods_from_q(q_vector, dimension, max_denominator=24, tolerance=
     return periods
 
 
+def _enumerate_supercell_periods(dimension, max_magnetic_period):
+    max_magnetic_period = max(1, int(max_magnetic_period))
+    dimension = max(1, min(3, int(dimension)))
+    periods = []
+    seen = set()
+    for bound in range(1, max_magnetic_period + 1):
+        ranges = [range(1, bound + 1) if axis < dimension else range(1, 2) for axis in range(3)]
+        for p0 in ranges[0]:
+            for p1 in ranges[1]:
+                for p2 in ranges[2]:
+                    candidate = (p0, p1, p2)
+                    if max(candidate[:dimension]) != bound:
+                        continue
+                    if candidate in seen:
+                        continue
+                    seen.add(candidate)
+                    periods.append(candidate)
+    periods.sort(key=lambda item: (np.prod(item[:dimension]), max(item[:dimension]), item))
+    return periods
+
+
+def _site_index(cell, basis_index, periods, basis_size):
+    px, py, pz = (int(value) for value in periods)
+    cx, cy, cz = (int(value) for value in cell)
+    return (((cz * py) + cy) * px + cx) * basis_size + int(basis_index)
+
+
+def expand_model_to_supercell(model, magnetic_periods):
+    bonds = resolve_model_bonds(model)
+    if not bonds:
+        raise ValueError("variational solver requires at least one bond")
+
+    periods = tuple(int(value) for value in magnetic_periods)
+    basis_size = _site_count_from_model(model)
+    expanded_bonds = []
+
+    for cx in range(periods[0]):
+        for cy in range(periods[1]):
+            for cz in range(periods[2]):
+                cell = (cx, cy, cz)
+                for bond in bonds:
+                    vector = [int(round(component)) for component in bond.get("vector", [0, 0, 0])]
+                    while len(vector) < 3:
+                        vector.append(0)
+                    target_cell = tuple((cell[axis] + vector[axis]) % periods[axis] for axis in range(3))
+                    expanded_bonds.append(
+                        {
+                            "source": _site_index(cell, bond["source"], periods, basis_size),
+                            "target": _site_index(target_cell, bond["target"], periods, basis_size),
+                            "matrix": bond["matrix"],
+                            "vector": vector,
+                        }
+                    )
+
+    expanded_model = dict(model)
+    expanded_lattice = dict(model.get("lattice", {}))
+    expanded_lattice["magnetic_periods"] = list(periods)
+    expanded_lattice["sublattices"] = basis_size * int(np.prod(periods))
+    expanded_model["lattice"] = expanded_lattice
+    expanded_model["bonds"] = expanded_bonds
+    expanded_model["magnetic_periods"] = list(periods)
+    expanded_model["magnetic_basis_size"] = basis_size
+    return expanded_model
+
+
 def solve_luttinger_tisza(model, grid_size=33):
     bonds = resolve_model_bonds(model)
     if not bonds:
@@ -217,7 +289,7 @@ def solve_variational(model, starts=16, seed=0):
     if not bonds:
         raise ValueError("variational solver requires at least one bond")
     rng = np.random.default_rng(seed)
-    n_spins = max(max(bond["source"], bond["target"]) for bond in bonds) + 1
+    n_spins = _site_count_from_model(model)
     best = None
 
     def objective(params):
@@ -237,6 +309,60 @@ def solve_variational(model, starts=16, seed=0):
         "spins": spins,
         "classical_state": build_classical_state(spins, method="variational", converged=bool(best.success)),
     }
+
+
+def solve_variational_until_converged(
+    model,
+    starts=16,
+    seed=0,
+    max_magnetic_period=6,
+    energy_tolerance=1e-4,
+):
+    dimension = _active_spatial_dimension(model)
+    periods_to_scan = _enumerate_supercell_periods(dimension, max_magnetic_period)
+    convergence_history = []
+    best_result = None
+    stable_steps = 0
+
+    for scan_index, periods in enumerate(periods_to_scan):
+        expanded_model = expand_model_to_supercell(model, periods)
+        trial = solve_variational(expanded_model, starts=starts, seed=seed + scan_index)
+        n_spins = len(trial["spins"])
+        energy_per_spin = float(trial["energy"]) / float(n_spins)
+        entry = {
+            "magnetic_periods": list(periods),
+            "energy": float(trial["energy"]),
+            "energy_per_spin": energy_per_spin,
+            "spin_count": n_spins,
+        }
+        convergence_history.append(entry)
+
+        if best_result is None or energy_per_spin < best_result["energy_per_spin"] - 1e-12:
+            best_result = {
+                **trial,
+                "energy_per_spin": energy_per_spin,
+                "magnetic_periods": list(periods),
+            }
+
+        if len(convergence_history) >= 2:
+            delta = abs(convergence_history[-1]["energy_per_spin"] - convergence_history[-2]["energy_per_spin"])
+            stable_steps = stable_steps + 1 if delta < energy_tolerance else 0
+        if stable_steps >= 2:
+            break
+
+    if best_result is None:
+        raise ValueError("variational supercell scan produced no trial states")
+
+    best_result["convergence_history"] = convergence_history
+    best_result["scanned_magnetic_periods"] = list(convergence_history[-1]["magnetic_periods"])
+    best_result["converged_supercell_scan"] = stable_steps >= 2
+    best_result["energy_tolerance"] = float(energy_tolerance)
+    best_result["max_magnetic_period"] = int(max_magnetic_period)
+    best_result["classical_state"]["ordering"]["kind"] = "commensurate"
+    best_result["classical_state"]["ordering"]["magnetic_periods"] = list(best_result["magnetic_periods"])
+    best_result["classical_state"]["provenance"]["supercell_scan"] = True
+    best_result["classical_state"]["provenance"]["converged_supercell_scan"] = bool(best_result["converged_supercell_scan"])
+    return best_result
 
 
 def random_spin(rng):
@@ -315,6 +441,8 @@ def main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--method", choices=["auto", "variational", "luttinger-tisza"], default="auto")
     parser.add_argument("--lt-grid-size", type=int, default=33)
+    parser.add_argument("--max-magnetic-period", type=int, default=6)
+    parser.add_argument("--energy-tolerance", type=float, default=1e-4)
     args = parser.parse_args()
 
     payload = _load_payload(args.input)
@@ -326,7 +454,13 @@ def main():
     if chosen_method == "luttinger-tisza":
         payload["luttinger_tisza_result"] = solve_luttinger_tisza(payload, grid_size=args.lt_grid_size)
     else:
-        payload["variational_result"] = solve_variational(payload, starts=args.starts, seed=args.seed)
+        payload["variational_result"] = solve_variational_until_converged(
+            payload,
+            starts=args.starts,
+            seed=args.seed,
+            max_magnetic_period=args.max_magnetic_period,
+            energy_tolerance=args.energy_tolerance,
+        )
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 

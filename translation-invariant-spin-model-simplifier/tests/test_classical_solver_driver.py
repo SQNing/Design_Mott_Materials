@@ -15,6 +15,7 @@ from classical_solver_driver import (
     resolve_model_bonds,
     solve_luttinger_tisza,
     solve_variational,
+    solve_variational_until_converged,
 )
 
 
@@ -46,6 +47,42 @@ class ClassicalSolverDriverTests(unittest.TestCase):
         self.assertTrue(result["classical_state"]["provenance"]["converged"])
         self.assertEqual(len(result["classical_state"]["site_frames"]), 1)
         self.assertAlmostEqual(result["classical_state"]["site_frames"][0]["spin_length"], 1.0, places=6)
+
+    def test_variational_until_converged_records_supercell_history(self):
+        model = {
+            "lattice": {"sublattices": 1, "dimension": 1},
+            "bonds": [{"source": 0, "target": 0, "vector": [1, 0, 0], "matrix": [[-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]]}],
+        }
+        result = solve_variational_until_converged(
+            model,
+            starts=8,
+            seed=3,
+            max_magnetic_period=3,
+            energy_tolerance=1e-4,
+        )
+        self.assertIn("convergence_history", result)
+        self.assertGreaterEqual(len(result["convergence_history"]), 2)
+        periods = [tuple(entry["magnetic_periods"]) for entry in result["convergence_history"]]
+        self.assertEqual(periods[0], (1, 1, 1))
+        self.assertIn((2, 1, 1), periods)
+        self.assertEqual(tuple(result["scanned_magnetic_periods"]), periods[-1])
+        self.assertEqual(tuple(result["magnetic_periods"]), (1, 1, 1))
+
+    def test_variational_until_converged_preserves_ferromagnetic_energy_density(self):
+        model = {
+            "lattice": {"sublattices": 1, "dimension": 1},
+            "bonds": [{"source": 0, "target": 0, "vector": [1, 0, 0], "matrix": [[-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]]}],
+        }
+        result = solve_variational_until_converged(
+            model,
+            starts=8,
+            seed=3,
+            max_magnetic_period=3,
+            energy_tolerance=1e-4,
+        )
+        self.assertAlmostEqual(result["energy_per_spin"], -1.0, places=4)
+        self.assertTrue(result["classical_state"]["provenance"]["converged"])
+        self.assertTrue(result["converged_supercell_scan"])
 
     def test_timeout_selects_recommended_classical_method(self):
         model = {"lattice": {"sublattices": 1}, "simplified_model": {"template": "heisenberg"}}
