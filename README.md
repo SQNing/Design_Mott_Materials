@@ -40,7 +40,7 @@ python /path/to/codex/skills/.system/skill-creator/scripts/quick_validate.py \
   ~/.codex/skills/translation-invariant-spin-model-simplifier
 ```
 
-## Use The Skill
+## How To Use
 
 Invoke it in Codex with:
 
@@ -54,4 +54,18 @@ Then provide one of:
 - a local matrix or tensor
 - a natural-language model description
 
-For translation-invariant Heisenberg-like models, the current variational ground-state helper does not stay locked to a single crystallographic unit cell. It scans progressively larger magnetic supercells, tracks the energy per spin, and stops early when the result is converged.
+The most reliable path right now is a controlled natural-language description that includes:
+
+- lattice parameters
+- fractional magnetic-atom coordinates
+- how `J1`, `J2`, `J3`, ... map to distance shells when shell labels are used
+- whether you want classical analysis only, or to continue to LSWT
+
+The skill will then:
+
+1. normalize and parse the model description
+2. propose 2-3 simplified Hamiltonian forms and recommend one
+3. ask for the next workflow decision when needed, such as the classical method or whether to continue to thermodynamics or LSWT
+4. run the selected classical stage and report the magnetic structure, energy, and any scope limits
+
+For translation-invariant Heisenberg-like models, the current `variational` ground-state helper does not stay locked to a single crystallographic unit cell. It scans progressively larger magnetic supercells, tracks the energy per spin, and stops early when the result is converged, with a default search cap of `6x6x6` in 3D.
