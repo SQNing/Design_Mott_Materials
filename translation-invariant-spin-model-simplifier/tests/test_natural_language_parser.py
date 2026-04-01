@@ -48,6 +48,28 @@ class NaturalLanguageParserTests(unittest.TestCase):
         self.assertEqual(parsed["question"]["id"], "exchange_mapping")
         self.assertIn("distance shells", parsed["question"]["prompt"])
 
+    def test_parse_controlled_text_does_not_infer_lt_from_default_word(self):
+        text = (
+            "Orthorhombic lattice with a=3, b=8, c=8, alpha=90, beta=90, gamma=90. "
+            "One magnetic atom at (0, 0, 0). "
+            "Use J1 and J2 defined by first and second distance shells. "
+            "Use default settings."
+        )
+        parsed = parse_controlled_natural_language(text)
+        self.assertEqual(parsed["status"], "ok")
+        self.assertIsNone(parsed["solver_preferences"]["classical"])
+
+    def test_parse_controlled_text_still_detects_explicit_lt_keyword(self):
+        text = (
+            "Orthorhombic lattice with a=3, b=8, c=8, alpha=90, beta=90, gamma=90. "
+            "One magnetic atom at (0, 0, 0). "
+            "Use J1 and J2 defined by first and second distance shells. "
+            "Use LT."
+        )
+        parsed = parse_controlled_natural_language(text)
+        self.assertEqual(parsed["status"], "ok")
+        self.assertEqual(parsed["solver_preferences"]["classical"], "luttinger-tisza")
+
 
 if __name__ == "__main__":
     unittest.main()

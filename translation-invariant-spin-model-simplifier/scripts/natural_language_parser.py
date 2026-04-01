@@ -84,8 +84,9 @@ def _ordinal_to_index(token):
 
 def _extract_solver_preferences(text):
     lowered = text.lower()
+    explicit_lt = re.search(r"(?<![a-z0-9])lt(?![a-z0-9])", lowered) or re.search(r"luttinger[\s-]*tisza", lowered)
     return {
-        "classical": "luttinger-tisza" if "lt" in lowered or "luttinger-tisza" in lowered else None,
+        "classical": "luttinger-tisza" if explicit_lt else None,
         "lswt": "lswt" in lowered or "spin wave" in lowered,
     }
 
