@@ -1,6 +1,6 @@
 ---
 name: translation-invariant-spin-model-simplifier
-description: Simplify translation-invariant quantum spin Hamiltonians into human-friendly forms and run classical, thermodynamic, linear-spin-wave, and optional small-cluster exact-diagonalization workflows. Use when Codex needs to work from operator expressions, local-term matrices or tensors, or controlled natural-language descriptions of periodic spin models, especially when lattice geometry, shell-based exchange mapping, classical reference states, or first-stage LSWT checks are needed.
+description: Use when Codex needs to work from operator expressions, local-term matrices or tensors, or controlled natural-language descriptions of translation-invariant periodic spin models, especially when lattice geometry, shell-based exchange mapping, classical reference states, or first-stage LSWT checks are needed.
 ---
 
 # Translation-Invariant Spin Model Simplifier
@@ -37,8 +37,10 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - The workflow is strictly semi-interactive by default: recommendations are allowed, but automatic continuation is only allowed when the user explicitly asks for it.
 - For Heisenberg-like shell models, `scripts/lattice_geometry.py` can derive lattice vectors from cell parameters, enumerate neighbor shells from geometry, and map `J1/J2/J3...` to explicit bonds. If `exchange_mapping.shell_map` is present, use that override instead of assuming `J_n -> shell n`.
 - Classical ground-state support currently includes `luttinger-tisza` and `variational`. Thermodynamic estimates use the Metropolis helper in `scripts/classical_solver_driver.py`. `annealing` is documented as a future method, not a live implementation.
+- The thermodynamics helper currently reports per-temperature energy, magnetization, specific heat, and susceptibility. Do not fabricate absolute entropy or free energy from this first-stage classical estimator.
 - The current LT helper is limited to isotropic bilinear exchange and is best treated as a first-stage solver for Heisenberg-like models, including multi-sublattice unit cells, plus the existing narrow single-sublattice XXZ-like path.
 - Treat the current LSWT path as first-stage support for explicit bilinear spin models with a classical reference state, not as a general solver for arbitrary many-body local terms.
+- The optional exact-diagonalization helper is currently limited to spin-half dimers with `local_dim = 2` and `cluster_size = 2`. Report unsupported scope for larger local spaces or clusters instead of silently reusing the dimer solver.
 - LSWT payload construction now derives lattice vectors when needed, distinguishes 1D/2D/3D from geometry plus connectivity, and auto-generates dense high-symmetry paths when the user does not provide `q_path`.
 - The currently verified Sunny-backed success path is a one-sublattice ferromagnetic Heisenberg-like example with a consistent classical reference state and a short `q_path`.
 - The currently verified plotting path covers the same minimal Sunny example and writes both image files and a reusable plotting payload.
@@ -56,3 +58,4 @@ description: Simplify translation-invariant quantum spin Hamiltonians into human
 - If `Sunny.jl` is unavailable or the model is outside first-stage bilinear scope, stop after the classical stage and explain the failure clearly instead of emitting a proxy scalar-exchange result.
 - If the supplied classical reference state is not an energy minimum for the selected model, surface the backend instability clearly instead of coercing a dispersion from an unstable state.
 - When plotting succeeds, preserve both the generated figure files and `plot_payload.json` so the same result can be redrawn later without rerunning the full workflow.
+- When thermodynamics is requested, report energy, magnetization, specific heat, and susceptibility per temperature point. Do not present absolute entropy or free energy unless a calibrated estimator has actually been run.

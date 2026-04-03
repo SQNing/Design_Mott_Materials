@@ -412,6 +412,19 @@ def metropolis_step(model, spins, temperature, rng):
     return spins, old_energy
 
 
+def _summarize_thermodynamic_samples(local_energies, local_mags, temperature):
+    safe_temperature = max(float(temperature), 1e-9)
+    mean_energy = float(np.mean(local_energies))
+    mean_mag = float(np.mean(local_mags))
+    return {
+        "temperature": float(temperature),
+        "energy": mean_energy,
+        "magnetization": mean_mag,
+        "specific_heat": float(np.var(local_energies) / (safe_temperature * safe_temperature)),
+        "susceptibility": float(np.var(local_mags) / safe_temperature),
+    }
+
+
 def estimate_thermodynamics(model, temperatures, sweeps=100, burn_in=50, seed=0):
     bonds = resolve_model_bonds(model)
     if not bonds:
@@ -420,8 +433,9 @@ def estimate_thermodynamics(model, temperatures, sweeps=100, burn_in=50, seed=0)
     n_spins = max(max(bond["source"], bond["target"]) for bond in bonds) + 1
     spins = np.array([random_spin(rng) for _ in range(n_spins)])
     grid = []
-    energy_samples = []
-    magnetization_samples = []
+    specific_heat_samples = []
+    susceptibility_samples = []
+    unresolved_observables = [None] * len(temperatures)
 
     for temperature in temperatures:
         local_energies = []
@@ -432,25 +446,25 @@ def estimate_thermodynamics(model, temperatures, sweeps=100, burn_in=50, seed=0)
                 local_energies.append(energy)
                 local_mags.append(float(np.linalg.norm(np.mean(spins, axis=0))))
 
-        mean_energy = float(np.mean(local_energies))
-        mean_mag = float(np.mean(local_mags))
-        grid.append({"temperature": float(temperature), "energy": mean_energy, "magnetization": mean_mag})
-        energy_samples.append(mean_energy)
-        magnetization_samples.append(mean_mag)
+        point = _summarize_thermodynamic_samples(local_energies, local_mags, temperature)
+        grid.append(point)
+        specific_heat_samples.append(point["specific_heat"])
+        susceptibility_samples.append(point["susceptibility"])
 
     return {
         "grid": grid,
         "observables": {
-            "energy": energy_samples,
-            "free_energy": [
-                point["energy"] - point["temperature"] * max(0.0, np.log(2.0) - point["energy"] / max(point["temperature"], 1e-9))
-                for point in grid
-            ],
-            "specific_heat": [float(np.var([item["energy"] for item in grid]))] * len(grid),
-            "magnetization": magnetization_samples,
-            "susceptibility": [float(np.var(magnetization_samples) / max(point["temperature"], 1e-9)) for point in grid],
-            "entropy": [float(max(0.0, np.log(2.0) - point["energy"] / max(point["temperature"], 1e-9))) for point in grid],
+            "energy": [point["energy"] for point in grid],
+            "free_energy": list(unresolved_observables),
+            "specific_heat": specific_heat_samples,
+            "magnetization": [point["magnetization"] for point in grid],
+            "susceptibility": susceptibility_samples,
+            "entropy": list(unresolved_observables),
         },
+        "notes": [
+            "Specific heat and susceptibility use per-temperature fluctuation estimators.",
+            "Absolute free energy and entropy are not reported by this first-stage classical estimator.",
+        ],
     }
 
 

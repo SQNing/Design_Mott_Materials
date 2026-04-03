@@ -7,6 +7,7 @@ Current classical-stage highlights:
 - geometry-aware shell mapping from lattice parameters plus fractional magnetic-atom coordinates
 - classical `variational` solving that expands the magnetic supercell until the energy density converges, with early stopping once consecutive scans stabilize and a default search cap of `6x6x6` in 3D
 - first-stage Sunny-backed LSWT support for explicit bilinear spin models with a validated classical reference state
+- thermodynamics output focused on energy, magnetization, specific heat, and susceptibility; absolute entropy/free energy are not yet calibrated in this first-stage classical workflow
 
 ## Quick Install
 
@@ -67,5 +68,7 @@ The skill will then:
 2. propose 2-3 simplified Hamiltonian forms and recommend one
 3. ask for the next workflow decision when needed, such as the classical method or whether to continue to thermodynamics or LSWT
 4. run the selected classical stage and report the magnetic structure, energy, and any scope limits
+
+Current scope note: the optional exact-diagonalization helper is limited to spin-half dimers (`local_dim = 2`, `cluster_size = 2`). Larger local spaces or clusters are reported as unsupported rather than being approximated by the dimer solver.
 
 For translation-invariant Heisenberg-like models, the current `variational` ground-state helper does not stay locked to a single crystallographic unit cell. It scans progressively larger magnetic supercells, tracks the energy per spin, and stops early when the result is converged, with a default search cap of `6x6x6` in 3D.

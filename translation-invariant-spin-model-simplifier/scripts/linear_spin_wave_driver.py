@@ -83,6 +83,12 @@ def run_linear_spin_wave(model, julia_cmd=None):
 def exact_diagonalization_branch(model):
     local_dim = int(model["local_dim"])
     cluster_size = int(model["cluster_size"])
+    if local_dim != 2 or cluster_size != 2:
+        return {
+            "supported": False,
+            "reason": "unsupported-ed-scope",
+            "supported_scope": {"local_dim": 2, "cluster_size": 2},
+        }
     if local_dim ** cluster_size > 256:
         return {"supported": False, "reason": "hilbert-space-too-large"}
 

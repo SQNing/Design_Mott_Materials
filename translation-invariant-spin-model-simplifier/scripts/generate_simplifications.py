@@ -9,6 +9,10 @@ def _sorted_terms(terms):
     return sorted(terms, key=lambda item: (-abs(item["coefficient"]), item["label"]))
 
 
+def _nearly_equal(left, right, tolerance=1e-9):
+    return abs(float(left) - float(right)) <= tolerance
+
+
 def symmetry_candidate(terms):
     merged = {}
     for term in terms:
@@ -40,10 +44,25 @@ def energy_pruned_candidate(terms, relative_threshold):
 
 
 def template_candidate(terms):
-    labels = {term["label"] for term in terms}
+    coefficients = {}
+    for term in terms:
+        coefficients.setdefault(term["label"], 0.0)
+        coefficients[term["label"]] += float(term["coefficient"])
+
+    labels = set(coefficients)
     template = "generic"
-    if {"Sx@0 Sx@1", "Sy@0 Sy@1", "Sz@0 Sz@1"}.issubset(labels):
-        template = "xxz"
+    pair_labels = {"Sx@0 Sx@1", "Sy@0 Sy@1", "Sz@0 Sz@1"}
+    if labels == pair_labels:
+        jx = coefficients["Sx@0 Sx@1"]
+        jy = coefficients["Sy@0 Sy@1"]
+        jz = coefficients["Sz@0 Sz@1"]
+        equal_pairs = [_nearly_equal(jx, jy), _nearly_equal(jx, jz), _nearly_equal(jy, jz)]
+        if all(equal_pairs):
+            template = "heisenberg"
+        elif any(equal_pairs):
+            template = "xxz"
+        else:
+            template = "xyz"
     return {
         "name": "template-map",
         "template": template,
