@@ -7,8 +7,6 @@ from datetime import datetime, timezone
 from collections.abc import Iterable
 from pathlib import Path
 
-from natural_language_parser import parse_controlled_natural_language
-
 
 DEFAULT_TIMEOUTS = {
     "simplification_seconds": 600,
@@ -17,6 +15,24 @@ DEFAULT_TIMEOUTS = {
 }
 
 SUPPORTED_REPRESENTATIONS = {"operator", "matrix", "natural_language"}
+
+
+def _default_lattice():
+    return {"kind": "unspecified", "dimension": None, "unit_cell": []}
+
+
+def _normalize_lattice_description(payload, legacy_lattice):
+    lattice_description = payload.get("lattice_description")
+    if lattice_description is None:
+        return legacy_lattice
+    if isinstance(lattice_description, str):
+        text = lattice_description.strip()
+        if not text:
+            raise ValueError("lattice_description must be non-empty")
+        return {"kind": "natural_language", "value": text}
+    if not isinstance(lattice_description, dict):
+        raise ValueError("lattice_description must be a mapping or string")
+    return lattice_description
 
 
 def _normalize_support(support):
@@ -67,61 +83,26 @@ def _infer_local_dimension_from_text(text, default=2):
     return default
 
 
-def _merge_lattice_fields(base_lattice, parsed_lattice):
-    merged = dict(base_lattice or {})
-    parsed_lattice = parsed_lattice or {}
-
-    parsed_kind = parsed_lattice.get("kind")
-    if parsed_kind and parsed_kind != "unspecified":
-        merged["kind"] = parsed_kind
-
-    for key in ("dimension", "unit_cell", "sublattices", "lattice_vectors"):
-        value = parsed_lattice.get(key)
-        if value not in (None, [], {}):
-            merged[key] = value
-
-    parsed_positions = parsed_lattice.get("positions")
-    if parsed_positions:
-        merged["positions"] = parsed_positions
-
-    parsed_cell_parameters = parsed_lattice.get("cell_parameters")
-    if parsed_cell_parameters:
-        base_cell_parameters = dict(merged.get("cell_parameters", {}))
-        base_cell_parameters.update(parsed_cell_parameters)
-        merged["cell_parameters"] = base_cell_parameters
-
-    return merged
-
-
 def normalize_freeform_text(text):
     text = (text or "").strip()
     if not text:
         raise ValueError("freeform input must be non-empty")
-    parsed = parse_controlled_natural_language(text)
-    lattice = {"kind": "unspecified", "dimension": None, "unit_cell": []}
-    exchange_mapping = {"mode": None, "shell_map": {}}
-    solver_preferences = {"classical": None, "lswt": False}
-    interaction = {"status": "ok"}
-    if parsed.get("status") == "ok":
-        lattice.update(parsed.get("lattice", {}))
-        exchange_mapping.update(parsed.get("exchange_mapping", {}))
-        solver_preferences.update(parsed.get("solver_preferences", {}))
-        interaction = {"status": "ok"}
-    elif parsed.get("status") == "needs_input":
-        interaction = {"status": "needs_input", "question": parsed.get("question", {})}
+    lattice_description = {"kind": "natural_language", "value": text}
+    hamiltonian_description = {
+        "support": [],
+        "representation": {"kind": "natural_language", "value": text},
+    }
     return {
         "system": {"name": "", "units": "arb."},
         "local_hilbert": {"dimension": _infer_local_dimension_from_text(text), "uniform": True},
-        "lattice": lattice,
-        "local_term": {
-            "support": [],
-            "representation": {"kind": "natural_language", "value": text},
-        },
+        "lattice": _default_lattice(),
+        "lattice_description": lattice_description,
+        "local_term": dict(hamiltonian_description),
+        "hamiltonian_description": hamiltonian_description,
         "parameters": {},
         "symmetry_hints": [],
-        "exchange_mapping": exchange_mapping,
-        "solver_preferences": solver_preferences,
-        "interaction": interaction,
+        "user_required_symmetries": [],
+        "allowed_breaking": [],
         "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
         "timeouts": dict(DEFAULT_TIMEOUTS),
         "user_notes": text,
@@ -147,20 +128,26 @@ def normalize_input(payload):
         local_dimension = _infer_local_dimension_from_text(value, local_dimension)
         if not user_notes:
             user_notes = value
-    parsed_nl = parse_controlled_natural_language(value) if representation == "natural_language" else None
-    normalized = {
+    legacy_lattice = payload.get("lattice", _default_lattice())
+    lattice_description = _normalize_lattice_description(payload, legacy_lattice)
+    hamiltonian_description = {
+        "support": support,
+        "representation": {
+            "kind": representation,
+            "value": value,
+        },
+    }
+    return {
         "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
         "local_hilbert": {"dimension": local_dimension, "uniform": True},
-        "lattice": payload.get("lattice", {"kind": "unspecified", "dimension": None, "unit_cell": []}),
-        "local_term": {
-            "support": support,
-            "representation": {
-                "kind": representation,
-                "value": value,
-            },
-        },
+        "lattice": legacy_lattice,
+        "lattice_description": lattice_description,
+        "local_term": dict(hamiltonian_description),
+        "hamiltonian_description": hamiltonian_description,
         "parameters": payload.get("parameters", {}),
         "symmetry_hints": payload.get("symmetry_hints", []),
+        "user_required_symmetries": payload.get("user_required_symmetries", []),
+        "allowed_breaking": payload.get("allowed_breaking", []),
         "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
         "timeouts": dict(DEFAULT_TIMEOUTS),
         "user_notes": user_notes,
@@ -168,26 +155,7 @@ def normalize_input(payload):
             "source_mode": payload.get("source_mode", representation),
             "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         },
-    }
-    return {
-        **normalized,
-        **(
-            {
-                "lattice": _merge_lattice_fields(normalized["lattice"], parsed_nl.get("lattice", {})),
-                "exchange_mapping": parsed_nl.get("exchange_mapping", {"mode": None, "shell_map": {}}),
-                "solver_preferences": parsed_nl.get("solver_preferences", {"classical": None, "lswt": False}),
-                "interaction": {
-                    "status": parsed_nl.get("status", "ok"),
-                    **(
-                        {"question": parsed_nl.get("question", {})}
-                        if parsed_nl.get("status") == "needs_input"
-                        else {}
-                    ),
-                },
-            }
-            if representation == "natural_language"
-            else {}
-        ),
+        "interaction": payload.get("interaction"),
     }
 
 

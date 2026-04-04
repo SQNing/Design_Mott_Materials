@@ -5,81 +5,70 @@ import sys
 from pathlib import Path
 
 
-def _sorted_terms(terms):
-    return sorted(terms, key=lambda item: (-abs(item["coefficient"]), item["label"]))
-
-
-def symmetry_candidate(terms):
-    merged = {}
-    for term in terms:
-        merged.setdefault(term["label"], 0.0)
-        merged[term["label"]] += term["coefficient"]
+def faithful_candidate(effective_model):
     return {
-        "name": "symmetry-preserving",
-        "terms": [{"label": key, "coefficient": value} for key, value in sorted(merged.items())],
+        "name": "faithful-readable",
+        "main": list(effective_model.get("main", [])),
+        "low_weight": list(effective_model.get("low_weight", [])),
+        "residual": list(effective_model.get("residual", [])),
         "dropped_terms": [],
-        "rationale": "Keep all symmetry-allowed terms and combine duplicate operator labels.",
+        "rationale": "Preserve the readable main model while keeping low-weight and residual structure visible.",
+        "requires_user_confirmation": False,
     }
 
 
-def energy_pruned_candidate(terms, relative_threshold):
-    scale = max(abs(term["coefficient"]) for term in terms) if terms else 0.0
-    kept = []
-    dropped = []
-    for term in terms:
-        if scale and abs(term["coefficient"]) / scale < relative_threshold:
-            dropped.append(term["label"])
-        else:
-            kept.append(term)
+def readable_core_candidate(effective_model):
     return {
-        "name": "energy-pruned",
-        "terms": _sorted_terms(kept),
-        "dropped_terms": dropped,
-        "rationale": "Discard parametrically small terms relative to the dominant coupling scale.",
-    }
-
-
-def template_candidate(terms):
-    labels = {term["label"] for term in terms}
-    template = "generic"
-    if {"Sx@0 Sx@1", "Sy@0 Sy@1", "Sz@0 Sz@1"}.issubset(labels):
-        template = "xxz"
-    return {
-        "name": "template-map",
-        "template": template,
-        "terms": _sorted_terms(terms),
+        "name": "readable-core",
+        "main": list(effective_model.get("main", [])),
+        "low_weight": [],
+        "residual": list(effective_model.get("residual", [])),
         "dropped_terms": [],
-        "rationale": "Map the model onto the closest named spin Hamiltonian when possible.",
+        "rationale": "Hide low-weight terms from the core readable view without deleting them from the model state.",
+        "requires_user_confirmation": False,
     }
 
 
-def resolve_candidate_choice(summary, user_choice=None, timed_out=False, allow_auto_select=False):
+def aggressive_minimal_candidate(effective_model):
+    return {
+        "name": "aggressive-minimal",
+        "main": list(effective_model.get("main", [])),
+        "low_weight": [],
+        "residual": [],
+        "dropped_terms": [term.get("canonical_label", term.get("type", "term")) for term in effective_model.get("low_weight", [])]
+        + [term.get("canonical_label", term.get("type", "term")) for term in effective_model.get("residual", [])],
+        "rationale": "Present only the main readable model. This is concise but may hide physically relevant weak or unmatched terms.",
+        "requires_user_confirmation": True,
+    }
+
+
+def resolve_candidate_choice(summary, user_choice=None, timed_out=False):
     if user_choice is not None:
         return {"selected": int(user_choice), "auto_selected": False}
-    if allow_auto_select:
+    if timed_out:
         return {"selected": int(summary["recommended"]), "auto_selected": True}
     return {"selected": None, "auto_selected": False}
 
 
-def resolve_projection_choice(needs_projection, user_choice=None, timed_out=False, allow_auto_select=False):
+def resolve_projection_choice(needs_projection, user_choice=None, timed_out=False):
     if not needs_projection:
         return {"action": "not-needed", "auto_selected": False}
     if user_choice in {"project", "truncate"}:
         return {"action": user_choice, "auto_selected": False}
-    if allow_auto_select:
+    if timed_out:
         return {"action": "apply-default-projection", "auto_selected": True}
     return {"action": "await-user-choice", "auto_selected": False}
 
 
 def generate_candidates(model, relative_threshold=0.1):
-    terms = model["decomposition"]["terms"]
+    del relative_threshold
+    effective_model = model["effective_model"]
     candidates = [
-        symmetry_candidate(terms),
-        energy_pruned_candidate(terms, relative_threshold),
-        template_candidate(terms),
+        faithful_candidate(effective_model),
+        readable_core_candidate(effective_model),
+        aggressive_minimal_candidate(effective_model),
     ]
-    recommended = 2 if candidates[2].get("template") != "generic" else 0
-    return {"recommended": recommended, "candidates": candidates}
+    return {"recommended": 0, "candidates": candidates}
 
 
 def _load_payload(path):

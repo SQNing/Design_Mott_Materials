@@ -22,7 +22,7 @@ def classical_stage_decision(model, user_choice=None, timed_out=False, allow_aut
     choice = choose_method(
         model,
         user_choice=user_choice,
-        timed_out=timed_out,
+        timed_out=timed_out if allow_auto_select else False,
         allow_auto_select=allow_auto_select,
     )
     if choice.get("method") is None:
