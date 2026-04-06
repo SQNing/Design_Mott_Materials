@@ -317,6 +317,29 @@ def _default_structure_style():
     }
 
 
+def _merged_classical_style(plot_options):
+    style = dict(_default_structure_style())
+    overrides = plot_options.get("classical_style", {})
+    if isinstance(overrides, dict):
+        style.update(overrides)
+    return style
+
+
+def _default_figure_size(render_mode):
+    if render_mode == "chain":
+        return [10.5, 4.2]
+    if render_mode == "plane":
+        return [9.2, 8.2]
+    return [9.8, 6.8]
+
+
+def _resolved_figure_size(plot_options, render_mode):
+    figure_size = plot_options.get("classical_figsize")
+    if isinstance(figure_size, (list, tuple)) and len(figure_size) == 2:
+        return [float(figure_size[0]), float(figure_size[1])]
+    return _default_figure_size(render_mode)
+
+
 def _default_display_rotation():
     target_direction = _normalize([0.85, -0.38, 0.36])
     return {
@@ -397,6 +420,7 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
         for index, label in enumerate(_basis_labels(site_count))
     ]
     unit_cell_segments = _build_unit_cell_segments(lattice_vectors, repeat_cells, spatial_dimension)
+    render_mode = "chain" if spatial_dimension <= 1 else "plane" if spatial_dimension == 2 else "structure"
     return {
         "site_frames": frames,
         "ordering": ordering,
@@ -407,9 +431,10 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
         "basis_legend": basis_legend,
         "unit_cell_segments": unit_cell_segments,
         "lattice_vectors": lattice_vectors,
-        "render_mode": "chain" if spatial_dimension <= 1 else "plane" if spatial_dimension == 2 else "structure",
+        "render_mode": render_mode,
         "view": _default_view(spatial_dimension),
-        "style": _default_structure_style(),
+        "style": _merged_classical_style(plot_options),
+        "figure_size": _resolved_figure_size(plot_options, render_mode),
         "display_rotation": {
             "kind": display_rotation["kind"],
             "source_direction": display_rotation["source_direction"],
@@ -422,7 +447,7 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
 def _render_classical_state_chain(classical_state, output_path):
     expanded_sites = classical_state.get("expanded_sites", [])
     style = classical_state.get("style", _default_structure_style())
-    fig, ax = plt.subplots(figsize=(10.5, 4.2))
+    fig, ax = plt.subplots(figsize=classical_state.get("figure_size", _default_figure_size("chain")))
 
     xs = [site["position"][0] for site in expanded_sites]
     ys = [0.0 for _ in expanded_sites]
@@ -473,7 +498,7 @@ def _render_classical_state_chain(classical_state, output_path):
 def _render_classical_state_plane(classical_state, output_path):
     expanded_sites = classical_state.get("expanded_sites", [])
     style = classical_state.get("style", _default_structure_style())
-    fig, ax = plt.subplots(figsize=(9.2, 8.2))
+    fig, ax = plt.subplots(figsize=classical_state.get("figure_size", _default_figure_size("plane")))
 
     for segment in classical_state.get("unit_cell_segments", []):
         start = segment["start"]
@@ -577,7 +602,7 @@ def _render_classical_state(classical_state, output_path):
     lattice_vectors = classical_state.get("lattice_vectors", [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     view = classical_state.get("view", _default_view(spatial_dimension))
     style = classical_state.get("style", _default_structure_style())
-    fig = plt.figure(figsize=(9.8, 6.8))
+    fig = plt.figure(figsize=classical_state.get("figure_size", _default_figure_size("structure")))
     ax = fig.add_subplot(111, projection="3d")
 
     primitive_scale = min(_vector_norm(vector) for vector in lattice_vectors if _vector_norm(vector) > 1e-12)

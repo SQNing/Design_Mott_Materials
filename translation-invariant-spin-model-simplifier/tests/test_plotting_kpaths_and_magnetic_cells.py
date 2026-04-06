@@ -305,6 +305,71 @@ class PlottingAndKPathTests(unittest.TestCase):
 
         self.assertEqual(plot_payload["classical_state"]["repeat_cells"], [4, 3, 2])
 
+    def test_build_plot_payload_accepts_custom_classical_style_overrides(self):
+        payload = {
+            "lattice": {
+                "kind": "kagome",
+                "dimension": 2,
+                "positions": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]],
+                "lattice_vectors": [[1.0, 0.0, 0.0], [0.5, 0.8660254037844386, 0.0], [0.0, 0.0, 8.0]],
+            },
+            "plot_options": {
+                "classical_style": {
+                    "atom_size": 420.0,
+                    "arrow_length_factor": 0.7,
+                    "arrow_line_width": 3.4,
+                }
+            },
+            "classical": {
+                "chosen_method": "variational",
+                "classical_state": {
+                    "site_frames": [
+                        {"site": 0, "spin_length": 0.5, "direction": [1.0, 0.0, 0.0]},
+                        {"site": 1, "spin_length": 0.5, "direction": [-0.5, 0.8660254037844386, 0.0]},
+                        {"site": 2, "spin_length": 0.5, "direction": [-0.5, -0.8660254037844386, 0.0]},
+                    ],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                },
+            },
+            "lswt": {"status": "error", "backend": {"name": "Sunny.jl"}, "error": {"code": "missing", "message": "x"}},
+        }
+
+        plot_payload = _build_plot_payload(payload)
+        style = plot_payload["classical_state"]["style"]
+
+        self.assertEqual(style["atom_size"], 420.0)
+        self.assertEqual(style["arrow_length_factor"], 0.7)
+        self.assertEqual(style["arrow_line_width"], 3.4)
+
+    def test_build_plot_payload_accepts_custom_classical_figure_size(self):
+        payload = {
+            "lattice": {
+                "kind": "kagome",
+                "dimension": 2,
+                "positions": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]],
+                "lattice_vectors": [[1.0, 0.0, 0.0], [0.5, 0.8660254037844386, 0.0], [0.0, 0.0, 8.0]],
+            },
+            "plot_options": {
+                "classical_figsize": [12.0, 9.0],
+            },
+            "classical": {
+                "chosen_method": "variational",
+                "classical_state": {
+                    "site_frames": [
+                        {"site": 0, "spin_length": 0.5, "direction": [1.0, 0.0, 0.0]},
+                        {"site": 1, "spin_length": 0.5, "direction": [-0.5, 0.8660254037844386, 0.0]},
+                        {"site": 2, "spin_length": 0.5, "direction": [-0.5, -0.8660254037844386, 0.0]},
+                    ],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                },
+            },
+            "lswt": {"status": "error", "backend": {"name": "Sunny.jl"}, "error": {"code": "missing", "message": "x"}},
+        }
+
+        plot_payload = _build_plot_payload(payload)
+
+        self.assertEqual(plot_payload["classical_state"]["figure_size"], [12.0, 9.0])
+
 
 if __name__ == "__main__":
     unittest.main()
