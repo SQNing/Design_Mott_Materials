@@ -10,7 +10,7 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 from decision_gates import classical_stage_decision
 from build_lswt_payload import build_lswt_payload
 from classical_solver_driver import run_classical_solver
-from render_plots import _lt_diagnostic_summary, render_plots
+from render_plots import _auto_resolution_summary, _lt_diagnostic_summary, render_plots
 from render_report import render_text
 
 
@@ -168,6 +168,26 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertIn("q = [0.5, 0.0, 0.0]", summary)
         self.assertIn("lambda_min = -2.0", summary)
         self.assertIn("residual = 0.125", summary)
+
+    def test_auto_resolution_summary_includes_reason_and_residuals(self):
+        summary = _auto_resolution_summary(
+            {
+                "enabled": True,
+                "recommended_method": "luttinger-tisza",
+                "initial_method": "luttinger-tisza",
+                "resolved_method": "generalized-lt",
+                "reason": "generalized-lt-improved-residual",
+                "lt_residual": 0.6,
+                "generalized_lt_residual": 0.1,
+            }
+        )
+
+        self.assertIn("recommended = luttinger-tisza", summary)
+        self.assertIn("initial = luttinger-tisza", summary)
+        self.assertIn("resolved = generalized-lt", summary)
+        self.assertIn("reason = generalized-lt-improved-residual", summary)
+        self.assertIn("lt_residual = 0.6", summary)
+        self.assertIn("generalized_lt_residual = 0.1", summary)
 
     def test_render_plots_writes_lt_diagnostics_plot_when_lt_results_are_present(self):
         payload = {

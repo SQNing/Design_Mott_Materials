@@ -899,7 +899,23 @@ def _lt_diagnostic_summary(result, label_value_pairs):
     return "\n".join(lines)
 
 
-def _render_lt_diagnostics(lt_result, generalized_lt_result, output_path):
+def _auto_resolution_summary(auto_resolution):
+    if not auto_resolution or not auto_resolution.get("enabled"):
+        return ""
+    lines = [
+        f"recommended = {auto_resolution.get('recommended_method', 'n/a')}",
+        f"initial = {auto_resolution.get('initial_method', 'n/a')}",
+        f"resolved = {auto_resolution.get('resolved_method', 'n/a')}",
+        f"reason = {auto_resolution.get('reason', 'n/a')}",
+    ]
+    if auto_resolution.get("lt_residual") is not None:
+        lines.append(f"lt_residual = {auto_resolution.get('lt_residual')}")
+    if auto_resolution.get("generalized_lt_residual") is not None:
+        lines.append(f"generalized_lt_residual = {auto_resolution.get('generalized_lt_residual')}")
+    return "\n".join(lines)
+
+
+def _render_lt_diagnostics(lt_result, generalized_lt_result, auto_resolution, output_path):
     fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.6))
 
     lt_magnitudes = _lt_eigenvector_magnitudes(lt_result)
@@ -949,6 +965,18 @@ def _render_lt_diagnostics(lt_result, generalized_lt_result, output_path):
         fontsize=10,
         bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85, "edgecolor": "#cccccc"},
     )
+
+    auto_summary = _auto_resolution_summary(auto_resolution)
+    if auto_summary:
+        fig.text(
+            0.5,
+            0.02,
+            auto_summary,
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.82, "edgecolor": "#cccccc"},
+        )
 
     fig.suptitle("LT / Generalized LT Diagnostics", y=0.98)
     fig.tight_layout()
@@ -1038,7 +1066,12 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
     generalized_lt_result = payload.get("generalized_lt_result", {})
     if lt_result or generalized_lt_result:
         diagnostics_path = output_dir / "lt_diagnostics.png"
-        _render_lt_diagnostics(lt_result, generalized_lt_result, diagnostics_path)
+        _render_lt_diagnostics(
+            lt_result,
+            generalized_lt_result,
+            payload.get("classical", {}).get("auto_resolution", {}),
+            diagnostics_path,
+        )
         result["plots"]["lt_diagnostics"] = {"status": "ok", "path": str(diagnostics_path)}
     else:
         result["plots"]["lt_diagnostics"] = {
