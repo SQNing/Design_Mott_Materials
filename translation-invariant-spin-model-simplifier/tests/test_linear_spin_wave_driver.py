@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -98,6 +99,129 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "invalid-classical-reference-state")
+
+    def test_run_linear_spin_wave_reports_missing_julia_command(self):
+        model = {
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "sublattices": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "heisenberg",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1, 0, 0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "classical": {
+                "chosen_method": "luttinger-tisza",
+                "classical_state": {
+                    "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                },
+            },
+        }
+
+        with patch("linear_spin_wave_driver.subprocess.run", side_effect=FileNotFoundError("julia")):
+            result = run_linear_spin_wave(model)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "missing-julia-command")
+
+    def test_run_linear_spin_wave_reports_backend_process_failure(self):
+        model = {
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "sublattices": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "heisenberg",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1, 0, 0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "classical": {
+                "chosen_method": "luttinger-tisza",
+                "classical_state": {
+                    "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                },
+            },
+        }
+
+        error = subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["julia", "run_sunny_lswt.jl"],
+            stderr="backend exploded",
+        )
+        with patch("linear_spin_wave_driver.subprocess.run", side_effect=error):
+            result = run_linear_spin_wave(model)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "backend-process-failed")
+        self.assertEqual(result["error"]["message"], "backend exploded")
+
+    def test_run_linear_spin_wave_reports_invalid_backend_json(self):
+        model = {
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "sublattices": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "heisenberg",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1, 0, 0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "classical": {
+                "chosen_method": "luttinger-tisza",
+                "classical_state": {
+                    "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                },
+            },
+        }
+
+        class Completed:
+            stdout = "not-json"
+
+        with patch("linear_spin_wave_driver.subprocess.run", return_value=Completed()):
+            result = run_linear_spin_wave(model)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "invalid-backend-json")
 
 
 if __name__ == "__main__":
