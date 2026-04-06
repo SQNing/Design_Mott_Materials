@@ -1,5 +1,21 @@
 #!/usr/bin/env julia
 
+const SCRIPT_DIR = dirname(@__FILE__)
+const LOCAL_DEPOT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-depot"))
+const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-env-v06"))
+
+try
+    if isdir(LOCAL_DEPOT)
+        empty!(DEPOT_PATH)
+        push!(DEPOT_PATH, LOCAL_DEPOT)
+    end
+    @eval using Pkg
+    if isfile(joinpath(LOCAL_PROJECT, "Project.toml"))
+        Pkg.activate(LOCAL_PROJECT; io=devnull)
+    end
+catch
+end
+
 function emit_without_json3(status::String, code::String, message::String)
     escaped = replace(message, "\"" => "\\\"")
     println("{\"status\":\"$(status)\",\"backend\":{\"name\":\"Sunny.jl\"},\"linear_spin_wave\":{},\"error\":{\"code\":\"$(code)\",\"message\":\"$(escaped)\"}}")
@@ -38,19 +54,26 @@ function build_crystal(payload)
     latvecs = to_float_matrix(payload.lattice_vectors)
     positions = [to_float_vector(position) for position in payload.positions]
     types = ["site$(index)" for index in 1:length(positions)]
-    return Crystal(latvecs, positions; types=types)
+    return Sunny.Crystal(latvecs, positions; types=types)
 end
 
 function build_system(crystal, payload)
-    moments = [Int(moment.site) + 1 => Moment(s=Float64(moment.spin), g=Float64(moment.g)) for moment in payload.moments]
-    sys = System(crystal, moments, :dipole)
+    infos = [
+        Sunny.SpinInfo(
+            Int(moment.site) + 1;
+            S=Float64(moment.spin),
+            g=Float64(moment.g),
+        )
+        for moment in payload.moments
+    ]
+    sys = Sunny.System(crystal, (1, 1, 1), infos, :dipole)
     for bond in payload.bonds
         matrix = to_float_matrix(bond.exchange_matrix)
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.vector))))
-        set_exchange!(sys, matrix, Bond(Int(bond.source) + 1, Int(bond.target) + 1, offset))
+        Sunny.set_exchange!(sys, matrix, Sunny.Bond(Int(bond.source) + 1, Int(bond.target) + 1, offset))
     end
     for frame in payload.reference_frames
-        set_dipole!(sys, to_float_vector(frame.direction), (1, 1, 1, Int(frame.site) + 1))
+        Sunny.set_dipole!(sys, to_float_vector(frame.direction), (1, 1, 1, Int(frame.site) + 1))
     end
     return sys
 end
@@ -73,7 +96,7 @@ function bands_at_q(bands, index::Int)
         value = bands[index]
         return isa(value, Number) ? [Float64(value)] : Float64.(vec(value))
     end
-    value = bands[:, index]
+    value = bands[index, :]
     return isa(value, Number) ? [Float64(value)] : Float64.(vec(value))
 end
 
@@ -130,9 +153,9 @@ end
 try
     crystal = build_crystal(payload)
     sys = build_system(crystal, payload)
-    swt = SpinWaveTheory(sys; measure=nothing)
+    swt = Sunny.SpinWaveTheory(sys)
     q_points = select_q_points(payload)
-    bands = dispersion(swt, q_points)
+    bands = Sunny.dispersion(swt, q_points)
     emit_payload(
         Dict(
             "status" => "ok",

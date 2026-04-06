@@ -48,6 +48,54 @@ class RenderPlotsTests(unittest.TestCase):
             self.assertEqual(plot_payload["metadata"]["backend"], "Sunny.jl")
             self.assertEqual(plot_payload["lswt_dispersion"]["band_count"], 2)
 
+    def test_render_plots_writes_thermodynamics_plot_when_available(self):
+        payload = {
+            "model_name": "thermo-demo",
+            "classical": {
+                "chosen_method": "variational",
+                "classical_state": {
+                    "site_frames": [
+                        {"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]},
+                    ],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                    "provenance": {"method": "variational", "converged": True},
+                },
+            },
+            "thermodynamics_result": {
+                "grid": [
+                    {
+                        "temperature": 0.5,
+                        "energy": -1.0,
+                        "free_energy": -1.0,
+                        "specific_heat": 0.0,
+                        "magnetization": 0.6,
+                        "susceptibility": 0.1,
+                        "entropy": 0.0,
+                    },
+                    {
+                        "temperature": 1.0,
+                        "energy": -0.8,
+                        "free_energy": -0.9,
+                        "specific_heat": 0.2,
+                        "magnetization": 0.2,
+                        "susceptibility": 0.3,
+                        "entropy": 0.1,
+                    },
+                ],
+            },
+            "lswt": {
+                "status": "error",
+                "backend": {"name": "Sunny.jl"},
+                "error": {"code": "missing-sunny-package", "message": "not installed"},
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = render_plots(payload, output_dir=tmpdir)
+            output_dir = Path(tmpdir)
+            self.assertEqual(result["plots"]["thermodynamics"]["status"], "ok")
+            self.assertTrue((output_dir / "thermodynamics.png").exists())
+            self.assertGreater((output_dir / "thermodynamics.png").stat().st_size, 0)
+
     def test_render_plots_keeps_classical_plot_when_lswt_failed(self):
         payload = {
             "model_name": "unstable-demo",

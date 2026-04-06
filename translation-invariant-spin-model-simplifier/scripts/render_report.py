@@ -54,6 +54,67 @@ def render_text(payload):
                 lines.append(f"- {plot_name}: {metadata['path']}")
             elif metadata.get("reason"):
                 lines.append(f"- {plot_name}: {metadata.get('status', 'skipped')} ({metadata['reason']})")
+    thermodynamics = payload.get("thermodynamics_result", {})
+    thermo_grid = thermodynamics.get("grid", [])
+    if thermo_grid:
+        lines.append("")
+        lines.append("Classical thermodynamics:")
+        reference = thermodynamics.get("reference", {})
+        sampling = thermodynamics.get("sampling", {})
+        uncertainties = thermodynamics.get("uncertainties", {})
+        autocorrelation = thermodynamics.get("autocorrelation", {})
+        if reference:
+            lines.append(
+                "- normalization: "
+                f"{reference.get('normalization', 'n/a')} "
+                f"high_T_entropy={reference.get('high_temperature_entropy', 'n/a')} "
+                f"energy_infinite_temperature={reference.get('energy_infinite_temperature', 'n/a')}"
+            )
+        if sampling:
+            lines.append(
+                "- sampling: "
+                f"scan_order={sampling.get('scan_order', 'n/a')} "
+                f"reuse_configuration={sampling.get('reuse_configuration', 'n/a')} "
+                f"sweeps={sampling.get('sweeps', 'n/a')} "
+                f"burn_in={sampling.get('burn_in', 'n/a')} "
+                f"measurement_interval={sampling.get('measurement_interval', 'n/a')}"
+            )
+        for point in thermo_grid:
+            temperature = point.get("temperature", "n/a")
+            index = next(
+                (
+                    idx
+                    for idx, item in enumerate(thermo_grid)
+                    if item.get("temperature", None) == temperature
+                ),
+                None,
+            )
+            energy_stderr = uncertainties.get("energy", [])[index] if index is not None and index < len(uncertainties.get("energy", [])) else "n/a"
+            free_energy_stderr = uncertainties.get("free_energy", [])[index] if index is not None and index < len(uncertainties.get("free_energy", [])) else "n/a"
+            specific_heat_stderr = uncertainties.get("specific_heat", [])[index] if index is not None and index < len(uncertainties.get("specific_heat", [])) else "n/a"
+            magnetization_stderr = uncertainties.get("magnetization", [])[index] if index is not None and index < len(uncertainties.get("magnetization", [])) else "n/a"
+            susceptibility_stderr = uncertainties.get("susceptibility", [])[index] if index is not None and index < len(uncertainties.get("susceptibility", [])) else "n/a"
+            entropy_stderr = uncertainties.get("entropy", [])[index] if index is not None and index < len(uncertainties.get("entropy", [])) else "n/a"
+            tau_energy = autocorrelation.get("energy", [])[index] if index is not None and index < len(autocorrelation.get("energy", [])) else "n/a"
+            tau_magnetization = autocorrelation.get("magnetization", [])[index] if index is not None and index < len(autocorrelation.get("magnetization", [])) else "n/a"
+            lines.append(
+                "- "
+                f"T={temperature} "
+                f"energy={point.get('energy', 'n/a')} "
+                f"free_energy={point.get('free_energy', 'n/a')} "
+                f"specific_heat={point.get('specific_heat', 'n/a')} "
+                f"magnetization={point.get('magnetization', 'n/a')} "
+                f"susceptibility={point.get('susceptibility', 'n/a')} "
+                f"entropy={point.get('entropy', 'n/a')} "
+                f"energy_stderr={energy_stderr} "
+                f"free_energy_stderr={free_energy_stderr} "
+                f"specific_heat_stderr={specific_heat_stderr} "
+                f"magnetization_stderr={magnetization_stderr} "
+                f"susceptibility_stderr={susceptibility_stderr} "
+                f"entropy_stderr={entropy_stderr} "
+                f"tau_E={tau_energy} "
+                f"tau_M={tau_magnetization}"
+            )
     lines.append(f"Projection status: {payload['projection']['status']}")
     lines.append(f"Chosen classical method: {payload['classical']['chosen_method']}")
     lines.append("Linear spin-wave points:")

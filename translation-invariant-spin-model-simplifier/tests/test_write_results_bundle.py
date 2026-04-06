@@ -29,6 +29,28 @@ class WriteResultsBundleTests(unittest.TestCase):
                     "provenance": {"method": "variational", "converged": True},
                 },
             },
+            "thermodynamics_result": {
+                "grid": [
+                    {
+                        "temperature": 0.5,
+                        "energy": -1.0,
+                        "free_energy": -1.0,
+                        "specific_heat": 0.0,
+                        "magnetization": 0.6,
+                        "susceptibility": 0.1,
+                        "entropy": 0.0,
+                    },
+                    {
+                        "temperature": 1.0,
+                        "energy": -0.8,
+                        "free_energy": -0.9,
+                        "specific_heat": 0.2,
+                        "magnetization": 0.2,
+                        "susceptibility": 0.3,
+                        "entropy": 0.1,
+                    },
+                ],
+            },
             "lswt": {
                 "status": "ok",
                 "backend": {"name": "Sunny.jl"},
@@ -48,9 +70,12 @@ class WriteResultsBundleTests(unittest.TestCase):
             self.assertTrue((output_dir / "plot_payload.json").exists())
             self.assertTrue((output_dir / "lswt_dispersion.png").exists())
             self.assertTrue((output_dir / "classical_state.png").exists())
+            self.assertTrue((output_dir / "thermodynamics.png").exists())
             report_text = (output_dir / "report.txt").read_text(encoding="utf-8")
             self.assertIn("Plot status: ok", report_text)
             self.assertIn("lswt_dispersion.png", report_text)
+            self.assertIn("thermodynamics.png", report_text)
+            self.assertIn("Classical thermodynamics", report_text)
             bundle_manifest = json.loads((output_dir / "bundle_manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(bundle_manifest["plots"]["status"], "ok")
 

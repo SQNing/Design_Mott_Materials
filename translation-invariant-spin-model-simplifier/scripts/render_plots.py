@@ -590,6 +590,43 @@ def _render_dispersion_with_path(dispersion, path_metadata, output_path):
     plt.close(fig)
 
 
+def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None):
+    temperatures = [point.get("temperature") for point in thermodynamics_grid]
+    series = [
+        ("energy", "Energy"),
+        ("free_energy", "Free energy"),
+        ("specific_heat", "Specific heat"),
+        ("magnetization", "Magnetization"),
+        ("susceptibility", "Susceptibility"),
+        ("entropy", "Entropy"),
+    ]
+
+    fig, axes = plt.subplots(3, 2, figsize=(9, 9), sharex=True)
+    axes = axes.flatten()
+    for axis, (key, label) in zip(axes, series):
+        values = [point.get(key, float("nan")) for point in thermodynamics_grid]
+        if uncertainties and key in uncertainties and len(uncertainties[key]) == len(values):
+            axis.errorbar(
+                temperatures,
+                values,
+                yerr=uncertainties[key],
+                marker="o",
+                linewidth=1.4,
+                markersize=4,
+                capsize=3,
+            )
+        else:
+            axis.plot(temperatures, values, marker="o", linewidth=1.6, markersize=4)
+        axis.set_ylabel(label)
+        axis.grid(True, alpha=0.25)
+    axes[-2].set_xlabel("Temperature")
+    axes[-1].set_xlabel("Temperature")
+    fig.suptitle("Classical Thermodynamics", y=0.98)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells=5):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -606,6 +643,7 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
         "plots": {
             "classical_state": {"status": "skipped", "path": None},
             "lswt_dispersion": {"status": "skipped", "path": None, "reason": ""},
+            "thermodynamics": {"status": "skipped", "path": None, "reason": ""},
         },
     }
 
@@ -632,6 +670,19 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
         result["plots"]["lswt_dispersion"] = {"status": "skipped", "path": None, "reason": reason}
         if result["plots"]["classical_state"]["status"] == "ok":
             result["status"] = "partial"
+
+    thermodynamics = payload.get("thermodynamics_result", {})
+    thermo_grid = thermodynamics.get("grid", [])
+    if thermo_grid:
+        thermodynamics_path = output_dir / "thermodynamics.png"
+        _render_thermodynamics(thermo_grid, thermodynamics_path, uncertainties=thermodynamics.get("uncertainties"))
+        result["plots"]["thermodynamics"] = {"status": "ok", "path": str(thermodynamics_path)}
+    else:
+        result["plots"]["thermodynamics"] = {
+            "status": "skipped",
+            "path": None,
+            "reason": "Thermodynamics result unavailable",
+        }
 
     return result
 
