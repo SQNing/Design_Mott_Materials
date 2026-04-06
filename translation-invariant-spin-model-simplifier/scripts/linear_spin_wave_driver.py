@@ -2,10 +2,18 @@
 import argparse
 import json
 import math
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
+
+from build_lswt_payload import build_lswt_payload
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+SUNNY_LSWT_SCRIPT = SCRIPT_DIR / "run_sunny_lswt.jl"
 
 
 def _resolve_exchange(model):
@@ -43,14 +51,57 @@ def linear_spin_wave_summary(model):
 
 
 def run_linear_spin_wave(model, julia_cmd="julia"):
-    del julia_cmd
-    summary = linear_spin_wave_summary(model)
-    return {
-        "status": "ok",
-        "backend": {"name": "Sunny.jl"},
-        "path": model.get("path", {}),
-        "linear_spin_wave": summary,
-    }
+    lswt_payload = build_lswt_payload(model)
+    if lswt_payload.get("status") != "ok":
+        return {
+            "status": "error",
+            "backend": {"name": "Sunny.jl"},
+            "linear_spin_wave": {},
+            "error": dict(lswt_payload.get("error", {"code": "invalid-lswt-payload", "message": "failed to build LSWT payload"})),
+        }
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8", delete=False) as handle:
+        payload_path = Path(handle.name)
+        json.dump(lswt_payload["payload"], handle, indent=2, sort_keys=True)
+
+    try:
+        completed = subprocess.run(
+            [julia_cmd, str(SUNNY_LSWT_SCRIPT), str(payload_path)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        return {
+            "status": "error",
+            "backend": {"name": "Sunny.jl"},
+            "linear_spin_wave": {},
+            "error": {"code": "missing-julia-command", "message": str(exc)},
+        }
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        return {
+            "status": "error",
+            "backend": {"name": "Sunny.jl"},
+            "linear_spin_wave": {},
+            "error": {"code": "backend-process-failed", "message": stderr or str(exc)},
+        }
+    finally:
+        payload_path.unlink(missing_ok=True)
+
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        return {
+            "status": "error",
+            "backend": {"name": "Sunny.jl"},
+            "linear_spin_wave": {},
+            "error": {"code": "invalid-backend-json", "message": str(exc)},
+        }
+
+    if isinstance(result, dict) and "path" not in result:
+        result["path"] = lswt_payload["payload"].get("path", {})
+    return result
 
 
 def exact_diagonalization_branch(model):
@@ -81,9 +132,10 @@ def _load_payload(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
+    parser.add_argument("--julia-cmd", default="julia")
     args = parser.parse_args()
     payload = _load_payload(args.input)
-    output = {"linear_spin_wave": linear_spin_wave_summary(payload)}
+    output = run_linear_spin_wave(payload, julia_cmd=args.julia_cmd)
     if "cluster_size" in payload and "local_dim" in payload:
         output["exact_diagonalization"] = exact_diagonalization_branch(payload)
     print(json.dumps(output, indent=2, sort_keys=True))
