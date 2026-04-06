@@ -880,6 +880,63 @@ def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None,
     plt.close(fig)
 
 
+def _lt_eigenvector_magnitudes(lt_result):
+    magnitudes = []
+    for element in lt_result.get("eigenvector", []):
+        real_part = float(element[0].get("real", 0.0)) if element else 0.0
+        imag_part = float(element[0].get("imag", 0.0)) if element else 0.0
+        magnitudes.append((real_part**2 + imag_part**2) ** 0.5)
+    return magnitudes
+
+
+def _render_lt_diagnostics(lt_result, generalized_lt_result, output_path):
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.6))
+
+    lt_magnitudes = _lt_eigenvector_magnitudes(lt_result)
+    if lt_magnitudes:
+        axes[0].bar(range(len(lt_magnitudes)), lt_magnitudes, color="#1f77b4")
+    axes[0].set_title("LT Lowest-Mode Amplitudes")
+    axes[0].set_xlabel("Sublattice index")
+    axes[0].set_ylabel("|u|")
+    axes[0].grid(True, axis="y", alpha=0.25)
+    axes[0].text(
+        0.02,
+        0.98,
+        f"q = {lt_result.get('q', 'n/a')}\n"
+        f"lambda_min = {lt_result.get('lowest_eigenvalue', 'n/a')}",
+        transform=axes[0].transAxes,
+        va="top",
+        ha="left",
+        fontsize=10,
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85, "edgecolor": "#cccccc"},
+    )
+
+    lambda_values = generalized_lt_result.get("lambda", []) if generalized_lt_result else []
+    if lambda_values:
+        axes[1].bar(range(len(lambda_values)), lambda_values, color="#d62728")
+    axes[1].axhline(0.0, color="#666666", linewidth=1.0, alpha=0.7)
+    axes[1].set_title("Generalized LT Lagrange Parameters")
+    axes[1].set_xlabel("Sublattice index")
+    axes[1].set_ylabel("lambda")
+    axes[1].grid(True, axis="y", alpha=0.25)
+    axes[1].text(
+        0.02,
+        0.98,
+        f"q = {generalized_lt_result.get('q', 'n/a') if generalized_lt_result else 'n/a'}\n"
+        f"bound = {generalized_lt_result.get('tightened_lower_bound', 'n/a') if generalized_lt_result else 'n/a'}",
+        transform=axes[1].transAxes,
+        va="top",
+        ha="left",
+        fontsize=10,
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85, "edgecolor": "#cccccc"},
+    )
+
+    fig.suptitle("LT / Generalized LT Diagnostics", y=0.98)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells=5):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -897,6 +954,7 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
             "classical_state": {"status": "skipped", "path": None},
             "lswt_dispersion": {"status": "skipped", "path": None, "reason": ""},
             "thermodynamics": {"status": "skipped", "path": None, "reason": ""},
+            "lt_diagnostics": {"status": "skipped", "path": None, "reason": ""},
         },
     }
 
@@ -955,6 +1013,19 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
             "status": "skipped",
             "path": None,
             "reason": "Thermodynamics result unavailable",
+        }
+
+    lt_result = payload.get("lt_result", {})
+    generalized_lt_result = payload.get("generalized_lt_result", {})
+    if lt_result or generalized_lt_result:
+        diagnostics_path = output_dir / "lt_diagnostics.png"
+        _render_lt_diagnostics(lt_result, generalized_lt_result, diagnostics_path)
+        result["plots"]["lt_diagnostics"] = {"status": "ok", "path": str(diagnostics_path)}
+    else:
+        result["plots"]["lt_diagnostics"] = {
+            "status": "skipped",
+            "path": None,
+            "reason": "LT diagnostics unavailable",
         }
 
     return result

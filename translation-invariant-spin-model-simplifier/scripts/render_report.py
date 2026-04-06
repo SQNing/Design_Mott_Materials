@@ -115,6 +115,26 @@ def render_text(payload):
                 f"tau_E={tau_energy} "
                 f"tau_M={tau_magnetization}"
             )
+    lt_result = payload.get("lt_result", {})
+    if lt_result:
+        lines.append("")
+        lines.append("Luttinger-Tisza diagnostics:")
+        lines.append(
+            "- "
+            f"best_q={lt_result.get('q', 'n/a')} "
+            f"lowest_eigenvalue={lt_result.get('lowest_eigenvalue', 'n/a')} "
+            f"matrix_size={lt_result.get('matrix_size', 'n/a')}"
+        )
+    generalized_lt_result = payload.get("generalized_lt_result", {})
+    if generalized_lt_result:
+        lines.append("")
+        lines.append("Generalized LT diagnostics:")
+        lines.append(
+            "- "
+            f"lambda={generalized_lt_result.get('lambda', 'n/a')} "
+            f"tightened_lower_bound={generalized_lt_result.get('tightened_lower_bound', 'n/a')} "
+            f"best_q={generalized_lt_result.get('q', 'n/a')}"
+        )
     lines.append(f"Projection status: {payload['projection']['status']}")
     lines.append(f"Chosen classical method: {payload['classical']['chosen_method']}")
     lines.append("Linear spin-wave points:")

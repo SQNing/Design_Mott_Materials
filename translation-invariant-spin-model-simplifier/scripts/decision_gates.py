@@ -31,7 +31,7 @@ def classical_stage_decision(model, user_choice=None, timed_out=False, allow_aut
             "classical_method",
             f"Choose the classical ground-state solver. Recommended: {recommended}.",
             recommended=recommended,
-            options=["luttinger-tisza", "variational"],
+            options=["luttinger-tisza", "generalized-lt", "variational"],
         )
     return {
         "status": "ok",
