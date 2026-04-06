@@ -52,23 +52,86 @@ def _best_for_lambda(model, q_mesh, lambda_vector):
     return best_value, best_q, best_vectors
 
 
-def find_generalized_lt_ground_state(model, mesh_shape=(17, 17, 1), lambda_bounds=(-1.0, 1.0), lambda_points=21):
-    sublattice_count = _n_sublattices(model)
-    q_mesh = generate_q_mesh(tuple(int(value) for value in mesh_shape))
-
-    lower, upper = lambda_bounds
+def _grid_search(model, q_mesh, sublattice_count, lower, upper, lambda_points):
     best_lambda = None
     best_value = None
     best_q = None
     best_vectors = None
+    evaluations = 0
 
     for lambda_vector in _lambda_candidates(sublattice_count, lower, upper, lambda_points):
         value, q, vectors = _best_for_lambda(model, q_mesh, np.array(lambda_vector, dtype=float))
+        evaluations += 1
         if best_value is None or value > best_value:
             best_value = value
             best_lambda = lambda_vector
             best_q = q
             best_vectors = vectors
+
+    return best_lambda, best_value, best_q, best_vectors, evaluations
+
+
+def _coordinate_search(model, q_mesh, sublattice_count, lower, upper, lambda_points):
+    if sublattice_count < 2:
+        best_lambda = [0.0]
+        best_value, best_q, best_vectors = _best_for_lambda(model, q_mesh, np.array(best_lambda, dtype=float))
+        return best_lambda, best_value, best_q, best_vectors, 1
+
+    axis = np.linspace(float(lower), float(upper), int(lambda_points))
+    current = [0.0] * sublattice_count
+    current_value, current_q, current_vectors = _best_for_lambda(model, q_mesh, np.array(current, dtype=float))
+    evaluations = 1
+
+    improved = True
+    while improved:
+        improved = False
+        for index in range(sublattice_count - 1):
+            best_local = current
+            best_local_value = current_value
+            best_local_q = current_q
+            best_local_vectors = current_vectors
+            for candidate_value in axis:
+                trial = list(current)
+                trial[index] = float(candidate_value)
+                trial[-1] = float(-sum(trial[:-1]))
+                value, q, vectors = _best_for_lambda(model, q_mesh, np.array(trial, dtype=float))
+                evaluations += 1
+                if value > best_local_value:
+                    best_local = trial
+                    best_local_value = value
+                    best_local_q = q
+                    best_local_vectors = vectors
+            if best_local_value > current_value:
+                current = best_local
+                current_value = best_local_value
+                current_q = best_local_q
+                current_vectors = best_local_vectors
+                improved = True
+
+    return current, current_value, current_q, current_vectors, evaluations
+
+
+def find_generalized_lt_ground_state(
+    model,
+    mesh_shape=(17, 17, 1),
+    lambda_bounds=(-1.0, 1.0),
+    lambda_points=21,
+    search_strategy="grid",
+):
+    sublattice_count = _n_sublattices(model)
+    q_mesh = generate_q_mesh(tuple(int(value) for value in mesh_shape))
+
+    lower, upper = lambda_bounds
+    if search_strategy == "grid":
+        best_lambda, best_value, best_q, best_vectors, evaluations = _grid_search(
+            model, q_mesh, sublattice_count, lower, upper, lambda_points
+        )
+    elif search_strategy == "coordinate":
+        best_lambda, best_value, best_q, best_vectors, evaluations = _coordinate_search(
+            model, q_mesh, sublattice_count, lower, upper, lambda_points
+        )
+    else:
+        raise ValueError(f"unsupported search_strategy: {search_strategy}")
 
     return {
         "lambda": [float(value) for value in best_lambda],
@@ -77,4 +140,10 @@ def find_generalized_lt_ground_state(model, mesh_shape=(17, 17, 1), lambda_bound
         "eigenspace": _serialize_vectors(best_vectors),
         "mesh_shape": list(mesh_shape),
         "sample_count": len(q_mesh),
+        "optimization": {
+            "search_strategy": search_strategy,
+            "evaluated_candidates": int(evaluations),
+            "lambda_bounds": [float(lower), float(upper)],
+            "lambda_points": int(lambda_points),
+        },
     }
