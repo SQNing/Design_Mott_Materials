@@ -21,7 +21,7 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 from build_lswt_payload import infer_spatial_dimension
-from lattice_geometry import resolve_lattice_vectors
+from lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
 
 
 def _get_classical_state(payload):
@@ -144,6 +144,25 @@ def _default_repeat_cells(spatial_dimension, ordering_kind, commensurate_cells, 
     return [base, base, base]
 
 
+def _normalize_repeat_request(request, spatial_dimension, default_scalar):
+    if isinstance(request, int):
+        if spatial_dimension <= 1:
+            return [request, 1, 1]
+        if spatial_dimension == 2:
+            return [request, request, 1]
+        return [request, request, request]
+
+    if isinstance(request, (list, tuple)):
+        values = [int(value) for value in request]
+        if len(values) == 1:
+            return _normalize_repeat_request(values[0], spatial_dimension, default_scalar)
+        while len(values) < 3:
+            values.append(1)
+        return [max(1, values[0]), max(1, values[1]), max(1, values[2])]
+
+    return _normalize_repeat_request(default_scalar, spatial_dimension, default_scalar)
+
+
 def _magnetic_periods(q_vector, ordering_kind, spatial_dimension, max_denominator=24, tolerance=1e-6):
     if ordering_kind != "commensurate":
         return [1, 1, 1]
@@ -163,17 +182,14 @@ def _magnetic_periods(q_vector, ordering_kind, spatial_dimension, max_denominato
 
 
 def _repeat_cells_from_magnetic_periods(spatial_dimension, ordering_kind, magnetic_periods, commensurate_cells, incommensurate_cells):
+    commensurate_repeat_request = _normalize_repeat_request(commensurate_cells, spatial_dimension, 2)
+    incommensurate_repeat_request = _normalize_repeat_request(incommensurate_cells, spatial_dimension, 5)
     if ordering_kind != "commensurate":
-        return _default_repeat_cells(
-            spatial_dimension,
-            ordering_kind,
-            commensurate_cells=commensurate_cells,
-            incommensurate_cells=incommensurate_cells,
-        )
+        return incommensurate_repeat_request
     repeat_cells = [1, 1, 1]
     active_axes = 1 if spatial_dimension <= 1 else 2 if spatial_dimension == 2 else 3
     for axis in range(active_axes):
-        repeat_cells[axis] = max(1, int(magnetic_periods[axis])) * int(commensurate_cells)
+        repeat_cells[axis] = max(1, int(magnetic_periods[axis])) * int(commensurate_repeat_request[axis])
     return repeat_cells
 
 
@@ -285,17 +301,19 @@ def _build_unit_cell_segments(lattice_vectors, repeat_cells, spatial_dimension):
 def _default_view(spatial_dimension):
     if spatial_dimension >= 3:
         return {"projection": "3d", "elev": 22.0, "azim": -58.0}
-    return {"projection": "3d", "elev": 18.0, "azim": -64.0}
+    if spatial_dimension == 2:
+        return {"projection": "2d"}
+    return {"projection": "chain"}
 
 
 def _default_structure_style():
     return {
         "atom_fill": "#c9c9c9",
         "atom_edge_width": 2.2,
-        "atom_size": 220.0,
+        "atom_size": 300.0,
         "spin_color": "#d00000",
-        "arrow_length_factor": 0.42,
-        "arrow_line_width": 2.4,
+        "arrow_length_factor": 0.52,
+        "arrow_line_width": 2.8,
     }
 
 
@@ -330,6 +348,9 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
     ordering = classical_state.get("ordering", {})
     ordering_kind = ordering.get("kind", "commensurate")
     q_vector = ordering.get("q_vector", [0.0, 0.0, 0.0])
+    plot_options = payload.get("plot_options", {})
+    commensurate_cells = plot_options.get("commensurate_cells", commensurate_cells)
+    incommensurate_cells = plot_options.get("incommensurate_cells", incommensurate_cells)
     magnetic_periods = _magnetic_periods(q_vector, ordering_kind, spatial_dimension)
     repeat_cells = _repeat_cells_from_magnetic_periods(
         spatial_dimension,
@@ -356,10 +377,10 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
                 ]
                 for basis_index in range(site_count):
                     base_position = _basis_position(lattice, basis_index, site_count)
-                    cart_position = _vector_add(_matvec(lattice_vectors, base_position), cell_shift)
+                    cart_position = _vector_add(fractional_to_cartesian([base_position], lattice_vectors)[0], cell_shift)
                     frame = frames[basis_index] if basis_index < len(frames) else frames[0]
                     direction = _rotate_spin(frame["direction"], q_vector, cell_index)
-                    display_direction = _rotate_vector(direction, display_rotation["matrix"])
+                    display_direction = direction if spatial_dimension <= 2 else _rotate_vector(direction, display_rotation["matrix"])
                     expanded_sites.append(
                         {
                             "basis_index": basis_index,
@@ -386,7 +407,7 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
         "basis_legend": basis_legend,
         "unit_cell_segments": unit_cell_segments,
         "lattice_vectors": lattice_vectors,
-        "render_mode": "structure",
+        "render_mode": "chain" if spatial_dimension <= 1 else "plane" if spatial_dimension == 2 else "structure",
         "view": _default_view(spatial_dimension),
         "style": _default_structure_style(),
         "display_rotation": {
@@ -396,6 +417,121 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
         },
         "lattice_labels": _lattice_label_positions(lattice_vectors, spatial_dimension),
     }
+
+
+def _render_classical_state_chain(classical_state, output_path):
+    expanded_sites = classical_state.get("expanded_sites", [])
+    style = classical_state.get("style", _default_structure_style())
+    fig, ax = plt.subplots(figsize=(10.5, 4.2))
+
+    xs = [site["position"][0] for site in expanded_sites]
+    ys = [0.0 for _ in expanded_sites]
+    if not xs:
+        xs = [0.0]
+        ys = [0.0]
+
+    for segment in classical_state.get("unit_cell_segments", []):
+        start = segment["start"]
+        end = segment["end"]
+        ax.plot([start[0], end[0]], [0.0, 0.0], color="#9ca3af", linewidth=1.2, alpha=0.8, zorder=1)
+
+    for site in expanded_sites:
+        x = site["position"][0]
+        direction = _normalize(site.get("display_direction", site["direction"]))
+        ax.scatter(
+            [x],
+            [0.0],
+            color=style.get("atom_fill", "#c9c9c9"),
+            s=float(style.get("atom_size", 220.0)),
+            edgecolors=site["color"],
+            linewidths=float(style.get("atom_edge_width", 2.2)),
+            zorder=3,
+        )
+        ax.quiver(
+            [x],
+            [0.0],
+            [direction[0]],
+            [direction[1]],
+            angles="xy",
+            scale_units="xy",
+            scale=1.8,
+            color=style.get("spin_color", "#d00000"),
+            width=0.004,
+            zorder=4,
+        )
+
+    ax.set_title("Classical Ground State")
+    ax.set_xlabel("Chain direction")
+    ax.set_yticks([])
+    ax.grid(True, axis="x", alpha=0.2)
+    ax.set_aspect("equal", adjustable="datalim")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
+def _render_classical_state_plane(classical_state, output_path):
+    expanded_sites = classical_state.get("expanded_sites", [])
+    style = classical_state.get("style", _default_structure_style())
+    fig, ax = plt.subplots(figsize=(9.2, 8.2))
+
+    for segment in classical_state.get("unit_cell_segments", []):
+        start = segment["start"]
+        end = segment["end"]
+        segment_style = segment.get("style", "supercell")
+        color = "#0f8b8d" if segment_style == "primitive" else "#8f8f8f"
+        linewidth = 1.6 if segment_style == "primitive" else 1.3
+        alpha = 0.95 if segment_style == "primitive" else 0.9
+        ax.plot([start[0], end[0]], [start[1], end[1]], color=color, linewidth=linewidth, alpha=alpha, zorder=1)
+
+    for site in expanded_sites:
+        x, y = site["position"][:2]
+        direction = _normalize(site.get("display_direction", site["direction"]))
+        ax.scatter(
+            [x],
+            [y],
+            color=style.get("atom_fill", "#c9c9c9"),
+            s=float(style.get("atom_size", 220.0)),
+            edgecolors=site["color"],
+            linewidths=float(style.get("atom_edge_width", 2.2)),
+            zorder=3,
+        )
+        ax.quiver(
+            [x],
+            [y],
+            [direction[0]],
+            [direction[1]],
+            angles="xy",
+            scale_units="xy",
+            scale=1.8,
+            color=style.get("spin_color", "#d00000"),
+            width=0.004,
+            zorder=4,
+        )
+
+    for label in classical_state.get("lattice_labels", []):
+        anchor = label["position"]
+        ax.text(anchor[0], anchor[1], label["text"], fontsize=12, weight="bold", color="#111111")
+
+    xs = [site["position"][0] for site in expanded_sites] + [coord for segment in classical_state.get("unit_cell_segments", []) for coord in [segment["start"][0], segment["end"][0]]]
+    ys = [site["position"][1] for site in expanded_sites] + [coord for segment in classical_state.get("unit_cell_segments", []) for coord in [segment["start"][1], segment["end"][1]]]
+    if not xs:
+        xs = [0.0]
+        ys = [0.0]
+    x_span = max(xs) - min(xs)
+    y_span = max(ys) - min(ys)
+    x_margin = max(0.2, 0.08 * max(x_span, 1.0))
+    y_margin = max(0.2, 0.08 * max(y_span, 1.0))
+    ax.set_xlim(min(xs) - x_margin, max(xs) + x_margin)
+    ax.set_ylim(min(ys) - y_margin, max(ys) + y_margin)
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_title("Classical Ground State")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.grid(True, alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
 
 
 def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
@@ -427,13 +563,21 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
 
 
 def _render_classical_state(classical_state, output_path):
+    render_mode = classical_state.get("render_mode", "structure")
+    if render_mode == "chain":
+        _render_classical_state_chain(classical_state, output_path)
+        return
+    if render_mode == "plane":
+        _render_classical_state_plane(classical_state, output_path)
+        return
+
     expanded_sites = classical_state.get("expanded_sites", [])
     spatial_dimension = classical_state.get("spatial_dimension", 2)
     basis_legend = classical_state.get("basis_legend", [])
     lattice_vectors = classical_state.get("lattice_vectors", [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     view = classical_state.get("view", _default_view(spatial_dimension))
     style = classical_state.get("style", _default_structure_style())
-    fig = plt.figure(figsize=(8.6, 5.6))
+    fig = plt.figure(figsize=(9.8, 6.8))
     ax = fig.add_subplot(111, projection="3d")
 
     primitive_scale = min(_vector_norm(vector) for vector in lattice_vectors if _vector_norm(vector) > 1e-12)

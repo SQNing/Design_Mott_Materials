@@ -4,6 +4,7 @@ import math
 import sys
 from pathlib import Path
 
+from bravais_kpaths import default_high_symmetry_path
 from lattice_geometry import build_isotropic_heisenberg_bonds_from_parameters, resolve_lattice_vectors
 
 
@@ -52,8 +53,11 @@ def infer_spatial_dimension(lattice, bonds):
 
     kind_dimension = _dimension_hint_from_lattice_kind(lattice)
     if active_dimension > 0:
-        if kind_dimension in {1, 2}:
+        if kind_dimension > 0:
             return max(active_dimension, kind_dimension)
+        explicit_dimension = lattice.get("dimension")
+        if isinstance(explicit_dimension, int) and explicit_dimension > 0:
+            return max(active_dimension, explicit_dimension)
         return active_dimension
 
     explicit_dimension = lattice.get("dimension")
@@ -63,74 +67,6 @@ def infer_spatial_dimension(lattice, bonds):
     if kind_dimension > 0:
         return kind_dimension
     return 1
-
-
-def _lattice_family(lattice, spatial_dimension):
-    kind = str(lattice.get("kind", "")).lower()
-    vectors = resolve_lattice_vectors(lattice)
-    lengths = [_vector_norm(vector) for vector in vectors]
-    if spatial_dimension == 1:
-        return "chain"
-    if spatial_dimension == 2:
-        if "square" in kind:
-            return "square"
-        if "rect" in kind:
-            return "rectangular"
-        if len(lengths) >= 2 and abs(lengths[0] - lengths[1]) <= 1e-9:
-            return "square"
-        return "rectangular"
-    if "cubic" in kind:
-        return "cubic"
-    if "orthorhombic" in kind:
-        return "orthorhombic"
-    if len(lengths) >= 3 and abs(lengths[0] - lengths[1]) <= 1e-9 and abs(lengths[1] - lengths[2]) <= 1e-9:
-        return "cubic"
-    return "orthorhombic"
-
-
-def _default_high_symmetry_nodes(spatial_dimension, lattice_family):
-    if spatial_dimension == 1:
-        return {
-            "labels": ["G", "X"],
-            "points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
-        }
-    if spatial_dimension == 2 and lattice_family == "square":
-        return {
-            "labels": ["G", "X", "M", "G"],
-            "points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.0, 0.0]],
-        }
-    if spatial_dimension == 2:
-        return {
-            "labels": ["G", "X", "S", "Y", "G"],
-            "points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.5, 0.0], [0.0, 0.0, 0.0]],
-        }
-    if lattice_family == "cubic":
-        return {
-            "labels": ["G", "X", "M", "G", "R", "X"],
-            "points": [
-                [0.0, 0.0, 0.0],
-                [0.5, 0.0, 0.0],
-                [0.5, 0.5, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.5, 0.5, 0.5],
-                [0.5, 0.0, 0.0],
-            ],
-        }
-    return {
-        "labels": ["G", "X", "S", "Y", "G", "Z", "U", "R", "T", "Z"],
-        "points": [
-            [0.0, 0.0, 0.0],
-            [0.5, 0.0, 0.0],
-            [0.5, 0.5, 0.0],
-            [0.0, 0.5, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.5],
-            [0.5, 0.0, 0.5],
-            [0.5, 0.5, 0.5],
-            [0.0, 0.5, 0.5],
-            [0.0, 0.0, 0.5],
-        ],
-    }
 
 
 def _interpolate_q_path(nodes, samples_per_segment):
@@ -151,22 +87,39 @@ def _interpolate_q_path(nodes, samples_per_segment):
     return q_path, node_indices
 
 
+def _points_match(left, right, tolerance=1e-9):
+    if len(left) != len(right):
+        return False
+    for left_point, right_point in zip(left, right):
+        if len(left_point) != len(right_point):
+            return False
+        for left_value, right_value in zip(left_point, right_point):
+            if abs(float(left_value) - float(right_value)) > tolerance:
+                return False
+    return True
+
+
 def _resolve_q_path(model, lattice, bonds):
     spatial_dimension = infer_spatial_dimension(lattice, bonds)
-    lattice_family = _lattice_family(lattice, spatial_dimension)
     q_samples = int(model.get("q_samples", 32))
     explicit_q_path = model.get("q_path", [])
+    lattice_family, nodes = default_high_symmetry_path(lattice, spatial_dimension)
     if explicit_q_path:
         if len(explicit_q_path) <= 10:
             q_path, node_indices = _interpolate_q_path(explicit_q_path, samples_per_segment=q_samples)
-            labels = [f"Q{index}" for index in range(len(explicit_q_path))]
+            explicit_labels = model.get("q_path_labels", [])
+            if explicit_labels and len(explicit_labels) == len(explicit_q_path):
+                labels = list(explicit_labels)
+            elif _points_match(explicit_q_path, nodes["points"]):
+                labels = nodes["labels"]
+            else:
+                labels = [f"Q{index}" for index in range(len(explicit_q_path))]
         else:
             q_path = explicit_q_path
             step = max(1, len(explicit_q_path) - 1)
             node_indices = [0, step]
             labels = ["Q0", "Q1"]
     else:
-        nodes = _default_high_symmetry_nodes(spatial_dimension, lattice_family)
         q_path, node_indices = _interpolate_q_path(nodes["points"], samples_per_segment=q_samples)
         labels = nodes["labels"]
 
