@@ -12,6 +12,11 @@ def _error(code, message):
     return {"status": "error", "error": {"code": code, "message": message}}
 
 
+def _get_classical_state(model):
+    classical = model.get("classical", {})
+    return classical.get("classical_state", model.get("classical_state"))
+
+
 def _vector_norm(vector):
     return math.sqrt(sum(float(value) * float(value) for value in vector))
 
@@ -171,7 +176,7 @@ def validate_lswt_scope(model):
         )
     if not bonds:
         return _error("unsupported-model-scope", "at least one bilinear bond is required for LSWT payload construction")
-    if "classical_state" not in model:
+    if not _get_classical_state(model):
         return _error("invalid-classical-reference-state", "classical_state is required to build an LSWT payload")
     return None
 
@@ -191,7 +196,8 @@ def build_lswt_payload(model):
             model.get("parameters", {}),
             shell_map_override=exchange_mapping.get("shell_map", {}),
         )
-    reference_frames = build_reference_frames(model["classical_state"])
+    classical_state = _get_classical_state(model) or {}
+    reference_frames = build_reference_frames(classical_state)
     site_count = max(frame["site"] for frame in reference_frames) + 1
     lattice = model.get("lattice", {})
     positions = lattice.get("positions") or [[0.0, 0.0, 0.0] for _ in range(site_count)]
@@ -221,7 +227,7 @@ def build_lswt_payload(model):
             }
             for frame in reference_frames
         ],
-        "ordering": model["classical_state"].get("ordering", {}),
+        "ordering": classical_state.get("ordering", {}),
         "q_path": q_path_summary["q_path"],
         "q_grid": model.get("q_grid", []),
         "q_samples": int(model.get("q_samples", 64)),

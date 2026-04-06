@@ -889,6 +889,16 @@ def _lt_eigenvector_magnitudes(lt_result):
     return magnitudes
 
 
+def _lt_diagnostic_summary(result, label_value_pairs):
+    lines = [f"q = {result.get('q', 'n/a')}"]
+    for label, value in label_value_pairs:
+        lines.append(f"{label} = {value}")
+    constraint_recovery = result.get("constraint_recovery", {})
+    if "strong_constraint_residual" in constraint_recovery:
+        lines.append(f"residual = {constraint_recovery['strong_constraint_residual']}")
+    return "\n".join(lines)
+
+
 def _render_lt_diagnostics(lt_result, generalized_lt_result, output_path):
     fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.6))
 
@@ -902,8 +912,10 @@ def _render_lt_diagnostics(lt_result, generalized_lt_result, output_path):
     axes[0].text(
         0.02,
         0.98,
-        f"q = {lt_result.get('q', 'n/a')}\n"
-        f"lambda_min = {lt_result.get('lowest_eigenvalue', 'n/a')}",
+        _lt_diagnostic_summary(
+            lt_result,
+            label_value_pairs=[("lambda_min", lt_result.get("lowest_eigenvalue", "n/a"))],
+        ),
         transform=axes[0].transAxes,
         va="top",
         ha="left",
@@ -922,8 +934,15 @@ def _render_lt_diagnostics(lt_result, generalized_lt_result, output_path):
     axes[1].text(
         0.02,
         0.98,
-        f"q = {generalized_lt_result.get('q', 'n/a') if generalized_lt_result else 'n/a'}\n"
-        f"bound = {generalized_lt_result.get('tightened_lower_bound', 'n/a') if generalized_lt_result else 'n/a'}",
+        _lt_diagnostic_summary(
+            generalized_lt_result or {},
+            label_value_pairs=[
+                (
+                    "bound",
+                    generalized_lt_result.get("tightened_lower_bound", "n/a") if generalized_lt_result else "n/a",
+                )
+            ],
+        ),
         transform=axes[1].transAxes,
         va="top",
         ha="left",

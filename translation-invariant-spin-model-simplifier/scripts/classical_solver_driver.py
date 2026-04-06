@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from generalized_lt_solver import find_generalized_lt_ground_state
+from lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
 from lt_solver import find_lt_ground_state
 
 try:
@@ -135,6 +136,90 @@ def _resolve_generalized_lt_settings(classical_config, model):
         "lambda_points": lambda_points,
         "search_strategy": str(search_strategy),
     }
+
+
+def _deserialize_complex_vector(serialized):
+    values = []
+    for item in serialized:
+        if isinstance(item, dict):
+            values.append(complex(float(item.get("real", 0.0)), float(item.get("imag", 0.0))))
+        else:
+            values.append(complex(item))
+    return values
+
+
+def _infer_spin_length(payload):
+    local_dimension = payload.get("normalized_model", {}).get("local_hilbert", {}).get("dimension")
+    if local_dimension is None:
+        local_dimension = payload.get("local_dim")
+    if local_dimension is None:
+        return 0.5
+    local_dimension = max(2, int(local_dimension))
+    return 0.5 * float(local_dimension - 1)
+
+
+def _normalize_spin_direction(vector):
+    spin = np.array(vector, dtype=float)
+    norm = float(np.linalg.norm(spin))
+    if norm <= 1e-12:
+        return [0.0, 0.0, 1.0], 0.0
+    return [float(value) / norm for value in spin], norm
+
+
+def _build_variational_classical_state(payload):
+    spins = payload.get("variational_result", {}).get("spins", [])
+    if not spins:
+        return None
+
+    spin_length = _infer_spin_length(payload)
+    spin_vectors = [np.array(spin, dtype=float) for spin in spins]
+    site_frames = []
+    site_norms = []
+    for index, spin in enumerate(spin_vectors):
+        direction, norm = _normalize_spin_direction(spin)
+        site_frames.append({"site": int(index), "spin_length": float(spin_length), "direction": direction})
+        site_norms.append(float(norm))
+
+    return {
+        "site_frames": site_frames,
+        "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+        "constraint_recovery": {
+            "source": "variational",
+            "reconstruction": "direct",
+            "strong_constraint_residual": strong_constraint_residual(spin_vectors),
+            "site_norms": site_norms,
+        },
+    }
+
+
+def _recover_lt_classical_state(payload, chosen_method):
+    spin_length = _infer_spin_length(payload)
+    source_result = payload.get("lt_result", {})
+    amplitudes = _deserialize_complex_vector(source_result.get("eigenvector", []))
+    q_vector = source_result.get("q", [0.0, 0.0, 0.0])
+    target_result = source_result
+    source_name = "lt"
+
+    if chosen_method == "generalized-lt":
+        target_result = payload.get("generalized_lt_result", {})
+        q_vector = target_result.get("q", q_vector)
+        eigenspace = target_result.get("eigenspace", [])
+        if eigenspace:
+            amplitudes = _deserialize_complex_vector(eigenspace[0])
+        source_name = "generalized-lt"
+
+    if not amplitudes:
+        return None
+
+    classical_state = recover_classical_state_from_lt(
+        payload,
+        q=q_vector,
+        amplitudes=amplitudes,
+        spin_length=spin_length,
+        source=source_name,
+    )
+    target_result["constraint_recovery"] = classical_state["constraint_recovery"]
+    return classical_state
 
 
 def _normalized_direction(direction):
@@ -511,6 +596,16 @@ def run_classical_solver(payload, starts=16, seed=0):
         )
 
     payload["variational_result"] = solve_variational(payload, starts=starts, seed=seed)
+
+    classical_state = None
+    if chosen_method in {"luttinger-tisza", "generalized-lt"}:
+        classical_state = _recover_lt_classical_state(payload, chosen_method)
+    elif chosen_method == "variational":
+        classical_state = _build_variational_classical_state(payload)
+
+    if classical_state is not None:
+        payload["classical_state"] = classical_state
+        classical_config["classical_state"] = classical_state
 
     thermodynamics = payload.get("thermodynamics")
     if isinstance(thermodynamics, dict) and thermodynamics.get("temperatures"):
