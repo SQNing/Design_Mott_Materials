@@ -18,6 +18,63 @@ default behavior.
 }
 ```
 
+## Hard defaults versus user overrides
+
+The plotting pipeline distinguishes between:
+
+1. **hard plotting standards**
+2. **user overrides**
+
+The hard standards are written automatically into a materialized
+`plot_payload.json` when a raw result payload is converted into a plotting
+payload. These standards include:
+
+- how `spatial_dimension` maps to classical render mode
+  - `1D -> chain`
+  - `2D -> plane`
+  - `3D -> structure`
+- default magnetic-cell replication for commensurate order
+  - `1D: [2, 1, 1]`
+  - `2D: [2, 2, 1]`
+  - `3D: [2, 2, 2]`
+- default magnetic-cell replication for incommensurate order
+  - `1D: [5, 1, 1]`
+  - `2D: [5, 5, 1]`
+  - `3D: [5, 5, 5]`
+
+These are baseline plotting conventions, not optional style knobs.
+
+The `plot_options` block acts as an override layer on top of those conventions.
+
+## Recommended workflow
+
+There are now two supported user-facing workflows:
+
+1. **Direct plot payload workflow**
+   Use the repository template:
+
+   ```bash
+   cp translation-invariant-spin-model-simplifier/scripts/plot_payload.json ./plot_payload.json
+   python translation-invariant-spin-model-simplifier/scripts/render_plots.py ./plot_payload.json --output-dir ./plots
+   ```
+
+2. **Automatic materialization workflow**
+   Start from a raw result payload:
+
+   ```bash
+   python translation-invariant-spin-model-simplifier/scripts/render_plots.py ./result_payload.json --output-dir ./plots
+   ```
+
+   If `./plot_payload.json` does not already exist next to `result_payload.json`,
+   the plotting script will automatically create it and then use it as the
+   plotting description.
+
+In practice, the intended workflow is:
+
+1. start from a raw result payload or from `scripts/plot_payload.json`
+2. let the plotting pipeline materialize a local `plot_payload.json` if needed
+3. edit that local `plot_payload.json` only if a different presentation is desired
+
 ## Supported fields
 
 ### 1. `commensurate_cells`

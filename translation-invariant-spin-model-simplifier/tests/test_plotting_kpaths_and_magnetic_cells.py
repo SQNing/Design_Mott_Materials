@@ -9,7 +9,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from build_lswt_payload import build_lswt_payload
-from render_plots import _build_plot_payload, _default_structure_style
+from render_plots import _build_plot_payload, _default_structure_style, render_plots
 
 
 class PlottingAndKPathTests(unittest.TestCase):
@@ -425,6 +425,119 @@ class PlottingAndKPathTests(unittest.TestCase):
         self.assertEqual(plot_payload["thermodynamics"]["style"]["line_width"], 1.8)
         self.assertEqual(plot_payload["thermodynamics"]["style"]["marker_size"], 5.0)
         self.assertEqual(plot_payload["thermodynamics"]["style"]["capsize"], 4.0)
+
+    def test_render_plots_accepts_prebuilt_plot_payload_directly(self):
+        plot_payload = {
+            "metadata": {
+                "model_name": "template-demo",
+                "backend": "Sunny.jl",
+                "classical_method": "variational",
+                "lswt_status": "ok",
+            },
+            "classical_state": {
+                "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [1.0, 0.0, 0.0]}],
+                "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                "magnetic_periods": [1, 1, 1],
+                "repeat_cells": [2, 1, 1],
+                "spatial_dimension": 1,
+                "expanded_sites": [
+                    {
+                        "basis_index": 0,
+                        "label": "Atom 0",
+                        "position": [0.0, 0.0, 0.0],
+                        "direction": [1.0, 0.0, 0.0],
+                        "display_direction": [1.0, 0.0, 0.0],
+                        "color": "#1f77b4",
+                    }
+                ],
+                "basis_legend": [{"basis_index": 0, "label": "Atom 0", "color": "#1f77b4"}],
+                "unit_cell_segments": [],
+                "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 8.0]],
+                "render_mode": "chain",
+                "view": {"projection": "chain"},
+                "style": _default_structure_style(),
+                "figure_size": [10.5, 4.2],
+                "display_rotation": {"kind": "global", "source_direction": [0.0, 0.0, 1.0], "target_direction": [0.0, 0.0, 1.0]},
+                "lattice_labels": [],
+            },
+            "lswt_dispersion": {
+                "dispersion": [
+                    {"q": [0.0, 0.0, 0.0], "bands": [0.0, 0.2], "omega": 0.0},
+                    {"q": [0.5, 0.0, 0.0], "bands": [1.0, 1.2], "omega": 1.0},
+                ],
+                "band_count": 2,
+                "q_points": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+                "omega_min": 0.0,
+                "omega_max": 1.0,
+                "path": {"labels": ["G", "X"], "node_indices": [0, 1]},
+                "figure_size": [7.0, 4.5],
+                "style": {"line_width": 1.5, "node_line_width": 0.8, "node_alpha": 0.7, "grid_alpha": 0.25},
+            },
+            "thermodynamics": {
+                "grid": [
+                    {"temperature": 0.5, "energy": -1.0, "free_energy": -1.0, "specific_heat": 0.0, "magnetization": 0.6, "susceptibility": 0.1, "entropy": 0.0},
+                    {"temperature": 1.0, "energy": -0.8, "free_energy": -0.9, "specific_heat": 0.2, "magnetization": 0.2, "susceptibility": 0.3, "entropy": 0.1},
+                ],
+                "figure_size": [9.0, 9.0],
+                "style": {"line_width": 1.6, "marker_size": 4.0, "capsize": 3.0, "grid_alpha": 0.25},
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = render_plots(plot_payload, output_dir=tmpdir)
+            output_dir = Path(tmpdir)
+            self.assertEqual(result["status"], "ok")
+            self.assertTrue((output_dir / "plot_payload.json").exists())
+            self.assertTrue((output_dir / "classical_state.png").exists())
+            self.assertTrue((output_dir / "lswt_dispersion.png").exists())
+            self.assertTrue((output_dir / "thermodynamics.png").exists())
+
+    def test_render_plots_materializes_default_plot_payload_next_to_input(self):
+        raw_payload = {
+            "model_name": "materialize-demo",
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+                "lattice_vectors": [[2.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 8.0]],
+            },
+            "classical": {
+                "chosen_method": "variational",
+                "classical_state": {
+                    "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [1.0, 0.0, 0.0]}],
+                    "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
+                },
+            },
+            "lswt": {
+                "status": "ok",
+                "backend": {"name": "Sunny.jl"},
+                "path": {"labels": ["G", "X"], "node_indices": [0, 1]},
+                "linear_spin_wave": {
+                    "dispersion": [
+                        {"q": [0.0, 0.0, 0.0], "bands": [0.0], "omega": 0.0},
+                        {"q": [0.5, 0.0, 0.0], "bands": [1.0], "omega": 1.0},
+                    ]
+                },
+            },
+            "thermodynamics_result": {
+                "grid": [
+                    {"temperature": 0.5, "energy": -1.0, "free_energy": -1.0, "specific_heat": 0.0, "magnetization": 0.6, "susceptibility": 0.1, "entropy": 0.0},
+                    {"temperature": 1.0, "energy": -0.8, "free_energy": -0.9, "specific_heat": 0.2, "magnetization": 0.2, "susceptibility": 0.3, "entropy": 0.1},
+                ],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "result_payload.json"
+            input_path.write_text(json.dumps(raw_payload, indent=2), encoding="utf-8")
+            from render_plots import _load_or_materialize_plot_payload
+
+            plot_payload = _load_or_materialize_plot_payload(str(input_path))
+
+            materialized = Path(tmpdir) / "plot_payload.json"
+            self.assertTrue(materialized.exists())
+            self.assertEqual(plot_payload["classical_state"]["render_mode"], "chain")
+            self.assertEqual(plot_payload["classical_state"]["repeat_cells"], [2, 1, 1])
 
 
 if __name__ == "__main__":

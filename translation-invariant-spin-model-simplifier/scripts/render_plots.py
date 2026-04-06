@@ -29,6 +29,10 @@ def _get_classical_state(payload):
     return classical.get("classical_state", payload.get("classical_state", {}))
 
 
+def _is_prebuilt_plot_payload(payload):
+    return isinstance(payload, dict) and "classical_state" in payload and "lswt_dispersion" in payload and "thermodynamics" in payload
+
+
 def _matvec(matrix, vector):
     result = [0.0, 0.0, 0.0]
     for row in range(3):
@@ -643,6 +647,16 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
     }
 
 
+def _resolve_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
+    if _is_prebuilt_plot_payload(payload):
+        return payload
+    return _build_plot_payload(
+        payload,
+        commensurate_cells=commensurate_cells,
+        incommensurate_cells=incommensurate_cells,
+    )
+
+
 def _render_classical_state(classical_state, output_path):
     render_mode = classical_state.get("render_mode", "structure")
     if render_mode == "chain":
@@ -870,7 +884,7 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    plot_payload = _build_plot_payload(
+    plot_payload = _resolve_plot_payload(
         payload,
         commensurate_cells=commensurate_cells,
         incommensurate_cells=incommensurate_cells,
@@ -886,51 +900,54 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
         },
     }
 
-    classical_state = plot_payload["classical_state"]
+    classical_state = plot_payload.get("classical_state", {})
     if classical_state.get("site_frames"):
         classical_path = output_dir / "classical_state.png"
         _render_classical_state(classical_state, classical_path)
         result["plots"]["classical_state"] = {"status": "ok", "path": str(classical_path)}
 
-    lswt = payload.get("lswt", {})
-    dispersion = plot_payload["lswt_dispersion"]["dispersion"]
-    if lswt.get("status") == "ok" and dispersion:
+    lswt_status = plot_payload.get("metadata", {}).get("lswt_status", payload.get("lswt", {}).get("status", "missing"))
+    dispersion_payload = plot_payload.get("lswt_dispersion", {})
+    dispersion = dispersion_payload.get("dispersion", [])
+    if lswt_status == "ok" and dispersion:
         dispersion_path = output_dir / "lswt_dispersion.png"
-        path_metadata = plot_payload["lswt_dispersion"].get("path", {})
+        path_metadata = dispersion_payload.get("path", {})
         if path_metadata:
             _render_dispersion_with_path(
                 dispersion,
                 path_metadata,
                 dispersion_path,
-                figure_size=plot_payload["lswt_dispersion"].get("figure_size"),
-                style=plot_payload["lswt_dispersion"].get("style"),
+                figure_size=dispersion_payload.get("figure_size"),
+                style=dispersion_payload.get("style"),
             )
         else:
             _render_dispersion(
                 dispersion,
                 dispersion_path,
-                figure_size=plot_payload["lswt_dispersion"].get("figure_size"),
-                style=plot_payload["lswt_dispersion"].get("style"),
+                figure_size=dispersion_payload.get("figure_size"),
+                style=dispersion_payload.get("style"),
             )
         result["plots"]["lswt_dispersion"] = {"status": "ok", "path": str(dispersion_path)}
     else:
         reason = "LSWT result unavailable"
-        if lswt.get("error"):
-            reason = f"{lswt['error'].get('code', 'lswt-error')}: {lswt['error'].get('message', '')}".strip()
+        lswt_error = payload.get("lswt", {}).get("error", {})
+        if lswt_error:
+            reason = f"{lswt_error.get('code', 'lswt-error')}: {lswt_error.get('message', '')}".strip()
         result["plots"]["lswt_dispersion"] = {"status": "skipped", "path": None, "reason": reason}
         if result["plots"]["classical_state"]["status"] == "ok":
             result["status"] = "partial"
 
+    thermodynamics_payload = plot_payload.get("thermodynamics", {})
     thermodynamics = payload.get("thermodynamics_result", {})
-    thermo_grid = thermodynamics.get("grid", [])
+    thermo_grid = thermodynamics_payload.get("grid", thermodynamics.get("grid", []))
     if thermo_grid:
         thermodynamics_path = output_dir / "thermodynamics.png"
         _render_thermodynamics(
             thermo_grid,
             thermodynamics_path,
             uncertainties=thermodynamics.get("uncertainties"),
-            figure_size=plot_payload["thermodynamics"].get("figure_size"),
-            style=plot_payload["thermodynamics"].get("style"),
+            figure_size=thermodynamics_payload.get("figure_size"),
+            style=thermodynamics_payload.get("style"),
         )
         result["plots"]["thermodynamics"] = {"status": "ok", "path": str(thermodynamics_path)}
     else:
@@ -949,6 +966,35 @@ def _load_payload(path):
     return json.load(sys.stdin)
 
 
+def _load_or_materialize_plot_payload(input_path, commensurate_cells=2, incommensurate_cells=5):
+    payload = _load_payload(input_path)
+    if _is_prebuilt_plot_payload(payload):
+        return payload
+
+    if input_path:
+        input_path = Path(input_path)
+        sibling_plot_payload = input_path.with_name("plot_payload.json")
+        if sibling_plot_payload.exists():
+            sibling_payload = _load_payload(sibling_plot_payload)
+            if not _is_prebuilt_plot_payload(sibling_payload):
+                raise ValueError(f"{sibling_plot_payload} exists but is not a valid plot payload")
+            return sibling_payload
+
+        plot_payload = _resolve_plot_payload(
+            payload,
+            commensurate_cells=commensurate_cells,
+            incommensurate_cells=incommensurate_cells,
+        )
+        sibling_plot_payload.write_text(json.dumps(plot_payload, indent=2, sort_keys=True), encoding="utf-8")
+        return plot_payload
+
+    return _resolve_plot_payload(
+        payload,
+        commensurate_cells=commensurate_cells,
+        incommensurate_cells=incommensurate_cells,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
@@ -956,7 +1002,11 @@ def main():
     parser.add_argument("--commensurate-cells", type=int, default=2)
     parser.add_argument("--incommensurate-cells", type=int, default=5)
     args = parser.parse_args()
-    payload = _load_payload(args.input)
+    payload = _load_or_materialize_plot_payload(
+        args.input,
+        commensurate_cells=args.commensurate_cells,
+        incommensurate_cells=args.incommensurate_cells,
+    )
     print(
         json.dumps(
             render_plots(
