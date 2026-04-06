@@ -71,6 +71,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["backend"]["name"], "Sunny.jl")
+        self.assertEqual(result["path"]["labels"], ["G", "X"])
         self.assertEqual(result["linear_spin_wave"]["dispersion"][0]["q"], [0.0, 0.0, 0.0])
 
     def test_run_linear_spin_wave_surfaces_lswt_payload_validation_errors(self):

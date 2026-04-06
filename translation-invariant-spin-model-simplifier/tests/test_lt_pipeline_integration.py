@@ -1,3 +1,4 @@
+import json
 import sys
 import tempfile
 import unittest
@@ -10,6 +11,7 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 from decision_gates import classical_stage_decision
 from build_lswt_payload import build_lswt_payload
 from classical_solver_driver import run_classical_solver
+from linear_spin_wave_driver import run_linear_spin_wave
 from render_plots import _auto_resolution_summary, _lt_diagnostic_summary, render_plots
 from render_report import render_text
 
@@ -154,6 +156,40 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertIn("reason=generalized-lt-improved-residual", text)
         self.assertIn("lt_residual=0.6", text)
         self.assertIn("generalized_lt_residual=0.1", text)
+
+    def test_render_report_reads_nested_lswt_dispersion_and_path_metadata(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {"recommended": 0, "candidates": [{"name": "faithful-readable"}]},
+            "canonical_model": {"one_body": [], "two_body": [], "three_body": [], "four_body": [], "higher_body": []},
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {
+                "reconstruction_error": 0.0,
+                "main_fraction": 1.0,
+                "low_weight_fraction": 0.0,
+                "residual_fraction": 0.0,
+                "risk_notes": [],
+            },
+            "projection": {"status": "not-needed"},
+            "classical": {"chosen_method": "luttinger-tisza"},
+            "lswt": {
+                "status": "ok",
+                "backend": {"name": "Sunny.jl"},
+                "path": {"labels": ["G", "X"], "node_indices": [0, 1]},
+                "linear_spin_wave": {
+                    "dispersion": [
+                        {"q": [0.0, 0.0, 0.0], "omega": 0.0, "bands": [0.0]},
+                        {"q": [0.5, 0.0, 0.0], "omega": 1.0, "bands": [1.0]},
+                    ]
+                },
+            },
+        }
+
+        text = render_text(payload)
+
+        self.assertIn("LSWT backend: Sunny.jl", text)
+        self.assertIn("LSWT path labels: ['G', 'X']", text)
+        self.assertIn("q=[0.5, 0.0, 0.0] omega=1.0", text)
 
     def test_lt_diagnostic_summary_includes_constraint_recovery_when_available(self):
         summary = _lt_diagnostic_summary(
@@ -464,6 +500,111 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertEqual(result["classical"]["chosen_method"], "luttinger-tisza")
         self.assertFalse(result["classical"]["auto_resolution"]["enabled"])
         generalized_mock.assert_not_called()
+
+    def test_end_to_end_auto_classical_to_lswt_to_plots_and_report(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {"recommended": 0, "candidates": [{"name": "faithful-readable"}]},
+            "canonical_model": {"one_body": [], "two_body": [], "three_body": [], "four_body": [], "higher_body": []},
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {
+                "reconstruction_error": 0.0,
+                "main_fraction": 1.0,
+                "low_weight_fraction": 0.0,
+                "residual_fraction": 0.0,
+                "risk_notes": [],
+            },
+            "projection": {"status": "not-needed"},
+            "recommended_method": "luttinger-tisza",
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "sublattices": 2,
+                "positions": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "heisenberg",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 1,
+                        "vector": [1, 0, 0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "bonds": [
+                {
+                    "source": 0,
+                    "target": 1,
+                    "vector": [1, 0, 0],
+                    "matrix": [
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ],
+                }
+            ],
+            "classical": {"method": "auto"},
+            "q_path": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+            "q_samples": 4,
+        }
+
+        def fake_recover(_model, q, amplitudes, spin_length=0.5, source="lt"):
+            residual = 0.6 if source == "lt" else 0.1
+            return self._fake_classical_state(source, residual, q)
+
+        def fake_backend(command, check, capture_output, text):
+            class Completed:
+                stdout = json.dumps(
+                    {
+                        "status": "ok",
+                        "backend": {"name": "Sunny.jl"},
+                        "linear_spin_wave": {
+                            "dispersion": [
+                                {"q": [0.0, 0.0, 0.0], "omega": 0.0, "bands": [0.0]},
+                                {"q": [0.5, 0.0, 0.0], "omega": 1.0, "bands": [1.0]},
+                            ]
+                        },
+                    }
+                )
+
+            return Completed()
+
+        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical_solver_driver.find_generalized_lt_ground_state",
+            return_value=self._dummy_generalized_lt_result(),
+        ), patch(
+            "classical_solver_driver.solve_variational",
+            return_value=self._dummy_variational_result(),
+        ), patch(
+            "classical_solver_driver.recover_classical_state_from_lt",
+            side_effect=fake_recover,
+        ), patch(
+            "linear_spin_wave_driver.subprocess.run",
+            side_effect=fake_backend,
+        ):
+            solved = run_classical_solver(payload, starts=4, seed=1)
+            lswt_result = run_linear_spin_wave(solved)
+
+        solved["lswt"] = lswt_result
+        text = render_text(solved)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plot_result = render_plots(solved, output_dir=tmpdir)
+            output_dir = Path(tmpdir)
+            self.assertEqual(plot_result["plots"]["lswt_dispersion"]["status"], "ok")
+            self.assertTrue((output_dir / "lswt_dispersion.png").exists())
+
+        self.assertEqual(solved["classical"]["chosen_method"], "generalized-lt")
+        self.assertEqual(lswt_result["path"]["labels"], ["G", "X"])
+        self.assertIn("resolved=generalized-lt", text)
+        self.assertIn("LSWT path labels: ['G', 'X']", text)
+        self.assertIn("q=[0.5, 0.0, 0.0] omega=1.0", text)
 
 
 if __name__ == "__main__":

@@ -883,8 +883,16 @@ def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None,
 def _lt_eigenvector_magnitudes(lt_result):
     magnitudes = []
     for element in lt_result.get("eigenvector", []):
-        real_part = float(element[0].get("real", 0.0)) if element else 0.0
-        imag_part = float(element[0].get("imag", 0.0)) if element else 0.0
+        if isinstance(element, dict):
+            real_part = float(element.get("real", 0.0))
+            imag_part = float(element.get("imag", 0.0))
+        elif element:
+            first = element[0]
+            real_part = float(first.get("real", 0.0))
+            imag_part = float(first.get("imag", 0.0))
+        else:
+            real_part = 0.0
+            imag_part = 0.0
         magnitudes.append((real_part**2 + imag_part**2) ** 0.5)
     return magnitudes
 

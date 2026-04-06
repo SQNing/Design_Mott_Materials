@@ -7,6 +7,10 @@ from pathlib import Path
 
 def render_text(payload):
     lines = []
+    lswt = payload.get("lswt", {})
+    nested_linear_spin_wave = lswt.get("linear_spin_wave", {})
+    linear_spin_wave = payload.get("linear_spin_wave", {}) or nested_linear_spin_wave
+
     lines.append("Spin Model Simplifier Report")
     lines.append("============================")
     lines.append("")
@@ -154,8 +158,14 @@ def render_text(payload):
             f"lt_residual={auto_resolution.get('lt_residual', 'n/a')} "
             f"generalized_lt_residual={auto_resolution.get('generalized_lt_residual', 'n/a')}"
         )
+    backend_name = lswt.get("backend", {}).get("name")
+    if backend_name:
+        lines.append(f"LSWT backend: {backend_name}")
+    lswt_path = lswt.get("path", {})
+    if lswt_path.get("labels"):
+        lines.append(f"LSWT path labels: {lswt_path.get('labels')}")
     lines.append("Linear spin-wave points:")
-    for point in payload.get("linear_spin_wave", {}).get("dispersion", []):
+    for point in linear_spin_wave.get("dispersion", []):
         lines.append(f"- q={point['q']} omega={point['omega']}")
     return "\n".join(lines)
 
