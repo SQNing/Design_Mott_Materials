@@ -370,6 +370,62 @@ class PlottingAndKPathTests(unittest.TestCase):
 
         self.assertEqual(plot_payload["classical_state"]["figure_size"], [12.0, 9.0])
 
+    def test_build_plot_payload_accepts_custom_lswt_figure_size_and_style(self):
+        payload = {
+            "plot_options": {
+                "lswt_figsize": [10.0, 5.0],
+                "lswt_style": {
+                    "line_width": 2.3,
+                    "node_line_width": 1.4,
+                },
+            },
+            "classical": {"chosen_method": "variational", "classical_state": {"site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}], "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]}}},
+            "lswt": {
+                "status": "ok",
+                "backend": {"name": "Sunny.jl"},
+                "path": {"labels": ["G", "K", "M", "G"], "node_indices": [0, 8, 16, 24]},
+                "linear_spin_wave": {
+                    "dispersion": [
+                        {"q": [0.0, 0.0, 0.0], "bands": [0.0, 0.2], "omega": 0.0},
+                        {"q": [0.5, 0.0, 0.0], "bands": [1.0, 1.2], "omega": 1.0},
+                    ]
+                },
+            },
+        }
+
+        plot_payload = _build_plot_payload(payload)
+
+        self.assertEqual(plot_payload["lswt_dispersion"]["figure_size"], [10.0, 5.0])
+        self.assertEqual(plot_payload["lswt_dispersion"]["style"]["line_width"], 2.3)
+        self.assertEqual(plot_payload["lswt_dispersion"]["style"]["node_line_width"], 1.4)
+
+    def test_build_plot_payload_accepts_custom_thermodynamics_figure_size_and_style(self):
+        payload = {
+            "plot_options": {
+                "thermodynamics_figsize": [11.0, 10.0],
+                "thermodynamics_style": {
+                    "line_width": 1.8,
+                    "marker_size": 5.0,
+                    "capsize": 4.0,
+                },
+            },
+            "classical": {"chosen_method": "variational", "classical_state": {"site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}], "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]}}},
+            "thermodynamics_result": {
+                "grid": [
+                    {"temperature": 0.5, "energy": -1.0, "free_energy": -1.0, "specific_heat": 0.0, "magnetization": 0.6, "susceptibility": 0.1, "entropy": 0.0},
+                    {"temperature": 1.0, "energy": -0.8, "free_energy": -0.9, "specific_heat": 0.2, "magnetization": 0.2, "susceptibility": 0.3, "entropy": 0.1},
+                ],
+            },
+            "lswt": {"status": "error", "backend": {"name": "Sunny.jl"}, "error": {"code": "missing", "message": "x"}},
+        }
+
+        plot_payload = _build_plot_payload(payload)
+
+        self.assertEqual(plot_payload["thermodynamics"]["figure_size"], [11.0, 10.0])
+        self.assertEqual(plot_payload["thermodynamics"]["style"]["line_width"], 1.8)
+        self.assertEqual(plot_payload["thermodynamics"]["style"]["marker_size"], 5.0)
+        self.assertEqual(plot_payload["thermodynamics"]["style"]["capsize"], 4.0)
+
 
 if __name__ == "__main__":
     unittest.main()

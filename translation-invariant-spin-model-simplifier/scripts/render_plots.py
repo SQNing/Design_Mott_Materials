@@ -340,6 +340,54 @@ def _resolved_figure_size(plot_options, render_mode):
     return _default_figure_size(render_mode)
 
 
+def _default_lswt_style():
+    return {
+        "line_width": 1.5,
+        "node_line_width": 0.8,
+        "node_alpha": 0.7,
+        "grid_alpha": 0.25,
+    }
+
+
+def _merged_lswt_style(plot_options):
+    style = dict(_default_lswt_style())
+    overrides = plot_options.get("lswt_style", {})
+    if isinstance(overrides, dict):
+        style.update(overrides)
+    return style
+
+
+def _resolved_lswt_figure_size(plot_options):
+    figure_size = plot_options.get("lswt_figsize")
+    if isinstance(figure_size, (list, tuple)) and len(figure_size) == 2:
+        return [float(figure_size[0]), float(figure_size[1])]
+    return [7.0, 4.5]
+
+
+def _default_thermodynamics_style():
+    return {
+        "line_width": 1.6,
+        "marker_size": 4.0,
+        "capsize": 3.0,
+        "grid_alpha": 0.25,
+    }
+
+
+def _merged_thermodynamics_style(plot_options):
+    style = dict(_default_thermodynamics_style())
+    overrides = plot_options.get("thermodynamics_style", {})
+    if isinstance(overrides, dict):
+        style.update(overrides)
+    return style
+
+
+def _resolved_thermodynamics_figure_size(plot_options):
+    figure_size = plot_options.get("thermodynamics_figsize")
+    if isinstance(figure_size, (list, tuple)) and len(figure_size) == 2:
+        return [float(figure_size[0]), float(figure_size[1])]
+    return [9.0, 9.0]
+
+
 def _default_display_rotation():
     target_direction = _normalize([0.85, -0.38, 0.36])
     return {
@@ -563,6 +611,7 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
     lswt = payload.get("lswt", {})
     dispersion = lswt.get("linear_spin_wave", {}).get("dispersion", [])
     band_count = max((len(point.get("bands", [])) for point in dispersion), default=0)
+    plot_options = payload.get("plot_options", {})
     classical_state = _build_classical_plot_state(
         payload,
         commensurate_cells=commensurate_cells,
@@ -583,6 +632,13 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
             "omega_min": min((point.get("omega", 0.0) for point in dispersion), default=0.0),
             "omega_max": max((point.get("omega", 0.0) for point in dispersion), default=0.0),
             "path": lswt.get("path", {}),
+            "figure_size": _resolved_lswt_figure_size(plot_options),
+            "style": _merged_lswt_style(plot_options),
+        },
+        "thermodynamics": {
+            "grid": payload.get("thermodynamics_result", {}).get("grid", []),
+            "figure_size": _resolved_thermodynamics_figure_size(plot_options),
+            "style": _merged_thermodynamics_style(plot_options),
         },
     }
 
@@ -713,8 +769,9 @@ def _render_classical_state(classical_state, output_path):
     plt.close(fig)
 
 
-def _render_dispersion(dispersion, output_path):
-    fig, ax = plt.subplots(figsize=(6, 4))
+def _render_dispersion(dispersion, output_path, figure_size=None, style=None):
+    style = style or _default_lswt_style()
+    fig, ax = plt.subplots(figsize=figure_size or [7.0, 4.5])
     q_indices = list(range(len(dispersion)))
     band_count = max(len(point.get("bands", [])) for point in dispersion)
     for band_index in range(band_count):
@@ -722,18 +779,19 @@ def _render_dispersion(dispersion, output_path):
         for point in dispersion:
             bands = point.get("bands", [])
             ys.append(bands[band_index] if band_index < len(bands) else float("nan"))
-        ax.plot(q_indices, ys, linewidth=1.5)
+        ax.plot(q_indices, ys, linewidth=float(style.get("line_width", 1.5)))
     ax.set_title("LSWT Dispersion")
     ax.set_xlabel("High-symmetry path")
     ax.set_ylabel("omega")
-    ax.grid(True, alpha=0.25)
+    ax.grid(True, alpha=float(style.get("grid_alpha", 0.25)))
     fig.tight_layout()
     fig.savefig(output_path, dpi=180)
     plt.close(fig)
 
 
-def _render_dispersion_with_path(dispersion, path_metadata, output_path):
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+def _render_dispersion_with_path(dispersion, path_metadata, output_path, figure_size=None, style=None):
+    style = style or _default_lswt_style()
+    fig, ax = plt.subplots(figsize=figure_size or [7.0, 4.5])
     q_indices = list(range(len(dispersion)))
     band_count = max(len(point.get("bands", [])) for point in dispersion)
     for band_index in range(band_count):
@@ -741,25 +799,31 @@ def _render_dispersion_with_path(dispersion, path_metadata, output_path):
         for point in dispersion:
             bands = point.get("bands", [])
             ys.append(bands[band_index] if band_index < len(bands) else float("nan"))
-        ax.plot(q_indices, ys, linewidth=1.5)
+        ax.plot(q_indices, ys, linewidth=float(style.get("line_width", 1.5)))
 
     node_indices = path_metadata.get("node_indices", [])
     labels = path_metadata.get("labels", [])
     if node_indices and labels and len(node_indices) == len(labels):
         for index in node_indices:
-            ax.axvline(index, color="#9ca3af", linewidth=0.8, alpha=0.7)
+            ax.axvline(
+                index,
+                color="#9ca3af",
+                linewidth=float(style.get("node_line_width", 0.8)),
+                alpha=float(style.get("node_alpha", 0.7)),
+            )
         ax.set_xticks(node_indices)
         ax.set_xticklabels(labels)
     ax.set_title("LSWT Dispersion")
     ax.set_xlabel("High-symmetry path")
     ax.set_ylabel("omega")
-    ax.grid(True, alpha=0.25)
+    ax.grid(True, alpha=float(style.get("grid_alpha", 0.25)))
     fig.tight_layout()
     fig.savefig(output_path, dpi=180)
     plt.close(fig)
 
 
-def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None):
+def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None, figure_size=None, style=None):
+    style = style or _default_thermodynamics_style()
     temperatures = [point.get("temperature") for point in thermodynamics_grid]
     series = [
         ("energy", "Energy"),
@@ -770,7 +834,7 @@ def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None)
         ("entropy", "Entropy"),
     ]
 
-    fig, axes = plt.subplots(3, 2, figsize=(9, 9), sharex=True)
+    fig, axes = plt.subplots(3, 2, figsize=figure_size or [9.0, 9.0], sharex=True)
     axes = axes.flatten()
     for axis, (key, label) in zip(axes, series):
         values = [point.get(key, float("nan")) for point in thermodynamics_grid]
@@ -780,14 +844,20 @@ def _render_thermodynamics(thermodynamics_grid, output_path, uncertainties=None)
                 values,
                 yerr=uncertainties[key],
                 marker="o",
-                linewidth=1.4,
-                markersize=4,
-                capsize=3,
+                linewidth=float(style.get("line_width", 1.6)),
+                markersize=float(style.get("marker_size", 4.0)),
+                capsize=float(style.get("capsize", 3.0)),
             )
         else:
-            axis.plot(temperatures, values, marker="o", linewidth=1.6, markersize=4)
+            axis.plot(
+                temperatures,
+                values,
+                marker="o",
+                linewidth=float(style.get("line_width", 1.6)),
+                markersize=float(style.get("marker_size", 4.0)),
+            )
         axis.set_ylabel(label)
-        axis.grid(True, alpha=0.25)
+        axis.grid(True, alpha=float(style.get("grid_alpha", 0.25)))
     axes[-2].set_xlabel("Temperature")
     axes[-1].set_xlabel("Temperature")
     fig.suptitle("Classical Thermodynamics", y=0.98)
@@ -828,9 +898,20 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
         dispersion_path = output_dir / "lswt_dispersion.png"
         path_metadata = plot_payload["lswt_dispersion"].get("path", {})
         if path_metadata:
-            _render_dispersion_with_path(dispersion, path_metadata, dispersion_path)
+            _render_dispersion_with_path(
+                dispersion,
+                path_metadata,
+                dispersion_path,
+                figure_size=plot_payload["lswt_dispersion"].get("figure_size"),
+                style=plot_payload["lswt_dispersion"].get("style"),
+            )
         else:
-            _render_dispersion(dispersion, dispersion_path)
+            _render_dispersion(
+                dispersion,
+                dispersion_path,
+                figure_size=plot_payload["lswt_dispersion"].get("figure_size"),
+                style=plot_payload["lswt_dispersion"].get("style"),
+            )
         result["plots"]["lswt_dispersion"] = {"status": "ok", "path": str(dispersion_path)}
     else:
         reason = "LSWT result unavailable"
@@ -844,7 +925,13 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
     thermo_grid = thermodynamics.get("grid", [])
     if thermo_grid:
         thermodynamics_path = output_dir / "thermodynamics.png"
-        _render_thermodynamics(thermo_grid, thermodynamics_path, uncertainties=thermodynamics.get("uncertainties"))
+        _render_thermodynamics(
+            thermo_grid,
+            thermodynamics_path,
+            uncertainties=thermodynamics.get("uncertainties"),
+            figure_size=plot_payload["thermodynamics"].get("figure_size"),
+            style=plot_payload["thermodynamics"].get("style"),
+        )
         result["plots"]["thermodynamics"] = {"status": "ok", "path": str(thermodynamics_path)}
     else:
         result["plots"]["thermodynamics"] = {

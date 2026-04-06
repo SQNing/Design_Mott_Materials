@@ -152,7 +152,123 @@ Current defaults:
 }
 ```
 
-## Minimal example
+### 5. `lswt_figsize`
+
+Overrides the matplotlib figure size used for the LSWT dispersion plot.
+
+Accepted form:
+
+- two-component list `[width, height]`
+
+Example:
+
+```json
+{
+  "plot_options": {
+    "lswt_figsize": [10.5, 6.0]
+  }
+}
+```
+
+Current default:
+
+- `[7.0, 4.5]`
+
+### 6. `lswt_style`
+
+Overrides stylistic parameters for the LSWT dispersion plot.
+
+Currently useful keys include:
+
+- `line_width`
+- `node_line_width`
+- `node_alpha`
+- `grid_alpha`
+
+Example:
+
+```json
+{
+  "plot_options": {
+    "lswt_style": {
+      "line_width": 2.1,
+      "node_line_width": 1.3,
+      "node_alpha": 0.85
+    }
+  }
+}
+```
+
+Current defaults:
+
+```json
+{
+  "line_width": 1.5,
+  "node_line_width": 0.8,
+  "node_alpha": 0.7,
+  "grid_alpha": 0.25
+}
+```
+
+### 7. `thermodynamics_figsize`
+
+Overrides the matplotlib figure size used for the thermodynamics plot.
+
+Accepted form:
+
+- two-component list `[width, height]`
+
+Example:
+
+```json
+{
+  "plot_options": {
+    "thermodynamics_figsize": [12.0, 10.5]
+  }
+}
+```
+
+Current default:
+
+- `[9.0, 9.0]`
+
+### 8. `thermodynamics_style`
+
+Overrides stylistic parameters for the thermodynamics plot.
+
+Currently useful keys include:
+
+- `line_width`
+- `marker_size`
+- `capsize`
+- `grid_alpha`
+
+Example:
+
+```json
+{
+  "plot_options": {
+    "thermodynamics_style": {
+      "line_width": 1.9,
+      "marker_size": 5.0,
+      "capsize": 4.0
+    }
+  }
+}
+```
+
+Current defaults:
+
+```json
+{
+  "line_width": 1.6,
+  "marker_size": 4.0,
+  "capsize": 3.0,
+  "grid_alpha": 0.25
+}
+```
+
+## Expanded example
 
 ```json
 {
@@ -163,6 +279,18 @@ Current defaults:
       "atom_size": 520.0,
       "arrow_length_factor": 0.72,
       "arrow_line_width": 3.3
+    },
+    "lswt_figsize": [10.5, 6.0],
+    "lswt_style": {
+      "line_width": 2.1,
+      "node_line_width": 1.3,
+      "node_alpha": 0.85
+    },
+    "thermodynamics_figsize": [12.0, 10.5],
+    "thermodynamics_style": {
+      "line_width": 1.9,
+      "marker_size": 5.0,
+      "capsize": 4.0
     }
   }
 }
@@ -170,10 +298,8 @@ Current defaults:
 
 ## Scope note
 
-These options currently affect the **classical ground-state plot** only.
+These options currently affect:
 
-They do not currently change:
-
-- LSWT dispersion figure size
-- thermodynamics figure size
-- LSWT line widths or color scheme
+- classical ground-state plot
+- LSWT dispersion plot
+- thermodynamics plot
