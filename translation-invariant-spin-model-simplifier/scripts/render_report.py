@@ -141,6 +141,19 @@ def render_text(payload):
         )
     lines.append(f"Projection status: {payload['projection']['status']}")
     lines.append(f"Chosen classical method: {payload['classical']['chosen_method']}")
+    auto_resolution = payload.get("classical", {}).get("auto_resolution", {})
+    if auto_resolution.get("enabled"):
+        lines.append("Classical auto-resolution:")
+        lines.append(
+            "- "
+            f"requested={payload.get('classical', {}).get('requested_method', 'n/a')} "
+            f"recommended={auto_resolution.get('recommended_method', 'n/a')} "
+            f"initial={auto_resolution.get('initial_method', 'n/a')} "
+            f"resolved={auto_resolution.get('resolved_method', 'n/a')} "
+            f"reason={auto_resolution.get('reason', 'n/a')} "
+            f"lt_residual={auto_resolution.get('lt_residual', 'n/a')} "
+            f"generalized_lt_residual={auto_resolution.get('generalized_lt_residual', 'n/a')}"
+        )
     lines.append("Linear spin-wave points:")
     for point in payload.get("linear_spin_wave", {}).get("dispersion", []):
         lines.append(f"- q={point['q']} omega={point['omega']}")

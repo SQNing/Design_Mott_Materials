@@ -138,6 +138,43 @@ def _resolve_generalized_lt_settings(classical_config, model):
     }
 
 
+def _resolve_auto_settings(classical_config):
+    auto_config = classical_config.get("auto_resolve", {})
+    if not isinstance(auto_config, dict):
+        auto_config = {}
+    lt_accept_residual = float(auto_config.get("lt_accept_residual", 1e-6))
+    generalized_lt_min_improvement = float(auto_config.get("generalized_lt_min_improvement", 5e-2))
+    return {
+        "lt_accept_residual": max(0.0, lt_accept_residual),
+        "generalized_lt_min_improvement": max(0.0, generalized_lt_min_improvement),
+    }
+
+
+def _resolve_requested_method(classical_config, recommended_method):
+    explicit_method = classical_config.get("method")
+    chosen_method = classical_config.get("chosen_method")
+    auto_selected = bool(classical_config.get("auto_selected", False))
+
+    if explicit_method == "auto" or explicit_method is None and chosen_method is None:
+        return {
+            "requested_method": "auto",
+            "initial_method": recommended_method,
+            "auto_mode": True,
+        }
+    if auto_selected:
+        return {
+            "requested_method": explicit_method or chosen_method or recommended_method,
+            "initial_method": explicit_method or chosen_method or recommended_method,
+            "auto_mode": True,
+        }
+    requested_method = explicit_method or chosen_method or "variational"
+    return {
+        "requested_method": requested_method,
+        "initial_method": requested_method,
+        "auto_mode": False,
+    }
+
+
 def _deserialize_complex_vector(serialized):
     values = []
     for item in serialized:
@@ -220,6 +257,37 @@ def _recover_lt_classical_state(payload, chosen_method):
     )
     target_result["constraint_recovery"] = classical_state["constraint_recovery"]
     return classical_state
+
+
+def _constraint_residual(result):
+    if not isinstance(result, dict):
+        return None
+    constraint_recovery = result.get("constraint_recovery", {})
+    residual = constraint_recovery.get("strong_constraint_residual")
+    if residual is None:
+        return None
+    return float(residual)
+
+
+def _choose_auto_method(recommended_method, lt_residual, generalized_lt_residual, model, auto_settings):
+    if recommended_method == "variational":
+        return "variational", "recommended-variational"
+
+    if lt_residual is not None and lt_residual <= auto_settings["lt_accept_residual"]:
+        return "luttinger-tisza", "lt-residual-within-tolerance"
+
+    if _n_sublattices(model) > 1 and generalized_lt_residual is not None and lt_residual is not None:
+        if generalized_lt_residual + auto_settings["generalized_lt_min_improvement"] < lt_residual:
+            return "generalized-lt", "generalized-lt-improved-residual"
+        return "variational", "generalized-lt-did-not-improve-residual"
+
+    if _n_sublattices(model) > 1 and generalized_lt_residual is not None and lt_residual is None:
+        return "generalized-lt", "generalized-lt-available-without-lt-residual"
+
+    if _n_sublattices(model) <= 1:
+        return "variational", "single-sublattice-lt-residual-too-large"
+
+    return "variational", "missing-residual-diagnostics"
 
 
 def _normalized_direction(direction):
@@ -576,16 +644,35 @@ def estimate_thermodynamics(
 
 
 def run_classical_solver(payload, starts=16, seed=0):
-    payload.setdefault("recommended_method", recommend_method(payload))
+    recommended_method = payload.setdefault("recommended_method", recommend_method(payload))
     classical_config = payload.setdefault("classical", {})
-    chosen_method = classical_config.get("chosen_method") or classical_config.get("method") or "variational"
-    classical_config["chosen_method"] = chosen_method
+    method_resolution = _resolve_requested_method(classical_config, recommended_method)
+    requested_method = method_resolution["requested_method"]
+    initial_method = method_resolution["initial_method"]
+    auto_mode = method_resolution["auto_mode"]
+    auto_settings = _resolve_auto_settings(classical_config)
 
-    if chosen_method in {"luttinger-tisza", "generalized-lt"}:
+    classical_config["requested_method"] = requested_method
+    classical_config["auto_resolution"] = {
+        "enabled": bool(auto_mode),
+        "recommended_method": recommended_method,
+        "initial_method": initial_method,
+        "resolved_method": None,
+        "lt_residual": None,
+        "generalized_lt_residual": None,
+        "reason": None,
+        "lt_accept_residual": auto_settings["lt_accept_residual"],
+        "generalized_lt_min_improvement": auto_settings["generalized_lt_min_improvement"],
+    }
+
+    if not auto_mode:
+        classical_config["chosen_method"] = initial_method
+
+    if initial_method in {"luttinger-tisza", "generalized-lt"}:
         lt_settings = _resolve_lt_settings(classical_config, payload)
         payload["lt_result"] = find_lt_ground_state(payload, mesh_shape=lt_settings["mesh_shape"])
 
-    if chosen_method == "generalized-lt":
+    if initial_method == "generalized-lt":
         generalized_settings = _resolve_generalized_lt_settings(classical_config, payload)
         payload["generalized_lt_result"] = find_generalized_lt_ground_state(
             payload,
@@ -597,11 +684,59 @@ def run_classical_solver(payload, starts=16, seed=0):
 
     payload["variational_result"] = solve_variational(payload, starts=starts, seed=seed)
 
+    lt_classical_state = None
+    generalized_lt_classical_state = None
+    variational_classical_state = _build_variational_classical_state(payload)
+
+    if "lt_result" in payload:
+        lt_classical_state = _recover_lt_classical_state(payload, "luttinger-tisza")
+        classical_config["auto_resolution"]["lt_residual"] = _constraint_residual(payload.get("lt_result"))
+
+    if initial_method == "generalized-lt":
+        generalized_lt_classical_state = _recover_lt_classical_state(payload, "generalized-lt")
+        classical_config["auto_resolution"]["generalized_lt_residual"] = _constraint_residual(
+            payload.get("generalized_lt_result")
+        )
+
+    chosen_method = initial_method
     classical_state = None
-    if chosen_method in {"luttinger-tisza", "generalized-lt"}:
-        classical_state = _recover_lt_classical_state(payload, chosen_method)
+    resolution_reason = "explicit-user-choice"
+
+    if auto_mode:
+        lt_residual = classical_config["auto_resolution"]["lt_residual"]
+        generalized_lt_residual = classical_config["auto_resolution"]["generalized_lt_residual"]
+
+        if initial_method == "luttinger-tisza" and lt_residual is not None and lt_residual > auto_settings["lt_accept_residual"]:
+            generalized_settings = _resolve_generalized_lt_settings(classical_config, payload)
+            payload["generalized_lt_result"] = find_generalized_lt_ground_state(
+                payload,
+                mesh_shape=generalized_settings["mesh_shape"],
+                lambda_bounds=generalized_settings["lambda_bounds"],
+                lambda_points=generalized_settings["lambda_points"],
+                search_strategy=generalized_settings["search_strategy"],
+            )
+            generalized_lt_classical_state = _recover_lt_classical_state(payload, "generalized-lt")
+            generalized_lt_residual = _constraint_residual(payload.get("generalized_lt_result"))
+            classical_config["auto_resolution"]["generalized_lt_residual"] = generalized_lt_residual
+
+        chosen_method, resolution_reason = _choose_auto_method(
+            recommended_method,
+            lt_residual=classical_config["auto_resolution"]["lt_residual"],
+            generalized_lt_residual=classical_config["auto_resolution"]["generalized_lt_residual"],
+            model=payload,
+            auto_settings=auto_settings,
+        )
+
+    if chosen_method == "luttinger-tisza":
+        classical_state = lt_classical_state
+    elif chosen_method == "generalized-lt":
+        classical_state = generalized_lt_classical_state
     elif chosen_method == "variational":
-        classical_state = _build_variational_classical_state(payload)
+        classical_state = variational_classical_state
+
+    classical_config["chosen_method"] = chosen_method
+    classical_config["auto_resolution"]["resolved_method"] = chosen_method
+    classical_config["auto_resolution"]["reason"] = resolution_reason
 
     if classical_state is not None:
         payload["classical_state"] = classical_state

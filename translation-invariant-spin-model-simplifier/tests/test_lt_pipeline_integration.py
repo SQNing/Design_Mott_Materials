@@ -2,6 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
@@ -14,6 +15,52 @@ from render_report import render_text
 
 
 class LTPipelineIntegrationTests(unittest.TestCase):
+    @staticmethod
+    def _dummy_lt_result():
+        return {
+            "q": [0.5, 0.0, 0.0],
+            "lowest_eigenvalue": -2.0,
+            "matrix_size": 2,
+            "eigenvector": [
+                {"real": 1.0, "imag": 0.0},
+                {"real": 0.0, "imag": 0.0},
+            ],
+        }
+
+    @staticmethod
+    def _dummy_generalized_lt_result():
+        return {
+            "lambda": [0.2, -0.2],
+            "tightened_lower_bound": -1.6,
+            "q": [0.5, 0.0, 0.0],
+            "eigenspace": [
+                [
+                    {"real": 1.0, "imag": 0.0},
+                    {"real": 0.0, "imag": 0.0},
+                ]
+            ],
+        }
+
+    @staticmethod
+    def _dummy_variational_result():
+        return {"method": "variational", "energy": -1.0, "spins": [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]}
+
+    @staticmethod
+    def _fake_classical_state(source, residual, q_vector):
+        return {
+            "site_frames": [
+                {"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]},
+                {"site": 1, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]},
+            ],
+            "ordering": {"kind": "commensurate", "q_vector": list(q_vector)},
+            "constraint_recovery": {
+                "source": source,
+                "reconstruction": "single-q",
+                "strong_constraint_residual": residual,
+                "site_norms": [1.0, 1.0],
+            },
+        }
+
     def test_classical_stage_decision_offers_lt_and_generalized_lt_options(self):
         model = {
             "lattice": {"sublattices": 2},
@@ -67,6 +114,46 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertIn("lambda=[0.2, -0.2]", text)
         self.assertIn("tightened_lower_bound=-1.6", text)
         self.assertIn("strong_constraint_residual=0.0625", text)
+
+    def test_render_report_includes_auto_resolution_details_when_present(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {"recommended": 0, "candidates": [{"name": "faithful-readable"}]},
+            "canonical_model": {"one_body": [], "two_body": [], "three_body": [], "four_body": [], "higher_body": []},
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {
+                "reconstruction_error": 0.0,
+                "main_fraction": 1.0,
+                "low_weight_fraction": 0.0,
+                "residual_fraction": 0.0,
+                "risk_notes": [],
+            },
+            "projection": {"status": "not-needed"},
+            "classical": {
+                "requested_method": "auto",
+                "chosen_method": "generalized-lt",
+                "auto_resolution": {
+                    "enabled": True,
+                    "recommended_method": "luttinger-tisza",
+                    "initial_method": "luttinger-tisza",
+                    "resolved_method": "generalized-lt",
+                    "reason": "generalized-lt-improved-residual",
+                    "lt_residual": 0.6,
+                    "generalized_lt_residual": 0.1,
+                },
+            },
+            "linear_spin_wave": {"dispersion": []},
+        }
+
+        text = render_text(payload)
+
+        self.assertIn("Classical auto-resolution:", text)
+        self.assertIn("requested=auto", text)
+        self.assertIn("recommended=luttinger-tisza", text)
+        self.assertIn("resolved=generalized-lt", text)
+        self.assertIn("reason=generalized-lt-improved-residual", text)
+        self.assertIn("lt_residual=0.6", text)
+        self.assertIn("generalized_lt_residual=0.1", text)
 
     def test_lt_diagnostic_summary_includes_constraint_recovery_when_available(self):
         summary = _lt_diagnostic_summary(
@@ -249,6 +336,114 @@ class LTPipelineIntegrationTests(unittest.TestCase):
             lswt_payload["payload"]["ordering"]["q_vector"],
             solved["classical"]["classical_state"]["ordering"]["q_vector"],
         )
+
+    def test_run_classical_solver_auto_accepts_lt_when_lt_residual_is_small(self):
+        payload = {
+            "recommended_method": "luttinger-tisza",
+            "lattice": {"kind": "chain", "dimension": 1, "sublattices": 2},
+            "bonds": [{"source": 0, "target": 1, "vector": [1, 0, 0], "matrix": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]}],
+            "classical": {"method": "auto"},
+        }
+
+        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical_solver_driver.find_generalized_lt_ground_state",
+            return_value=self._dummy_generalized_lt_result(),
+        ) as generalized_mock, patch(
+            "classical_solver_driver.solve_variational",
+            return_value=self._dummy_variational_result(),
+        ), patch(
+            "classical_solver_driver.recover_classical_state_from_lt",
+            return_value=self._fake_classical_state("lt", 0.0, [0.5, 0.0, 0.0]),
+        ):
+            result = run_classical_solver(payload, starts=4, seed=1)
+
+        self.assertEqual(result["classical"]["requested_method"], "auto")
+        self.assertEqual(result["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertTrue(result["classical"]["auto_resolution"]["enabled"])
+        self.assertEqual(result["classical"]["auto_resolution"]["resolved_method"], "luttinger-tisza")
+        generalized_mock.assert_not_called()
+
+    def test_run_classical_solver_auto_upgrades_to_generalized_lt_when_it_improves_residual(self):
+        payload = {
+            "recommended_method": "luttinger-tisza",
+            "lattice": {"kind": "chain", "dimension": 1, "sublattices": 2},
+            "bonds": [{"source": 0, "target": 1, "vector": [1, 0, 0], "matrix": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]}],
+            "classical": {"method": "auto"},
+        }
+
+        def fake_recover(_model, q, amplitudes, spin_length=0.5, source="lt"):
+            residual = 0.6 if source == "lt" else 0.1
+            return self._fake_classical_state(source, residual, q)
+
+        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical_solver_driver.find_generalized_lt_ground_state",
+            return_value=self._dummy_generalized_lt_result(),
+        ), patch(
+            "classical_solver_driver.solve_variational",
+            return_value=self._dummy_variational_result(),
+        ), patch(
+            "classical_solver_driver.recover_classical_state_from_lt",
+            side_effect=fake_recover,
+        ):
+            result = run_classical_solver(payload, starts=4, seed=1)
+
+        self.assertEqual(result["classical"]["chosen_method"], "generalized-lt")
+        self.assertEqual(result["classical"]["auto_resolution"]["resolved_method"], "generalized-lt")
+        self.assertAlmostEqual(result["classical"]["auto_resolution"]["lt_residual"], 0.6, places=6)
+        self.assertAlmostEqual(result["classical"]["auto_resolution"]["generalized_lt_residual"], 0.1, places=6)
+        self.assertEqual(result["classical_state"]["constraint_recovery"]["source"], "generalized-lt")
+
+    def test_run_classical_solver_auto_falls_back_to_variational_when_generalized_lt_does_not_help(self):
+        payload = {
+            "recommended_method": "luttinger-tisza",
+            "lattice": {"kind": "chain", "dimension": 1, "sublattices": 2},
+            "bonds": [{"source": 0, "target": 1, "vector": [1, 0, 0], "matrix": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]}],
+            "classical": {"method": "auto"},
+        }
+
+        def fake_recover(_model, q, amplitudes, spin_length=0.5, source="lt"):
+            residual = 0.6 if source == "lt" else 0.59
+            return self._fake_classical_state(source, residual, q)
+
+        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical_solver_driver.find_generalized_lt_ground_state",
+            return_value=self._dummy_generalized_lt_result(),
+        ), patch(
+            "classical_solver_driver.solve_variational",
+            return_value=self._dummy_variational_result(),
+        ), patch(
+            "classical_solver_driver.recover_classical_state_from_lt",
+            side_effect=fake_recover,
+        ):
+            result = run_classical_solver(payload, starts=4, seed=1)
+
+        self.assertEqual(result["classical"]["chosen_method"], "variational")
+        self.assertEqual(result["classical"]["auto_resolution"]["resolved_method"], "variational")
+        self.assertEqual(result["classical_state"]["constraint_recovery"]["source"], "variational")
+
+    def test_run_classical_solver_keeps_explicit_lt_choice_even_when_residual_is_large(self):
+        payload = {
+            "lattice": {"kind": "chain", "dimension": 1, "sublattices": 2},
+            "bonds": [{"source": 0, "target": 1, "vector": [1, 0, 0], "matrix": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]}],
+            "classical": {"method": "luttinger-tisza"},
+        }
+
+        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical_solver_driver.find_generalized_lt_ground_state",
+            return_value=self._dummy_generalized_lt_result(),
+        ) as generalized_mock, patch(
+            "classical_solver_driver.solve_variational",
+            return_value=self._dummy_variational_result(),
+        ), patch(
+            "classical_solver_driver.recover_classical_state_from_lt",
+            return_value=self._fake_classical_state("lt", 1.0, [0.5, 0.0, 0.0]),
+        ):
+            result = run_classical_solver(payload, starts=4, seed=1)
+
+        self.assertEqual(result["classical"]["requested_method"], "luttinger-tisza")
+        self.assertEqual(result["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertFalse(result["classical"]["auto_resolution"]["enabled"])
+        generalized_mock.assert_not_called()
 
 
 if __name__ == "__main__":
