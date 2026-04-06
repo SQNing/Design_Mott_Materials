@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from generalized_lt_solver import find_generalized_lt_ground_state
+from lt_solver import find_lt_ground_state
 
 try:
     from scipy.optimize import minimize
@@ -35,6 +37,104 @@ def classical_energy(model, spins):
 
 def _n_spins(model):
     return max(max(bond["source"], bond["target"]) for bond in model["bonds"]) + 1
+
+
+def _n_sublattices(model):
+    lattice = model.get("lattice", {})
+    if lattice.get("sublattices") is not None:
+        return max(1, int(lattice["sublattices"]))
+    return _n_spins(model)
+
+
+def _spatial_dimension(model):
+    lattice = model.get("lattice", {})
+    if lattice.get("dimension") is not None:
+        return max(1, min(3, int(lattice["dimension"])))
+
+    active_axes = set()
+    for bond in model.get("bonds", []):
+        for axis, value in enumerate(bond.get("vector", [])[:3]):
+            if abs(float(value)) > 1e-12:
+                active_axes.add(axis)
+    return max(1, min(3, len(active_axes) or 1))
+
+
+def _normalize_mesh_shape(mesh_shape, default_shape):
+    if mesh_shape is None:
+        return tuple(int(value) for value in default_shape)
+    values = tuple(int(value) for value in mesh_shape)
+    if len(values) != 3:
+        raise ValueError("mesh_shape must have length 3")
+    if any(value <= 0 for value in values):
+        raise ValueError("mesh_shape entries must be positive")
+    return values
+
+
+def _default_lt_mesh_shape(model):
+    dimension = _spatial_dimension(model)
+    if dimension == 1:
+        return (33, 1, 1)
+    if dimension == 2:
+        return (33, 33, 1)
+    return (17, 17, 17)
+
+
+def _default_generalized_lt_mesh_shape(model):
+    dimension = _spatial_dimension(model)
+    if dimension == 1:
+        return (17, 1, 1)
+    if dimension == 2:
+        return (17, 17, 1)
+    return (9, 9, 9)
+
+
+def _normalize_lambda_bounds(lambda_bounds):
+    if lambda_bounds is None:
+        return (-1.0, 1.0)
+    values = tuple(float(value) for value in lambda_bounds)
+    if len(values) != 2:
+        raise ValueError("lambda_bounds must have length 2")
+    if values[0] > values[1]:
+        raise ValueError("lambda_bounds must satisfy lower <= upper")
+    return values
+
+
+def _resolve_lt_settings(classical_config, model):
+    lt_config = classical_config.get("lt", {})
+    if not isinstance(lt_config, dict):
+        lt_config = {}
+    mesh_shape = lt_config.get("mesh_shape", classical_config.get("lt_mesh_shape"))
+    return {"mesh_shape": _normalize_mesh_shape(mesh_shape, _default_lt_mesh_shape(model))}
+
+
+def _resolve_generalized_lt_settings(classical_config, model):
+    generalized_config = classical_config.get("generalized_lt", {})
+    if not isinstance(generalized_config, dict):
+        generalized_config = {}
+
+    mesh_shape = generalized_config.get("mesh_shape", classical_config.get("generalized_lt_mesh_shape"))
+    lambda_bounds = generalized_config.get(
+        "lambda_bounds", classical_config.get("generalized_lt_lambda_bounds")
+    )
+    lambda_points = generalized_config.get(
+        "lambda_points", classical_config.get("generalized_lt_lambda_points", 21)
+    )
+    search_strategy = generalized_config.get(
+        "search_strategy", classical_config.get("generalized_lt_search_strategy")
+    )
+    if search_strategy is None:
+        search_strategy = "grid" if _n_sublattices(model) <= 2 else "coordinate"
+
+    lambda_points = int(lambda_points)
+    if lambda_points <= 0:
+        raise ValueError("lambda_points must be positive")
+
+    return {
+        "mesh_shape": _normalize_mesh_shape(mesh_shape, _default_generalized_lt_mesh_shape(model)),
+        "lambda_bounds": _normalize_lambda_bounds(lambda_bounds),
+        "lambda_points": lambda_points,
+        "search_strategy": str(search_strategy),
+    }
 
 
 def _normalized_direction(direction):
@@ -392,6 +492,24 @@ def estimate_thermodynamics(
 
 def run_classical_solver(payload, starts=16, seed=0):
     payload.setdefault("recommended_method", recommend_method(payload))
+    classical_config = payload.setdefault("classical", {})
+    chosen_method = classical_config.get("chosen_method") or classical_config.get("method") or "variational"
+    classical_config["chosen_method"] = chosen_method
+
+    if chosen_method in {"luttinger-tisza", "generalized-lt"}:
+        lt_settings = _resolve_lt_settings(classical_config, payload)
+        payload["lt_result"] = find_lt_ground_state(payload, mesh_shape=lt_settings["mesh_shape"])
+
+    if chosen_method == "generalized-lt":
+        generalized_settings = _resolve_generalized_lt_settings(classical_config, payload)
+        payload["generalized_lt_result"] = find_generalized_lt_ground_state(
+            payload,
+            mesh_shape=generalized_settings["mesh_shape"],
+            lambda_bounds=generalized_settings["lambda_bounds"],
+            lambda_points=generalized_settings["lambda_points"],
+            search_strategy=generalized_settings["search_strategy"],
+        )
+
     payload["variational_result"] = solve_variational(payload, starts=starts, seed=seed)
 
     thermodynamics = payload.get("thermodynamics")
