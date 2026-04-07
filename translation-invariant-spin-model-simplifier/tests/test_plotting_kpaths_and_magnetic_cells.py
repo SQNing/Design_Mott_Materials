@@ -1,3 +1,4 @@
+import importlib
 import json
 import sys
 import tempfile
@@ -13,6 +14,17 @@ from render_plots import _build_plot_payload, _default_structure_style, render_p
 
 
 class PlottingAndKPathTests(unittest.TestCase):
+    def test_common_and_output_stage_modules_are_importable(self):
+        common_lattice_geometry = importlib.import_module("common.lattice_geometry")
+        common_bravais_kpaths = importlib.import_module("common.bravais_kpaths")
+        output_render_plots = importlib.import_module("output.render_plots")
+        output_render_report = importlib.import_module("output.render_report")
+
+        self.assertTrue(hasattr(common_lattice_geometry, "resolve_lattice_vectors"))
+        self.assertTrue(hasattr(common_bravais_kpaths, "default_high_symmetry_path"))
+        self.assertTrue(hasattr(output_render_plots, "render_plots"))
+        self.assertTrue(hasattr(output_render_report, "render_text"))
+
     def test_default_classical_plot_style_uses_larger_markers_and_arrows(self):
         style = _default_structure_style()
 
