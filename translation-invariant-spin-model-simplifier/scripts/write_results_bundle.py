@@ -34,10 +34,33 @@ def _populate_missing_results(payload, *, run_missing_classical=True, run_missin
     return payload
 
 
+def _stage_summary(original_payload, bundle_payload, *, run_missing_classical, run_missing_lswt):
+    classical_present_before = _has_classical_state(original_payload)
+    classical_present_after = _has_classical_state(bundle_payload)
+    lswt_present_before = "lswt" in original_payload
+    lswt_present_after = "lswt" in bundle_payload
+
+    return {
+        "classical": {
+            "present": bool(classical_present_after),
+            "auto_ran": bool(run_missing_classical and not classical_present_before and classical_present_after),
+            "chosen_method": bundle_payload.get("classical", {}).get("chosen_method"),
+            "requested_method": bundle_payload.get("classical", {}).get("requested_method"),
+        },
+        "lswt": {
+            "present": bool(lswt_present_after),
+            "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),
+            "status": bundle_payload.get("lswt", {}).get("status"),
+            "backend": bundle_payload.get("lswt", {}).get("backend", {}).get("name"),
+        },
+    }
+
+
 def write_results_bundle(payload, output_dir, *, run_missing_classical=True, run_missing_lswt=True):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    original_payload = deepcopy(payload)
     bundle_payload = _populate_missing_results(
         deepcopy(payload),
         run_missing_classical=run_missing_classical,
@@ -51,6 +74,12 @@ def write_results_bundle(payload, output_dir, *, run_missing_classical=True, run
 
     manifest = {
         "status": "ok" if plots.get("status") == "ok" else "partial",
+        "stages": _stage_summary(
+            original_payload,
+            bundle_payload,
+            run_missing_classical=run_missing_classical,
+            run_missing_lswt=run_missing_lswt,
+        ),
         "plots": plots,
         "report": {"path": str(output_dir / "report.txt")},
     }

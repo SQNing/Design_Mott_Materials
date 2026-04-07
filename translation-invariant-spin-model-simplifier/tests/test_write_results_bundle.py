@@ -98,6 +98,13 @@ class WriteResultsBundleTests(unittest.TestCase):
         classical_mock.assert_called_once()
         lswt_mock.assert_called_once()
         self.assertEqual(manifest["status"], "ok")
+        self.assertTrue(manifest["stages"]["classical"]["present"])
+        self.assertTrue(manifest["stages"]["classical"]["auto_ran"])
+        self.assertEqual(manifest["stages"]["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertTrue(manifest["stages"]["lswt"]["present"])
+        self.assertTrue(manifest["stages"]["lswt"]["auto_ran"])
+        self.assertEqual(manifest["stages"]["lswt"]["status"], "ok")
+        self.assertEqual(manifest["stages"]["lswt"]["backend"], "Sunny.jl")
 
     def test_write_results_bundle_preserves_existing_classical_and_lswt_results(self):
         payload = {
@@ -145,6 +152,12 @@ class WriteResultsBundleTests(unittest.TestCase):
         classical_mock.assert_not_called()
         lswt_mock.assert_not_called()
         self.assertEqual(manifest["status"], "ok")
+        self.assertTrue(manifest["stages"]["classical"]["present"])
+        self.assertFalse(manifest["stages"]["classical"]["auto_ran"])
+        self.assertEqual(manifest["stages"]["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertTrue(manifest["stages"]["lswt"]["present"])
+        self.assertFalse(manifest["stages"]["lswt"]["auto_ran"])
+        self.assertEqual(manifest["stages"]["lswt"]["status"], "ok")
 
     def test_write_results_bundle_can_skip_auto_classical_and_lswt(self):
         payload = {
@@ -202,6 +215,10 @@ class WriteResultsBundleTests(unittest.TestCase):
         classical_mock.assert_not_called()
         lswt_mock.assert_not_called()
         self.assertEqual(manifest["status"], "partial")
+        self.assertFalse(manifest["stages"]["classical"]["present"])
+        self.assertFalse(manifest["stages"]["classical"]["auto_ran"])
+        self.assertFalse(manifest["stages"]["lswt"]["present"])
+        self.assertFalse(manifest["stages"]["lswt"]["auto_ran"])
 
 
 if __name__ == "__main__":
