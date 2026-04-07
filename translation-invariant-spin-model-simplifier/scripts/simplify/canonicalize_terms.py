@@ -23,7 +23,7 @@ def _parse_label_factors(label):
         return []
     factors = []
     for factor in label.split():
-        match = re.fullmatch(r"([A-Za-z]+)@(-?\d+)", factor)
+        match = re.fullmatch(r"([A-Za-z0-9_]+)@(-?\d+)", factor)
         if not match:
             raise ValueError(f"unsupported factor label: {factor}")
         operator, site = match.groups()

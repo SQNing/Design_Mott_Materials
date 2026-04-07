@@ -18,14 +18,28 @@ The normalized payload must contain:
 - `operator`
 - `matrix`
 - `natural_language`
+- `many_body_hr`
 
 Required content fields:
 
 - `operator` -> `expression`
 - `matrix` -> `matrix`
 - `natural_language` -> `description`
+- `many_body_hr` -> `structure_file` and `hamiltonian_file`
 
 `support` must be provided for `operator` and `matrix` payloads and must be an iterable of integers, not a string-like value.
+
+For `many_body_hr` payloads:
+
+- `structure_file` must point to a crystal-structure file such as `POSCAR`
+- `hamiltonian_file` must point to a Wannier-style `hr.dat` file
+- the current semantics assume a local
+  `pseudospin_orbital`
+  space
+- the basis order is fixed to
+  `orbital_major_spin_minor`
+  so the local basis is interpreted as
+  `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`
 
 `natural_language` freeform input must be non-empty after trimming whitespace.
 

@@ -14,7 +14,7 @@ DEFAULT_TIMEOUTS = {
     "classical_solver_seconds": 600,
 }
 
-SUPPORTED_REPRESENTATIONS = {"operator", "matrix", "natural_language"}
+SUPPORTED_REPRESENTATIONS = {"operator", "matrix", "natural_language", "many_body_hr"}
 
 
 def _default_lattice():
@@ -68,6 +68,28 @@ def _require_representation_value(payload, representation):
     return value
 
 
+def _normalize_many_body_hr_representation(payload):
+    structure_file = payload.get("structure_file")
+    hamiltonian_file = payload.get("hamiltonian_file")
+    if not structure_file:
+        raise ValueError("many_body_hr payload requires structure_file")
+    if not hamiltonian_file:
+        raise ValueError("many_body_hr payload requires hamiltonian_file")
+
+    return {
+        "support": [],
+        "representation": {
+            "kind": "many_body_hr",
+            "structure_file": str(structure_file),
+            "hamiltonian_file": str(hamiltonian_file),
+        },
+        "basis_semantics": {
+            "local_space": "pseudospin_orbital",
+        },
+        "basis_order": "orbital_major_spin_minor",
+    }
+
+
 def _infer_local_dimension_from_text(text, default=2):
     lowered = (text or "").lower()
     if re.search(r"\bspin[-\s]*one[-\s]*half\b", lowered):
@@ -117,6 +139,33 @@ def normalize_input(payload):
     representation = payload.get("representation", "operator")
     if representation not in SUPPORTED_REPRESENTATIONS:
         raise ValueError("unsupported representation")
+    if representation == "many_body_hr":
+        legacy_lattice = payload.get("lattice", _default_lattice())
+        lattice_description = _normalize_lattice_description(payload, legacy_lattice)
+        hamiltonian_description = _normalize_many_body_hr_representation(payload)
+        user_notes = payload.get("user_notes", "")
+        return {
+            "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
+            "local_hilbert": {"dimension": int(payload.get("local_dim", 4)), "uniform": True},
+            "lattice": legacy_lattice,
+            "lattice_description": lattice_description,
+            "local_term": dict(hamiltonian_description),
+            "hamiltonian_description": hamiltonian_description,
+            "parameters": payload.get("parameters", {}),
+            "symmetry_hints": payload.get("symmetry_hints", []),
+            "user_required_symmetries": payload.get("user_required_symmetries", []),
+            "allowed_breaking": payload.get("allowed_breaking", []),
+            "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
+            "timeouts": dict(DEFAULT_TIMEOUTS),
+            "user_notes": user_notes,
+            "basis_semantics": dict(hamiltonian_description["basis_semantics"]),
+            "basis_order": hamiltonian_description["basis_order"],
+            "provenance": {
+                "source_mode": payload.get("source_mode", representation),
+                "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            },
+            "interaction": payload.get("interaction"),
+        }
     support = payload.get("support", [])
     support = _normalize_support(support)
     if not support and representation != "natural_language":

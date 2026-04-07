@@ -28,9 +28,10 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 
 ## Input Notes
 
-- Support operator expressions, local matrices or tensors, structured lattice input, and controlled natural-language lattice or model descriptions.
+- Support operator expressions, local matrices or tensors, structured lattice input, controlled natural-language lattice or model descriptions, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
 - Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
+- For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space and use the fixed local basis order `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`.
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
 - Treat canonical form as the internal source of truth.
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.

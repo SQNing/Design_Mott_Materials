@@ -23,6 +23,44 @@ def _match_isotropic_exchange(two_body_terms):
     return None
 
 
+def _match_pseudospin_exchange(two_body_terms):
+    labels = {term["canonical_label"]: term for term in two_body_terms}
+    needed = [
+        "spin_X__orbital_I@0 spin_X__orbital_I@1",
+        "spin_Y__orbital_I@0 spin_Y__orbital_I@1",
+        "spin_Z__orbital_I@0 spin_Z__orbital_I@1",
+    ]
+    if not all(label in labels for label in needed):
+        return None
+    coefficients = [labels[label]["coefficient"] for label in needed]
+    if coefficients[0] == coefficients[1] == coefficients[2]:
+        return {
+            "type": "pseudospin_exchange",
+            "source_terms": [labels[label] for label in needed],
+            "coefficient": coefficients[0],
+        }
+    return None
+
+
+def _match_orbital_exchange(two_body_terms):
+    labels = {term["canonical_label"]: term for term in two_body_terms}
+    needed = [
+        "spin_I__orbital_X@0 spin_I__orbital_X@1",
+        "spin_I__orbital_Y@0 spin_I__orbital_Y@1",
+        "spin_I__orbital_Z@0 spin_I__orbital_Z@1",
+    ]
+    if not all(label in labels for label in needed):
+        return None
+    coefficients = [labels[label]["coefficient"] for label in needed]
+    if coefficients[0] == coefficients[1] == coefficients[2]:
+        return {
+            "type": "orbital_exchange",
+            "source_terms": [labels[label] for label in needed],
+            "coefficient": coefficients[0],
+        }
+    return None
+
+
 def _match_dm_like(two_body_terms):
     labels = {term["canonical_label"]: term for term in two_body_terms}
     lhs = labels.get("Sx@0 Sy@1")
@@ -54,7 +92,7 @@ def identify_readable_blocks(canonical_model):
     blocks = []
     used = set()
 
-    for matcher in (_match_isotropic_exchange, _match_dm_like):
+    for matcher in (_match_isotropic_exchange, _match_pseudospin_exchange, _match_orbital_exchange, _match_dm_like):
         block = matcher(two_body_terms)
         if block is not None:
             blocks.append(block)
