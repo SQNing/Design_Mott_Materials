@@ -8,7 +8,7 @@ import numpy as np
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from lt_constraint_recovery import (
+from classical.lt_constraint_recovery import (
     recover_classical_state_from_lt,
     reconstruct_single_q_real_space_state,
     strong_constraint_residual,

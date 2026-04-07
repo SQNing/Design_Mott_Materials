@@ -9,7 +9,10 @@ from pathlib import Path
 
 import numpy as np
 
-from build_lswt_payload import build_lswt_payload
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from lswt.build_lswt_payload import build_lswt_payload
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent

@@ -8,12 +8,12 @@ from unittest.mock import patch
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from decision_gates import classical_stage_decision
-from build_lswt_payload import build_lswt_payload
-from classical_solver_driver import run_classical_solver
-from linear_spin_wave_driver import run_linear_spin_wave
-from render_plots import _auto_resolution_summary, _lt_diagnostic_summary, render_plots
-from render_report import render_text
+from classical.decision_gates import classical_stage_decision
+from lswt.build_lswt_payload import build_lswt_payload
+from classical.classical_solver_driver import run_classical_solver
+from lswt.linear_spin_wave_driver import run_linear_spin_wave
+from output.render_plots import _auto_resolution_summary, _lt_diagnostic_summary, render_plots
+from output.render_report import render_text
 
 
 class LTPipelineIntegrationTests(unittest.TestCase):
@@ -432,14 +432,14 @@ class LTPipelineIntegrationTests(unittest.TestCase):
             "classical": {"method": "auto"},
         }
 
-        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
-            "classical_solver_driver.find_generalized_lt_ground_state",
+        with patch("classical.classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical.classical_solver_driver.find_generalized_lt_ground_state",
             return_value=self._dummy_generalized_lt_result(),
         ) as generalized_mock, patch(
-            "classical_solver_driver.solve_variational",
+            "classical.classical_solver_driver.solve_variational",
             return_value=self._dummy_variational_result(),
         ), patch(
-            "classical_solver_driver.recover_classical_state_from_lt",
+            "classical.classical_solver_driver.recover_classical_state_from_lt",
             return_value=self._fake_classical_state("lt", 0.0, [0.5, 0.0, 0.0]),
         ):
             result = run_classical_solver(payload, starts=4, seed=1)
@@ -462,14 +462,14 @@ class LTPipelineIntegrationTests(unittest.TestCase):
             residual = 0.6 if source == "lt" else 0.1
             return self._fake_classical_state(source, residual, q)
 
-        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
-            "classical_solver_driver.find_generalized_lt_ground_state",
+        with patch("classical.classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical.classical_solver_driver.find_generalized_lt_ground_state",
             return_value=self._dummy_generalized_lt_result(),
         ), patch(
-            "classical_solver_driver.solve_variational",
+            "classical.classical_solver_driver.solve_variational",
             return_value=self._dummy_variational_result(),
         ), patch(
-            "classical_solver_driver.recover_classical_state_from_lt",
+            "classical.classical_solver_driver.recover_classical_state_from_lt",
             side_effect=fake_recover,
         ):
             result = run_classical_solver(payload, starts=4, seed=1)
@@ -492,14 +492,14 @@ class LTPipelineIntegrationTests(unittest.TestCase):
             residual = 0.6 if source == "lt" else 0.59
             return self._fake_classical_state(source, residual, q)
 
-        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
-            "classical_solver_driver.find_generalized_lt_ground_state",
+        with patch("classical.classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical.classical_solver_driver.find_generalized_lt_ground_state",
             return_value=self._dummy_generalized_lt_result(),
         ), patch(
-            "classical_solver_driver.solve_variational",
+            "classical.classical_solver_driver.solve_variational",
             return_value=self._dummy_variational_result(),
         ), patch(
-            "classical_solver_driver.recover_classical_state_from_lt",
+            "classical.classical_solver_driver.recover_classical_state_from_lt",
             side_effect=fake_recover,
         ):
             result = run_classical_solver(payload, starts=4, seed=1)
@@ -515,14 +515,14 @@ class LTPipelineIntegrationTests(unittest.TestCase):
             "classical": {"method": "luttinger-tisza"},
         }
 
-        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
-            "classical_solver_driver.find_generalized_lt_ground_state",
+        with patch("classical.classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical.classical_solver_driver.find_generalized_lt_ground_state",
             return_value=self._dummy_generalized_lt_result(),
         ) as generalized_mock, patch(
-            "classical_solver_driver.solve_variational",
+            "classical.classical_solver_driver.solve_variational",
             return_value=self._dummy_variational_result(),
         ), patch(
-            "classical_solver_driver.recover_classical_state_from_lt",
+            "classical.classical_solver_driver.recover_classical_state_from_lt",
             return_value=self._fake_classical_state("lt", 1.0, [0.5, 0.0, 0.0]),
         ):
             result = run_classical_solver(payload, starts=4, seed=1)
@@ -606,17 +606,17 @@ class LTPipelineIntegrationTests(unittest.TestCase):
 
             return Completed()
 
-        with patch("classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
-            "classical_solver_driver.find_generalized_lt_ground_state",
+        with patch("classical.classical_solver_driver.find_lt_ground_state", return_value=self._dummy_lt_result()), patch(
+            "classical.classical_solver_driver.find_generalized_lt_ground_state",
             return_value=self._dummy_generalized_lt_result(),
         ), patch(
-            "classical_solver_driver.solve_variational",
+            "classical.classical_solver_driver.solve_variational",
             return_value=self._dummy_variational_result(),
         ), patch(
-            "classical_solver_driver.recover_classical_state_from_lt",
+            "classical.classical_solver_driver.recover_classical_state_from_lt",
             side_effect=fake_recover,
         ), patch(
-            "linear_spin_wave_driver.subprocess.run",
+            "lswt.linear_spin_wave_driver.subprocess.run",
             side_effect=fake_backend,
         ):
             solved = run_classical_solver(payload, starts=4, seed=1)
@@ -703,7 +703,7 @@ class LTPipelineIntegrationTests(unittest.TestCase):
 
             return Completed()
 
-        with patch("linear_spin_wave_driver.subprocess.run", side_effect=fake_backend):
+        with patch("lswt.linear_spin_wave_driver.subprocess.run", side_effect=fake_backend):
             solved = run_classical_solver(payload, starts=4, seed=1)
             lswt_result = run_linear_spin_wave(solved)
 

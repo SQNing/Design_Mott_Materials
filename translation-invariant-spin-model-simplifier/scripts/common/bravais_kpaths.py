@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 import math
+import sys
+from pathlib import Path
+
 import numpy as np
 
-from lattice_geometry import resolve_lattice_vectors
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from common.lattice_geometry import resolve_lattice_vectors
+else:
+    from .lattice_geometry import resolve_lattice_vectors
 
 
 def _vector_norm(vector):

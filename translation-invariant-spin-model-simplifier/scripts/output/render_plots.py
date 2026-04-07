@@ -20,8 +20,11 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
-from build_lswt_payload import infer_spatial_dimension
-from lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from lswt.build_lswt_payload import infer_spatial_dimension
+from common.lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
 
 
 def _get_classical_state(payload):

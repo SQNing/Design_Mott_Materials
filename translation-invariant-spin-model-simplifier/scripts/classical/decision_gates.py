@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 
-from classical_solver_driver import choose_method
+if __package__ in {None, ""}:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from classical.classical_solver_driver import choose_method
+else:
+    from .classical_solver_driver import choose_method
 
 
 def _needs_input(question_id, prompt, recommended=None, options=None):

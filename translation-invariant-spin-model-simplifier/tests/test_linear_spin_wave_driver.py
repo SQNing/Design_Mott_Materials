@@ -8,7 +8,7 @@ from unittest.mock import patch
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from linear_spin_wave_driver import run_linear_spin_wave
+from lswt.linear_spin_wave_driver import run_linear_spin_wave
 
 
 class LinearSpinWaveDriverTests(unittest.TestCase):
@@ -67,7 +67,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
 
             return Completed()
 
-        with patch("linear_spin_wave_driver.subprocess.run", side_effect=fake_run):
+        with patch("lswt.linear_spin_wave_driver.subprocess.run", side_effect=fake_run):
             result = run_linear_spin_wave(model)
 
         self.assertEqual(result["status"], "ok")
@@ -132,7 +132,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
             },
         }
 
-        with patch("linear_spin_wave_driver.subprocess.run", side_effect=FileNotFoundError("julia")):
+        with patch("lswt.linear_spin_wave_driver.subprocess.run", side_effect=FileNotFoundError("julia")):
             result = run_linear_spin_wave(model)
 
         self.assertEqual(result["status"], "error")
@@ -175,7 +175,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
             cmd=["julia", "run_sunny_lswt.jl"],
             stderr="backend exploded",
         )
-        with patch("linear_spin_wave_driver.subprocess.run", side_effect=error):
+        with patch("lswt.linear_spin_wave_driver.subprocess.run", side_effect=error):
             result = run_linear_spin_wave(model)
 
         self.assertEqual(result["status"], "error")
@@ -217,7 +217,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
         class Completed:
             stdout = "not-json"
 
-        with patch("linear_spin_wave_driver.subprocess.run", return_value=Completed()):
+        with patch("lswt.linear_spin_wave_driver.subprocess.run", return_value=Completed()):
             result = run_linear_spin_wave(model)
 
         self.assertEqual(result["status"], "error")
@@ -267,7 +267,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
                 }
             )
 
-        with patch("linear_spin_wave_driver.subprocess.run", return_value=Completed()):
+        with patch("lswt.linear_spin_wave_driver.subprocess.run", return_value=Completed()):
             result = run_linear_spin_wave(model)
 
         self.assertEqual(result["status"], "error")

@@ -3,8 +3,16 @@ import itertools
 
 import numpy as np
 
-from lt_brillouin_zone import generate_q_mesh
-from lt_fourier_exchange import fourier_exchange_matrix
+if __package__ in {None, ""}:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from classical.lt_brillouin_zone import generate_q_mesh
+    from classical.lt_fourier_exchange import fourier_exchange_matrix
+else:
+    from .lt_brillouin_zone import generate_q_mesh
+    from .lt_fourier_exchange import fourier_exchange_matrix
 
 
 def _n_sublattices(model):

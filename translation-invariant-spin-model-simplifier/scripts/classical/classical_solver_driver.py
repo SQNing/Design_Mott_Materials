@@ -6,9 +6,16 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from generalized_lt_solver import find_generalized_lt_ground_state
-from lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
-from lt_solver import find_lt_ground_state
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from classical.generalized_lt_solver import find_generalized_lt_ground_state
+    from classical.lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
+    from classical.lt_solver import find_lt_ground_state
+else:
+    from .generalized_lt_solver import find_generalized_lt_ground_state
+    from .lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
+    from .lt_solver import find_lt_ground_state
 
 try:
     from scipy.optimize import minimize

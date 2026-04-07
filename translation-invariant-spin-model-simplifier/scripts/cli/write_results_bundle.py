@@ -5,10 +5,13 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
-from classical_solver_driver import estimate_thermodynamics, run_classical_solver
-from linear_spin_wave_driver import run_linear_spin_wave
-from render_plots import render_plots
-from render_report import render_text
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from classical.classical_solver_driver import estimate_thermodynamics, run_classical_solver
+from lswt.linear_spin_wave_driver import run_linear_spin_wave
+from output.render_plots import render_plots
+from output.render_report import render_text
 
 
 def _has_classical_state(payload):

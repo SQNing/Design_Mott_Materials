@@ -9,11 +9,17 @@ import math
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from build_lswt_payload import build_lswt_payload
-from render_plots import _build_plot_payload, _default_structure_style, render_plots
+from lswt.build_lswt_payload import build_lswt_payload
+from output.render_plots import _build_plot_payload, _default_structure_style, render_plots
 
 
 class PlottingAndKPathTests(unittest.TestCase):
+    def test_scripts_top_level_is_reserved_for_stage_dirs_and_examples(self):
+        scripts_root = SKILL_ROOT / "scripts"
+        top_level_files = sorted(path.name for path in scripts_root.iterdir() if path.is_file())
+
+        self.assertEqual(top_level_files, ["plot_payload.json", "results_bundle_example.json"])
+
     def test_common_and_output_stage_modules_are_importable(self):
         common_lattice_geometry = importlib.import_module("common.lattice_geometry")
         common_bravais_kpaths = importlib.import_module("common.bravais_kpaths")
@@ -31,10 +37,10 @@ class PlottingAndKPathTests(unittest.TestCase):
         simplify_canonicalize = importlib.import_module("simplify.canonicalize_terms")
         simplify_assemble = importlib.import_module("simplify.assemble_effective_model")
 
-        legacy_normalize = importlib.import_module("normalize_input")
-        legacy_parse_lattice = importlib.import_module("parse_lattice_description")
-        legacy_canonicalize = importlib.import_module("canonicalize_terms")
-        legacy_assemble = importlib.import_module("assemble_effective_model")
+        legacy_normalize = importlib.import_module("legacy.normalize_input")
+        legacy_parse_lattice = importlib.import_module("legacy.parse_lattice_description")
+        legacy_canonicalize = importlib.import_module("legacy.canonicalize_terms")
+        legacy_assemble = importlib.import_module("legacy.assemble_effective_model")
 
         self.assertTrue(hasattr(input_normalize, "normalize_input"))
         self.assertTrue(hasattr(input_parse_lattice, "parse_lattice_description"))
@@ -54,9 +60,9 @@ class PlottingAndKPathTests(unittest.TestCase):
         lswt_driver = importlib.import_module("lswt.linear_spin_wave_driver")
         cli_bundle = importlib.import_module("cli.write_results_bundle")
 
-        legacy_classical_driver = importlib.import_module("classical_solver_driver")
-        legacy_lswt_driver = importlib.import_module("linear_spin_wave_driver")
-        legacy_bundle = importlib.import_module("write_results_bundle")
+        legacy_classical_driver = importlib.import_module("legacy.classical_solver_driver")
+        legacy_lswt_driver = importlib.import_module("legacy.linear_spin_wave_driver")
+        legacy_bundle = importlib.import_module("legacy.write_results_bundle")
 
         self.assertTrue(hasattr(classical_driver, "run_classical_solver"))
         self.assertTrue(hasattr(classical_decisions, "classical_stage_decision"))
@@ -586,7 +592,7 @@ class PlottingAndKPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "result_payload.json"
             input_path.write_text(json.dumps(raw_payload, indent=2), encoding="utf-8")
-            from render_plots import _load_or_materialize_plot_payload
+            from output.render_plots import _load_or_materialize_plot_payload
 
             plot_payload = _load_or_materialize_plot_payload(str(input_path))
 

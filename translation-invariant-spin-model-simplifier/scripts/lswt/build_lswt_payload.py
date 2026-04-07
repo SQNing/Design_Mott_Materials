@@ -4,8 +4,11 @@ import math
 import sys
 from pathlib import Path
 
-from bravais_kpaths import default_high_symmetry_path
-from lattice_geometry import build_isotropic_heisenberg_bonds_from_parameters, resolve_lattice_vectors
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from common.bravais_kpaths import default_high_symmetry_path
+from common.lattice_geometry import build_isotropic_heisenberg_bonds_from_parameters, resolve_lattice_vectors
 
 
 def _error(code, message):

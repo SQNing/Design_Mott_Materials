@@ -8,7 +8,7 @@ from unittest.mock import patch
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from write_results_bundle import main, write_results_bundle
+from cli.write_results_bundle import main, write_results_bundle
 
 
 class WriteResultsBundleTests(unittest.TestCase):
@@ -29,7 +29,7 @@ class WriteResultsBundleTests(unittest.TestCase):
                 "--no-auto-lswt",
             ],
         ), patch(
-            "write_results_bundle.write_results_bundle",
+            "cli.write_results_bundle.write_results_bundle",
             return_value={"status": "ok"},
         ) as bundle_mock, patch(
             "builtins.print"
@@ -149,15 +149,15 @@ class WriteResultsBundleTests(unittest.TestCase):
             return "bundle report"
 
         with tempfile.TemporaryDirectory() as tmpdir, patch(
-            "write_results_bundle.run_classical_solver", return_value=solved_payload
+            "cli.write_results_bundle.run_classical_solver", return_value=solved_payload
         ) as classical_mock, patch(
-            "write_results_bundle.estimate_thermodynamics", return_value=thermodynamics_result
+            "cli.write_results_bundle.estimate_thermodynamics", return_value=thermodynamics_result
         ) as thermo_mock, patch(
-            "write_results_bundle.run_linear_spin_wave", return_value=lswt_result
+            "cli.write_results_bundle.run_linear_spin_wave", return_value=lswt_result
         ) as lswt_mock, patch(
-            "write_results_bundle.render_plots", side_effect=fake_render_plots
+            "cli.write_results_bundle.render_plots", side_effect=fake_render_plots
         ), patch(
-            "write_results_bundle.render_text", side_effect=fake_render_text
+            "cli.write_results_bundle.render_text", side_effect=fake_render_text
         ):
             manifest = write_results_bundle(payload, output_dir=tmpdir)
             output_dir = Path(tmpdir)
@@ -211,16 +211,16 @@ class WriteResultsBundleTests(unittest.TestCase):
         }
 
         with tempfile.TemporaryDirectory() as tmpdir, patch(
-            "write_results_bundle.run_classical_solver"
+            "cli.write_results_bundle.run_classical_solver"
         ) as classical_mock, patch(
-            "write_results_bundle.estimate_thermodynamics"
+            "cli.write_results_bundle.estimate_thermodynamics"
         ) as thermo_mock, patch(
-            "write_results_bundle.run_linear_spin_wave"
+            "cli.write_results_bundle.run_linear_spin_wave"
         ) as lswt_mock, patch(
-            "write_results_bundle.render_plots",
+            "cli.write_results_bundle.render_plots",
             return_value={"status": "ok", "plots": {}},
         ), patch(
-            "write_results_bundle.render_text",
+            "cli.write_results_bundle.render_text",
             return_value="bundle report",
         ):
             manifest = write_results_bundle(payload, output_dir=tmpdir)
@@ -277,15 +277,15 @@ class WriteResultsBundleTests(unittest.TestCase):
             return {"status": "partial", "plots": {}}
 
         with tempfile.TemporaryDirectory() as tmpdir, patch(
-            "write_results_bundle.run_classical_solver"
+            "cli.write_results_bundle.run_classical_solver"
         ) as classical_mock, patch(
-            "write_results_bundle.estimate_thermodynamics"
+            "cli.write_results_bundle.estimate_thermodynamics"
         ) as thermo_mock, patch(
-            "write_results_bundle.run_linear_spin_wave"
+            "cli.write_results_bundle.run_linear_spin_wave"
         ) as lswt_mock, patch(
-            "write_results_bundle.render_plots", side_effect=fake_render_plots
+            "cli.write_results_bundle.render_plots", side_effect=fake_render_plots
         ), patch(
-            "write_results_bundle.render_text",
+            "cli.write_results_bundle.render_text",
             return_value="bundle report",
         ):
             manifest = write_results_bundle(
