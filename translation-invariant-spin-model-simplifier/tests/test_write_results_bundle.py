@@ -41,6 +41,7 @@ class WriteResultsBundleTests(unittest.TestCase):
                 }
             ],
             "classical": {"method": "luttinger-tisza"},
+            "thermodynamics": {"temperatures": [0.5, 1.0]},
         }
 
         solved_payload = {
@@ -59,6 +60,12 @@ class WriteResultsBundleTests(unittest.TestCase):
             "lt_result": {"q": [0.5, 0.0, 0.0], "lowest_eigenvalue": -2.0, "matrix_size": 1},
             "variational_result": {"method": "variational", "energy": -1.0, "spins": [[0.0, 0.0, 1.0]]},
         }
+        thermodynamics_result = {
+            "grid": [
+                {"temperature": 0.5, "energy": -1.0, "free_energy": -1.0, "specific_heat": 0.0, "magnetization": 1.0, "susceptibility": 0.0, "entropy": 0.0},
+                {"temperature": 1.0, "energy": -0.8, "free_energy": -0.9, "specific_heat": 0.2, "magnetization": 0.5, "susceptibility": 0.1, "entropy": 0.1},
+            ]
+        }
         lswt_result = {
             "status": "ok",
             "backend": {"name": "Sunny.jl"},
@@ -74,16 +81,20 @@ class WriteResultsBundleTests(unittest.TestCase):
         def fake_render_plots(bundle_payload, output_dir):
             self.assertIn("classical_state", bundle_payload)
             self.assertIn("lswt", bundle_payload)
+            self.assertIn("thermodynamics_result", bundle_payload)
             self.assertEqual(bundle_payload["lswt"]["status"], "ok")
             return {"status": "ok", "plots": {"classical_state": {"status": "ok", "path": str(Path(output_dir) / "classical_state.png")}}}
 
         def fake_render_text(bundle_payload):
             self.assertIn("lswt", bundle_payload)
+            self.assertIn("thermodynamics_result", bundle_payload)
             return "bundle report"
 
         with tempfile.TemporaryDirectory() as tmpdir, patch(
             "write_results_bundle.run_classical_solver", return_value=solved_payload
         ) as classical_mock, patch(
+            "write_results_bundle.estimate_thermodynamics", return_value=thermodynamics_result
+        ) as thermo_mock, patch(
             "write_results_bundle.run_linear_spin_wave", return_value=lswt_result
         ) as lswt_mock, patch(
             "write_results_bundle.render_plots", side_effect=fake_render_plots
@@ -96,11 +107,14 @@ class WriteResultsBundleTests(unittest.TestCase):
             self.assertTrue((output_dir / "bundle_manifest.json").exists())
 
         classical_mock.assert_called_once()
+        thermo_mock.assert_called_once()
         lswt_mock.assert_called_once()
         self.assertEqual(manifest["status"], "ok")
         self.assertTrue(manifest["stages"]["classical"]["present"])
         self.assertTrue(manifest["stages"]["classical"]["auto_ran"])
         self.assertEqual(manifest["stages"]["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertTrue(manifest["stages"]["thermodynamics"]["present"])
+        self.assertTrue(manifest["stages"]["thermodynamics"]["auto_ran"])
         self.assertTrue(manifest["stages"]["lswt"]["present"])
         self.assertTrue(manifest["stages"]["lswt"]["auto_ran"])
         self.assertEqual(manifest["stages"]["lswt"]["status"], "ok")
@@ -128,6 +142,8 @@ class WriteResultsBundleTests(unittest.TestCase):
                     "ordering": {"kind": "commensurate", "q_vector": [0.0, 0.0, 0.0]},
                 },
             },
+            "thermodynamics": {"temperatures": [0.5, 1.0]},
+            "thermodynamics_result": {"grid": [{"temperature": 0.5, "energy": -1.0}]},
             "lswt": {
                 "status": "ok",
                 "backend": {"name": "Sunny.jl"},
@@ -139,6 +155,8 @@ class WriteResultsBundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir, patch(
             "write_results_bundle.run_classical_solver"
         ) as classical_mock, patch(
+            "write_results_bundle.estimate_thermodynamics"
+        ) as thermo_mock, patch(
             "write_results_bundle.run_linear_spin_wave"
         ) as lswt_mock, patch(
             "write_results_bundle.render_plots",
@@ -150,11 +168,14 @@ class WriteResultsBundleTests(unittest.TestCase):
             manifest = write_results_bundle(payload, output_dir=tmpdir)
 
         classical_mock.assert_not_called()
+        thermo_mock.assert_not_called()
         lswt_mock.assert_not_called()
         self.assertEqual(manifest["status"], "ok")
         self.assertTrue(manifest["stages"]["classical"]["present"])
         self.assertFalse(manifest["stages"]["classical"]["auto_ran"])
         self.assertEqual(manifest["stages"]["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertTrue(manifest["stages"]["thermodynamics"]["present"])
+        self.assertFalse(manifest["stages"]["thermodynamics"]["auto_ran"])
         self.assertTrue(manifest["stages"]["lswt"]["present"])
         self.assertFalse(manifest["stages"]["lswt"]["auto_ran"])
         self.assertEqual(manifest["stages"]["lswt"]["status"], "ok")
@@ -188,16 +209,20 @@ class WriteResultsBundleTests(unittest.TestCase):
                 }
             ],
             "classical": {"method": "luttinger-tisza"},
+            "thermodynamics": {"temperatures": [0.5, 1.0]},
         }
 
         def fake_render_plots(bundle_payload, output_dir):
             self.assertNotIn("classical_state", bundle_payload)
             self.assertNotIn("lswt", bundle_payload)
+            self.assertNotIn("thermodynamics_result", bundle_payload)
             return {"status": "partial", "plots": {}}
 
         with tempfile.TemporaryDirectory() as tmpdir, patch(
             "write_results_bundle.run_classical_solver"
         ) as classical_mock, patch(
+            "write_results_bundle.estimate_thermodynamics"
+        ) as thermo_mock, patch(
             "write_results_bundle.run_linear_spin_wave"
         ) as lswt_mock, patch(
             "write_results_bundle.render_plots", side_effect=fake_render_plots
@@ -209,14 +234,18 @@ class WriteResultsBundleTests(unittest.TestCase):
                 payload,
                 output_dir=tmpdir,
                 run_missing_classical=False,
+                run_missing_thermodynamics=False,
                 run_missing_lswt=False,
             )
 
         classical_mock.assert_not_called()
+        thermo_mock.assert_not_called()
         lswt_mock.assert_not_called()
         self.assertEqual(manifest["status"], "partial")
         self.assertFalse(manifest["stages"]["classical"]["present"])
         self.assertFalse(manifest["stages"]["classical"]["auto_ran"])
+        self.assertFalse(manifest["stages"]["thermodynamics"]["present"])
+        self.assertFalse(manifest["stages"]["thermodynamics"]["auto_ran"])
         self.assertFalse(manifest["stages"]["lswt"]["present"])
         self.assertFalse(manifest["stages"]["lswt"]["auto_ran"])
 
