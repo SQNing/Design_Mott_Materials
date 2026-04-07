@@ -5,15 +5,40 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
+from classical_solver_driver import run_classical_solver
+from linear_spin_wave_driver import run_linear_spin_wave
 from render_plots import render_plots
 from render_report import render_text
+
+
+def _has_classical_state(payload):
+    classical = payload.get("classical", {})
+    return bool(classical.get("classical_state") or payload.get("classical_state"))
+
+
+def _can_run_classical(payload):
+    return bool(payload.get("bonds"))
+
+
+def _can_run_lswt(payload):
+    return _has_classical_state(payload)
+
+
+def _populate_missing_results(payload):
+    if not _has_classical_state(payload) and _can_run_classical(payload):
+        payload = run_classical_solver(payload)
+
+    if "lswt" not in payload and _can_run_lswt(payload):
+        payload["lswt"] = run_linear_spin_wave(payload)
+
+    return payload
 
 
 def write_results_bundle(payload, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    bundle_payload = deepcopy(payload)
+    bundle_payload = _populate_missing_results(deepcopy(payload))
     plots = render_plots(bundle_payload, output_dir=output_dir)
     bundle_payload["plots"] = plots
 
