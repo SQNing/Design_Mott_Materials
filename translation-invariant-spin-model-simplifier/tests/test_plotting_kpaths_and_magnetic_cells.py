@@ -25,6 +25,27 @@ class PlottingAndKPathTests(unittest.TestCase):
         self.assertTrue(hasattr(output_render_plots, "render_plots"))
         self.assertTrue(hasattr(output_render_report, "render_text"))
 
+    def test_input_and_simplify_stage_modules_are_importable(self):
+        input_normalize = importlib.import_module("input.normalize_input")
+        input_parse_lattice = importlib.import_module("input.parse_lattice_description")
+        simplify_canonicalize = importlib.import_module("simplify.canonicalize_terms")
+        simplify_assemble = importlib.import_module("simplify.assemble_effective_model")
+
+        legacy_normalize = importlib.import_module("normalize_input")
+        legacy_parse_lattice = importlib.import_module("parse_lattice_description")
+        legacy_canonicalize = importlib.import_module("canonicalize_terms")
+        legacy_assemble = importlib.import_module("assemble_effective_model")
+
+        self.assertTrue(hasattr(input_normalize, "normalize_input"))
+        self.assertTrue(hasattr(input_parse_lattice, "parse_lattice_description"))
+        self.assertTrue(hasattr(simplify_canonicalize, "canonicalize_terms"))
+        self.assertTrue(hasattr(simplify_assemble, "assemble_effective_model"))
+
+        self.assertTrue(hasattr(legacy_normalize, "normalize_input"))
+        self.assertTrue(hasattr(legacy_parse_lattice, "parse_lattice_description"))
+        self.assertTrue(hasattr(legacy_canonicalize, "canonicalize_terms"))
+        self.assertTrue(hasattr(legacy_assemble, "assemble_effective_model"))
+
     def test_default_classical_plot_style_uses_larger_markers_and_arrows(self):
         style = _default_structure_style()
 
