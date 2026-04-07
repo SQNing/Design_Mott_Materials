@@ -8,10 +8,43 @@ from unittest.mock import patch
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from write_results_bundle import write_results_bundle
+from write_results_bundle import main, write_results_bundle
 
 
 class WriteResultsBundleTests(unittest.TestCase):
+    def test_write_results_bundle_main_maps_cli_flags_to_stage_controls(self):
+        payload_path = Path(tempfile.gettempdir()) / "bundle-cli-demo.json"
+        payload_path.write_text("{}", encoding="utf-8")
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "write_results_bundle.py",
+                str(payload_path),
+                "--output-dir",
+                "/tmp/bundle-cli-out",
+                "--no-auto-classical",
+                "--no-auto-thermodynamics",
+                "--no-auto-lswt",
+            ],
+        ), patch(
+            "write_results_bundle.write_results_bundle",
+            return_value={"status": "ok"},
+        ) as bundle_mock, patch(
+            "builtins.print"
+        ):
+            exit_code = main()
+
+        bundle_mock.assert_called_once()
+        _payload_arg = bundle_mock.call_args.args[0]
+        self.assertEqual(bundle_mock.call_args.kwargs["output_dir"], "/tmp/bundle-cli-out")
+        self.assertFalse(bundle_mock.call_args.kwargs["run_missing_classical"])
+        self.assertFalse(bundle_mock.call_args.kwargs["run_missing_thermodynamics"])
+        self.assertFalse(bundle_mock.call_args.kwargs["run_missing_lswt"])
+        self.assertEqual(exit_code, 0)
+        payload_path.unlink(missing_ok=True)
+
     def test_documented_results_bundle_example_runs_without_lswt(self):
         example_path = (
             Path(__file__).resolve().parents[2] / "docs" / "notes" / "2026-04-07-results-bundle-example.json"
