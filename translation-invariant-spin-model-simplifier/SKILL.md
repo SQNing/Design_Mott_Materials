@@ -36,7 +36,7 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.
 - Return `interaction.status = needs_input` whenever lattice interpretation, shell mapping, symmetry status, or simplification classification is ambiguous.
 - Prefer a faithful readable model with explicit `residual` structure over an over-compressed Hamiltonian that hides unmatched or weak but meaningful terms.
-- Read `scripts/references/input-schema.md` for required normalized fields and `scripts/references/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered.
+- Read `reference/input-schema.md` for required normalized fields and `reference/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered.
 
 ## Output Requirements
 
