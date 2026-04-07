@@ -12,6 +12,31 @@ from write_results_bundle import write_results_bundle
 
 
 class WriteResultsBundleTests(unittest.TestCase):
+    def test_documented_results_bundle_example_runs_without_lswt(self):
+        example_path = (
+            Path(__file__).resolve().parents[2] / "docs" / "notes" / "2026-04-07-results-bundle-example.json"
+        )
+        payload = json.loads(example_path.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = write_results_bundle(
+                payload,
+                output_dir=tmpdir,
+                run_missing_lswt=False,
+            )
+            output_dir = Path(tmpdir)
+
+            self.assertTrue((output_dir / "report.txt").exists())
+            self.assertTrue((output_dir / "bundle_manifest.json").exists())
+
+        self.assertEqual(manifest["status"], "partial")
+        self.assertTrue(manifest["stages"]["classical"]["present"])
+        self.assertTrue(manifest["stages"]["classical"]["auto_ran"])
+        self.assertTrue(manifest["stages"]["thermodynamics"]["present"])
+        self.assertTrue(manifest["stages"]["thermodynamics"]["auto_ran"])
+        self.assertFalse(manifest["stages"]["lswt"]["present"])
+        self.assertFalse(manifest["stages"]["lswt"]["auto_ran"])
+
     def test_write_results_bundle_runs_missing_classical_and_lswt_stages(self):
         payload = {
             "model_name": "bundle-auto-demo",
