@@ -161,6 +161,14 @@ def render_text(payload):
     backend_name = lswt.get("backend", {}).get("name")
     if backend_name:
         lines.append(f"LSWT backend: {backend_name}")
+    lswt_status = lswt.get("status")
+    if lswt_status:
+        lines.append(f"LSWT status: {lswt_status}")
+    lswt_error = lswt.get("error", {})
+    if lswt_error:
+        lines.append(
+            f"LSWT error: {lswt_error.get('code', 'lswt-error')} {lswt_error.get('message', '')}".strip()
+        )
     lswt_path = lswt.get("path", {})
     if lswt_path.get("labels"):
         lines.append(f"LSWT path labels: {lswt_path.get('labels')}")

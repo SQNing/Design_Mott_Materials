@@ -191,6 +191,36 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertIn("LSWT path labels: ['G', 'X']", text)
         self.assertIn("q=[0.5, 0.0, 0.0] omega=1.0", text)
 
+    def test_render_report_includes_nested_lswt_error_summary(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {"recommended": 0, "candidates": [{"name": "faithful-readable"}]},
+            "canonical_model": {"one_body": [], "two_body": [], "three_body": [], "four_body": [], "higher_body": []},
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {
+                "reconstruction_error": 0.0,
+                "main_fraction": 1.0,
+                "low_weight_fraction": 0.0,
+                "residual_fraction": 0.0,
+                "risk_notes": [],
+            },
+            "projection": {"status": "not-needed"},
+            "classical": {"chosen_method": "luttinger-tisza"},
+            "lswt": {
+                "status": "error",
+                "backend": {"name": "Sunny.jl"},
+                "path": {"labels": ["G", "X"], "node_indices": [0, 1]},
+                "linear_spin_wave": {},
+                "error": {"code": "missing-sunny-package", "message": "Sunny.jl is unavailable"},
+            },
+        }
+
+        text = render_text(payload)
+
+        self.assertIn("LSWT backend: Sunny.jl", text)
+        self.assertIn("LSWT status: error", text)
+        self.assertIn("LSWT error: missing-sunny-package Sunny.jl is unavailable", text)
+
     def test_lt_diagnostic_summary_includes_constraint_recovery_when_available(self):
         summary = _lt_diagnostic_summary(
             {
@@ -605,6 +635,90 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertIn("resolved=generalized-lt", text)
         self.assertIn("LSWT path labels: ['G', 'X']", text)
         self.assertIn("q=[0.5, 0.0, 0.0] omega=1.0", text)
+
+    def test_end_to_end_backend_error_payload_skips_lswt_plot_and_surfaces_report_error(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {"recommended": 0, "candidates": [{"name": "faithful-readable"}]},
+            "canonical_model": {"one_body": [], "two_body": [], "three_body": [], "four_body": [], "higher_body": []},
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {
+                "reconstruction_error": 0.0,
+                "main_fraction": 1.0,
+                "low_weight_fraction": 0.0,
+                "residual_fraction": 0.0,
+                "risk_notes": [],
+            },
+            "projection": {"status": "not-needed"},
+            "recommended_method": "luttinger-tisza",
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "sublattices": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "heisenberg",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1, 0, 0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "bonds": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "vector": [1, 0, 0],
+                    "matrix": [
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ],
+                }
+            ],
+            "classical": {"method": "luttinger-tisza"},
+            "q_path": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+            "q_samples": 4,
+        }
+
+        def fake_backend(command, check, capture_output, text):
+            class Completed:
+                stdout = json.dumps(
+                    {
+                        "status": "error",
+                        "backend": {"name": "Sunny.jl"},
+                        "linear_spin_wave": {},
+                        "error": {"code": "missing-sunny-package", "message": "Sunny.jl is unavailable"},
+                    }
+                )
+
+            return Completed()
+
+        with patch("linear_spin_wave_driver.subprocess.run", side_effect=fake_backend):
+            solved = run_classical_solver(payload, starts=4, seed=1)
+            lswt_result = run_linear_spin_wave(solved)
+
+        solved["lswt"] = lswt_result
+        text = render_text(solved)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plot_result = render_plots(solved, output_dir=tmpdir)
+            self.assertEqual(plot_result["status"], "partial")
+            self.assertEqual(plot_result["plots"]["classical_state"]["status"], "ok")
+            self.assertEqual(plot_result["plots"]["lswt_dispersion"]["status"], "skipped")
+            self.assertIn("missing-sunny-package", plot_result["plots"]["lswt_dispersion"]["reason"])
+
+        self.assertEqual(lswt_result["status"], "error")
+        self.assertIn("LSWT status: error", text)
+        self.assertIn("LSWT error: missing-sunny-package Sunny.jl is unavailable", text)
 
 
 if __name__ == "__main__":
