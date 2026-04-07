@@ -9,22 +9,22 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 
 ## Workflow
 
-1. Normalize the raw model with `scripts/normalize_input.py`.
-2. Parse the lattice description with `scripts/parse_lattice_description.py`.
-3. Infer candidate symmetries with `scripts/infer_symmetries.py`.
+1. Normalize the raw model with `scripts/input/normalize_input.py`.
+2. Parse the lattice description with `scripts/input/parse_lattice_description.py`.
+3. Infer candidate symmetries with `scripts/simplify/infer_symmetries.py`.
 4. If any ambiguity would materially change the result, stop and return `interaction.status = needs_input` with one clarification question.
-5. Decompose matrix or tensor local terms with `scripts/decompose_local_term.py`.
-6. Canonicalize decomposed terms with `scripts/canonicalize_terms.py`.
-7. Extract high-confidence readable blocks with `scripts/identify_readable_blocks.py`.
-8. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/assemble_effective_model.py`.
-9. Score fidelity with `scripts/score_fidelity.py`.
-10. Generate 2-3 simplification views with `scripts/generate_simplifications.py`.
+5. Decompose matrix or tensor local terms with `scripts/simplify/decompose_local_term.py`.
+6. Canonicalize decomposed terms with `scripts/simplify/canonicalize_terms.py`.
+7. Extract high-confidence readable blocks with `scripts/simplify/identify_readable_blocks.py`.
+8. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/simplify/assemble_effective_model.py`.
+9. Score fidelity with `scripts/simplify/score_fidelity.py`.
+10. Generate 2-3 simplification views with `scripts/simplify/generate_simplifications.py`.
 11. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
 12. Ask whether to project to a spin model if the current basis is not already explicit.
 13. Present classical solver options and recommend one default.
-14. Run classical ground-state and thermodynamics calculations with `scripts/classical_solver_driver.py`.
-15. Run linear spin-wave analysis and optional small-cluster ED with `scripts/linear_spin_wave_driver.py`.
-16. Render the final report with `scripts/render_report.py`.
+14. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`.
+15. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
+16. Render the final report with `scripts/output/render_report.py`.
 
 ## Input Notes
 

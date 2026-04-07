@@ -3,7 +3,7 @@
 This note documents the current high-level entrypoint for the
 `translation-invariant-spin-model-simplifier` workflow:
 
-`translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py`
+`translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py`
 
 The intended stage order is:
 
@@ -17,11 +17,12 @@ bundle.
 
 ## Input contract
 
-`write_results_bundle.py` expects a **result-level payload**, not a bare
+`scripts/cli/write_results_bundle.py` expects a **result-level payload**, not a bare
 natural-language description.
 
 In practice, the input should already include the report-facing metadata fields
 used by `render_report.py`, for example:
+used by `scripts/output/render_report.py`, for example:
 
 - `normalized_model`
 - `simplification`
@@ -48,7 +49,7 @@ By default, the script will:
 4. write:
    - `report.txt`
    - `bundle_manifest.json`
-   - plots materialized by `render_plots.py`
+   - plots materialized by `scripts/output/render_plots.py`
 
 This means the default command acts like a lightweight orchestrator for the
 post-simplification workflow.
@@ -69,7 +70,7 @@ already present in the input payload, it is preserved.
 ### 1. Default automatic bundle generation
 
 ```bash
-python translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py \
+python translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py \
   translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json \
   --output-dir ./results-bundle-example-out
 ```
@@ -85,7 +86,7 @@ before writing the final report and plots.
 ### 2. Skip LSWT auto-run
 
 ```bash
-python translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py \
+python translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py \
   translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json \
   --output-dir ./results-bundle-example-out-no-lswt \
   --no-auto-lswt
@@ -99,7 +100,7 @@ This is useful when:
 ### 3. Skip thermodynamics and LSWT auto-run
 
 ```bash
-python translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py \
+python translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py \
   translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json \
   --output-dir ./results-bundle-example-out-classical-only \
   --no-auto-thermodynamics \
