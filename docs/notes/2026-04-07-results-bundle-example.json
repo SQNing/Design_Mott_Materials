@@ -1,0 +1,88 @@
+{
+  "model_name": "chain-j1-demo",
+  "normalized_model": {
+    "local_hilbert": {
+      "dimension": 2
+    }
+  },
+  "simplification": {
+    "recommended": 0,
+    "candidates": [
+      {
+        "name": "faithful-readable"
+      }
+    ]
+  },
+  "canonical_model": {
+    "one_body": [],
+    "two_body": [],
+    "three_body": [],
+    "four_body": [],
+    "higher_body": []
+  },
+  "effective_model": {
+    "main": [],
+    "low_weight": [],
+    "residual": []
+  },
+  "fidelity": {
+    "reconstruction_error": 0.0,
+    "main_fraction": 1.0,
+    "low_weight_fraction": 0.0,
+    "residual_fraction": 0.0,
+    "risk_notes": []
+  },
+  "projection": {
+    "status": "not-needed"
+  },
+  "lattice": {
+    "kind": "chain",
+    "dimension": 1,
+    "sublattices": 1,
+    "positions": [
+      [0.0, 0.0, 0.0]
+    ]
+  },
+  "simplified_model": {
+    "template": "heisenberg",
+    "bonds": [
+      {
+        "source": 0,
+        "target": 0,
+        "vector": [1, 0, 0],
+        "matrix": [
+          [1.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0],
+          [0.0, 0.0, 1.0]
+        ]
+      }
+    ]
+  },
+  "bonds": [
+    {
+      "source": 0,
+      "target": 0,
+      "vector": [1, 0, 0],
+      "matrix": [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]
+      ]
+    }
+  ],
+  "classical": {
+    "method": "luttinger-tisza"
+  },
+  "thermodynamics": {
+    "temperatures": [0.5, 1.0],
+    "sweeps": 20,
+    "burn_in": 10,
+    "measurement_interval": 2,
+    "seed": 0
+  },
+  "q_path": [
+    [0.0, 0.0, 0.0],
+    [0.5, 0.0, 0.0]
+  ],
+  "q_samples": 8
+}
