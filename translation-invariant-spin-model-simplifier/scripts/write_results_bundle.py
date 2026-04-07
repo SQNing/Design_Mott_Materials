@@ -24,21 +24,25 @@ def _can_run_lswt(payload):
     return _has_classical_state(payload)
 
 
-def _populate_missing_results(payload):
-    if not _has_classical_state(payload) and _can_run_classical(payload):
+def _populate_missing_results(payload, *, run_missing_classical=True, run_missing_lswt=True):
+    if run_missing_classical and not _has_classical_state(payload) and _can_run_classical(payload):
         payload = run_classical_solver(payload)
 
-    if "lswt" not in payload and _can_run_lswt(payload):
+    if run_missing_lswt and "lswt" not in payload and _can_run_lswt(payload):
         payload["lswt"] = run_linear_spin_wave(payload)
 
     return payload
 
 
-def write_results_bundle(payload, output_dir):
+def write_results_bundle(payload, output_dir, *, run_missing_classical=True, run_missing_lswt=True):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    bundle_payload = _populate_missing_results(deepcopy(payload))
+    bundle_payload = _populate_missing_results(
+        deepcopy(payload),
+        run_missing_classical=run_missing_classical,
+        run_missing_lswt=run_missing_lswt,
+    )
     plots = render_plots(bundle_payload, output_dir=output_dir)
     bundle_payload["plots"] = plots
 
@@ -64,9 +68,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--no-auto-classical", action="store_true")
+    parser.add_argument("--no-auto-lswt", action="store_true")
     args = parser.parse_args()
     payload = _load_payload(args.input)
-    print(json.dumps(write_results_bundle(payload, output_dir=args.output_dir), indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            write_results_bundle(
+                payload,
+                output_dir=args.output_dir,
+                run_missing_classical=not args.no_auto_classical,
+                run_missing_lswt=not args.no_auto_lswt,
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 

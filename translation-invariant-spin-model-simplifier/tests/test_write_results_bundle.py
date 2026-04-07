@@ -146,6 +146,63 @@ class WriteResultsBundleTests(unittest.TestCase):
         lswt_mock.assert_not_called()
         self.assertEqual(manifest["status"], "ok")
 
+    def test_write_results_bundle_can_skip_auto_classical_and_lswt(self):
+        payload = {
+            "model_name": "bundle-skip-demo",
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {"recommended": 0, "candidates": [{"name": "faithful-readable"}]},
+            "canonical_model": {"one_body": [], "two_body": [], "three_body": [], "four_body": [], "higher_body": []},
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {
+                "reconstruction_error": 0.0,
+                "main_fraction": 1.0,
+                "low_weight_fraction": 0.0,
+                "residual_fraction": 0.0,
+                "risk_notes": [],
+            },
+            "projection": {"status": "not-needed"},
+            "lattice": {"kind": "chain", "dimension": 1, "sublattices": 1, "positions": [[0.0, 0.0, 0.0]]},
+            "bonds": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "vector": [1, 0, 0],
+                    "matrix": [
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ],
+                }
+            ],
+            "classical": {"method": "luttinger-tisza"},
+        }
+
+        def fake_render_plots(bundle_payload, output_dir):
+            self.assertNotIn("classical_state", bundle_payload)
+            self.assertNotIn("lswt", bundle_payload)
+            return {"status": "partial", "plots": {}}
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "write_results_bundle.run_classical_solver"
+        ) as classical_mock, patch(
+            "write_results_bundle.run_linear_spin_wave"
+        ) as lswt_mock, patch(
+            "write_results_bundle.render_plots", side_effect=fake_render_plots
+        ), patch(
+            "write_results_bundle.render_text",
+            return_value="bundle report",
+        ):
+            manifest = write_results_bundle(
+                payload,
+                output_dir=tmpdir,
+                run_missing_classical=False,
+                run_missing_lswt=False,
+            )
+
+        classical_mock.assert_not_called()
+        lswt_mock.assert_not_called()
+        self.assertEqual(manifest["status"], "partial")
+
 
 if __name__ == "__main__":
     unittest.main()
