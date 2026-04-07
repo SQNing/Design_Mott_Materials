@@ -46,6 +46,29 @@ class PlottingAndKPathTests(unittest.TestCase):
         self.assertTrue(hasattr(legacy_canonicalize, "canonicalize_terms"))
         self.assertTrue(hasattr(legacy_assemble, "assemble_effective_model"))
 
+    def test_classical_lswt_and_cli_stage_modules_are_importable(self):
+        classical_driver = importlib.import_module("classical.classical_solver_driver")
+        classical_decisions = importlib.import_module("classical.decision_gates")
+        classical_lt = importlib.import_module("classical.lt_solver")
+        lswt_payload = importlib.import_module("lswt.build_lswt_payload")
+        lswt_driver = importlib.import_module("lswt.linear_spin_wave_driver")
+        cli_bundle = importlib.import_module("cli.write_results_bundle")
+
+        legacy_classical_driver = importlib.import_module("classical_solver_driver")
+        legacy_lswt_driver = importlib.import_module("linear_spin_wave_driver")
+        legacy_bundle = importlib.import_module("write_results_bundle")
+
+        self.assertTrue(hasattr(classical_driver, "run_classical_solver"))
+        self.assertTrue(hasattr(classical_decisions, "classical_stage_decision"))
+        self.assertTrue(hasattr(classical_lt, "find_lt_ground_state"))
+        self.assertTrue(hasattr(lswt_payload, "build_lswt_payload"))
+        self.assertTrue(hasattr(lswt_driver, "run_linear_spin_wave"))
+        self.assertTrue(hasattr(cli_bundle, "write_results_bundle"))
+
+        self.assertTrue(hasattr(legacy_classical_driver, "run_classical_solver"))
+        self.assertTrue(hasattr(legacy_lswt_driver, "run_linear_spin_wave"))
+        self.assertTrue(hasattr(legacy_bundle, "write_results_bundle"))
+
     def test_default_classical_plot_style_uses_larger_markers_and_arrows(self):
         style = _default_structure_style()
 
