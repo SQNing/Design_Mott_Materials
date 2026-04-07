@@ -172,9 +172,13 @@ def render_text(payload):
     lswt_path = lswt.get("path", {})
     if lswt_path.get("labels"):
         lines.append(f"LSWT path labels: {lswt_path.get('labels')}")
-    lines.append("Linear spin-wave points:")
-    for point in linear_spin_wave.get("dispersion", []):
-        lines.append(f"- q={point['q']} omega={point['omega']}")
+    dispersion = linear_spin_wave.get("dispersion", [])
+    if dispersion:
+        lines.append("Linear spin-wave points:")
+        for point in dispersion:
+            lines.append(f"- q={point['q']} omega={point['omega']}")
+    else:
+        lines.append("Linear spin-wave points: unavailable")
     return "\n".join(lines)
 
 

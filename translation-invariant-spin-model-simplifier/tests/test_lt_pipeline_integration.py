@@ -220,6 +220,7 @@ class LTPipelineIntegrationTests(unittest.TestCase):
         self.assertIn("LSWT backend: Sunny.jl", text)
         self.assertIn("LSWT status: error", text)
         self.assertIn("LSWT error: missing-sunny-package Sunny.jl is unavailable", text)
+        self.assertIn("Linear spin-wave points: unavailable", text)
 
     def test_lt_diagnostic_summary_includes_constraint_recovery_when_available(self):
         summary = _lt_diagnostic_summary(
