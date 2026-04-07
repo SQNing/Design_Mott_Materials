@@ -47,7 +47,7 @@ class WriteResultsBundleTests(unittest.TestCase):
 
     def test_documented_results_bundle_example_runs_without_lswt(self):
         example_path = (
-            Path(__file__).resolve().parents[2] / "docs" / "notes" / "2026-04-07-results-bundle-example.json"
+            Path(__file__).resolve().parents[1] / "scripts" / "results_bundle_example.json"
         )
         payload = json.loads(example_path.read_text(encoding="utf-8"))
 

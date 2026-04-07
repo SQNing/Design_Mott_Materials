@@ -70,8 +70,8 @@ already present in the input payload, it is preserved.
 
 ```bash
 python translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py \
-  docs/notes/2026-04-07-results-bundle-example.json \
-  --output-dir docs/notes/2026-04-07-results-bundle-example-out
+  translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json \
+  --output-dir ./results-bundle-example-out
 ```
 
 This will try to auto-run:
@@ -86,8 +86,8 @@ before writing the final report and plots.
 
 ```bash
 python translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py \
-  docs/notes/2026-04-07-results-bundle-example.json \
-  --output-dir docs/notes/2026-04-07-results-bundle-example-out-no-lswt \
+  translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json \
+  --output-dir ./results-bundle-example-out-no-lswt \
   --no-auto-lswt
 ```
 
@@ -100,8 +100,8 @@ This is useful when:
 
 ```bash
 python translation-invariant-spin-model-simplifier/scripts/write_results_bundle.py \
-  docs/notes/2026-04-07-results-bundle-example.json \
-  --output-dir docs/notes/2026-04-07-results-bundle-example-out-classical-only \
+  translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json \
+  --output-dir ./results-bundle-example-out-classical-only \
   --no-auto-thermodynamics \
   --no-auto-lswt
 ```
