@@ -91,6 +91,7 @@ Compatibility:
 
 - thermodynamics remains pseudospin-orbital-only in this change
 - thermodynamics may run after any classical method that yields a valid `CP^(N-1)` state with `local_rays` and a compatible `supercell_shape`
+- `restricted-product-state` is not a valid predecessor for Sunny thermodynamics in this first release because it does not produce the `CP^(N-1)` coherent-state representation required by the Sunny `:SUN` system
 - if the available classical state does not match the requested thermodynamics supercell, the CLI must fail explicitly rather than silently reinitialize to a different cell
 
 ### Common Thermodynamics CLI Arguments
@@ -120,7 +121,8 @@ Add backend-specific arguments:
 Behavior:
 
 - `sunny-parallel-tempering` uses `--thermo-pt-temperatures` as the replica temperature schedule
-- `--temperatures` still defines the temperatures reported in the final normalized thermodynamics output
+- `--thermo-pt-temperatures` is also the reported temperature grid in the first release
+- if `--temperatures` is supplied together with `sunny-parallel-tempering`, it must match `--thermo-pt-temperatures` exactly or the CLI must fail validation
 - if `--thermo-pt-temperatures` is omitted for `sunny-parallel-tempering`, fail with a clear validation error
 
 ### Wang-Landau Arguments
@@ -461,4 +463,3 @@ The work should be executed incrementally with TDD:
 3. add the minimal drivers and Julia scripts
 4. connect the CLI
 5. update docs and reporting
-
