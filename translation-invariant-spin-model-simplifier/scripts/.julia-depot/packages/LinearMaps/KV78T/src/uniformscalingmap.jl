@@ -1,0 +1,100 @@
+struct UniformScalingMap{T} <: LinearMap{T}
+    λ::T
+    M::Int
+    function UniformScalingMap(λ::Number, M::Int)
+        M < 0 && throw(ArgumentError("size of UniformScalingMap must be non-negative, got $M"))
+        return new{typeof(λ)}(λ, M)
+    end
+end
+UniformScalingMap(λ::Number, M::Int, N::Int) =
+    (M == N ?
+        UniformScalingMap(λ, M) : error("UniformScalingMap needs to be square"))
+UniformScalingMap(λ::T, sz::Dims{2}) where {T} =
+    (sz[1] == sz[2] ?
+        UniformScalingMap(λ, sz[1]) : error("UniformScalingMap needs to be square"))
+
+MulStyle(::UniformScalingMap) = FiveArg()
+
+# properties
+Base.size(A::UniformScalingMap) = (A.M, A.M)
+Base.isreal(A::UniformScalingMap) = isreal(A.λ)
+LinearAlgebra.issymmetric(::UniformScalingMap) = true
+LinearAlgebra.ishermitian(A::UniformScalingMap) = isreal(A)
+LinearAlgebra.isposdef(A::UniformScalingMap) = isposdef(A.λ)
+
+# comparison of UniformScalingMap objects
+Base.:(==)(A::UniformScalingMap, B::UniformScalingMap) = (A.λ == B.λ && A.M == B.M)
+
+# special transposition behavior
+LinearAlgebra.transpose(A::UniformScalingMap) = A
+LinearAlgebra.adjoint(A::UniformScalingMap)   = UniformScalingMap(conj(A.λ), size(A))
+
+# multiplication with scalar
+Base.:(*)(A::UniformScaling, B::LinearMap) = A.λ * B
+Base.:(*)(A::LinearMap, B::UniformScaling) = A * B.λ
+Base.:(*)(α::Number, J::UniformScalingMap) = UniformScalingMap(α * J.λ, size(J))
+Base.:(*)(J::UniformScalingMap, α::Number) = UniformScalingMap(J.λ * α, size(J))
+# needed for disambiguation
+Base.:(*)(α::RealOrComplex, J::UniformScalingMap) = UniformScalingMap(α * J.λ, size(J))
+Base.:(*)(J::UniformScalingMap, α::RealOrComplex) = UniformScalingMap(J.λ * α, size(J))
+
+# multiplication with vector
+Base.:(*)(J::UniformScalingMap, x::AbstractVector) =
+    length(x) == J.M ? J.λ * x : throw(DimensionMismatch("*"))
+# multiplication with matrix
+Base.:(*)(J::UniformScalingMap, B::Union{AbstractMatrix,AbstractQ}) =
+    size(B, 1) == J.M ? J.λ * LinearMap(B) : throw(DimensionMismatch("*"))
+Base.:(*)(A::Union{AbstractMatrix,AbstractQ}, J::UniformScalingMap) =
+    size(A, 2) == J.M ? LinearMap(A) * J.λ : throw(DimensionMismatch("*"))
+# disambiguation
+Base.:(*)(xc::LinearAlgebra.AdjointAbsVec, J::UniformScalingMap) = xc * J.λ
+Base.:(*)(xt::LinearAlgebra.TransposeAbsVec, J::UniformScalingMap) = xt * J.λ
+
+# multiplication with vector/matrix
+for In in (AbstractVector, AbstractMatrix)
+    @eval begin
+        _unsafe_mul!(y, J::UniformScalingMap, x::$In) = _scaling!(y, J.λ, x, true, false)
+        _unsafe_mul!(y, J::UniformScalingMap{<:RealOrComplex}, x::$In{<:RealOrComplex},
+                    α::RealOrComplex, β) = _scaling!(y, J.λ * α, x, true, β)
+        _unsafe_mul!(y, J::UniformScalingMap, x::$In, α, β) = _scaling!(y, J.λ, x, α, β)
+    end
+end
+
+function _unsafe_mul!(M, L::UniformScalingMap, s::Number, α=true, β=false)
+    LinearAlgebra._rmul_or_fill!(M, β)
+    c = L.λ * s * α
+    for (i,j) in zip(axes(L)...)
+        M[i,j] += c
+    end
+    return M
+end
+
+function _scaling!(y, λ, x, α, β)
+    if isone(α) && isone(λ)
+        iszero(β) && return copyto!(y, x)
+        isone(β) && return y .+= x
+        return y .= y .* β .+ x
+    elseif (iszero(α) || iszero(λ))
+        iszero(β) && return fill!(y, zero(eltype(y)))
+        isone(β) && return y
+        return rmul!(y, β)
+    elseif isone(α)
+        iszero(β) && return y .= λ .* x
+        isone(β) && return y .+= λ .* x
+        return y .= y .* β .+ λ .* x
+    elseif isone(λ)
+        iszero(β) && return y .= x .* α
+        isone(β) && return y .+= x .* α
+        return y .= y .* β .+ x .* α
+    else
+        iszero(β) && return y .= λ .* x .* α
+        isone(β) && return y .+= λ .* x .* α
+        return y .= y .* β .+ λ .* x .* α
+    end
+end
+
+# combine LinearMap and UniformScaling objects in linear combinations
+Base.:(+)(A₁::LinearMap, A₂::UniformScaling) = A₁ + UniformScalingMap(A₂.λ, size(A₁, 1))
+Base.:(+)(A₁::UniformScaling, A₂::LinearMap) = UniformScalingMap(A₁.λ, size(A₂, 1)) + A₂
+Base.:(-)(A₁::LinearMap, A₂::UniformScaling) = A₁ - UniformScalingMap(A₂.λ, size(A₁, 1))
+Base.:(-)(A₁::UniformScaling, A₂::LinearMap) = UniformScalingMap(A₁.λ, size(A₂, 1)) - A₂

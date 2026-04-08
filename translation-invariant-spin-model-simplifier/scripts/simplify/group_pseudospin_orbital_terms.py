@@ -6,6 +6,22 @@ def _complex_from_serialized(value):
     return complex(float(value["real"]), float(value["imag"]))
 
 
+def _serialize_coefficient(value):
+    return {"real": float(value.real), "imag": float(value.imag)}
+
+
+def _serialize_nested_coefficients(value):
+    if isinstance(value, dict):
+        return {key: _serialize_nested_coefficients(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_serialize_nested_coefficients(item) for item in value]
+    if isinstance(value, complex):
+        return _serialize_coefficient(value)
+    if isinstance(value, (int, float)):
+        return _serialize_coefficient(complex(float(value), 0.0))
+    return value
+
+
 def _vector_norm(vector):
     return math.sqrt(sum(float(component) * float(component) for component in vector))
 
@@ -47,7 +63,21 @@ def _spin_latex(label, site_index):
     return rf"\hat S_{{{site_index}}}^{axis}"
 
 
-def _local_factor_info(local_label, site_index):
+def _spin_axis(label):
+    if label == "spin_I":
+        return None
+    return label.replace("spin_", "").lower()
+
+
+def _orbital_axis(label, orbital_count):
+    if label == "orbital_I":
+        return None
+    if orbital_count == 2 and label in {"orbital_X", "orbital_Y", "orbital_Z"}:
+        return label.replace("orbital_", "").lower()
+    return label
+
+
+def _local_factor_info(local_label, site_index, orbital_count):
     spin_label, orbital_label = local_label.split("__", 1)
     spin = _spin_latex(spin_label, site_index)
     orbital = _orbital_latex(orbital_label, site_index)
@@ -63,7 +93,10 @@ def _local_factor_info(local_label, site_index):
         "latex": " ".join(factors) if factors else rf"\hat I_{{{site_index}}}",
         "body_count": len(factors),
         "local_kind": local_kind,
+        "spin_label": spin_label,
         "orbital_label": orbital_label,
+        "spin_axis": _spin_axis(spin_label),
+        "orbital_axis": _orbital_axis(orbital_label, orbital_count),
     }
 
 
@@ -83,10 +116,8 @@ def _family_name(left_kind, right_kind):
         return "two_body_orbital_orbital"
     if pair in {("S", "T"), ("T", "S")}:
         return "two_body_spin_orbital"
-    if pair in {("ST", "S"), ("S", "ST")}:
-        return "three_body_spin_spin_orbital"
-    if pair in {("ST", "T"), ("T", "ST")}:
-        return "three_body_spin_orbital_orbital"
+    if pair in {("ST", "S"), ("S", "ST"), ("ST", "T"), ("T", "ST")}:
+        return "three_body"
     if pair == ("ST", "ST"):
         return "four_body_spin_orbital_mixed"
     return "residual"
@@ -100,19 +131,149 @@ def _residual_reason(left_info, right_info, coefficient_magnitude, threshold):
     return "rule_not_implemented"
 
 
-def _serialize_coefficient(value):
-    return {"real": float(value.real), "imag": float(value.imag)}
+def _new_kugel_khomskii_bucket():
+    return {
+        "constant": 0.0 + 0.0j,
+        "spin_fields": {
+            "left": {},
+            "right": {},
+            "symmetric": {},
+            "antisymmetric": {},
+        },
+        "orbital_fields": {
+            "left": {},
+            "right": {},
+            "symmetric": {},
+            "antisymmetric": {},
+        },
+        "spin_exchange": {},
+        "orbital_exchange": {},
+        "quartic_exchange": {},
+        "additional_channels": {
+            "one_body_spin_orbital": [],
+            "crossed_spin_orbital": [],
+            "three_body": [],
+        },
+    }
 
 
-def _group_single_bond(block, lattice_vectors, significant_threshold):
+def _accumulate(mapping, key, value):
+    mapping[key] = mapping.get(key, 0.0 + 0.0j) + value
+
+
+def _accumulate_nested(mapping, keys, value):
+    current = mapping
+    for key in keys[:-1]:
+        current = current.setdefault(key, {})
+    current[keys[-1]] = current.get(keys[-1], 0.0 + 0.0j) + value
+
+
+def _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_count, bucket):
+    if orbital_count != 2:
+        return
+
+    family = entry["family"]
+    if family == "constant":
+        bucket["constant"] += coefficient
+        return
+
+    if family == "one_body_spin":
+        target = "left" if left_info["local_kind"] == "S" else "right"
+        axis = left_info["spin_axis"] if left_info["local_kind"] == "S" else right_info["spin_axis"]
+        _accumulate(bucket["spin_fields"][target], axis, coefficient)
+        return
+
+    if family == "one_body_orbital":
+        target = "left" if left_info["local_kind"] == "T" else "right"
+        axis = left_info["orbital_axis"] if left_info["local_kind"] == "T" else right_info["orbital_axis"]
+        _accumulate(bucket["orbital_fields"][target], axis, coefficient)
+        return
+
+    if family == "two_body_spin_spin":
+        _accumulate_nested(bucket["spin_exchange"], [left_info["spin_axis"], right_info["spin_axis"]], coefficient)
+        return
+
+    if family == "two_body_orbital_orbital":
+        _accumulate_nested(
+            bucket["orbital_exchange"],
+            [left_info["orbital_axis"], right_info["orbital_axis"]],
+            coefficient,
+        )
+        return
+
+    if family == "four_body_spin_orbital_mixed":
+        _accumulate_nested(
+            bucket["quartic_exchange"],
+            [
+                left_info["spin_axis"],
+                right_info["spin_axis"],
+                left_info["orbital_axis"],
+                right_info["orbital_axis"],
+            ],
+            coefficient,
+        )
+        return
+
+    if family == "one_body_spin_orbital":
+        bucket["additional_channels"]["one_body_spin_orbital"].append(
+            {
+                "site": "left" if left_info["local_kind"] == "ST" else "right",
+                "spin_axis": left_info["spin_axis"] or right_info["spin_axis"],
+                "orbital_axis": left_info["orbital_axis"] or right_info["orbital_axis"],
+                "latex_label": entry["latex_label"],
+                "coefficient": coefficient,
+            }
+        )
+        return
+
+    if family == "two_body_spin_orbital":
+        bucket["additional_channels"]["crossed_spin_orbital"].append(
+            {
+                "left_kind": left_info["local_kind"],
+                "right_kind": right_info["local_kind"],
+                "latex_label": entry["latex_label"],
+                "coefficient": coefficient,
+            }
+        )
+        return
+
+    if family == "three_body":
+        bucket["additional_channels"]["three_body"].append(
+            {
+                "left_kind": left_info["local_kind"],
+                "right_kind": right_info["local_kind"],
+                "latex_label": entry["latex_label"],
+                "coefficient": coefficient,
+            }
+        )
+
+
+def _finalize_kugel_khomskii(bucket):
+    for axis in sorted(set(bucket["spin_fields"]["left"]) | set(bucket["spin_fields"]["right"])):
+        left = bucket["spin_fields"]["left"].get(axis, 0.0 + 0.0j)
+        right = bucket["spin_fields"]["right"].get(axis, 0.0 + 0.0j)
+        bucket["spin_fields"]["symmetric"][axis] = 0.5 * (left + right)
+        bucket["spin_fields"]["antisymmetric"][axis] = 0.5 * (left - right)
+
+    for axis in sorted(set(bucket["orbital_fields"]["left"]) | set(bucket["orbital_fields"]["right"])):
+        left = bucket["orbital_fields"]["left"].get(axis, 0.0 + 0.0j)
+        right = bucket["orbital_fields"]["right"].get(axis, 0.0 + 0.0j)
+        bucket["orbital_fields"]["symmetric"][axis] = 0.5 * (left + right)
+        bucket["orbital_fields"]["antisymmetric"][axis] = 0.5 * (left - right)
+
+    return _serialize_nested_coefficients(bucket)
+
+
+def _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold):
     displacement = _cartesian_from_R(block["R"], lattice_vectors)
     distance = _vector_norm(displacement)
     grouped_terms = []
     residual_terms = []
+    kugel_khomskii = _new_kugel_khomskii_bucket() if orbital_count == 2 else None
 
     for item in block.get("coefficients", []):
-        left_info = _local_factor_info(item["left_label"], 0)
-        right_info = _local_factor_info(item["right_label"], 1)
+        left_info = _local_factor_info(item["left_label"], 0, orbital_count)
+        right_info = _local_factor_info(item["right_label"], 1, orbital_count)
         coefficient = _complex_from_serialized(item["coefficient"])
         family = _family_name(left_info["local_kind"], right_info["local_kind"])
         body_order = left_info["body_count"] + right_info["body_count"]
@@ -133,16 +294,22 @@ def _group_single_bond(block, lattice_vectors, significant_threshold):
         if family == "residual" or abs(coefficient) < significant_threshold:
             entry["residual_reason"] = _residual_reason(left_info, right_info, abs(coefficient), significant_threshold)
             residual_terms.append(entry)
-        else:
-            grouped_terms.append(entry)
+            continue
 
-    return {
+        grouped_terms.append(entry)
+        if kugel_khomskii is not None:
+            _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_count, kugel_khomskii)
+
+    result = {
         "R": list(block["R"]),
         "distance": float(distance),
         "matrix_shape": list(block["matrix_shape"]),
         "grouped_terms": grouped_terms,
         "residual_terms": residual_terms,
     }
+    if kugel_khomskii is not None:
+        result["kugel_khomskii"] = _finalize_kugel_khomskii(kugel_khomskii)
+    return result
 
 
 def group_pseudospin_orbital_terms(parsed_payload, significant_threshold=1e-4):
@@ -150,8 +317,9 @@ def group_pseudospin_orbital_terms(parsed_payload, significant_threshold=1e-4):
     if not lattice_vectors:
         raise ValueError("parsed payload must include structure.lattice_vectors")
 
+    orbital_count = int(parsed_payload.get("inferred", {}).get("orbital_count", 0))
     bonds = [
-        _group_single_bond(block, lattice_vectors, significant_threshold)
+        _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold)
         for block in parsed_payload.get("bond_blocks", [])
     ]
 

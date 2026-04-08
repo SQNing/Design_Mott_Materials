@@ -10,6 +10,7 @@ if __package__ in {None, ""}:
 
 from classical.classical_solver_driver import estimate_thermodynamics, run_classical_solver
 from lswt.linear_spin_wave_driver import run_linear_spin_wave
+from lswt.sun_gswt_driver import run_sun_gswt
 from output.render_plots import render_plots
 from output.render_report import render_text
 
@@ -19,8 +20,23 @@ def _has_classical_state(payload):
     return bool(classical.get("classical_state") or payload.get("classical_state"))
 
 
+def _has_gswt_result(payload):
+    return isinstance(payload.get("gswt"), dict)
+
+
+def _get_gswt_payload(payload):
+    gswt_payload = payload.get("gswt_payload")
+    if isinstance(gswt_payload, dict):
+        return gswt_payload
+    return None
+
+
 def _can_run_classical(payload):
     return bool(payload.get("bonds"))
+
+
+def _can_run_gswt(payload):
+    return _get_gswt_payload(payload) is not None
 
 
 def _can_run_lswt(payload):
@@ -59,6 +75,7 @@ def _populate_missing_results(
     *,
     run_missing_classical=True,
     run_missing_thermodynamics=True,
+    run_missing_gswt=True,
     run_missing_lswt=True,
 ):
     if run_missing_classical and not _has_classical_state(payload) and _can_run_classical(payload):
@@ -69,6 +86,9 @@ def _populate_missing_results(
 
     if run_missing_thermodynamics and not _has_thermodynamics_result(payload) and _can_run_thermodynamics(payload):
         payload = _run_thermodynamics_stage(payload)
+
+    if run_missing_gswt and not _has_gswt_result(payload) and _can_run_gswt(payload):
+        payload["gswt"] = run_sun_gswt(payload)
 
     if run_missing_lswt and "lswt" not in payload and _can_run_lswt(payload):
         payload["lswt"] = run_linear_spin_wave(payload)
@@ -82,12 +102,15 @@ def _stage_summary(
     *,
     run_missing_classical,
     run_missing_thermodynamics,
+    run_missing_gswt,
     run_missing_lswt,
 ):
     classical_present_before = _has_classical_state(original_payload)
     classical_present_after = _has_classical_state(bundle_payload)
     thermodynamics_present_before = _has_thermodynamics_result(original_payload)
     thermodynamics_present_after = _has_thermodynamics_result(bundle_payload)
+    gswt_present_before = _has_gswt_result(original_payload)
+    gswt_present_after = _has_gswt_result(bundle_payload)
     lswt_present_before = "lswt" in original_payload
     lswt_present_after = "lswt" in bundle_payload
 
@@ -105,6 +128,12 @@ def _stage_summary(
             if thermodynamics_present_after
             else 0,
         },
+        "gswt": {
+            "present": bool(gswt_present_after),
+            "auto_ran": bool(run_missing_gswt and not gswt_present_before and gswt_present_after),
+            "status": bundle_payload.get("gswt", {}).get("status"),
+            "backend": bundle_payload.get("gswt", {}).get("backend", {}).get("name"),
+        },
         "lswt": {
             "present": bool(lswt_present_after),
             "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),
@@ -120,6 +149,7 @@ def write_results_bundle(
     *,
     run_missing_classical=True,
     run_missing_thermodynamics=True,
+    run_missing_gswt=True,
     run_missing_lswt=True,
 ):
     output_dir = Path(output_dir)
@@ -130,6 +160,7 @@ def write_results_bundle(
         deepcopy(payload),
         run_missing_classical=run_missing_classical,
         run_missing_thermodynamics=run_missing_thermodynamics,
+        run_missing_gswt=run_missing_gswt,
         run_missing_lswt=run_missing_lswt,
     )
     plots = render_plots(bundle_payload, output_dir=output_dir)
@@ -145,6 +176,7 @@ def write_results_bundle(
             bundle_payload,
             run_missing_classical=run_missing_classical,
             run_missing_thermodynamics=run_missing_thermodynamics,
+            run_missing_gswt=run_missing_gswt,
             run_missing_lswt=run_missing_lswt,
         ),
         "plots": plots,
@@ -166,6 +198,7 @@ def main():
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--no-auto-classical", action="store_true")
     parser.add_argument("--no-auto-thermodynamics", action="store_true")
+    parser.add_argument("--no-auto-gswt", action="store_true")
     parser.add_argument("--no-auto-lswt", action="store_true")
     args = parser.parse_args()
     payload = _load_payload(args.input)
@@ -176,6 +209,7 @@ def main():
                 output_dir=args.output_dir,
                 run_missing_classical=not args.no_auto_classical,
                 run_missing_thermodynamics=not args.no_auto_thermodynamics,
+                run_missing_gswt=not args.no_auto_gswt,
                 run_missing_lswt=not args.no_auto_lswt,
             ),
             indent=2,

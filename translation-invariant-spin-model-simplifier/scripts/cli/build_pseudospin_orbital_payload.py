@@ -16,6 +16,24 @@ def _serialize_complex(value):
     return {"real": float(value.real), "imag": float(value.imag)}
 
 
+def _serialize_matrix(matrix):
+    return [[_serialize_complex(value) for value in row] for row in matrix]
+
+
+def _local_basis_labels(orbital_count):
+    orbital_count = int(orbital_count)
+    if orbital_count <= 0:
+        raise ValueError("orbital_count must be positive")
+    if orbital_count == 1:
+        return ["up", "down"]
+
+    labels = []
+    for orbital in range(1, orbital_count + 1):
+        labels.append(f"up_orb{orbital}")
+        labels.append(f"down_orb{orbital}")
+    return labels
+
+
 def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance=1e-10):
     structure = parse_poscar_file(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
@@ -34,6 +52,7 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
             {
                 "R": list(R),
                 "matrix_shape": list(hamiltonian["blocks_by_R"][R].shape),
+                "pair_matrix": _serialize_matrix(hamiltonian["blocks_by_R"][R]),
                 "coefficients": [
                     {
                         "left_label": item["left_label"],
@@ -51,6 +70,8 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
             "local_space": "pseudospin_orbital",
         },
         "basis_order": "orbital_major_spin_minor",
+        "pair_basis_order": "site_i_major_site_j_minor",
+        "local_basis_labels": _local_basis_labels(orbital_count),
         "structure": structure,
         "hamiltonian": {
             "comment": hamiltonian["comment"],

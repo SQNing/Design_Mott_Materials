@@ -1,0 +1,236 @@
+[[cif_api]]
+arch = "aarch64"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "722425a03b136333dbcfc11361b931cbc70c2955"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "daf7a807bc43e203b53d85faddd0452c79b2b52dabee16cdafe31e965bd6f581"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.aarch64-linux-gnu-cxx03.tar.gz"
+[[cif_api]]
+arch = "aarch64"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "a4b9a4b431861e0c6c51a3e227be6faceb002fae"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "05f77cdd257ad04c55a6cac587a3edd96f1f6399e95fcd18cce27ee6f1463138"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.aarch64-linux-gnu-cxx11.tar.gz"
+[[cif_api]]
+arch = "aarch64"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "99bdcd2efc460258d37c9ce99ea177e1c0ef6bd6"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "faf6310138ba214b7a1c48e2dbe4938af35351d21e76e6f7d7dfe38624f7fee7"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.aarch64-linux-musl-cxx03.tar.gz"
+[[cif_api]]
+arch = "aarch64"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "04bde33ba0df05be2fd7b1fe9dc1530ab2597c33"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "d1833cfe9e967d942d685a4e3a292cb54ae1046451546277e3e2711931cd5440"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.aarch64-linux-musl-cxx11.tar.gz"
+[[cif_api]]
+arch = "armv7l"
+call_abi = "eabihf"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "934b5c4fd66a36b3ae876dfeca69e870cd9156ee"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "5b64e22004eba958dcb00ae51db98fa41d4a07e9178e74ebfa7527786add6ab7"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.armv7l-linux-gnueabihf-cxx03.tar.gz"
+[[cif_api]]
+arch = "armv7l"
+call_abi = "eabihf"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "8e3d1e2c2a816b1c1282c543a66fd10a440027bc"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "894f478b29ad047577227336aa73ba00fc81ba22602cfda41e34e8b4624daf79"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.armv7l-linux-gnueabihf-cxx11.tar.gz"
+[[cif_api]]
+arch = "armv7l"
+call_abi = "eabihf"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "06693cd6d73cf51cdba401b1c814472586a75fac"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "06227789cc7acd4c550bc380ac73c8b97c6e9385783fda6ada53436b87e02af5"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.armv7l-linux-musleabihf-cxx03.tar.gz"
+[[cif_api]]
+arch = "armv7l"
+call_abi = "eabihf"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "c14970f75e12ac32b5c54830051ce1a70f1777d3"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "838acbc54a4fa772366ccfa825dd1dc5f98a14d494f135c44de20abdbde656d5"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.armv7l-linux-musleabihf-cxx11.tar.gz"
+[[cif_api]]
+arch = "i686"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "ea4cbf1168e1b008e4bdb81bf903693f77fe8f07"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "4d85468b8d1625b714dc9dc3f04ef826daecce27a063d5fe2ce28799d4e3032a"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.i686-linux-gnu-cxx03.tar.gz"
+[[cif_api]]
+arch = "i686"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "70c6f168e896051ca6d134c18fd4e99e53ef8fa0"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "3eddceb1b89b9bcd5cf8eb0979b720d54b15a6ed3b76e595b7d3e87db0a87782"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.i686-linux-gnu-cxx11.tar.gz"
+[[cif_api]]
+arch = "i686"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "bd36f4efc4655a86bcc7e240b116eb8ef246629f"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "faa8e5f7572fdf4d1ea3b3a26d83d847a80ced8a1fb72f49284d06a83de8182d"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.i686-linux-musl-cxx03.tar.gz"
+[[cif_api]]
+arch = "i686"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "f5ae54790cc342508064bbf0d73185baa7ef9187"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "c4c84639924d5fbf58f7c36581d67021b72e10976050445cc30fe6b5e3b46f44"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.i686-linux-musl-cxx11.tar.gz"
+[[cif_api]]
+arch = "i686"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "310b7efdd4791436c8d86f931ef1afe33fcfbf3b"
+os = "windows"
+
+    [[cif_api.download]]
+    sha256 = "4324a89332dc758083ac01b170c3c477c131b214dd9837e892aa31392dfcc468"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.i686-w64-mingw32-cxx03.tar.gz"
+[[cif_api]]
+arch = "i686"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "af48411ebdecfb3b2f1c0da8eae7f3bed9c23250"
+os = "windows"
+
+    [[cif_api.download]]
+    sha256 = "b5b19f2448f8e741a56987753e3f0713142ce4c767f544bb1f19872e4e846c54"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.i686-w64-mingw32-cxx11.tar.gz"
+[[cif_api]]
+arch = "powerpc64le"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "55228a8f362721708fe75ba0426336225186665a"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "49e10cddbbbfb4e61ad8640788da27ce100f692f3b5c5024590ddd399fbbb9b7"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.powerpc64le-linux-gnu-cxx03.tar.gz"
+[[cif_api]]
+arch = "powerpc64le"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "f1717ba323561bee363ee97ded08ed4d70a57c02"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "d2487f5ce866bbe2ec413817e7e8a8e81470cd69d2506e8288556f31f33da60f"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.powerpc64le-linux-gnu-cxx11.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+git-tree-sha1 = "f553d08a64bd6f2aa4f024fdd3093295c8b9d46e"
+os = "macos"
+
+    [[cif_api.download]]
+    sha256 = "ee9e9e0117b36b9b866a549bdfd9ab95188cf492cdee375ba856967366acd835"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-apple-darwin.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "8def9a521c709044831a8226b6d0abcae7629c84"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "8e5898a830ffc6ec12e089537b9536d24ff2f9fdf9db519db7bef87f43c8da22"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-linux-gnu-cxx03.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "11c0b743e3954a9c99603118cd68f6f40135b92c"
+libc = "glibc"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "ada2014f6405b9ae882047010d006b95f54a57dcf1adc10208cf26091e0e1706"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-linux-gnu-cxx11.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "17306a4db3b9adde5105868a113d736c657697ee"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "155d7ec6ca9b2ee30bea9144e0232d738aea62e0328bf1541f8c7d92a49153d4"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-linux-musl-cxx03.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "7eaa82a9287ea243a7060d477f5908419ad26327"
+libc = "musl"
+os = "linux"
+
+    [[cif_api.download]]
+    sha256 = "792eac3418f704e59fe84b11df8218ffa0b3908059fef3aa55c010d6ced03f82"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-linux-musl-cxx11.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+git-tree-sha1 = "1b8d239534cb71ceeabd37f981824be8227c2323"
+os = "freebsd"
+
+    [[cif_api.download]]
+    sha256 = "d11159cfc56066fb1e89c6955c76f1c5d1f8fa4192ac4651e60879e7fd9d0098"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-unknown-freebsd.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+cxxstring_abi = "cxx03"
+git-tree-sha1 = "af19217d5a689bb1481aeed928070c448f34d34a"
+os = "windows"
+
+    [[cif_api.download]]
+    sha256 = "58fbece9ebcdd42473468808df342d329274645ed7d72e40fbf5a36eee61b0ad"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-w64-mingw32-cxx03.tar.gz"
+[[cif_api]]
+arch = "x86_64"
+cxxstring_abi = "cxx11"
+git-tree-sha1 = "e440769bdb3c6b534a7a1b377fc9dfc524b3c4c4"
+os = "windows"
+
+    [[cif_api.download]]
+    sha256 = "cae238637e7444c895279e3068f6c88c67f44e705553f9914a5244d7372211e8"
+    url = "https://github.com/JuliaBinaryWrappers/cif_api_jll.jl/releases/download/cif_api-v0.4.2+0/cif_api.v0.4.2.x86_64-w64-mingw32-cxx11.tar.gz"

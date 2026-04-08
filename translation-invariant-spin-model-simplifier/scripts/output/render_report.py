@@ -159,6 +159,20 @@ def render_text(payload):
             f"generalized_lt_residual={auto_resolution.get('generalized_lt_residual', 'n/a')}"
         )
     backend_name = lswt.get("backend", {}).get("name")
+    gswt = payload.get("gswt", {})
+    gswt_backend_name = gswt.get("backend", {}).get("name")
+    if gswt_backend_name:
+        lines.append(f"GSWT backend: {gswt_backend_name}")
+    gswt_status = gswt.get("status")
+    if gswt_status:
+        lines.append(f"GSWT status: {gswt_status}")
+    gswt_error = gswt.get("error", {})
+    if gswt_error:
+        lines.append(
+            f"GSWT error: {gswt_error.get('code', 'gswt-error')} {gswt_error.get('message', '')}".strip()
+        )
+    if gswt.get("message"):
+        lines.append(f"GSWT message: {gswt.get('message')}")
     if backend_name:
         lines.append(f"LSWT backend: {backend_name}")
     lswt_status = lswt.get("status")
