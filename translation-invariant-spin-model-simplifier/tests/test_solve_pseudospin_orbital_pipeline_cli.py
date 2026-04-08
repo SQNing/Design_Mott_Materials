@@ -10,6 +10,69 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 from cli.solve_pseudospin_orbital_pipeline import solve_from_files
 
 
+def _mocked_sunny_classical_result():
+    return {
+        "status": "ok",
+        "method": "sunny-cpn-minimize",
+        "energy": -0.5,
+        "supercell_shape": [1, 1, 1],
+        "local_rays": [
+            {
+                "cell": [0, 0, 0],
+                "vector": [
+                    {"real": 1.0, "imag": 0.0},
+                    {"real": 0.0, "imag": 0.0},
+                    {"real": 0.0, "imag": 0.0},
+                    {"real": 0.0, "imag": 0.0},
+                ],
+            },
+        ],
+        "starts": 2,
+        "seed": 3,
+        "backend": {"name": "Sunny.jl", "mode": "SUN", "solver": "minimize_energy!"},
+    }
+
+
+def _mocked_sunny_thermodynamics_result(method, *, include_dos=False):
+    payload = {
+        "status": "ok",
+        "backend": {"name": "Sunny.jl", "mode": "SUN", "sampler": method},
+        "thermodynamics_result": {
+            "method": method,
+            "backend": {"name": "Sunny.jl", "mode": "SUN", "sampler": method},
+            "grid": [
+                {
+                    "temperature": 0.2,
+                    "energy": -0.1,
+                    "magnetization": 0.3,
+                    "specific_heat": 0.4,
+                    "susceptibility": 0.5,
+                }
+            ],
+            "observables": {
+                "energy": [-0.1],
+                "magnetization": [0.3],
+                "specific_heat": [0.4],
+                "susceptibility": [0.5],
+            },
+            "uncertainties": {
+                "energy": [0.01],
+                "magnetization": [0.02],
+                "specific_heat": [0.03],
+                "susceptibility": [0.04],
+            },
+            "sampling": {"seed": 5},
+            "reference": {"normalization": "per_spin"},
+        },
+    }
+    if include_dos:
+        payload["dos_result"] = {
+            "energy_bins": [-1.0, -0.9],
+            "log_density_of_states": [0.0, 0.1],
+        }
+    return payload
+
+
 class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
     def test_solve_from_files_writes_reports_solver_outputs_and_stage_markdown(self):
         poscar_path = Path(
@@ -278,6 +341,134 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             self.assertTrue((Path(tmpdir) / "classical_model.json").exists())
             note_text = sorted(Path(docsdir).glob("*solver-phase.md"))[-1].read_text(encoding="utf-8")
             self.assertIn("method: sunny-cpn-minimize", note_text)
+
+    def test_solve_from_files_supports_sunny_local_sampler_thermodynamics(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
+            return_value=_mocked_sunny_classical_result(),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
+            return_value=_mocked_sunny_thermodynamics_result("sunny-local-sampler"),
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="sunny-cpn-minimize",
+                run_thermodynamics=True,
+                thermodynamics_backend="sunny-local-sampler",
+                temperatures=[0.2, 0.4],
+            )
+
+            self.assertEqual(manifest["status"], "ok")
+            self.assertTrue((Path(tmpdir) / "thermodynamics_result.json").exists())
+            self.assertIsNotNone(manifest["artifacts"]["thermodynamics_result"])
+
+    def test_solve_from_files_supports_sunny_parallel_tempering_thermodynamics(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
+            return_value=_mocked_sunny_classical_result(),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
+            return_value=_mocked_sunny_thermodynamics_result("sunny-parallel-tempering"),
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="sunny-cpn-minimize",
+                run_thermodynamics=True,
+                thermodynamics_backend="sunny-parallel-tempering",
+                temperatures=[0.2, 0.4, 0.8],
+                thermo_pt_temperatures=[0.2, 0.4, 0.8],
+            )
+
+            self.assertEqual(manifest["status"], "ok")
+            self.assertTrue((Path(tmpdir) / "thermodynamics_result.json").exists())
+
+    def test_solve_from_files_supports_sunny_wang_landau_thermodynamics(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
+            return_value=_mocked_sunny_classical_result(),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
+            return_value=_mocked_sunny_thermodynamics_result("sunny-wang-landau", include_dos=True),
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="sunny-cpn-minimize",
+                run_thermodynamics=True,
+                thermodynamics_backend="sunny-wang-landau",
+                temperatures=[0.2, 0.4],
+                thermo_wl_bounds=[-2.0, 0.0],
+                thermo_wl_bin_size=0.05,
+            )
+
+            self.assertEqual(manifest["status"], "ok")
+            self.assertTrue((Path(tmpdir) / "dos_result.json").exists())
+            self.assertIsNotNone(manifest["artifacts"]["dos_result"])
+
+    def test_rejects_restricted_product_state_for_sunny_thermodynamics(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        with self.assertRaisesRegex(ValueError, "CP\\^\\(N-1\\) classical state"):
+            solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir="/tmp/ignored-output",
+                docs_dir="/tmp/ignored-docs",
+                compile_pdf=False,
+                classical_method="restricted-product-state",
+                run_thermodynamics=True,
+                thermodynamics_backend="sunny-local-sampler",
+                temperatures=[0.2, 0.4],
+            )
 
 
 if __name__ == "__main__":

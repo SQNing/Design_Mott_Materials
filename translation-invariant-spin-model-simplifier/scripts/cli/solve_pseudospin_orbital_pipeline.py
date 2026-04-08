@@ -17,6 +17,7 @@ from classical.sun_gswt_classical_solver import (
     solve_sun_gswt_single_q_ground_state,
 )
 from classical.sunny_sun_classical_driver import run_sunny_sun_classical
+from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynamics
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
 from lswt.sun_gswt_driver import run_sun_gswt
@@ -25,7 +26,19 @@ from simplify.group_pseudospin_orbital_terms import group_pseudospin_orbital_ter
 from simplify.simplify_pseudospin_orbital_payload import simplify_pseudospin_orbital_payload
 
 
-def _solver_phase_summary(parsed_payload, simplified_payload, grouped_payload, classical_model, solver_result, report_manifest, classical_method):
+def _solver_phase_summary(
+    parsed_payload,
+    simplified_payload,
+    grouped_payload,
+    classical_model,
+    solver_result,
+    report_manifest,
+    classical_method,
+    *,
+    thermodynamics_backend=None,
+    thermodynamics_result=None,
+    dos_result=None,
+):
     convergence = solver_result.get("convergence", {})
     relaxed_lt = solver_result.get("relaxed_lt", {})
     projector = solver_result.get("projector_diagnostics", {})
@@ -36,6 +49,13 @@ def _solver_phase_summary(parsed_payload, simplified_payload, grouped_payload, c
     gswt_ordering = gswt.get("ordering", {}) if isinstance(gswt, dict) else {}
     gswt_compatibility = gswt_ordering.get("compatibility_with_supercell", {}) if isinstance(gswt_ordering, dict) else {}
     grid_shape = projector.get("grid_shape")
+    thermodynamics_result = thermodynamics_result or {}
+    thermodynamics_grid = thermodynamics_result.get("grid", []) if isinstance(thermodynamics_result, dict) else []
+    thermodynamics_backend_info = (
+        thermodynamics_result.get("backend", {})
+        if isinstance(thermodynamics_result.get("backend"), dict)
+        else {}
+    )
     lines = [
         "# Pseudospin-Orbital Solver Phase",
         "",
@@ -107,6 +127,16 @@ def _solver_phase_summary(parsed_payload, simplified_payload, grouped_payload, c
         f"- human-friendly pdf status: {report_manifest['reports']['human_friendly']['pdf_status']}",
         f"- full-coefficients pdf status: {report_manifest['reports']['full_coefficients']['pdf_status']}",
         "",
+        "## Thermodynamics",
+        "",
+        f"- thermodynamics_backend: {thermodynamics_backend}",
+        f"- thermodynamics_present: {bool(thermodynamics_grid)}",
+        f"- thermodynamics_method: {thermodynamics_result.get('method')}",
+        f"- thermodynamics_backend_name: {thermodynamics_backend_info.get('name')}",
+        f"- thermodynamics_backend_sampler: {thermodynamics_backend_info.get('sampler')}",
+        f"- thermodynamics_temperature_count: {len(thermodynamics_grid)}",
+        f"- dos_present: {dos_result is not None}",
+        "",
         "## GSWT Diagnostics",
         "",
         "- for `sun-gswt-cpn`, the physically relevant ordering wavevector is read from the Fourier components of the projector field `Q_R = |z_R><z_R|`, not from a gauge phase of `z_R` itself",
@@ -152,6 +182,23 @@ def solve_from_files(
     max_linear_size=5,
     convergence_repeats=2,
     max_sweeps=200,
+    run_thermodynamics=False,
+    thermodynamics_backend=None,
+    temperatures=None,
+    thermo_seed=0,
+    thermo_sweeps=100,
+    thermo_burn_in=50,
+    thermo_measurement_interval=1,
+    thermo_proposal="delta",
+    thermo_proposal_scale=0.2,
+    thermo_pt_temperatures=None,
+    thermo_pt_exchange_interval=1,
+    thermo_wl_bounds=None,
+    thermo_wl_bin_size=None,
+    thermo_wl_windows=1,
+    thermo_wl_overlap=0.25,
+    thermo_wl_ln_f=1.0,
+    thermo_wl_sweeps=100,
 ):
     parsed_payload = build_pseudospin_orbital_payload(
         poscar_path=poscar_path,
@@ -166,6 +213,9 @@ def solve_from_files(
         output_dir=output_dir,
         compile_pdf=compile_pdf,
     )
+
+    if run_thermodynamics and classical_method == "restricted-product-state":
+        raise ValueError("Sunny thermodynamics requires a CP^(N-1) classical state")
 
     if classical_method == "restricted-product-state":
         classical_model = build_pseudospin_orbital_classical_model(parsed_payload)
@@ -222,6 +272,69 @@ def solve_from_files(
     else:
         raise ValueError(f"unsupported classical_method: {classical_method}")
 
+    thermodynamics_result = None
+    dos_result = None
+    if run_thermodynamics:
+        resolved_backend = str(thermodynamics_backend or "sunny-local-sampler")
+        resolved_temperatures = [float(value) for value in (temperatures or [])]
+        resolved_pt_temperatures = [float(value) for value in (thermo_pt_temperatures or [])]
+
+        if resolved_backend == "sunny-parallel-tempering":
+            if not resolved_pt_temperatures:
+                raise ValueError("sunny-parallel-tempering requires --thermo-pt-temperatures")
+            if resolved_temperatures and resolved_temperatures != resolved_pt_temperatures:
+                raise ValueError("for sunny-parallel-tempering, --temperatures must match --thermo-pt-temperatures")
+            resolved_temperatures = list(resolved_pt_temperatures)
+        elif resolved_backend == "sunny-wang-landau":
+            if thermo_wl_bounds is None or thermo_wl_bin_size is None:
+                raise ValueError("sunny-wang-landau requires --thermo-wl-bounds and --thermo-wl-bin-size")
+            if not resolved_temperatures:
+                raise ValueError("sunny-wang-landau requires --temperatures")
+        else:
+            if not resolved_temperatures:
+                raise ValueError(f"{resolved_backend} requires --temperatures")
+
+        initial_state = {
+            "shape": list(solver_result.get("supercell_shape", list(supercell_shape))),
+            "local_rays": list(solver_result.get("local_rays", [])),
+        }
+        if not initial_state["local_rays"]:
+            raise ValueError("Sunny thermodynamics requires a CP^(N-1) classical state")
+
+        thermodynamics_payload = {
+            "backend": "Sunny.jl",
+            "payload_kind": "sunny_sun_thermodynamics",
+            "backend_method": resolved_backend,
+            "model": classical_model,
+            "initial_state": initial_state,
+            "supercell_shape": list(initial_state["shape"]),
+            "temperatures": resolved_temperatures,
+            "seed": int(thermo_seed),
+            "sweeps": int(thermo_sweeps),
+            "burn_in": int(thermo_burn_in),
+            "measurement_interval": int(thermo_measurement_interval),
+            "proposal": str(thermo_proposal),
+            "proposal_scale": float(thermo_proposal_scale),
+            "pt_temperatures": resolved_pt_temperatures,
+            "pt_exchange_interval": int(thermo_pt_exchange_interval),
+            "wl_bounds": list(thermo_wl_bounds) if thermo_wl_bounds is not None else None,
+            "wl_bin_size": float(thermo_wl_bin_size) if thermo_wl_bin_size is not None else None,
+            "wl_windows": int(thermo_wl_windows),
+            "wl_overlap": float(thermo_wl_overlap),
+            "wl_ln_f": float(thermo_wl_ln_f),
+            "wl_sweeps": int(thermo_wl_sweeps),
+        }
+        backend_output = run_sunny_sun_thermodynamics(thermodynamics_payload)
+        if backend_output.get("status") != "ok":
+            error = backend_output.get("error", {})
+            code = error.get("code", "thermodynamics-backend-error")
+            message = error.get("message", "Sunny thermodynamics backend failed")
+            raise RuntimeError(f"{code}: {message}")
+
+        thermodynamics_result = backend_output.get("thermodynamics_result")
+        dos_result = backend_output.get("dos_result")
+        thermodynamics_backend = resolved_backend
+
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     parsed_path = output_dir / "parsed_payload.json"
@@ -231,6 +344,8 @@ def solve_from_files(
     solver_result_path = output_dir / "solver_result.json"
     gswt_payload_path = output_dir / "gswt_payload.json"
     gswt_result_path = output_dir / "gswt_result.json"
+    thermodynamics_result_path = output_dir / "thermodynamics_result.json"
+    dos_result_path = output_dir / "dos_result.json"
 
     parsed_path.write_text(json.dumps(parsed_payload, indent=2, sort_keys=True), encoding="utf-8")
     simplified_path.write_text(json.dumps(simplified_payload, indent=2, sort_keys=True), encoding="utf-8")
@@ -242,6 +357,13 @@ def solve_from_files(
         gswt_payload_path.write_text(json.dumps(gswt_payload, indent=2, sort_keys=True), encoding="utf-8")
         gswt_result_path.write_text(json.dumps(gswt_result, indent=2, sort_keys=True), encoding="utf-8")
     solver_result_path.write_text(json.dumps(solver_result, indent=2, sort_keys=True), encoding="utf-8")
+    if thermodynamics_result is not None:
+        thermodynamics_result_path.write_text(
+            json.dumps(thermodynamics_result, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+    if dos_result is not None:
+        dos_result_path.write_text(json.dumps(dos_result, indent=2, sort_keys=True), encoding="utf-8")
 
     phase_note = _write_solver_stage_markdown(
         _solver_phase_summary(
@@ -252,6 +374,9 @@ def solve_from_files(
             solver_result,
             report_manifest,
             classical_method,
+            thermodynamics_backend=thermodynamics_backend,
+            thermodynamics_result=thermodynamics_result,
+            dos_result=dos_result,
         ),
         docs_dir=docs_dir,
     )
@@ -268,6 +393,8 @@ def solve_from_files(
             "solver_result": str(solver_result_path),
             "gswt_payload": str(gswt_payload_path) if gswt_payload is not None else None,
             "gswt_result": str(gswt_result_path) if gswt_payload is not None else None,
+            "thermodynamics_result": str(thermodynamics_result_path) if thermodynamics_result is not None else None,
+            "dos_result": str(dos_result_path) if dos_result is not None else None,
             "phase_note": str(phase_note),
         },
     }
@@ -292,6 +419,26 @@ def main():
     parser.add_argument("--max-linear-size", type=int, default=5)
     parser.add_argument("--convergence-repeats", type=int, default=2)
     parser.add_argument("--max-sweeps", type=int, default=200)
+    parser.add_argument("--run-thermodynamics", action="store_true")
+    parser.add_argument(
+        "--thermodynamics-backend",
+        choices=["sunny-local-sampler", "sunny-parallel-tempering", "sunny-wang-landau"],
+    )
+    parser.add_argument("--temperatures", type=float, nargs="+")
+    parser.add_argument("--thermo-seed", type=int, default=0)
+    parser.add_argument("--thermo-sweeps", type=int, default=100)
+    parser.add_argument("--thermo-burn-in", type=int, default=50)
+    parser.add_argument("--thermo-measurement-interval", type=int, default=1)
+    parser.add_argument("--thermo-proposal", choices=["delta", "uniform", "flip"], default="delta")
+    parser.add_argument("--thermo-proposal-scale", type=float, default=0.2)
+    parser.add_argument("--thermo-pt-temperatures", type=float, nargs="+")
+    parser.add_argument("--thermo-pt-exchange-interval", type=int, default=1)
+    parser.add_argument("--thermo-wl-bounds", type=float, nargs=2)
+    parser.add_argument("--thermo-wl-bin-size", type=float)
+    parser.add_argument("--thermo-wl-windows", type=int, default=1)
+    parser.add_argument("--thermo-wl-overlap", type=float, default=0.25)
+    parser.add_argument("--thermo-wl-ln-f", type=float, default=1.0)
+    parser.add_argument("--thermo-wl-sweeps", type=int, default=100)
     args = parser.parse_args()
 
     manifest = solve_from_files(
@@ -308,6 +455,23 @@ def main():
         max_linear_size=int(args.max_linear_size),
         convergence_repeats=int(args.convergence_repeats),
         max_sweeps=int(args.max_sweeps),
+        run_thermodynamics=bool(args.run_thermodynamics),
+        thermodynamics_backend=str(args.thermodynamics_backend) if args.thermodynamics_backend is not None else None,
+        temperatures=list(args.temperatures) if args.temperatures is not None else None,
+        thermo_seed=int(args.thermo_seed),
+        thermo_sweeps=int(args.thermo_sweeps),
+        thermo_burn_in=int(args.thermo_burn_in),
+        thermo_measurement_interval=int(args.thermo_measurement_interval),
+        thermo_proposal=str(args.thermo_proposal),
+        thermo_proposal_scale=float(args.thermo_proposal_scale),
+        thermo_pt_temperatures=list(args.thermo_pt_temperatures) if args.thermo_pt_temperatures is not None else None,
+        thermo_pt_exchange_interval=int(args.thermo_pt_exchange_interval),
+        thermo_wl_bounds=list(args.thermo_wl_bounds) if args.thermo_wl_bounds is not None else None,
+        thermo_wl_bin_size=float(args.thermo_wl_bin_size) if args.thermo_wl_bin_size is not None else None,
+        thermo_wl_windows=int(args.thermo_wl_windows),
+        thermo_wl_overlap=float(args.thermo_wl_overlap),
+        thermo_wl_ln_f=float(args.thermo_wl_ln_f),
+        thermo_wl_sweeps=int(args.thermo_wl_sweeps),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
