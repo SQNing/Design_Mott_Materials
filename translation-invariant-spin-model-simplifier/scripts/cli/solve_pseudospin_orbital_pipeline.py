@@ -12,9 +12,11 @@ from classical.build_pseudospin_orbital_classical_model import build_pseudospin_
 from classical.build_sun_gswt_classical_payload import build_sun_gswt_classical_payload
 from classical.pseudospin_orbital_solver import solve_pseudospin_orbital_variational
 from classical.sun_gswt_classical_solver import (
+    diagnose_sun_gswt_classical_state,
     solve_sun_gswt_classical_ground_state,
     solve_sun_gswt_single_q_ground_state,
 )
+from classical.sunny_sun_classical_driver import run_sunny_sun_classical
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
 from lswt.sun_gswt_driver import run_sun_gswt
@@ -29,6 +31,7 @@ def _solver_phase_summary(parsed_payload, simplified_payload, grouped_payload, c
     projector = solver_result.get("projector_diagnostics", {})
     stationarity = solver_result.get("stationarity", {})
     ansatz_stationarity = solver_result.get("ansatz_stationarity", {})
+    backend = solver_result.get("backend", {}) if isinstance(solver_result.get("backend"), dict) else {}
     gswt = solver_result.get("gswt", {})
     gswt_ordering = gswt.get("ordering", {}) if isinstance(gswt, dict) else {}
     gswt_compatibility = gswt_ordering.get("compatibility_with_supercell", {}) if isinstance(gswt_ordering, dict) else {}
@@ -67,6 +70,9 @@ def _solver_phase_summary(parsed_payload, simplified_payload, grouped_payload, c
         f"- energy: {solver_result['energy']}",
         f"- starts: {solver_result['starts']}",
         f"- seed: {solver_result['seed']}",
+        f"- classical_backend: {backend.get('name')}",
+        f"- classical_backend_mode: {backend.get('mode')}",
+        f"- classical_backend_solver: {backend.get('solver')}",
         f"- ansatz: {solver_result.get('ansatz')}",
         f"- q_vector: {solver_result.get('q_vector')}",
         f"- supercell_shape: {solver_result.get('supercell_shape')}",
@@ -140,6 +146,7 @@ def solve_from_files(
     compile_pdf=True,
     coefficient_tolerance=1e-10,
     classical_method="restricted-product-state",
+    supercell_shape=(1, 1, 1),
     starts=16,
     seed=0,
     max_linear_size=5,
@@ -187,6 +194,31 @@ def solve_from_files(
             seed=seed,
         )
         gswt_payload = build_sun_gswt_payload(classical_model, classical_state=solver_result)
+    elif classical_method == "sunny-cpn-minimize":
+        classical_model = build_sun_gswt_classical_payload(parsed_payload)
+        backend_result = run_sunny_sun_classical(
+            {
+                "backend": "Sunny.jl",
+                "payload_kind": "sunny_sun_classical",
+                "model": classical_model,
+                "supercell_shape": list(supercell_shape),
+                "starts": int(starts),
+                "seed": int(seed),
+            }
+        )
+        solver_result = {key: value for key, value in backend_result.items() if key != "status"}
+        if solver_result.get("local_rays"):
+            state = {
+                "shape": list(solver_result.get("supercell_shape", list(supercell_shape))),
+                "local_rays": list(solver_result.get("local_rays", [])),
+            }
+            diagnostics = diagnose_sun_gswt_classical_state(classical_model, state)
+            solver_result = {
+                **solver_result,
+                "projector_diagnostics": diagnostics["projector_diagnostics"],
+                "stationarity": diagnostics["stationarity"],
+            }
+        gswt_payload = None
     else:
         raise ValueError(f"unsupported classical_method: {classical_method}")
 
@@ -252,8 +284,9 @@ def main():
     parser.add_argument(
         "--classical-method",
         default="restricted-product-state",
-        choices=["restricted-product-state", "sun-gswt-cpn", "sun-gswt-single-q"],
+        choices=["restricted-product-state", "sun-gswt-cpn", "sun-gswt-single-q", "sunny-cpn-minimize"],
     )
+    parser.add_argument("--supercell-shape", type=int, nargs=3, metavar=("NX", "NY", "NZ"), default=(1, 1, 1))
     parser.add_argument("--starts", type=int, default=16)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--max-linear-size", type=int, default=5)
@@ -269,6 +302,7 @@ def main():
         compile_pdf=not args.no_pdf,
         coefficient_tolerance=float(args.coefficient_tolerance),
         classical_method=str(args.classical_method),
+        supercell_shape=tuple(int(value) for value in args.supercell_shape),
         starts=int(args.starts),
         seed=int(args.seed),
         max_linear_size=int(args.max_linear_size),
