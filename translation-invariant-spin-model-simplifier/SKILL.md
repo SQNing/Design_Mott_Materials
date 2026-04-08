@@ -22,7 +22,7 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 11. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
 12. Ask whether to project to a spin model if the current basis is not already explicit.
 13. Present classical solver options and recommend one default.
-14. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`.
+14. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`, or use the pseudospin-orbital Sunny adapters when the input path is `many_body_hr`.
 15. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
 16. Render the final report with `scripts/output/render_report.py`.
 
@@ -32,6 +32,8 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
 - Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
 - For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space and use the fixed local basis order `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`.
+- For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
+- For these Sunny-backed pseudospin-orbital options, fail explicitly if `julia` or `Sunny.jl` is unavailable instead of silently falling back to the Python helpers.
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
 - Treat canonical form as the internal source of truth.
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.
