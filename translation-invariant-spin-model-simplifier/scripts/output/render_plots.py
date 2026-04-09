@@ -23,6 +23,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from lswt.build_lswt_payload import infer_spatial_dimension
 from common.lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
 
@@ -423,6 +424,18 @@ def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cell
     lattice = payload.get("lattice", {})
     bonds = payload.get("simplified_model", {}).get("bonds", payload.get("bonds", []))
     spatial_dimension = infer_spatial_dimension(lattice, bonds)
+    resolved_cpn_state = resolve_cpn_classical_state_payload(classical_state)
+    if not frames and resolved_cpn_state.get("state_kind") == "local_rays" and resolved_cpn_state.get("local_rays"):
+        return {
+            "site_frames": [],
+            "state_kind": resolved_cpn_state.get("state_kind"),
+            "manifold": resolved_cpn_state.get("manifold"),
+            "ordering": resolved_cpn_state.get("ordering", {}),
+            "supercell_shape": list(resolved_cpn_state.get("supercell_shape", [])),
+            "local_ray_count": len(resolved_cpn_state.get("local_rays", [])),
+            "spatial_dimension": spatial_dimension,
+            "plot_reason": "Classical-state plotting for CP^(N-1) local-ray states is not implemented yet",
+        }
     ordering = classical_state.get("ordering", {})
     ordering_kind = ordering.get("kind", "commensurate")
     q_vector = ordering.get("q_vector", [0.0, 0.0, 0.0])
@@ -1021,6 +1034,12 @@ def render_plots(payload, output_dir, commensurate_cells=2, incommensurate_cells
         classical_path = output_dir / "classical_state.png"
         _render_classical_state(classical_state, classical_path)
         result["plots"]["classical_state"] = {"status": "ok", "path": str(classical_path)}
+    elif classical_state.get("plot_reason"):
+        result["plots"]["classical_state"] = {
+            "status": "skipped",
+            "path": None,
+            "reason": classical_state.get("plot_reason", ""),
+        }
 
     lswt_status = plot_payload.get("metadata", {}).get("lswt_status", payload.get("lswt", {}).get("status", "missing"))
     dispersion_payload = plot_payload.get("lswt_dispersion", {})

@@ -8,6 +8,9 @@ from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+else:
+    from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -33,6 +36,22 @@ def _extract_payload(payload):
     return None
 
 
+def _preflight_payload_error(thermodynamics_payload):
+    model = thermodynamics_payload.get("model")
+    if not isinstance(model, dict):
+        return None
+    try:
+        resolve_pseudospin_orbital_conventions(model)
+    except ValueError as exc:
+        return _error(
+            "invalid-thermodynamics-convention",
+            str(exc),
+            payload_kind=thermodynamics_payload.get("payload_kind"),
+            backend=thermodynamics_payload.get("backend", "Sunny.jl"),
+        )
+    return None
+
+
 def run_sunny_sun_thermodynamics(payload, julia_cmd="julia"):
     thermodynamics_payload = _extract_payload(payload)
     if thermodynamics_payload is None:
@@ -40,6 +59,10 @@ def run_sunny_sun_thermodynamics(payload, julia_cmd="julia"):
             "missing-thermodynamics-payload",
             "Thermodynamics stage requires a `thermodynamics_payload` dictionary",
         )
+
+    preflight_error = _preflight_payload_error(thermodynamics_payload)
+    if preflight_error is not None:
+        return preflight_error
 
     payload_kind = thermodynamics_payload.get("payload_kind")
     backend = thermodynamics_payload.get("backend", "Sunny.jl")

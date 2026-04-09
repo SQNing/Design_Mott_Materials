@@ -19,6 +19,7 @@ from classical.sun_gswt_classical_solver import (
 from classical.sunny_sun_classical_driver import run_sunny_sun_classical
 from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynamics
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
+from common.cpn_classical_state import resolve_cpn_classical_state_payload, resolve_cpn_local_state
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
 from lswt.sun_gswt_driver import run_sun_gswt
 from output.render_pseudospin_orbital_report import write_pseudospin_orbital_reports
@@ -96,7 +97,7 @@ def _solver_phase_summary(
         f"- ansatz: {solver_result.get('ansatz')}",
         f"- q_vector: {solver_result.get('q_vector')}",
         f"- supercell_shape: {solver_result.get('supercell_shape')}",
-        f"- gswt_payload_written: {classical_method in {'sun-gswt-cpn', 'sun-gswt-single-q'}}",
+        f"- gswt_payload_written: {classical_method in {'sun-gswt-cpn', 'sun-gswt-single-q', 'sunny-cpn-minimize'}}",
         f"- gswt_status: {gswt.get('status')}",
         f"- gswt_backend: {gswt.get('backend', {}).get('name')}",
         f"- gswt_payload_kind: {gswt.get('payload_kind')}",
@@ -257,18 +258,21 @@ def solve_from_files(
             }
         )
         solver_result = {key: value for key, value in backend_result.items() if key != "status"}
-        if solver_result.get("local_rays"):
-            state = {
-                "shape": list(solver_result.get("supercell_shape", list(supercell_shape))),
-                "local_rays": list(solver_result.get("local_rays", [])),
-            }
+        state = resolve_cpn_local_state(solver_result, default_supercell_shape=supercell_shape)
+        if state is not None:
             diagnostics = diagnose_sun_gswt_classical_state(classical_model, state)
             solver_result = {
                 **solver_result,
+                "supercell_shape": list(solver_result.get("supercell_shape", state["shape"])),
+                "local_rays": list(solver_result.get("local_rays", state["local_rays"])),
+                "classical_state": resolve_cpn_classical_state_payload(
+                    solver_result,
+                    default_supercell_shape=supercell_shape,
+                ),
                 "projector_diagnostics": diagnostics["projector_diagnostics"],
                 "stationarity": diagnostics["stationarity"],
             }
-        gswt_payload = None
+        gswt_payload = build_sun_gswt_payload(classical_model, classical_state=solver_result) if state is not None else None
     else:
         raise ValueError(f"unsupported classical_method: {classical_method}")
 
@@ -294,11 +298,8 @@ def solve_from_files(
             if not resolved_temperatures:
                 raise ValueError(f"{resolved_backend} requires --temperatures")
 
-        initial_state = {
-            "shape": list(solver_result.get("supercell_shape", list(supercell_shape))),
-            "local_rays": list(solver_result.get("local_rays", [])),
-        }
-        if not initial_state["local_rays"]:
+        initial_state = resolve_cpn_local_state(solver_result, default_supercell_shape=supercell_shape)
+        if initial_state is None:
             raise ValueError("Sunny thermodynamics requires a CP^(N-1) classical state")
 
         thermodynamics_payload = {

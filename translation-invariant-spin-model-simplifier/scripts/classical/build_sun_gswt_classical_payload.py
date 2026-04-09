@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
 
+from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+
 
 def _complex_from_serialized(value):
     return complex(float(value["real"]), float(value["imag"]))
@@ -48,6 +50,7 @@ def _pair_matrix_to_tensor(pair_matrix, local_dimension):
 def build_sun_gswt_classical_payload(parsed_payload):
     if parsed_payload.get("input_mode") != "many_body_hr":
         raise ValueError("sun-gswt classical payload currently expects input_mode = many_body_hr")
+    conventions = resolve_pseudospin_orbital_conventions(parsed_payload, require_local_space=True)
 
     inferred = parsed_payload.get("inferred", {})
     local_dimension = int(inferred.get("local_dimension", 0))
@@ -83,17 +86,33 @@ def build_sun_gswt_classical_payload(parsed_payload):
         )
 
     return {
+        "model_version": 2,
         "model_type": "sun_gswt_classical",
         "input_mode": parsed_payload.get("input_mode"),
         "classical_manifold": "CP^(N-1)",
+        "classical_variable": "local_ray",
+        "classical_constraints": "normalized_ray_mod_u1",
         "basis_semantics": dict(parsed_payload.get("basis_semantics", {})),
-        "basis_order": parsed_payload.get("basis_order"),
-        "pair_basis_order": parsed_payload.get("pair_basis_order", "site_i_major_site_j_minor"),
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
         "local_dimension": local_dimension,
         "orbital_count": orbital_count,
         "local_basis_labels": list(local_basis_labels),
+        "retained_local_space": dict(parsed_payload.get("retained_local_space", {})),
+        "pair_operator_convention": dict(parsed_payload.get("pair_operator_convention", {})),
+        "operator_dictionary": dict(parsed_payload.get("operator_dictionary", {})),
         "positions": parsed_payload.get("structure", {}).get("positions", []),
         "lattice_vectors": lattice_vectors,
         "bond_count": len(bond_tensors),
         "bond_tensors": bond_tensors,
+        "backend_requirements": {
+            "sunny_sun_classical": {
+                "periodic_supercell_required": True,
+                "single_crystallographic_site_per_cell_required": True,
+            },
+            "sunny_sun_gswt": {
+                "periodic_supercell_required": True,
+                "single_crystallographic_site_per_cell_required": True,
+            },
+        },
     }

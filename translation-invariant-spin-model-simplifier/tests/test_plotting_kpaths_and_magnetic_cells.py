@@ -601,6 +601,49 @@ class PlottingAndKPathTests(unittest.TestCase):
             self.assertEqual(plot_payload["classical_state"]["render_mode"], "chain")
             self.assertEqual(plot_payload["classical_state"]["repeat_cells"], [2, 1, 1])
 
+    def test_render_plots_marks_cpn_local_ray_state_as_skipped_with_explicit_reason(self):
+        raw_payload = {
+            "model_name": "cpn-local-ray-demo",
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+                "lattice_vectors": [[2.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 8.0]],
+            },
+            "classical": {
+                "chosen_method": "sunny-cpn-minimize",
+                "classical_state": {
+                    "schema_version": 1,
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": [
+                        {"cell": [0, 0, 0], "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}]},
+                        {"cell": [1, 0, 0], "vector": [{"real": 0.0, "imag": 0.0}, {"real": 1.0, "imag": 0.0}]},
+                    ],
+                    "ordering": {
+                        "ansatz": "single-q-unitary-ray",
+                        "q_vector": [0.5, 0.0, 0.0],
+                        "supercell_shape": [2, 1, 1],
+                    },
+                },
+            },
+            "lswt": {"status": "error", "backend": {"name": "Sunny.jl"}, "error": {"code": "missing", "message": "x"}},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = render_plots(raw_payload, output_dir=tmpdir)
+            output_dir = Path(tmpdir)
+            plot_payload = json.loads((output_dir / "plot_payload.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(result["plots"]["classical_state"]["status"], "skipped")
+            self.assertIn("CP^(N-1)", result["plots"]["classical_state"]["reason"])
+            self.assertFalse((output_dir / "classical_state.png").exists())
+            self.assertEqual(plot_payload["classical_state"]["state_kind"], "local_rays")
+            self.assertEqual(plot_payload["classical_state"]["manifold"], "CP^(N-1)")
+            self.assertEqual(plot_payload["classical_state"]["supercell_shape"], [2, 1, 1])
+            self.assertEqual(plot_payload["classical_state"]["local_ray_count"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

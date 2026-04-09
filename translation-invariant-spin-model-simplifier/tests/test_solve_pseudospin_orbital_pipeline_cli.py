@@ -33,6 +33,50 @@ def _mocked_sunny_classical_result():
     }
 
 
+def _mocked_sunny_classical_result_nested_only():
+    rays = [
+        {
+            "cell": [0, 0, 0],
+            "vector": [
+                {"real": 1.0, "imag": 0.0},
+                {"real": 0.0, "imag": 0.0},
+                {"real": 0.0, "imag": 0.0},
+                {"real": 0.0, "imag": 0.0},
+            ],
+        },
+        {
+            "cell": [1, 0, 0],
+            "vector": [
+                {"real": 0.0, "imag": 0.0},
+                {"real": 1.0, "imag": 0.0},
+                {"real": 0.0, "imag": 0.0},
+                {"real": 0.0, "imag": 0.0},
+            ],
+        },
+    ]
+    return {
+        "status": "ok",
+        "method": "sunny-cpn-minimize",
+        "energy": -0.5,
+        "starts": 2,
+        "seed": 3,
+        "backend": {"name": "Sunny.jl", "mode": "SUN", "solver": "minimize_energy!"},
+        "classical_state": {
+            "schema_version": 1,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "supercell_shape": [2, 1, 1],
+            "local_rays": rays,
+            "ordering": {
+                "kind": "commensurate-supercell",
+                "supercell_shape": [2, 1, 1],
+            },
+        },
+    }
+
+
 def _mocked_sunny_thermodynamics_result(method, *, include_dos=False):
     payload = {
         "status": "ok",
@@ -71,6 +115,15 @@ def _mocked_sunny_thermodynamics_result(method, *, include_dos=False):
             "log_density_of_states": [0.0, 0.1],
         }
     return payload
+
+
+def _mocked_gswt_result():
+    return {
+        "status": "ok",
+        "backend": {"name": "Sunny.jl", "mode": "SUN"},
+        "payload_kind": "sun_gswt_prototype",
+        "dispersion": [{"q": [0.0, 0.0, 0.0], "bands": [0.0]}],
+    }
 
 
 class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
@@ -323,6 +376,10 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
             return_value=mocked_solver_result,
             create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=_mocked_gswt_result(),
+            create=True,
         ):
             manifest = solve_from_files(
                 poscar_path=poscar_path,
@@ -342,6 +399,45 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             note_text = sorted(Path(docsdir).glob("*solver-phase.md"))[-1].read_text(encoding="utf-8")
             self.assertIn("method: sunny-cpn-minimize", note_text)
 
+    def test_solve_from_files_routes_sunny_cpn_minimize_into_gswt_handoff(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+        mocked_gswt_result = {
+            **_mocked_gswt_result(),
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
+            return_value=_mocked_sunny_classical_result_nested_only(),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=mocked_gswt_result,
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="sunny-cpn-minimize",
+                starts=2,
+                seed=3,
+            )
+
+            self.assertEqual(manifest["status"], "ok")
+            self.assertTrue((Path(tmpdir) / "gswt_payload.json").exists())
+            self.assertTrue((Path(tmpdir) / "gswt_result.json").exists())
+            self.assertEqual(manifest["solver"]["gswt"]["status"], "ok")
+            self.assertEqual(manifest["solver"]["gswt"]["payload_kind"], "sun_gswt_prototype")
+
     def test_solve_from_files_supports_sunny_local_sampler_thermodynamics(self):
         poscar_path = Path(
             "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
@@ -360,6 +456,10 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
             return_value=_mocked_sunny_thermodynamics_result("sunny-local-sampler"),
             create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=_mocked_gswt_result(),
+            create=True,
         ):
             manifest = solve_from_files(
                 poscar_path=poscar_path,
@@ -376,6 +476,52 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             self.assertEqual(manifest["status"], "ok")
             self.assertTrue((Path(tmpdir) / "thermodynamics_result.json").exists())
             self.assertIsNotNone(manifest["artifacts"]["thermodynamics_result"])
+
+    def test_solve_from_files_accepts_nested_canonical_classical_state_for_diagnostics_and_thermodynamics(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        def fake_thermodynamics_driver(payload):
+            self.assertEqual(payload["initial_state"]["shape"], [2, 1, 1])
+            self.assertEqual(len(payload["initial_state"]["local_rays"]), 2)
+            return _mocked_sunny_thermodynamics_result("sunny-local-sampler")
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
+            return_value=_mocked_sunny_classical_result_nested_only(),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
+            side_effect=fake_thermodynamics_driver,
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=_mocked_gswt_result(),
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="sunny-cpn-minimize",
+                run_thermodynamics=True,
+                thermodynamics_backend="sunny-local-sampler",
+                temperatures=[0.2, 0.4],
+            )
+
+            self.assertEqual(manifest["status"], "ok")
+            self.assertEqual(manifest["solver"]["method"], "sunny-cpn-minimize")
+            self.assertEqual(manifest["solver"]["classical_state"]["schema_version"], 1)
+            self.assertEqual(manifest["solver"]["projector_diagnostics"]["ordering_kind"], "commensurate-supercell")
+            self.assertLess(manifest["solver"]["stationarity"]["max_residual_norm"], 1e-8)
 
     def test_solve_from_files_supports_sunny_parallel_tempering_thermodynamics(self):
         poscar_path = Path(
@@ -394,6 +540,10 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
         ), patch(
             "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
             return_value=_mocked_sunny_thermodynamics_result("sunny-parallel-tempering"),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=_mocked_gswt_result(),
             create=True,
         ):
             manifest = solve_from_files(
@@ -429,6 +579,10 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
         ), patch(
             "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
             return_value=_mocked_sunny_thermodynamics_result("sunny-wang-landau", include_dos=True),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=_mocked_gswt_result(),
             create=True,
         ):
             manifest = solve_from_files(

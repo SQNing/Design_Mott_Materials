@@ -166,6 +166,25 @@ def render_text(payload):
     gswt_status = gswt.get("status")
     if gswt_status:
         lines.append(f"GSWT status: {gswt_status}")
+    gswt_classical_reference = gswt.get("classical_reference", {})
+    if gswt_classical_reference:
+        lines.append(
+            "GSWT reference state: "
+            f"{gswt_classical_reference.get('state_kind', 'n/a')} "
+            f"manifold={gswt_classical_reference.get('manifold', 'n/a')} "
+            f"frame={gswt_classical_reference.get('frame_construction', 'n/a')} "
+            f"schema_version={gswt_classical_reference.get('schema_version', 'n/a')}"
+        )
+    gswt_ordering = gswt.get("ordering", {})
+    if gswt_ordering:
+        compatibility = gswt_ordering.get("compatibility_with_supercell", {})
+        lines.append(
+            "GSWT ordering: "
+            f"ansatz={gswt_ordering.get('ansatz', 'n/a')} "
+            f"q_vector={gswt_ordering.get('q_vector', 'n/a')} "
+            f"supercell_shape={gswt_ordering.get('supercell_shape', 'n/a')} "
+            f"compatibility={compatibility.get('kind', 'n/a')}"
+        )
     gswt_error = gswt.get("error", {})
     if gswt_error:
         lines.append(

@@ -103,7 +103,10 @@ def build_local_operator_basis(orbital_count):
             basis.append(
                 {
                     "label": f"{spin_element['label']}__{orbital_element['label']}",
-                    "matrix": np.kron(spin_element["matrix"], orbital_element["matrix"]),
+                    # The declared local basis order is
+                    # |up,1>, |down,1>, |up,2>, |down,2>, ...
+                    # so the local Hilbert-space tensor order is orbital ⊗ spin.
+                    "matrix": np.kron(orbital_element["matrix"], spin_element["matrix"]),
                 }
             )
     return basis

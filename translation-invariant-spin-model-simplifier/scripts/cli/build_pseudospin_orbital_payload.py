@@ -64,14 +64,45 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
             }
         )
 
+    local_basis_labels = _local_basis_labels(orbital_count)
+
     return {
+        "schema_version": 2,
         "input_mode": "many_body_hr",
         "basis_semantics": {
             "local_space": "pseudospin_orbital",
         },
         "basis_order": "orbital_major_spin_minor",
         "pair_basis_order": "site_i_major_site_j_minor",
-        "local_basis_labels": _local_basis_labels(orbital_count),
+        "local_basis_labels": local_basis_labels,
+        "retained_local_space": {
+            "dimension": local_dimension,
+            "factorization": {
+                "kind": "orbital_times_spin",
+                "orbital_count": orbital_count,
+                "spin_dimension": 2,
+            },
+            "tensor_factor_order": "orbital_major_spin_minor",
+            "basis_labels": list(local_basis_labels),
+        },
+        "pair_operator_convention": {
+            "representation": "pair_matrix",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "tensor_view": {
+                "kind": "K_ab_cd",
+                "index_order": ["left_bra", "right_bra", "left_ket", "right_ket"],
+            },
+        },
+        "operator_dictionary": {
+            "local_basis_kind": "orbital_times_spin",
+            "tensor_factor_order": "orbital_major_spin_minor",
+            "local_operator_basis": {
+                "spin_basis": "tau_mu / sqrt(2)",
+                "orbital_basis": "Lambda_A with Tr(Lambda_A Lambda_B) = delta_AB",
+                "product_basis": "Gamma_A_mu = orbital_A ⊗ spin_mu",
+                "matrix_construction": "kron(orbital, spin)",
+            },
+        },
         "structure": structure,
         "hamiltonian": {
             "comment": hamiltonian["comment"],

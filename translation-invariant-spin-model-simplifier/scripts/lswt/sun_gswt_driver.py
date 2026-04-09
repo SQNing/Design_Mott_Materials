@@ -8,6 +8,9 @@ from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+else:
+    from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -24,6 +27,27 @@ def _error(code, message, *, payload_kind=None, backend=None):
 
 
 def _preflight_payload_error(gswt_payload):
+    try:
+        resolve_pseudospin_orbital_conventions(gswt_payload)
+    except ValueError as exc:
+        return _error(
+            "invalid-gswt-convention",
+            str(exc),
+            payload_kind=gswt_payload.get("payload_kind"),
+            backend=gswt_payload.get("backend", "Sunny.jl"),
+        )
+
+    classical_reference = gswt_payload.get("classical_reference")
+    if isinstance(classical_reference, dict):
+        frame_construction = classical_reference.get("frame_construction")
+        if frame_construction is not None and frame_construction != "first-column-is-reference-ray":
+            return _error(
+                "invalid-gswt-convention",
+                f"classical_reference.frame_construction must be 'first-column-is-reference-ray', got {frame_construction!r}",
+                payload_kind=gswt_payload.get("payload_kind"),
+                backend=gswt_payload.get("backend", "Sunny.jl"),
+            )
+
     ordering = gswt_payload.get("ordering")
     if not isinstance(ordering, dict):
         return None
@@ -128,8 +152,15 @@ def run_sun_gswt(payload, julia_cmd="julia"):
             backend=backend,
         )
 
-    if isinstance(result, dict) and "path" not in result:
-        result["path"] = gswt_payload.get("path", {})
+    if isinstance(result, dict):
+        if "path" not in result:
+            result["path"] = gswt_payload.get("path", {})
+        if "classical_reference" not in result:
+            result["classical_reference"] = gswt_payload.get("classical_reference", {})
+        if "ordering" not in result and isinstance(gswt_payload.get("ordering"), dict):
+            result["ordering"] = gswt_payload.get("ordering", {})
+        if "supercell_shape" not in result and gswt_payload.get("supercell_shape") is not None:
+            result["supercell_shape"] = gswt_payload.get("supercell_shape")
     return result
 
 

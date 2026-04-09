@@ -199,6 +199,20 @@ class RunSunnySunThermodynamicsDriverTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "invalid-backend-json")
 
+    def test_driver_rejects_explicitly_inconsistent_basis_order_before_backend_runs(self):
+        payload = _thermodynamics_payload("sunny-local-sampler")
+        payload["model"]["basis_order"] = "spin_major_orbital_minor"
+
+        with patch(
+            "classical.sunny_sun_thermodynamics_driver.subprocess.run",
+            side_effect=AssertionError("backend should not run"),
+        ):
+            result = run_sunny_sun_thermodynamics(payload)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "invalid-thermodynamics-convention")
+        self.assertIn("basis_order", result["error"]["message"])
+
 
 if __name__ == "__main__":
     unittest.main()

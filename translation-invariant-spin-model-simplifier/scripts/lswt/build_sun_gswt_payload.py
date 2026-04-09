@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 from common.bravais_kpaths import default_high_symmetry_path
+from common.cpn_classical_state import resolve_cpn_classical_state_payload
+from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 from lswt.build_lswt_payload import infer_spatial_dimension
 
 
@@ -32,11 +34,31 @@ def _ordering_compatibility_with_supercell(q_vector, supercell_shape, *, toleran
 
 
 def _ordering_summary(classical_state):
-    if not classical_state:
+    resolved_state = resolve_cpn_classical_state_payload(classical_state)
+    if not resolved_state:
         return None
-    ansatz = classical_state.get("ansatz")
-    q_vector = classical_state.get("q_vector")
-    supercell_shape = classical_state.get("supercell_shape")
+    ordering = resolved_state.get("ordering")
+    if isinstance(ordering, dict):
+        summary = dict(ordering)
+        q_vector = summary.get("q_vector")
+        if q_vector is not None:
+            summary["q_vector"] = [float(value) for value in q_vector]
+        supercell_shape = summary.get("supercell_shape")
+        if supercell_shape is not None:
+            summary["supercell_shape"] = [int(value) for value in supercell_shape]
+        ansatz = summary.get("ansatz")
+        if ansatz is not None:
+            summary["ansatz"] = str(ansatz)
+        if summary.get("q_vector") is not None and summary.get("supercell_shape") is not None:
+            summary.setdefault(
+                "compatibility_with_supercell",
+                _ordering_compatibility_with_supercell(summary["q_vector"], summary["supercell_shape"]),
+            )
+        return summary or None
+
+    ansatz = resolved_state.get("ansatz")
+    q_vector = resolved_state.get("q_vector")
+    supercell_shape = resolved_state.get("supercell_shape")
     if ansatz is None and q_vector is None:
         return None
 
@@ -90,17 +112,21 @@ def _resolve_default_q_path(model):
 def build_sun_gswt_payload(model, classical_state=None):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("Sunny GSWT payload expects a CP^(N-1) classical model")
+    conventions = resolve_pseudospin_orbital_conventions(model)
+    resolved_classical_state = resolve_cpn_classical_state_payload(classical_state)
 
     q_path_summary = _resolve_default_q_path(model)
     ordering = _ordering_summary(classical_state)
 
     payload = {
+        "payload_version": 2,
         "backend": "Sunny.jl",
         "mode": "SUN",
         "payload_kind": "sun_gswt_prototype",
         "local_dimension": int(model["local_dimension"]),
         "orbital_count": int(model.get("orbital_count", 0)),
-        "pair_basis_order": model.get("pair_basis_order", "site_i_major_site_j_minor"),
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
         "local_basis_labels": list(model.get("local_basis_labels", [])),
         "lattice_vectors": model.get("lattice_vectors", []),
         "positions": model.get("positions", []),
@@ -112,8 +138,20 @@ def build_sun_gswt_payload(model, classical_state=None):
             }
             for bond in model.get("bond_tensors", [])
         ],
-        "initial_local_rays": list(classical_state.get("local_rays", [])) if classical_state else [],
-        "supercell_shape": list(classical_state.get("supercell_shape", [])) if classical_state else [],
+        "initial_local_rays": list(resolved_classical_state.get("local_rays", [])),
+        "supercell_shape": list(resolved_classical_state.get("supercell_shape", [])),
+        "classical_reference": {
+            "state_kind": str(resolved_classical_state.get("state_kind", "local_rays")),
+            "manifold": str(resolved_classical_state.get("manifold", model.get("classical_manifold", "CP^(N-1)"))),
+            "frame_construction": "first-column-is-reference-ray",
+            "schema_version": int(resolved_classical_state.get("schema_version", 1)),
+        },
+        "backend_requirements": {
+            "sunny_sun_gswt": {
+                "periodic_supercell_required": True,
+                "single_crystallographic_site_per_cell_required": True,
+            }
+        },
         "q_path": q_path_summary["q_path"],
         "path": q_path_summary["path"],
         "capabilities": {

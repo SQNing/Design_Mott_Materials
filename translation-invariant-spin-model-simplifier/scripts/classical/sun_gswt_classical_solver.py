@@ -2,6 +2,7 @@
 from fractions import Fraction
 
 import numpy as np
+from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
 try:
     from scipy.optimize import Bounds, minimize
@@ -453,11 +454,45 @@ def _stationarity_summary(model, state_array):
     }
 
 
+def _canonical_classical_state(state_array, conventions, diagnostics, *, ordering=None):
+    serialized_state = _serialize_state_array(state_array)
+    projector = diagnostics.get("projector_diagnostics", {}) if isinstance(diagnostics, dict) else {}
+    state = {
+        "schema_version": 1,
+        "state_kind": "local_rays",
+        "manifold": "CP^(N-1)",
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
+        "supercell_shape": list(serialized_state["shape"]),
+        "local_rays": serialized_state["local_rays"],
+    }
+
+    ordering_payload = {}
+    if isinstance(ordering, dict):
+        ordering_payload.update(ordering)
+    if isinstance(projector, dict):
+        if projector.get("ordering_kind") is not None:
+            ordering_payload.setdefault("kind", projector.get("ordering_kind"))
+        if projector.get("dominant_ordering_q") is not None:
+            ordering_payload.setdefault("dominant_projector_q", projector.get("dominant_ordering_q"))
+        if projector.get("dominant_ordering_weight") is not None:
+            ordering_payload.setdefault("dominant_projector_weight", projector.get("dominant_ordering_weight"))
+        if projector.get("uniform_q_weight") is not None:
+            ordering_payload.setdefault("uniform_projector_q_weight", projector.get("uniform_q_weight"))
+    if ordering_payload:
+        ordering_payload.setdefault("supercell_shape", list(serialized_state["shape"]))
+        state["ordering"] = ordering_payload
+    return state
+
+
 def diagnose_sun_gswt_classical_state(model, state):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("sun-gswt classical diagnostics expect a CP^(N-1) classical payload")
+    conventions = resolve_pseudospin_orbital_conventions(model)
     state_array = _state_array_from_serialized(state) if isinstance(state, dict) else state
     return {
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
         "projector_diagnostics": _projector_fourier_components(state_array),
         "stationarity": _stationarity_summary(model, state_array),
     }
@@ -466,6 +501,7 @@ def diagnose_sun_gswt_classical_state(model, state):
 def evaluate_sun_gswt_classical_energy(model, state):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("sun-gswt classical energy expects a CP^(N-1) classical payload")
+    resolve_pseudospin_orbital_conventions(model)
     state_array = _state_array_from_serialized(state) if isinstance(state, dict) else state
     energy = 0.0 + 0.0j
     for cell_index in np.ndindex(state_array.shape[:3]):
@@ -488,6 +524,7 @@ def solve_sun_gswt_classical_ground_state(
 ):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("sun-gswt classical solver expects a CP^(N-1) classical payload")
+    conventions = resolve_pseudospin_orbital_conventions(model)
 
     starts = max(1, int(starts))
     best_energy = None
@@ -508,12 +545,18 @@ def solve_sun_gswt_classical_ground_state(
             best_change = float(last_change if last_change is not None else 0.0)
 
     diagnostics = diagnose_sun_gswt_classical_state(model, best_state)
+    classical_state = _canonical_classical_state(best_state, conventions, diagnostics)
     return {
         "method": "sun-gswt-classical-variational",
         "manifold": "CP^(N-1)",
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
+        "manifold_scope": "full-CP^(N-1)",
+        "reference_state_kind": "local_rays",
         "energy": float(best_energy),
         "supercell_shape": list(best_state.shape[:3]),
-        "local_rays": _serialize_state_array(best_state)["local_rays"],
+        "local_rays": list(classical_state["local_rays"]),
+        "classical_state": classical_state,
         "projector_diagnostics": diagnostics["projector_diagnostics"],
         "stationarity": diagnostics["stationarity"],
         "convergence": {
@@ -534,6 +577,7 @@ def solve_sun_gswt_single_q_ground_state(
 ):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("sun-gswt single-q solver expects a CP^(N-1) classical payload")
+    conventions = resolve_pseudospin_orbital_conventions(model)
 
     starts = max(1, int(starts))
     refined = _optimize_single_q_joint_state(
@@ -545,16 +589,31 @@ def solve_sun_gswt_single_q_ground_state(
     shape = _supercell_shape_from_q(model, refined["q_vector"])
     state_array = _single_q_state_array(refined["reference_ray"], refined["generator"], refined["q_vector"], shape)
     diagnostics = diagnose_sun_gswt_classical_state(model, state_array)
+    classical_state = _canonical_classical_state(
+        state_array,
+        conventions,
+        diagnostics,
+        ordering={
+            "ansatz": "single-q-unitary-ray",
+            "q_vector": list(refined["q_vector"]),
+            "supercell_shape": list(shape),
+        },
+    )
     return {
         "method": "sun-gswt-classical-single-q",
         "ansatz": "single-q-unitary-ray",
         "manifold": "CP^(N-1)",
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
+        "manifold_scope": "restricted-single-q-ansatz",
+        "reference_state_kind": "local_rays",
         "energy": float(refined["energy"]),
         "q_vector": list(refined["q_vector"]),
         "reference_ray": _serialize_vector(refined["reference_ray"]),
         "generator_matrix": _serialize_single_q_generator(refined["generator"]),
         "supercell_shape": list(shape),
-        "local_rays": _serialize_state_array(state_array)["local_rays"],
+        "local_rays": list(classical_state["local_rays"]),
+        "classical_state": classical_state,
         "projector_diagnostics": diagnostics["projector_diagnostics"],
         "stationarity": diagnostics["stationarity"],
         "ansatz_stationarity": {
