@@ -26,6 +26,12 @@ class RunSunnySunThermodynamicsScriptTests(unittest.TestCase):
 
         self.assertTrue("WangLandau" in source or "ParallelWangLandau" in source)
 
+    def test_wang_landau_dos_result_accepts_windows_metadata(self):
+        source = SCRIPT_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('dos_result = Dict{String, Any}(', source)
+        self.assertIn('dos_result["windows"] = [collect(bounds)]', source)
+
 
 if __name__ == "__main__":
     unittest.main()

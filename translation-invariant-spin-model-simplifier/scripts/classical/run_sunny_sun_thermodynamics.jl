@@ -336,7 +336,7 @@ function wang_landau_outputs(energies, ln_g, temperatures)
         ),
         "reference" => Dict("normalization" => "per_spin", "free_energy_reference" => "relative_dos_normalization"),
     )
-    dos_result = Dict(
+    dos_result = Dict{String, Any}(
         "energy_bins" => energies,
         "log_density_of_states" => ln_g,
     )
