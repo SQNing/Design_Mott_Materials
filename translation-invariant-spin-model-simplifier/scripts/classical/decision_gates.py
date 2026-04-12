@@ -25,6 +25,37 @@ def _needs_input(question_id, prompt, recommended=None, options=None):
     return payload
 
 
+def lswt_stability_precheck(model):
+    classical = model.get("classical", {}) if isinstance(model, dict) else {}
+    effective_model = model.get("effective_model", {}) if isinstance(model, dict) else {}
+    low_weight = effective_model.get("low_weight", []) if isinstance(effective_model, dict) else []
+    chosen_method = classical.get("chosen_method")
+
+    signals = []
+    if chosen_method in {"luttinger-tisza", "generalized-lt"}:
+        signals.append(f"classical_method={chosen_method}")
+    if low_weight:
+        signals.append("low_weight_terms_present")
+        for term in low_weight:
+            label = str(term.get("canonical_label", ""))
+            if "Sx@" in label and "Sz@" in label:
+                signals.append(f"cross_axis_term={label}")
+                break
+    if model.get("lt_result") or model.get("generalized_lt_result"):
+        signals.append("lt_family_reference_state")
+
+    if signals:
+        return {
+            "status": "warn",
+            "summary": (
+                "LSWT will proceed from a classical reference that may be fragile because weak anisotropy or "
+                "LT-family reference-state assumptions are still visible in the current model."
+            ),
+            "signals": signals,
+        }
+    return {"status": "ok", "summary": "", "signals": []}
+
+
 def classical_stage_decision(model, user_choice=None, timed_out=False, allow_auto_select=False):
     choice = choose_method(
         model,
@@ -69,6 +100,21 @@ def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
         )
     if not run_lswt:
         return {"status": "ok", "enabled": False}
+
+    precheck = lswt_stability_precheck(model)
+    if precheck.get("status") == "warn":
+        signal_text = ", ".join(precheck.get("signals", []))
+        return _needs_input(
+            "lswt_stability_precheck",
+            (
+                "Stability precheck raised concerns before LSWT. "
+                f"{precheck.get('summary', '')} "
+                f"Signals: {signal_text}. "
+                "Continue anyway, or stop and review the classical result first?"
+            ).strip(),
+            recommended="continue",
+            options=["continue", "stop"],
+        )
 
     explicit_q_path = model.get("q_path", [])
     if explicit_q_path:

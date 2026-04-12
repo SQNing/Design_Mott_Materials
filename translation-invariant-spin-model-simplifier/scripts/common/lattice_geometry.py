@@ -17,6 +17,22 @@ def _norm(vector):
     return math.sqrt(_dot(vector, vector))
 
 
+def vector_rank(vectors, tolerance=1e-9):
+    orthonormal_basis = []
+    for vector in vectors:
+        residual = _as_float_triplet(vector)
+        for basis_vector in orthonormal_basis:
+            projection = _dot(residual, basis_vector)
+            residual = [
+                residual[axis] - projection * basis_vector[axis]
+                for axis in range(3)
+            ]
+        norm = _norm(residual)
+        if norm > tolerance:
+            orthonormal_basis.append([value / norm for value in residual])
+    return len(orthonormal_basis)
+
+
 def lattice_vectors_from_cell_parameters(cell_parameters):
     a = float(cell_parameters["a"])
     b = float(cell_parameters["b"])
@@ -57,6 +73,10 @@ def resolve_lattice_vectors(lattice):
         [0.0, 1.0, 0.0],
         [0.0, 0.0, 1.0],
     ]
+
+
+def lattice_vector_rank(lattice, tolerance=1e-9):
+    return vector_rank(resolve_lattice_vectors(lattice), tolerance=tolerance)
 
 
 def fractional_to_cartesian(fractional_positions, lattice_vectors):

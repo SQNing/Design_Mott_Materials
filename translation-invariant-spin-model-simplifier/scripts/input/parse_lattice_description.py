@@ -4,6 +4,12 @@ import re
 import sys
 from pathlib import Path
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from input.natural_language_parser import detect_controlled_natural_language_ambiguity
+else:
+    from .natural_language_parser import detect_controlled_natural_language_ambiguity
+
 
 COMMON_DIMENSIONS = {
     "chain": 1,
@@ -46,11 +52,20 @@ def _parse_magnetic_site_count(text):
     return None
 
 
-def _needs_input(question, options):
-    return {"interaction": {"status": "needs_input", "question": question, "options": options}}
+def _needs_input(question, options, question_id="lattice_kind"):
+    return {"interaction": {"status": "needs_input", "id": question_id, "question": question, "options": options}}
 
 
 def _parse_natural_language_lattice(text):
+    ambiguity = detect_controlled_natural_language_ambiguity(text)
+    if ambiguity is not None:
+        question = ambiguity["question"]
+        return _needs_input(
+            question["prompt"],
+            question.get("options", []),
+            question_id=question["id"],
+        )
+
     lowered = text.lower()
     if "hexagonal lattice" in lowered:
         return _needs_input(

@@ -8,7 +8,12 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.bravais_kpaths import default_high_symmetry_path
-from common.lattice_geometry import build_isotropic_heisenberg_bonds_from_parameters, resolve_lattice_vectors
+from common.cpn_classical_state import has_spin_frame_classical_state, is_cpn_local_ray_classical_state
+from common.lattice_geometry import (
+    build_isotropic_heisenberg_bonds_from_parameters,
+    lattice_vector_rank,
+    resolve_lattice_vectors,
+)
 
 
 def _error(code, message):
@@ -74,6 +79,9 @@ def infer_spatial_dimension(lattice, bonds):
 
     if kind_dimension > 0:
         return kind_dimension
+    rank_dimension = lattice_vector_rank(lattice)
+    if rank_dimension > 0:
+        return rank_dimension
     return 1
 
 
@@ -181,6 +189,16 @@ def validate_lswt_scope(model):
         return _error("unsupported-model-scope", "at least one bilinear bond is required for LSWT payload construction")
     if not _get_classical_state(model):
         return _error("invalid-classical-reference-state", "classical_state is required to build an LSWT payload")
+    if is_cpn_local_ray_classical_state(model):
+        return _error(
+            "invalid-classical-reference-state",
+            "spin-only LSWT requires classical_state.site_frames; CP^(N-1) local-ray classical states should use SUN/GSWT instead",
+        )
+    if not has_spin_frame_classical_state(model):
+        return _error(
+            "invalid-classical-reference-state",
+            "spin-only LSWT requires classical_state.site_frames",
+        )
     return None
 
 

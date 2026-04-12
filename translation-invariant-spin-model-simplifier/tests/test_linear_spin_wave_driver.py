@@ -100,6 +100,50 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "invalid-classical-reference-state")
 
+    def test_run_linear_spin_wave_reports_cpn_local_rays_as_unsupported_reference_state(self):
+        model = {
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "sublattices": 1,
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "heisenberg",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1, 0, 0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "classical": {
+                "chosen_method": "sunny-cpn-minimize",
+                "classical_state": {
+                    "schema_version": 1,
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": [
+                        {"cell": [0, 0, 0], "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}]},
+                        {"cell": [1, 0, 0], "vector": [{"real": 0.0, "imag": 0.0}, {"real": 1.0, "imag": 0.0}]},
+                    ],
+                },
+            },
+        }
+
+        result = run_linear_spin_wave(model)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "invalid-classical-reference-state")
+        self.assertIn("CP^(N-1)", result["error"]["message"])
+
     def test_run_linear_spin_wave_reports_missing_julia_command(self):
         model = {
             "lattice": {

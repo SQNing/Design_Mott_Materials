@@ -1,4 +1,5 @@
 import json
+import io
 import subprocess
 import sys
 import unittest
@@ -109,6 +110,34 @@ def _successful_backend_stdout(backend_method):
 
 
 class RunSunnySunThermodynamicsDriverTests(unittest.TestCase):
+    def test_driver_streams_backend_progress_to_stderr(self):
+        payload = _thermodynamics_payload("sunny-parallel-tempering")
+
+        class FakeProcess:
+            def __init__(self):
+                self.stdout = io.StringIO(_successful_backend_stdout("sunny-parallel-tempering"))
+                self.stderr = io.StringIO(
+                    "[sunny-thermo] initializing parallel tempering\n[sunny-thermo] sweep 10/100\n"
+                )
+                self.returncode = 0
+
+            def wait(self):
+                return self.returncode
+
+        def fake_popen(command, stdout, stderr, text):
+            self.assertEqual(command[0], "julia")
+            self.assertTrue(command[1].endswith("run_sunny_sun_thermodynamics.jl"))
+            self.assertTrue(text)
+            return FakeProcess()
+
+        with patch("classical.sunny_sun_thermodynamics_driver.subprocess.Popen", side_effect=fake_popen):
+            with patch("sys.stderr", new_callable=io.StringIO) as fake_stderr:
+                result = run_sunny_sun_thermodynamics(payload, stream_progress=True)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("[sunny-thermo] initializing parallel tempering", fake_stderr.getvalue())
+        self.assertIn("[sunny-thermo] sweep 10/100", fake_stderr.getvalue())
+
     def test_driver_supports_local_sampler_backend(self):
         payload = _thermodynamics_payload("sunny-local-sampler")
 

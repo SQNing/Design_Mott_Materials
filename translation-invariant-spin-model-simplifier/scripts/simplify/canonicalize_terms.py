@@ -36,6 +36,12 @@ def _canonical_label(label):
     return " ".join(f"{operator}@{site}" for site, operator in factors)
 
 
+def _decomposition_terms(model):
+    if isinstance(model, dict) and isinstance(model.get("terms"), list):
+        return model["terms"]
+    return model.get("decomposition", {}).get("terms", [])
+
+
 def canonicalize_terms(model):
     grouped = {
         "one_body": [],
@@ -46,7 +52,7 @@ def canonicalize_terms(model):
     }
     merged = defaultdict(float)
 
-    for term in model.get("decomposition", {}).get("terms", []):
+    for term in _decomposition_terms(model):
         canonical_label = _canonical_label(term["label"])
         merged[canonical_label] += term["coefficient"]
 

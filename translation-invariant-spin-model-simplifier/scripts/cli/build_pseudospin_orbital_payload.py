@@ -34,12 +34,36 @@ def _local_basis_labels(orbital_count):
     return labels
 
 
+def _default_magnetic_site_payload():
+    return {
+        "magnetic_site_count": 1,
+        "magnetic_sites": [
+            {
+                "index": 0,
+                "label": "site0",
+                "position": None,
+                "kind": "assumed-single-sublattice",
+            }
+        ],
+        "magnetic_site_metadata": {
+            "site_pair_encoding": "assumed-single-sublattice-many_body_hr",
+            "explanation": (
+                "many_body_hr currently encodes only an R-resolved two-site block and does not "
+                "explicitly specify source/target magnetic-sublattice labels; the current parser "
+                "therefore defaults to a single-sublattice interpretation unless richer site-pair "
+                "metadata is provided by a future upstream parser"
+            ),
+        },
+    }
+
+
 def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance=1e-10):
     structure = parse_poscar_file(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
 
     local_dimension = infer_local_dimension_from_num_wann(hamiltonian["num_wann"])
     orbital_count = infer_orbital_count(local_dimension)
+    magnetic_site_payload = _default_magnetic_site_payload()
 
     bond_blocks = []
     for R in hamiltonian["R_vectors"]:
@@ -51,6 +75,8 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
         bond_blocks.append(
             {
                 "R": list(R),
+                "source": 0,
+                "target": 0,
                 "matrix_shape": list(hamiltonian["blocks_by_R"][R].shape),
                 "pair_matrix": _serialize_matrix(hamiltonian["blocks_by_R"][R]),
                 "coefficients": [
@@ -116,6 +142,7 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
             "two_site_dimension": hamiltonian["num_wann"],
             "site_count_assumption": 2,
         },
+        **magnetic_site_payload,
         "bond_blocks": bond_blocks,
     }
 

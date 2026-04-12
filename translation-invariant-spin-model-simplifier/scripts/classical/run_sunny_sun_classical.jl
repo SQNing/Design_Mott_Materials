@@ -4,6 +4,8 @@ const SCRIPT_DIR = dirname(@__FILE__)
 const LOCAL_DEPOT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-depot"))
 const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-env-v06"))
 
+using LinearAlgebra
+
 try
     if isdir(LOCAL_DEPOT)
         empty!(DEPOT_PATH)
@@ -30,6 +32,11 @@ end
 
 function emit_payload(payload)
     println(JSON3.write(payload))
+end
+
+function progress_log(message)
+    println(stderr, message)
+    flush(stderr)
 end
 
 function error_payload(code::String, message::String)
@@ -127,6 +134,24 @@ function serialize_state(sys)
     return Dict("shape" => shape, "local_rays" => rays)
 end
 
+function backend_stationarity_summary(sys)
+    gradient = Sunny.energy_grad_coherents(sys)
+    shape = Int.(collect(sys.latsize))
+    norms = Float64[]
+    for x in 1:shape[1], y in 1:shape[2], z in 1:shape[3]
+        amplitudes = sys.coherents[x, y, z, 1]
+        hz = gradient[x, y, z, 1]
+        lagrange_multiplier = dot(amplitudes, hz)
+        residual = hz - amplitudes * lagrange_multiplier
+        push!(norms, norm(residual))
+    end
+    return Dict(
+        "residual_definition" => "r_i = dE/d\\bar{z}_i - (z_i^\\dagger dE/d\\bar{z}_i) z_i, measured from Sunny.energy_grad_coherents in Euclidean norm",
+        "max_residual_norm" => isempty(norms) ? 0.0 : maximum(norms),
+        "mean_residual_norm" => isempty(norms) ? 0.0 : sum(norms) / length(norms),
+    )
+end
+
 if length(ARGS) < 1
     emit_payload(error_payload("missing-input", "Path to SUN classical payload JSON is required"))
     exit(0)
@@ -163,11 +188,18 @@ try
     seed = Int(get(payload, :seed, 0))
     initial_local_rays = haskey(payload, :initial_local_rays) ? payload.initial_local_rays : []
 
+    progress_log(
+        "[sunny-classical] launching minimize_energy! starts=$(starts) seed=$(seed) supercell=$(collect(supercell_shape))"
+    )
+
     best_energy = Inf
     best_state = nothing
+    best_backend_stationarity = nothing
 
     for start_index in 1:starts
-        sys = build_system(model, supercell_shape, seed + start_index - 1)
+        start_seed = seed + start_index - 1
+        progress_log("[sunny-classical] start $(start_index)/$(starts): seed=$(start_seed)")
+        sys = build_system(model, supercell_shape, start_seed)
         if start_index == 1 && !isempty(initial_local_rays)
             set_initial_state!(sys, initial_local_rays)
         else
@@ -175,10 +207,15 @@ try
         end
         Sunny.minimize_energy!(sys)
         trial_energy = Sunny.energy_per_site(sys)
+        is_improved = trial_energy < best_energy
         if trial_energy < best_energy
             best_energy = trial_energy
             best_state = serialize_state(sys)
+            best_backend_stationarity = backend_stationarity_summary(sys)
         end
+        progress_log(
+            "[sunny-classical] completed start $(start_index)/$(starts): energy=$(trial_energy) improved=$(is_improved) best_energy=$(best_energy)"
+        )
     end
 
     emit_payload(
@@ -190,6 +227,7 @@ try
             "energy" => best_energy,
             "supercell_shape" => collect(supercell_shape),
             "local_rays" => best_state["local_rays"],
+            "backend_stationarity" => best_backend_stationarity,
             "starts" => starts,
             "seed" => seed,
         ),

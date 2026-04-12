@@ -1,4 +1,5 @@
 import json
+import io
 import subprocess
 import sys
 import unittest
@@ -48,6 +49,48 @@ def _classical_payload():
 
 
 class RunSunnySunClassicalDriverTests(unittest.TestCase):
+    def test_driver_streams_backend_progress_to_stderr(self):
+        payload = _classical_payload()
+
+        class FakeProcess:
+            def __init__(self):
+                self.stdout = io.StringIO(
+                    json.dumps(
+                        {
+                            "status": "ok",
+                            "backend": {"name": "Sunny.jl", "mode": "SUN", "solver": "minimize_energy!"},
+                            "payload_kind": "sunny_sun_classical",
+                            "method": "sunny-cpn-minimize",
+                            "energy": -0.5,
+                            "supercell_shape": [2, 1, 1],
+                            "local_rays": [
+                                {"cell": [0, 0, 0], "vector": [_serialize_complex(1.0), _serialize_complex(0.0)]},
+                            ],
+                            "starts": 3,
+                            "seed": 7,
+                        }
+                    )
+                )
+                self.stderr = io.StringIO("[sunny-classical] start 1/3\n[sunny-classical] best energy = -0.5\n")
+                self.returncode = 0
+
+            def wait(self):
+                return self.returncode
+
+        def fake_popen(command, stdout, stderr, text):
+            self.assertEqual(command[0], "julia")
+            self.assertTrue(command[1].endswith("run_sunny_sun_classical.jl"))
+            self.assertTrue(text)
+            return FakeProcess()
+
+        with patch("classical.sunny_sun_classical_driver.subprocess.Popen", side_effect=fake_popen):
+            with patch("sys.stderr", new_callable=io.StringIO) as fake_stderr:
+                result = run_sunny_sun_classical(payload, stream_progress=True)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("[sunny-classical] start 1/3", fake_stderr.getvalue())
+        self.assertIn("[sunny-classical] best energy = -0.5", fake_stderr.getvalue())
+
     def test_driver_invokes_julia_backend_and_parses_json(self):
         payload = _classical_payload()
 

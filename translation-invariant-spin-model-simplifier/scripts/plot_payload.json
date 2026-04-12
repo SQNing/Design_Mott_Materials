@@ -3,7 +3,8 @@
     "model_name": "replace-with-model-name",
     "backend": "Sunny.jl",
     "classical_method": "variational",
-    "lswt_status": "ok"
+    "lswt_status": "ok",
+    "gswt_status": "ok"
   },
   "classical_state": {
     "site_frames": [
@@ -18,8 +19,13 @@
       "q_vector": [0.0, 0.0, 0.0]
     },
     "magnetic_periods": [1, 1, 1],
+    "magnetic_repeat_cells": [2, 1, 1],
     "repeat_cells": [2, 1, 1],
     "spatial_dimension": 1,
+    "summary_lines": [
+      "method=variational render_mode=chain spatial_dimension=1",
+      "ordering_kind=commensurate ordering_kind_normalized=commensurate magnetic_repeat_cells=[2, 1, 1] repeat_cells=[2, 1, 1]"
+    ],
     "expanded_sites": [
       {
         "basis_index": 0,
@@ -59,6 +65,33 @@
     },
     "lattice_labels": []
   },
+  "gswt_diagnostics": {
+    "status": "error",
+    "dispersion": [],
+    "path": {
+      "labels": ["G", "X", "S"],
+      "node_indices": [0, 32, 64]
+    },
+    "instability": {
+      "kind": "wavevector-instability",
+      "q_vector": [0.22, -0.06, -0.16],
+      "nearest_q_path_index": 63,
+      "nearest_q_path_kind": "path-segment-sample",
+      "nearest_q_path_distance": 0.0,
+      "nearest_path_segment_label": "X-S"
+    },
+    "summary_lines": [
+      "GSWT backend=Sunny.jl status=error",
+      "GSWT: harmonic instability near path segment X-S"
+    ],
+    "figure_size": [7.0, 4.5],
+    "style": {
+      "line_width": 1.5,
+      "node_line_width": 0.8,
+      "node_alpha": 0.7,
+      "grid_alpha": 0.25
+    }
+  },
   "lswt_dispersion": {
     "dispersion": [
       {
@@ -80,6 +113,10 @@
       "labels": ["G", "X"],
       "node_indices": [0, 1]
     },
+    "summary_lines": [
+      "LSWT backend=Sunny.jl band_count=2 omega_min=0 omega_max=1",
+      "GSWT: harmonic instability near path segment G-X"
+    ],
     "figure_size": [7.0, 4.5],
     "style": {
       "line_width": 1.5,
@@ -108,6 +145,10 @@
         "susceptibility": 0.3,
         "entropy": 0.1
       }
+    ],
+    "summary_lines": [
+      "profile=smoke backend=sunny-local-sampler temperature_count=2",
+      "sweeps=10 burn_in=5 measurement_interval=1 proposal=delta proposal_scale=0.1"
     ],
     "figure_size": [9.0, 9.0],
     "style": {

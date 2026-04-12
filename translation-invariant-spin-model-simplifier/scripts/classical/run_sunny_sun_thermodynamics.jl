@@ -32,6 +32,11 @@ function emit_payload(payload)
     println(JSON3.write(payload))
 end
 
+function progress_log(message)
+    println(stderr, message)
+    flush(stderr)
+end
+
 function error_payload(code::String, message::String)
     return Dict(
         "status" => "error",
@@ -197,6 +202,10 @@ function resolve_proposal(payload)
     return "delta", Sunny.propose_delta(scale)
 end
 
+function progress_interval(total_steps)
+    return max(1, Int(cld(max(1, Int(total_steps)), 10)))
+end
+
 function run_local_sampler_backend(sys, payload)
     temperatures = Float64.(collect(payload.temperatures))
     sweeps = Int(get(payload, :sweeps, 100))
@@ -207,8 +216,14 @@ function run_local_sampler_backend(sys, payload)
 
     energy_samples = [Float64[] for _ in temperatures]
     magnetization_samples = [Float64[] for _ in temperatures]
+    sweep_progress_interval = progress_interval(sweeps)
+
+    progress_log(
+        "[sunny-thermo] backend=local-sampler temperatures=$(temperatures) sweeps=$(sweeps) burn_in=$(burn_in)"
+    )
 
     for (index, temperature) in enumerate(temperatures)
+        progress_log("[sunny-thermo] local-sampler temperature $(index)/$(length(temperatures)) = $(temperature)")
         sampler = Sunny.LocalSampler(; kT=temperature, nsweeps=1.0, propose=proposal_fn)
         for _ in 1:burn_in
             Sunny.step!(sys, sampler)
@@ -218,6 +233,11 @@ function run_local_sampler_backend(sys, payload)
             if sweep % measurement_interval == 0
                 push!(energy_samples[index], Sunny.energy_per_site(sys))
                 push!(magnetization_samples[index], magnetization_per_site(sys, direction))
+            end
+            if sweep == sweeps || sweep % sweep_progress_interval == 0
+                progress_log(
+                    "[sunny-thermo] local-sampler T=$(temperature) sweep $(sweep)/$(sweeps) samples=$(length(energy_samples[index]))"
+                )
             end
         end
     end
@@ -242,11 +262,18 @@ function run_parallel_tempering_backend(sys, payload)
     exchange_interval = max(1, Int(get(payload, :pt_exchange_interval, 1)))
     direction = normalize_direction(payload)
     proposal_name, proposal_fn = resolve_proposal(payload)
+    sweep_progress_interval = progress_interval(sweeps)
+
+    progress_log(
+        "[sunny-thermo] backend=parallel-tempering temperatures=$(temperatures) sweeps=$(sweeps) burn_in=$(burn_in) exchange_interval=$(exchange_interval)"
+    )
 
     template_sampler = Sunny.LocalSampler(; kT=temperatures[1], nsweeps=1.0, propose=proposal_fn)
     pt = Sunny.ParallelTempering(sys, template_sampler, temperatures)
     if burn_in > 0
+        progress_log("[sunny-thermo] parallel-tempering burn-in start")
         Sunny.step_ensemble!(pt, burn_in, exchange_interval)
+        progress_log("[sunny-thermo] parallel-tempering burn-in complete")
     end
 
     energy_samples = [Float64[] for _ in temperatures]
@@ -257,6 +284,9 @@ function run_parallel_tempering_backend(sys, payload)
             current_sys = pt.systems[pt.system_ids[rank]]
             push!(energy_samples[rank], Sunny.energy_per_site(current_sys))
             push!(magnetization_samples[rank], magnetization_per_site(current_sys, direction))
+        end
+        if sweep == sweeps || sweep % sweep_progress_interval == 0
+            progress_log("[sunny-thermo] parallel-tempering sweep $(sweep)/$(sweeps)")
         end
     end
 
@@ -353,10 +383,16 @@ function run_wang_landau_backend(sys, payload)
     windows = Int(get(payload, :wl_windows, 1))
     overlap = Float64(get(payload, :wl_overlap, 0.25))
 
+    progress_log(
+        "[sunny-thermo] backend=wang-landau temperatures=$(temperatures) sweeps=$(sweeps) windows=$(windows) bin_size=$(bin_size)"
+    )
+
     if windows > 1
         window_ranges = Sunny.get_windows(bounds, windows, overlap)
         pwl = Sunny.ParallelWangLandau(; sys=sys, bin_size=bin_size, propose=proposal_fn, windows=window_ranges, ln_f=ln_f)
+        progress_log("[sunny-thermo] parallel Wang-Landau start")
         Sunny.step_ensemble!(pwl, sweeps, 1)
+        progress_log("[sunny-thermo] parallel Wang-Landau complete")
         energies_by_window = [Sunny.get_keys(sampler.ln_g) for sampler in pwl.samplers]
         ln_g_by_window = [Sunny.get_vals(sampler.ln_g) for sampler in pwl.samplers]
         energies, ln_g = Sunny.merge(energies_by_window, ln_g_by_window)
@@ -373,7 +409,9 @@ function run_wang_landau_backend(sys, payload)
     end
 
     wl = Sunny.WangLandau(; sys=sys, bin_size=bin_size, bounds=bounds, propose=proposal_fn, ln_f=ln_f)
+    progress_log("[sunny-thermo] Wang-Landau start")
     Sunny.step_ensemble!(wl, sweeps)
+    progress_log("[sunny-thermo] Wang-Landau complete")
     energies = Sunny.get_keys(wl.ln_g)
     ln_g = Sunny.get_vals(wl.ln_g)
     thermodynamics_result, dos_result = wang_landau_outputs(energies, ln_g .- minimum(ln_g), temperatures)
@@ -430,8 +468,12 @@ try
 
     supercell_shape = haskey(payload, :supercell_shape) && !isempty(payload.supercell_shape) ? Tuple(Int.(collect(payload.supercell_shape))) : (1, 1, 1)
     seed = Int(get(payload, :seed, 0))
+    progress_log(
+        "[sunny-thermo] building system backend=$(backend_method) seed=$(seed) supercell=$(collect(supercell_shape))"
+    )
     sys = build_system(model, supercell_shape, seed)
     set_initial_state!(sys, payload.initial_state)
+    progress_log("[sunny-thermo] initial state applied")
 
     thermodynamics_result = nothing
     dos_result = nothing

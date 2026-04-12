@@ -21,6 +21,19 @@ class RunSunnySunClassicalScriptTests(unittest.TestCase):
 
         self.assertIn("extract_parts=false", source)
 
+    def test_script_exports_backend_stationarity_diagnostics(self):
+        source = SCRIPT_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("using LinearAlgebra", source)
+        self.assertIn("energy_grad_coherents", source)
+        self.assertIn("backend_stationarity", source)
+
+    def test_script_emits_progress_logs_to_stderr(self):
+        source = SCRIPT_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("println(stderr,", source)
+        self.assertIn("start $(start_index)/$(starts)", source)
+
 
 if __name__ == "__main__":
     unittest.main()

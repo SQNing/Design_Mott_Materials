@@ -31,15 +31,15 @@ def _deserialize_pair_matrix(serialized):
 
 def _pair_matrix_to_tensor(pair_matrix, local_dimension):
     tensor = []
-    for left_a in range(local_dimension):
+    for left_bra in range(local_dimension):
         left_block = []
-        for right_b in range(local_dimension):
-            row_index = left_a * local_dimension + right_b
+        for left_ket in range(local_dimension):
             bra_block = []
-            for left_c in range(local_dimension):
+            for right_bra in range(local_dimension):
+                row_index = left_bra * local_dimension + right_bra
                 ket_block = []
-                for right_d in range(local_dimension):
-                    col_index = left_c * local_dimension + right_d
+                for right_ket in range(local_dimension):
+                    col_index = left_ket * local_dimension + right_ket
                     ket_block.append(_serialize_complex(pair_matrix[row_index][col_index]))
                 bra_block.append(ket_block)
             left_block.append(bra_block)
@@ -66,6 +66,23 @@ def build_sun_gswt_classical_payload(parsed_payload):
     if not local_basis_labels:
         raise ValueError("parsed payload must include local_basis_labels")
 
+    magnetic_site_count = int(parsed_payload.get("magnetic_site_count", 1))
+    magnetic_sites = parsed_payload.get("magnetic_sites")
+    if not magnetic_sites:
+        magnetic_sites = [
+            {
+                "index": 0,
+                "label": "site0",
+                "position": None,
+                "kind": "assumed-single-sublattice",
+            }
+        ]
+    magnetic_site_metadata = dict(parsed_payload.get("magnetic_site_metadata", {}))
+    if not magnetic_site_metadata:
+        magnetic_site_metadata = {
+            "site_pair_encoding": "assumed-single-sublattice-many_body_hr",
+        }
+
     bond_tensors = []
     for block in parsed_payload.get("bond_blocks", []):
         pair_matrix_serialized = block.get("pair_matrix")
@@ -77,6 +94,8 @@ def build_sun_gswt_classical_payload(parsed_payload):
         bond_tensors.append(
             {
                 "R": list(block["R"]),
+                "source": int(block.get("source", 0)),
+                "target": int(block.get("target", 0)),
                 "distance": float(distance),
                 "matrix_shape": list(block["matrix_shape"]),
                 "tensor_shape": [local_dimension, local_dimension, local_dimension, local_dimension],
@@ -98,6 +117,9 @@ def build_sun_gswt_classical_payload(parsed_payload):
         "local_dimension": local_dimension,
         "orbital_count": orbital_count,
         "local_basis_labels": list(local_basis_labels),
+        "magnetic_site_count": int(magnetic_site_count),
+        "magnetic_sites": list(magnetic_sites),
+        "magnetic_site_metadata": dict(magnetic_site_metadata),
         "retained_local_space": dict(parsed_payload.get("retained_local_space", {})),
         "pair_operator_convention": dict(parsed_payload.get("pair_operator_convention", {})),
         "operator_dictionary": dict(parsed_payload.get("operator_dictionary", {})),

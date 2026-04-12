@@ -100,6 +100,60 @@ def _extract_parameter_mentions(text):
     return labels
 
 
+def _lattice_ambiguity(text):
+    lowered = (text or "").lower()
+    if "hexagonal lattice" in lowered:
+        return {
+            "id": "lattice_kind",
+            "prompt": (
+                "You described a hexagonal lattice. Should this be interpreted as a honeycomb spin lattice "
+                "or a triangular Bravais lattice?"
+            ),
+            "options": ["honeycomb", "triangular", "custom"],
+        }
+    return None
+
+
+def _exchange_mapping_ambiguity(parameter_mentions, exchange_shell_map):
+    if parameter_mentions and not exchange_shell_map:
+        return {
+            "id": "exchange_mapping",
+            "prompt": (
+                "J labels were detected, but the text does not say whether they follow distance shells "
+                "or user-defined exchange paths. Please specify the mapping, for example 'J1/J2 by "
+                "first/second distance shells'."
+            ),
+        }
+    return None
+
+
+def detect_controlled_natural_language_ambiguity(text):
+    parameter_mentions = _extract_parameter_mentions(text)
+    exchange_shell_map = _extract_explicit_shell_map(text)
+    lattice_question = _lattice_ambiguity(text)
+    mapping_question = _exchange_mapping_ambiguity(parameter_mentions, exchange_shell_map)
+
+    if lattice_question and mapping_question:
+        return {
+            "status": "needs_input",
+            "question": {
+                "id": "lattice_and_exchange_mapping",
+                "prompt": (
+                    "You described a hexagonal lattice and used J labels without specifying their mapping. "
+                    "Please clarify whether the lattice should be treated as honeycomb, triangular, or custom, "
+                    "and also specify whether J1/J2 follow distance shells or user-defined exchange paths "
+                    "(for example 'J1/J2 by first/second distance shells')."
+                ),
+                "options": lattice_question["options"],
+            },
+        }
+    if lattice_question:
+        return {"status": "needs_input", "question": lattice_question}
+    if mapping_question:
+        return {"status": "needs_input", "question": mapping_question}
+    return None
+
+
 def parse_controlled_natural_language(text):
     text = (text or "").strip()
     if not text:
@@ -108,20 +162,14 @@ def parse_controlled_natural_language(text):
             "question": {"id": "description", "prompt": "Please provide a non-empty controlled natural-language model description."},
         }
 
+    ambiguity = detect_controlled_natural_language_ambiguity(text)
+    if ambiguity is not None:
+        return ambiguity
+
     cell_parameters = _extract_cell_parameters(text)
     positions = _extract_positions(text)
     exchange_shell_map = _extract_explicit_shell_map(text)
-    parameter_mentions = _extract_parameter_mentions(text)
     solver_preferences = _extract_solver_preferences(text)
-
-    if parameter_mentions and not exchange_shell_map:
-        return {
-            "status": "needs_input",
-            "question": {
-                "id": "exchange_mapping",
-                "prompt": "J labels were detected, but the text does not say whether they follow distance shells or user-defined exchange paths. Please specify the mapping, for example 'J1/J2 by first/second distance shells'.",
-            },
-        }
 
     lattice = {
         "kind": _infer_lattice_kind(text),

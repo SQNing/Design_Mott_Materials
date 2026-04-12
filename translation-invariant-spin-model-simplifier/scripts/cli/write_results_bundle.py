@@ -9,7 +9,10 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from classical.classical_solver_driver import estimate_thermodynamics, run_classical_solver
+from common.cpn_classical_state import has_spin_frame_classical_state
+from common.lswt_failure_analysis import summarize_lswt_failure
 from lswt.linear_spin_wave_driver import run_linear_spin_wave
+from lswt.python_glswt_driver import run_python_glswt_driver
 from lswt.sun_gswt_driver import run_sun_gswt
 from output.render_plots import render_plots
 from output.render_report import render_text
@@ -39,8 +42,18 @@ def _can_run_gswt(payload):
     return _get_gswt_payload(payload) is not None
 
 
+def _run_gswt_stage(payload):
+    gswt_payload = _get_gswt_payload(payload)
+    payload_kind = str(gswt_payload.get("payload_kind"))
+    if payload_kind in {"python_glswt_local_rays", "python_glswt_single_q_z_harmonic"}:
+        payload["gswt"] = run_python_glswt_driver(gswt_payload)
+        return payload
+    payload["gswt"] = run_sun_gswt(payload)
+    return payload
+
+
 def _can_run_lswt(payload):
-    return _has_classical_state(payload)
+    return has_spin_frame_classical_state(payload)
 
 
 def _has_thermodynamics_result(payload):
@@ -50,6 +63,18 @@ def _has_thermodynamics_result(payload):
 def _can_run_thermodynamics(payload):
     thermodynamics = payload.get("thermodynamics", {})
     return bool(payload.get("bonds")) and bool(thermodynamics.get("temperatures"))
+
+
+def _thermodynamics_configuration(payload):
+    thermodynamics = payload.get("thermodynamics", {})
+    if isinstance(thermodynamics, dict) and thermodynamics:
+        return thermodynamics
+    thermodynamics_result = payload.get("thermodynamics_result", {})
+    if isinstance(thermodynamics_result, dict):
+        configuration = thermodynamics_result.get("configuration", {})
+        if isinstance(configuration, dict):
+            return configuration
+    return {}
 
 
 def _run_thermodynamics_stage(payload):
@@ -88,7 +113,7 @@ def _populate_missing_results(
         payload = _run_thermodynamics_stage(payload)
 
     if run_missing_gswt and not _has_gswt_result(payload) and _can_run_gswt(payload):
-        payload["gswt"] = run_sun_gswt(payload)
+        payload = _run_gswt_stage(payload)
 
     if run_missing_lswt and "lswt" not in payload and _can_run_lswt(payload):
         payload["lswt"] = run_linear_spin_wave(payload)
@@ -113,6 +138,16 @@ def _stage_summary(
     gswt_present_after = _has_gswt_result(bundle_payload)
     lswt_present_before = "lswt" in original_payload
     lswt_present_after = "lswt" in bundle_payload
+    thermodynamics_configuration = _thermodynamics_configuration(bundle_payload)
+    lswt_summary = {
+        "present": bool(lswt_present_after),
+        "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),
+        "status": bundle_payload.get("lswt", {}).get("status"),
+        "backend": bundle_payload.get("lswt", {}).get("backend", {}).get("name"),
+    }
+    lswt_failure_summary = summarize_lswt_failure(bundle_payload)
+    if lswt_failure_summary:
+        lswt_summary.update(lswt_failure_summary)
 
     return {
         "classical": {
@@ -127,6 +162,11 @@ def _stage_summary(
             "temperature_count": len(bundle_payload.get("thermodynamics_result", {}).get("grid", []))
             if thermodynamics_present_after
             else 0,
+            "profile": thermodynamics_configuration.get("profile"),
+            "backend_method": thermodynamics_configuration.get("backend_method"),
+            "sweeps": thermodynamics_configuration.get("sweeps"),
+            "burn_in": thermodynamics_configuration.get("burn_in"),
+            "measurement_interval": thermodynamics_configuration.get("measurement_interval"),
         },
         "gswt": {
             "present": bool(gswt_present_after),
@@ -134,12 +174,7 @@ def _stage_summary(
             "status": bundle_payload.get("gswt", {}).get("status"),
             "backend": bundle_payload.get("gswt", {}).get("backend", {}).get("name"),
         },
-        "lswt": {
-            "present": bool(lswt_present_after),
-            "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),
-            "status": bundle_payload.get("lswt", {}).get("status"),
-            "backend": bundle_payload.get("lswt", {}).get("backend", {}).get("name"),
-        },
+        "lswt": lswt_summary,
     }
 
 

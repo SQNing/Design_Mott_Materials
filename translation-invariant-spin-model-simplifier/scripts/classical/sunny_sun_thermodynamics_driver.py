@@ -52,7 +52,41 @@ def _preflight_payload_error(thermodynamics_payload):
     return None
 
 
-def run_sunny_sun_thermodynamics(payload, julia_cmd="julia"):
+def _run_backend_process(command):
+    completed = subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout, getattr(completed, "stderr", "") or ""
+
+
+def _run_backend_process_with_progress(command):
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert process.stdout is not None
+    assert process.stderr is not None
+
+    stderr_chunks = []
+    for line in process.stderr:
+        stderr_chunks.append(line)
+        print(line, file=sys.stderr, end="")
+        sys.stderr.flush()
+
+    stdout = process.stdout.read()
+    returncode = process.wait()
+    stderr = "".join(stderr_chunks)
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode=returncode, cmd=command, output=stdout, stderr=stderr)
+    return stdout, stderr
+
+
+def run_sunny_sun_thermodynamics(payload, julia_cmd="julia", stream_progress=False):
     thermodynamics_payload = _extract_payload(payload)
     if thermodynamics_payload is None:
         return _error(
@@ -79,12 +113,11 @@ def run_sunny_sun_thermodynamics(payload, julia_cmd="julia"):
         json.dump(thermodynamics_payload, handle, indent=2, sort_keys=True)
 
     try:
-        completed = subprocess.run(
-            [julia_cmd, str(SUNNY_THERMODYNAMICS_SCRIPT), str(payload_path)],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        command = [julia_cmd, str(SUNNY_THERMODYNAMICS_SCRIPT), str(payload_path)]
+        if stream_progress:
+            stdout, _stderr = _run_backend_process_with_progress(command)
+        else:
+            stdout, _stderr = _run_backend_process(command)
     except FileNotFoundError as exc:
         return _error(
             "missing-julia-command",
@@ -104,7 +137,7 @@ def run_sunny_sun_thermodynamics(payload, julia_cmd="julia"):
         payload_path.unlink(missing_ok=True)
 
     try:
-        result = json.loads(completed.stdout)
+        result = json.loads(stdout)
     except json.JSONDecodeError as exc:
         return _error(
             "invalid-backend-json",

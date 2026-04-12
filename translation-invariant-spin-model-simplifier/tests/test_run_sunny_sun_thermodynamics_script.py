@@ -32,6 +32,12 @@ class RunSunnySunThermodynamicsScriptTests(unittest.TestCase):
         self.assertIn('dos_result = Dict{String, Any}(', source)
         self.assertIn('dos_result["windows"] = [collect(bounds)]', source)
 
+    def test_script_emits_progress_logs_to_stderr(self):
+        source = SCRIPT_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("println(stderr,", source)
+        self.assertIn("[sunny-thermo]", source)
+
 
 if __name__ == "__main__":
     unittest.main()
