@@ -55,6 +55,18 @@ class DocumentInputProtocolTests(unittest.TestCase):
         self.assertIn("unsupported_features", landed)
         self.assertIn("matrix_form_metadata", landed["unsupported_features"])
 
+    def test_fei2_style_fixture_requires_model_selection_before_landing(self):
+        fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/fei2_document_input.tex",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["interaction"]["status"], "needs_input")
+        self.assertEqual(landed["interaction"]["id"], "model_candidate_selection")
+
 
 if __name__ == "__main__":
     unittest.main()
