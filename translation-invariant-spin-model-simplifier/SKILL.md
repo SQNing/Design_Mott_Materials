@@ -11,26 +11,27 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 
 1. Read `reference/environment.md` and identify the baseline and backend-specific dependencies for the requested path.
 2. Ask the user which baseline and optional dependencies are already installed before choosing execution paths.
-3. Normalize the raw model with `scripts/input/normalize_input.py`.
-4. Parse the lattice description with `scripts/input/parse_lattice_description.py`.
-5. Infer candidate symmetries with `scripts/simplify/infer_symmetries.py`.
-6. If any ambiguity would materially change the result, stop and return `interaction.status = needs_input` with one clarification question.
-7. Decompose matrix or tensor local terms with `scripts/simplify/decompose_local_term.py`.
-8. Canonicalize decomposed terms with `scripts/simplify/canonicalize_terms.py`.
-9. Extract high-confidence readable blocks with `scripts/simplify/identify_readable_blocks.py`.
-10. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/simplify/assemble_effective_model.py`.
-11. Score fidelity with `scripts/simplify/score_fidelity.py`.
-12. Generate 2-3 simplification views with `scripts/simplify/generate_simplifications.py`.
-13. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
-14. Ask whether to project to a spin model if the current basis is not already explicit.
-15. Present classical solver options and recommend one default.
-16. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`, or use the pseudospin-orbital Sunny adapters when the input path is `many_body_hr`.
-17. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
-18. Render the final report with `scripts/output/render_report.py`.
+3. If the input is natural-language, LaTeX, or a document-style source, read `reference/natural-language-input-protocol.md` and construct an intermediate extraction record before normalization.
+4. Normalize the raw model with `scripts/input/normalize_input.py`.
+5. Parse the lattice description with `scripts/input/parse_lattice_description.py`.
+6. Infer candidate symmetries with `scripts/simplify/infer_symmetries.py`.
+7. If any ambiguity would materially change the result, stop and return `interaction.status = needs_input` with one clarification question.
+8. Decompose matrix or tensor local terms with `scripts/simplify/decompose_local_term.py`.
+9. Canonicalize decomposed terms with `scripts/simplify/canonicalize_terms.py`.
+10. Extract high-confidence readable blocks with `scripts/simplify/identify_readable_blocks.py`.
+11. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/simplify/assemble_effective_model.py`.
+12. Score fidelity with `scripts/simplify/score_fidelity.py`.
+13. Generate 2-3 simplification views with `scripts/simplify/generate_simplifications.py`.
+14. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
+15. Ask whether to project to a spin model if the current basis is not already explicit.
+16. Present classical solver options and recommend one default.
+17. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`, or use the pseudospin-orbital Sunny adapters when the input path is `many_body_hr`.
+18. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
+19. Render the final report with `scripts/output/render_report.py`.
 
 ## Input Notes
 
-- Support operator expressions, local matrices or tensors, structured lattice input, controlled natural-language lattice or model descriptions, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
+- Support operator expressions, local matrices or tensors, structured lattice input, natural-language, LaTeX, and document-style inputs through `reference/natural-language-input-protocol.md`, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
 - Read `reference/environment.md` before solver selection, and treat it as the source of truth for baseline versus optional backend dependencies.
 - Ask the user which baseline and optional dependencies are already installed before promising any execution path.
@@ -48,8 +49,9 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Treat canonical form as the internal source of truth.
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.
 - Return `interaction.status = needs_input` whenever lattice interpretation, shell mapping, symmetry status, or simplification classification is ambiguous.
+- Do not claim that a document-style natural-language input has been converted into a runnable model unless the intermediate extraction record has either landed in a supported payload or explicitly returned `interaction.status = needs_input`.
 - Prefer a faithful readable model with explicit `residual` structure over an over-compressed Hamiltonian that hides unmatched or weak but meaningful terms.
-- Read `reference/input-schema.md` for required normalized fields, `reference/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered, and `reference/environment.md` before environment-sensitive solver choices.
+- Read `reference/input-schema.md` for required normalized fields, `reference/natural-language-input-protocol.md` for broad text and document inputs, `reference/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered, and `reference/environment.md` before environment-sensitive solver choices.
 
 ## Output Requirements
 

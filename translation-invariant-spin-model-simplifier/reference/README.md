@@ -13,6 +13,9 @@ The retained reference files are:
 - `input-schema.md`
   Documents the expected normalized payload structure and the supported
   `local_term.representation.kind` variants.
+- `natural-language-input-protocol.md`
+  Defines the upstream extraction protocol for natural-language, LaTeX, and
+  document-style inputs before they are normalized into runnable payloads.
 - `fallback-rules.md`
   Documents how the skill should behave when user choices are missing, a model
   cannot be mapped cleanly to spin operators, or a requested solver/dependency
