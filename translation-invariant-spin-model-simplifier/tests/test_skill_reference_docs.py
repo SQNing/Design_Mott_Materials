@@ -7,6 +7,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 SKILL_FILE = SKILL_ROOT / "SKILL.md"
 REFERENCE_DIR = SKILL_ROOT / "reference"
 REFERENCE_README = REFERENCE_DIR / "README.md"
+ENVIRONMENT_REFERENCE = REFERENCE_DIR / "environment.md"
 
 EXPECTED_REFERENCE_FILES = {
     "README.md",
@@ -39,6 +40,12 @@ class SkillReferenceDocsTests(unittest.TestCase):
         listed = set(re.findall(r"`([A-Za-z0-9._-]+\.md)`", content))
 
         self.assertEqual(listed, EXPECTED_REFERENCE_FILES - {"README.md"})
+
+    def test_environment_reference_tracks_sunny_version_line(self):
+        content = ENVIRONMENT_REFERENCE.read_text(encoding="utf-8")
+
+        self.assertIn("`Sunny.jl 0.9.x`", content)
+        self.assertNotIn("`Sunny.jl 0.9.0`", content)
 
 
 if __name__ == "__main__":
