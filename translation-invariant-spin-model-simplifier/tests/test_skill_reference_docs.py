@@ -14,12 +14,14 @@ EXPECTED_REFERENCE_FILES = {
     "environment.md",
     "fallback-rules.md",
     "input-schema.md",
+    "natural-language-input-protocol.md",
 }
 
 EXPECTED_SKILL_REFERENCES = {
     "reference/environment.md",
     "reference/fallback-rules.md",
     "reference/input-schema.md",
+    "reference/natural-language-input-protocol.md",
 }
 
 

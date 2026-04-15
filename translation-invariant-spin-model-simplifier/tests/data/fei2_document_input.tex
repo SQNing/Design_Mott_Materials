@@ -1,0 +1,51 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+
+\begin{document}
+
+\section*{Crystal Structure}
+
+FeI$_2$ crystallizes in a trigonal structure. The Fe atoms form triangular layers.
+
+\section*{Toy Hamiltonian}
+
+\begin{equation}
+H_{\mathrm{toy}}=
+J\sum_{\langle i,j\rangle}\bm S_i\cdot\bm S_j
+-D\sum_i (S_i^z)^2.
+\end{equation}
+
+\section*{Effective Hamiltonian}
+
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}H_{ij}^{(1)}
+\;+\!
+\sum_{n\in\{2,3,0',1',2a'\}}
+\sum_{\langle i,j\rangle_n}
+\left[
+J_n^{zz}S_i^zS_j^z
++
+\frac{J_n^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right]
+-D\sum_i (S_i^z)^2 .
+\end{equation}
+
+\section*{Equivalent Exchange-Matrix Form}
+
+\begin{equation}
+\mathcal J_{ij}^{(1)}=
+\begin{pmatrix}
+J_1^{xx} & 0 & 0 \\
+0 & J_1^{yy} & J_1^{yz} \\
+0 & J_1^{yz} & J_1^{zz}
+\end{pmatrix}.
+\end{equation}
+
+\section*{Parameters}
+
+\begin{equation}
+D = 2.165 \pm 0.101~\text{meV}.
+\end{equation}
+
+\end{document}
