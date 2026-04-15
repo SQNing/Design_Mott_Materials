@@ -9,27 +9,32 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 
 ## Workflow
 
-1. Normalize the raw model with `scripts/input/normalize_input.py`.
-2. Parse the lattice description with `scripts/input/parse_lattice_description.py`.
-3. Infer candidate symmetries with `scripts/simplify/infer_symmetries.py`.
-4. If any ambiguity would materially change the result, stop and return `interaction.status = needs_input` with one clarification question.
-5. Decompose matrix or tensor local terms with `scripts/simplify/decompose_local_term.py`.
-6. Canonicalize decomposed terms with `scripts/simplify/canonicalize_terms.py`.
-7. Extract high-confidence readable blocks with `scripts/simplify/identify_readable_blocks.py`.
-8. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/simplify/assemble_effective_model.py`.
-9. Score fidelity with `scripts/simplify/score_fidelity.py`.
-10. Generate 2-3 simplification views with `scripts/simplify/generate_simplifications.py`.
-11. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
-12. Ask whether to project to a spin model if the current basis is not already explicit.
-13. Present classical solver options and recommend one default.
-14. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`, or use the pseudospin-orbital Sunny adapters when the input path is `many_body_hr`.
-15. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
-16. Render the final report with `scripts/output/render_report.py`.
+1. Read `reference/environment.md` and identify the baseline and backend-specific dependencies for the requested path.
+2. Ask the user which baseline and optional dependencies are already installed before choosing execution paths.
+3. Normalize the raw model with `scripts/input/normalize_input.py`.
+4. Parse the lattice description with `scripts/input/parse_lattice_description.py`.
+5. Infer candidate symmetries with `scripts/simplify/infer_symmetries.py`.
+6. If any ambiguity would materially change the result, stop and return `interaction.status = needs_input` with one clarification question.
+7. Decompose matrix or tensor local terms with `scripts/simplify/decompose_local_term.py`.
+8. Canonicalize decomposed terms with `scripts/simplify/canonicalize_terms.py`.
+9. Extract high-confidence readable blocks with `scripts/simplify/identify_readable_blocks.py`.
+10. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/simplify/assemble_effective_model.py`.
+11. Score fidelity with `scripts/simplify/score_fidelity.py`.
+12. Generate 2-3 simplification views with `scripts/simplify/generate_simplifications.py`.
+13. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
+14. Ask whether to project to a spin model if the current basis is not already explicit.
+15. Present classical solver options and recommend one default.
+16. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`, or use the pseudospin-orbital Sunny adapters when the input path is `many_body_hr`.
+17. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
+18. Render the final report with `scripts/output/render_report.py`.
 
 ## Input Notes
 
 - Support operator expressions, local matrices or tensors, structured lattice input, controlled natural-language lattice or model descriptions, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
+- Read `reference/environment.md` before solver selection, and treat it as the source of truth for baseline versus optional backend dependencies.
+- Ask the user which baseline and optional dependencies are already installed before promising any execution path.
+- Distinguish missing baseline dependencies from missing optional backend dependencies, and explain the difference clearly.
 - Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
 - For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space and use the fixed local basis order `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`.
 - Keep the two Sunny families distinct in user-facing explanations and downstream choices:
@@ -38,12 +43,13 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
 - For these pseudospin-orbital Sunny `:SUN` paths, treat `CP^(N-1)` as a local-state / payload-manifold statement, not as a claim that the effective Hamiltonian is SU(`N`)-symmetric.
 - For these Sunny-backed pseudospin-orbital options, fail explicitly if `julia` or `Sunny.jl` is unavailable instead of silently falling back to the Python helpers.
+- If the user requests a backend whose optional dependencies are missing, stop, explain the gap, and ask whether to install them or switch to an available alternative.
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
 - Treat canonical form as the internal source of truth.
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.
 - Return `interaction.status = needs_input` whenever lattice interpretation, shell mapping, symmetry status, or simplification classification is ambiguous.
 - Prefer a faithful readable model with explicit `residual` structure over an over-compressed Hamiltonian that hides unmatched or weak but meaningful terms.
-- Read `reference/input-schema.md` for required normalized fields and `reference/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered.
+- Read `reference/input-schema.md` for required normalized fields, `reference/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered, and `reference/environment.md` before environment-sensitive solver choices.
 
 ## Output Requirements
 
@@ -56,3 +62,4 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Always prefer surfacing ambiguity, residual structure, and symmetry-sensitive weak terms over silently pruning them away.
 - When discussing LSW for a known classical ground state, default to the local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method unless you explicitly state that a narrower approximation is being used.
 - If an open-source package such as SpinW or Sunny.jl is the better path for the current model, say so explicitly instead of pretending the in-skill helper scripts are sufficient.
+- Always surface environment blockers early rather than discovering them deep in the workflow.

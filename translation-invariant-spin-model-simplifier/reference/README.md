@@ -11,6 +11,10 @@ contracts for the skill:
   which parts are conservative certification logic versus workflow tooling, how
   the bundle files are meant to be used, and what the current honesty limits
   are.
+- `environment.md`
+  Documents the baseline and optional environment dependencies for this skill,
+  including Python, Sunny-backed Julia paths, plotting, PDF generation, and
+  preflight checks the skill should ask the user about before execution.
 - `input-schema.md`
   Documents the expected normalized payload structure and the supported
   `local_term.representation.kind` variants.
