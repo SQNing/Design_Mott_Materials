@@ -1,6 +1,6 @@
 ---
 name: translation-invariant-spin-model-simplifier
-description: Simplify translation-invariant quantum spin Hamiltonians into human-friendly forms and run classical, thermodynamic, linear-spin-wave, and optional small-cluster exact-diagonalization workflows. Use when Codex needs to work from operator expressions, local-term matrices or tensors, or natural-language descriptions of periodic spin models, propose 2-3 simplification candidates, apply user-approved or default choices, and report assumptions, truncations, solver choices, and fallbacks.
+description: Use when Codex needs to simplify a translation-invariant spin model from operator expressions, local-term matrices or tensors, or natural-language periodic-spin descriptions into a readable effective model with explicit ambiguity handling, fidelity reporting, and downstream classical, thermodynamic, or spin-wave analysis.
 ---
 
 # Translation-Invariant Spin Model Simplifier

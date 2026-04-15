@@ -1,16 +1,11 @@
 # References for `translation-invariant-spin-model-simplifier`
 
-This directory stores lightweight reference documents used by the skill layer of
-`translation-invariant-spin-model-simplifier`.
+This directory stores the small skill-facing reference documents that the skill
+entrypoint explicitly asks an agent to read. Keep this directory narrow so the
+skill's required supporting material is obvious at a glance.
 
-These files are intended to clarify workflow expectations and input/fallback
-contracts for the skill:
+The retained reference files are:
 
-- `2026-04-15-certified-glt-status.md`
-  Stage summary for the additive `certified_glt` work: what is implemented,
-  which parts are conservative certification logic versus workflow tooling, how
-  the bundle files are meant to be used, and what the current honesty limits
-  are.
 - `environment.md`
   Documents the baseline and optional environment dependencies for this skill,
   including Python, Sunny-backed Julia paths, plotting, PDF generation, and
@@ -34,6 +29,6 @@ In other words:
 - the skill may instruct an agent to consult these files
 - the scripts do not currently parse or load them automatically
 
-If the implementation is later extended to enforce these contracts directly,
-this directory should remain the canonical place for that human-readable
-reference material.
+Historical plans, status notes, and runtime entrypoint notes are outside the
+tracked skill-facing reference set and should not be treated as required
+reference material for this directory.
