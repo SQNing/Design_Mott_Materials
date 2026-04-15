@@ -90,8 +90,8 @@ function build_system(model, supercell_shape, seed)
     local_dimension = Int(model.local_dimension)
     spin_quantum_number = 0.5 * Float64(local_dimension - 1)
     crystal = build_crystal(model)
-    infos = [Sunny.SpinInfo(1; S=spin_quantum_number, g=2.0)]
-    sys = Sunny.System(crystal, supercell_shape, infos, :SUN; seed=seed)
+    infos = [1 => Sunny.Moment(; s=spin_quantum_number, g=2.0)]
+    sys = Sunny.System(crystal, infos, :SUN; dims=supercell_shape, seed=seed)
 
     for bond in model.bond_tensors
         matrix = to_complex_matrix(bond.pair_matrix)

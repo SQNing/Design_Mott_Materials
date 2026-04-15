@@ -59,14 +59,14 @@ end
 
 function build_system(crystal, payload)
     infos = [
-        Sunny.SpinInfo(
-            Int(moment.site) + 1;
-            S=Float64(moment.spin),
+        Int(moment.site) + 1 => Sunny.Moment(
+            ;
+            s=Float64(moment.spin),
             g=Float64(moment.g),
         )
         for moment in payload.moments
     ]
-    sys = Sunny.System(crystal, (1, 1, 1), infos, :dipole)
+    sys = Sunny.System(crystal, infos, :dipole; dims=(1, 1, 1))
     for bond in payload.bonds
         matrix = to_float_matrix(bond.exchange_matrix)
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.vector))))
@@ -76,6 +76,14 @@ function build_system(crystal, payload)
         Sunny.set_dipole!(sys, to_float_vector(frame.direction), (1, 1, 1, Int(frame.site) + 1))
     end
     return sys
+end
+
+function build_spin_wave_theory(sys)
+    try
+        return Sunny.SpinWaveTheory(sys; measure=nothing)
+    catch
+        return Sunny.SpinWaveTheory(sys)
+    end
 end
 
 function select_q_points(payload)
@@ -153,7 +161,7 @@ end
 try
     crystal = build_crystal(payload)
     sys = build_system(crystal, payload)
-    swt = Sunny.SpinWaveTheory(sys)
+    swt = build_spin_wave_theory(sys)
     q_points = select_q_points(payload)
     bands = Sunny.dispersion(swt, q_points)
     emit_payload(

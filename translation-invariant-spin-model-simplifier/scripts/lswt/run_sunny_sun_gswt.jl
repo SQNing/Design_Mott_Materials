@@ -83,8 +83,8 @@ function build_system(payload)
     supercell_shape = haskey(payload, :supercell_shape) && !isempty(payload.supercell_shape) ? Tuple(Int.(collect(payload.supercell_shape))) : (1, 1, 1)
 
     crystal = build_crystal(payload)
-    infos = [Sunny.SpinInfo(1; S=spin_quantum_number, g=2.0)]
-    sys = Sunny.System(crystal, supercell_shape, infos, :SUN)
+    infos = [1 => Sunny.Moment(; s=spin_quantum_number, g=2.0)]
+    sys = Sunny.System(crystal, infos, :SUN; dims=supercell_shape)
 
     for bond in payload.pair_couplings
         matrix = to_complex_matrix(bond.pair_matrix)
