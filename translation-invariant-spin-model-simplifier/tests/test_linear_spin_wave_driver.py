@@ -143,6 +143,7 @@ class LinearSpinWaveDriverTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "invalid-classical-reference-state")
         self.assertIn("CP^(N-1)", result["error"]["message"])
+        self.assertIn("spin-only Sunny LSWT", result["error"]["message"])
 
     def test_run_linear_spin_wave_reports_missing_julia_command(self):
         model = {

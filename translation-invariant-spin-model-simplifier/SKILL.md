@@ -32,7 +32,11 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
 - Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
 - For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space and use the fixed local basis order `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`.
+- Keep the two Sunny families distinct in user-facing explanations and downstream choices:
+  - spin-only Sunny LSWT is for explicit bilinear spin models with `classical_state.site_frames`
+  - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes are for `many_body_hr` models whose local classical-state manifold is represented as `CP^(N-1)` local rays
 - For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
+- For these pseudospin-orbital Sunny `:SUN` paths, treat `CP^(N-1)` as a local-state / payload-manifold statement, not as a claim that the effective Hamiltonian is SU(`N`)-symmetric.
 - For these Sunny-backed pseudospin-orbital options, fail explicitly if `julia` or `Sunny.jl` is unavailable instead of silently falling back to the Python helpers.
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
 - Treat canonical form as the internal source of truth.

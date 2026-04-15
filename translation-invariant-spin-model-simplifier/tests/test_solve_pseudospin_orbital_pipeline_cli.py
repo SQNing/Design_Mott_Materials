@@ -1,3 +1,4 @@
+import io
 import json
 import itertools
 import sys
@@ -652,6 +653,313 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             note_text = sorted(Path(docsdir).glob("*solver-phase.md"))[-1].read_text(encoding="utf-8")
             self.assertIn("method: sunny-cpn-minimize", note_text)
 
+    def test_solve_from_files_supports_cpn_local_ray_minimize_method(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+        mocked_solver_result = {
+            "method": "cpn-local-ray-minimize",
+            "manifold": "CP^(N-1)",
+            "energy": -0.75,
+            "supercell_shape": [1, 1, 1],
+            "local_rays": _shape_local_rays((1, 1, 1)),
+            "classical_state": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [1, 1, 1],
+                "local_rays": _shape_local_rays((1, 1, 1)),
+                "ordering": {"kind": "uniform", "supercell_shape": [1, 1, 1]},
+            },
+            "projector_diagnostics": {
+                "ordering_kind": "uniform",
+                "uniform_q_weight": 1.0,
+                "dominant_ordering_q": None,
+                "dominant_ordering_weight": 0.0,
+                "components": [],
+                "grid_shape": [1, 1, 1],
+            },
+            "stationarity": {
+                "residual_definition": "test residual",
+                "max_residual_norm": 0.0,
+                "mean_residual_norm": 0.0,
+                "sites": [],
+            },
+            "convergence": {
+                "energy_converged": True,
+                "history": [{"shape": [1, 1, 1], "energy": -0.75, "best_start_source": "random", "max_local_change": 0.0}],
+                "energy_tolerance": 1.0e-6,
+                "repeats_required": 1,
+            },
+            "starts": 2,
+            "seed": 3,
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.solve_cpn_local_ray_ground_state",
+            return_value=mocked_solver_result,
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="cpn-local-ray-minimize",
+                run_gswt=False,
+                starts=2,
+                seed=3,
+            )
+
+            self.assertEqual(manifest["status"], "ok")
+            self.assertEqual(manifest["solver"]["method"], "cpn-local-ray-minimize")
+            self.assertEqual(manifest["solver"]["energy"], -0.75)
+            self.assertEqual(manifest["solver"]["supercell_shape"], [1, 1, 1])
+            self.assertTrue((Path(tmpdir) / "classical_model.json").exists())
+            note_text = sorted(Path(docsdir).glob("*solver-phase.md"))[-1].read_text(encoding="utf-8")
+            self.assertIn("method: cpn-local-ray-minimize", note_text)
+
+    def test_cpn_local_ray_minimize_uses_exact_glt_seed_as_initial_state(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+        observed_calls = []
+        mocked_glt = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "diagnostic-only",
+            "q_vector": [0.5, 0.0, 0.0],
+            "projector_exactness": {"is_exact_projector_solution": True},
+            "seed_candidate": {
+                "kind": "commensurate-exact-projector-seed",
+                "classical_state": {
+                    "schema_version": 1,
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "basis_order": "orbital_major_spin_minor",
+                    "pair_basis_order": "site_i_major_site_j_minor",
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": _shape_local_rays((2, 1, 1)),
+                    "ordering": {"kind": "commensurate-single-q", "supercell_shape": [2, 1, 1]},
+                },
+            },
+        }
+
+        def fake_local_ray_solver(_model, **kwargs):
+            serializable_kwargs = {key: value for key, value in kwargs.items() if key != "progress_callback"}
+            observed_calls.append(json.loads(json.dumps(serializable_kwargs)))
+            return {
+                "method": "cpn-local-ray-minimize",
+                "manifold": "CP^(N-1)",
+                "energy": -0.8,
+                "supercell_shape": [2, 1, 1],
+                "local_rays": _shape_local_rays((2, 1, 1)),
+                "classical_state": {
+                    "schema_version": 1,
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "basis_order": "orbital_major_spin_minor",
+                    "pair_basis_order": "site_i_major_site_j_minor",
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": _shape_local_rays((2, 1, 1)),
+                    "ordering": {"kind": "commensurate-single-q", "supercell_shape": [2, 1, 1]},
+                },
+                "projector_diagnostics": {
+                    "ordering_kind": "commensurate-supercell",
+                    "uniform_q_weight": 0.0,
+                    "dominant_ordering_q": [0.5, 0.0, 0.0],
+                    "dominant_ordering_weight": 1.0,
+                    "components": [],
+                    "grid_shape": [2, 1, 1],
+                },
+                "stationarity": {
+                    "residual_definition": "test residual",
+                    "max_residual_norm": 0.0,
+                    "mean_residual_norm": 0.0,
+                    "sites": [],
+                },
+                "convergence": {
+                    "energy_converged": True,
+                    "history": [{"shape": [2, 1, 1], "energy": -0.8, "best_start_source": "glt-seed", "max_local_change": 0.0}],
+                    "energy_tolerance": 1.0e-6,
+                    "repeats_required": 1,
+                },
+                "starts": 2,
+                "seed": 3,
+            }
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.solve_cpn_generalized_lt_ground_state",
+            return_value=mocked_glt,
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.solve_cpn_local_ray_ground_state",
+            side_effect=fake_local_ray_solver,
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="cpn-local-ray-minimize",
+                run_gswt=False,
+                starts=2,
+                seed=3,
+            )
+
+        self.assertEqual(manifest["status"], "ok")
+        self.assertEqual(len(observed_calls), 1)
+        self.assertEqual(observed_calls[0]["initial_state"]["shape"], [2, 1, 1])
+        self.assertEqual(len(observed_calls[0]["initial_state"]["local_rays"]), 2)
+        self.assertEqual(manifest["solver"]["glt_preconditioner_diagnostic"]["method"], "cpn-generalized-lt")
+        self.assertEqual(manifest["solver"]["glt_preconditioner"]["source"], "seed_candidate")
+
+    def test_cpn_local_ray_minimize_writes_checkpoint_updates_to_output_dir(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        running_result = {
+            "method": "cpn-local-ray-minimize",
+            "manifold": "CP^(N-1)",
+            "energy": -0.7,
+            "supercell_shape": [1, 1, 1],
+            "local_rays": _shape_local_rays((1, 1, 1)),
+            "classical_state": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [1, 1, 1],
+                "local_rays": _shape_local_rays((1, 1, 1)),
+                "ordering": {"kind": "uniform", "supercell_shape": [1, 1, 1]},
+            },
+            "projector_diagnostics": {
+                "ordering_kind": "uniform",
+                "uniform_q_weight": 1.0,
+                "dominant_ordering_q": None,
+                "dominant_ordering_weight": 0.0,
+                "components": [],
+                "grid_shape": [1, 1, 1],
+            },
+            "stationarity": {
+                "residual_definition": "test residual",
+                "max_residual_norm": 0.0,
+                "mean_residual_norm": 0.0,
+                "sites": [],
+            },
+            "convergence": {
+                "energy_converged": False,
+                "history": [{"shape": [1, 1, 1], "energy": -0.7, "best_start_source": "random", "max_local_change": 0.0}],
+                "energy_tolerance": 1.0e-6,
+                "repeats_required": 1,
+                "search_mode": "bounded",
+                "max_linear_size": 2,
+                "stopped_reason": "running",
+            },
+            "starts": 2,
+            "seed": 3,
+        }
+        completed_result = {
+            **running_result,
+            "energy": -0.8,
+            "supercell_shape": [2, 1, 1],
+            "local_rays": _shape_local_rays((2, 1, 1)),
+            "classical_state": {
+                **running_result["classical_state"],
+                "supercell_shape": [2, 1, 1],
+                "local_rays": _shape_local_rays((2, 1, 1)),
+                "ordering": {"kind": "commensurate-supercell", "supercell_shape": [2, 1, 1]},
+            },
+            "projector_diagnostics": {
+                "ordering_kind": "commensurate-supercell",
+                "uniform_q_weight": 0.0,
+                "dominant_ordering_q": [0.5, 0.0, 0.0],
+                "dominant_ordering_weight": 1.0,
+                "components": [],
+                "grid_shape": [2, 1, 1],
+            },
+            "convergence": {
+                "energy_converged": True,
+                "history": [
+                    {"shape": [1, 1, 1], "energy": -0.7, "best_start_source": "random", "max_local_change": 0.0},
+                    {"shape": [2, 1, 1], "energy": -0.8, "best_start_source": "tiled-previous", "max_local_change": 0.0},
+                ],
+                "energy_tolerance": 1.0e-6,
+                "repeats_required": 1,
+                "search_mode": "bounded",
+                "max_linear_size": 2,
+                "stopped_reason": "converged",
+            },
+        }
+
+        def fake_local_ray_solver(_model, **kwargs):
+            progress_callback = kwargs["progress_callback"]
+            progress_callback(
+                {
+                    "status": "running",
+                    "iteration": 1,
+                    "stable_count": 0,
+                    "repeats_required": 1,
+                    "result": running_result,
+                }
+            )
+            progress_callback(
+                {
+                    "status": "completed",
+                    "iteration": 2,
+                    "stable_count": 1,
+                    "repeats_required": 1,
+                    "result": completed_result,
+                }
+            )
+            return completed_result
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.solve_cpn_local_ray_ground_state",
+            side_effect=fake_local_ray_solver,
+            create=True,
+        ):
+            manifest = solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="cpn-local-ray-minimize",
+                run_gswt=False,
+                starts=2,
+                seed=3,
+                max_linear_size=2,
+            )
+
+            checkpoint_path = Path(tmpdir) / "classical_checkpoint.json"
+            self.assertTrue(checkpoint_path.exists())
+            checkpoint_payload = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            self.assertEqual(checkpoint_payload["status"], "completed")
+            self.assertEqual(checkpoint_payload["result"]["supercell_shape"], [2, 1, 1])
+            self.assertEqual(manifest["artifacts"]["classical_checkpoint"], str(checkpoint_path))
+
     def test_sunny_cpn_minimize_uses_exact_glt_seed_as_initial_local_rays(self):
         poscar_path = Path(
             "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
@@ -1026,6 +1334,82 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             [item["shape"] for item in manifest["solver"]["convergence"]["history"]],
             [[1, 1, 1], [2, 2, 2]],
         )
+
+    def test_solve_from_files_emits_unified_sunny_pseudospin_orbital_progress_messages(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_classical",
+            side_effect=lambda payload, **_kwargs: _mocked_sunny_classical_result_nested_only(tuple(payload["supercell_shape"])),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.diagnose_sun_gswt_classical_state",
+            side_effect=lambda _model, state: _mocked_sunny_diagnostics(
+                state["shape"],
+                ordering_kind="commensurate-supercell",
+                dominant_ordering_q=[0.0, 0.0, 0.0],
+            ),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sunny_sun_thermodynamics",
+            return_value=_mocked_sunny_thermodynamics_result("sunny-local-sampler"),
+            create=True,
+        ), patch(
+            "cli.solve_pseudospin_orbital_pipeline.run_sun_gswt",
+            return_value=_mocked_gswt_result(),
+            create=True,
+        ), patch("sys.stderr", new_callable=io.StringIO) as fake_stderr:
+            solve_from_files(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                output_dir=tmpdir,
+                docs_dir=docsdir,
+                compile_pdf=False,
+                classical_method="sunny-cpn-minimize",
+                run_thermodynamics=True,
+                thermodynamics_backend="sunny-local-sampler",
+                temperatures=[0.2, 0.4],
+            )
+
+        progress = fake_stderr.getvalue()
+        self.assertIn("Starting Sunny pseudospin-orbital CP^(N-1) classical minimization", progress)
+        self.assertIn("Sunny pseudospin-orbital SUN classical convergence", progress)
+        self.assertIn("Starting Sunny pseudospin-orbital thermodynamics", progress)
+        self.assertIn("Finished Sunny pseudospin-orbital thermodynamics", progress)
+
+    def test_solve_from_files_uses_unified_error_message_when_sunny_thermodynamics_lacks_cpn_state(self):
+        poscar_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"
+        )
+        hr_path = Path(
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as docsdir, patch(
+            "output.render_pseudospin_orbital_report.subprocess.run"
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                "Sunny pseudospin-orbital thermodynamics requires a CP\\^\\(N-1\\) classical state",
+            ):
+                solve_from_files(
+                    poscar_path=poscar_path,
+                    hr_path=hr_path,
+                    output_dir=tmpdir,
+                    docs_dir=docsdir,
+                    compile_pdf=False,
+                    classical_method="restricted-product-state",
+                    run_thermodynamics=True,
+                    thermodynamics_backend="sunny-local-sampler",
+                    temperatures=[0.2],
+                )
 
     def test_solve_from_files_auto_expands_without_upper_bound_until_energy_converges(self):
         poscar_path = Path(
@@ -1561,6 +1945,10 @@ class SolvePseudoSpinOrbitalPipelineCLITests(unittest.TestCase):
             self.assertEqual(manifest["status"], "ok")
             self.assertTrue((Path(tmpdir) / "thermodynamics_result.json").exists())
             self.assertIsNotNone(manifest["artifacts"]["thermodynamics_result"])
+            note_text = sorted(Path(docsdir).glob("*solver-phase.md"))[-1].read_text(encoding="utf-8")
+            self.assertIn("## Pseudospin-Orbital Thermodynamics", note_text)
+            self.assertIn("thermodynamics_backend: sunny-local-sampler", note_text)
+            self.assertIn("spin-only Sunny thermodynamics or LSWT chain", note_text)
 
     def test_solve_from_files_applies_smoke_thermodynamics_profile_defaults(self):
         poscar_path = Path(

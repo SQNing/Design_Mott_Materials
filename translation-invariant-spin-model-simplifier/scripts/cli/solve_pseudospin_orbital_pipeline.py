@@ -3,6 +3,7 @@ import argparse
 from copy import deepcopy
 import json
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -12,6 +13,7 @@ if __package__ in {None, ""}:
 from classical.build_pseudospin_orbital_classical_model import build_pseudospin_orbital_classical_model
 from classical.build_sun_gswt_classical_payload import build_sun_gswt_classical_payload
 from classical.cpn_generalized_lt_solver import solve_cpn_generalized_lt_ground_state
+from classical.cpn_local_ray_solver import solve_cpn_local_ray_ground_state
 from classical.pseudospin_orbital_solver import solve_pseudospin_orbital_variational
 from classical.sun_gswt_classical_solver import (
     diagnose_sun_gswt_classical_state,
@@ -66,6 +68,46 @@ THERMODYNAMICS_PROFILES = {
 
 def _progress(message):
     print(f"[pseudospin-cli] {message}", file=sys.stderr, flush=True)
+
+
+def _write_json_atomically(path, payload):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w",
+        suffix=".tmp",
+        encoding="utf-8",
+        dir=str(path.parent),
+        delete=False,
+    ) as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        temp_path = Path(handle.name)
+    temp_path.replace(path)
+
+
+def _build_cpn_local_ray_progress_callback(checkpoint_path):
+    checkpoint_path = Path(checkpoint_path)
+
+    def _callback(event):
+        _write_json_atomically(checkpoint_path, event)
+        result = event.get("result", {}) if isinstance(event, dict) else {}
+        convergence = result.get("convergence", {}) if isinstance(result, dict) else {}
+        history = convergence.get("history", []) if isinstance(convergence, dict) else []
+        latest = history[-1] if history else {}
+        shape = result.get("supercell_shape")
+        energy = result.get("energy")
+        stable_count = event.get("stable_count")
+        repeats_required = event.get("repeats_required")
+        _progress(
+            "CPN local-ray progress: "
+            f"status={event.get('status')} "
+            f"supercell={shape} "
+            f"energy={float(energy):.12g} "
+            f"stable_count={stable_count}/{repeats_required} "
+            f"best_start_source={latest.get('best_start_source')}"
+        )
+
+    return _callback
 
 
 def _run_sunny_classical_backend(payload, *, stream_progress):
@@ -318,7 +360,7 @@ def _run_sunny_cpn_minimize_until_converged(
 
     for shape in schedule:
         _progress(
-            f"Sunny classical convergence: evaluating supercell={list(shape)} starts={int(starts)} seed={int(seed)}"
+            f"Sunny pseudospin-orbital SUN classical convergence: evaluating supercell={list(shape)} starts={int(starts)} seed={int(seed)}"
         )
         backend_payload = {
             "backend": "Sunny.jl",
@@ -386,7 +428,7 @@ def _run_sunny_cpn_minimize_until_converged(
             }
         )
         _progress(
-            "Sunny classical convergence result: "
+            "Sunny pseudospin-orbital SUN classical convergence result: "
             f"supercell={list(shape)} energy={current_energy:.12g} "
             f"stationarity={stationarity_max:.6g} stable_count={stable_size_count}/{repeats_required}"
         )
@@ -406,7 +448,10 @@ def _run_sunny_cpn_minimize_until_converged(
             "status": "error",
             "backend": {"name": "Sunny.jl", "mode": "SUN"},
             "payload_kind": "sunny_sun_classical",
-            "error": {"code": "empty-supercell-schedule", "message": "Sunny CPN minimization produced no schedule entries"},
+            "error": {
+                "code": "empty-supercell-schedule",
+                "message": "Sunny pseudospin-orbital CP^(N-1) minimization produced no schedule entries",
+            },
         }
 
     converged = bool(stable_size_count >= repeats_required)
@@ -559,7 +604,7 @@ def _solver_phase_summary(
         f"- human-friendly pdf status: {report_manifest['reports']['human_friendly']['pdf_status']}",
         f"- full-coefficients pdf status: {report_manifest['reports']['full_coefficients']['pdf_status']}",
         "",
-        "## Thermodynamics",
+        "## Pseudospin-Orbital Thermodynamics",
         "",
         f"- thermodynamics_backend: {thermodynamics_backend}",
         f"- thermodynamics_present: {bool(thermodynamics_grid)}",
@@ -586,7 +631,7 @@ def _solver_phase_summary(
         "## Residual limitations",
         "",
         "- the parser remains general in orbital count, but downstream solver coverage is still method-dependent",
-        "- the present solver does not yet map this pseudospin-orbital model into the existing spin-only thermodynamics or LSWT chain",
+        "- the present solver does not yet map this pseudospin-orbital model into the existing spin-only Sunny thermodynamics or LSWT chain",
         "- the LT-style relaxed diagnostic is intentionally retained as an alternative classical route and has not been removed",
     ]
     if grid_shape == [1, 1, 1]:
@@ -901,6 +946,10 @@ def solve_from_files(
     thermo_wl_ln_f=1.0,
     thermo_wl_sweeps=100,
 ):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    classical_checkpoint_path = output_dir / "classical_checkpoint.json"
+
     parsed_payload = build_pseudospin_orbital_payload(
         poscar_path=poscar_path,
         hr_path=hr_path,
@@ -920,7 +969,7 @@ def solve_from_files(
     _progress("Wrote initial human-readable reports")
 
     if run_thermodynamics and classical_method == "restricted-product-state":
-        raise ValueError("Sunny thermodynamics requires a CP^(N-1) classical state")
+        raise ValueError("Sunny pseudospin-orbital thermodynamics requires a CP^(N-1) classical state")
     if run_thermodynamics and classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
         raise ValueError(
             "cpn-generalized-lt is a diagnostic-only lower-bound / seed method and cannot be used directly for thermodynamics"
@@ -972,10 +1021,64 @@ def solve_from_files(
             if run_gswt
             else None
         )
-    elif classical_method == "sunny-cpn-minimize":
-        _progress("Starting Sunny CP^(N-1) classical minimization")
+    elif classical_method == "cpn-local-ray-minimize":
+        _progress("Starting CP^(N-1) local-ray constrained minimization")
         classical_model = build_sun_gswt_classical_payload(parsed_payload)
-        _progress("Running strict GLT diagnostic preconditioner for Sunny minimization")
+        progress_callback = _build_cpn_local_ray_progress_callback(classical_checkpoint_path)
+        _progress("Running strict GLT diagnostic preconditioner for local-ray minimization")
+        glt_initial_state = None
+        glt_preconditioner_result = None
+        glt_preconditioner = {
+            "method": "cpn-generalized-lt",
+            "used": False,
+            "source": None,
+            "q_vector": None,
+            "projector_exact_solution": None,
+        }
+        try:
+            glt_preconditioner_result = solve_cpn_generalized_lt_ground_state(
+                classical_model,
+                requested_method="cpn-generalized-lt",
+                starts=1,
+                seed=seed,
+            )
+            glt_initial_state, glt_preconditioner = _extract_cpn_glt_preconditioner(
+                glt_preconditioner_result,
+                default_supercell_shape=supercell_shape,
+            )
+        except Exception as exc:
+            _progress(f"GLT preconditioner unavailable: {exc}")
+            glt_preconditioner["error"] = {
+                "code": "glt-preconditioner-failed",
+                "message": str(exc),
+            }
+        solver_result = solve_cpn_local_ray_ground_state(
+            classical_model,
+            starts=starts,
+            seed=seed,
+            initial_state=glt_initial_state,
+            max_linear_size=max_linear_size,
+            convergence_repeats=convergence_repeats,
+            max_sweeps=max_sweeps,
+            progress_callback=progress_callback,
+        )
+        solver_result["glt_preconditioner"] = glt_preconditioner
+        solver_result["glt_preconditioner_diagnostic"] = glt_preconditioner_result
+        gswt_payload = (
+            _build_selected_gswt_payload(
+                classical_model,
+                solver_result,
+                gswt_backend=gswt_backend,
+                z_harmonic_reference_mode=z_harmonic_reference_mode,
+            )
+            if run_gswt
+            else None
+        )
+        _progress("Finished CP^(N-1) local-ray constrained minimization")
+    elif classical_method == "sunny-cpn-minimize":
+        _progress("Starting Sunny pseudospin-orbital CP^(N-1) classical minimization")
+        classical_model = build_sun_gswt_classical_payload(parsed_payload)
+        _progress("Running strict GLT diagnostic preconditioner for Sunny pseudospin-orbital minimization")
         glt_initial_state = None
         glt_preconditioner_result = None
         glt_preconditioner = {
@@ -1015,7 +1118,7 @@ def solve_from_files(
         if backend_result.get("status") != "ok":
             error = backend_result.get("error", {})
             code = error.get("code", "sunny-classical-backend-error")
-            message = error.get("message", "Sunny classical backend failed")
+            message = error.get("message", "Sunny pseudospin-orbital classical backend failed")
             raise RuntimeError(f"{code}: {message}")
         solver_result = {key: value for key, value in backend_result.items() if key != "status"}
         solver_result["glt_preconditioner_diagnostic"] = glt_preconditioner_result
@@ -1043,7 +1146,7 @@ def solve_from_files(
             if run_gswt and state is not None
             else None
         )
-        _progress("Finished Sunny classical minimization")
+        _progress("Finished Sunny pseudospin-orbital classical minimization")
     elif classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
         classical_model = build_sun_gswt_classical_payload(parsed_payload)
         solver_result = solve_cpn_generalized_lt_ground_state(
@@ -1142,7 +1245,7 @@ def solve_from_files(
 
         initial_state = resolve_cpn_local_state(solver_result, default_supercell_shape=supercell_shape)
         if initial_state is None:
-            raise ValueError("Sunny thermodynamics requires a CP^(N-1) classical state")
+            raise ValueError("Sunny pseudospin-orbital thermodynamics requires a CP^(N-1) classical state")
 
         thermodynamics_payload = {
             "backend": "Sunny.jl",
@@ -1192,14 +1295,14 @@ def solve_from_files(
             "wl_sweeps": int(thermodynamics_payload["wl_sweeps"]),
         }
         _progress(
-            "Starting Sunny thermodynamics: "
+            "Starting Sunny pseudospin-orbital thermodynamics: "
             f"backend={resolved_backend} temperatures={resolved_temperatures} sweeps={resolved_thermo_sweeps}"
         )
         backend_output = _run_sunny_thermodynamics_backend(thermodynamics_payload, stream_progress=True)
         if backend_output.get("status") != "ok":
             error = backend_output.get("error", {})
             code = error.get("code", "thermodynamics-backend-error")
-            message = error.get("message", "Sunny thermodynamics backend failed")
+            message = error.get("message", "Sunny pseudospin-orbital thermodynamics backend failed")
             raise RuntimeError(f"{code}: {message}")
 
         thermodynamics_result = _normalized_thermodynamics_backend_result(
@@ -1208,12 +1311,9 @@ def solve_from_files(
         )
         dos_result = backend_output.get("dos_result")
         thermodynamics_backend = resolved_backend
-        _progress("Finished Sunny thermodynamics")
+        _progress("Finished Sunny pseudospin-orbital thermodynamics")
 
     classical_solver_result = dict(solver_result)
-
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
     parsed_path = output_dir / "parsed_payload.json"
     simplified_path = output_dir / "simplified_payload.json"
     grouped_path = output_dir / "grouped_terms.json"
@@ -1314,6 +1414,11 @@ def solve_from_files(
             "grouped_terms": str(grouped_path),
             "classical_model": str(classical_model_path),
             "solver_result": str(solver_result_path),
+            "classical_checkpoint": (
+                str(classical_checkpoint_path)
+                if classical_method == "cpn-local-ray-minimize" and classical_checkpoint_path.exists()
+                else None
+            ),
             "gswt_payload": str(gswt_payload_path) if gswt_payload is not None else None,
             "gswt_result": str(gswt_result_path) if gswt_payload is not None else None,
             "thermodynamics_result": str(thermodynamics_result_path) if thermodynamics_result is not None else None,
@@ -1348,6 +1453,7 @@ def main():
             "restricted-product-state",
             "sun-gswt-cpn",
             "sun-gswt-single-q",
+            "cpn-local-ray-minimize",
             "sunny-cpn-minimize",
             "cpn-generalized-lt",
             "cpn-luttinger-tisza",
@@ -1360,7 +1466,7 @@ def main():
         "--max-linear-size",
         type=int,
         default=0,
-        help="Positive values impose a hard supercell linear-size cap; 0 means no cap for sunny-cpn-minimize.",
+        help="Positive values impose a hard supercell linear-size cap; 0 means no cap for sunny-cpn-minimize and cpn-local-ray-minimize.",
     )
     parser.add_argument("--convergence-repeats", type=int, default=2)
     parser.add_argument("--max-sweeps", type=int, default=200)

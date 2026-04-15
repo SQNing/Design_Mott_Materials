@@ -192,12 +192,12 @@ def validate_lswt_scope(model):
     if is_cpn_local_ray_classical_state(model):
         return _error(
             "invalid-classical-reference-state",
-            "spin-only LSWT requires classical_state.site_frames; CP^(N-1) local-ray classical states should use SUN/GSWT instead",
+            "spin-only Sunny LSWT requires classical_state.site_frames; CP^(N-1) local-ray classical states should use the pseudospin-orbital SUN/GSWT path instead",
         )
     if not has_spin_frame_classical_state(model):
         return _error(
             "invalid-classical-reference-state",
-            "spin-only LSWT requires classical_state.site_frames",
+            "spin-only Sunny LSWT requires classical_state.site_frames",
         )
     return None
 

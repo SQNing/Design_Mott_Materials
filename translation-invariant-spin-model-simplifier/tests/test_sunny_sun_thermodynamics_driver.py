@@ -2,6 +2,7 @@ import json
 import io
 import subprocess
 import sys
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -138,6 +139,54 @@ class RunSunnySunThermodynamicsDriverTests(unittest.TestCase):
         self.assertIn("[sunny-thermo] initializing parallel tempering", fake_stderr.getvalue())
         self.assertIn("[sunny-thermo] sweep 10/100", fake_stderr.getvalue())
 
+    def test_driver_drains_stdout_while_streaming_stderr_progress(self):
+        payload = _thermodynamics_payload("sunny-parallel-tempering")
+
+        class CoordinatedStdout:
+            def __init__(self, read_started):
+                self._read_started = read_started
+
+            def read(self):
+                self._read_started.set()
+                return _successful_backend_stdout("sunny-parallel-tempering")
+
+        class CoordinatedStderr:
+            def __init__(self, read_started):
+                self._read_started = read_started
+                self._line_index = 0
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self._line_index == 0:
+                    self._line_index += 1
+                    return "[sunny-thermo] initializing parallel tempering\n"
+                if not self._read_started.wait(timeout=0.1):
+                    raise AssertionError("stdout must be drained concurrently with stderr progress")
+                raise StopIteration
+
+        class FakeProcess:
+            def __init__(self):
+                read_started = threading.Event()
+                self.stdout = CoordinatedStdout(read_started)
+                self.stderr = CoordinatedStderr(read_started)
+                self.returncode = 0
+
+            def wait(self):
+                return self.returncode
+
+        def fake_popen(command, stdout, stderr, text):
+            self.assertEqual(command[0], "julia")
+            self.assertTrue(command[1].endswith("run_sunny_sun_thermodynamics.jl"))
+            self.assertTrue(text)
+            return FakeProcess()
+
+        with patch("classical.sunny_sun_thermodynamics_driver.subprocess.Popen", side_effect=fake_popen):
+            result = run_sunny_sun_thermodynamics(payload, stream_progress=True)
+
+        self.assertEqual(result["status"], "ok")
+
     def test_driver_supports_local_sampler_backend(self):
         payload = _thermodynamics_payload("sunny-local-sampler")
 
@@ -192,6 +241,18 @@ class RunSunnySunThermodynamicsDriverTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "missing-thermodynamics-payload")
 
+    def test_driver_rejects_non_cpn_thermodynamics_model_before_backend_runs(self):
+        payload = _thermodynamics_payload("sunny-local-sampler")
+        payload["model"]["classical_manifold"] = "spin-S2"
+
+        with patch("classical.sunny_sun_thermodynamics_driver.subprocess.run", side_effect=AssertionError("backend should not run")):
+            result = run_sunny_sun_thermodynamics(payload)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "invalid-thermodynamics-payload")
+        self.assertIn("CP^(N-1)", result["error"]["message"])
+        self.assertIn("pseudospin-orbital", result["error"]["message"])
+
     def test_driver_reports_missing_julia_command(self):
         payload = _thermodynamics_payload("sunny-local-sampler")
 
@@ -215,6 +276,53 @@ class RunSunnySunThermodynamicsDriverTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "backend-process-failed")
         self.assertEqual(result["error"]["message"], "thermodynamics backend exploded")
+
+    def test_driver_aggregates_reverse_pairs_before_calling_julia_backend(self):
+        payload = _thermodynamics_payload("sunny-local-sampler")
+        payload["model"]["positions"] = [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]]
+        payload["model"]["bond_tensors"] = [
+            {
+                "source": 0,
+                "target": 1,
+                "R": [1, 0, 0],
+                "pair_matrix": [
+                    [_serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                    [_serialize_complex(0.0), _serialize_complex(2.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                    [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(3.0), _serialize_complex(0.0)],
+                    [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(4.0)],
+                ],
+                "tensor_shape": [2, 2, 2, 2],
+            },
+            {
+                "source": 1,
+                "target": 0,
+                "R": [-1, 0, 0],
+                "pair_matrix": [
+                    [_serialize_complex(10.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                    [_serialize_complex(0.0), _serialize_complex(20.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                    [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(30.0), _serialize_complex(0.0)],
+                    [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(40.0)],
+                ],
+                "tensor_shape": [2, 2, 2, 2],
+            },
+        ]
+
+        def fake_run(command, check, capture_output, text):
+            backend_payload = json.loads(Path(command[2]).read_text(encoding="utf-8"))
+            bond_tensors = backend_payload["model"]["bond_tensors"]
+            self.assertEqual(len(bond_tensors), 1)
+            diagonal = [bond_tensors[0]["pair_matrix"][index][index]["real"] for index in range(4)]
+            self.assertEqual(diagonal, [11.0, 32.0, 23.0, 44.0])
+
+            class Completed:
+                stdout = _successful_backend_stdout("sunny-local-sampler")
+
+            return Completed()
+
+        with patch("classical.sunny_sun_thermodynamics_driver.subprocess.run", side_effect=fake_run):
+            result = run_sunny_sun_thermodynamics(payload)
+
+        self.assertEqual(result["status"], "ok")
 
     def test_driver_reports_invalid_backend_json(self):
         payload = _thermodynamics_payload("sunny-local-sampler")

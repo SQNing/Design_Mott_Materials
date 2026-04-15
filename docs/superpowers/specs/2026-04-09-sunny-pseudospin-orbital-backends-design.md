@@ -15,6 +15,22 @@ The repository already contains the key pieces needed for a Sunny-backed pseudos
 - `scripts/classical/sun_gswt_monte_carlo.py` provides a Python finite-temperature Monte Carlo sampler on the same manifold.
 - `scripts/lswt/build_sun_gswt_payload.py`, `scripts/lswt/sun_gswt_driver.py`, and `scripts/lswt/run_sunny_sun_gswt.jl` already prove the repository can call `Sunny.jl` through a thin Python-to-Julia adapter.
 
+Important interpretation note:
+
+- throughout this design, `CP^(N-1)` refers to the chosen local/classical variational manifold and serialized payload semantics
+- it is not shorthand for the projected Hamiltonian being SU(`N`)-symmetric
+- it is also not meant to imply that optimization on `CP^(N-1)` is the same thing as imposing SU(`N`) symmetry constraints on the Hamiltonian
+
+More precisely, for the Sunny-backed pseudospin-orbital workflow, `CP^(N-1)` should be interpreted as the local classical-state manifold associated with an `N`-component coherent-state ray: the physical state is represented by a normalized complex vector modulo an overall phase. In Sunny's `:SUN` formalism and the related Sunny / generalized-spin-wave literature, this local parametrization is expressed in terms of `SU(N)` coherent states, where `N` denotes the local Hilbert-space dimension rather than a symmetry constraint on the Hamiltonian. Therefore, adopting a `CP^(N-1)` / `:SUN` description here does not imply that the projected Hamiltonian is SU(`N`)-symmetric, and it does not mean that optimization on `CP^(N-1)` is equivalent to imposing SU(`N`) symmetry constraints. For the present backend, the relevant requirement is instead that the model admit a representation within Sunny's coherent-state and two-site operator framework, including full pair-coupling matrices when supported, rather than only SU(`N`)-symmetric interactions.
+
+Reference points for this interpretation:
+
+- Sunny stable library reference: `System(..., mode=:SUN)`, `set_coherent!`, and `set_pair_coupling!` describe `:SUN` systems in terms of `SU(N)` coherent states and general two-site operators, with `N` tied to the local state dimension rather than to a Hamiltonian symmetry requirement.
+- Sunny.jl JOSS paper: "Sunny.jl: A Julia Package for Spin Dynamics" (`https://www.osti.gov/servlets/purl/3010640`)
+- "Classical spin dynamics based on SU(N) coherent states" (`https://arxiv.org/abs/2106.14125`)
+- "Langevin dynamics of generalized spins as SU(N) coherent states" (`https://arxiv.org/abs/2209.01265`)
+- "Generalized spin-wave theory: application to the bilinear-biquadratic model" (`https://arxiv.org/abs/1307.7731`)
+
 The missing capability is not model construction. It is backend exposure and orchestration:
 
 - there is no `Sunny.jl` classical minimizer available as a `classical_method`
@@ -91,7 +107,7 @@ Compatibility:
 
 - thermodynamics remains pseudospin-orbital-only in this change
 - thermodynamics may run after any classical method that yields a valid `CP^(N-1)` state with `local_rays` and a compatible `supercell_shape`
-- `restricted-product-state` is not a valid predecessor for Sunny thermodynamics in this first release because it does not produce the `CP^(N-1)` coherent-state representation required by the Sunny `:SUN` system
+- `restricted-product-state` is not a valid predecessor for Sunny thermodynamics in this first release because it does not produce the `CP^(N-1)` local-ray state representation expected by the Sunny `:SUN` system
 - if the available classical state does not match the requested thermodynamics supercell, the CLI must fail explicitly rather than silently reinitialize to a different cell
 
 ### Common Thermodynamics CLI Arguments
@@ -167,6 +183,8 @@ Reasons:
 - it already encodes the approved `many_body_hr -> CP^(N-1)` mapping
 - it already preserves both `pair_matrix` and `bond_tensors`
 - reusing one builder keeps Python and Sunny backends comparable on the same model definition
+
+Here again, `many_body_hr -> CP^(N-1)` should be read as a choice of retained local/classical manifold representation, not as an SU(`N`) symmetry statement about the effective Hamiltonian.
 
 ### New Files
 

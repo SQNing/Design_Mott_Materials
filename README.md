@@ -7,8 +7,13 @@ Current classical-stage highlights:
 - geometry-aware shell mapping from lattice parameters plus fractional magnetic-atom coordinates
 - classical `variational` solving that expands the magnetic supercell until the energy density converges, with early stopping once consecutive scans stabilize and a default search cap of `6x6x6` in 3D
 - first-stage Sunny-backed LSWT support for explicit bilinear spin models with a validated classical reference state
-- `many_body_hr` pseudospin-orbital workflows can now expose `Sunny.jl` as a classical `CP^(N-1)` minimizer through `sunny-cpn-minimize`
+- `many_body_hr` pseudospin-orbital workflows can now expose `Sunny.jl` as a classical `CP^(N-1)`-manifold minimizer through `sunny-cpn-minimize`
 - `many_body_hr` pseudospin-orbital workflows can now expose Sunny finite-temperature backends through `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`
+
+The current Sunny integrations therefore split into two separate families:
+
+- spin-only Sunny LSWT for explicit bilinear spin Hamiltonians with spin-frame classical references
+- pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes for `many_body_hr` models on the local `CP^(N-1)` variational manifold
 
 ## Quick Install
 
@@ -70,7 +75,10 @@ The skill will then:
 3. ask for the next workflow decision when needed, such as the classical method or whether to continue to thermodynamics or LSWT
 4. run the selected classical stage and report the magnetic structure, energy, and any scope limits
 
-For `many_body_hr` pseudospin-orbital models, the current Sunny-backed options are aimed at the `CP^(N-1)` classical manifold built from the projected two-site bond operators:
+For `many_body_hr` pseudospin-orbital models, the current Sunny-backed options are aimed at the `CP^(N-1)` classical variational manifold built from the projected two-site bond operators:
+
+- this is a statement about the classical-state manifold and payload semantics, not a claim that the projected Hamiltonian is automatically SU(`N`)-symmetric
+- likewise, using Sunny `:SUN` coordinates here should be read as a local/classical parametrization choice, not as an assertion that solving on `CP^(N-1)` is equivalent to imposing SU(`N`) symmetry constraints on the Hamiltonian
 
 - `sunny-cpn-minimize` performs Sunny `:SUN` classical energy minimization on the chosen magnetic supercell
 - `sunny-local-sampler` performs direct finite-temperature sampling

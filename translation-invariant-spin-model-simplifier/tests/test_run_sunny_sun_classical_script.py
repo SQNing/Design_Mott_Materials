@@ -34,6 +34,11 @@ class RunSunnySunClassicalScriptTests(unittest.TestCase):
         self.assertIn("println(stderr,", source)
         self.assertIn("start $(start_index)/$(starts)", source)
 
+    def test_script_builds_p1_crystal_to_avoid_reimposing_space_group_symmetry(self):
+        source = SCRIPT_PATH.read_text(encoding="utf-8")
+
+        self.assertTrue('Crystal(latvecs, positions, 1;' in source or 'Crystal(latvecs, positions, "P1"' in source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,11 @@ This directory stores lightweight reference documents used by the skill layer of
 These files are intended to clarify workflow expectations and input/fallback
 contracts for the skill:
 
+- `2026-04-15-certified-glt-status.md`
+  Stage summary for the additive `certified_glt` work: what is implemented,
+  which parts are conservative certification logic versus workflow tooling, how
+  the bundle files are meant to be used, and what the current honesty limits
+  are.
 - `input-schema.md`
   Documents the expected normalized payload structure and the supported
   `local_term.representation.kind` variants.

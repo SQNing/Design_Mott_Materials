@@ -81,7 +81,10 @@ function build_crystal(model)
     latvecs = to_float_matrix(model.lattice_vectors)
     positions = [to_float_vector(position) for position in model.positions]
     types = ["site$(index)" for index in 1:length(positions)]
-    return Sunny.Crystal(latvecs, positions; types=types)
+    # The hr-style payload already enumerates the bond list explicitly. Build a
+    # P1 crystal so Sunny does not reimpose space-group symmetry and overwrite
+    # distinct directional couplings during set_pair_coupling!.
+    return Sunny.Crystal(latvecs, positions, 1; types=types)
 end
 
 function build_system(model, supercell_shape, seed)
@@ -100,7 +103,8 @@ function build_system(model, supercell_shape, seed)
         matrix = to_complex_matrix(bond.pair_matrix)
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.R))))
         # Keep the effective two-site operator in its full matrix form instead
-        # of forcing a bilinear/biquadratic projection before classical minimization.
+        # of forcing a bilinear/biquadratic or SU(N)-symmetric projection before
+        # pseudospin-orbital :SUN classical minimization.
         Sunny.set_pair_coupling!(sys, matrix, Sunny.Bond(1, 1, offset); extract_parts=false)
     end
 

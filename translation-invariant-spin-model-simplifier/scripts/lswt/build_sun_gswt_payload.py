@@ -2,6 +2,7 @@
 from common.bravais_kpaths import default_high_symmetry_path
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+from common.sunny_bond_adapter import adapt_model_for_sunny_pair_couplings
 from lswt.build_lswt_payload import infer_spatial_dimension
 
 
@@ -112,10 +113,11 @@ def _resolve_default_q_path(model):
 def build_sun_gswt_payload(model, classical_state=None):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("Sunny GSWT payload expects a CP^(N-1) classical model")
-    conventions = resolve_pseudospin_orbital_conventions(model)
+    adapted_model = adapt_model_for_sunny_pair_couplings(model)
+    conventions = resolve_pseudospin_orbital_conventions(adapted_model)
     resolved_classical_state = resolve_cpn_classical_state_payload(classical_state)
 
-    q_path_summary = _resolve_default_q_path(model)
+    q_path_summary = _resolve_default_q_path(adapted_model)
     ordering = _ordering_summary(classical_state)
 
     payload = {
@@ -123,26 +125,28 @@ def build_sun_gswt_payload(model, classical_state=None):
         "backend": "Sunny.jl",
         "mode": "SUN",
         "payload_kind": "sun_gswt_prototype",
-        "local_dimension": int(model["local_dimension"]),
-        "orbital_count": int(model.get("orbital_count", 0)),
+        "local_dimension": int(adapted_model["local_dimension"]),
+        "orbital_count": int(adapted_model.get("orbital_count", 0)),
         "basis_order": conventions["basis_order"],
         "pair_basis_order": conventions["pair_basis_order"],
-        "local_basis_labels": list(model.get("local_basis_labels", [])),
-        "lattice_vectors": model.get("lattice_vectors", []),
-        "positions": model.get("positions", []),
+        "local_basis_labels": list(adapted_model.get("local_basis_labels", [])),
+        "lattice_vectors": adapted_model.get("lattice_vectors", []),
+        "positions": adapted_model.get("positions", []),
         "pair_couplings": [
             {
                 "R": list(bond["R"]),
+                "source": int(bond.get("source", 0)),
+                "target": int(bond.get("target", 0)),
                 "pair_matrix": bond.get("pair_matrix"),
                 "tensor_shape": list(bond.get("tensor_shape", [])),
             }
-            for bond in model.get("bond_tensors", [])
+            for bond in adapted_model.get("bond_tensors", [])
         ],
         "initial_local_rays": list(resolved_classical_state.get("local_rays", [])),
         "supercell_shape": list(resolved_classical_state.get("supercell_shape", [])),
         "classical_reference": {
             "state_kind": str(resolved_classical_state.get("state_kind", "local_rays")),
-            "manifold": str(resolved_classical_state.get("manifold", model.get("classical_manifold", "CP^(N-1)"))),
+            "manifold": str(resolved_classical_state.get("manifold", adapted_model.get("classical_manifold", "CP^(N-1)"))),
             "frame_construction": "first-column-is-reference-ray",
             "schema_version": int(resolved_classical_state.get("schema_version", 1)),
         },
@@ -164,6 +168,7 @@ def build_sun_gswt_payload(model, classical_state=None):
             "manifold": "CP^(N-1)",
             "status": "prototype-adapter-payload",
         },
+        "sunny_adapter": dict(adapted_model.get("sunny_adapter", {})),
     }
     if ordering is not None:
         payload["ordering"] = ordering

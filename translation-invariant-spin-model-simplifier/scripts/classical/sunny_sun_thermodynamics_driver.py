@@ -4,13 +4,16 @@ import json
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+    from common.sunny_bond_adapter import adapt_model_for_sunny_pair_couplings
 else:
     from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+    from common.sunny_bond_adapter import adapt_model_for_sunny_pair_couplings
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -40,6 +43,13 @@ def _preflight_payload_error(thermodynamics_payload):
     model = thermodynamics_payload.get("model")
     if not isinstance(model, dict):
         return None
+    if model.get("classical_manifold") != "CP^(N-1)":
+        return _error(
+            "invalid-thermodynamics-payload",
+            "Sunny pseudospin-orbital SUN thermodynamics payload expects a CP^(N-1) model",
+            payload_kind=thermodynamics_payload.get("payload_kind"),
+            backend=thermodynamics_payload.get("backend", "Sunny.jl"),
+        )
     try:
         resolve_pseudospin_orbital_conventions(model)
     except ValueError as exc:
@@ -72,14 +82,39 @@ def _run_backend_process_with_progress(command):
     assert process.stdout is not None
     assert process.stderr is not None
 
+    stdout_chunks = []
+    stdout_errors = []
     stderr_chunks = []
-    for line in process.stderr:
-        stderr_chunks.append(line)
-        print(line, file=sys.stderr, end="")
-        sys.stderr.flush()
+    stderr_errors = []
 
-    stdout = process.stdout.read()
+    def _read_stdout():
+        try:
+            stdout_chunks.append(process.stdout.read())
+        except BaseException as exc:  # pragma: no cover - defensive propagation
+            stdout_errors.append(exc)
+
+    def _read_stderr():
+        try:
+            for line in process.stderr:
+                stderr_chunks.append(line)
+                print(line, file=sys.stderr, end="")
+                sys.stderr.flush()
+        except BaseException as exc:  # pragma: no cover - defensive propagation
+            stderr_errors.append(exc)
+
+    stdout_thread = threading.Thread(target=_read_stdout, daemon=True)
+    stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+    stdout_thread.join()
+    stderr_thread.join()
+
     returncode = process.wait()
+    if stdout_errors:
+        raise stdout_errors[0]
+    if stderr_errors:
+        raise stderr_errors[0]
+    stdout = "".join(stdout_chunks)
     stderr = "".join(stderr_chunks)
     if returncode != 0:
         raise subprocess.CalledProcessError(returncode=returncode, cmd=command, output=stdout, stderr=stderr)
@@ -107,6 +142,10 @@ def run_sunny_sun_thermodynamics(payload, julia_cmd="julia", stream_progress=Fal
             payload_kind=payload_kind,
             backend=backend,
         )
+
+    if isinstance(thermodynamics_payload.get("model"), dict):
+        thermodynamics_payload = dict(thermodynamics_payload)
+        thermodynamics_payload["model"] = adapt_model_for_sunny_pair_couplings(thermodynamics_payload["model"])
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8", delete=False) as handle:
         payload_path = Path(handle.name)

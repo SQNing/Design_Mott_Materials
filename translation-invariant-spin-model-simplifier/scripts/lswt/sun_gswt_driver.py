@@ -41,6 +41,14 @@ def _preflight_payload_error(gswt_payload):
 
     classical_reference = gswt_payload.get("classical_reference")
     if isinstance(classical_reference, dict):
+        manifold = classical_reference.get("manifold")
+        if manifold != "CP^(N-1)":
+            return _error(
+                "invalid-gswt-payload",
+                f"Sunny pseudospin-orbital SUN-GSWT payload expects a CP^(N-1) classical reference, got {manifold!r}",
+                payload_kind=gswt_payload.get("payload_kind"),
+                backend=gswt_payload.get("backend", "Sunny.jl"),
+            )
         frame_construction = classical_reference.get("frame_construction")
         if frame_construction is not None and frame_construction != "first-column-is-reference-ray":
             return _error(
@@ -49,6 +57,13 @@ def _preflight_payload_error(gswt_payload):
                 payload_kind=gswt_payload.get("payload_kind"),
                 backend=gswt_payload.get("backend", "Sunny.jl"),
             )
+    else:
+        return _error(
+            "invalid-gswt-payload",
+            "Sunny pseudospin-orbital SUN-GSWT payload must include classical_reference.manifold = 'CP^(N-1)'",
+            payload_kind=gswt_payload.get("payload_kind"),
+            backend=gswt_payload.get("backend", "Sunny.jl"),
+        )
 
     ordering = gswt_payload.get("ordering")
     if not isinstance(ordering, dict):

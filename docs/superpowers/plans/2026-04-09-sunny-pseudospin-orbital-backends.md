@@ -8,6 +8,10 @@
 
 **Tech Stack:** Python 3, Julia, Sunny.jl, JSON3.jl, `unittest`, `pytest`
 
+**Interpretation Note:** In this plan, `CP^(N-1)` refers to the retained local/classical variational manifold and payload semantics used by the pseudospin-orbital pipeline. It is not shorthand for the projected Hamiltonian being SU(`N`)-symmetric, and it should not be read as saying that optimization on `CP^(N-1)` is the same thing as imposing SU(`N`) symmetry constraints on the Hamiltonian.
+
+**Manual / Literature Note:** Sunny's `:SUN` language should be read here as a coherent-state parametrization of an `N`-component local ray, with `N` set by the local Hilbert-space dimension. In other words, the local-state geometry matches `CP^(N-1)`, but this does not imply that the effective Hamiltonian is SU(`N`)-symmetric. What matters for this plan is compatibility with Sunny's coherent-state and two-site operator interface, including full pair-coupling matrices when supported by the backend.
+
 ---
 
 ### Task 1: Add the Sunny Classical Backend Adapter
@@ -606,8 +610,8 @@ Expected: FAIL only if explicit doc assertion tests were added first.
 - [ ] **Step 4: Update the root `README.md` with the new pseudospin-orbital backend matrix**
 
 ```markdown
-- `sunny-cpn-minimize` for classical `CP^(N-1)` minimization on a chosen magnetic supercell
-- `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau` for finite-temperature pseudospin-orbital studies
+- `sunny-cpn-minimize` for classical minimization on the retained `CP^(N-1)` variational manifold over a chosen magnetic supercell
+- `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau` for finite-temperature pseudospin-orbital studies on the same manifold/payload semantics
 ```
 
 - [ ] **Step 5: Run the full targeted verification suite**
