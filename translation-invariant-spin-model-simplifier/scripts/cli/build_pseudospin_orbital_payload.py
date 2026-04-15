@@ -6,9 +6,10 @@ from pathlib import Path
 from input.parse_many_body_hr import parse_many_body_hr_file
 from input.parse_poscar import parse_poscar_file
 from simplify.project_pseudospin_orbital_basis import (
+    build_local_basis_labels,
     infer_local_dimension_from_num_wann,
-    infer_orbital_count,
     project_two_site_bond_matrix,
+    resolve_local_space_spec,
 )
 
 
@@ -18,20 +19,6 @@ def _serialize_complex(value):
 
 def _serialize_matrix(matrix):
     return [[_serialize_complex(value) for value in row] for row in matrix]
-
-
-def _local_basis_labels(orbital_count):
-    orbital_count = int(orbital_count)
-    if orbital_count <= 0:
-        raise ValueError("orbital_count must be positive")
-    if orbital_count == 1:
-        return ["up", "down"]
-
-    labels = []
-    for orbital in range(1, orbital_count + 1):
-        labels.append(f"up_orb{orbital}")
-        labels.append(f"down_orb{orbital}")
-    return labels
 
 
 def _default_magnetic_site_payload():
@@ -57,21 +44,82 @@ def _default_magnetic_site_payload():
     }
 
 
-def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance=1e-10):
+def _retained_local_space_payload(local_space_spec, local_basis_labels):
+    factorization = {"kind": str(local_space_spec["kind"])}
+    if local_space_spec["kind"] == "orbital_times_spin":
+        factorization["orbital_count"] = int(local_space_spec["orbital_count"])
+        factorization["spin_dimension"] = int(local_space_spec["spin_dimension"])
+        payload = {
+            "dimension": int(local_space_spec["local_dimension"]),
+            "factorization": factorization,
+            "tensor_factor_order": str(local_space_spec["basis_order"]),
+            "basis_labels": list(local_basis_labels),
+        }
+        return payload
+
+    factorization["multiplet_dimension"] = int(local_space_spec["local_dimension"])
+    return {
+        "dimension": int(local_space_spec["local_dimension"]),
+        "factorization": factorization,
+        "basis_labels": list(local_basis_labels),
+    }
+
+
+def _operator_dictionary_payload(local_space_spec, operator_basis_labels):
+    local_operator_basis = {
+        "matrix_construction": str(local_space_spec["matrix_construction"]),
+        "operator_basis_labels": list(operator_basis_labels),
+    }
+    payload = {
+        "local_basis_kind": str(local_space_spec["local_basis_kind"]),
+        "local_operator_basis": local_operator_basis,
+    }
+    if local_space_spec["kind"] == "orbital_times_spin":
+        payload["tensor_factor_order"] = str(local_space_spec["basis_order"])
+        local_operator_basis.update(
+            {
+                "spin_basis": "tau_mu / sqrt(2)",
+                "orbital_basis": "Lambda_A with Tr(Lambda_A Lambda_B) = delta_AB",
+                "product_basis": "Gamma_A_mu = orbital_A ⊗ spin_mu",
+            }
+        )
+    else:
+        local_operator_basis["generator_basis"] = "Hermitian orthonormal basis on the retained local multiplet"
+    return payload
+
+
+def _inferred_payload(local_space_spec, num_wann):
+    payload = {
+        "local_dimension": int(local_space_spec["local_dimension"]),
+        "two_site_dimension": int(num_wann),
+        "site_count_assumption": 2,
+    }
+    if local_space_spec["kind"] == "orbital_times_spin":
+        payload["orbital_count"] = int(local_space_spec["orbital_count"])
+    else:
+        payload["multiplet_dimension"] = int(local_space_spec["local_dimension"])
+    return payload
+
+
+def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance=1e-10, local_space_mode="auto"):
     structure = parse_poscar_file(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
 
     local_dimension = infer_local_dimension_from_num_wann(hamiltonian["num_wann"])
-    orbital_count = infer_orbital_count(local_dimension)
+    local_space_spec = resolve_local_space_spec(local_dimension, local_space_mode=local_space_mode)
     magnetic_site_payload = _default_magnetic_site_payload()
+    local_basis_labels = build_local_basis_labels(local_space_spec)
 
     bond_blocks = []
+    operator_basis_labels = None
     for R in hamiltonian["R_vectors"]:
         projected = project_two_site_bond_matrix(
             hamiltonian["blocks_by_R"][R],
-            orbital_count=orbital_count,
             coefficient_tolerance=coefficient_tolerance,
+            local_space_mode=local_space_spec["mode"],
         )
+        if operator_basis_labels is None:
+            operator_basis_labels = list(projected["operator_basis"])
         bond_blocks.append(
             {
                 "R": list(R),
@@ -90,45 +138,26 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
             }
         )
 
-    local_basis_labels = _local_basis_labels(orbital_count)
-
     return {
         "schema_version": 2,
         "input_mode": "many_body_hr",
         "basis_semantics": {
             "local_space": "pseudospin_orbital",
+            "local_space_mode": str(local_space_spec["mode"]),
         },
-        "basis_order": "orbital_major_spin_minor",
-        "pair_basis_order": "site_i_major_site_j_minor",
+        "basis_order": str(local_space_spec["basis_order"]),
+        "pair_basis_order": str(local_space_spec["pair_basis_order"]),
         "local_basis_labels": local_basis_labels,
-        "retained_local_space": {
-            "dimension": local_dimension,
-            "factorization": {
-                "kind": "orbital_times_spin",
-                "orbital_count": orbital_count,
-                "spin_dimension": 2,
-            },
-            "tensor_factor_order": "orbital_major_spin_minor",
-            "basis_labels": list(local_basis_labels),
-        },
+        "retained_local_space": _retained_local_space_payload(local_space_spec, local_basis_labels),
         "pair_operator_convention": {
             "representation": "pair_matrix",
-            "pair_basis_order": "site_i_major_site_j_minor",
+            "pair_basis_order": str(local_space_spec["pair_basis_order"]),
             "tensor_view": {
                 "kind": "K_ab_cd",
                 "index_order": ["left_bra", "right_bra", "left_ket", "right_ket"],
             },
         },
-        "operator_dictionary": {
-            "local_basis_kind": "orbital_times_spin",
-            "tensor_factor_order": "orbital_major_spin_minor",
-            "local_operator_basis": {
-                "spin_basis": "tau_mu / sqrt(2)",
-                "orbital_basis": "Lambda_A with Tr(Lambda_A Lambda_B) = delta_AB",
-                "product_basis": "Gamma_A_mu = orbital_A ⊗ spin_mu",
-                "matrix_construction": "kron(orbital, spin)",
-            },
-        },
+        "operator_dictionary": _operator_dictionary_payload(local_space_spec, operator_basis_labels or []),
         "structure": structure,
         "hamiltonian": {
             "comment": hamiltonian["comment"],
@@ -136,12 +165,7 @@ def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance
             "nrpts": hamiltonian["nrpts"],
             "degeneracies": hamiltonian["degeneracies"],
         },
-        "inferred": {
-            "local_dimension": local_dimension,
-            "orbital_count": orbital_count,
-            "two_site_dimension": hamiltonian["num_wann"],
-            "site_count_assumption": 2,
-        },
+        "inferred": _inferred_payload(local_space_spec, hamiltonian["num_wann"]),
         **magnetic_site_payload,
         "bond_blocks": bond_blocks,
     }
@@ -152,12 +176,18 @@ def main():
     parser.add_argument("--poscar", required=True)
     parser.add_argument("--hr", required=True)
     parser.add_argument("--coefficient-tolerance", type=float, default=1e-10)
+    parser.add_argument(
+        "--local-space-mode",
+        choices=["auto", "orbital-times-spin", "generic-multiplet"],
+        default="auto",
+    )
     args = parser.parse_args()
 
     payload = build_pseudospin_orbital_payload(
         poscar_path=Path(args.poscar),
         hr_path=Path(args.hr),
         coefficient_tolerance=float(args.coefficient_tolerance),
+        local_space_mode=str(args.local_space_mode),
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0

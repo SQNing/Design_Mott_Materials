@@ -4,8 +4,6 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
-from simplify.project_pseudospin_orbital_basis import build_local_operator_basis
-
 
 def _format_real_or_complex(serialized, significant_digits=6):
     real = float(serialized["real"])
@@ -25,8 +23,12 @@ def _complex_from_serialized(serialized):
 
 
 def _operator_basis_labels(parsed_payload):
-    orbital_count = int(parsed_payload["inferred"]["orbital_count"])
-    return [item["label"] for item in build_local_operator_basis(orbital_count)]
+    operator_dictionary = parsed_payload.get("operator_dictionary", {})
+    local_operator_basis = operator_dictionary.get("local_operator_basis", {})
+    labels = local_operator_basis.get("operator_basis_labels", [])
+    if labels:
+        return list(labels)
+    raise ValueError("parsed payload must include operator_dictionary.local_operator_basis.operator_basis_labels")
 
 
 def _dense_coefficient_matrix(block, basis_labels):
@@ -297,9 +299,13 @@ def render_pseudospin_orbital_human_tex(grouped_payload):
 
 def render_pseudospin_orbital_full_text(parsed_payload):
     basis_labels = _operator_basis_labels(parsed_payload)
+    inferred = parsed_payload.get("inferred", {})
     lines = ["Full coefficient report", "======================", ""]
-    lines.append(f"local_dimension = {parsed_payload['inferred']['local_dimension']}")
-    lines.append(f"orbital_count = {parsed_payload['inferred']['orbital_count']}")
+    lines.append(f"local_dimension = {inferred['local_dimension']}")
+    if "orbital_count" in inferred:
+        lines.append(f"orbital_count = {inferred['orbital_count']}")
+    if "multiplet_dimension" in inferred:
+        lines.append(f"multiplet_dimension = {inferred['multiplet_dimension']}")
     lines.append("")
     lines.append("Basis index map")
     for index, label in enumerate(basis_labels, start=1):
@@ -317,6 +323,7 @@ def render_pseudospin_orbital_full_text(parsed_payload):
 
 def render_pseudospin_orbital_full_tex(parsed_payload):
     basis_labels = _operator_basis_labels(parsed_payload)
+    inferred = parsed_payload.get("inferred", {})
     lines = [
         r"\documentclass{article}",
         r"\usepackage{amsmath}",
@@ -324,13 +331,16 @@ def render_pseudospin_orbital_full_tex(parsed_payload):
         r"\usepackage{graphicx}",
         r"\begin{document}",
         r"\section*{Full coefficient report}",
-        rf"Local dimension: {parsed_payload['inferred']['local_dimension']}\\",
-        rf"Orbital count: {parsed_payload['inferred']['orbital_count']}\\",
+        rf"Local dimension: {inferred['local_dimension']}\\",
         r"\subsection*{Basis index map}",
         r"\begin{longtable}{rl}",
         r"Index & Label \\",
         r"\hline",
     ]
+    if "orbital_count" in inferred:
+        lines.insert(7, rf"Orbital count: {inferred['orbital_count']}\\")
+    if "multiplet_dimension" in inferred:
+        lines.insert(7, rf"Multiplet dimension: {inferred['multiplet_dimension']}\\")
     for index, label in enumerate(basis_labels, start=1):
         escaped_label = label.replace("_", r"\_")
         lines.append(rf"{index} & \texttt{{{escaped_label}}} \\")

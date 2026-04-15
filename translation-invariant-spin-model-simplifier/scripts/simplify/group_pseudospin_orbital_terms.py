@@ -78,6 +78,29 @@ def _orbital_axis(label, orbital_count):
 
 
 def _local_factor_info(local_label, site_index, orbital_count):
+    if "__" not in local_label:
+        if local_label == "multiplet_I":
+            return {
+                "latex": rf"\hat I_{{{site_index}}}",
+                "body_count": 0,
+                "local_kind": "I",
+                "spin_label": None,
+                "orbital_label": None,
+                "spin_axis": None,
+                "orbital_axis": None,
+                "generic_label": local_label,
+            }
+        return {
+            "latex": rf"\hat \Lambda_{{{site_index}}}^{{({local_label})}}",
+            "body_count": 1,
+            "local_kind": "L",
+            "spin_label": None,
+            "orbital_label": None,
+            "spin_axis": None,
+            "orbital_axis": None,
+            "generic_label": local_label,
+        }
+
     spin_label, orbital_label = local_label.split("__", 1)
     spin = _spin_latex(spin_label, site_index)
     orbital = _orbital_latex(orbital_label, site_index)
@@ -97,6 +120,7 @@ def _local_factor_info(local_label, site_index, orbital_count):
         "orbital_label": orbital_label,
         "spin_axis": _spin_axis(spin_label),
         "orbital_axis": _orbital_axis(orbital_label, orbital_count),
+        "generic_label": None,
     }
 
 
@@ -104,6 +128,10 @@ def _family_name(left_kind, right_kind):
     pair = (left_kind, right_kind)
     if pair == ("I", "I"):
         return "constant"
+    if pair in {("L", "I"), ("I", "L")}:
+        return "one_body_local_generator"
+    if pair == ("L", "L"):
+        return "two_body_local_generator"
     if pair in {("S", "I"), ("I", "S")}:
         return "one_body_spin"
     if pair in {("T", "I"), ("I", "T")}:
@@ -126,7 +154,9 @@ def _family_name(left_kind, right_kind):
 def _residual_reason(left_info, right_info, coefficient_magnitude, threshold):
     if coefficient_magnitude < threshold:
         return "below_threshold"
-    if left_info["orbital_label"].startswith("orbital_DIAG_") or right_info["orbital_label"].startswith("orbital_DIAG_"):
+    left_orbital_label = left_info.get("orbital_label") or ""
+    right_orbital_label = right_info.get("orbital_label") or ""
+    if left_orbital_label.startswith("orbital_DIAG_") or right_orbital_label.startswith("orbital_DIAG_"):
         return "unclassified_local_orbital_generator"
     return "rule_not_implemented"
 
@@ -264,12 +294,14 @@ def _finalize_kugel_khomskii(bucket):
     return _serialize_nested_coefficients(bucket)
 
 
-def _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold):
+def _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold, factorization_kind):
     displacement = _cartesian_from_R(block["R"], lattice_vectors)
     distance = _vector_norm(displacement)
     grouped_terms = []
     residual_terms = []
-    kugel_khomskii = _new_kugel_khomskii_bucket() if orbital_count == 2 else None
+    kugel_khomskii = (
+        _new_kugel_khomskii_bucket() if factorization_kind == "orbital_times_spin" and orbital_count == 2 else None
+    )
 
     for item in block.get("coefficients", []):
         left_info = _local_factor_info(item["left_label"], 0, orbital_count)
@@ -278,7 +310,9 @@ def _group_single_bond(block, lattice_vectors, orbital_count, significant_thresh
         family = _family_name(left_info["local_kind"], right_info["local_kind"])
         body_order = left_info["body_count"] + right_info["body_count"]
         latex_label = f"{left_info['latex']} {right_info['latex']}".strip()
-        if left_info["orbital_label"].startswith("orbital_DIAG_") or right_info["orbital_label"].startswith("orbital_DIAG_"):
+        left_orbital_label = left_info.get("orbital_label") or ""
+        right_orbital_label = right_info.get("orbital_label") or ""
+        if left_orbital_label.startswith("orbital_DIAG_") or right_orbital_label.startswith("orbital_DIAG_"):
             family = "residual"
 
         entry = {
@@ -317,9 +351,11 @@ def group_pseudospin_orbital_terms(parsed_payload, significant_threshold=1e-4):
     if not lattice_vectors:
         raise ValueError("parsed payload must include structure.lattice_vectors")
 
+    factorization = parsed_payload.get("retained_local_space", {}).get("factorization", {})
+    factorization_kind = str(factorization.get("kind") or "orbital_times_spin")
     orbital_count = int(parsed_payload.get("inferred", {}).get("orbital_count", 0))
     bonds = [
-        _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold)
+        _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold, factorization_kind)
         for block in parsed_payload.get("bond_blocks", [])
     ]
 

@@ -511,15 +511,15 @@ def _solver_phase_summary(
         if isinstance(thermodynamics_result.get("configuration"), dict)
         else {}
     )
+    inferred = parsed_payload.get("inferred", {})
     lines = [
         "# Pseudospin-Orbital Solver Phase",
         "",
         "## Conventions",
         "",
         "- local space: pseudospin_orbital",
-        "- basis order: orbital_major_spin_minor",
-        f"- local_dimension: {parsed_payload['inferred']['local_dimension']}",
-        f"- orbital_count: {parsed_payload['inferred']['orbital_count']}",
+        f"- basis order: {parsed_payload.get('basis_order')}",
+        f"- local_dimension: {inferred['local_dimension']}",
         f"- classical_method: {classical_method}",
         "- coefficient convention in classical solver: require projected coefficients to be real within tolerance",
         "",
@@ -634,6 +634,10 @@ def _solver_phase_summary(
         "- the present solver does not yet map this pseudospin-orbital model into the existing spin-only Sunny thermodynamics or LSWT chain",
         "- the LT-style relaxed diagnostic is intentionally retained as an alternative classical route and has not been removed",
     ]
+    if "orbital_count" in inferred:
+        lines.insert(8, f"- orbital_count: {inferred['orbital_count']}")
+    if "multiplet_dimension" in inferred:
+        lines.insert(8, f"- multiplet_dimension: {inferred['multiplet_dimension']}")
     if grid_shape == [1, 1, 1]:
         insertion_index = lines.index("## Residual limitations")
         lines[insertion_index:insertion_index] = [
@@ -917,6 +921,7 @@ def solve_from_files(
     *,
     compile_pdf=True,
     coefficient_tolerance=1e-10,
+    local_space_mode="auto",
     classical_method="restricted-product-state",
     supercell_shape=(1, 1, 1),
     starts=16,
@@ -954,6 +959,7 @@ def solve_from_files(
         poscar_path=poscar_path,
         hr_path=hr_path,
         coefficient_tolerance=coefficient_tolerance,
+        local_space_mode=local_space_mode,
     )
     _progress("Parsed POSCAR + hr.dat payload")
     simplified_payload = simplify_pseudospin_orbital_payload(parsed_payload)
@@ -1447,6 +1453,11 @@ def main():
     parser.add_argument("--no-pdf", action="store_true")
     parser.add_argument("--coefficient-tolerance", type=float, default=1e-10)
     parser.add_argument(
+        "--local-space-mode",
+        choices=["auto", "orbital-times-spin", "generic-multiplet"],
+        default="auto",
+    )
+    parser.add_argument(
         "--classical-method",
         default="restricted-product-state",
         choices=[
@@ -1507,6 +1518,7 @@ def main():
         docs_dir=Path(args.docs_dir),
         compile_pdf=not args.no_pdf,
         coefficient_tolerance=float(args.coefficient_tolerance),
+        local_space_mode=str(args.local_space_mode),
         classical_method=str(args.classical_method),
         supercell_shape=tuple(int(value) for value in args.supercell_shape),
         starts=int(args.starts),

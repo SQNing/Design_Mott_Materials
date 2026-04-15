@@ -36,10 +36,22 @@ For `many_body_hr` payloads:
 - the current semantics assume a local
   `pseudospin_orbital`
   space
-- the basis order is fixed to
+- the default retained-local-space mode is the legacy
+  `orbital-times-spin`
+  interpretation with basis order
   `orbital_major_spin_minor`
   so the local basis is interpreted as
   `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`
+- an explicit
+  `generic-multiplet`
+  retained-local-space mode is also supported; in that branch the local basis order is
+  `retained_state_index`
+  and the basis labels are generic retained-state labels such as
+  `state_1`, `state_2`, ...
+- when the retained local space is even-dimensional but does not physically factorize into
+  `orbital x spin(2)`, callers should use the explicit
+  `generic-multiplet`
+  mode instead of relying on dimension-based inference
 
 `natural_language` freeform input must be non-empty after trimming whitespace.
 

@@ -17,15 +17,15 @@ from simplify.simplify_pseudospin_orbital_payload import simplify_pseudospin_orb
 
 
 def _phase_summary(parsed_payload, simplified_payload, grouped_payload):
+    inferred = parsed_payload.get("inferred", {})
     lines = [
         "# Pseudospin-Orbital Report Phase",
         "",
         "## Conventions",
         "",
         "- local space: pseudospin_orbital",
-        "- basis order: orbital_major_spin_minor",
-        f"- local_dimension: {parsed_payload['inferred']['local_dimension']}",
-        f"- orbital_count: {parsed_payload['inferred']['orbital_count']}",
+        f"- basis order: {parsed_payload.get('basis_order')}",
+        f"- local_dimension: {inferred['local_dimension']}",
         "",
         "## Process",
         "",
@@ -41,14 +41,27 @@ def _phase_summary(parsed_payload, simplified_payload, grouped_payload):
         f"- grouped bonds: {len(grouped_payload['bonds'])}",
         f"- simplification candidates: {len(simplified_payload['simplification']['candidates'])}",
     ]
+    if "orbital_count" in inferred:
+        lines.insert(7, f"- orbital_count: {inferred['orbital_count']}")
+    if "multiplet_dimension" in inferred:
+        lines.insert(7, f"- multiplet_dimension: {inferred['multiplet_dimension']}")
     return "\n".join(lines)
 
 
-def render_from_files(poscar_path, hr_path, output_dir, docs_dir, compile_pdf=True, coefficient_tolerance=1e-10):
+def render_from_files(
+    poscar_path,
+    hr_path,
+    output_dir,
+    docs_dir,
+    compile_pdf=True,
+    coefficient_tolerance=1e-10,
+    local_space_mode="auto",
+):
     parsed_payload = build_pseudospin_orbital_payload(
         poscar_path=poscar_path,
         hr_path=hr_path,
         coefficient_tolerance=coefficient_tolerance,
+        local_space_mode=local_space_mode,
     )
     simplified_payload = simplify_pseudospin_orbital_payload(parsed_payload)
     grouped_payload = group_pseudospin_orbital_terms(parsed_payload)
@@ -87,6 +100,11 @@ def main():
     parser.add_argument("--docs-dir", required=True)
     parser.add_argument("--no-pdf", action="store_true")
     parser.add_argument("--coefficient-tolerance", type=float, default=1e-10)
+    parser.add_argument(
+        "--local-space-mode",
+        choices=["auto", "orbital-times-spin", "generic-multiplet"],
+        default="auto",
+    )
     args = parser.parse_args()
 
     manifest = render_from_files(
@@ -96,6 +114,7 @@ def main():
         docs_dir=Path(args.docs_dir),
         compile_pdf=not args.no_pdf,
         coefficient_tolerance=float(args.coefficient_tolerance),
+        local_space_mode=str(args.local_space_mode),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
