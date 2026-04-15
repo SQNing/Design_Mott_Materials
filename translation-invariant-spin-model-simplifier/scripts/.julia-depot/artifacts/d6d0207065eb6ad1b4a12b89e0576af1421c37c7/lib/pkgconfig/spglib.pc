@@ -1,5 +1,0 @@
-Name: Spglib
-Description: The spglib library
-Version: 2.1.0
-Libs: -L/workspace/destdir/lib -lsymspg
-Cflags: -I/workspace/destdir/include

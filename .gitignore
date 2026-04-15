@@ -13,6 +13,9 @@ __pycache__/
 **/.julia/
 **/.julia-*/
 translation-invariant-spin-model-simplifier/tests/
+translation-invariant-spin-model-simplifier/scripts/.julia-depot/
+translation-invariant-spin-model-simplifier/scripts/.julia-env/
+translation-invariant-spin-model-simplifier/scripts/.julia-env-v06/
 translation-invariant-spin-model-simplifier/REVIEW.md
 translation-invariant-spin-model-simplifier/WORKLOG.md
 translation-invariant-spin-model-simplifier/.julia-depot
