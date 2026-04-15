@@ -67,6 +67,40 @@ class DocumentInputProtocolTests(unittest.TestCase):
         self.assertEqual(landed["interaction"]["status"], "needs_input")
         self.assertEqual(landed["interaction"]["id"], "model_candidate_selection")
 
+    def test_selected_model_candidate_allows_multi_model_document_to_land(self):
+        fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/fei2_document_input.tex",
+            selected_model_candidate="effective",
+        )
+        record["hamiltonian_model"] = {"operator_expression": "J1zz * Sz@0 Sz@1"}
+        record["parameter_registry"] = {"J1zz": -0.236}
+
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["expression"], "J1zz * Sz@0 Sz@1")
+
+    def test_single_primary_candidate_lands_without_selected_model_candidate(self):
+        record = {
+            "source_document": {"source_kind": "natural_language"},
+            "model_candidates": [
+                {"name": "effective", "role": "main"},
+                {"name": "matrix_form", "role": "equivalent_form"},
+            ],
+            "hamiltonian_model": {"operator_expression": "J * Sz@0 Sz@1"},
+            "parameter_registry": {"J": -0.236},
+            "ambiguities": [],
+            "unsupported_features": [],
+        }
+
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["parameters"], {"J": -0.236})
+
 
 if __name__ == "__main__":
     unittest.main()

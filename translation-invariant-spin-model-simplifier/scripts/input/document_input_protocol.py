@@ -75,14 +75,20 @@ def _extract_model_candidates(source_text: str) -> list[dict]:
     return candidates
 
 
-def build_intermediate_record(source_text: str, source_path: str | None = None) -> dict:
+def build_intermediate_record(
+    source_text: str,
+    source_path: str | None = None,
+    selected_model_candidate: str | None = None,
+) -> dict:
     kind = detect_input_kind(source_text, source_path=source_path)
     sections = _extract_sections(source_text)
     candidates = _extract_model_candidates(source_text)
     ambiguities = []
 
     blocking_candidates = [candidate for candidate in candidates if candidate["role"] in {"main", "simplified"}]
-    if len(blocking_candidates) > 1:
+    selected_name = (selected_model_candidate or "").strip() or None
+    selected_is_valid = selected_name in {candidate["name"] for candidate in blocking_candidates}
+    if len(blocking_candidates) > 1 and not selected_is_valid:
         ambiguities.append(
             {
                 "id": "model_candidate_selection",
@@ -98,6 +104,7 @@ def build_intermediate_record(source_text: str, source_path: str | None = None) 
         },
         "document_sections": sections,
         "model_candidates": candidates,
+        "selected_model_candidate": selected_name,
         "system_context": {},
         "lattice_model": {},
         "hamiltonian_model": {},
