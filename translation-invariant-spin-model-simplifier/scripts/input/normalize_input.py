@@ -7,6 +7,12 @@ from datetime import datetime, timezone
 from collections.abc import Iterable
 from pathlib import Path
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from input.document_input_protocol import land_intermediate_record
+else:
+    from .document_input_protocol import land_intermediate_record
+
 
 DEFAULT_TIMEOUTS = {
     "simplification_seconds": 600,
@@ -139,6 +145,19 @@ def normalize_input(payload):
     representation = payload.get("representation", "operator")
     if representation not in SUPPORTED_REPRESENTATIONS:
         raise ValueError("unsupported representation")
+    if representation == "natural_language" and payload.get("document_intermediate") is not None:
+        landed = land_intermediate_record(payload["document_intermediate"])
+        if landed.get("interaction", {}).get("status") == "needs_input":
+            normalized = normalize_freeform_text(payload.get("description", ""))
+            normalized["interaction"] = landed["interaction"]
+            normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
+            return normalized
+        payload = {
+            **payload,
+            **landed,
+            "representation": landed["representation"],
+        }
+        representation = payload["representation"]
     if representation == "many_body_hr":
         legacy_lattice = payload.get("lattice", _default_lattice())
         lattice_description = _normalize_lattice_description(payload, legacy_lattice)
@@ -200,6 +219,7 @@ def normalize_input(payload):
         "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
         "timeouts": dict(DEFAULT_TIMEOUTS),
         "user_notes": user_notes,
+        "unsupported_features": list(payload.get("unsupported_features", [])),
         "provenance": {
             "source_mode": payload.get("source_mode", representation),
             "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
