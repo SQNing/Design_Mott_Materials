@@ -254,6 +254,10 @@ When the agent touches these fields, the result should usually include:
 - alternatives considered,
 - and either a very explicit `accepted` rationale or a remaining `needs_input` gate.
 
+Some fields in this class, especially `coordinate_convention`, must be promoted to a hard gate
+whenever the choice changes the physical meaning of the resulting model rather than only changing a
+presentation detail.
+
 ### Class C: Hard gate fields
 
 These must not be decided automatically by agent inference when the choice would materially change
@@ -307,6 +311,14 @@ These must remain distinct:
 - use `unsupported_features` to explain what the current implementation still cannot encode or run.
 
 An input may legitimately have both.
+
+When the internal readiness state is `unsupported_even_with_agent`, the top-level response should
+still surface as:
+
+- `status = needs_input`
+- with `unsupported_features` populated
+- and with `agent_inferred.user_explanation` explaining that the input was understood better than
+  it can currently be represented or executed.
 
 ## User-Facing Explanation Contract
 
@@ -391,6 +403,12 @@ audit the inference:
 - `assumptions`
 - `unresolved_items`
 - `user_explanation`
+
+`recognized_items` should not become a second independent evidence store. It should be a compact
+public-facing rendered view derived from:
+
+- `source_spans` produced by the agent-fallback layer,
+- plus any especially important rule-extracted evidence already present in the intermediate record.
 
 Deeper diagnostic content such as:
 
