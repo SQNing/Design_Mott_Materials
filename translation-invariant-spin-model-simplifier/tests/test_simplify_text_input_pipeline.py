@@ -3,6 +3,7 @@ import tempfile
 import unittest
 import warnings
 from pathlib import Path
+from unittest.mock import patch
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -2066,9 +2067,19 @@ J_y^{zz} = 0.090
         self.assertTrue(result["agent_inferred"]["user_explanation"]["summary"])
 
     def test_run_text_simplification_pipeline_uses_public_agent_inferred_view_on_ok(self):
-        result = run_text_simplification_pipeline(
-            "use structure.cif and wannier90_hr.dat for the effective Hamiltonian"
-        )
+        summary = {
+            "decomposition": {"terms": [{"label": "stub"}]},
+            "canonical_model": {"main": []},
+            "readable_model": {"main": []},
+            "effective_model": {"main": []},
+            "simplification": {"candidates": []},
+        }
+        with patch("cli.simplify_text_input.build_pseudospin_orbital_payload", return_value={"input_mode": "many_body_hr"}):
+            with patch("cli.simplify_text_input.simplify_pseudospin_orbital_payload", return_value=summary):
+                with patch("cli.simplify_text_input.score_fidelity", return_value={"score": 1.0}):
+                    result = run_text_simplification_pipeline(
+                        "use structure.cif and wannier90_hr.dat for the effective Hamiltonian"
+                    )
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(
