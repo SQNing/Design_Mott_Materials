@@ -1422,11 +1422,8 @@ J_{2a'}^{\pm} = 0.068
 
         landed = land_intermediate_record(record)
 
-        self.assertIn(landed["agent_inferred"]["status"], {"proposed", "accepted"})
-        self.assertIn(
-            landed["landing_readiness"],
-            {"agent_proposed_ok", "agent_proposed_needs_input"},
-        )
+        self.assertEqual(landed["agent_inferred"]["status"], "proposed")
+        self.assertEqual(landed["landing_readiness"], "agent_proposed_needs_input")
 
     def test_land_intermediate_record_preserves_needs_input_for_material_ambiguity(self):
         record = build_intermediate_record(

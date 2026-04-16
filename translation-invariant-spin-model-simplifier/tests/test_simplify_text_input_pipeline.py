@@ -2,7 +2,6 @@ import sys
 import tempfile
 import unittest
 import warnings
-import shutil
 from pathlib import Path
 
 
@@ -374,15 +373,49 @@ J_2^{z\pm} = 0.050
             encoding="utf-8",
         )
 
-    def test_pipeline_routes_many_body_hr_text_pair_into_pseudospin_orbital_summary(self):
-        text = (
-            "Use structure file "
-            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR "
-            "and hopping file "
-            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat."
+    @staticmethod
+    def _write_minimal_poscar(path):
+        path.write_text(
+            "\n".join(
+                [
+                    "Ru",
+                    "1.0",
+                    "4.0 0.0 0.0",
+                    "0.0 4.0 0.0",
+                    "0.0 0.0 6.0",
+                    "Ru",
+                    "1",
+                    "Direct",
+                    "0.0 0.0 0.0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
         )
 
-        result = run_text_simplification_pipeline(text)
+    @staticmethod
+    def _write_minimal_many_body_hr(path):
+        lines = [
+            "minimal hr fixture",
+            "4",
+            "1",
+            "1",
+        ]
+        for left in range(1, 5):
+            for right in range(1, 5):
+                value = "1.0" if left == right else "0.0"
+                lines.append(f"0 0 0 {left} {right} {value} 0.0")
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_pipeline_routes_many_body_hr_text_pair_into_pseudospin_orbital_summary(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            structure_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
+            self._write_minimal_poscar(structure_path)
+            self._write_minimal_many_body_hr(hr_path)
+            text = f"Use structure file {structure_path} and hopping file {hr_path}."
+
+            result = run_text_simplification_pipeline(text)
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["stage"], "complete")
@@ -397,10 +430,11 @@ J_2^{z\pm} = 0.050
         self.assertIn("effective_model", result)
 
     def test_pipeline_routes_cif_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             cif_path = Path(tmpdir) / "structure.cif"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_cif(cif_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {cif_path} and hopping file {hr_path}."
 
             result = run_text_simplification_pipeline(text)
@@ -413,10 +447,11 @@ J_2^{z\pm} = 0.050
         self.assertTrue(result["decomposition"]["terms"])
 
     def test_pipeline_routes_xsf_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             xsf_path = Path(tmpdir) / "structure.xsf"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_xsf(xsf_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {xsf_path} and hopping file {hr_path}."
 
             result = run_text_simplification_pipeline(text)
@@ -428,10 +463,11 @@ J_2^{z\pm} = 0.050
         self.assertTrue(result["decomposition"]["terms"])
 
     def test_pipeline_routes_xyz_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             xyz_path = Path(tmpdir) / "structure.xyz"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_xyz(xyz_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {xyz_path} and hopping file {hr_path}."
 
             result = run_text_simplification_pipeline(text)
@@ -443,10 +479,11 @@ J_2^{z\pm} = 0.050
         self.assertTrue(result["decomposition"]["terms"])
 
     def test_pipeline_routes_cell_and_hr_text_pair_without_castep_warnings(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             cell_path = Path(tmpdir) / "structure.cell"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_cell(cell_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {cell_path} and hopping file {hr_path}."
 
             with warnings.catch_warnings(record=True) as caught:
@@ -463,10 +500,11 @@ J_2^{z\pm} = 0.050
         )
 
     def test_pipeline_routes_gen_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             gen_path = Path(tmpdir) / "structure.gen"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_gen(gen_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {gen_path} and hopping file {hr_path}."
 
             result = run_text_simplification_pipeline(text)
@@ -478,10 +516,11 @@ J_2^{z\pm} = 0.050
         self.assertTrue(result["decomposition"]["terms"])
 
     def test_pipeline_routes_res_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             res_path = Path(tmpdir) / "structure.res"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_res(res_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {res_path} and hopping file {hr_path}."
 
             result = run_text_simplification_pipeline(text)
@@ -493,10 +532,11 @@ J_2^{z\pm} = 0.050
         self.assertTrue(result["decomposition"]["terms"])
 
     def test_pipeline_routes_pdb_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        hr_path = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
         with tempfile.TemporaryDirectory() as tmpdir:
             pdb_path = Path(tmpdir) / "structure.pdb"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
             self._write_minimal_pdb(pdb_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use structure file {pdb_path} and hopping file {hr_path}."
 
             result = run_text_simplification_pipeline(text)
@@ -508,12 +548,11 @@ J_2^{z\pm} = 0.050
         self.assertTrue(result["decomposition"]["terms"])
 
     def test_pipeline_routes_geometry_in_and_h_r_dat_without_explicit_roles(self):
-        source_hr_path = Path("/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat")
         with tempfile.TemporaryDirectory() as tmpdir:
             geometry_path = Path(tmpdir) / "geometry.in"
             hr_path = Path(tmpdir) / "H_R.dat"
             self._write_minimal_aims_geometry(geometry_path)
-            shutil.copyfile(source_hr_path, hr_path)
+            self._write_minimal_many_body_hr(hr_path)
             text = f"Use {geometry_path} together with {hr_path} for this run."
 
             result = run_text_simplification_pipeline(text)
@@ -596,20 +635,25 @@ J_2^{z\pm} = 0.050
         self.assertEqual(result["interaction"]["id"], "bond_phase_matrix_form_selection")
 
     def test_pipeline_routes_directory_path_to_discovered_many_body_hr_pair(self):
-        case_dir = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            case_dir = Path(tmpdir)
+            structure_path = case_dir / "POSCAR"
+            hr_path = case_dir / "VR_hr.dat"
+            self._write_minimal_poscar(structure_path)
+            self._write_minimal_many_body_hr(hr_path)
 
-        result = run_text_simplification_pipeline(f"Use {case_dir} as the many-body hr input directory.")
+            result = run_text_simplification_pipeline(f"Use {case_dir} as the many-body hr input directory.")
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["stage"], "complete")
         self.assertEqual(result["input_mode"], "many_body_hr")
         self.assertEqual(
             result["normalized_model"]["hamiltonian_description"]["representation"]["structure_file"],
-            f"{case_dir}/POSCAR",
+            str(structure_path),
         )
         self.assertEqual(
             result["normalized_model"]["hamiltonian_description"]["representation"]["hamiltonian_file"],
-            f"{case_dir}/VR_hr.dat",
+            str(hr_path),
         )
         self.assertTrue(result["decomposition"]["terms"])
 

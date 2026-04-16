@@ -20,6 +20,40 @@ class NormalizeInputTests(unittest.TestCase):
         atoms = Atoms("Ru", positions=[[0.0, 0.0, 0.0]], cell=[[4, 0, 0], [0, 4, 0], [0, 0, 6]], pbc=True)
         write(str(path), atoms, format="aims")
 
+    @staticmethod
+    def _write_minimal_poscar(path):
+        path.write_text(
+            "\n".join(
+                [
+                    "Ru",
+                    "1.0",
+                    "4.0 0.0 0.0",
+                    "0.0 4.0 0.0",
+                    "0.0 0.0 6.0",
+                    "Ru",
+                    "1",
+                    "Direct",
+                    "0.0 0.0 0.0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _write_minimal_many_body_hr(path):
+        lines = [
+            "minimal hr fixture",
+            "4",
+            "1",
+            "1",
+        ]
+        for left in range(1, 5):
+            for right in range(1, 5):
+                value = "1.0" if left == right else "0.0"
+                lines.append(f"0 0 0 {left} {right} {value} 0.0")
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
     def test_normalize_input_cli_freeform_tex_supports_candidate_selection_contract(self):
         fixture_path = SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex"
         script_path = SKILL_ROOT / "scripts" / "input" / "normalize_input.py"
@@ -432,25 +466,30 @@ J_1^{zz} = -0.236
         self.assertEqual(normalized["local_hilbert"]["dimension"], 6)
 
     def test_many_body_hr_representation_is_accepted_with_required_paths(self):
-        payload = {
-            "representation": "many_body_hr",
-            "structure_file": "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR",
-            "hamiltonian_file": "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat",
-        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            structure_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
+            self._write_minimal_poscar(structure_path)
+            self._write_minimal_many_body_hr(hr_path)
+            payload = {
+                "representation": "many_body_hr",
+                "structure_file": str(structure_path),
+                "hamiltonian_file": str(hr_path),
+            }
 
-        normalized = normalize_input(payload)
+            normalized = normalize_input(payload)
 
-        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
-        self.assertEqual(
-            normalized["hamiltonian_description"]["representation"]["structure_file"],
-            payload["structure_file"],
-        )
-        self.assertEqual(
-            normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
-            payload["hamiltonian_file"],
-        )
-        self.assertEqual(normalized["basis_semantics"]["local_space"], "pseudospin_orbital")
-        self.assertEqual(normalized["basis_order"], "orbital_major_spin_minor")
+            self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+            self.assertEqual(
+                normalized["hamiltonian_description"]["representation"]["structure_file"],
+                payload["structure_file"],
+            )
+            self.assertEqual(
+                normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
+                payload["hamiltonian_file"],
+            )
+            self.assertEqual(normalized["basis_semantics"]["local_space"], "pseudospin_orbital")
+            self.assertEqual(normalized["basis_order"], "orbital_major_spin_minor")
 
     def test_many_body_hr_requires_structure_and_hamiltonian_paths(self):
         with self.assertRaises(ValueError):
@@ -460,23 +499,26 @@ J_1^{zz} = -0.236
             normalize_input({"representation": "many_body_hr", "hamiltonian_file": "VR_hr.dat"})
 
     def test_normalize_freeform_text_auto_routes_poscar_and_vr_hr_paths_to_many_body_hr(self):
-        text = (
-            "Please use POSCAR at "
-            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR "
-            "and VR_hr.dat at "
-            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat."
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            structure_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
+            self._write_minimal_poscar(structure_path)
+            self._write_minimal_many_body_hr(hr_path)
+            text = (
+                f"Please use POSCAR at {structure_path} "
+                f"and VR_hr.dat at {hr_path}."
+            )
 
-        normalized = normalize_freeform_text(text)
+            normalized = normalize_freeform_text(text)
 
         self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
         self.assertEqual(
             normalized["hamiltonian_description"]["representation"]["structure_file"],
-            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR",
+            str(structure_path),
         )
         self.assertEqual(
             normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
-            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat",
+            str(hr_path),
         )
         self.assertEqual(normalized["basis_semantics"]["local_space"], "pseudospin_orbital")
 
@@ -552,18 +594,23 @@ J_1^{zz} = -0.236
         self.assertEqual(normalized["hamiltonian_description"]["representation"]["hamiltonian_file"], "./H_R.dat")
 
     def test_normalize_freeform_text_routes_directory_path_to_discovered_many_body_hr_pair(self):
-        case_dir = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            case_dir = Path(tmpdir)
+            structure_path = case_dir / "POSCAR"
+            hr_path = case_dir / "VR_hr.dat"
+            self._write_minimal_poscar(structure_path)
+            self._write_minimal_many_body_hr(hr_path)
 
-        normalized = normalize_freeform_text(f"Use {case_dir} as the many-body hr input directory.")
+            normalized = normalize_freeform_text(f"Use {case_dir} as the many-body hr input directory.")
 
         self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
         self.assertEqual(
             normalized["hamiltonian_description"]["representation"]["structure_file"],
-            f"{case_dir}/POSCAR",
+            str(structure_path),
         )
         self.assertEqual(
             normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
-            f"{case_dir}/VR_hr.dat",
+            str(hr_path),
         )
 
     def test_normalize_input_natural_language_does_not_route_hr_file_without_structure_role(self):
