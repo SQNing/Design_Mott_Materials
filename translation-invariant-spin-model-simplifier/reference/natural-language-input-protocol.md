@@ -28,14 +28,14 @@ Do not promise full automatic support for:
 
 ## Processing Workflow
 
-1. Identify the input kind:
-   - `dialogue_text`
+1. Detect the concrete `source_kind` emitted by the current implementation:
    - `natural_language`
    - `latex_fragment`
    - `tex_document`
-   - `many_body_hr_files`
-   - `mixed_input`
-2. If the text contains both:
+2. Treat broader upstream cases such as short dialogue-style requests, mixed prose-plus-formula
+   inputs, and file-reference-heavy natural-language requests as conceptual routing cases within
+   those concrete `source_kind` values rather than as separate emitted detector tags.
+3. If the text contains both:
    - a structure path such as `POSCAR`, `CONTCAR`, `*.cif`, `*.cell`, `*.gen`, `*.stru`, `*.res`,
      `*.pdb`, `*.xyz`, `*.vasp`, or `*.xsf`, and
    - a hopping/integral path whose filename or explicit role indicates an `hr`-style file such as
@@ -46,17 +46,17 @@ Do not promise full automatic support for:
    automatically.
    If only one side of that file pair is detected, stop with `interaction.status = needs_input`
    and ask for the missing counterpart instead of silently guessing.
-3. If the input is a document-style source, segment it into semantic blocks such as:
+4. If the input is a document-style source, segment it into semantic blocks such as:
    - structure-related passages,
    - Hamiltonian/model passages,
    - parameter tables,
    - ordered-state or analysis notes.
-4. Extract all model candidates that appear in the source.
-5. Bind parameters from tables, inline assignments, and uncertainty annotations.
-6. Build an intermediate extraction record.
-7. Attempt landing into the currently supported payload families only after the intermediate record
+5. Extract all model candidates that appear in the source.
+6. Bind parameters from tables, inline assignments, and uncertainty annotations.
+7. Build an intermediate extraction record.
+8. Attempt landing into the currently supported payload families only after the intermediate record
    is complete enough to support a unique interpretation.
-8. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
+9. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
    focused blocking question.
 
 ## Intermediate Extraction Schema
