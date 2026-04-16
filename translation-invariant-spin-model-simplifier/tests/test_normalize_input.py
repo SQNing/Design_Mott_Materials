@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,6 +12,14 @@ from input.normalize_input import normalize_freeform_text, normalize_input
 
 
 class NormalizeInputTests(unittest.TestCase):
+    @staticmethod
+    def _write_minimal_aims_geometry(path):
+        from ase import Atoms
+        from ase.io import write
+
+        atoms = Atoms("Ru", positions=[[0.0, 0.0, 0.0]], cell=[[4, 0, 0], [0, 4, 0], [0, 0, 6]], pbc=True)
+        write(str(path), atoms, format="aims")
+
     def test_normalize_input_cli_freeform_tex_supports_candidate_selection_contract(self):
         fixture_path = SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex"
         script_path = SKILL_ROOT / "scripts" / "input" / "normalize_input.py"
@@ -450,6 +459,137 @@ J_1^{zz} = -0.236
         with self.assertRaises(ValueError):
             normalize_input({"representation": "many_body_hr", "hamiltonian_file": "VR_hr.dat"})
 
+    def test_normalize_freeform_text_auto_routes_poscar_and_vr_hr_paths_to_many_body_hr(self):
+        text = (
+            "Please use POSCAR at "
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR "
+            "and VR_hr.dat at "
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat."
+        )
+
+        normalized = normalize_freeform_text(text)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["structure_file"],
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR",
+        )
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
+            "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat",
+        )
+        self.assertEqual(normalized["basis_semantics"]["local_space"], "pseudospin_orbital")
+
+    def test_normalize_input_natural_language_auto_routes_poscar_and_vr_hr_paths_to_many_body_hr(self):
+        payload = {
+            "representation": "natural_language",
+            "description": (
+                "Structure file is ./POSCAR and the many-body hopping file is "
+                "./VR_hr.dat for this run."
+            ),
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["structure_file"], "./POSCAR")
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["hamiltonian_file"], "./VR_hr.dat")
+
+    def test_normalize_freeform_text_routes_cif_and_wannier_hr_dat_to_many_body_hr(self):
+        text = (
+            "Use structure file ./structure.cif and hopping file ./wannier90_hr.dat "
+            "for the many-body hr workflow."
+        )
+
+        normalized = normalize_freeform_text(text)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["structure_file"], "./structure.cif")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
+            "./wannier90_hr.dat",
+        )
+
+    def test_normalize_input_natural_language_routes_any_hr_named_file_when_structure_role_is_explicit(self):
+        payload = {
+            "representation": "natural_language",
+            "description": (
+                "structure file: ./FI2.dat ; hr file: ./exchange_hr_sparse.dat"
+            ),
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["structure_file"], "./FI2.dat")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
+            "./exchange_hr_sparse.dat",
+        )
+
+    def test_normalize_freeform_text_routes_cell_and_h_r_dat_without_explicit_roles(self):
+        text = "Use ./model.cell together with ./H_R.dat for this run."
+
+        normalized = normalize_freeform_text(text)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["structure_file"], "./model.cell")
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["hamiltonian_file"], "./H_R.dat")
+
+    def test_normalize_freeform_text_routes_geometry_in_and_h_r_dat_without_explicit_roles(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            geometry_path = Path(tmpdir) / "geometry.in"
+            self._write_minimal_aims_geometry(geometry_path)
+            text = f"Use {geometry_path} together with ./H_R.dat for this run."
+
+            normalized = normalize_freeform_text(text)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["structure_file"],
+            str(geometry_path),
+        )
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["hamiltonian_file"], "./H_R.dat")
+
+    def test_normalize_freeform_text_routes_directory_path_to_discovered_many_body_hr_pair(self):
+        case_dir = "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix"
+
+        normalized = normalize_freeform_text(f"Use {case_dir} as the many-body hr input directory.")
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["structure_file"],
+            f"{case_dir}/POSCAR",
+        )
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["hamiltonian_file"],
+            f"{case_dir}/VR_hr.dat",
+        )
+
+    def test_normalize_input_natural_language_does_not_route_hr_file_without_structure_role(self):
+        payload = {
+            "representation": "natural_language",
+            "description": "please use ./exchange_hr_sparse.dat for this model",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "natural_language")
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "structure_file_selection")
+
+    def test_normalize_input_natural_language_requests_hr_file_when_only_structure_file_is_given(self):
+        payload = {
+            "representation": "natural_language",
+            "description": "please use structure file ./structure.cif for this model",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "natural_language")
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "hamiltonian_hr_file_selection")
+
     def test_existing_operator_input_path_still_works(self):
         payload = {
             "representation": "operator",
@@ -510,6 +650,46 @@ J_1^{zz} = -0.236
         self.assertEqual(normalized["interaction"]["id"], "model_candidate_selection")
         self.assertEqual(normalized["unsupported_features"], ["matrix_form_metadata"])
         self.assertEqual(normalized["local_term"]["representation"]["kind"], "natural_language")
+
+    def test_normalize_freeform_text_commits_only_accepted_agent_inferred_fields(self):
+        normalized = normalize_freeform_text(
+            "structure.cif + wannier90_hr.dat for the effective Hamiltonian"
+        )
+
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["kind"],
+            "many_body_hr",
+        )
+        self.assertEqual(normalized["agent_inferred"]["status"], "accepted")
+
+    def test_normalize_freeform_text_keeps_hard_gate_as_needs_input(self):
+        normalized = normalize_freeform_text(
+            "use the effective Hamiltonian family 1 terms",
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+        )
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["agent_inferred"]["status"], "proposed")
+
+    def test_normalize_freeform_text_keeps_low_confidence_fallback_non_landing(self):
+        normalized = normalize_freeform_text(
+            "maybe some layered anisotropic model, not sure of the exact Hamiltonian"
+        )
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["agent_inferred"]["status"], "rejected")
+        self.assertEqual(normalized["landing_readiness"], "agent_proposed_needs_input")
+
+    def test_normalize_freeform_text_surfaces_unsupported_even_with_agent(self):
+        normalized = normalize_freeform_text(
+            "use the effective Hamiltonian with a scalar spin chirality term K S_i·(S_j×S_k)",
+            selected_model_candidate="effective",
+        )
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertTrue(normalized["unsupported_features"])
+        self.assertTrue(normalized["agent_inferred"]["user_explanation"]["summary"])
 
 
 if __name__ == "__main__":
