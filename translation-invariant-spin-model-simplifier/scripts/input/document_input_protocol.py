@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from copy import deepcopy
 import re
 from pathlib import Path
+
+from .agent_fallback import build_agent_inferred
+
+
+AGENT_BLOCKING_UNSUPPORTED_FEATURES = frozenset(
+    {
+        "scalar_spin_chirality_terms",
+        "three_spin_chirality_terms",
+    }
+)
 
 
 def detect_input_kind(source_text: str, source_path: str | None = None) -> dict:
@@ -94,7 +105,7 @@ def _parse_numeric_matrix(matrix_body: str) -> list[list[float]] | None:
 
 def _extract_rotation_matrix(text: str) -> list[list[float]] | None:
     match = re.search(
-        r"(?:^|[\s$])R\s*=\s*\\begin\{pmatrix\}(?P<body>.*?)\\end\{pmatrix\}",
+        r"(?:^|[\s$])R\s*=\s*\\begin\{(?:pmatrix|bmatrix|Bmatrix)\}(?P<body>.*?)\\end\{(?:pmatrix|bmatrix|Bmatrix)\}",
         text,
         flags=re.DOTALL,
     )
@@ -239,13 +250,28 @@ def text_lines(source_text: str) -> list[str]:
 
 def _extract_model_candidates(source_text: str) -> list[dict]:
     candidates = []
-    if "Toy Hamiltonian" in source_text:
+    lowered = source_text.lower()
+    if "Toy Hamiltonian" in source_text or "toy hamiltonian" in lowered:
         candidates.append({"name": "toy", "role": "simplified", "source_span": "Toy Hamiltonian"})
-    if "Effective Hamiltonian" in source_text:
+    if "Effective Hamiltonian" in source_text or "effective hamiltonian" in lowered:
         candidates.append({"name": "effective", "role": "main", "source_span": "Effective Hamiltonian"})
-    if "Equivalent Exchange-Matrix Form" in source_text:
+    if "Equivalent Exchange-Matrix Form" in source_text or "equivalent exchange-matrix form" in lowered:
         candidates.append({"name": "matrix_form", "role": "equivalent_form", "source_span": "Equivalent Exchange-Matrix Form"})
     return candidates
+
+
+def _extract_source_unsupported_features(source_text: str) -> list[str]:
+    lowered = (source_text or "").lower()
+    features = []
+    if "chirality" in lowered and (
+        "three-spin" in lowered
+        or "three spin" in lowered
+        or "scalar spin" in lowered
+        or "s_i·(s_j×s_k)" in lowered
+        or "s_i.(s_jxs_k)" in lowered
+    ):
+        features.append("scalar_spin_chirality_terms")
+    return features
 
 
 def _extract_magnetic_order(sections: dict) -> dict:
@@ -572,6 +598,28 @@ def _select_local_bond_expression(content: str, equation_blocks: list[str]) -> s
     return None
 
 
+def _extract_explicit_local_bond_candidates(content: str, equation_blocks: list[str]) -> list[dict]:
+    candidates = []
+    for entry in _extract_explicit_local_bond_blocks(equation_blocks):
+        family_match = re.search(r"\^\{\((?P<family>[^)]+)\)\}", entry["label"])
+        if not family_match:
+            continue
+        referenced = content.count(entry["label"]) > 1
+        if not referenced and not (
+            len(_extract_explicit_local_bond_blocks(equation_blocks)) == 1
+            and len(equation_blocks) > 1
+            and "\\sum_" in content
+        ):
+            continue
+        candidates.append(
+            {
+                "family": family_match.group("family").strip(),
+                "expression": entry["expression"],
+            }
+        )
+    return candidates
+
+
 def _extract_matrix_exchange_blocks(equation_blocks: list[str]) -> list[dict]:
     extracted = []
     label_pattern = re.compile(
@@ -583,7 +631,7 @@ def _extract_matrix_exchange_blocks(equation_blocks: list[str]) -> list[dict]:
         if not label_match:
             continue
         matrix_match = re.search(
-            r"\\begin\{pmatrix\}(?P<body>.*?)\\end\{pmatrix\}",
+            r"\\begin\{(?:pmatrix|bmatrix|Bmatrix)\}(?P<body>.*?)\\end\{(?:pmatrix|bmatrix|Bmatrix)\}",
             block,
             flags=re.DOTALL,
         )
@@ -686,7 +734,7 @@ def _replace_family_index(template: str, index_symbol: str, family_label: str) -
 def _extract_coefficient_tokens(expression: str) -> set[str]:
     compact = re.sub(r"\s+", "", expression)
     tokens = set()
-    for match in re.finditer(r"(?P<coeff>[A-Za-z0-9_{}^\\.+-]+)S_i\^zS_j\^z", compact):
+    for match in re.finditer(r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)S_i\^zS_j\^z", compact):
         tokens.add(match.group("coeff"))
     ladder_pattern = re.compile(
         r"\\frac\{(?P<coeff>.+?)\}\{2\}\(S_i\^\+S_j\^-"
@@ -764,6 +812,197 @@ def _parse_numeric_value(text: str) -> float | None:
     return float(match.group(0))
 
 
+def _parse_direct_numeric_value(text: str) -> float | None:
+    raw = str(text)
+    match = re.match(r"\s*(?P<value>[-+]?\d+(?:\.\d+)?)", raw)
+    if not match:
+        return None
+    remainder = raw[match.end():].strip()
+    if remainder and not (
+        remainder.startswith(r"\pm")
+        or remainder.startswith("~")
+        or remainder.startswith(r"\text")
+        or remainder.startswith(r"\mathrm")
+        or remainder.startswith(r"\,")
+    ):
+        return None
+    return float(match.group("value"))
+
+
+def _split_equation_assignments(equation: str) -> list[str]:
+    parts = re.split(
+        r"\\qquad|,(?=\s*[A-Za-z0-9_{}^\\+\-']+\s*=)",
+        str(equation),
+    )
+    return [part.strip().rstrip(",") for part in parts if part.strip()]
+
+
+def _read_braced_group(text: str, start: int) -> tuple[str, int]:
+    if start >= len(text) or text[start] != "{":
+        raise ValueError("expected braced group")
+    depth = 0
+    index = start
+    content_start = start + 1
+    while index < len(text):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[content_start:index], index + 1
+        index += 1
+    raise ValueError("unterminated braced group")
+
+
+def _expand_latex_fractions(expression: str) -> str:
+    text = str(expression or "")
+    text = text.replace(r"\tfrac", r"\frac").replace(r"\dfrac", r"\frac")
+    result = []
+    index = 0
+    while index < len(text):
+        if text.startswith(r"\frac", index):
+            numerator, next_index = _read_braced_group(text, index + len(r"\frac"))
+            denominator, next_index = _read_braced_group(text, next_index)
+            expanded_num = _expand_latex_fractions(numerator)
+            expanded_den = _expand_latex_fractions(denominator)
+            result.append(f"(({expanded_num})/({expanded_den}))")
+            index = next_index
+            continue
+        result.append(text[index])
+        index += 1
+    return "".join(result)
+
+
+def _is_number_token(token: str) -> bool:
+    return re.fullmatch(r"\d+(?:\.\d+)?|\.\d+", str(token or "")) is not None
+
+
+def _insert_implicit_multiplication(tokens: list[str]) -> list[str]:
+    expanded = []
+    for token in tokens:
+        if expanded:
+            prev = expanded[-1]
+            prev_is_atom = _is_number_token(prev) or prev == ")" or prev not in {"+", "-", "*", "/", "("}
+            next_is_atom = _is_number_token(token) or token == "(" or token not in {"+", "-", "*", "/", ")"}
+            if prev_is_atom and next_is_atom:
+                expanded.append("*")
+        expanded.append(token)
+    return expanded
+
+
+def _tokenize_parameter_expression(expression: str) -> list[str]:
+    compact = _expand_latex_fractions(str(expression or ""))
+    compact = compact.replace(r"\left", "").replace(r"\right", "")
+    compact = compact.replace(r"\cdot", "*").replace(r"\times", "*")
+    compact = re.sub(r"\s+", "", compact)
+    if not compact:
+        return []
+
+    tokens = []
+    index = 0
+    while index < len(compact):
+        char = compact[index]
+        if char in "+-*/()":
+            tokens.append(char)
+            index += 1
+            continue
+        if char.isdigit() or char == ".":
+            match = re.match(r"\d+(?:\.\d+)?|\.\d+", compact[index:])
+            if not match:
+                return []
+            tokens.append(match.group(0))
+            index += len(match.group(0))
+            continue
+
+        start = index
+        depth = 0
+        while index < len(compact):
+            current = compact[index]
+            if current == "{":
+                depth += 1
+            elif current == "}":
+                depth = max(0, depth - 1)
+            elif depth == 0 and current in "+-*/()":
+                break
+            index += 1
+        symbol = compact[start:index].strip()
+        if symbol:
+            tokens.append(symbol)
+
+    return _insert_implicit_multiplication(tokens)
+
+
+def _resolve_parameter_expression_token(token: str, registry: dict) -> float | None:
+    direct_numeric = _parse_direct_numeric_value(token)
+    if direct_numeric is not None:
+        return direct_numeric
+    cleaned = str(token).strip()
+    if cleaned in registry:
+        return float(registry[cleaned])
+    simple_subscript = re.sub(r"_\{([A-Za-z0-9]+)\}", r"_\1", cleaned)
+    if simple_subscript in registry:
+        return float(registry[simple_subscript])
+    braced_subscript = re.sub(r"_([A-Za-z0-9]+)(?=\^|$)", r"_{\1}", cleaned)
+    if braced_subscript in registry:
+        return float(registry[braced_subscript])
+    return None
+
+
+def _evaluate_parameter_expression(expression: str, registry: dict) -> float | None:
+    tokens = _tokenize_parameter_expression(expression)
+    if not tokens:
+        return None
+
+    def parse_expression(index):
+        value, index = parse_term(index)
+        while index < len(tokens) and tokens[index] in {"+", "-"}:
+            operator = tokens[index]
+            rhs, index = parse_term(index + 1)
+            value = value + rhs if operator == "+" else value - rhs
+        return value, index
+
+    def parse_term(index):
+        value, index = parse_factor(index)
+        while index < len(tokens) and tokens[index] in {"*", "/"}:
+            operator = tokens[index]
+            rhs, index = parse_factor(index + 1)
+            if operator == "*":
+                value *= rhs
+            else:
+                value /= rhs
+        return value, index
+
+    def parse_factor(index):
+        if index >= len(tokens):
+            raise ValueError("unexpected end of expression")
+        token = tokens[index]
+        if token == "+":
+            return parse_factor(index + 1)
+        if token == "-":
+            value, next_index = parse_factor(index + 1)
+            return -value, next_index
+        if token == "(":
+            value, next_index = parse_expression(index + 1)
+            if next_index >= len(tokens) or tokens[next_index] != ")":
+                raise ValueError("missing closing parenthesis")
+            return value, next_index + 1
+        if _is_number_token(token):
+            return float(token), index + 1
+        resolved = _resolve_parameter_expression_token(token, registry)
+        if resolved is None:
+            raise ValueError(f"unresolved token: {token}")
+        return resolved, index + 1
+
+    try:
+        value, next_index = parse_expression(0)
+    except (ValueError, ZeroDivisionError):
+        return None
+    if next_index != len(tokens):
+        return None
+    return value
+
+
 def _extract_parameter_registry(parameter_sections: list[dict]) -> dict:
     registry = {}
     for section in parameter_sections:
@@ -786,14 +1025,36 @@ def _extract_parameter_registry(parameter_sections: list[dict]) -> dict:
                 if numeric is not None:
                     registry[label] = numeric
 
-        for equation_match in re.finditer(r"\\begin\{equation\}(.*?)\\end\{equation\}", content, flags=re.DOTALL):
-            equation = equation_match.group(1).strip()
-            assign_match = re.match(r"(?P<name>[A-Za-z0-9_{}^\\+\-']+)\s*=\s*(?P<value>.+)", equation, flags=re.DOTALL)
-            if not assign_match:
-                continue
-            numeric = _parse_numeric_value(assign_match.group("value"))
-            if numeric is not None:
-                registry[assign_match.group("name").strip()] = numeric
+        equation_blocks = []
+        for environment in ("equation", "equation*", "align", "align*"):
+            pattern = rf"\\begin\{{{re.escape(environment)}\}}(.*?)\\end\{{{re.escape(environment)}\}}"
+            equation_blocks.extend(match.group(1).strip() for match in re.finditer(pattern, content, flags=re.DOTALL))
+
+        for equation in equation_blocks:
+            normalized_equation = (
+                str(equation)
+                .replace("&", "")
+                .replace(r"\nonumber", "")
+                .replace(r"\notag", "")
+            )
+            for raw_row in re.split(r"\\\\", normalized_equation):
+                row = raw_row.strip().rstrip(",")
+                if not row:
+                    continue
+                for assignment in _split_equation_assignments(row):
+                    assign_match = re.match(
+                        r"(?P<name>[A-Za-z0-9_{}^\\+\-']+)\s*=\s*(?P<value>.+)",
+                        assignment,
+                        flags=re.DOTALL,
+                    )
+                    if not assign_match:
+                        continue
+                    value_text = assign_match.group("value").strip().rstrip(".")
+                    numeric = _parse_direct_numeric_value(value_text)
+                    if numeric is None:
+                        numeric = _evaluate_parameter_expression(value_text, registry)
+                    if numeric is not None:
+                        registry[assign_match.group("name").strip()] = numeric
 
     return registry
 
@@ -811,19 +1072,46 @@ def _extract_hamiltonian_model(
     content = str(section.get("content") or "")
     equation_blocks = _extract_equation_blocks(content)
     if equation_blocks:
-        local_bond_expression = _select_local_bond_expression(content, equation_blocks)
-        if local_bond_expression:
-            return {"operator_expression": local_bond_expression}
+        explicit_local_bond_candidates = _extract_explicit_local_bond_candidates(content, equation_blocks)
         matrix_candidates = _extract_matrix_exchange_candidates(equation_blocks)
         if matrix_candidates:
             return {"local_bond_candidates": matrix_candidates, "matrix_form": True}
         family_candidates = _extract_family_indexed_candidates(equation_blocks, parameter_registry)
+        if explicit_local_bond_candidates and family_candidates:
+            combined = explicit_local_bond_candidates + family_candidates
+            combined.sort(key=lambda entry: entry["family"])
+            return {"local_bond_candidates": combined}
         if family_candidates:
             return {"local_bond_candidates": family_candidates}
+        if explicit_local_bond_candidates:
+            return {"local_bond_candidates": explicit_local_bond_candidates}
+        local_bond_expression = _select_local_bond_expression(content, equation_blocks)
+        if local_bond_expression:
+            return {"operator_expression": local_bond_expression}
         return {"operator_expression": "\n\n".join(equation_blocks)}
     if content.strip():
         return {"operator_expression": content.strip()}
     return {}
+
+
+def _operator_expression_unsupported_features(expression: str) -> list[str]:
+    compact = re.sub(r"\s+", "", str(expression or ""))
+    features = []
+    if "\\gamma_{ij}" in compact or "\\gamma_{ij}^\\ast" in compact:
+        features.append("bond_dependent_phase_gamma_terms")
+    if "^{\\pm\\pm}" in compact or "S_i^+S_j^+" in compact or "S_i^-S_j^-" in compact:
+        features.append("double_raising_lowering_exchange_terms")
+    if "^{z\\pm}" in compact or re.search(r"(S_i\^[\+\-]S_j\^z|S_i\^zS_j\^[\+\-])", compact):
+        features.append("zpm_offdiagonal_exchange_terms")
+    return features
+
+
+def _extend_unsupported_features(record: dict, expression: str) -> list[str]:
+    combined = list(record.get("unsupported_features", []))
+    for feature in _operator_expression_unsupported_features(expression):
+        if feature not in combined:
+            combined.append(feature)
+    return combined
 
 
 def build_intermediate_record(
@@ -837,6 +1125,7 @@ def build_intermediate_record(
     sections = _extract_sections(source_text)
     candidates = _extract_model_candidates(source_text)
     ambiguities = []
+    unsupported_features = _extract_source_unsupported_features(source_text)
 
     blocking_candidates = [candidate for candidate in candidates if candidate["role"] in {"main", "simplified"}]
     selected_name = (selected_model_candidate or "").strip() or None
@@ -853,7 +1142,9 @@ def build_intermediate_record(
     hamiltonian_model = {}
     parameter_registry = {}
     if not ambiguities:
-        parameter_registry = _extract_parameter_registry(sections["parameter_sections"])
+        parameter_registry = _extract_parameter_registry(
+            list(sections.get("parameter_sections", [])) + list(sections.get("model_sections", []))
+        )
         hamiltonian_model = _extract_hamiltonian_model(sections, candidates, selected_name, parameter_registry)
 
     return {
@@ -861,6 +1152,7 @@ def build_intermediate_record(
             "source_kind": kind["source_kind"],
             "source_path": source_path,
         },
+        "source_text": source_text,
         "document_sections": sections,
         "model_candidates": candidates,
         "selected_model_candidate": selected_name,
@@ -879,15 +1171,115 @@ def build_intermediate_record(
         "parameter_registry": parameter_registry,
         "ambiguities": ambiguities,
         "confidence_report": {},
-        "unsupported_features": [],
+        "unsupported_features": unsupported_features,
     }
+
+
+def _agent_fallback_proposal(record: dict) -> dict:
+    proposal = build_agent_inferred(
+        source_text=record.get("source_text", ""),
+        intermediate_record=record,
+        normalization_context={
+            "selected_coordinate_convention": record.get("selected_coordinate_convention"),
+            "selected_local_bond_family": record.get("selected_local_bond_family"),
+        },
+    )
+    proposed = deepcopy(proposal)
+    blocking_unsupported = [
+        feature
+        for feature in list(record.get("unsupported_features", []))
+        if feature in AGENT_BLOCKING_UNSUPPORTED_FEATURES
+    ]
+    if blocking_unsupported:
+        proposed["landing_readiness"] = "unsupported_even_with_agent"
+        agent_inferred = proposed.setdefault("agent_inferred", {})
+        agent_inferred["unsupported_even_with_agent"] = blocking_unsupported
+        user_explanation = agent_inferred.setdefault("user_explanation", {})
+        user_explanation["summary"] = (
+            "The helper recognized unsupported interaction terms that still need "
+            "manual handling before the input can land."
+        )
+    return proposed
+
+
+def _document_landing_readiness(proposal: dict) -> str:
+    if (proposal or {}).get("landing_readiness") == "unsupported_even_with_agent":
+        return "unsupported_even_with_agent"
+    return "agent_proposed_needs_input"
+
+
+def _is_vague_dialogue(source_text: str) -> bool:
+    lowered = (source_text or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "maybe",
+            "something like",
+            "some ",
+            "kind of",
+            "sort of",
+            "not sure",
+        )
+    )
+
+
+def _should_surface_agent_fallback(record: dict, proposal: dict) -> bool:
+    agent_inferred = (proposal or {}).get("agent_inferred", {})
+    return bool(
+        agent_inferred.get("inferred_fields")
+        or agent_inferred.get("unresolved_items")
+        or record.get("unsupported_features")
+        or (
+            agent_inferred.get("status") == "rejected"
+            and _is_vague_dialogue(record.get("source_text", ""))
+        )
+    )
+
+
+def _interaction_from_agent_fallback(proposal: dict) -> dict | None:
+    landing_readiness = (proposal or {}).get("landing_readiness")
+    agent_inferred = (proposal or {}).get("agent_inferred", {})
+    summary = (
+        ((agent_inferred.get("user_explanation") or {}).get("summary"))
+        or "I need a bit more input before I can land this safely."
+    )
+    if landing_readiness == "unsupported_even_with_agent":
+        return {
+            "status": "needs_input",
+            "id": "unsupported_features_review",
+            "question": summary,
+        }
+
+    unresolved_items = list(agent_inferred.get("unresolved_items", []))
+    if unresolved_items:
+        first = unresolved_items[0]
+        field = first.get("field")
+        interaction_id = {
+            "coordinate_convention": "coordinate_convention_selection",
+            "model_candidate": "model_candidate_selection",
+            "structure_file": "structure_file_selection",
+            "hamiltonian_file": "hamiltonian_file_selection",
+        }.get(field, "agent_fallback_review")
+        return {
+            "status": "needs_input",
+            "id": interaction_id,
+            "question": first.get("reason") or summary,
+        }
+
+    if agent_inferred.get("status") != "proposed":
+        return {
+            "status": "needs_input",
+            "id": "agent_fallback_review",
+            "question": summary,
+        }
+    return None
 
 
 def land_intermediate_record(record: dict) -> dict:
     blocking = [entry for entry in record.get("ambiguities", []) if entry.get("blocks_landing")]
     if blocking:
         question = blocking[0]
-        return {
+        landed = {
             "interaction": {
                 "status": "needs_input",
                 "id": question["id"],
@@ -896,6 +1288,12 @@ def land_intermediate_record(record: dict) -> dict:
             "magnetic_order": dict(record.get("system_context", {}).get("magnetic_order", {})),
             "unsupported_features": list(record.get("unsupported_features", [])),
         }
+        if record.get("source_document", {}).get("source_kind") == "natural_language":
+            proposal = _agent_fallback_proposal(record)
+            if _should_surface_agent_fallback(record, proposal):
+                landed["landing_readiness"] = _document_landing_readiness(proposal)
+                landed["agent_inferred"] = deepcopy(proposal.get("agent_inferred", {}))
+        return landed
 
     hamiltonian_model = record.get("hamiltonian_model", {})
     coordinate_convention = dict(record.get("system_context", {}).get("coordinate_convention", {}))
@@ -926,6 +1324,11 @@ def land_intermediate_record(record: dict) -> dict:
         selected_family = record.get("selected_local_bond_family")
         by_family = {entry["family"]: entry for entry in local_bond_candidates}
         if selected_family == "all":
+            combined_unsupported = list(record.get("unsupported_features", []))
+            for entry in local_bond_candidates:
+                for feature in _operator_expression_unsupported_features(entry.get("expression", "")):
+                    if feature not in combined_unsupported:
+                        combined_unsupported.append(feature)
             return {
                 "representation": "operator_family_collection",
                 "support": [0, 1],
@@ -937,7 +1340,7 @@ def land_intermediate_record(record: dict) -> dict:
                 "coordinate_convention": coordinate_convention,
                 "magnetic_order": magnetic_order,
                 "user_notes": "Generated from document input protocol",
-                "unsupported_features": list(record.get("unsupported_features", [])),
+                "unsupported_features": combined_unsupported,
             }
         if selected_family and selected_family in by_family:
             expression = by_family[selected_family]["expression"]
@@ -960,6 +1363,24 @@ def land_intermediate_record(record: dict) -> dict:
             or hamiltonian_model.get("value")
             or ""
         )
+    if (
+        record.get("source_document", {}).get("source_kind") == "natural_language"
+        and not local_bond_candidates
+        and not str(expression).strip()
+    ):
+        proposal = _agent_fallback_proposal(record)
+        if _should_surface_agent_fallback(record, proposal):
+            landed = {
+                "landing_readiness": _document_landing_readiness(proposal),
+                "agent_inferred": deepcopy(proposal.get("agent_inferred", {})),
+                "coordinate_convention": coordinate_convention,
+                "magnetic_order": magnetic_order,
+                "unsupported_features": list(record.get("unsupported_features", [])),
+            }
+            interaction = _interaction_from_agent_fallback(proposal)
+            if interaction is not None:
+                landed["interaction"] = interaction
+            return landed
     return {
         "representation": "operator",
         "support": [0, 1],
@@ -968,7 +1389,7 @@ def land_intermediate_record(record: dict) -> dict:
         "coordinate_convention": coordinate_convention,
         "magnetic_order": magnetic_order,
         "user_notes": "Generated from document input protocol",
-        "unsupported_features": list(record.get("unsupported_features", [])),
+        "unsupported_features": _extend_unsupported_features(record, expression),
     }
 
 

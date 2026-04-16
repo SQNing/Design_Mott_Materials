@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from copy import deepcopy
 import json
 import re
 import sys
@@ -9,9 +10,11 @@ from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from input.agent_fallback import apply_agent_inferred_patch, build_agent_inferred
     from input.document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
     from common.rotating_frame_realization import resolve_rotating_frame_realization
 else:
+    from .agent_fallback import apply_agent_inferred_patch, build_agent_inferred
     from .document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
     from common.rotating_frame_realization import resolve_rotating_frame_realization
 
@@ -174,6 +177,12 @@ def _copy_passthrough_fields(source, destination):
         "classical_state",
         "classical",
         "ordering",
+        "document_intermediate",
+        "document_source_text",
+        "document_source_path",
+        "selected_model_candidate",
+        "selected_local_bond_family",
+        "selected_coordinate_convention",
     ):
         if key in source:
             destination[key] = source[key]
@@ -250,6 +259,276 @@ def _normalize_many_body_hr_representation(payload):
     }
 
 
+def _extract_path_mention(text, filename):
+    pattern = re.compile(
+        rf"(?P<path>(?:~|/|\./|\.\./)?[A-Za-z0-9_./:+-]*{re.escape(filename)})\b"
+    )
+    matches = [match.group("path").rstrip(",;:") for match in pattern.finditer(text or "")]
+    if not matches:
+        return None
+    return max(matches, key=len)
+
+
+def _extract_generic_path_tokens(text):
+    pattern = re.compile(
+        r"(?P<path>(?:~|/|\./|\.\./)?[A-Za-z0-9_./:+-]+\.[A-Za-z0-9_+-]+|(?:~|/|\./|\.\./)?(?:POSCAR|CONTCAR)\b)"
+    )
+    return [match.group("path").rstrip(".,;:") for match in pattern.finditer(text or "")]
+
+
+def _extract_directory_path_tokens(text):
+    pattern = re.compile(
+        r"(?P<path>(?:~|/|\./|\.\./)[A-Za-z0-9_./:+-]*[A-Za-z0-9_+-])"
+    )
+    matches = []
+    for match in pattern.finditer(text or ""):
+        candidate = match.group("path").rstrip(".,;:")
+        path = Path(candidate).expanduser()
+        if path.exists() and path.is_dir():
+            matches.append(str(path))
+    return matches
+
+
+def _extract_explicit_role_path(text, role_patterns):
+    path_pattern = r"(?P<path>(?:~|/|\./|\.\./)?[A-Za-z0-9_./:+-]+)"
+    matches = []
+    for role_pattern in role_patterns:
+        pattern = re.compile(
+            rf"(?i)\b(?:{role_pattern})\b\s*(?:is|=|:)?\s*{path_pattern}"
+        )
+        matches.extend(match.group("path").rstrip(".,;:") for match in pattern.finditer(text or ""))
+    if not matches:
+        return None
+    return max(matches, key=len)
+
+
+def _looks_like_structure_file(path):
+    lowered = Path(path).name.lower()
+    return (
+        lowered in {"poscar", "contcar", "geometry.in", "structure.in"}
+        or lowered.endswith(".cif")
+        or lowered.endswith(".cell")
+        or lowered.endswith(".gen")
+        or lowered.endswith(".stru")
+        or lowered.endswith(".res")
+        or lowered.endswith(".pdb")
+        or lowered.endswith(".xyz")
+        or lowered.endswith(".vasp")
+        or lowered.endswith(".xsf")
+    )
+
+
+def _looks_like_hr_file(path):
+    lowered = Path(path).name.lower()
+    return "hr" in lowered or re.search(r"(?:^|[_\-.])h[_\-.]*r(?:[_\-.]|$)", lowered) is not None
+
+
+def _structure_candidate_rank(path):
+    lowered = Path(path).name.lower()
+    if lowered == "poscar":
+        return (100, -len(str(path)))
+    if lowered == "contcar":
+        return (95, -len(str(path)))
+    if lowered == "geometry.in":
+        return (93, -len(str(path)))
+    if lowered == "structure.in":
+        return (92, -len(str(path)))
+    if lowered.endswith(".vasp"):
+        return (90, -len(str(path)))
+    if lowered.endswith(".cif"):
+        return (85, -len(str(path)))
+    if lowered.endswith(".cell"):
+        return (82, -len(str(path)))
+    if lowered.endswith(".xsf"):
+        return (80, -len(str(path)))
+    if lowered.endswith(".gen"):
+        return (78, -len(str(path)))
+    if lowered.endswith(".res"):
+        return (76, -len(str(path)))
+    if lowered.endswith(".stru"):
+        return (74, -len(str(path)))
+    if lowered.endswith(".xyz"):
+        return (70, -len(str(path)))
+    if lowered.endswith(".pdb"):
+        return (68, -len(str(path)))
+    return (0, -len(str(path)))
+
+
+def _hr_candidate_rank(path):
+    lowered = Path(path).name.lower()
+    if lowered == "vr_hr.dat":
+        return (100, -len(str(path)))
+    if lowered == "wannier90_hr.dat":
+        return (96, -len(str(path)))
+    if lowered == "h_r.dat":
+        return (94, -len(str(path)))
+    if "vr_hr" in lowered:
+        return (90, -len(str(path)))
+    if "wannier" in lowered and "hr" in lowered:
+        return (88, -len(str(path)))
+    if _looks_like_hr_file(path):
+        return (75, -len(str(path)))
+    return (0, -len(str(path)))
+
+
+def _discover_many_body_hr_paths_in_directory(directory):
+    directory = Path(directory)
+    if not directory.is_dir():
+        return None
+    entries = [entry for entry in directory.iterdir() if entry.is_file()]
+    structure_candidates = [entry for entry in entries if _looks_like_structure_file(entry)]
+    hr_candidates = [entry for entry in entries if _looks_like_hr_file(entry)]
+    structure_file = None
+    hamiltonian_file = None
+    if structure_candidates:
+        structure_file = str(max(structure_candidates, key=_structure_candidate_rank))
+    if hr_candidates:
+        hamiltonian_file = str(max(hr_candidates, key=_hr_candidate_rank))
+    if structure_file is None and hamiltonian_file is None:
+        return None
+    return {
+        "structure_file": structure_file,
+        "hamiltonian_file": hamiltonian_file,
+    }
+
+
+def _detect_many_body_hr_file_candidates(text):
+    structure_file = (
+        _extract_explicit_role_path(
+            text,
+            role_patterns=(
+                "structure file",
+                "structure path",
+                "structural file",
+                "crystal file",
+                "cif file",
+            ),
+        )
+        or _extract_path_mention(text, "POSCAR")
+        or _extract_path_mention(text, "CONTCAR")
+    )
+    hamiltonian_file = (
+        _extract_explicit_role_path(
+            text,
+            role_patterns=(
+                "hr file",
+                "hr path",
+                "hamiltonian file",
+                "hamiltonian path",
+                "hopping file",
+                "hopping path",
+                "wannier(?:90)?(?:_?hr)? file",
+            ),
+        )
+        or _extract_path_mention(text, "VR_hr.dat")
+    )
+
+    generic_paths = _extract_generic_path_tokens(text)
+    if structure_file is None:
+        structure_candidates = [path for path in generic_paths if _looks_like_structure_file(path)]
+        if structure_candidates:
+            structure_file = max(structure_candidates, key=len)
+    if hamiltonian_file is None:
+        hr_candidates = [path for path in generic_paths if _looks_like_hr_file(path)]
+        if hr_candidates:
+            hamiltonian_file = max(hr_candidates, key=len)
+
+    discovered_from_directories = [
+        discovery
+        for directory in _extract_directory_path_tokens(text)
+        for discovery in [_discover_many_body_hr_paths_in_directory(directory)]
+        if discovery is not None
+    ]
+    if structure_file is None:
+        structure_candidates = [
+            discovery["structure_file"]
+            for discovery in discovered_from_directories
+            if discovery.get("structure_file")
+        ]
+        if structure_candidates:
+            structure_file = max(structure_candidates, key=_structure_candidate_rank)
+    if hamiltonian_file is None:
+        hr_candidates = [
+            discovery["hamiltonian_file"]
+            for discovery in discovered_from_directories
+            if discovery.get("hamiltonian_file")
+        ]
+        if hr_candidates:
+            hamiltonian_file = max(hr_candidates, key=_hr_candidate_rank)
+
+    return {
+        "structure_file": structure_file,
+        "hamiltonian_file": hamiltonian_file,
+    }
+
+
+def _extract_many_body_hr_paths_from_text(text):
+    detected = _detect_many_body_hr_file_candidates(text)
+    structure_file = detected["structure_file"]
+    hamiltonian_file = detected["hamiltonian_file"]
+
+    if not structure_file or not hamiltonian_file:
+        return None
+    return {
+        "structure_file": structure_file,
+        "hamiltonian_file": hamiltonian_file,
+    }
+
+
+def _inspect_many_body_hr_text(text):
+    detected = _detect_many_body_hr_file_candidates(text)
+    structure_file = detected["structure_file"]
+    hamiltonian_file = detected["hamiltonian_file"]
+
+    if structure_file and hamiltonian_file:
+        return {
+            "status": "ready",
+            "structure_file": structure_file,
+            "hamiltonian_file": hamiltonian_file,
+        }
+    if hamiltonian_file:
+        return {
+            "status": "needs_input",
+            "missing": "structure_file",
+            "detected": {"hamiltonian_file": hamiltonian_file},
+            "interaction": {
+                "status": "needs_input",
+                "id": "structure_file_selection",
+                "question": "I found an hr-style Hamiltonian file path, but not a matching structure file path. Which structure file should I use?",
+            },
+        }
+    if structure_file:
+        return {
+            "status": "needs_input",
+            "missing": "hamiltonian_file",
+            "detected": {"structure_file": structure_file},
+            "interaction": {
+                "status": "needs_input",
+                "id": "hamiltonian_hr_file_selection",
+                "question": "I found a structure file path, but not a matching hr-style Hamiltonian file path. Which hr file should I use?",
+            },
+        }
+    return None
+
+
+def _normalize_routed_many_body_hr_text(text, *, source_mode, passthrough=None):
+    inspected = _inspect_many_body_hr_text(text)
+    if inspected is None or inspected.get("status") != "ready":
+        return None
+
+    routed_payload = dict(passthrough or {})
+    routed_payload.update(
+        {
+            "representation": "many_body_hr",
+            "structure_file": inspected["structure_file"],
+            "hamiltonian_file": inspected["hamiltonian_file"],
+            "user_notes": routed_payload.get("user_notes", text),
+            "source_mode": routed_payload.get("source_mode", source_mode),
+        }
+    )
+    return normalize_input(routed_payload)
+
+
 def _infer_local_dimension_from_text(text, default=2):
     lowered = (text or "").lower()
     if re.search(r"\bspin[-\s]*one[-\s]*half\b", lowered):
@@ -294,6 +573,29 @@ def _natural_language_base_payload(text, *, local_dimension, user_notes, source_
     }
 
 
+def _natural_language_many_body_hr_needs_input_payload(
+    text,
+    *,
+    local_dimension,
+    user_notes,
+    source_mode,
+    route_hint,
+):
+    normalized = _natural_language_base_payload(
+        text,
+        local_dimension=local_dimension,
+        user_notes=user_notes,
+        source_mode=source_mode,
+    )
+    normalized["interaction"] = dict(route_hint.get("interaction", {}))
+    normalized["many_body_hr_route_hint"] = {
+        "status": route_hint.get("status"),
+        "missing": route_hint.get("missing"),
+        "detected": dict(route_hint.get("detected", {})),
+    }
+    return _finalize_normalized_payload(normalized)
+
+
 def _document_lattice_text(record, fallback_text):
     sections = record.get("document_sections", {})
     structure_sections = sections.get("structure_sections", [])
@@ -305,6 +607,44 @@ def _document_lattice_text(record, fallback_text):
     if snippets:
         return "\n\n".join(snippets)
     return fallback_text
+
+
+def _build_agent_fallback_proposal(
+    text,
+    *,
+    record,
+    selected_coordinate_convention=None,
+    selected_local_bond_family=None,
+):
+    return build_agent_inferred(
+        source_text=text,
+        intermediate_record=record,
+        normalization_context={
+            "selected_coordinate_convention": selected_coordinate_convention,
+            "selected_local_bond_family": selected_local_bond_family,
+        },
+    )
+
+
+def _apply_agent_metadata(normalized, *, landed=None, proposal=None, accepted=False):
+    if landed is not None and landed.get("landing_readiness") is not None:
+        normalized["landing_readiness"] = landed["landing_readiness"]
+
+    source_agent = None
+    if proposal is not None:
+        source_agent = deepcopy(proposal.get("agent_inferred", {}))
+        if source_agent and accepted:
+            source_agent["status"] = "accepted"
+        if proposal.get("landing_readiness") is not None:
+            normalized["landing_readiness"] = proposal["landing_readiness"]
+    elif landed is not None and landed.get("agent_inferred") is not None:
+        source_agent = deepcopy(landed.get("agent_inferred", {}))
+
+    if source_agent:
+        normalized["agent_inferred"] = source_agent
+    if landed is not None and "unsupported_features" in landed:
+        normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
+    return normalized
 
 
 def _normalize_document_style_natural_language(
@@ -339,6 +679,7 @@ def _normalize_document_style_natural_language(
         normalized["interaction"] = landed["interaction"]
         normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
         normalized["document_intermediate"] = record
+        _apply_agent_metadata(normalized, landed=landed)
         return _finalize_normalized_payload(normalized)
 
     return normalize_input(
@@ -354,6 +695,12 @@ def _normalize_document_style_natural_language(
             "user_notes": landed.get("user_notes", text),
             "unsupported_features": list(landed.get("unsupported_features", [])),
             "source_mode": source_mode,
+            "document_intermediate": record,
+            "document_source_text": text,
+            "document_source_path": source_path,
+            "selected_model_candidate": selected_model_candidate,
+            "selected_local_bond_family": selected_local_bond_family,
+            "selected_coordinate_convention": selected_coordinate_convention,
             }
             if landed["representation"] != "operator_family_collection"
             else {
@@ -367,6 +714,12 @@ def _normalize_document_style_natural_language(
                 "user_notes": landed.get("user_notes", text),
                 "unsupported_features": list(landed.get("unsupported_features", [])),
                 "source_mode": source_mode,
+                "document_intermediate": record,
+                "document_source_text": text,
+                "document_source_path": source_path,
+                "selected_model_candidate": selected_model_candidate,
+                "selected_local_bond_family": selected_local_bond_family,
+                "selected_coordinate_convention": selected_coordinate_convention,
             }
         )
     )
@@ -381,6 +734,33 @@ def normalize_freeform_text(
     text = (text or "").strip()
     if not text:
         raise ValueError("freeform input must be non-empty")
+    record = build_intermediate_record(
+        source_text=text,
+        source_path=source_path,
+        selected_model_candidate=selected_model_candidate,
+        selected_local_bond_family=selected_local_bond_family,
+        selected_coordinate_convention=selected_coordinate_convention,
+    )
+    proposal = _build_agent_fallback_proposal(
+        text,
+        record=record,
+        selected_coordinate_convention=selected_coordinate_convention,
+        selected_local_bond_family=selected_local_bond_family,
+    )
+    route_hint = _inspect_many_body_hr_text(text)
+    routed = _normalize_routed_many_body_hr_text(text, source_mode="freeform")
+    if routed is not None:
+        if proposal.get("landing_readiness") == "agent_proposed_ok":
+            _apply_agent_metadata(routed, proposal=proposal, accepted=True)
+        return routed
+    if route_hint is not None and route_hint.get("status") == "needs_input":
+        return _natural_language_many_body_hr_needs_input_payload(
+            text,
+            local_dimension=_infer_local_dimension_from_text(text),
+            user_notes=text,
+            source_mode="freeform",
+            route_hint=route_hint,
+        )
     detected_kind = detect_input_kind(text, source_path=source_path).get("source_kind")
     local_dimension = _infer_local_dimension_from_text(text)
     if detected_kind == "tex_document":
@@ -393,12 +773,22 @@ def normalize_freeform_text(
             local_dimension=local_dimension,
             source_mode="freeform",
         )
-    return _natural_language_base_payload(
+    landed = land_intermediate_record(record)
+    normalized = _natural_language_base_payload(
         text,
         local_dimension=local_dimension,
         user_notes=text,
         source_mode="freeform",
     )
+    if landed.get("interaction", {}).get("status") == "needs_input" or landed.get("agent_inferred") is not None:
+        normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
+        normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
+        if landed.get("interaction") is not None:
+            normalized["interaction"] = landed["interaction"]
+        normalized["document_intermediate"] = record
+        _apply_agent_metadata(normalized, landed=landed)
+        return _finalize_normalized_payload(normalized)
+    return normalized
 
 
 def normalize_input(payload):
@@ -411,6 +801,42 @@ def normalize_input(payload):
         selected_model_candidate = payload.get("selected_model_candidate")
         selected_local_bond_family = payload.get("selected_local_bond_family")
         selected_coordinate_convention = payload.get("selected_coordinate_convention")
+        route_hint = _inspect_many_body_hr_text(description)
+        routed = _normalize_routed_many_body_hr_text(
+            description,
+            source_mode=payload.get("source_mode", representation),
+            passthrough={
+                key: value
+                for key, value in payload.items()
+                if key not in {"representation", "description"}
+            },
+        )
+        if routed is not None:
+            record = build_intermediate_record(
+                source_text=description,
+                source_path=source_path,
+                selected_model_candidate=selected_model_candidate,
+                selected_local_bond_family=selected_local_bond_family,
+                selected_coordinate_convention=selected_coordinate_convention,
+            )
+            proposal = _build_agent_fallback_proposal(
+                description,
+                record=record,
+                selected_coordinate_convention=selected_coordinate_convention,
+                selected_local_bond_family=selected_local_bond_family,
+            )
+            if proposal.get("landing_readiness") == "agent_proposed_ok":
+                _apply_agent_metadata(routed, proposal=proposal, accepted=True)
+            return routed
+        if route_hint is not None and route_hint.get("status") == "needs_input":
+            user_notes = payload.get("user_notes", "") or description
+            return _natural_language_many_body_hr_needs_input_payload(
+                description,
+                local_dimension=int(payload.get("local_dim", 2)),
+                user_notes=user_notes,
+                source_mode=payload.get("source_mode", representation),
+                route_hint=route_hint,
+            )
         if payload.get("document_intermediate") is not None:
             landed = land_intermediate_record(payload["document_intermediate"])
             if landed.get("interaction", {}).get("status") == "needs_input":
@@ -429,6 +855,7 @@ def normalize_input(payload):
                 )
                 normalized["interaction"] = landed["interaction"]
                 normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
+                _apply_agent_metadata(normalized, landed=landed)
                 return _finalize_normalized_payload(normalized)
             payload = {
                 **payload,
@@ -448,6 +875,28 @@ def normalize_input(payload):
                     local_dimension=int(payload.get("local_dim", 2)),
                     source_mode=payload.get("source_mode", representation),
                 )
+            record = build_intermediate_record(
+                source_text=description,
+                source_path=source_path,
+                selected_model_candidate=selected_model_candidate,
+                selected_local_bond_family=selected_local_bond_family,
+                selected_coordinate_convention=selected_coordinate_convention,
+            )
+            landed = land_intermediate_record(record)
+            if landed.get("interaction", {}).get("status") == "needs_input" or landed.get("agent_inferred") is not None:
+                normalized = _natural_language_base_payload(
+                    description,
+                    local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
+                    user_notes=payload.get("user_notes", "") or description,
+                    source_mode=payload.get("source_mode", representation),
+                )
+                normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
+                normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
+                if landed.get("interaction") is not None:
+                    normalized["interaction"] = landed["interaction"]
+                normalized["document_intermediate"] = record
+                _apply_agent_metadata(normalized, landed=landed)
+                return _finalize_normalized_payload(normalized)
     if representation == "many_body_hr":
         legacy_lattice = payload.get("lattice", _default_lattice())
         lattice_description = _normalize_lattice_description(payload, legacy_lattice)
