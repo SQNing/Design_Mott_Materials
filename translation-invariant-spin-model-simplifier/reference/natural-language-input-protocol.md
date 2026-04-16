@@ -9,11 +9,15 @@ inputs before they are normalized into the runnable payload schema described in
 Treat the following as first-class upstream inputs:
 
 - freeform natural-language model descriptions,
+- short dialogue-style requests that describe a model in a few sentences,
 - natural-language plus short operator expressions,
 - LaTeX formula fragments,
 - mixed prose plus LaTeX mathematics,
 - partial or full `.tex` documents,
 - paper-style inputs containing structure sections, Hamiltonian sections, and parameter tables.
+- freeform text that contains file-path references for structure files and `hr`-style hopping files,
+- structured `many_body_hr` file-pair payloads,
+- mixed inputs that combine prose, formulas, and file references.
 
 Do not promise full automatic support for:
 
@@ -25,20 +29,34 @@ Do not promise full automatic support for:
 ## Processing Workflow
 
 1. Identify the input kind:
+   - `dialogue_text`
    - `natural_language`
    - `latex_fragment`
    - `tex_document`
-2. If the input is a document-style source, segment it into semantic blocks such as:
+   - `many_body_hr_files`
+   - `mixed_input`
+2. If the text contains both:
+   - a structure path such as `POSCAR`, `CONTCAR`, `*.cif`, `*.cell`, `*.gen`, `*.stru`, `*.res`,
+     `*.pdb`, `*.xyz`, `*.vasp`, or `*.xsf`, and
+   - a hopping/integral path whose filename or explicit role indicates an `hr`-style file such as
+     `VR_hr.dat`, `wannier90_hr.dat`, `H_R.dat`, or `*_hr*.dat`,
+   route it to the `many_body_hr` payload family instead of forcing document-style text parsing.
+   If the text instead supplies a directory path, the implementation may inspect that directory for
+   a compatible structure file plus an `hr`-style Hamiltonian file and route the pair
+   automatically.
+   If only one side of that file pair is detected, stop with `interaction.status = needs_input`
+   and ask for the missing counterpart instead of silently guessing.
+3. If the input is a document-style source, segment it into semantic blocks such as:
    - structure-related passages,
    - Hamiltonian/model passages,
    - parameter tables,
    - ordered-state or analysis notes.
-3. Extract all model candidates that appear in the source.
-4. Bind parameters from tables, inline assignments, and uncertainty annotations.
-5. Build an intermediate extraction record.
-6. Attempt landing into the currently supported payload families only after the intermediate record
+4. Extract all model candidates that appear in the source.
+5. Bind parameters from tables, inline assignments, and uncertainty annotations.
+6. Build an intermediate extraction record.
+7. Attempt landing into the currently supported payload families only after the intermediate record
    is complete enough to support a unique interpretation.
-7. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
+8. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
    focused blocking question.
 
 ## Intermediate Extraction Schema
@@ -66,6 +84,16 @@ The intermediate extraction record should contain at least:
 - `unsupported_features`
   - extracted content the current payloads cannot yet represent faithfully
 
+When fallback inference materially contributes during normalization, the normalized result may also
+surface these compatibility fields alongside the landed payload or `interaction` block:
+
+- `landing_readiness`
+  - whether the helper found a safe landing proposal, still needs user input, or recognized content
+    that stays unsupported even with helper assistance
+- `agent_inferred`
+  - helper-produced narrowing metadata such as recognized evidence, proposed safe fields,
+    unresolved items, confidence, and a user-facing explanation
+
 ## Landing Rules
 
 Use a two-step policy:
@@ -83,10 +111,77 @@ Rules:
 
 - Only generate a runnable payload when the extracted record supports a unique, internally
   consistent model interpretation.
+- Freeform text that explicitly supplies both a structure-file path and an `hr`-style hopping-file
+  path should land directly as `many_body_hr`, even if the rest of the message is conversational.
+- Freeform text may also supply a case-directory path; when that directory contains a compatible
+  structure file plus an `hr`-style Hamiltonian file, the pair may be auto-discovered.
+- Explicit role phrases such as `structure file:` and `hr file:` may disambiguate otherwise generic
+  filenames such as `FI2.dat`.
+- If only an `hr`-style file is present, ask for the structure file. If only a structure file is
+  present, ask for the `hr`-style Hamiltonian file.
+- The higher-level text simplification pipeline can currently execute the routed `many_body_hr`
+  branch directly for POSCAR/CONTCAR/VASP-style files and, through the broader structure reader,
+  common crystal-structure formats such as `.cif`, `.xsf`, `.cell`, `.gen`, `.res`, and
+  lightweight coordinate formats such as `.xyz` and `.pdb`, as well as common FHI-aims structure
+  filenames such as `geometry.in`.
+- If a detected structure file still cannot be parsed by the available structure readers, return
+  `needs_input` and ask for conversion or replacement rather than silently downgrading the input.
 - Keep unsupported or only partially representable content in `unsupported_features`,
   `user_notes`, or explicit residual annotations rather than silently dropping it.
 - Do not merge multiple model candidates by default.
 - If the user selected a specific model candidate, only that candidate may proceed to landing.
+
+## Agent Fallback Contract
+
+Natural-language normalization may attach helper metadata when the implementation can narrow the
+route safely without fabricating missing physics.
+
+The contract is:
+
+- `agent_inferred` may narrow missing information only within the approved compatibility boundary.
+  Current safe narrowing is limited to helper-recognized fields such as `input_family`,
+  `structure_file`, and `hamiltonian_file`; downstream stages decide whether to accept and commit
+  those fields.
+- `agent_inferred` does not override the mandatory `needs_input` gates below. If the remaining
+  ambiguity would materially change the physical model, the result must still surface
+  `interaction.status = needs_input` even when the helper recognized a likely route.
+- `agent_inferred` must include a user-facing explanation. At minimum this means a
+  `user_explanation` object with recognized evidence and a short summary of what was inferred and
+  what still blocks landing.
+- `unsupported_even_with_agent` is not a success state. It must surface as
+  `interaction.status = needs_input` together with the blocking `unsupported_features`, plus a
+  user-facing explanation of why manual handling is still required.
+
+`landing_readiness` has the following semantics:
+
+- `agent_proposed_ok`
+  - the helper recognized enough bounded evidence to propose a safe landing route, such as a unique
+    structure-file plus `hr`-style Hamiltonian-file pair for `many_body_hr`
+- `agent_proposed_needs_input`
+  - the helper narrowed the route but landing still requires user input because of unresolved
+    ambiguities, a hard-gated field, low confidence, or a document-style path that intentionally
+    preserves `needs_input`
+- `unsupported_even_with_agent`
+  - the helper recognized blocking content that current payload families still cannot represent
+    faithfully; the public result remains `needs_input`
+
+`agent_inferred` may contain:
+
+- `status`
+  - `proposed`, `accepted`, or `rejected`, depending on whether the helper proposal stayed pending,
+    was committed by normalization, or was withheld for lack of confidence
+- `confidence`
+  - confidence level plus a short reason
+- `inferred_fields`
+  - only the helper fields that were actually narrowed
+- `recognized_items`
+  - user-readable recognized evidence derived from source spans and extracted evidence
+- `unresolved_items`
+  - remaining blockers that still require user input
+- `unsupported_even_with_agent`
+  - the subset of unsupported features that remain blocking even after helper assistance
+- `user_explanation`
+  - user-facing `recognized` and `summary` content that explains the helper outcome
 
 ## Mandatory `needs_input` Gates
 
@@ -102,6 +197,10 @@ result:
 - an equivalent matrix form disagrees with the main Hamiltonian form,
 - the extracted content exceeds what current payload families can represent.
 
+These gates remain mandatory even when `agent_inferred` is present. The helper may narrow which
+question to ask next, but it cannot bypass a blocking ambiguity, a hard-gated convention choice, or
+unsupported content that still requires manual resolution.
+
 ## Unified Entry Contract
 
 Document-style text inputs are not a separate public ingestion family. They enter through the same
@@ -115,7 +214,10 @@ The contract is:
 3. if a document contains multiple competing model candidates, normalization returns
    `interaction.status = needs_input`,
 4. the caller may then resubmit the same text with `selected_model_candidate`,
-5. only after that selection does the document land into a supported normalized payload, when
+5. if helper fallback metadata is surfaced for a document-style input, it may narrow the next
+   blocking question through `agent_inferred`, but document-style ambiguity handling still remains
+   `needs_input` until the mandatory gate is resolved,
+6. only after that selection does the document land into a supported normalized payload, when
    possible.
 
 This keeps the user-facing entry broad and uniform while allowing richer document-style ambiguity
