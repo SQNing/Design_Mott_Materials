@@ -408,246 +408,6 @@ J_2^{z\pm} = 0.050
                 lines.append(f"0 0 0 {left} {right} {value} 0.0")
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    def test_pipeline_routes_many_body_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            structure_path = Path(tmpdir) / "POSCAR"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_poscar(structure_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {structure_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(
-            result["normalized_model"]["hamiltonian_description"]["representation"]["kind"],
-            "many_body_hr",
-        )
-        self.assertIn("parsed_payload", result)
-        self.assertEqual(result["parsed_payload"]["input_mode"], "many_body_hr")
-        self.assertTrue(result["decomposition"]["terms"])
-        self.assertIn("effective_model", result)
-
-    def test_pipeline_routes_cif_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cif_path = Path(tmpdir) / "structure.cif"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_cif(cif_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {cif_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "cif")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_routes_xsf_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            xsf_path = Path(tmpdir) / "structure.xsf"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_xsf(xsf_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {xsf_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "xsf")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_routes_xyz_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            xyz_path = Path(tmpdir) / "structure.xyz"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_xyz(xyz_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {xyz_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "xyz")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_routes_cell_and_hr_text_pair_without_castep_warnings(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cell_path = Path(tmpdir) / "structure.cell"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_cell(cell_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {cell_path} and hopping file {hr_path}."
-
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "cell")
-        self.assertEqual(
-            [str(item.message) for item in caught if "CASTEP" in str(item.message) or "read_cell" in str(item.message)],
-            [],
-        )
-
-    def test_pipeline_routes_gen_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            gen_path = Path(tmpdir) / "structure.gen"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_gen(gen_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {gen_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "gen")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_routes_res_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            res_path = Path(tmpdir) / "structure.res"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_res(res_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {res_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "res")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_routes_pdb_and_hr_text_pair_into_pseudospin_orbital_summary(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pdb_path = Path(tmpdir) / "structure.pdb"
-            hr_path = Path(tmpdir) / "VR_hr.dat"
-            self._write_minimal_pdb(pdb_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use structure file {pdb_path} and hopping file {hr_path}."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "pdb")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_routes_geometry_in_and_h_r_dat_without_explicit_roles(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            geometry_path = Path(tmpdir) / "geometry.in"
-            hr_path = Path(tmpdir) / "H_R.dat"
-            self._write_minimal_aims_geometry(geometry_path)
-            self._write_minimal_many_body_hr(hr_path)
-            text = f"Use {geometry_path} together with {hr_path} for this run."
-
-            result = run_text_simplification_pipeline(text)
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
-        self.assertEqual(result["parsed_payload"]["structure"]["source_format"], "in")
-        self.assertTrue(result["decomposition"]["terms"])
-
-    def test_pipeline_blocks_family_one_when_bond_phase_terms_need_a_more_specific_representation(self):
-        result = run_text_simplification_pipeline(
-            self.FEI2_FAMILY_ONE_FIXTURE,
-            source_path="tests/data/fei2_family_one_fixture.tex",
-            selected_model_candidate="effective",
-            selected_local_bond_family="1",
-        )
-
-        self.assertEqual(result["status"], "needs_input")
-        self.assertEqual(result["stage"], "decompose_local_term")
-        self.assertEqual(result["interaction"]["id"], "bond_phase_matrix_form_selection")
-        self.assertIn("bond_dependent_phase_gamma_terms", result["unsupported_features"])
-
-    def test_pipeline_family_one_auto_falls_back_to_matrix_form_and_requests_coordinate_convention(self):
-        result = run_text_simplification_pipeline(
-            self.FEI2_FAMILY_ONE_WITH_MATRIX_FIXTURE,
-            source_path="tests/data/fei2_family_one_with_matrix_fixture.tex",
-            selected_model_candidate="effective",
-            selected_local_bond_family="1",
-        )
-
-        self.assertEqual(result["status"], "needs_input")
-        self.assertEqual(result["stage"], "normalize_input")
-        self.assertEqual(result["interaction"]["id"], "coordinate_convention_selection")
-
-    def test_pipeline_family_one_auto_falls_back_to_matrix_form_and_completes_when_coordinate_convention_is_selected(self):
-        result = run_text_simplification_pipeline(
-            self.FEI2_FAMILY_ONE_WITH_MATRIX_FIXTURE,
-            source_path="tests/data/fei2_family_one_with_matrix_fixture.tex",
-            selected_model_candidate="effective",
-            selected_local_bond_family="1",
-            selected_coordinate_convention="global_crystallographic",
-        )
-
-        self.assertEqual(result["status"], "ok")
-        matrix_blocks = [block for block in result["effective_model"]["main"] if block["type"] == "symmetric_exchange_matrix"]
-        self.assertEqual(len(matrix_blocks), 1)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][0][0], -0.397)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][1][1], -0.075)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][1][2], -0.261)
-
-    def test_pipeline_family_two_auto_fallback_preserves_selected_family_when_matrix_form_has_multiple_families(self):
-        result = run_text_simplification_pipeline(
-            self.GENERIC_FAMILY_TWO_WITH_MULTI_MATRIX_FIXTURE,
-            source_path="tests/data/generic_family_two_with_multi_matrix_fixture.tex",
-            selected_model_candidate="effective",
-            selected_local_bond_family="2",
-            selected_coordinate_convention="global_crystallographic",
-        )
-
-        self.assertEqual(result["status"], "ok")
-        matrix_blocks = [block for block in result["effective_model"]["main"] if block["type"] == "symmetric_exchange_matrix"]
-        self.assertEqual(len(matrix_blocks), 1)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][0][0], -0.310)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][1][1], -0.110)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][1][2], 0.050)
-        self.assertAlmostEqual(matrix_blocks[0]["matrix"][2][2], -0.220)
-
-    def test_pipeline_does_not_auto_fallback_when_matrix_form_lacks_the_selected_family(self):
-        result = run_text_simplification_pipeline(
-            self.GENERIC_FAMILY_TWO_WITH_WRONG_MATRIX_FAMILY_FIXTURE,
-            source_path="tests/data/generic_family_two_with_wrong_matrix_family_fixture.tex",
-            selected_model_candidate="effective",
-            selected_local_bond_family="2",
-            selected_coordinate_convention="global_crystallographic",
-        )
-
-        self.assertEqual(result["status"], "needs_input")
-        self.assertEqual(result["stage"], "decompose_local_term")
-        self.assertEqual(result["interaction"]["id"], "bond_phase_matrix_form_selection")
-
-    def test_pipeline_routes_directory_path_to_discovered_many_body_hr_pair(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            case_dir = Path(tmpdir)
-            structure_path = case_dir / "POSCAR"
-            hr_path = case_dir / "VR_hr.dat"
-            self._write_minimal_poscar(structure_path)
-            self._write_minimal_many_body_hr(hr_path)
-
-            result = run_text_simplification_pipeline(f"Use {case_dir} as the many-body hr input directory.")
-
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(result["stage"], "complete")
-        self.assertEqual(result["input_mode"], "many_body_hr")
         self.assertEqual(
             result["normalized_model"]["hamiltonian_description"]["representation"]["structure_file"],
             str(structure_path),
@@ -2067,19 +1827,38 @@ J_y^{zz} = 0.090
         self.assertTrue(result["agent_inferred"]["user_explanation"]["summary"])
 
     def test_run_text_simplification_pipeline_uses_public_agent_inferred_view_on_ok(self):
-        summary = {
-            "decomposition": {"terms": [{"label": "stub"}]},
-            "canonical_model": {"main": []},
-            "readable_model": {"main": []},
-            "effective_model": {"main": []},
-            "simplification": {"candidates": []},
+        normalized_model = {
+            "interaction": None,
+            "landing_readiness": "agent_proposed_ok",
+            "agent_inferred": {
+                "confidence": {"level": "high", "reason": "recognized pair"},
+                "recognized_items": ["structure file: structure.cif"],
+                "assumptions": ["treated the cited files as the intended pair"],
+                "unresolved_items": [],
+                "user_explanation": {
+                    "recognized": ["structure file: structure.cif"],
+                    "summary": "The helper recognized the intended file pair.",
+                },
+                "inferred_fields": {"structure_file": "structure.cif"},
+                "field_policy_boundary": {"agent_inferred_fields": ["structure_file"]},
+            },
+            "lattice_description": {"kind": "unspecified", "value": ""},
+            "user_required_symmetries": [],
+            "allowed_breaking": [],
+            "coordinate_convention": {},
+            "rotating_frame_transform": {},
+            "unsupported_features": [],
         }
-        with patch("cli.simplify_text_input.build_pseudospin_orbital_payload", return_value={"input_mode": "many_body_hr"}):
-            with patch("cli.simplify_text_input.simplify_pseudospin_orbital_payload", return_value=summary):
-                with patch("cli.simplify_text_input.score_fidelity", return_value={"score": 1.0}):
-                    result = run_text_simplification_pipeline(
-                        "use structure.cif and wannier90_hr.dat for the effective Hamiltonian"
-                    )
+        with patch("cli.simplify_text_input.normalize_freeform_text", return_value=normalized_model):
+            with patch("cli.simplify_text_input.parse_lattice_description", return_value={"kind": "unspecified"}):
+                with patch("cli.simplify_text_input.decompose_local_term", return_value={"mode": "supported", "terms": []}):
+                    with patch("cli.simplify_text_input.infer_symmetries", return_value={"status": "ok"}):
+                        with patch("cli.simplify_text_input.canonicalize_terms", return_value={"terms": []}):
+                            with patch("cli.simplify_text_input.identify_readable_blocks", return_value={"main": []}):
+                                with patch("cli.simplify_text_input.assemble_effective_model", return_value={"main": []}):
+                                    with patch("cli.simplify_text_input.score_fidelity", return_value={"score": 1.0}):
+                                        with patch("cli.simplify_text_input.generate_candidates", return_value={"candidates": []}):
+                                            result = run_text_simplification_pipeline("placeholder")
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(
@@ -2092,6 +1871,47 @@ J_y^{zz} = 0.090
                 "user_explanation",
             },
         )
+        self.assertEqual(
+            result["agent_inferred"]["assumptions"],
+            ["treated the cited files as the intended pair"],
+        )
+        self.assertNotIn("field_policy_boundary", result["agent_inferred"])
+
+    def test_run_text_simplification_pipeline_omits_agent_inferred_when_fallback_not_material(self):
+        normalized_model = {
+            "interaction": None,
+            "agent_inferred": {
+                "confidence": {"level": "medium", "reason": "recognized a keyword"},
+                "recognized_items": ["model keyword: effective"],
+                "assumptions": ["keyword match only"],
+                "unresolved_items": [],
+                "user_explanation": {
+                    "recognized": ["model keyword: effective"],
+                    "summary": "The helper recognized a keyword.",
+                },
+                "inferred_fields": {},
+                "unsupported_even_with_agent": [],
+            },
+            "lattice_description": {"kind": "unspecified", "value": ""},
+            "user_required_symmetries": [],
+            "allowed_breaking": [],
+            "coordinate_convention": {},
+            "rotating_frame_transform": {},
+            "unsupported_features": [],
+        }
+        with patch("cli.simplify_text_input.normalize_freeform_text", return_value=normalized_model):
+            with patch("cli.simplify_text_input.parse_lattice_description", return_value={"kind": "unspecified"}):
+                with patch("cli.simplify_text_input.decompose_local_term", return_value={"mode": "supported", "terms": []}):
+                    with patch("cli.simplify_text_input.infer_symmetries", return_value={"status": "ok"}):
+                        with patch("cli.simplify_text_input.canonicalize_terms", return_value={"terms": []}):
+                            with patch("cli.simplify_text_input.identify_readable_blocks", return_value={"main": []}):
+                                with patch("cli.simplify_text_input.assemble_effective_model", return_value={"main": []}):
+                                    with patch("cli.simplify_text_input.score_fidelity", return_value={"score": 1.0}):
+                                        with patch("cli.simplify_text_input.generate_candidates", return_value={"candidates": []}):
+                                            result = run_text_simplification_pipeline("placeholder")
+
+        self.assertEqual(result["status"], "ok")
+        self.assertNotIn("agent_inferred", result)
 
 
 if __name__ == "__main__":

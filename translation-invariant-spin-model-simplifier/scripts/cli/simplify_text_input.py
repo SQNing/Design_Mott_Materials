@@ -8,9 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from input import normalize_freeform_text
-from input.document_input_protocol import build_intermediate_record
 from input.parse_lattice_description import parse_lattice_description
-from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from simplify.assemble_effective_model import assemble_effective_model
 from simplify.canonicalize_terms import canonicalize_terms
 from simplify.decompose_local_term import decompose_local_term
@@ -18,7 +16,6 @@ from simplify.generate_simplifications import generate_candidates
 from simplify.identify_readable_blocks import identify_readable_blocks
 from simplify.infer_symmetries import infer_symmetries
 from simplify.score_fidelity import score_fidelity
-from simplify.simplify_pseudospin_orbital_payload import simplify_pseudospin_orbital_payload
 
 
 PUBLIC_AGENT_INFERRED_FIELDS = (
@@ -47,7 +44,7 @@ def _public_agent_inferred_view(agent_inferred):
     return {
         "confidence": dict(confidence) if isinstance(confidence, dict) else {},
         "recognized_items": list(agent_inferred.get("recognized_items", [])),
-        "assumptions": [],
+        "assumptions": list(agent_inferred.get("assumptions", [])),
         "unresolved_items": unresolved_items,
         "user_explanation": public_user_explanation,
     }
@@ -86,95 +83,7 @@ def _finalize_pipeline_result(result):
     return result
 
 
-def _has_matrix_form_candidate(normalized_model):
-    record = normalized_model.get("document_intermediate", {})
-    candidates = record.get("model_candidates", []) if isinstance(record, dict) else []
-    return any(candidate.get("name") == "matrix_form" for candidate in candidates)
-
-
-def _matrix_form_supports_selected_family(normalized_model):
-    if not _has_matrix_form_candidate(normalized_model):
-        return False
-    selected_family = normalized_model.get("selected_local_bond_family")
-    if not selected_family:
-        return True
-    source_text = normalized_model.get("document_source_text")
-    if not isinstance(source_text, str) or not source_text.strip():
-        return False
-    record = build_intermediate_record(
-        source_text=source_text,
-        source_path=normalized_model.get("document_source_path"),
-        selected_model_candidate="matrix_form",
-        selected_local_bond_family=selected_family,
-        selected_coordinate_convention=_selected_coordinate_frame(normalized_model),
-    )
-    local_bond_candidates = list(record.get("hamiltonian_model", {}).get("local_bond_candidates", []))
-    return any(entry.get("family") == selected_family for entry in local_bond_candidates)
-
-
-def _selected_coordinate_frame(normalized_model):
-    selected = normalized_model.get("selected_coordinate_convention")
-    if isinstance(selected, str) and selected.strip():
-        return selected.strip()
-    convention = normalized_model.get("coordinate_convention", {})
-    if isinstance(convention, dict) and convention.get("status") == "selected":
-        frame = str(convention.get("frame") or "").strip()
-        if frame and frame != "unspecified":
-            return frame
-    return None
-
-
-def _maybe_auto_fallback_to_matrix_form(normalized_model):
-    unsupported_features = set(normalized_model.get("unsupported_features", []))
-    anisotropic_phase_features = {
-        "bond_dependent_phase_gamma_terms",
-        "double_raising_lowering_exchange_terms",
-        "zpm_offdiagonal_exchange_terms",
-    }
-    if not (unsupported_features & anisotropic_phase_features):
-        return None
-    if normalized_model.get("selected_model_candidate") == "matrix_form":
-        return None
-    if not _matrix_form_supports_selected_family(normalized_model):
-        return None
-    source_text = normalized_model.get("document_source_text")
-    if not isinstance(source_text, str) or not source_text.strip():
-        return None
-    return run_text_simplification_pipeline(
-        source_text,
-        source_path=normalized_model.get("document_source_path"),
-        selected_model_candidate="matrix_form",
-        selected_local_bond_family=normalized_model.get("selected_local_bond_family"),
-        selected_coordinate_convention=_selected_coordinate_frame(normalized_model),
-    )
-
-
 def _projection_gate(normalized_model, decomposition):
-    unsupported_features = list(normalized_model.get("unsupported_features", []))
-    anisotropic_phase_features = {
-        "bond_dependent_phase_gamma_terms",
-        "double_raising_lowering_exchange_terms",
-        "zpm_offdiagonal_exchange_terms",
-    }
-    if any(feature in anisotropic_phase_features for feature in unsupported_features):
-        return {
-            "status": "needs_input",
-            "stage": "decompose_local_term",
-            "normalized_model": normalized_model,
-            "decomposition": decomposition,
-            "interaction": {
-                "status": "needs_input",
-                "id": "bond_phase_matrix_form_selection",
-                "question": (
-                    "The selected bond family contains bond-phase-dependent anisotropic terms "
-                    "(for example gamma_ij, J^{\\pm\\pm}, or J^{z\\pm}) that the current "
-                    "operator-basis decomposition cannot represent faithfully. Should I switch "
-                    "to the equivalent matrix-form candidate, or should I project/truncate first?"
-                ),
-                "options": ["matrix_form", "project", "truncate"],
-            },
-            "unsupported_features": unsupported_features,
-        }
     return {
         "status": "needs_input",
         "stage": "decompose_local_term",
@@ -189,7 +98,7 @@ def _projection_gate(normalized_model, decomposition):
             ),
             "options": ["project", "truncate", "custom"],
         },
-        "unsupported_features": unsupported_features + ["operator_expression_decomposition_pending"],
+        "unsupported_features": ["operator_expression_decomposition_pending"],
     }
 
 
@@ -203,52 +112,6 @@ def _defer_lattice_resolution(normalized_model, lattice):
     if isinstance(lattice.get("interaction"), dict):
         deferred["interaction"] = dict(lattice["interaction"])
     return deferred
-
-
-def _run_many_body_hr_text_pipeline(normalized_model):
-    representation = normalized_model["hamiltonian_description"]["representation"]
-    structure_file = representation["structure_file"]
-    hamiltonian_file = representation["hamiltonian_file"]
-    try:
-        parsed_payload = build_pseudospin_orbital_payload(
-            poscar_path=Path(structure_file),
-            hr_path=Path(hamiltonian_file),
-        )
-    except Exception as exc:
-        return _finalize_pipeline_result({
-            "status": "needs_input",
-            "stage": "normalize_input",
-            "normalized_model": normalized_model,
-            "interaction": {
-                "status": "needs_input",
-                "id": "structure_parser_selection",
-                "question": (
-                    "I detected a many_body_hr file pair, but the structure file could not be parsed "
-                    "by the current broad structure reader. Should I convert or replace the structure file?"
-                ),
-                "options": ["convert", "replace", "custom"],
-            },
-            "unsupported_features": [
-                "many_body_hr_structure_parser_pending",
-                f"structure_parser_error: {exc}",
-            ],
-        })
-    summary = simplify_pseudospin_orbital_payload(parsed_payload)
-    fidelity = score_fidelity(summary["effective_model"])
-    return _finalize_pipeline_result({
-        "status": "ok",
-        "stage": "complete",
-        "input_mode": "many_body_hr",
-        "normalized_model": normalized_model,
-        "parsed_payload": parsed_payload,
-        "decomposition": summary["decomposition"],
-        "canonical_model": summary["canonical_model"],
-        "readable_model": summary["readable_model"],
-        "effective_model": summary["effective_model"],
-        "simplification": summary["simplification"],
-        "fidelity": fidelity,
-        "unsupported_features": list(normalized_model.get("unsupported_features", [])),
-    })
 
 
 def run_text_simplification_pipeline(
@@ -280,9 +143,6 @@ def run_text_simplification_pipeline(
             "unsupported_features": list(normalized_model.get("unsupported_features", [])),
         })
 
-    if normalized_model["hamiltonian_description"]["representation"]["kind"] == "many_body_hr":
-        return _run_many_body_hr_text_pipeline(normalized_model)
-
     lattice = parse_lattice_description(normalized_model.get("lattice_description", {}))
     lattice_interaction = lattice.get("interaction", {}) if isinstance(lattice.get("interaction"), dict) else {}
     if lattice_interaction.get("status") == "needs_input":
@@ -290,10 +150,7 @@ def run_text_simplification_pipeline(
 
     decomposition = decompose_local_term(normalized_model)
     if decomposition.get("mode") == "operator" and any(term.get("label") == "raw-operator" for term in decomposition.get("terms", [])):
-        fallback = _maybe_auto_fallback_to_matrix_form(normalized_model)
-        if fallback is not None:
-            return fallback
-        return _projection_gate(normalized_model, decomposition)
+        return _finalize_pipeline_result(_projection_gate(normalized_model, decomposition))
 
     symmetry_model = {
         "decomposition": decomposition,
