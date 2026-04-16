@@ -26,6 +26,7 @@ HR_FILENAME_PATTERN = re.compile(r"\b[\w./-]*hr[\w.-]*\.dat\b", re.IGNORECASE)
 TOKEN_PATH_PATTERN = re.compile(r"\b[\w./-]+\b")
 
 AGENT_INFERRED_FIELDS = frozenset({"input_family", "structure_file", "hamiltonian_file"})
+PIPELINE_PATCH_FIELDS = frozenset({"representation", "structure_file", "hamiltonian_file"})
 HARD_GATE_FIELDS = frozenset({"coordinate_convention"})
 UNSUPPORTED_EVEN_WITH_AGENT = frozenset(
     {
@@ -63,9 +64,16 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
     intermediate_record = intermediate_record or {}
     normalization_context = normalization_context or {}
 
-    structure_file = _extract_structure_file(source_text)
-    hamiltonian_file = _extract_hr_file(source_text)
+    structure_files = _extract_structure_files(source_text)
+    hamiltonian_files = _extract_hr_files(source_text)
+    structure_file = structure_files[0] if len(structure_files) == 1 else None
+    hamiltonian_file = hamiltonian_files[0] if len(hamiltonian_files) == 1 else None
     model_candidates = list(intermediate_record.get("model_candidates") or [])
+    blocking_ambiguities = [
+        entry
+        for entry in list(intermediate_record.get("ambiguities") or [])
+        if (entry or {}).get("blocks_landing")
+    ]
     selected_coordinate_convention = normalization_context.get("selected_coordinate_convention")
     selected_local_bond_family = normalization_context.get("selected_local_bond_family")
 
@@ -75,11 +83,14 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
     unresolved_items = []
     unsupported_even_with_agent = []
 
+    for candidate in structure_files:
+        source_spans.append({"text": candidate, "role": "structure_path_hint"})
+    for candidate in hamiltonian_files:
+        source_spans.append({"text": candidate, "role": "hr_path_hint"})
+
     if structure_file:
-        source_spans.append({"text": structure_file, "role": "structure_path_hint"})
         inferred_fields["structure_file"] = structure_file
     if hamiltonian_file:
-        source_spans.append({"text": hamiltonian_file, "role": "hr_path_hint"})
         inferred_fields["hamiltonian_file"] = hamiltonian_file
     if model_candidates:
         extracted_evidence.append(
@@ -89,11 +100,41 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
     if structure_file and hamiltonian_file:
         inferred_fields["input_family"] = "many_body_hr"
 
+    unresolved_items.extend(_blocking_unresolved_items(blocking_ambiguities))
+
+    if len(model_candidates) > 1:
+        unresolved_items.append(
+            {
+                "field": "model_candidate",
+                "reason": "Multiple model candidates are present, so the landing is not unique.",
+                "policy": "needs_unique_interpretation",
+            }
+        )
+
+    if len(structure_files) > 1:
+        unresolved_items.append(
+            {
+                "field": "structure_file",
+                "reason": "Multiple plausible structure files were recognized in the source text.",
+                "policy": "needs_unique_interpretation",
+            }
+        )
+
+    if len(hamiltonian_files) > 1:
+        unresolved_items.append(
+            {
+                "field": "hamiltonian_file",
+                "reason": "Multiple plausible hr-style Hamiltonian files were recognized in the source text.",
+                "policy": "needs_unique_interpretation",
+            }
+        )
+
     confidence_level = _classify_confidence(
         source_text=source_text,
         model_candidates=model_candidates,
         structure_file=structure_file,
         hamiltonian_file=hamiltonian_file,
+        unresolved_items=unresolved_items,
     )
 
     if selected_local_bond_family and not selected_coordinate_convention:
@@ -150,6 +191,7 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
             "extracted_evidence": extracted_evidence,
             "field_policy_boundary": {
                 "agent_inferred_fields": sorted(AGENT_INFERRED_FIELDS),
+                "pipeline_patch_fields": sorted(PIPELINE_PATCH_FIELDS),
                 "hard_gate_fields": sorted(HARD_GATE_FIELDS),
                 "unsupported_even_with_agent": sorted(UNSUPPORTED_EVEN_WITH_AGENT),
             },
@@ -164,37 +206,44 @@ def apply_agent_inferred_patch(normalized_payload, proposal):
 
     patched = deepcopy(normalized_payload or {})
     inferred_fields = ((proposal or {}).get("agent_inferred") or {}).get("inferred_fields", {})
+    landing_readiness = (proposal or {}).get("landing_readiness")
 
-    for field in AGENT_INFERRED_FIELDS:
+    if landing_readiness == "agent_proposed_ok" and inferred_fields.get("input_family") == "many_body_hr":
+        patched["representation"] = "many_body_hr"
+    for field in ("structure_file", "hamiltonian_file"):
         if field in inferred_fields:
             patched[field] = inferred_fields[field]
     return patched
 
 
-def _extract_structure_file(source_text):
+def _extract_structure_files(source_text):
+    candidates = []
     lowered = source_text.lower()
     for basename in STRUCTURE_BASENAMES:
         if basename in lowered:
             for token in TOKEN_PATH_PATTERN.findall(source_text):
                 if token.lower().endswith(basename):
-                    return token
-            return basename
+                    _append_unique(candidates, token)
+            if not candidates:
+                _append_unique(candidates, basename)
 
     for token in TOKEN_PATH_PATTERN.findall(source_text):
         lowered_token = token.lower()
         if lowered_token.endswith(STRUCTURE_EXTENSIONS):
-            return token
-    return None
+            _append_unique(candidates, token)
+    return candidates
 
 
-def _extract_hr_file(source_text):
-    match = HR_FILENAME_PATTERN.search(source_text)
-    if not match:
-        return None
-    return match.group(0)
+def _extract_hr_files(source_text):
+    candidates = []
+    for match in HR_FILENAME_PATTERN.finditer(source_text):
+        _append_unique(candidates, match.group(0))
+    return candidates
 
 
-def _classify_confidence(source_text, model_candidates, structure_file, hamiltonian_file):
+def _classify_confidence(source_text, model_candidates, structure_file, hamiltonian_file, unresolved_items):
+    if unresolved_items:
+        return "medium"
     if structure_file and hamiltonian_file:
         return "high"
     if _is_vague_dialogue(source_text) and not model_candidates:
@@ -265,3 +314,23 @@ def _build_user_summary(
     if status == "rejected":
         return f"The helper rejected the proposal because confidence is {confidence_level}."
     return "The helper found some evidence, but not enough to land safely yet."
+
+
+def _blocking_unresolved_items(blocking_ambiguities):
+    unresolved_items = []
+    for entry in blocking_ambiguities:
+        unresolved_items.append(
+            {
+                "field": (entry or {}).get("field") or (entry or {}).get("id") or "ambiguity",
+                "reason": (entry or {}).get("question")
+                or (entry or {}).get("reason")
+                or "A blocking ambiguity remains unresolved.",
+                "policy": "blocking_ambiguity",
+            }
+        )
+    return unresolved_items
+
+
+def _append_unique(items, value):
+    if value and value not in items:
+        items.append(value)
