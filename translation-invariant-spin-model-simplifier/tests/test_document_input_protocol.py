@@ -1425,6 +1425,22 @@ J_{2a'}^{\pm} = 0.068
         self.assertEqual(landed["agent_inferred"]["status"], "proposed")
         self.assertEqual(landed["landing_readiness"], "agent_proposed_needs_input")
 
+    def test_land_intermediate_record_uses_canonical_missing_hamiltonian_hr_interaction_id(self):
+        record = build_intermediate_record(
+            source_text="use structure file ./structure.cif for the effective Hamiltonian",
+            source_path=None,
+            selected_model_candidate="effective",
+        )
+
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["interaction"]["status"], "needs_input")
+        self.assertEqual(landed["interaction"]["id"], "hamiltonian_hr_file_selection")
+        self.assertEqual(
+            landed["agent_inferred"]["unresolved_items"][0]["field"],
+            "hamiltonian_file",
+        )
+
     def test_land_intermediate_record_preserves_needs_input_for_material_ambiguity(self):
         record = build_intermediate_record(
             source_text="family 1 effective Hamiltonian on Fe sites",

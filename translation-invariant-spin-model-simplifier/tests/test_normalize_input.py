@@ -637,6 +637,45 @@ J_1^{zz} = -0.236
         self.assertEqual(normalized["interaction"]["status"], "needs_input")
         self.assertEqual(normalized["interaction"]["id"], "hamiltonian_hr_file_selection")
 
+    def test_normalize_freeform_text_prefers_document_path_over_helper_many_body_acceptance(self):
+        text = r"""
+Use structure.cif and wannier90_hr.dat for the effective Hamiltonian.
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=J_1^{zz}S_i^zS_j^z-D\sum_i (S_i^z)^2 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+D = 2.165
+\end{equation}
+\end{document}
+"""
+
+        normalized = normalize_freeform_text(
+            text,
+            source_path="tests/data/single_effective_document_with_paths.tex",
+        )
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "operator")
+        self.assertIn("J_1^{zz}S_i^zS_j^z", normalized["hamiltonian_description"]["representation"]["value"])
+        self.assertEqual(normalized["parameters"]["D"], 2.165)
+        self.assertIn("document_intermediate", normalized)
+
+    def test_normalize_freeform_text_requests_canonical_hamiltonian_hr_file_selection_id(self):
+        normalized = normalize_freeform_text(
+            "please use structure file ./structure.cif for the effective Hamiltonian"
+        )
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "natural_language")
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "hamiltonian_hr_file_selection")
+
     def test_existing_operator_input_path_still_works(self):
         payload = {
             "representation": "operator",

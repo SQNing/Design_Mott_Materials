@@ -765,6 +765,18 @@ def normalize_freeform_text(
     text = (text or "").strip()
     if not text:
         raise ValueError("freeform input must be non-empty")
+    detected_kind = detect_input_kind(text, source_path=source_path).get("source_kind")
+    local_dimension = _infer_local_dimension_from_text(text)
+    if detected_kind == "tex_document":
+        return _normalize_document_style_natural_language(
+            text,
+            source_path=source_path,
+            selected_model_candidate=selected_model_candidate,
+            selected_local_bond_family=selected_local_bond_family,
+            selected_coordinate_convention=selected_coordinate_convention,
+            local_dimension=local_dimension,
+            source_mode="freeform",
+        )
     route_hint = _inspect_many_body_hr_text(text)
     record = build_intermediate_record(
         source_text=text,
@@ -803,18 +815,6 @@ def normalize_freeform_text(
             user_notes=text,
             source_mode="freeform",
             route_hint=route_hint,
-        )
-    detected_kind = detect_input_kind(text, source_path=source_path).get("source_kind")
-    local_dimension = _infer_local_dimension_from_text(text)
-    if detected_kind == "tex_document":
-        return _normalize_document_style_natural_language(
-            text,
-            source_path=source_path,
-            selected_model_candidate=selected_model_candidate,
-            selected_local_bond_family=selected_local_bond_family,
-            selected_coordinate_convention=selected_coordinate_convention,
-            local_dimension=local_dimension,
-            source_mode="freeform",
         )
     if route_hint is not None and route_hint.get("status") == "ready":
         return _normalize_ready_many_body_hr_hint(

@@ -1199,6 +1199,33 @@ def _agent_fallback_proposal(record: dict) -> dict:
             "The helper recognized unsupported interaction terms that still need "
             "manual handling before the input can land."
         )
+    agent_inferred = proposed.setdefault("agent_inferred", {})
+    inferred_fields = agent_inferred.setdefault("inferred_fields", {})
+    unresolved_items = agent_inferred.setdefault("unresolved_items", [])
+    if inferred_fields.get("structure_file") and not inferred_fields.get("hamiltonian_file"):
+        unresolved_items.append(
+            {
+                "field": "hamiltonian_file",
+                "reason": (
+                    "I found a structure file path, but not a matching hr-style "
+                    "Hamiltonian file path. Which hr file should I use?"
+                ),
+                "policy": "needs_unique_interpretation",
+            }
+        )
+    if inferred_fields.get("hamiltonian_file") and not inferred_fields.get("structure_file"):
+        unresolved_items.append(
+            {
+                "field": "structure_file",
+                "reason": (
+                    "I found an hr-style Hamiltonian file path, but not a matching "
+                    "structure file path. Which structure file should I use?"
+                ),
+                "policy": "needs_unique_interpretation",
+            }
+        )
+    if unresolved_items and proposed.get("landing_readiness") == "agent_proposed_ok":
+        proposed["landing_readiness"] = "agent_proposed_needs_input"
     return proposed
 
 
@@ -1258,7 +1285,7 @@ def _interaction_from_agent_fallback(proposal: dict) -> dict | None:
             "coordinate_convention": "coordinate_convention_selection",
             "model_candidate": "model_candidate_selection",
             "structure_file": "structure_file_selection",
-            "hamiltonian_file": "hamiltonian_file_selection",
+            "hamiltonian_file": "hamiltonian_hr_file_selection",
         }.get(field, "agent_fallback_review")
         return {
             "status": "needs_input",
