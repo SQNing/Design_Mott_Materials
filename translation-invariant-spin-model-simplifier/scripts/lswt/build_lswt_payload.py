@@ -14,6 +14,9 @@ from common.lattice_geometry import (
     lattice_vector_rank,
     resolve_lattice_vectors,
 )
+from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
+from common.rotating_frame_metadata import resolve_rotating_frame_transform
+from common.rotating_frame_realization import resolve_rotating_frame_realization
 
 
 def _error(code, message):
@@ -256,6 +259,15 @@ def build_lswt_payload(model):
         "path": q_path_summary["path"],
         "shell_map": shell_map,
     }
+    rotating_frame_transform = resolve_rotating_frame_transform(model)
+    if rotating_frame_transform is not None:
+        payload["rotating_frame_transform"] = rotating_frame_transform
+    rotating_frame_realization = resolve_rotating_frame_realization(model)
+    if rotating_frame_realization is not None:
+        payload["rotating_frame_realization"] = rotating_frame_realization
+    quadratic_phase_dressing = resolve_quadratic_phase_dressing(model)
+    if quadratic_phase_dressing is not None:
+        payload["quadratic_phase_dressing"] = quadratic_phase_dressing
     return {"status": "ok", "payload": payload}
 
 

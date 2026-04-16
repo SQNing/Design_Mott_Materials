@@ -51,26 +51,32 @@ def canonicalize_terms(model):
         "higher_body": [],
     }
     merged = defaultdict(float)
+    term_metadata = {}
 
     for term in _decomposition_terms(model):
         canonical_label = _canonical_label(term["label"])
-        merged[canonical_label] += term["coefficient"]
+        family = term.get("family")
+        merge_key = (family, canonical_label)
+        merged[merge_key] += term["coefficient"]
+        term_metadata[merge_key] = {"family": family}
 
     grouped_terms = defaultdict(list)
-    for canonical_label, coefficient in merged.items():
+    for merge_key, coefficient in merged.items():
+        family, canonical_label = merge_key
         support = [site for site, _operator in sorted(_parse_label_factors(canonical_label), key=lambda item: (item[0], item[1]))]
         body_order = len(support)
         family_key = BODY_ORDER_KEYS.get(body_order, "higher_body")
-        grouped_terms[family_key].append(
-            {
-                "canonical_label": canonical_label,
-                "coefficient": coefficient,
-                "support": support,
-                "body_order": body_order,
-                "absolute_weight": abs(coefficient),
-                "symmetry_annotations": [],
-            }
-        )
+        entry = {
+            "canonical_label": canonical_label,
+            "coefficient": coefficient,
+            "support": support,
+            "body_order": body_order,
+            "absolute_weight": abs(coefficient),
+            "symmetry_annotations": [],
+        }
+        if term_metadata[merge_key].get("family") is not None:
+            entry["family"] = term_metadata[merge_key]["family"]
+        grouped_terms[family_key].append(entry)
 
     for family_key, terms in grouped_terms.items():
         max_weight = max((term["absolute_weight"] for term in terms), default=0.0)

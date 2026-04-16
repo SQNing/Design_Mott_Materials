@@ -75,7 +75,15 @@ def _parse_natural_language_lattice(text):
 
     kind = None
     for candidate in COMMON_DIMENSIONS:
-        if f"{candidate} lattice" in lowered or f"{candidate}-lattice" in lowered:
+        if (
+            f"{candidate} lattice" in lowered
+            or f"{candidate}-lattice" in lowered
+            or f"{candidate} layer" in lowered
+            or f"{candidate} layers" in lowered
+            or f"{candidate} plane" in lowered
+            or f"{candidate} planes" in lowered
+            or f"{candidate} network" in lowered
+        ):
             kind = candidate
             break
     if kind is None:

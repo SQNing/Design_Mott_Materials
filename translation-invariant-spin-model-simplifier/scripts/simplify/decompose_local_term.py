@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import re
 import sys
 from itertools import product
 from pathlib import Path
@@ -98,6 +99,109 @@ def _real_if_close(value, tolerance):
     return value
 
 
+def _resolve_scalar(token, parameters):
+    cleaned = str(token).strip()
+    if not cleaned:
+        raise ValueError("empty coefficient token")
+    try:
+        return complex(float(cleaned))
+    except ValueError:
+        pass
+    if cleaned in parameters:
+        return complex(parameters[cleaned])
+    raise ValueError(f"unknown coefficient token: {cleaned}")
+
+
+def _collect_operator_basis_terms(expression, parameters, tolerance):
+    pattern = re.compile(
+        r"(?P<coeff>[A-Za-z0-9_{}^\\.+-]+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*)+)"
+    )
+    merged = {}
+    for match in pattern.finditer(expression):
+        try:
+            coeff = _resolve_scalar(match.group("coeff"), parameters)
+        except ValueError:
+            return []
+        label = " ".join(match.group("label").split())
+        merged[label] = merged.get(label, 0.0 + 0.0j) + coeff
+    return [
+        {"label": label, "coefficient": _real_if_close(coefficient, tolerance)}
+        for label, coefficient in sorted(merged.items())
+        if abs(coefficient) > tolerance
+    ]
+
+
+def _collect_latex_operator_terms(expression, parameters, tolerance):
+    compact = re.sub(r"\s+", "", expression)
+    merged = {}
+
+    for match in re.finditer(r"(?P<coeff>[A-Za-z0-9_{}^\\.+-]+)S_i\^zS_j\^z", compact):
+        try:
+            coeff = _resolve_scalar(match.group("coeff"), parameters)
+        except ValueError:
+            return []
+        merged["Sz@0 Sz@1"] = merged.get("Sz@0 Sz@1", 0.0 + 0.0j) + coeff
+
+    ladder_pattern = re.compile(
+        r"\\frac\{(?P<coeff>.+?)\}\{2\}\(S_i\^\+S_j\^-"
+        r"\+S_i\^-S_j\^\+\)"
+    )
+    for match in ladder_pattern.finditer(compact):
+        try:
+            coeff = _resolve_scalar(match.group("coeff"), parameters)
+        except ValueError:
+            return []
+        for label in ("Sx@0 Sx@1", "Sy@0 Sy@1"):
+            merged[label] = merged.get(label, 0.0 + 0.0j) + coeff
+
+    return [
+        {"label": label, "coefficient": _real_if_close(coefficient, tolerance)}
+        for label, coefficient in sorted(merged.items())
+        if abs(coefficient) > tolerance
+    ]
+
+
+def _decompose_operator_expression(expression, parameters, tolerance):
+    parameters = dict(parameters or {})
+    terms = _collect_operator_basis_terms(expression, parameters, tolerance)
+    if not terms:
+        terms = _collect_latex_operator_terms(expression, parameters, tolerance)
+    if terms:
+        return {"mode": "operator-basis", "terms": terms}
+    return {
+        "mode": "operator",
+        "terms": [
+            {
+                "label": "raw-operator",
+                "coefficient": 1.0,
+                "value": expression,
+            }
+        ],
+    }
+
+
+def _decompose_operator_family_collection(collection, parameters, tolerance):
+    combined_terms = []
+    for entry in collection:
+        family = entry.get("family")
+        expression = entry.get("expression", "")
+        decomposition = _decompose_operator_expression(expression, parameters, tolerance)
+        if decomposition.get("mode") != "operator-basis":
+            raw_terms = []
+            for term in decomposition.get("terms", []):
+                raw_term = dict(term)
+                if family is not None:
+                    raw_term["family"] = family
+                raw_terms.append(raw_term)
+            return {"mode": decomposition.get("mode", "operator"), "terms": raw_terms}
+        for term in decomposition.get("terms", []):
+            annotated = dict(term)
+            if family is not None:
+                annotated["family"] = family
+            combined_terms.append(annotated)
+    return {"mode": "operator-basis", "terms": combined_terms}
+
+
 def _validate_matrix_shape(matrix, support):
     expected_size = 2 ** len(support)
     rows, cols = _matrix_shape(matrix)
@@ -118,16 +222,17 @@ def decompose_local_term(normalized, tolerance=1e-9):
     representation = normalized["local_term"]["representation"]
     support = normalized["local_term"]["support"]
     if representation["kind"] == "operator":
-        return {
-            "mode": "operator",
-            "terms": [
-                {
-                    "label": "raw-operator",
-                    "coefficient": 1.0,
-                    "value": representation["value"],
-                }
-            ],
-        }
+        return _decompose_operator_expression(
+            representation["value"],
+            normalized.get("parameters", {}),
+            tolerance,
+        )
+    if representation["kind"] == "operator_family_collection":
+        return _decompose_operator_family_collection(
+            representation["value"],
+            normalized.get("parameters", {}),
+            tolerance,
+        )
     if representation["kind"] != "matrix":
         raise ValueError("unsupported representation kind for decomposition")
     if normalized["local_hilbert"]["dimension"] != 2:

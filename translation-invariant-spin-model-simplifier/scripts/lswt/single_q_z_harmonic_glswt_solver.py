@@ -3,6 +3,20 @@ import math
 
 import numpy as np
 
+from common.quadratic_phase_dressing import summarize_quadratic_phase_dressing
+from common.rotating_frame_consistency import (
+    compare_wavevectors as _common_compare_wavevectors,
+    infer_payload_site_count as _common_infer_payload_site_count,
+    infer_single_q_from_supercell_site_phases as _common_infer_single_q_from_supercell_site_phases,
+    max_site_phase_offset_difference as _common_max_site_phase_offset_difference,
+    metadata_phase_sample_cross_check as _common_metadata_phase_sample_cross_check,
+    normalized_site_phase_offsets as _common_normalized_site_phase_offsets,
+    single_q_rotating_frame_consistency as _common_single_q_rotating_frame_consistency,
+    stabilize_float as _common_stabilize_float,
+    supercell_site_phase_lookup as _common_supercell_site_phase_lookup,
+    wrap_phase_difference as _common_wrap_phase_difference,
+)
+from common.rotating_frame_realization import summarize_rotating_frame_realization
 from lswt.single_q_z_harmonic_adapter import reconstruct_z_from_harmonics
 
 
@@ -92,19 +106,28 @@ def _independent_dft_harmonics(sample_count):
 
 
 def _deserialize_harmonics(serialized_harmonics):
-    harmonics = {}
+    site_harmonics = {}
     for item in serialized_harmonics:
-        harmonics[int(item["harmonic"])] = _deserialize_vector(item["vector"])
-    if not harmonics:
+        site = int(item.get("site", 0))
+        site_harmonics.setdefault(site, {})
+        site_harmonics[site][int(item["harmonic"])] = _deserialize_vector(item["vector"])
+    if not site_harmonics:
         raise ValueError("single-q z-harmonic payload requires non-empty z_harmonics")
-    return harmonics
+    return site_harmonics
 
 
 def _serialize_harmonics(harmonics):
-    return [
-        {"harmonic": int(harmonic), "vector": _serialize_vector(harmonics[harmonic])}
-        for harmonic in sorted(harmonics)
-    ]
+    serialized = []
+    for site in sorted(harmonics):
+        for harmonic in sorted(harmonics[site]):
+            serialized.append(
+                {
+                    "site": int(site),
+                    "harmonic": int(harmonic),
+                    "vector": _serialize_vector(harmonics[site][harmonic]),
+                }
+            )
+    return serialized
 
 
 def _rotated_pair_tensor(pair_matrix, frame_left, frame_right):
@@ -194,6 +217,67 @@ def _dispersion_diagnostics(dispersion, *, soft_mode_tolerance=-1e-8):
     }
 
 
+def _infer_payload_site_count(payload):
+    return _common_infer_payload_site_count(payload)
+
+
+def _normalized_site_phase_offsets(site_count, offsets):
+    return _common_normalized_site_phase_offsets(site_count, offsets)
+
+
+def _compare_wavevectors(left, right):
+    return _common_compare_wavevectors(left, right)
+
+
+def _wrap_phase_difference(value):
+    return _common_wrap_phase_difference(value)
+
+
+def _stabilize_float(value, *, digits=15):
+    return _common_stabilize_float(value, digits=digits)
+
+
+def _supercell_site_phase_lookup(realization):
+    return _common_supercell_site_phase_lookup(realization)
+
+
+def _infer_single_q_from_supercell_site_phases(payload, realization, *, tolerance=1e-8):
+    return _common_infer_single_q_from_supercell_site_phases(
+        payload,
+        realization,
+        tolerance=tolerance,
+    )
+
+
+def _max_site_phase_offset_difference(left, right):
+    return _common_max_site_phase_offset_difference(left, right)
+
+
+def _metadata_phase_sample_cross_check(
+    *,
+    single_q_q_vector,
+    rotating_frame_wavevector,
+    realization_status,
+    effective_site_phase_offsets,
+    source_kind,
+    phase_sample_summary,
+    tolerance=1e-8,
+):
+    return _common_metadata_phase_sample_cross_check(
+        single_q_q_vector=single_q_q_vector,
+        rotating_frame_wavevector=rotating_frame_wavevector,
+        realization_status=realization_status,
+        effective_site_phase_offsets=effective_site_phase_offsets,
+        source_kind=source_kind,
+        phase_sample_summary=phase_sample_summary,
+        tolerance=tolerance,
+    )
+
+
+def _single_q_rotating_frame_consistency(payload, *, tolerance=1e-12):
+    return _common_single_q_rotating_frame_consistency(payload, tolerance=tolerance)
+
+
 def _phase_stationarity_diagnostics(linear_dag, linear_ann, phases, *, tolerance=1e-8):
     entries = []
     max_norm = 0.0
@@ -227,7 +311,7 @@ def _phase_stationarity_diagnostics(linear_dag, linear_ann, phases, *, tolerance
 
 
 def _solve_dispersion_for_reference(active_payload, active_terms, sidebands, *, eigenvalue_tolerance):
-    mode_count = int(len(sidebands) * active_terms["excited_dimension"])
+    mode_count = int(len(sidebands) * active_terms["unit_cell_mode_count"])
     dispersion = []
     max_antihermitian_norm = 0.0
     max_pair_asymmetry_norm = 0.0
@@ -354,6 +438,11 @@ def _truncated_z_harmonic_stationarity_diagnostics(
     }
 
 
+def _site_slice(site, excited_dimension):
+    start = int(site) * int(excited_dimension)
+    return slice(start, start + int(excited_dimension))
+
+
 def _single_truncated_z_harmonic_local_refinement_step(payload, terms, current_diagnostics, *, tolerance=1e-8):
     retained_entries = list(current_diagnostics.get("harmonics", []))
     retained_harmonics = [int(entry["harmonic"]) for entry in retained_entries]
@@ -366,8 +455,13 @@ def _single_truncated_z_harmonic_local_refinement_step(payload, terms, current_d
     current_norm = float(current_diagnostics.get("linear_term_max_norm", 0.0))
     phases = list(terms["phases"])
     z_harmonics = _deserialize_harmonics(payload.get("z_harmonics", []))
+    site_count = int(terms.get("site_count", 1))
+    excited_dimension = int(terms.get("excited_dimension", 0))
     frame_for_phase = _frame_cache(z_harmonics)
-    z_samples = [reconstruct_z_from_harmonics(z_harmonics, phase=phase, normalize=True) for phase in phases]
+    z_samples = {
+        site: [reconstruct_z_from_harmonics(z_harmonics, phase=phase, site=site, normalize=True) for phase in phases]
+        for site in range(site_count)
+    }
     gradient_samples = [
         0.5 * (np.array(dag_sample, dtype=complex) + np.conjugate(np.array(ann_sample, dtype=complex)))
         for dag_sample, ann_sample in zip(terms["linear_dag"], terms["linear_ann"])
@@ -385,15 +479,20 @@ def _single_truncated_z_harmonic_local_refinement_step(payload, terms, current_d
     step_candidates = [1.0, -1.0, 0.5, -0.5, 0.25, -0.25, 0.1, -0.1, 0.05, -0.05, 0.02, -0.02]
 
     for step_size in step_candidates:
-        candidate_samples = []
-        for phase, z_sample, retained_gradient in zip(phases, z_samples, retained_gradient_samples):
-            tangent = frame_for_phase(phase)[:, 1:]
-            delta = -float(step_size) * (tangent @ retained_gradient)
-            candidate_samples.append(_normalize(z_sample + delta))
+        candidate_samples = {site: [] for site in range(site_count)}
+        for phase_index, (phase, retained_gradient) in enumerate(zip(phases, retained_gradient_samples)):
+            for site in range(site_count):
+                tangent = frame_for_phase(site, phase)[:, 1:]
+                site_gradient = retained_gradient[_site_slice(site, excited_dimension)]
+                delta = -float(step_size) * (tangent @ site_gradient)
+                candidate_samples[site].append(_normalize(z_samples[site][phase_index] + delta))
 
         candidate_harmonics = {
-            harmonic: _fourier_component(candidate_samples, phases, harmonic)
-            for harmonic in retained_harmonics
+            site: {
+                harmonic: _fourier_component(candidate_samples[site], phases, harmonic)
+                for harmonic in retained_harmonics
+            }
+            for site in range(site_count)
         }
         candidate_payload = dict(payload)
         candidate_payload["z_harmonics"] = _serialize_harmonics(candidate_harmonics)
@@ -494,11 +593,11 @@ def _truncated_z_harmonic_local_refinement(payload, terms, current_diagnostics, 
 def _frame_cache(z_harmonics):
     cache = {}
 
-    def get_frame(phase):
+    def get_frame(site, phase):
         wrapped = _wrap_phase(phase)
-        key = round(wrapped, 12)
+        key = (int(site), round(wrapped, 12))
         if key not in cache:
-            ray = reconstruct_z_from_harmonics(z_harmonics, phase=wrapped, normalize=True)
+            ray = reconstruct_z_from_harmonics(z_harmonics, phase=wrapped, site=int(site), normalize=True)
             cache[key] = build_local_frame(ray)
         return cache[key]
 
@@ -514,46 +613,64 @@ def _phase_resolved_terms(payload):
     phases = _phase_grid(int(payload.get("phase_grid_size", 64)))
     q_vector = [float(value) for value in payload.get("q_vector", [0.0, 0.0, 0.0])]
     z_harmonics = _deserialize_harmonics(payload.get("z_harmonics", []))
+    site_count = int(payload.get("site_count", max(z_harmonics) + 1 if z_harmonics else 1))
     pair_couplings = list(payload.get("pair_couplings", []))
     identity = np.eye(excited_dimension, dtype=complex)
     get_frame = _frame_cache(z_harmonics)
+    unit_cell_mode_count = int(site_count * excited_dimension)
 
-    linear_dag = [np.zeros(excited_dimension, dtype=complex) for _ in phases]
-    linear_ann = [np.zeros(excited_dimension, dtype=complex) for _ in phases]
-    onsite = [np.zeros((excited_dimension, excited_dimension), dtype=complex) for _ in phases]
+    linear_dag = [np.zeros(unit_cell_mode_count, dtype=complex) for _ in phases]
+    linear_ann = [np.zeros(unit_cell_mode_count, dtype=complex) for _ in phases]
+    onsite = [np.zeros((unit_cell_mode_count, unit_cell_mode_count), dtype=complex) for _ in phases]
     hop_plus = {}
     hop_minus = {}
     pair_plus = {}
 
     for coupling in pair_couplings:
+        source_site = int(coupling.get("source", 0))
+        target_site = int(coupling.get("target", 0))
+        if not 0 <= source_site < site_count:
+            raise ValueError(f"pair coupling source site {source_site} out of range for site_count={site_count}")
+        if not 0 <= target_site < site_count:
+            raise ValueError(f"pair coupling target site {target_site} out of range for site_count={site_count}")
         displacement = tuple(int(value) for value in coupling.get("R", [0, 0, 0]))
         pair_matrix = _deserialize_pair_matrix(coupling["pair_matrix"])
         delta_phase = _phase_from_q_and_displacement(q_vector, displacement)
-        hop_plus[displacement] = [np.zeros((excited_dimension, excited_dimension), dtype=complex) for _ in phases]
-        hop_minus[displacement] = [np.zeros((excited_dimension, excited_dimension), dtype=complex) for _ in phases]
-        pair_plus[displacement] = [np.zeros((excited_dimension, excited_dimension), dtype=complex) for _ in phases]
+        if displacement not in hop_plus:
+            hop_plus[displacement] = [np.zeros((unit_cell_mode_count, unit_cell_mode_count), dtype=complex) for _ in phases]
+        if displacement not in hop_minus:
+            hop_minus[displacement] = [np.zeros((unit_cell_mode_count, unit_cell_mode_count), dtype=complex) for _ in phases]
+        if displacement not in pair_plus:
+            pair_plus[displacement] = [np.zeros((unit_cell_mode_count, unit_cell_mode_count), dtype=complex) for _ in phases]
+        source_slice = _site_slice(source_site, excited_dimension)
+        target_slice = _site_slice(target_site, excited_dimension)
 
         for index, phase in enumerate(phases):
-            source_frame = get_frame(phase)
-            target_frame = get_frame(phase + delta_phase)
-            previous_frame = get_frame(phase - delta_phase)
+            source_frame = get_frame(source_site, phase)
+            target_frame = get_frame(target_site, phase + delta_phase)
+            previous_frame = get_frame(source_site, phase - delta_phase)
+            current_target_frame = get_frame(target_site, phase)
 
             rotated_fwd = _rotated_pair_tensor(pair_matrix, source_frame, target_frame)
-            rotated_prev = _rotated_pair_tensor(pair_matrix, previous_frame, source_frame)
+            rotated_prev = _rotated_pair_tensor(pair_matrix, previous_frame, current_target_frame)
 
             e00_fwd = complex(rotated_fwd[0, 0, 0, 0])
             e00_prev = complex(rotated_prev[0, 0, 0, 0])
 
-            linear_dag[index] += rotated_fwd[1:, 0, 0, 0] + rotated_prev[0, 0, 1:, 0]
-            linear_ann[index] += rotated_fwd[0, 1:, 0, 0] + rotated_prev[0, 0, 0, 1:]
-            onsite[index] += rotated_fwd[1:, 1:, 0, 0] - e00_fwd * identity
-            onsite[index] += rotated_prev[0, 0, 1:, 1:] - e00_prev * identity
-            hop_plus[displacement][index] += rotated_fwd[1:, 0, 0, 1:]
-            hop_minus[displacement][index] += np.transpose(rotated_prev[0, 1:, 1:, 0])
-            pair_plus[displacement][index] += rotated_fwd[1:, 0, 1:, 0]
+            linear_dag[index][source_slice] += rotated_fwd[1:, 0, 0, 0]
+            linear_ann[index][source_slice] += rotated_fwd[0, 1:, 0, 0]
+            linear_dag[index][target_slice] += rotated_prev[0, 0, 1:, 0]
+            linear_ann[index][target_slice] += rotated_prev[0, 0, 0, 1:]
+            onsite[index][source_slice, source_slice] += rotated_fwd[1:, 1:, 0, 0] - e00_fwd * identity
+            onsite[index][target_slice, target_slice] += rotated_prev[0, 0, 1:, 1:] - e00_prev * identity
+            hop_plus[displacement][index][source_slice, target_slice] += rotated_fwd[1:, 0, 0, 1:]
+            hop_minus[displacement][index][target_slice, source_slice] += np.transpose(rotated_prev[0, 1:, 1:, 0])
+            pair_plus[displacement][index][source_slice, target_slice] += rotated_fwd[1:, 0, 1:, 0]
 
     return {
         "excited_dimension": int(excited_dimension),
+        "site_count": int(site_count),
+        "unit_cell_mode_count": int(unit_cell_mode_count),
         "phases": phases,
         "q_vector": q_vector,
         "linear_dag": linear_dag,
@@ -569,8 +686,8 @@ def _assemble_single_q_k_blocks(terms, q_point, sidebands):
     q_point = [float(value) for value in q_point]
     q_vector = [float(value) for value in terms["q_vector"]]
     phases = terms["phases"]
-    excited_dimension = int(terms["excited_dimension"])
-    mode_count = int(len(sidebands) * excited_dimension)
+    unit_cell_mode_count = int(terms["unit_cell_mode_count"])
+    mode_count = int(len(sidebands) * unit_cell_mode_count)
     normal = np.zeros((mode_count, mode_count), dtype=complex)
     pair = np.zeros((mode_count, mode_count), dtype=complex)
 
@@ -580,9 +697,9 @@ def _assemble_single_q_k_blocks(terms, q_point, sidebands):
     pair_cache = {}
 
     for row_band, m in enumerate(sidebands):
-        row = slice(row_band * excited_dimension, (row_band + 1) * excited_dimension)
+        row = slice(row_band * unit_cell_mode_count, (row_band + 1) * unit_cell_mode_count)
         for col_band, n in enumerate(sidebands):
-            col = slice(col_band * excited_dimension, (col_band + 1) * excited_dimension)
+            col = slice(col_band * unit_cell_mode_count, (col_band + 1) * unit_cell_mode_count)
 
             normal_harmonic = int(m - n)
             if normal_harmonic not in onsite_cache:
@@ -612,7 +729,7 @@ def _assemble_single_q_k_blocks(terms, q_point, sidebands):
                 normal_block += phase_factor * hop_minus_cache[cache_key]
 
             pair_harmonic = int(m + n)
-            pair_block = np.zeros((excited_dimension, excited_dimension), dtype=complex)
+            pair_block = np.zeros((unit_cell_mode_count, unit_cell_mode_count), dtype=complex)
             for displacement, samples in terms["pair_plus"].items():
                 cache_key = (displacement, pair_harmonic)
                 if cache_key not in pair_cache:
@@ -719,6 +836,18 @@ def solve_single_q_z_harmonic_glswt(payload, *, stationarity_tolerance=1e-8, eig
         "input_full_tangent_linear_term_max_norm": float(input_stationarity.get("linear_term_max_norm", 0.0)),
         "selected_full_tangent_linear_term_max_norm": float(stationarity.get("linear_term_max_norm", 0.0)),
     }
+    rotating_frame_summary = summarize_rotating_frame_realization(
+        payload,
+        application_kind="phase-sampled-diagnostics",
+        consumed=True,
+        gauge_alignment_applied=False,
+    )
+    quadratic_phase_dressing = summarize_quadratic_phase_dressing(
+        payload,
+        application_kind="sideband-formalism-subsumes-explicit-block-dressing",
+        consumed=True,
+    )
+    single_q_rotating_frame_consistency = _single_q_rotating_frame_consistency(payload)
     return {
         "status": "ok",
         "backend": {"name": "python-glswt", "implementation": "single-q-z-harmonic-sideband"},
@@ -734,11 +863,18 @@ def solve_single_q_z_harmonic_glswt(payload, *, stationarity_tolerance=1e-8, eig
         "diagnostics": {
             "reference_selection": reference_selection,
             "restricted_ansatz_stationarity": dict(payload.get("restricted_ansatz_stationarity", {})),
+            "site_reference_mode": str(payload.get("site_reference_mode", "")),
+            "source_reference_scope": str(payload.get("source_reference_scope", "")),
+            "source_reference_site": int(payload.get("source_reference_site", 0)),
+            "source_site_ansatz": list(payload.get("source_site_ansatz", [])),
             "truncated_z_harmonic_stationarity": active_truncated_z_harmonic_stationarity,
             "truncated_z_harmonic_local_refinement": truncated_z_harmonic_local_refinement,
             "stationarity": stationarity,
             "dispersion": _dispersion_diagnostics(dispersion),
             "harmonic": dict(payload.get("harmonic_diagnostics", {})),
+            "single_q_rotating_frame_consistency": single_q_rotating_frame_consistency,
             "bogoliubov": active_dispersion_result["bogoliubov"],
+            **({"rotating_frame": rotating_frame_summary} if isinstance(rotating_frame_summary, dict) else {}),
+            **({"quadratic_phase_dressing": quadratic_phase_dressing} if isinstance(quadratic_phase_dressing, dict) else {}),
         },
     }

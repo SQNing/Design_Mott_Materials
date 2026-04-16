@@ -9,9 +9,11 @@ from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from input.document_input_protocol import land_intermediate_record
+    from input.document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
+    from common.rotating_frame_realization import resolve_rotating_frame_realization
 else:
-    from .document_input_protocol import land_intermediate_record
+    from .document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
+    from common.rotating_frame_realization import resolve_rotating_frame_realization
 
 
 DEFAULT_TIMEOUTS = {
@@ -20,11 +22,162 @@ DEFAULT_TIMEOUTS = {
     "classical_solver_seconds": 600,
 }
 
-SUPPORTED_REPRESENTATIONS = {"operator", "matrix", "natural_language", "many_body_hr"}
+SUPPORTED_REPRESENTATIONS = {"operator", "operator_family_collection", "matrix", "natural_language", "many_body_hr"}
 
 
 def _default_lattice():
     return {"kind": "unspecified", "dimension": None, "unit_cell": []}
+
+
+def _default_coordinate_convention():
+    return {
+        "status": "unspecified",
+        "frame": "unspecified",
+        "axis_labels": [],
+        "axis_mapping": {},
+        "resolved_frame": None,
+        "resolved_axis_labels": [],
+        "rotation_matrix": None,
+        "family_overrides": {},
+        "bond_overrides": {},
+        "quantization_axis": None,
+        "raw_description": "",
+    }
+
+
+def _default_magnetic_order():
+    return {
+        "status": "unspecified",
+        "kind": "unspecified",
+        "wavevector": [],
+        "wavevector_units": None,
+        "reference_frame": {
+            "kind": "laboratory",
+            "phase_origin": None,
+        },
+        "raw_description": "",
+    }
+
+
+def _default_rotating_frame():
+    return {
+        "status": "not-needed",
+        "kind": "not-needed",
+    }
+
+
+def _default_rotating_frame_transform():
+    return {
+        "status": "not-needed",
+        "kind": "not-needed",
+    }
+
+
+def _compile_rotating_frame(normalized):
+    magnetic_order = dict(normalized.get("magnetic_order", _default_magnetic_order()))
+    coordinate_convention = dict(normalized.get("coordinate_convention", _default_coordinate_convention()))
+    if magnetic_order.get("kind") not in {"single_q_spiral", "single_q_helical", "single_q_order"}:
+        return _default_rotating_frame(), _default_rotating_frame_transform(), None
+    if magnetic_order.get("reference_frame", {}).get("kind") != "rotating":
+        return _default_rotating_frame(), _default_rotating_frame_transform(), None
+
+    wavevector = list(magnetic_order.get("wavevector") or [])
+    if len(wavevector) != 3:
+        return (
+            _default_rotating_frame(),
+            _default_rotating_frame_transform(),
+            {
+                "status": "needs_input",
+                "id": "wavevector_selection",
+                "question": "The single-Q magnetic order requires a propagation vector Q. Which wavevector should I use?",
+            },
+        )
+
+    units = magnetic_order.get("wavevector_units")
+    if units not in {"reciprocal_lattice_units", "cartesian_reciprocal"}:
+        return (
+            _default_rotating_frame(),
+            _default_rotating_frame_transform(),
+            {
+                "status": "needs_input",
+                "id": "wavevector_units_selection",
+                "question": "The single-Q propagation vector Q was detected, but its basis/units are unspecified. Which convention should I use?",
+                "options": ["reciprocal_lattice_units", "cartesian_reciprocal"],
+            },
+        )
+
+    axis_labels = list(coordinate_convention.get("axis_labels") or [])
+    resolved_axis_labels = list(coordinate_convention.get("resolved_axis_labels") or [])
+    rotation_axis = (
+        coordinate_convention.get("quantization_axis")
+        or (resolved_axis_labels[2] if len(resolved_axis_labels) == 3 else None)
+        or (axis_labels[2] if len(axis_labels) == 3 else None)
+        or "z"
+    )
+
+    phase_rule = (
+        "Q_dot_r_plus_phi_s"
+        if magnetic_order.get("reference_frame", {}).get("phase_origin") == "Q_dot_r"
+        else "unspecified_phase"
+    )
+    rotating_frame = {
+        "status": "explicit",
+        "kind": "single_q_rotating_frame",
+        "source_order_kind": magnetic_order.get("kind"),
+        "wavevector": wavevector,
+        "wavevector_units": units,
+        "phase_rule": phase_rule,
+        "sublattice_phase_offsets": {},
+        "rotation_axis": rotation_axis,
+    }
+    rotating_frame_transform = {
+        "status": "explicit",
+        "kind": "site_phase_rotation",
+        "source_frame_kind": rotating_frame["kind"],
+        "source_order_kind": magnetic_order.get("kind"),
+        "wavevector": wavevector,
+        "wavevector_units": units,
+        "phase_rule": phase_rule,
+        "phase_origin": magnetic_order.get("reference_frame", {}).get("phase_origin"),
+        "sublattice_phase_offsets": {},
+        "rotation_axis": rotation_axis,
+    }
+
+    return rotating_frame, rotating_frame_transform, None
+
+
+def _finalize_normalized_payload(normalized):
+    finalized = dict(normalized)
+    rotating_frame, rotating_frame_transform, interaction = _compile_rotating_frame(finalized)
+    finalized["rotating_frame"] = rotating_frame
+    finalized["rotating_frame_transform"] = rotating_frame_transform
+    rotating_frame_realization = resolve_rotating_frame_realization(finalized)
+    if rotating_frame_realization is not None:
+        finalized["rotating_frame_realization"] = rotating_frame_realization
+    existing_interaction = finalized.get("interaction")
+    if interaction is not None and not (
+        isinstance(existing_interaction, dict) and existing_interaction.get("status") == "needs_input"
+    ):
+        finalized["interaction"] = interaction
+    return finalized
+
+
+def _copy_passthrough_fields(source, destination):
+    for key in (
+        "supercell_shape",
+        "positions",
+        "lattice_vectors",
+        "rotating_frame",
+        "rotating_frame_transform",
+        "rotating_frame_realization",
+        "quadratic_phase_dressing",
+        "classical_state",
+        "classical",
+        "ordering",
+    ):
+        if key in source:
+            destination[key] = source[key]
+    return destination
 
 
 def _normalize_lattice_description(payload, legacy_lattice):
@@ -55,6 +208,7 @@ def _normalize_support(support):
 def _require_representation_value(payload, representation):
     field_map = {
         "operator": "expression",
+        "operator_family_collection": "expressions",
         "matrix": "matrix",
         "natural_language": "description",
     }
@@ -111,10 +265,7 @@ def _infer_local_dimension_from_text(text, default=2):
     return default
 
 
-def normalize_freeform_text(text):
-    text = (text or "").strip()
-    if not text:
-        raise ValueError("freeform input must be non-empty")
+def _natural_language_base_payload(text, *, local_dimension, user_notes, source_mode):
     lattice_description = {"kind": "natural_language", "value": text}
     hamiltonian_description = {
         "support": [],
@@ -122,7 +273,7 @@ def normalize_freeform_text(text):
     }
     return {
         "system": {"name": "", "units": "arb."},
-        "local_hilbert": {"dimension": _infer_local_dimension_from_text(text), "uniform": True},
+        "local_hilbert": {"dimension": int(local_dimension), "uniform": True},
         "lattice": _default_lattice(),
         "lattice_description": lattice_description,
         "local_term": dict(hamiltonian_description),
@@ -133,37 +284,180 @@ def normalize_freeform_text(text):
         "allowed_breaking": [],
         "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
         "timeouts": dict(DEFAULT_TIMEOUTS),
-        "user_notes": text,
+        "user_notes": user_notes,
+        "coordinate_convention": _default_coordinate_convention(),
+        "magnetic_order": _default_magnetic_order(),
         "provenance": {
-            "source_mode": "freeform",
+            "source_mode": source_mode,
             "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         },
     }
+
+
+def _document_lattice_text(record, fallback_text):
+    sections = record.get("document_sections", {})
+    structure_sections = sections.get("structure_sections", [])
+    snippets = []
+    for section in structure_sections:
+        content = str(section.get("content") or "").strip()
+        if content:
+            snippets.append(content)
+    if snippets:
+        return "\n\n".join(snippets)
+    return fallback_text
+
+
+def _normalize_document_style_natural_language(
+    text,
+    *,
+    source_path=None,
+    selected_model_candidate=None,
+    selected_local_bond_family=None,
+    selected_coordinate_convention=None,
+    local_dimension,
+    source_mode,
+):
+    record = build_intermediate_record(
+        source_text=text,
+        source_path=source_path,
+        selected_model_candidate=selected_model_candidate,
+        selected_local_bond_family=selected_local_bond_family,
+        selected_coordinate_convention=selected_coordinate_convention,
+    )
+    lattice_text = _document_lattice_text(record, text)
+    landed = land_intermediate_record(record)
+    if landed.get("interaction", {}).get("status") == "needs_input":
+        normalized = _natural_language_base_payload(
+            text,
+            local_dimension=local_dimension,
+            user_notes=text,
+            source_mode=source_mode,
+        )
+        normalized["lattice_description"] = {"kind": "natural_language", "value": lattice_text}
+        normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
+        normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
+        normalized["interaction"] = landed["interaction"]
+        normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
+        normalized["document_intermediate"] = record
+        return _finalize_normalized_payload(normalized)
+
+    return normalize_input(
+        (
+            {
+            "representation": landed["representation"],
+            "support": list(landed.get("support", [])),
+            "expression": landed.get("expression", ""),
+            "lattice_description": {"kind": "natural_language", "value": lattice_text},
+            "parameters": dict(landed.get("parameters", {})),
+            "coordinate_convention": dict(landed.get("coordinate_convention", {})),
+            "magnetic_order": dict(landed.get("magnetic_order", {})),
+            "user_notes": landed.get("user_notes", text),
+            "unsupported_features": list(landed.get("unsupported_features", [])),
+            "source_mode": source_mode,
+            }
+            if landed["representation"] != "operator_family_collection"
+            else {
+                "representation": landed["representation"],
+                "support": list(landed.get("support", [])),
+                "expressions": list(landed.get("expressions", [])),
+                "lattice_description": {"kind": "natural_language", "value": lattice_text},
+                "parameters": dict(landed.get("parameters", {})),
+                "coordinate_convention": dict(landed.get("coordinate_convention", {})),
+                "magnetic_order": dict(landed.get("magnetic_order", {})),
+                "user_notes": landed.get("user_notes", text),
+                "unsupported_features": list(landed.get("unsupported_features", [])),
+                "source_mode": source_mode,
+            }
+        )
+    )
+def normalize_freeform_text(
+    text,
+    *,
+    source_path=None,
+    selected_model_candidate=None,
+    selected_local_bond_family=None,
+    selected_coordinate_convention=None,
+):
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("freeform input must be non-empty")
+    detected_kind = detect_input_kind(text, source_path=source_path).get("source_kind")
+    local_dimension = _infer_local_dimension_from_text(text)
+    if detected_kind == "tex_document":
+        return _normalize_document_style_natural_language(
+            text,
+            source_path=source_path,
+            selected_model_candidate=selected_model_candidate,
+            selected_local_bond_family=selected_local_bond_family,
+            selected_coordinate_convention=selected_coordinate_convention,
+            local_dimension=local_dimension,
+            source_mode="freeform",
+        )
+    return _natural_language_base_payload(
+        text,
+        local_dimension=local_dimension,
+        user_notes=text,
+        source_mode="freeform",
+    )
 
 
 def normalize_input(payload):
     representation = payload.get("representation", "operator")
     if representation not in SUPPORTED_REPRESENTATIONS:
         raise ValueError("unsupported representation")
-    if representation == "natural_language" and payload.get("document_intermediate") is not None:
-        landed = land_intermediate_record(payload["document_intermediate"])
-        if landed.get("interaction", {}).get("status") == "needs_input":
-            normalized = normalize_freeform_text(payload.get("description", ""))
-            normalized["interaction"] = landed["interaction"]
-            normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
-            return normalized
-        payload = {
-            **payload,
-            **landed,
-            "representation": landed["representation"],
-        }
-        representation = payload["representation"]
+    if representation == "natural_language":
+        description = _require_representation_value(payload, representation)
+        source_path = payload.get("source_path")
+        selected_model_candidate = payload.get("selected_model_candidate")
+        selected_local_bond_family = payload.get("selected_local_bond_family")
+        selected_coordinate_convention = payload.get("selected_coordinate_convention")
+        if payload.get("document_intermediate") is not None:
+            landed = land_intermediate_record(payload["document_intermediate"])
+            if landed.get("interaction", {}).get("status") == "needs_input":
+                normalized = normalize_freeform_text(
+                    description,
+                    source_path=source_path,
+                    selected_model_candidate=selected_model_candidate,
+                    selected_local_bond_family=selected_local_bond_family,
+                    selected_coordinate_convention=selected_coordinate_convention,
+                )
+                normalized["coordinate_convention"] = dict(
+                    landed.get("coordinate_convention", normalized.get("coordinate_convention", _default_coordinate_convention()))
+                )
+                normalized["magnetic_order"] = dict(
+                    landed.get("magnetic_order", normalized.get("magnetic_order", _default_magnetic_order()))
+                )
+                normalized["interaction"] = landed["interaction"]
+                normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
+                return _finalize_normalized_payload(normalized)
+            payload = {
+                **payload,
+                **landed,
+                "representation": landed["representation"],
+            }
+            representation = payload["representation"]
+        else:
+            detected_kind = detect_input_kind(description, source_path=source_path).get("source_kind")
+            if detected_kind == "tex_document":
+                return _normalize_document_style_natural_language(
+                    description,
+                    source_path=source_path,
+                    selected_model_candidate=selected_model_candidate,
+                    selected_local_bond_family=selected_local_bond_family,
+                    selected_coordinate_convention=selected_coordinate_convention,
+                    local_dimension=int(payload.get("local_dim", 2)),
+                    source_mode=payload.get("source_mode", representation),
+                )
     if representation == "many_body_hr":
         legacy_lattice = payload.get("lattice", _default_lattice())
         lattice_description = _normalize_lattice_description(payload, legacy_lattice)
         hamiltonian_description = _normalize_many_body_hr_representation(payload)
         user_notes = payload.get("user_notes", "")
         return {
+            **_finalize_normalized_payload(
+                _copy_passthrough_fields(
+                    payload,
+                    {
             "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
             "local_hilbert": {"dimension": int(payload.get("local_dim", 4)), "uniform": True},
             "lattice": legacy_lattice,
@@ -177,6 +471,8 @@ def normalize_input(payload):
             "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
             "timeouts": dict(DEFAULT_TIMEOUTS),
             "user_notes": user_notes,
+            "coordinate_convention": dict(payload.get("coordinate_convention", _default_coordinate_convention())),
+            "magnetic_order": dict(payload.get("magnetic_order", _default_magnetic_order())),
             "basis_semantics": dict(hamiltonian_description["basis_semantics"]),
             "basis_order": hamiltonian_description["basis_order"],
             "provenance": {
@@ -184,6 +480,9 @@ def normalize_input(payload):
                 "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             "interaction": payload.get("interaction"),
+                    },
+                )
+            )
         }
     support = payload.get("support", [])
     support = _normalize_support(support)
@@ -205,7 +504,9 @@ def normalize_input(payload):
             "value": value,
         },
     }
-    return {
+    coordinate_convention = dict(payload.get("coordinate_convention", _default_coordinate_convention()))
+    magnetic_order = dict(payload.get("magnetic_order", _default_magnetic_order()))
+    return _finalize_normalized_payload(_copy_passthrough_fields(payload, {
         "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
         "local_hilbert": {"dimension": local_dimension, "uniform": True},
         "lattice": legacy_lattice,
@@ -219,13 +520,15 @@ def normalize_input(payload):
         "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
         "timeouts": dict(DEFAULT_TIMEOUTS),
         "user_notes": user_notes,
+        "coordinate_convention": coordinate_convention,
+        "magnetic_order": magnetic_order,
         "unsupported_features": list(payload.get("unsupported_features", [])),
         "provenance": {
             "source_mode": payload.get("source_mode", representation),
             "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         },
         "interaction": payload.get("interaction"),
-    }
+    }))
 
 
 def _load_payload(path):
@@ -237,9 +540,25 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
     parser.add_argument("--freeform", default=None)
+    parser.add_argument("--source-path", default=None)
+    parser.add_argument("--selected-model-candidate", default=None)
+    parser.add_argument("--selected-local-bond-family", default=None)
+    parser.add_argument("--selected-coordinate-convention", default=None)
     args = parser.parse_args()
     if args.freeform is not None:
-        print(json.dumps(normalize_freeform_text(args.freeform), indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                normalize_freeform_text(
+                    args.freeform,
+                    source_path=args.source_path,
+                    selected_model_candidate=args.selected_model_candidate,
+                    selected_local_bond_family=args.selected_local_bond_family,
+                    selected_coordinate_convention=args.selected_coordinate_convention,
+                ),
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return 0
     payload = _load_payload(args.input) if args.input else json.load(sys.stdin)
     print(json.dumps(normalize_input(payload), indent=2, sort_keys=True))

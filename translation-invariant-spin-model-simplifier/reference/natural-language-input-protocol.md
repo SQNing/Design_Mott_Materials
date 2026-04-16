@@ -102,6 +102,25 @@ result:
 - an equivalent matrix form disagrees with the main Hamiltonian form,
 - the extracted content exceeds what current payload families can represent.
 
+## Unified Entry Contract
+
+Document-style text inputs are not a separate public ingestion family. They enter through the same
+`natural_language` normalization path as ordinary freeform text.
+
+The contract is:
+
+1. the caller submits text through the `natural_language` / freeform entry,
+2. the implementation detects whether the text is plain language, a LaTeX fragment, or a full
+   document such as a `.tex` source,
+3. if a document contains multiple competing model candidates, normalization returns
+   `interaction.status = needs_input`,
+4. the caller may then resubmit the same text with `selected_model_candidate`,
+5. only after that selection does the document land into a supported normalized payload, when
+   possible.
+
+This keeps the user-facing entry broad and uniform while allowing richer document-style ambiguity
+handling internally.
+
 ## Worked Example
 
 ### FeI2-style `.tex` Input

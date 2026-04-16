@@ -57,6 +57,18 @@ For `many_body_hr` payloads:
 
 For `natural_language` payloads, `local_hilbert.dimension` is normalized from explicit spin notation when present, such as `spin-1/2` or `spin-1`.
 
+Document-style text inputs such as LaTeX notes and `.tex` sources still enter through the
+`natural_language` representation rather than a separate top-level representation kind.
+
+For these document-style `natural_language` inputs:
+
+- callers may provide `source_path` to improve source-kind detection
+- normalization may return `interaction.status = needs_input` when multiple Hamiltonian candidates
+  are present
+- callers may then resubmit the same text with `selected_model_candidate`
+- after that selection, normalization may land the text into an `operator` payload if the selected
+  document candidate can be represented faithfully
+
 Supported spin notation includes integer, half-integer, and `one-half` forms such as `spin-1`, `spin 2`, `spin-3/2`, `spin 3 / 2`, `spin 5/2`, `spin 5 / 2`, and `spin-one-half`.
 
 Other explicit fractions such as `spin-2/3` or `spin-7/4` are rejected during normalization rather than coerced.

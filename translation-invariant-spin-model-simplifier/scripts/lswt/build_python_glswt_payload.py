@@ -8,6 +8,13 @@ if __package__ in {None, ""}:
 from common.bravais_kpaths import default_high_symmetry_path
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
+from common.rotating_frame_consistency import (
+    local_rays_rotating_frame_metadata_phase_sample_cross_check,
+    single_q_rotating_frame_consistency,
+)
+from common.rotating_frame_metadata import resolve_rotating_frame_transform
+from common.rotating_frame_realization import resolve_rotating_frame_realization
 from lswt.build_lswt_payload import infer_spatial_dimension
 from lswt.single_q_z_harmonic_adapter import build_single_q_z_harmonic_payload
 
@@ -36,6 +43,8 @@ def _resolve_pair_couplings(model):
         return [
             {
                 "R": [int(value) for value in coupling.get("R", [0, 0, 0])],
+                "source": int(coupling.get("source", 0)),
+                "target": int(coupling.get("target", 0)),
                 "pair_matrix": coupling.get("pair_matrix"),
                 "tensor_shape": list(coupling.get("tensor_shape", [])),
             }
@@ -51,6 +60,8 @@ def _resolve_pair_couplings(model):
         couplings.append(
             {
                 "R": [int(value) for value in bond.get("R", [0, 0, 0])],
+                "source": int(bond.get("source", 0)),
+                "target": int(bond.get("target", 0)),
                 "pair_matrix": pair_matrix,
                 "tensor_shape": list(bond.get("tensor_shape", [])),
             }
@@ -114,6 +125,21 @@ def _resolve_q_path(model, supercell_shape):
     return _resolve_default_q_path(model, supercell_shape)
 
 
+def _attach_rotating_frame_preflight(payload):
+    payload_kind = str(payload.get("payload_kind", ""))
+    if payload_kind == "python_glswt_single_q_z_harmonic":
+        payload["rotating_frame_metadata_phase_sample_cross_check"] = (
+            single_q_rotating_frame_consistency(payload).get("metadata_phase_sample_cross_check", {})
+        )
+        return payload
+    if payload_kind == "python_glswt_local_rays":
+        payload["rotating_frame_metadata_phase_sample_cross_check"] = (
+            local_rays_rotating_frame_metadata_phase_sample_cross_check(payload)
+        )
+        return payload
+    return payload
+
+
 def build_python_glswt_payload(model, classical_state=None):
     if model.get("payload_kind") in {"python_glswt_local_rays", "python_glswt_single_q_z_harmonic"}:
         return dict(model)
@@ -129,6 +155,19 @@ def build_python_glswt_payload(model, classical_state=None):
     q_path_summary = _resolve_q_path(model, supercell_shape)
     ordering = dict(resolved_state.get("ordering", {}))
     ansatz = str(ordering.get("ansatz", resolved_state.get("ansatz", "")))
+    rotating_frame_transform = resolve_rotating_frame_transform(model)
+    rotating_frame_realization = resolve_rotating_frame_realization(
+        {
+            **model,
+            "classical_state": source_state,
+        }
+    )
+    quadratic_phase_dressing = resolve_quadratic_phase_dressing(
+        {
+            **model,
+            "classical_state": source_state,
+        }
+    )
 
     if ansatz == "single-q-unitary-ray":
         payload = build_single_q_z_harmonic_payload(
@@ -164,7 +203,13 @@ def build_python_glswt_payload(model, classical_state=None):
                 },
             }
         )
-        return payload
+        if rotating_frame_transform is not None:
+            payload["rotating_frame_transform"] = rotating_frame_transform
+        if rotating_frame_realization is not None:
+            payload["rotating_frame_realization"] = rotating_frame_realization
+        if quadratic_phase_dressing is not None:
+            payload["quadratic_phase_dressing"] = quadratic_phase_dressing
+        return _attach_rotating_frame_preflight(payload)
 
     local_rays = list(resolved_state.get("local_rays", []))
     if not local_rays:
@@ -173,7 +218,7 @@ def build_python_glswt_payload(model, classical_state=None):
     if not resolved_state.get("supercell_shape"):
         raise ValueError("python GLSWT payload requires classical_state.supercell_shape")
 
-    return {
+    payload = {
         "payload_version": 1,
         "backend": "python",
         "mode": "GLSWT",
@@ -203,3 +248,10 @@ def build_python_glswt_payload(model, classical_state=None):
             "reference_state_scope": "periodic-local-rays-only",
         },
     }
+    if rotating_frame_transform is not None:
+        payload["rotating_frame_transform"] = rotating_frame_transform
+    if rotating_frame_realization is not None:
+        payload["rotating_frame_realization"] = rotating_frame_realization
+    if quadratic_phase_dressing is not None:
+        payload["quadratic_phase_dressing"] = quadratic_phase_dressing
+    return _attach_rotating_frame_preflight(payload)

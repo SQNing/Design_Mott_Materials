@@ -8,6 +8,24 @@ import numpy as np
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common.quadratic_phase_dressing import (
+    resolve_quadratic_phase_dressing,
+    summarize_quadratic_phase_dressing,
+)
+from common.rotating_frame_consistency import (
+    compare_wavevectors as _compare_wavevectors,
+    infer_single_q_from_supercell_site_phases as _infer_single_q_from_supercell_site_phases,
+    local_rays_rotating_frame_metadata_phase_sample_cross_check as _common_local_rays_rotating_frame_metadata_phase_sample_cross_check,
+    max_site_phase_offset_difference as _common_max_site_phase_offset_difference,
+    metadata_local_rotating_frame_summary as _common_metadata_local_rotating_frame_summary,
+    normalized_site_phase_offsets as _normalized_site_phase_offsets,
+    stabilize_float as _stabilize_float,
+    wrap_phase_difference as _wrap_phase_difference,
+)
+from common.rotating_frame_realization import (
+    resolve_supercell_site_phase_entries,
+    summarize_rotating_frame_realization,
+)
 from lswt.single_q_z_harmonic_glswt_solver import solve_single_q_z_harmonic_glswt
 
 
@@ -75,17 +93,87 @@ def _cell_lookup(shape):
     return cells, {cell: index for index, cell in enumerate(cells)}
 
 
-def _deserialize_local_rays(payload):
+def _mode_site_lookup(shape, site_count):
+    cells = _cell_tuples(shape)
+    mode_sites = []
+    for cell in cells:
+        for site in range(int(site_count)):
+            mode_sites.append((cell, int(site)))
+    return mode_sites, {mode_site: index for index, mode_site in enumerate(mode_sites)}
+
+
+def _load_local_rays(payload):
     shape = tuple(int(value) for value in payload["supercell_shape"])
     local_dimension = int(payload["local_dimension"])
-    rays = np.zeros(shape + (local_dimension,), dtype=complex)
-    for item in payload.get("initial_local_rays", []):
+    entries = list(payload.get("initial_local_rays", []))
+    site_count = 1
+    if entries:
+        site_count = max(1, max(int(item.get("site", 0)) for item in entries) + 1)
+    rays = np.zeros(shape + (site_count, local_dimension), dtype=complex)
+    for item in entries:
         cell = tuple(int(value) for value in item["cell"])
-        rays[cell] = _normalize(_deserialize_vector(item["vector"]))
+        site = int(item.get("site", 0))
+        rays[cell + (site,)] = _normalize(_deserialize_vector(item["vector"]))
     for cell in np.ndindex(shape):
-        if np.linalg.norm(rays[cell]) <= 1e-12:
-            raise ValueError(f"missing local ray for magnetic-cell coordinate {cell}")
+        for site in range(site_count):
+            if np.linalg.norm(rays[cell + (site,)]) <= 1e-12:
+                raise ValueError(f"missing local ray for magnetic-cell coordinate {cell} site {site}")
     return rays
+
+
+def _deserialize_local_rays(payload):
+    rays = _load_local_rays(payload)
+    return _apply_rotating_frame_realization_to_local_rays(payload, rays)
+
+
+def _apply_rotating_frame_realization_to_local_rays(payload, rays):
+    rotating_frame = summarize_rotating_frame_realization(
+        payload,
+        application_kind="local-ray-gauge-alignment",
+        consumed=True,
+    )
+    if rotating_frame is None:
+        return rays, None
+
+    entries = resolve_supercell_site_phase_entries(payload)
+    if not entries:
+        rotating_frame["gauge_alignment_applied"] = False
+        rotating_frame["reason"] = "no-supercell-site-phases"
+        return rays, rotating_frame
+    phase_by_site_cell = {
+        (tuple(int(value) for value in entry["cell"]), int(entry["site"])): float(entry["phase"])
+        for entry in entries
+    }
+    aligned = np.array(rays, copy=True)
+    for cell in np.ndindex(rays.shape[:3]):
+        for site in range(int(rays.shape[3])):
+            key = (tuple(int(value) for value in cell), int(site))
+            if key not in phase_by_site_cell:
+                rotating_frame["gauge_alignment_applied"] = False
+                rotating_frame["reason"] = f"missing-site-phase-for-cell-{cell}-site-{site}"
+                return rays, rotating_frame
+            aligned[cell + (site,)] *= np.exp(-1.0j * float(phase_by_site_cell[key]))
+
+    rotating_frame["gauge_alignment_applied"] = True
+    return aligned, rotating_frame
+
+
+def _resolve_site_phase_map(payload, *, site_count):
+    entries = resolve_supercell_site_phase_entries(payload)
+    if not entries:
+        return None, "no-supercell-site-phases"
+
+    phase_by_site_cell = {
+        (tuple(int(value) for value in entry["cell"]), int(entry["site"])): float(entry["phase"])
+        for entry in entries
+    }
+    shape = tuple(int(value) for value in payload["supercell_shape"])
+    for cell in np.ndindex(shape):
+        for site in range(int(site_count)):
+            key = (tuple(int(value) for value in cell), int(site))
+            if key not in phase_by_site_cell:
+                return None, f"missing-site-phase-for-cell-{cell}-site-{site}"
+    return phase_by_site_cell, None
 
 
 def _wrap_cell_and_translation(cell, displacement, shape):
@@ -119,6 +207,22 @@ def _block_add(mapping, key, value):
         mapping[key] = mapping[key] + np.array(value, dtype=complex)
 
 
+def _phase_factor_from_rule(rule, source_phase, target_phase):
+    if rule == "target_minus_source":
+        argument = float(target_phase) - float(source_phase)
+    elif rule == "minus_source_minus_target":
+        argument = -float(source_phase) - float(target_phase)
+    elif rule == "source_plus_target":
+        argument = float(source_phase) + float(target_phase)
+    elif rule == "minus_source":
+        argument = -float(source_phase)
+    elif rule == "source":
+        argument = float(source_phase)
+    else:
+        argument = 0.0
+    return np.exp(1.0j * argument)
+
+
 def _rotated_pair_tensor(pair_matrix, frame_left, frame_right):
     local_dimension = int(frame_left.shape[0])
     tensor = _pair_matrix_to_tensor(pair_matrix, local_dimension)
@@ -133,29 +237,58 @@ def _rotated_pair_tensor(pair_matrix, frame_left, frame_right):
     )
 
 
-def _quadratic_terms(payload):
+def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dressing=None, phase_by_site_cell=None):
     local_dimension = int(payload["local_dimension"])
     if local_dimension < 2:
         raise ValueError("python GLSWT requires local_dimension >= 2")
     shape = tuple(int(value) for value in payload["supercell_shape"])
+    site_count = int(rays.shape[3])
     excited_dimension = local_dimension - 1
-    rays = _deserialize_local_rays(payload)
-    cells, lookup = _cell_lookup(shape)
-    frames = {cell: build_local_frame(rays[cell]) for cell in cells}
+    cells = _cell_tuples(shape)
+    mode_sites, lookup = _mode_site_lookup(shape, site_count)
+    frames = {
+        mode_site: build_local_frame(rays[mode_site[0] + (mode_site[1],)])
+        for mode_site in mode_sites
+    }
+    channel_rules = {}
+    if isinstance(phase_dressing, dict):
+        channel_rules = dict(phase_dressing.get("channel_phase_rules", {}))
 
-    linear_dag = np.zeros((len(cells), excited_dimension), dtype=complex)
-    linear_ann = np.zeros((len(cells), excited_dimension), dtype=complex)
+    linear_dag = np.zeros((len(mode_sites), excited_dimension), dtype=complex)
+    linear_ann = np.zeros((len(mode_sites), excited_dimension), dtype=complex)
     normal_terms = {}
     pair_terms = {}
 
     for source_cell in cells:
-        source_index = lookup[source_cell]
-        source_frame = frames[source_cell]
         for coupling in payload.get("pair_couplings", []):
+            source_site = int(coupling.get("source", 0))
+            target_site = int(coupling.get("target", 0))
+            if not 0 <= source_site < site_count:
+                raise ValueError(
+                    f"pair coupling source site {source_site} out of range for site_count={site_count}"
+                )
+            if not 0 <= target_site < site_count:
+                raise ValueError(
+                    f"pair coupling target site {target_site} out of range for site_count={site_count}"
+                )
             displacement = tuple(int(value) for value in coupling.get("R", [0, 0, 0]))
             target_cell, translation = _wrap_cell_and_translation(source_cell, displacement, shape)
-            target_index = lookup[target_cell]
-            target_frame = frames[target_cell]
+            source_mode_site = (source_cell, source_site)
+            target_mode_site = (target_cell, target_site)
+            source_index = lookup[source_mode_site]
+            target_index = lookup[target_mode_site]
+            source_frame = frames[source_mode_site]
+            target_frame = frames[target_mode_site]
+            source_phase = (
+                float(phase_by_site_cell.get(source_mode_site, 0.0))
+                if isinstance(phase_by_site_cell, dict)
+                else 0.0
+            )
+            target_phase = (
+                float(phase_by_site_cell.get(target_mode_site, 0.0))
+                if isinstance(phase_by_site_cell, dict)
+                else 0.0
+            )
             rotated = _rotated_pair_tensor(
                 _deserialize_pair_matrix(coupling["pair_matrix"]),
                 source_frame,
@@ -165,53 +298,97 @@ def _quadratic_terms(payload):
             e00 = complex(rotated[0, 0, 0, 0])
             identity = np.eye(excited_dimension, dtype=complex)
 
-            linear_dag[source_index] += rotated[1:, 0, 0, 0]
-            linear_ann[source_index] += rotated[0, 1:, 0, 0]
-            linear_dag[target_index] += rotated[0, 0, 1:, 0]
-            linear_ann[target_index] += rotated[0, 0, 0, 1:]
+            linear_dag[source_index] += _phase_factor_from_rule(
+                channel_rules.get("linear_creation", "identity"),
+                source_phase,
+                target_phase,
+            ) * rotated[1:, 0, 0, 0]
+            linear_ann[source_index] += _phase_factor_from_rule(
+                channel_rules.get("linear_annihilation", "identity"),
+                source_phase,
+                target_phase,
+            ) * rotated[0, 1:, 0, 0]
+            linear_dag[target_index] += _phase_factor_from_rule(
+                channel_rules.get("linear_creation", "identity"),
+                target_phase,
+                source_phase,
+            ) * rotated[0, 0, 1:, 0]
+            linear_ann[target_index] += _phase_factor_from_rule(
+                channel_rules.get("linear_annihilation", "identity"),
+                target_phase,
+                source_phase,
+            ) * rotated[0, 0, 0, 1:]
 
             _block_add(
                 normal_terms,
                 (source_index, source_index, (0, 0, 0)),
-                rotated[1:, 1:, 0, 0] - e00 * identity,
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    source_phase,
+                    source_phase,
+                )
+                * (rotated[1:, 1:, 0, 0] - e00 * identity),
             )
             _block_add(
                 normal_terms,
                 (target_index, target_index, (0, 0, 0)),
-                rotated[0, 0, 1:, 1:] - e00 * identity,
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    target_phase,
+                    target_phase,
+                )
+                * (rotated[0, 0, 1:, 1:] - e00 * identity),
             )
             _block_add(
                 normal_terms,
                 (source_index, target_index, translation),
-                rotated[1:, 0, 0, 1:],
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    source_phase,
+                    target_phase,
+                )
+                * rotated[1:, 0, 0, 1:],
             )
             _block_add(
                 normal_terms,
                 (target_index, source_index, _negate_translation(translation)),
-                np.transpose(rotated[0, 1:, 1:, 0]),
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    target_phase,
+                    source_phase,
+                )
+                * np.transpose(rotated[0, 1:, 1:, 0]),
             )
             _block_add(
                 pair_terms,
                 (source_index, target_index, translation),
-                rotated[1:, 0, 1:, 0],
+                _phase_factor_from_rule(
+                    channel_rules.get("pair", "identity"),
+                    source_phase,
+                    target_phase,
+                )
+                * rotated[1:, 0, 1:, 0],
             )
 
     return {
         "shape": shape,
-        "cell_count": len(cells),
+        "site_count": site_count,
+        "mode_site_count": len(mode_sites),
+        "mode_sites": mode_sites,
         "excited_dimension": excited_dimension,
         "linear_dag": linear_dag,
         "linear_ann": linear_ann,
         "normal_terms": normal_terms,
         "pair_terms": pair_terms,
         "frames": frames,
+        "rotating_frame": rotating_frame,
     }
 
 
 def _assemble_k_blocks(terms, q_vector):
-    cell_count = int(terms["cell_count"])
+    mode_site_count = int(terms["mode_site_count"])
     excited_dimension = int(terms["excited_dimension"])
-    mode_count = cell_count * excited_dimension
+    mode_count = mode_site_count * excited_dimension
     normal = np.zeros((mode_count, mode_count), dtype=complex)
     pair = np.zeros((mode_count, mode_count), dtype=complex)
 
@@ -255,14 +432,18 @@ def _positive_branches(eigenvalues, mode_count, *, tolerance=1e-8):
 def _stationarity_diagnostics(terms, *, tolerance=1e-8):
     site_entries = []
     max_norm = 0.0
-    for site_index in range(int(terms["cell_count"])):
+    mode_sites = list(terms.get("mode_sites", []))
+    for site_index in range(int(terms["mode_site_count"])):
         dag_norm = float(np.linalg.norm(terms["linear_dag"][site_index]))
         ann_norm = float(np.linalg.norm(terms["linear_ann"][site_index]))
         residual_norm = max(dag_norm, ann_norm)
         max_norm = max(max_norm, residual_norm)
+        mode_site = mode_sites[site_index] if site_index < len(mode_sites) else ((0, 0, 0), 0)
         site_entries.append(
             {
-                "site": int(site_index),
+                "cell": [int(value) for value in mode_site[0]],
+                "site": int(mode_site[1]),
+                "mode_site_index": int(site_index),
                 "creation_linear_norm": dag_norm,
                 "annihilation_linear_norm": ann_norm,
                 "linear_term_norm": residual_norm,
@@ -319,9 +500,133 @@ def _dispersion_diagnostics(dispersion, *, soft_mode_tolerance=-1e-8):
     }
 
 
+def _infer_local_payload_site_count(payload):
+    positions = list(payload.get("positions", []))
+    if positions:
+        return len(positions)
+    entries = list(payload.get("initial_local_rays", []))
+    if entries:
+        return max(int(item.get("site", 0)) for item in entries) + 1
+    return 1
+
+
+def _metadata_local_rotating_frame_summary(payload, *, tolerance=1e-8):
+    return _common_metadata_local_rotating_frame_summary(payload, tolerance=tolerance)
+
+
+def _max_site_phase_offset_difference(left, right):
+    return _common_max_site_phase_offset_difference(left, right)
+
+
+def _local_rays_rotating_frame_metadata_phase_sample_cross_check(payload, *, tolerance=1e-8):
+    return _common_local_rays_rotating_frame_metadata_phase_sample_cross_check(
+        payload,
+        tolerance=tolerance,
+    )
+
+
+def _max_matrix_map_difference(left, right):
+    keys = set(left) | set(right)
+    if not keys:
+        return 0.0
+    max_norm = 0.0
+    for key in keys:
+        left_value = left.get(key)
+        right_value = right.get(key)
+        if left_value is None:
+            difference = np.array(right_value, dtype=complex)
+        elif right_value is None:
+            difference = np.array(left_value, dtype=complex)
+        else:
+            difference = np.array(left_value, dtype=complex) - np.array(right_value, dtype=complex)
+        max_norm = max(max_norm, float(np.linalg.norm(difference)))
+    return max_norm
+
+
+def _max_linear_difference(left_terms, right_terms):
+    max_norm = 0.0
+    for key in ("linear_dag", "linear_ann"):
+        left_value = np.array(left_terms.get(key), dtype=complex)
+        right_value = np.array(right_terms.get(key), dtype=complex)
+        max_norm = max(max_norm, float(np.linalg.norm(left_value - right_value)))
+    return max_norm
+
+
+def _quadratic_phase_dressing_consistency(gauge_terms, explicit_terms, *, reason=None, tolerance=1e-8):
+    if explicit_terms is None:
+        return {
+            "status": "unsupported",
+            "reason": str(reason or "explicit-block-dressing-unavailable"),
+        }
+    max_normal = _max_matrix_map_difference(gauge_terms.get("normal_terms", {}), explicit_terms.get("normal_terms", {}))
+    max_pair = _max_matrix_map_difference(gauge_terms.get("pair_terms", {}), explicit_terms.get("pair_terms", {}))
+    max_linear = _max_linear_difference(gauge_terms, explicit_terms)
+    return {
+        "status": "consistent" if max(max_normal, max_pair, max_linear) <= float(tolerance) else "inconsistent",
+        "tolerance": float(tolerance),
+        "max_normal_term_difference": float(max_normal),
+        "max_pair_term_difference": float(max_pair),
+        "max_linear_term_difference": float(max_linear),
+    }
+
+
+def _quadratic_terms(payload):
+    raw_rays = _load_local_rays(payload)
+    aligned_rays, rotating_frame = _apply_rotating_frame_realization_to_local_rays(payload, np.array(raw_rays, copy=True))
+    gauge_terms = _quadratic_terms_from_rays(
+        payload,
+        aligned_rays,
+        rotating_frame=rotating_frame,
+    )
+
+    phase_dressing = resolve_quadratic_phase_dressing(payload)
+    phase_by_site_cell, phase_reason = _resolve_site_phase_map(
+        payload,
+        site_count=int(raw_rays.shape[3]),
+    )
+    explicit_terms = None
+    if isinstance(phase_dressing, dict) and isinstance(phase_by_site_cell, dict):
+        explicit_terms = _quadratic_terms_from_rays(
+            payload,
+            raw_rays,
+            rotating_frame=rotating_frame,
+            phase_dressing=phase_dressing,
+            phase_by_site_cell=phase_by_site_cell,
+        )
+    consistency = _quadratic_phase_dressing_consistency(
+        gauge_terms,
+        explicit_terms,
+        reason=phase_reason,
+    )
+
+    mode = str(payload.get("quadratic_phase_dressing_mode", "gauge_alignment"))
+    if mode == "explicit_block_dressing" and explicit_terms is not None:
+        active_terms = dict(explicit_terms)
+        quadratic_phase_dressing = summarize_quadratic_phase_dressing(
+            payload,
+            application_kind="explicit-block-dressing",
+            consumed=True,
+        )
+    else:
+        active_terms = dict(gauge_terms)
+        quadratic_phase_dressing = summarize_quadratic_phase_dressing(
+            payload,
+            application_kind="gauge-alignment-subsumes-explicit-block-dressing",
+            consumed=True,
+            reason=phase_reason if mode == "explicit_block_dressing" and explicit_terms is None else None,
+        )
+
+    active_terms["quadratic_phase_dressing"] = quadratic_phase_dressing
+    active_terms["quadratic_phase_dressing_consistency"] = consistency
+    active_terms["rotating_frame_metadata_phase_sample_cross_check"] = (
+        _local_rays_rotating_frame_metadata_phase_sample_cross_check(payload)
+    )
+    return active_terms
+
+
 def _solve_local_rays_python_glswt(payload, *, stationarity_tolerance=1e-8, eigenvalue_tolerance=1e-8):
     terms = _quadratic_terms(payload)
-    mode_count = int(terms["cell_count"] * terms["excited_dimension"])
+    mode_count = int(terms["mode_site_count"] * terms["excited_dimension"])
     dispersion = []
     max_antihermitian_norm = 0.0
     max_pair_asymmetry_norm = 0.0
@@ -361,6 +666,9 @@ def _solve_local_rays_python_glswt(payload, *, stationarity_tolerance=1e-8, eige
         )
 
     stationarity = _stationarity_diagnostics(terms, tolerance=stationarity_tolerance)
+    quadratic_phase_dressing = terms.get("quadratic_phase_dressing")
+    quadratic_phase_dressing_consistency = terms.get("quadratic_phase_dressing_consistency")
+    rotating_frame_metadata_phase_sample_cross_check = terms.get("rotating_frame_metadata_phase_sample_cross_check")
     return {
         "status": "ok",
         "backend": {"name": "python-glswt", "implementation": "local-frame-quadratic-expansion"},
@@ -378,6 +686,18 @@ def _solve_local_rays_python_glswt(payload, *, stationarity_tolerance=1e-8, eige
                 "max_B_asymmetry_norm": max_pair_asymmetry_norm,
                 "max_complex_eigenvalue_count": int(max_complex_eigenvalue_count),
             },
+            **({"quadratic_phase_dressing": quadratic_phase_dressing} if isinstance(quadratic_phase_dressing, dict) else {}),
+            **(
+                {"quadratic_phase_dressing_consistency": quadratic_phase_dressing_consistency}
+                if isinstance(quadratic_phase_dressing_consistency, dict)
+                else {}
+            ),
+            **({"rotating_frame": dict(terms["rotating_frame"])} if isinstance(terms.get("rotating_frame"), dict) else {}),
+            **(
+                {"rotating_frame_metadata_phase_sample_cross_check": rotating_frame_metadata_phase_sample_cross_check}
+                if isinstance(rotating_frame_metadata_phase_sample_cross_check, dict)
+                else {}
+            ),
         },
     }
 

@@ -2,6 +2,9 @@
 from common.bravais_kpaths import default_high_symmetry_path
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
+from common.rotating_frame_metadata import resolve_rotating_frame_transform
+from common.rotating_frame_realization import resolve_rotating_frame_realization
 from common.sunny_bond_adapter import adapt_model_for_sunny_pair_couplings
 from lswt.build_lswt_payload import infer_spatial_dimension
 
@@ -119,6 +122,19 @@ def build_sun_gswt_payload(model, classical_state=None):
 
     q_path_summary = _resolve_default_q_path(adapted_model)
     ordering = _ordering_summary(classical_state)
+    rotating_frame_transform = resolve_rotating_frame_transform(model)
+    rotating_frame_realization = resolve_rotating_frame_realization(
+        {
+            **model,
+            "classical_state": classical_state,
+        }
+    )
+    quadratic_phase_dressing = resolve_quadratic_phase_dressing(
+        {
+            **model,
+            "classical_state": classical_state,
+        }
+    )
 
     payload = {
         "payload_version": 2,
@@ -172,4 +188,10 @@ def build_sun_gswt_payload(model, classical_state=None):
     }
     if ordering is not None:
         payload["ordering"] = ordering
+    if rotating_frame_transform is not None:
+        payload["rotating_frame_transform"] = rotating_frame_transform
+    if rotating_frame_realization is not None:
+        payload["rotating_frame_realization"] = rotating_frame_realization
+    if quadratic_phase_dressing is not None:
+        payload["quadratic_phase_dressing"] = quadratic_phase_dressing
     return payload
