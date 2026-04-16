@@ -596,6 +596,30 @@ def _natural_language_many_body_hr_needs_input_payload(
     return _finalize_normalized_payload(normalized)
 
 
+def _preserve_textual_path_spelling(text, path):
+    candidate = str(path or "")
+    if not candidate:
+        return candidate
+    mentioned = _extract_path_mention(text, Path(candidate).name)
+    if mentioned:
+        return mentioned
+    return candidate
+
+
+def _normalize_ready_many_body_hr_hint(text, *, source_mode, user_notes, route_hint, passthrough=None):
+    routed_payload = dict(passthrough or {})
+    routed_payload.update(
+        {
+            "representation": "many_body_hr",
+            "structure_file": _preserve_textual_path_spelling(text, route_hint["structure_file"]),
+            "hamiltonian_file": _preserve_textual_path_spelling(text, route_hint["hamiltonian_file"]),
+            "user_notes": user_notes,
+            "source_mode": source_mode,
+        }
+    )
+    return normalize_input(routed_payload)
+
+
 def _document_lattice_text(record, fallback_text):
     sections = record.get("document_sections", {})
     structure_sections = sections.get("structure_sections", [])
@@ -623,6 +647,13 @@ def _build_agent_fallback_proposal(
             "selected_coordinate_convention": selected_coordinate_convention,
             "selected_local_bond_family": selected_local_bond_family,
         },
+    )
+
+
+def _can_accept_helper_many_body_route(record, proposal):
+    return bool(
+        proposal.get("landing_readiness") == "agent_proposed_ok"
+        and list((record or {}).get("model_candidates") or [])
     )
 
 
@@ -734,6 +765,7 @@ def normalize_freeform_text(
     text = (text or "").strip()
     if not text:
         raise ValueError("freeform input must be non-empty")
+    route_hint = _inspect_many_body_hr_text(text)
     record = build_intermediate_record(
         source_text=text,
         source_path=source_path,
@@ -747,12 +779,23 @@ def normalize_freeform_text(
         selected_coordinate_convention=selected_coordinate_convention,
         selected_local_bond_family=selected_local_bond_family,
     )
-    route_hint = _inspect_many_body_hr_text(text)
-    routed = _normalize_routed_many_body_hr_text(text, source_mode="freeform")
-    if routed is not None:
-        if proposal.get("landing_readiness") == "agent_proposed_ok":
-            _apply_agent_metadata(routed, proposal=proposal, accepted=True)
-        return routed
+    if _can_accept_helper_many_body_route(record, proposal):
+        patched_payload = apply_agent_inferred_patch(
+            {
+                "representation": "natural_language",
+                "description": text,
+                "source_path": source_path,
+                "selected_model_candidate": selected_model_candidate,
+                "selected_local_bond_family": selected_local_bond_family,
+                "selected_coordinate_convention": selected_coordinate_convention,
+                "user_notes": text,
+                "source_mode": "freeform",
+            },
+            proposal,
+        )
+        normalized = normalize_input(patched_payload)
+        _apply_agent_metadata(normalized, proposal=proposal, accepted=True)
+        return normalized
     if route_hint is not None and route_hint.get("status") == "needs_input":
         return _natural_language_many_body_hr_needs_input_payload(
             text,
@@ -772,6 +815,13 @@ def normalize_freeform_text(
             selected_coordinate_convention=selected_coordinate_convention,
             local_dimension=local_dimension,
             source_mode="freeform",
+        )
+    if route_hint is not None and route_hint.get("status") == "ready":
+        return _normalize_ready_many_body_hr_hint(
+            text,
+            source_mode="freeform",
+            user_notes=text,
+            route_hint=route_hint,
         )
     landed = land_intermediate_record(record)
     normalized = _natural_language_base_payload(
@@ -802,41 +852,6 @@ def normalize_input(payload):
         selected_local_bond_family = payload.get("selected_local_bond_family")
         selected_coordinate_convention = payload.get("selected_coordinate_convention")
         route_hint = _inspect_many_body_hr_text(description)
-        routed = _normalize_routed_many_body_hr_text(
-            description,
-            source_mode=payload.get("source_mode", representation),
-            passthrough={
-                key: value
-                for key, value in payload.items()
-                if key not in {"representation", "description"}
-            },
-        )
-        if routed is not None:
-            record = build_intermediate_record(
-                source_text=description,
-                source_path=source_path,
-                selected_model_candidate=selected_model_candidate,
-                selected_local_bond_family=selected_local_bond_family,
-                selected_coordinate_convention=selected_coordinate_convention,
-            )
-            proposal = _build_agent_fallback_proposal(
-                description,
-                record=record,
-                selected_coordinate_convention=selected_coordinate_convention,
-                selected_local_bond_family=selected_local_bond_family,
-            )
-            if proposal.get("landing_readiness") == "agent_proposed_ok":
-                _apply_agent_metadata(routed, proposal=proposal, accepted=True)
-            return routed
-        if route_hint is not None and route_hint.get("status") == "needs_input":
-            user_notes = payload.get("user_notes", "") or description
-            return _natural_language_many_body_hr_needs_input_payload(
-                description,
-                local_dimension=int(payload.get("local_dim", 2)),
-                user_notes=user_notes,
-                source_mode=payload.get("source_mode", representation),
-                route_hint=route_hint,
-            )
         if payload.get("document_intermediate") is not None:
             landed = land_intermediate_record(payload["document_intermediate"])
             if landed.get("interaction", {}).get("status") == "needs_input":
@@ -874,6 +889,45 @@ def normalize_input(payload):
                     selected_coordinate_convention=selected_coordinate_convention,
                     local_dimension=int(payload.get("local_dim", 2)),
                     source_mode=payload.get("source_mode", representation),
+                )
+            record = build_intermediate_record(
+                source_text=description,
+                source_path=source_path,
+                selected_model_candidate=selected_model_candidate,
+                selected_local_bond_family=selected_local_bond_family,
+                selected_coordinate_convention=selected_coordinate_convention,
+            )
+            proposal = _build_agent_fallback_proposal(
+                description,
+                record=record,
+                selected_coordinate_convention=selected_coordinate_convention,
+                selected_local_bond_family=selected_local_bond_family,
+            )
+            if _can_accept_helper_many_body_route(record, proposal):
+                patched_payload = apply_agent_inferred_patch(payload, proposal)
+                normalized = normalize_input(patched_payload)
+                _apply_agent_metadata(normalized, proposal=proposal, accepted=True)
+                return normalized
+            if route_hint is not None and route_hint.get("status") == "needs_input":
+                user_notes = payload.get("user_notes", "") or description
+                return _natural_language_many_body_hr_needs_input_payload(
+                    description,
+                    local_dimension=int(payload.get("local_dim", 2)),
+                    user_notes=user_notes,
+                    source_mode=payload.get("source_mode", representation),
+                    route_hint=route_hint,
+                )
+            if route_hint is not None and route_hint.get("status") == "ready":
+                return _normalize_ready_many_body_hr_hint(
+                    description,
+                    source_mode=payload.get("source_mode", representation),
+                    user_notes=payload.get("user_notes", "") or description,
+                    route_hint=route_hint,
+                    passthrough={
+                        key: value
+                        for key, value in payload.items()
+                        if key not in {"representation", "description"}
+                    },
                 )
             record = build_intermediate_record(
                 source_text=description,
