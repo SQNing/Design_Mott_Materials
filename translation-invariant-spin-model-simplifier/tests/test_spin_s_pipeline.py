@@ -10,6 +10,7 @@ from simplify.assemble_effective_model import assemble_effective_model
 from simplify.canonicalize_terms import canonicalize_terms
 from simplify.decompose_local_term import decompose_local_term
 from simplify.identify_readable_blocks import identify_readable_blocks
+from simplify.local_matrix_record import build_local_matrix_record
 from simplify.spin_multipole_basis import build_spin_multipole_basis
 
 
@@ -258,6 +259,28 @@ class SpinSPipelineTests(unittest.TestCase):
         self.assertEqual(len(canonical["four_body"]), 1)
         self.assertEqual(canonical["four_body"][0]["body_order"], 4)
         self.assertEqual(canonical["four_body"][0]["support"], [0, 1, 2, 3])
+
+    def test_local_matrix_record_backbone_can_enter_spin_s_pipeline(self):
+        record = build_local_matrix_record(
+            support=[0, 1],
+            family="1",
+            geometry_class="bond",
+            coordinate_frame="global_xyz",
+            local_basis_order=["m=1", "m=0", "m=-1"],
+            tensor_product_order=[0, 1],
+            matrix=[[0.0 for _ in range(9)] for _ in range(9)],
+            provenance={
+                "source_kind": "operator_text",
+                "source_expression": "Sp@0 Sm@1",
+                "parameter_map": {},
+            },
+        )
+
+        decomposition = decompose_local_term({"local_term_record": record})
+        canonical = canonicalize_terms({"decomposition": decomposition})
+
+        self.assertEqual(decomposition["source_backbone"], "local_matrix_record")
+        self.assertTrue(canonical["two_body"])
 
 
 if __name__ == "__main__":

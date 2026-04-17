@@ -7,6 +7,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from simplify.decompose_local_term import decompose_local_term
+from simplify.local_matrix_record import build_local_matrix_record
 
 
 class DecomposeLocalTermTests(unittest.TestCase):
@@ -164,6 +165,43 @@ S_i^z(S_j^+-S_j^-)
             decomposition["terms"],
             [{"label": "T2_0@0 T2_c1@1", "coefficient": 1.0}],
         )
+
+    def test_decompose_local_matrix_record_accepts_direct_matrix_backbone(self):
+        record = build_local_matrix_record(
+            support=[0],
+            geometry_class="onsite",
+            coordinate_frame="global_xyz",
+            local_basis_order=["m=1", "m=0", "m=-1"],
+            tensor_product_order=[0],
+            matrix=[[1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, -1.0]],
+            provenance={"source_kind": "matrix_form"},
+        )
+
+        decomposition = decompose_local_term({"local_term_record": record})
+
+        self.assertTrue(decomposition["terms"])
+        self.assertEqual(decomposition["source_backbone"], "local_matrix_record")
+
+    def test_decompose_local_matrix_record_with_operator_text_provenance_avoids_raw_operator(self):
+        record = build_local_matrix_record(
+            support=[0, 1],
+            family="1",
+            geometry_class="bond",
+            coordinate_frame="global_xyz",
+            local_basis_order=["m=1", "m=0", "m=-1"],
+            tensor_product_order=[0, 1],
+            matrix=[[0.0 for _ in range(9)] for _ in range(9)],
+            provenance={
+                "source_kind": "operator_text",
+                "source_expression": "Sp@0 Sm@1",
+                "parameter_map": {},
+            },
+        )
+
+        decomposition = decompose_local_term({"local_term_record": record})
+
+        self.assertEqual(decomposition["source_backbone"], "local_matrix_record")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
 
 
 if __name__ == "__main__":

@@ -275,7 +275,39 @@ def _validate_hermitian(matrix, tolerance):
                 raise ValueError("matrix input must be Hermitian")
 
 
+def _decompose_local_matrix_record(record, tolerance):
+    provenance = dict(record.get("provenance", {}))
+    source_kind = provenance.get("source_kind")
+    if source_kind == "operator_text" and provenance.get("source_expression"):
+        decomposition = _decompose_operator_expression(
+            provenance["source_expression"],
+            provenance.get("parameter_map", {}),
+            tolerance,
+        )
+        decomposition["source_backbone"] = "local_matrix_record"
+        return decomposition
+
+    local_dimension = len(record.get("local_basis_order", []))
+    normalized = {
+        "local_hilbert": {"dimension": local_dimension},
+        "local_term": {
+            "support": list(record.get("support", [])),
+            "representation": {
+                "kind": "matrix",
+                "value": record["representation"]["value"],
+            },
+        },
+        "parameters": provenance.get("parameter_map", {}),
+    }
+    decomposition = decompose_local_term(normalized, tolerance=tolerance)
+    decomposition["source_backbone"] = "local_matrix_record"
+    return decomposition
+
+
 def decompose_local_term(normalized, tolerance=1e-9):
+    if "local_term_record" in normalized:
+        return _decompose_local_matrix_record(normalized["local_term_record"], tolerance)
+
     representation = normalized["local_term"]["representation"]
     support = normalized["local_term"]["support"]
     if representation["kind"] == "operator":
