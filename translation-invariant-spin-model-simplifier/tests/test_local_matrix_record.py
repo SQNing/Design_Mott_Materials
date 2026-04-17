@@ -49,7 +49,7 @@ class LocalMatrixRecordTests(unittest.TestCase):
             build_local_matrix_record(
                 support=[0, 1],
                 geometry_class="bond",
-                coordinate_frame="global_xyz",
+                coordinate_frame=None,
                 local_basis_order=["m=1", "m=0", "m=-1"],
                 tensor_product_order=[0, 1],
                 matrix=[[0.0 for _ in range(9)] for _ in range(9)],

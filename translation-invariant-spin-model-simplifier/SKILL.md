@@ -33,6 +33,8 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 
 - Support operator expressions, local matrices or tensors, structured lattice input, natural-language, LaTeX, and document-style inputs through `reference/natural-language-input-protocol.md`, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
 - For supported spin-model text inputs, route LaTeX-like expressions and compact operator strings through one shared parser core before decomposition, rather than treating each syntax as a separate ad hoc path.
+- Treat the current one-body and two-body simplification backbone as a `local_matrix_record` pipeline: extract or compile a local onsite / bond term, attach support, family, basis, and coordinate metadata, then decompose that local matrix deterministically.
+- In the current phase, fully support `body_order <= 2` through this local-matrix backbone, and treat higher-body terms as future-facing schema / failure-path cases rather than silently forcing them into a fake bond interpretation.
 - Support generic `n-body` operator monomials in the spin-`S` operator route, including higher-body terms that may remain outside the current readable-block library.
 - When a supported operator expression can be parsed and canonicalized but not promoted into a trusted readable block, keep it as canonical residual structure instead of collapsing it to a raw opaque fallback.
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
@@ -54,6 +56,7 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
 - Treat canonical form as the internal source of truth.
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.
+- For supported two-body local matrices, prefer matrix-driven physical interpretation over text-template guessing, including general exchange tensors, DM terms, and literature-specific anisotropic exchange parameterizations such as `Jzz`, `Jpm`, `Jpmpm`, and `Jzpm` when the matrix pattern justifies them.
 - When explaining exchange-component subscripts such as `Jxx`, `Jxy`, `Jyz`, `Jzz`, `Jpm`, or `Jzpm`, interpret them in a fixed orthogonal spin-component frame `x,y,z` by default; do not reinterpret those subscripts as crystallographic `a,b,c` labels in user-facing explanations. If crystallographic directions matter, surface `a,b,c` separately as reference directions instead of overloading the exchange subscripts.
 - Return `interaction.status = needs_input` whenever lattice interpretation, shell mapping, symmetry status, or simplification classification is ambiguous.
 - Do not claim that a document-style natural-language input has been converted into a runnable model unless the intermediate extraction record has either landed in a supported payload or explicitly returned `interaction.status = needs_input`.

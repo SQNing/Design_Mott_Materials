@@ -36,8 +36,6 @@ def build_local_matrix_record(
         raise LocalMatrixRecordError("body_order must match support size")
     if resolved_body_order > 2:
         raise LocalMatrixRecordError("current phase only supports body_order <= 2")
-    if resolved_body_order == 2 and family is None:
-        raise LocalMatrixRecordError("family is required for two-body local matrix records")
 
     return {
         "support": support_list,

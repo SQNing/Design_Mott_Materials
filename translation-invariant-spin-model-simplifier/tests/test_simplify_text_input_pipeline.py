@@ -496,6 +496,9 @@ J_2^{z\pm} = 0.050
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["stage"], "complete")
         self.assertEqual(result["decomposition"]["mode"], "operator-basis")
+        self.assertEqual(result["decomposition"]["source_backbone"], "local_matrix_record")
+        self.assertEqual(result["local_term_record"]["body_order"], 2)
+        self.assertEqual(result["local_term_record"]["family"], "1")
         self.assertNotIn("interaction", result)
         by_label = {
             term["canonical_label"]: term["coefficient"]
@@ -1374,6 +1377,8 @@ J_1^{zz} = -0.236
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["decomposition"]["source_backbone"], "local_matrix_record")
+        self.assertEqual(result["local_term_record"]["body_order"], 2)
         by_label = {term["canonical_label"]: term["coefficient"] for term in result["canonical_model"]["two_body"]}
         self.assertAlmostEqual(by_label["Sx@0 Sx@1"], -0.200)
         self.assertAlmostEqual(by_label["Sy@0 Sy@1"], -0.180)

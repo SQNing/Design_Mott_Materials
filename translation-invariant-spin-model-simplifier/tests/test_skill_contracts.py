@@ -25,6 +25,13 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("n-body", text)
         self.assertIn("canonical residual", text)
 
+    def test_skill_mentions_local_matrix_backbone_and_two_body_scope(self):
+        text = SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("local_matrix_record", text)
+        self.assertIn("body_order <= 2", text)
+        self.assertIn("DM", text)
+
     def test_legacy_normalize_input_wrapper_exposes_unified_input_entry_points(self):
         self.assertTrue(hasattr(legacy_normalize_input, "normalize_input"))
         self.assertTrue(hasattr(legacy_normalize_input, "normalize_freeform_text"))

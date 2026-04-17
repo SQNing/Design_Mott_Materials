@@ -11,6 +11,10 @@ from input import normalize_freeform_text
 from input.parse_lattice_description import parse_lattice_description
 from simplify.assemble_effective_model import assemble_effective_model
 from simplify.canonicalize_terms import canonicalize_terms
+from simplify.compile_local_term_to_matrix import (
+    LocalMatrixCompilationError,
+    compile_local_term_to_matrix,
+)
 from simplify.decompose_local_term import decompose_local_term
 from simplify.generate_simplifications import generate_candidates
 from simplify.identify_readable_blocks import identify_readable_blocks
@@ -115,6 +119,23 @@ def _defer_lattice_resolution(normalized_model, lattice):
     return deferred
 
 
+def _maybe_compile_local_matrix_record(normalized_model):
+    representation = (
+        normalized_model.get("local_term", {}).get("representation", {})
+        if isinstance(normalized_model.get("local_term"), dict)
+        else {}
+    )
+    support = normalized_model.get("local_term", {}).get("support", [])
+    if representation.get("kind") not in {"operator", "matrix"}:
+        return None
+    if len(list(support or [])) > 2:
+        return None
+    try:
+        return compile_local_term_to_matrix(normalized_model)
+    except LocalMatrixCompilationError:
+        return None
+
+
 def run_text_simplification_pipeline(
     text,
     *,
@@ -149,7 +170,11 @@ def run_text_simplification_pipeline(
     if lattice_interaction.get("status") == "needs_input":
         lattice = _defer_lattice_resolution(normalized_model, lattice)
 
-    decomposition = decompose_local_term(normalized_model)
+    local_term_record = _maybe_compile_local_matrix_record(normalized_model)
+    if local_term_record is not None:
+        decomposition = decompose_local_term({"local_term_record": local_term_record})
+    else:
+        decomposition = decompose_local_term(normalized_model)
     if decomposition.get("mode") == "operator" and any(term.get("label") == "raw-operator" for term in decomposition.get("terms", [])):
         return _finalize_pipeline_result(_projection_gate(normalized_model, decomposition))
 
@@ -195,6 +220,7 @@ def run_text_simplification_pipeline(
         "status": "ok",
         "stage": "complete",
         "normalized_model": normalized_model,
+        "local_term_record": local_term_record,
         "lattice": lattice,
         "decomposition": decomposition,
         "symmetries": symmetries,

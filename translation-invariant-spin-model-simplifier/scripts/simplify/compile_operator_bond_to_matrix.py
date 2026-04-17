@@ -77,6 +77,22 @@ def _resolve_scalar(token, parameters):
     raise ValueError(f"unknown coefficient token: {cleaned}")
 
 
+def _collect_compact_operator_basis_terms(expression, parameters, tolerance):
+    pattern = re.compile(
+        r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*){2})"
+    )
+    merged = {}
+    for match in pattern.finditer(str(expression or "")):
+        coeff = _resolve_scalar(match.group("coeff"), parameters)
+        label = " ".join(match.group("label").split())
+        merged[label] = merged.get(label, 0.0 + 0.0j) + coeff
+    return [
+        {"label": label, "coefficient": coefficient}
+        for label, coefficient in sorted(merged.items())
+        if abs(coefficient) > tolerance
+    ]
+
+
 def _collect_latex_operator_terms(expression, parameters, tolerance):
     compact = re.sub(r"\s+", "", expression)
     compact = compact.replace(r"\left", "").replace(r"\right", "")
@@ -135,6 +151,9 @@ def _collect_latex_operator_terms(expression, parameters, tolerance):
 
 
 def _expanded_terms(expression, parameters, tolerance):
+    terms = _collect_compact_operator_basis_terms(expression, parameters, tolerance)
+    if terms:
+        return terms
     terms = sparse_expand_operator_expression(expression, parameters, tolerance)
     if terms:
         return terms
