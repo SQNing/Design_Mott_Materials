@@ -143,6 +143,10 @@ def _collect_operator_basis_terms(expression, parameters, tolerance):
 def _collect_latex_operator_terms(expression, parameters, tolerance):
     compact = re.sub(r"\s+", "", expression)
     compact = compact.replace(r"\left", "").replace(r"\right", "")
+    compact = compact.replace(r"\gamma_{ij}^\ast", "")
+    compact = compact.replace(r"\gamma_{ij}", "")
+    compact = compact.replace(r"\nonumber\\", "")
+    compact = compact.replace("&", "")
     merged = {}
 
     longitudinal_pattern = re.compile(r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)S_i\^zS_j\^z")

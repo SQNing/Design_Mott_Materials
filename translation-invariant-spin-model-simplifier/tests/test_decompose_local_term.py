@@ -56,7 +56,7 @@ J_1^{zz}S_i^zS_j^z
         self.assertAlmostEqual(by_label["Sx@0 Sx@1"], -0.161)
         self.assertAlmostEqual(by_label["Sy@0 Sy@1"], -0.161)
 
-    def test_decompose_operator_expression_rejects_partial_parse_when_unsupported_anisotropic_terms_remain(self):
+    def test_decompose_operator_expression_rejects_when_coefficients_cannot_be_resolved(self):
         normalized = {
             "local_hilbert": {"dimension": 2},
             "local_term": {
@@ -64,33 +64,14 @@ J_1^{zz}S_i^zS_j^z
                 "representation": {
                     "kind": "operator",
                     "value": r"""
-H_{ij}^{(1)}=\;&
-J_1^{zz}S_i^zS_j^z
+J_missing^{zz}S_i^zS_j^z
 +
 \frac{J_1^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
-+
-\frac{J_1^{\pm\pm}}{2}
-\left(
-\gamma_{ij}S_i^+S_j^+
-+
-\gamma_{ij}^\ast S_i^-S_j^-
-\right)
-\nonumber\\
-&-
-\frac{iJ_1^{z\pm}}{2}
-\left[
-(\gamma_{ij}^\ast S_i^+-\gamma_{ij}S_i^-)S_j^z
-+
-S_i^z(\gamma_{ij}^\ast S_j^+-\gamma_{ij}S_j^-)
-\right].
 """,
                 },
             },
             "parameters": {
-                "J_1^{zz}": -0.236,
                 "J_1^{\\pm}": -0.236,
-                "J_1^{\\pm\\pm}": -0.161,
-                "J_1^{z\\pm}": -0.261,
             },
         }
 

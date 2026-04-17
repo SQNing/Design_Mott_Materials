@@ -484,6 +484,29 @@ J_2^{z\pm} = 0.050
         self.assertAlmostEqual(parameter_values["Jpmpm"], -0.161)
         self.assertAlmostEqual(parameter_values["Jzpm"], -0.261)
 
+    def test_pipeline_lands_fei2_family_one_operator_path_after_family_selection(self):
+        result = run_text_simplification_pipeline(
+            self.FEI2_FAMILY_ONE_FIXTURE,
+            source_path="tests/data/fei2_family_one_operator_only.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["decomposition"]["mode"], "operator-basis")
+        self.assertNotIn("interaction", result)
+        by_label = {
+            term["canonical_label"]: term["coefficient"]
+            for term in result["canonical_model"]["two_body"]
+        }
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1"], -0.397)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1"], -0.075)
+        self.assertAlmostEqual(by_label["Sz@0 Sz@1"], -0.236)
+        self.assertAlmostEqual(by_label["Sy@0 Sz@1"], -0.261)
+        self.assertAlmostEqual(by_label["Sz@0 Sy@1"], -0.261)
+
     def test_pipeline_completes_for_document_with_explicit_local_bond_operator_subset(self):
         fixture = r"""
 \documentclass[11pt]{article}
