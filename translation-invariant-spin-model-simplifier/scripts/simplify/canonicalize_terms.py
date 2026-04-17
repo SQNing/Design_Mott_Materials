@@ -98,7 +98,15 @@ def canonicalize_terms(model):
         family = term.get("family")
         merge_key = (family, canonical_label)
         merged[merge_key] += term["coefficient"]
-        term_metadata[merge_key] = {"family": family}
+        metadata = {"family": family}
+        if isinstance(model.get("decomposition"), dict):
+            source_backbone = model["decomposition"].get("source_backbone")
+            if source_backbone is not None:
+                metadata["source_backbone"] = source_backbone
+        for field in ("source_geometry_class",):
+            if term.get(field) is not None:
+                metadata[field] = term.get(field)
+        term_metadata[merge_key] = metadata
 
     grouped_terms = defaultdict(list)
     for merge_key, coefficient in merged.items():
@@ -115,8 +123,9 @@ def canonicalize_terms(model):
             "symmetry_annotations": [],
         }
         entry.update(_label_multipole_metadata(canonical_label))
-        if term_metadata[merge_key].get("family") is not None:
-            entry["family"] = term_metadata[merge_key]["family"]
+        for key, value in term_metadata[merge_key].items():
+            if value is not None:
+                entry[key] = value
         grouped_terms[family_key].append(entry)
 
     for family_key, terms in grouped_terms.items():

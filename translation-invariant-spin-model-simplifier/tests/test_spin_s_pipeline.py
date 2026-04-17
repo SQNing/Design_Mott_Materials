@@ -282,6 +282,33 @@ class SpinSPipelineTests(unittest.TestCase):
         self.assertEqual(decomposition["source_backbone"], "local_matrix_record")
         self.assertTrue(canonical["two_body"])
 
+    def test_canonicalize_preserves_family_and_matrix_backbone_metadata(self):
+        canonical = canonicalize_terms(
+            {
+                "decomposition": {
+                    "mode": "operator-basis",
+                    "source_backbone": "local_matrix_record",
+                    "terms": [
+                        {
+                            "label": "Sx@0 Sx@1",
+                            "coefficient": -0.161,
+                            "family": "1",
+                        },
+                        {
+                            "label": "Sz@0",
+                            "coefficient": 2.165,
+                            "source_geometry_class": "onsite",
+                        },
+                    ],
+                }
+            }
+        )
+
+        self.assertEqual(canonical["two_body"][0]["family"], "1")
+        self.assertEqual(canonical["two_body"][0]["source_backbone"], "local_matrix_record")
+        self.assertEqual(canonical["one_body"][0]["source_backbone"], "local_matrix_record")
+        self.assertEqual(canonical["one_body"][0]["source_geometry_class"], "onsite")
+
 
 if __name__ == "__main__":
     unittest.main()
