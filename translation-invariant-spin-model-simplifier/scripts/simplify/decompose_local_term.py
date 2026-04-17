@@ -9,8 +9,10 @@ from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from simplify.operator_expression_sparse_expand import sparse_expand_operator_expression
     from simplify.spin_multipole_basis import product_spin_multipole_basis
 else:
+    from .operator_expression_sparse_expand import sparse_expand_operator_expression
     from .spin_multipole_basis import product_spin_multipole_basis
 
 
@@ -208,6 +210,8 @@ def _decompose_operator_expression(expression, parameters, tolerance):
     terms = _collect_operator_basis_terms(expression, parameters, tolerance)
     if not terms:
         terms = _collect_latex_operator_terms(expression, parameters, tolerance)
+    if not terms:
+        terms = sparse_expand_operator_expression(expression, parameters, tolerance)
     if terms:
         return {"mode": "operator-basis", "terms": terms}
     return {
