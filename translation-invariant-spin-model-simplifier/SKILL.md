@@ -32,6 +32,9 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 ## Input Notes
 
 - Support operator expressions, local matrices or tensors, structured lattice input, natural-language, LaTeX, and document-style inputs through `reference/natural-language-input-protocol.md`, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
+- For supported spin-model text inputs, route LaTeX-like expressions and compact operator strings through one shared parser core before decomposition, rather than treating each syntax as a separate ad hoc path.
+- Support generic `n-body` operator monomials in the spin-`S` operator route, including higher-body terms that may remain outside the current readable-block library.
+- When a supported operator expression can be parsed and canonicalized but not promoted into a trusted readable block, keep it as canonical residual structure instead of collapsing it to a raw opaque fallback.
 - Assume translation invariance and a repeated local term `H = sum_i H_i`.
 - Read `reference/environment.md` before solver selection, and treat it as the source of truth for baseline versus optional backend dependencies.
 - Ask the user which baseline and optional dependencies are already installed before promising any execution path.
