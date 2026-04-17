@@ -422,6 +422,15 @@ def _matrix_parameter_name(left_axis, right_axis=None):
     return f"J{left}{right}"
 
 
+def _display_axes_for_block(block, axes):
+    axis_list = list(axes or [])
+    if len(axis_list) != 3:
+        return axis_list
+    if block.get("coordinate_frame") == "global_crystallographic":
+        return ["x", "y", "z"]
+    return axis_list
+
+
 def _dominant_axis_from_diagonal(diagonals):
     axis_label, _value = max(diagonals, key=lambda item: abs(item[1]))
     return axis_label
@@ -528,8 +537,8 @@ def _annotate_block_for_humans(block):
         return annotated
 
     if block_type == "xxz_exchange":
-        planar_axes = list(block.get("planar_axes") or ["x", "y"])
-        longitudinal_axis = block.get("longitudinal_axis") or "z"
+        planar_axes = list(block.get("display_planar_axes") or block.get("planar_axes") or ["x", "y"])
+        longitudinal_axis = block.get("display_longitudinal_axis") or block.get("longitudinal_axis") or "z"
         coefficient_xy = block.get("coefficient_xy")
         coefficient_z = block.get("coefficient_z")
         summary = (
@@ -565,22 +574,23 @@ def _annotate_block_for_humans(block):
         if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
             return annotated
         axis_labels = list(block.get("matrix_axes") or block.get("axis_labels") or ["x", "y", "z"])
-        physical_view = _derive_jzz_jpm_jpmpm_jzpm_view(matrix, axis_labels)
+        display_axis_labels = _display_axes_for_block(block, axis_labels)
+        physical_view = _derive_jzz_jpm_jpmpm_jzpm_view(matrix, display_axis_labels)
         if physical_view is not None:
             parameter_entries = list(physical_view["parameter_entries"])
             summary = (
-                f"Anisotropic spin exchange on axes ({axis_labels[0]}, {axis_labels[1]}, {axis_labels[2]}) "
+                f"Anisotropic spin exchange on axes ({display_axis_labels[0]}, {display_axis_labels[1]}, {display_axis_labels[2]}) "
                 f"with Jzz = {_format_human_value(parameter_entries[0]['value'])}, "
                 f"Jpm = {_format_human_value(parameter_entries[1]['value'])}, "
                 f"Jpmpm = {_format_human_value(parameter_entries[2]['value'])}, "
                 f"and Jzpm = {_format_human_value(parameter_entries[3]['value'])}."
             )
             if abs(parameter_entries[0]["value"]) > abs(parameter_entries[1]["value"]):
-                summary += f" Longitudinal channel along {axis_labels[2]} is dominant over the planar average."
+                summary += f" Longitudinal channel along {display_axis_labels[2]} is dominant over the planar average."
             else:
                 summary += " Planar average competes with or exceeds the longitudinal channel."
             if not _is_effectively_zero(parameter_entries[3]["value"]):
-                summary += f" Mixed {axis_labels[1]}{axis_labels[2]} channel is present."
+                summary += f" Mixed {display_axis_labels[1]}{display_axis_labels[2]} channel is present."
             annotated["physical_label"] = physical_view["physical_label"]
             annotated["human_summary"] = summary
             annotated["human_parameters"] = parameter_entries
@@ -597,23 +607,28 @@ def _annotate_block_for_humans(block):
             ((axis_labels[1], axis_labels[2]), matrix[1][2], matrix[2][1]),
         ]
         parameter_entries = [
-            {"name": _matrix_parameter_name(axis_label), "value": value, "kind": "diagonal"}
-            for axis_label, value in diagonals
+            {"name": _matrix_parameter_name(display_axis_label), "value": value, "kind": "diagonal"}
+            for display_axis_label, (_axis_label, value) in zip(display_axis_labels, diagonals)
         ]
         nonzero_offdiag = []
-        for (left_axis, right_axis), lhs, rhs in offdiagonals:
+        display_offdiag_axes = [
+            (display_axis_labels[0], display_axis_labels[1]),
+            (display_axis_labels[0], display_axis_labels[2]),
+            (display_axis_labels[1], display_axis_labels[2]),
+        ]
+        for ((left_axis, right_axis), lhs, rhs), (display_left_axis, display_right_axis) in zip(offdiagonals, display_offdiag_axes):
             if lhs == 0.0 and rhs == 0.0:
                 continue
             value = lhs if lhs == rhs else [lhs, rhs]
-            name = _matrix_parameter_name(left_axis, right_axis)
+            name = _matrix_parameter_name(display_left_axis, display_right_axis)
             parameter_entries.append({"name": name, "value": value, "kind": "offdiagonal"})
-            nonzero_offdiag.append(((left_axis, right_axis), name, value))
+            nonzero_offdiag.append(((display_left_axis, display_right_axis), name, value))
 
         diagonal_summary = ", ".join(
-            f"{_matrix_parameter_name(axis_label)} = {_format_human_value(value)}"
-            for axis_label, value in diagonals
+            f"{_matrix_parameter_name(display_axis_label)} = {_format_human_value(value)}"
+            for display_axis_label, (_axis_label, value) in zip(display_axis_labels, diagonals)
         )
-        summary = f"Exchange matrix on axes ({axis_labels[0]}, {axis_labels[1]}, {axis_labels[2]}) with {diagonal_summary}"
+        summary = f"Exchange matrix on axes ({display_axis_labels[0]}, {display_axis_labels[1]}, {display_axis_labels[2]}) with {diagonal_summary}"
         if nonzero_offdiag:
             summary += " and off-diagonal "
             summary += ", ".join(
@@ -622,7 +637,9 @@ def _annotate_block_for_humans(block):
         summary += "."
         if block_type == "symmetric_exchange_matrix":
             summary = "Symmetric " + summary[0].lower() + summary[1:]
-        dominant_axis = _dominant_axis_from_diagonal(diagonals)
+        dominant_axis = _dominant_axis_from_diagonal(
+            list(zip(display_axis_labels, [value for _axis, value in diagonals]))
+        )
         interpretation_bits = [f"Strongest along {dominant_axis}."]
         if nonzero_offdiag:
             interpretation_bits.append(
@@ -683,6 +700,11 @@ def _annotate_block_with_coordinate_convention(block, coordinate_convention):
         annotated["axis_labels"] = list(axis_labels)
         annotated["planar_axes"] = list(axis_labels[:2])
         annotated["longitudinal_axis"] = quantization_axis or axis_labels[2]
+        if frame == "global_crystallographic":
+            annotated["display_axis_labels"] = ["x", "y", "z"]
+            annotated["display_planar_axes"] = ["x", "y"]
+            annotated["display_longitudinal_axis"] = "z"
+            annotated["reference_axis_labels"] = list(axis_labels)
         if has_resolved_axes:
             annotated["resolved_coordinate_frame"] = resolved_frame
             annotated["resolved_axis_labels"] = list(resolved_axis_labels)
@@ -691,6 +713,11 @@ def _annotate_block_with_coordinate_convention(block, coordinate_convention):
     elif block.get("type") in {"symmetric_exchange_matrix", "exchange_tensor"}:
         annotated["axis_labels"] = list(axis_labels)
         annotated["matrix_axes"] = list(axis_labels)
+        if frame == "global_crystallographic":
+            annotated["display_axis_labels"] = ["x", "y", "z"]
+            annotated["display_matrix_axes"] = ["x", "y", "z"]
+            annotated["reference_axis_labels"] = list(axis_labels)
+            annotated["reference_matrix_axes"] = list(axis_labels)
         if has_resolved_axes:
             annotated["resolved_coordinate_frame"] = resolved_frame
             annotated["resolved_axis_labels"] = list(resolved_axis_labels)

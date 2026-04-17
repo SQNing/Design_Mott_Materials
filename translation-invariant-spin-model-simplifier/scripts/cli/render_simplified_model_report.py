@@ -65,18 +65,24 @@ def _notes_lines(payload, main_blocks):
     if not isinstance(first_block, dict):
         return lines
 
-    matrix_axes = list(first_block.get("matrix_axes") or first_block.get("axis_labels") or [])
+    matrix_axes = list(first_block.get("display_matrix_axes") or first_block.get("display_axis_labels") or first_block.get("matrix_axes") or first_block.get("axis_labels") or [])
     if first_block.get("type") in {"symmetric_exchange_matrix", "exchange_tensor"}:
         if matrix_axes:
-            lines.append(f"- reported matrix basis: `({', '.join(matrix_axes)})`")
+            lines.append(f"- interpreted matrix basis: `({', '.join(matrix_axes)})`")
+            reference_axes = list(first_block.get("reference_matrix_axes") or first_block.get("reference_axis_labels") or [])
+            if reference_axes and reference_axes != matrix_axes:
+                lines.append(f"- crystallographic reference directions: `({', '.join(reference_axes)})`")
         else:
             lines.append("- matrix basis: default operator basis `(x, y, z)`")
     elif first_block.get("type") == "xxz_exchange":
-        axis_labels = list(first_block.get("axis_labels") or [])
-        planar_axes = list(first_block.get("planar_axes") or [])
-        longitudinal_axis = first_block.get("longitudinal_axis")
+        axis_labels = list(first_block.get("display_axis_labels") or first_block.get("axis_labels") or [])
+        planar_axes = list(first_block.get("display_planar_axes") or first_block.get("planar_axes") or [])
+        longitudinal_axis = first_block.get("display_longitudinal_axis") or first_block.get("longitudinal_axis")
+        reference_axes = list(first_block.get("reference_axis_labels") or [])
         if axis_labels:
-            lines.append(f"- reported axis basis: `({', '.join(axis_labels)})`")
+            lines.append(f"- interpreted axis basis: `({', '.join(axis_labels)})`")
+        if reference_axes and reference_axes != axis_labels:
+            lines.append(f"- crystallographic reference directions: `({', '.join(reference_axes)})`")
         if planar_axes or longitudinal_axis:
             planar_text = f"({', '.join(planar_axes)})" if planar_axes else "(unspecified)"
             longitudinal_text = longitudinal_axis if longitudinal_axis else "unspecified"
@@ -126,7 +132,7 @@ def _matrix_lines(block):
             json.dumps(matrix),
             "```",
         ]
-    axes = list(block.get("matrix_axes") or block.get("axis_labels") or ["x", "y", "z"])
+    axes = list(block.get("display_matrix_axes") or block.get("display_axis_labels") or block.get("matrix_axes") or block.get("axis_labels") or ["x", "y", "z"])
     if len(axes) != 3:
         axes = ["x", "y", "z"]
     rows = [["", axes[0], axes[1], axes[2]]]

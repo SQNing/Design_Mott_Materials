@@ -475,7 +475,7 @@ J_2^{z\pm} = 0.050
         self.assertIn("Jpm", matrix_blocks[0]["human_summary"])
         self.assertIn("Jpmpm", matrix_blocks[0]["human_summary"])
         self.assertIn("Jzpm", matrix_blocks[0]["human_summary"])
-        self.assertIn("axes (a, b, c)", matrix_blocks[0]["human_summary"])
+        self.assertIn("axes (x, y, z)", matrix_blocks[0]["human_summary"])
         parameter_names = [entry["name"] for entry in matrix_blocks[0]["human_parameters"]]
         self.assertEqual(parameter_names, ["Jzz", "Jpm", "Jpmpm", "Jzpm"])
         parameter_values = {entry["name"]: entry["value"] for entry in matrix_blocks[0]["human_parameters"]}
@@ -521,6 +521,8 @@ J_1^{\pm} = -0.161
         self.assertEqual(xxz_blocks[0]["planar_axes"], ["a", "b"])
         self.assertEqual(xxz_blocks[0]["longitudinal_axis"], "c")
         self.assertIn("human_summary", xxz_blocks[0])
+        self.assertIn("Jxy = -0.161 on (x, y)", xxz_blocks[0]["human_summary"])
+        self.assertIn("Jz = -0.236 on z", xxz_blocks[0]["human_summary"])
         self.assertIn("planar", xxz_blocks[0]["human_summary"].lower())
         self.assertIn("longitudinal", xxz_blocks[0]["human_summary"].lower())
         self.assertIn("easy-axis-like", xxz_blocks[0]["human_summary"].lower())

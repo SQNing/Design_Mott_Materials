@@ -51,6 +51,7 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
 - Treat canonical form as the internal source of truth.
 - Low-weight terms are surfaced for user choice; they are not dropped automatically.
+- When explaining exchange-component subscripts such as `Jxx`, `Jxy`, `Jyz`, `Jzz`, `Jpm`, or `Jzpm`, interpret them in a fixed orthogonal spin-component frame `x,y,z` by default; do not reinterpret those subscripts as crystallographic `a,b,c` labels in user-facing explanations. If crystallographic directions matter, surface `a,b,c` separately as reference directions instead of overloading the exchange subscripts.
 - Return `interaction.status = needs_input` whenever lattice interpretation, shell mapping, symmetry status, or simplification classification is ambiguous.
 - Do not claim that a document-style natural-language input has been converted into a runnable model unless the intermediate extraction record has either landed in a supported payload or explicitly returned `interaction.status = needs_input`.
 - Prefer a faithful readable model with explicit `residual` structure over an over-compressed Hamiltonian that hides unmatched or weak but meaningful terms.
