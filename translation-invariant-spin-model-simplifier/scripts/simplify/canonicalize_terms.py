@@ -103,7 +103,7 @@ def canonicalize_terms(model):
     grouped_terms = defaultdict(list)
     for merge_key, coefficient in merged.items():
         family, canonical_label = merge_key
-        support = [site for site, _operator in sorted(_parse_label_factors(canonical_label), key=lambda item: (item[0], item[1]))]
+        support = sorted({site for site, _operator in _parse_label_factors(canonical_label)})
         body_order = len(support)
         family_key = BODY_ORDER_KEYS.get(body_order, "higher_body")
         entry = {

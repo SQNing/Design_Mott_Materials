@@ -226,6 +226,39 @@ class SpinSPipelineTests(unittest.TestCase):
         self.assertTrue(canonical["three_body"])
         self.assertTrue(all(term["body_order"] == 3 for term in canonical["three_body"]))
 
+    def test_canonicalize_five_body_term_into_higher_body_bucket(self):
+        canonical = canonicalize_terms(
+            {
+                "terms": [
+                    {
+                        "label": "Sz@0 Sz@1 Sz@2 Sz@3 Sz@4",
+                        "coefficient": 1.0,
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(len(canonical["higher_body"]), 1)
+        self.assertEqual(canonical["higher_body"][0]["body_order"], 5)
+        self.assertEqual(canonical["higher_body"][0]["support"], [0, 1, 2, 3, 4])
+
+    def test_canonicalize_uses_distinct_sites_for_body_order(self):
+        canonical = canonicalize_terms(
+            {
+                "terms": [
+                    {
+                        "label": "Sz@0 Sz@0 Sz@1 Sz@2 Sz@3",
+                        "coefficient": 1.0,
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(canonical["higher_body"], [])
+        self.assertEqual(len(canonical["four_body"]), 1)
+        self.assertEqual(canonical["four_body"][0]["body_order"], 4)
+        self.assertEqual(canonical["four_body"][0]["support"], [0, 1, 2, 3])
+
 
 if __name__ == "__main__":
     unittest.main()
