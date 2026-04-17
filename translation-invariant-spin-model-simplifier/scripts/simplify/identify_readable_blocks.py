@@ -127,10 +127,17 @@ def _match_exchange_tensor(two_body_terms):
     if not offdiag_present or not asymmetric_present:
         return None
 
+    dm_vector = [
+        0.5 * (matrix[1][2] - matrix[2][1]),
+        0.5 * (matrix[2][0] - matrix[0][2]),
+        0.5 * (matrix[0][1] - matrix[1][0]),
+    ]
+
     return {
         "type": "exchange_tensor",
         "source_terms": source_terms,
         "matrix": matrix,
+        "dm_vector": dm_vector,
     }
 
 

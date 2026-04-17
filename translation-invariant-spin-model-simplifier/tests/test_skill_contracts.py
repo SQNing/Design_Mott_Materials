@@ -169,6 +169,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertEqual(tensor_blocks[0]["matrix"][0][1], 0.010)
         self.assertEqual(tensor_blocks[0]["matrix"][1][0], -0.020)
         self.assertEqual(tensor_blocks[0]["matrix"][2][1], 0.060)
+        self.assertAlmostEqual(tensor_blocks[0]["dm_vector"][0], -0.01)
+        self.assertAlmostEqual(tensor_blocks[0]["dm_vector"][1], 0.04)
+        self.assertAlmostEqual(tensor_blocks[0]["dm_vector"][2], 0.015)
         self.assertFalse(readable["residual_terms"])
 
     def test_identify_readable_blocks_annotates_exchange_tensor_axes_from_coordinate_convention(self):
