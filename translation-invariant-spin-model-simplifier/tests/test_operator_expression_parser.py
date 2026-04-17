@@ -6,6 +6,7 @@ from pathlib import Path
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
+from simplify.operator_expression_normalizer import normalize_operator_expression
 from simplify.operator_expression_parser import OperatorExpressionParseError, parse_operator_expression
 
 
@@ -54,6 +55,36 @@ class OperatorExpressionParserTests(unittest.TestCase):
     def test_parse_compact_expression_rejects_unsupported_tokens(self):
         with self.assertRaises(OperatorExpressionParseError):
             parse_operator_expression("Sz@0 + [bad-token]")
+
+    def test_latex_and_compact_bilinear_normalize_identically(self):
+        left = normalize_operator_expression("S_i^z S_j^z")
+        right = normalize_operator_expression("Sz@0 Sz@1")
+
+        self.assertEqual(left, right)
+        self.assertEqual(left[0]["coefficient_kind"], "number")
+        self.assertEqual(left[0]["coefficient_value"], 1.0)
+        self.assertEqual(left[0]["factors"], (("Sz", 0), ("Sz", 1)))
+
+    def test_normalize_ladder_sum_into_two_monomials_before_rewrite(self):
+        normalized = normalize_operator_expression("S_i^+ S_j^- + S_i^- S_j^+")
+
+        self.assertEqual(len(normalized), 2)
+        self.assertEqual(normalized[0]["factors"], (("Sp", 0), ("Sm", 1)))
+        self.assertEqual(normalized[1]["factors"], (("Sm", 0), ("Sp", 1)))
+
+    def test_normalize_preserves_symbolic_coefficients(self):
+        normalized = normalize_operator_expression("Jzz*Sz@0 Sz@1")
+
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(normalized[0]["coefficient_kind"], "symbol")
+        self.assertEqual(normalized[0]["coefficient_name"], "Jzz")
+        self.assertEqual(normalized[0]["coefficient_multiplier"], 1.0)
+
+    def test_normalize_maps_named_sites_to_support_positions(self):
+        normalized = normalize_operator_expression("S_k^z S_i^z S_j^z")
+
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(normalized[0]["factors"], (("Sz", 0), ("Sz", 1), ("Sz", 2)))
 
 
 if __name__ == "__main__":
