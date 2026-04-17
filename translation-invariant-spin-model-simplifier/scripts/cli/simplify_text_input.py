@@ -16,6 +16,7 @@ from simplify.generate_simplifications import generate_candidates
 from simplify.identify_readable_blocks import identify_readable_blocks
 from simplify.infer_symmetries import infer_symmetries
 from simplify.score_fidelity import score_fidelity
+from cli.render_simplified_model_report import render_simplified_model_report
 
 
 PUBLIC_AGENT_INFERRED_FIELDS = (
@@ -213,6 +214,8 @@ def main():
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-family", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
+    parser.add_argument("--report-md", default=None)
+    parser.add_argument("--report-title", default="Simplified Model Report")
     args = parser.parse_args()
 
     result = run_text_simplification_pipeline(
@@ -222,6 +225,9 @@ def main():
         selected_local_bond_family=args.selected_local_bond_family,
         selected_coordinate_convention=args.selected_coordinate_convention,
     )
+    if args.report_md:
+        report_markdown = render_simplified_model_report(result, title=str(args.report_title))
+        Path(args.report_md).write_text(report_markdown, encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 

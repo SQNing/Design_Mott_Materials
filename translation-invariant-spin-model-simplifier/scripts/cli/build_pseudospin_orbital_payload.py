@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from input.parse_many_body_hr import parse_many_body_hr_file
-from input.parse_poscar import parse_poscar_file
+from input.parse_poscar import parse_poscar_file, parse_structure_file
 from simplify.project_pseudospin_orbital_basis import (
     build_local_basis_labels,
     infer_local_dimension_from_num_wann,
@@ -101,8 +101,16 @@ def _inferred_payload(local_space_spec, num_wann):
     return payload
 
 
+def _load_structure_payload(structure_path):
+    structure_path = Path(structure_path)
+    lowered_name = structure_path.name.lower()
+    if lowered_name in {"poscar", "contcar"} or structure_path.suffix.lower() == ".vasp":
+        return parse_poscar_file(structure_path)
+    return parse_structure_file(structure_path)
+
+
 def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance=1e-10, local_space_mode="auto"):
-    structure = parse_poscar_file(poscar_path)
+    structure = _load_structure_payload(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
 
     local_dimension = infer_local_dimension_from_num_wann(hamiltonian["num_wann"])

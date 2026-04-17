@@ -122,6 +122,84 @@ class NormalizeInputTests(unittest.TestCase):
         self.assertIn("J_n^{zz}S_i^zS_j^z", normalized["local_term"]["representation"]["value"])
         self.assertEqual(normalized["parameters"]["D"], 2.165)
 
+    def test_normalize_input_document_text_extracts_mev_units_into_system_metadata(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H_{ij}=J_1^{zz}S_i^zS_j^z.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.236~\text{meV}
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/units_mev.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["system"]["units"], "meV")
+
+    def test_normalize_input_document_text_extracts_ev_units_into_system_metadata(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H_{ij}=J_1^{zz}S_i^zS_j^z.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.000236~\text{eV}
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/units_ev.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["system"]["units"], "eV")
+
+    def test_normalize_input_document_text_marks_units_unspecified_when_absent(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H_{ij}=J_1^{zz}S_i^zS_j^z.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/units_unspecified.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["system"]["units"], "unspecified")
+
     def test_normalize_input_preserves_explicit_coordinate_convention_from_document_text(self):
         fixture = r"""
 \documentclass[11pt]{article}

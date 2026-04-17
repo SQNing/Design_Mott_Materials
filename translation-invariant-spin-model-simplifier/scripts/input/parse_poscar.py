@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import warnings
+
+
+def _annotate_structure_payload(payload, *, source_format, source_path):
+    annotated = dict(payload)
+    annotated.setdefault("source_format", str(source_format))
+    annotated.setdefault("source_path", str(source_path))
+    return annotated
 
 
 def _strip_lines(text):
@@ -70,4 +78,109 @@ def parse_poscar_text(text):
 
 def parse_poscar_file(path):
     path = Path(path)
-    return parse_poscar_text(path.read_text(encoding="utf-8"))
+    payload = parse_poscar_text(path.read_text(encoding="utf-8"))
+    return _annotate_structure_payload(payload, source_format="poscar", source_path=path)
+
+
+def _species_and_counts_from_sequence(species_sequence):
+    species = []
+    counts_by_species = {}
+    for item in species_sequence:
+        label = str(item)
+        if label not in counts_by_species:
+            species.append(label)
+            counts_by_species[label] = 0
+        counts_by_species[label] += 1
+    return species, [counts_by_species[label] for label in species]
+
+
+def _serialize_pymatgen_structure(structure, *, source_format, source_path):
+    species, counts = _species_and_counts_from_sequence(site.specie for site in structure.sites)
+    return {
+        "comment": Path(source_path).name,
+        "scale_factor": 1.0,
+        "lattice_vectors": [[float(value) for value in row] for row in structure.lattice.matrix.tolist()],
+        "species": species,
+        "counts": counts,
+        "coordinate_mode": "fractional",
+        "selective_dynamics": False,
+        "positions": [[float(value) for value in row] for row in structure.frac_coords.tolist()],
+        "source_format": str(source_format),
+        "source_path": str(source_path),
+    }
+
+
+def _parse_with_pymatgen(path):
+    from pymatgen.core import Structure
+
+    structure = Structure.from_file(str(path))
+    source_format = path.suffix.lower().lstrip(".") or "structure"
+    return _serialize_pymatgen_structure(
+        structure,
+        source_format=source_format,
+        source_path=path,
+    )
+
+
+def _parse_with_ase(path):
+    from ase.io import read
+
+    suffix = path.suffix.lower()
+    if suffix == ".cell":
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Generating CASTEP keywords JSON file.*",
+                category=UserWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Could not determine the version of your CASTEP binary.*",
+                category=UserWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r"read_cell: Warning - Was not able to validate CASTEP input.*",
+                category=UserWarning,
+            )
+            atoms = read(str(path))
+    else:
+        atoms = read(str(path))
+    species, counts = _species_and_counts_from_sequence(atoms.get_chemical_symbols())
+    cell = atoms.cell.array.tolist()
+    if atoms.pbc.any():
+        coordinate_mode = "fractional"
+        positions = atoms.get_scaled_positions(wrap=False).tolist()
+    else:
+        coordinate_mode = "cartesian"
+        positions = atoms.get_positions().tolist()
+    source_format = path.suffix.lower().lstrip(".") or "structure"
+    return {
+        "comment": Path(path).name,
+        "scale_factor": 1.0,
+        "lattice_vectors": [[float(value) for value in row] for row in cell],
+        "species": species,
+        "counts": counts,
+        "coordinate_mode": coordinate_mode,
+        "selective_dynamics": False,
+        "positions": [[float(value) for value in row] for row in positions],
+        "source_format": str(source_format),
+        "source_path": str(path),
+    }
+
+
+def parse_structure_file(path):
+    path = Path(path)
+    lowered_name = path.name.lower()
+    if lowered_name in {"poscar", "contcar"} or path.suffix.lower() == ".vasp":
+        return parse_poscar_file(path)
+
+    parse_errors = []
+    for parser in (_parse_with_pymatgen, _parse_with_ase):
+        try:
+            return parser(path)
+        except Exception as exc:  # pragma: no cover - exercised via fallback behavior
+            parse_errors.append(f"{parser.__name__}: {exc}")
+    raise ValueError(
+        f"unsupported or unreadable structure format for {path}: " + "; ".join(parse_errors)
+    )

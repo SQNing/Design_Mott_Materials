@@ -290,6 +290,23 @@ D = 2.165 \pm 0.101~\text{meV}.
         self.assertAlmostEqual(landed["parameters"]["J_1^{yz}"], -0.261)
         self.assertIn("J_1^{xx} * Sx@0 Sx@1", landed["expression"])
 
+    def test_selected_all_families_applies_matrix_fallback_per_family_when_available(self):
+        record = build_intermediate_record(
+            source_text=self.FEI2_FAMILY_ONE_WITH_MATRIX_FIXTURE,
+            source_path="tests/data/fei2_family_one_with_matrix_fixture.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="all",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator_family_collection")
+        self.assertEqual(len(landed["expressions"]), 1)
+        self.assertEqual(landed["expressions"][0]["family"], "1")
+        self.assertIn("J_1^{xx} * Sx@0 Sx@1", landed["expressions"][0]["expression"])
+        self.assertNotIn(r"\gamma_{ij}", landed["expressions"][0]["expression"])
+
     def test_matrix_form_candidate_derives_exchange_parameters_from_fractional_and_parenthesized_relations(self):
         fixture = r"""
 \documentclass[11pt]{article}

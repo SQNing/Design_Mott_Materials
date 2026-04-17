@@ -36,6 +36,46 @@ def _canonical_label(label):
     return " ".join(f"{operator}@{site}" for site, operator in factors)
 
 
+def _multipole_metadata(operator):
+    if operator in {"Sx", "Sy", "Sz"}:
+        return {"rank": 1, "family": "dipole"}
+    match = re.fullmatch(r"T(?P<rank>\d+)_[A-Za-z0-9_]+", operator)
+    if not match:
+        return None
+    rank = int(match.group("rank"))
+    if rank == 0:
+        family = "identity"
+    elif rank == 1:
+        family = "dipole"
+    elif rank == 2:
+        family = "quadrupole"
+    else:
+        family = "higher_multipole"
+    return {"rank": rank, "family": family}
+
+
+def _label_multipole_metadata(canonical_label):
+    factors = _parse_label_factors(canonical_label)
+    metadata = [_multipole_metadata(operator) for _site, operator in factors]
+    metadata = [entry for entry in metadata if entry is not None]
+    if not metadata:
+        return {}
+
+    ranks = sorted({entry["rank"] for entry in metadata})
+    families = sorted({entry["family"] for entry in metadata})
+    result = {
+        "multipole_ranks": ranks,
+        "multipole_families": families,
+    }
+    if len(ranks) == 1:
+        result["multipole_rank"] = ranks[0]
+    if len(families) == 1:
+        result["multipole_family"] = families[0]
+    else:
+        result["multipole_family"] = "mixed"
+    return result
+
+
 def _decomposition_terms(model):
     if isinstance(model, dict) and isinstance(model.get("terms"), list):
         return model["terms"]
@@ -74,6 +114,7 @@ def canonicalize_terms(model):
             "absolute_weight": abs(coefficient),
             "symmetry_annotations": [],
         }
+        entry.update(_label_multipole_metadata(canonical_label))
         if term_metadata[merge_key].get("family") is not None:
             entry["family"] = term_metadata[merge_key]["family"]
         grouped_terms[family_key].append(entry)

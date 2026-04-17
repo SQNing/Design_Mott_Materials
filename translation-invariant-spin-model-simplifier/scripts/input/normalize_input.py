@@ -544,14 +544,14 @@ def _infer_local_dimension_from_text(text, default=2):
     return default
 
 
-def _natural_language_base_payload(text, *, local_dimension, user_notes, source_mode):
+def _natural_language_base_payload(text, *, local_dimension, user_notes, source_mode, system_units="arb."):
     lattice_description = {"kind": "natural_language", "value": text}
     hamiltonian_description = {
         "support": [],
         "representation": {"kind": "natural_language", "value": text},
     }
     return {
-        "system": {"name": "", "units": "arb."},
+        "system": {"name": "", "units": system_units},
         "local_hilbert": {"dimension": int(local_dimension), "uniform": True},
         "lattice": _default_lattice(),
         "lattice_description": lattice_description,
@@ -688,6 +688,13 @@ def _normalize_document_style_natural_language(
     local_dimension,
     source_mode,
 ):
+    def _document_system_units(document_record):
+        return (
+            document_record.get("system_context", {}).get("coefficient_units")
+            if isinstance(document_record, dict)
+            else None
+        ) or "unspecified"
+
     record = build_intermediate_record(
         source_text=text,
         source_path=source_path,
@@ -703,6 +710,7 @@ def _normalize_document_style_natural_language(
             local_dimension=local_dimension,
             user_notes=text,
             source_mode=source_mode,
+            system_units=_document_system_units(record),
         )
         normalized["lattice_description"] = {"kind": "natural_language", "value": lattice_text}
         normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
@@ -732,6 +740,7 @@ def _normalize_document_style_natural_language(
             "selected_model_candidate": selected_model_candidate,
             "selected_local_bond_family": selected_local_bond_family,
             "selected_coordinate_convention": selected_coordinate_convention,
+            "units": _document_system_units(record),
             }
             if landed["representation"] != "operator_family_collection"
             else {
@@ -751,6 +760,7 @@ def _normalize_document_style_natural_language(
                 "selected_model_candidate": selected_model_candidate,
                 "selected_local_bond_family": selected_local_bond_family,
                 "selected_coordinate_convention": selected_coordinate_convention,
+                "units": _document_system_units(record),
             }
         )
     )

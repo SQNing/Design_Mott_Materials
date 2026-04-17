@@ -3,8 +3,15 @@ import argparse
 import json
 import re
 import sys
+from fractions import Fraction
 from itertools import product
 from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from simplify.spin_multipole_basis import product_spin_multipole_basis
+else:
+    from .spin_multipole_basis import product_spin_multipole_basis
 
 
 def _identity(size):
@@ -114,7 +121,7 @@ def _resolve_scalar(token, parameters):
 
 def _collect_operator_basis_terms(expression, parameters, tolerance):
     pattern = re.compile(
-        r"(?P<coeff>[A-Za-z0-9_{}^\\.+-]+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*)+)"
+        r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*)+)"
     )
     merged = {}
     for match in pattern.finditer(expression):
@@ -133,9 +140,11 @@ def _collect_operator_basis_terms(expression, parameters, tolerance):
 
 def _collect_latex_operator_terms(expression, parameters, tolerance):
     compact = re.sub(r"\s+", "", expression)
+    compact = compact.replace(r"\left", "").replace(r"\right", "")
     merged = {}
 
-    for match in re.finditer(r"(?P<coeff>[A-Za-z0-9_{}^\\.+-]+)S_i\^zS_j\^z", compact):
+    longitudinal_pattern = re.compile(r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)S_i\^zS_j\^z")
+    for match in longitudinal_pattern.finditer(compact):
         try:
             coeff = _resolve_scalar(match.group("coeff"), parameters)
         except ValueError:
@@ -143,7 +152,7 @@ def _collect_latex_operator_terms(expression, parameters, tolerance):
         merged["Sz@0 Sz@1"] = merged.get("Sz@0 Sz@1", 0.0 + 0.0j) + coeff
 
     ladder_pattern = re.compile(
-        r"\\frac\{(?P<coeff>.+?)\}\{2\}\(S_i\^\+S_j\^-"
+        r"\\frac\{(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\}\{2\}\(S_i\^\+S_j\^-"
         r"\+S_i\^-S_j\^\+\)"
     )
     for match in ladder_pattern.finditer(compact):
@@ -153,6 +162,39 @@ def _collect_latex_operator_terms(expression, parameters, tolerance):
             return []
         for label in ("Sx@0 Sx@1", "Sy@0 Sy@1"):
             merged[label] = merged.get(label, 0.0 + 0.0j) + coeff
+
+    double_raising_pattern = re.compile(
+        r"\\frac\{(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\}\{2\}\(S_i\^\+S_j\^\+"
+        r"\+S_i\^-S_j\^-\)"
+    )
+    for match in double_raising_pattern.finditer(compact):
+        try:
+            coeff = _resolve_scalar(match.group("coeff"), parameters)
+        except ValueError:
+            return []
+        merged["Sx@0 Sx@1"] = merged.get("Sx@0 Sx@1", 0.0 + 0.0j) + coeff
+        merged["Sy@0 Sy@1"] = merged.get("Sy@0 Sy@1", 0.0 + 0.0j) - coeff
+
+    zpm_pattern = re.compile(
+        r"(?P<sign>[+\-]?)\\frac\{i(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\}\{2\}"
+        r"\[\(S_i\^\+\-S_i\^-\)S_j\^z\+S_i\^z\(S_j\^\+\-S_j\^-\)\]"
+    )
+    for match in zpm_pattern.finditer(compact):
+        try:
+            coeff = _resolve_scalar(match.group("coeff"), parameters)
+        except ValueError:
+            return []
+        sign = match.group("sign")
+        prefactor = coeff if sign == "-" else -coeff
+        for label in ("Sy@0 Sz@1", "Sz@0 Sy@1"):
+            merged[label] = merged.get(label, 0.0 + 0.0j) + prefactor
+
+    residue = longitudinal_pattern.sub("", compact)
+    residue = ladder_pattern.sub("", residue)
+    residue = double_raising_pattern.sub("", residue)
+    residue = zpm_pattern.sub("", residue)
+    if re.search(r"S_[ij]\^[xyz\+\-]", residue):
+        return []
 
     return [
         {"label": label, "coefficient": _real_if_close(coefficient, tolerance)}
@@ -202,8 +244,15 @@ def _decompose_operator_family_collection(collection, parameters, tolerance):
     return {"mode": "operator-basis", "terms": combined_terms}
 
 
-def _validate_matrix_shape(matrix, support):
-    expected_size = 2 ** len(support)
+def _infer_spin_from_local_dimension(local_dimension):
+    local_dimension = int(local_dimension)
+    if local_dimension <= 0:
+        raise ValueError("local Hilbert-space dimension must be positive")
+    return Fraction(local_dimension - 1, 2)
+
+
+def _validate_matrix_shape(matrix, support, local_dimension):
+    expected_size = int(local_dimension) ** len(support)
     rows, cols = _matrix_shape(matrix)
     if rows != expected_size or cols != expected_size:
         raise ValueError(f"matrix shape must be {expected_size}x{expected_size} for support size {len(support)}")
@@ -235,19 +284,19 @@ def decompose_local_term(normalized, tolerance=1e-9):
         )
     if representation["kind"] != "matrix":
         raise ValueError("unsupported representation kind for decomposition")
-    if normalized["local_hilbert"]["dimension"] != 2:
-        raise ValueError("only spin-half local Hilbert spaces are supported")
+    local_dimension = int(normalized["local_hilbert"]["dimension"])
+    spin = _infer_spin_from_local_dimension(local_dimension)
     matrix = _coerce_matrix(representation["value"])
-    _validate_matrix_shape(matrix, support)
+    _validate_matrix_shape(matrix, support, local_dimension)
     _validate_hermitian(matrix, tolerance)
-    labels, operators = product_basis(support)
+    labels, operators = product_spin_multipole_basis(spin, support)
     terms = []
     for label, operator in zip(labels, operators):
         denom = _matrix_trace(_matrix_multiply(_matrix_dagger(operator), operator)).real
         coeff = _matrix_trace(_matrix_multiply(_matrix_dagger(operator), matrix)) / denom
         if abs(coeff) > tolerance:
             terms.append({"label": label, "coefficient": _real_if_close(coeff, tolerance)})
-    return {"mode": "spin-half-basis", "terms": terms}
+    return {"mode": "spin-multipole-basis", "terms": terms}
 
 
 def _load_payload(path):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -184,6 +185,178 @@ def _match_dm_like(two_body_terms):
     return None
 
 
+def _parse_canonical_label_factors(label):
+    factors = []
+    for factor in str(label or "").split():
+        match = re.fullmatch(r"([A-Za-z0-9_]+)@(-?\d+)", factor)
+        if not match:
+            return []
+        operator, site = match.groups()
+        factors.append((int(site), operator))
+    return factors
+
+
+def _quadrupole_component_label(term):
+    factors = sorted(_parse_canonical_label_factors(term.get("canonical_label")), key=lambda item: item[0])
+    if len(factors) != 2:
+        return term.get("canonical_label")
+    return f"{factors[0][1]}:{factors[1][1]}"
+
+
+def _physical_multipole_label(rank, family):
+    if family == "quadrupole" or rank == 2:
+        return "quadrupolar"
+    if rank == 3:
+        return "octupolar"
+    if rank == 4:
+        return "hexadecapolar"
+    if rank == 5:
+        return "dotriacontapolar"
+    if rank == 6:
+        return "hexacontatetrapolar"
+    return f"rank-{rank} multipolar"
+
+
+def _physical_multipole_label_aliases(rank, family):
+    if family == "quadrupole" or rank == 2:
+        return []
+    if rank == 3:
+        return []
+    if rank == 4:
+        return []
+    if rank == 5:
+        return ["triakontadipolar"]
+    if rank == 6:
+        return ["tetrahexacontapolar"]
+    return []
+
+
+def _same_component_channel(component_label):
+    parts = str(component_label or "").split(":")
+    return len(parts) == 2 and parts[0] == parts[1]
+
+
+def _quadrupolar_tendency(component_label, coefficient):
+    if not _same_component_channel(component_label):
+        return None
+    if coefficient is None:
+        return None
+    if coefficient < 0:
+        return "ferroquadrupolar_like"
+    if coefficient > 0:
+        return "antiferroquadrupolar_like"
+    return None
+
+
+def _quadrupole_component_sector(component):
+    component = str(component or "")
+    if component == "T2_0":
+        return "axial quadrupolar (Q3z2-r2-like)"
+    if component in {"T2_c1", "T2_s1"}:
+        return "off-diagonal quadrupolar (Qzx/Qyz-like)"
+    if component in {"T2_c2", "T2_s2"}:
+        return "planar/nematic quadrupolar (Qx2-y2/Qxy-like)"
+    return "generic quadrupolar"
+
+
+def _quadrupolar_channel_label(component_label):
+    parts = str(component_label or "").split(":")
+    if len(parts) != 2:
+        return "generic quadrupolar"
+    left = _quadrupole_component_sector(parts[0])
+    right = _quadrupole_component_sector(parts[1])
+    if left == right:
+        return left
+    return f"mixed quadrupolar ({left} x {right})"
+
+
+def _match_quadrupole_coupling(two_body_terms):
+    matched_terms = [
+        term
+        for term in two_body_terms
+        if term.get("multipole_family") == "quadrupole"
+        and term.get("multipole_rank") == 2
+        and term.get("body_order") == 2
+    ]
+    if not matched_terms:
+        return None
+
+    components = []
+    for term in sorted(matched_terms, key=lambda item: (-abs(item["coefficient"]), item["canonical_label"])):
+        components.append(
+            {
+                "label": _quadrupole_component_label(term),
+                "coefficient": term["coefficient"],
+                "canonical_label": term["canonical_label"],
+            }
+        )
+
+    dominant = components[0]
+    return {
+        "type": "quadrupole_coupling",
+        "source_terms": matched_terms,
+        "multipole_family": "quadrupole",
+        "multipole_rank": 2,
+        "body_order": 2,
+        "term_count": len(matched_terms),
+        "dominant_component": dominant["label"],
+        "dominant_coefficient": dominant["coefficient"],
+        "components": components,
+    }
+
+
+def _match_higher_multipole_coupling(two_body_terms):
+    matched_terms = [
+        term
+        for term in two_body_terms
+        if term.get("multipole_family") == "higher_multipole"
+        and term.get("body_order") == 2
+        and isinstance(term.get("multipole_rank"), int)
+        and term.get("multipole_rank", 0) >= 3
+    ]
+    if not matched_terms:
+        return []
+
+    by_rank = {}
+    for term in matched_terms:
+        by_rank.setdefault(term.get("multipole_rank"), []).append(term)
+
+    blocks = []
+    for rank, rank_terms in sorted(
+        by_rank.items(),
+        key=lambda item: (
+            -max(abs(term["coefficient"]) for term in item[1]),
+            -item[0],
+        ),
+    ):
+        components = []
+        for term in sorted(rank_terms, key=lambda item: (-abs(item["coefficient"]), item["canonical_label"])):
+            components.append(
+                {
+                    "label": _quadrupole_component_label(term),
+                    "coefficient": term["coefficient"],
+                    "canonical_label": term["canonical_label"],
+                }
+            )
+
+        dominant = components[0]
+        blocks.append(
+            {
+                "type": "higher_multipole_coupling",
+                "source_terms": rank_terms,
+                "multipole_family": "higher_multipole",
+                "multipole_rank": rank,
+                "body_order": 2,
+                "term_count": len(rank_terms),
+                "dominant_component": dominant["label"],
+                "dominant_coefficient": dominant["coefficient"],
+                "components": components,
+            }
+        )
+
+    return blocks
+
+
 def _match_scalar_chirality(three_body_terms):
     for term in three_body_terms:
         if term["canonical_label"] == "Sx@0 Sy@1 Sz@2":
@@ -226,6 +399,245 @@ def _rotate_exchange_matrix(matrix, rotation_matrix):
     if any(not isinstance(row, list) or len(row) != 3 for row in rotation_matrix):
         return None
     return _matmul(_transpose(rotation_matrix), _matmul(matrix, rotation_matrix))
+
+
+def _format_human_value(value):
+    if isinstance(value, (int, float)):
+        return f"{value:.3f}"
+    return str(value)
+
+
+def _is_effectively_zero(value, tolerance=1.0e-12):
+    return abs(float(value)) <= tolerance
+
+
+def _human_axis_token(axis_label):
+    token = "".join(char for char in str(axis_label or "") if char.isalnum())
+    return token or str(axis_label or "")
+
+
+def _matrix_parameter_name(left_axis, right_axis=None):
+    left = _human_axis_token(left_axis)
+    right = _human_axis_token(right_axis if right_axis is not None else left_axis)
+    return f"J{left}{right}"
+
+
+def _dominant_axis_from_diagonal(diagonals):
+    axis_label, _value = max(diagonals, key=lambda item: abs(item[1]))
+    return axis_label
+
+
+def _derive_jzz_jpm_jpmpm_jzpm_view(matrix, axis_labels):
+    if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+        return None
+    if len(axis_labels) != 3:
+        return None
+    if not (
+        _is_effectively_zero(matrix[0][1])
+        and _is_effectively_zero(matrix[1][0])
+        and _is_effectively_zero(matrix[0][2])
+        and _is_effectively_zero(matrix[2][0])
+    ):
+        return None
+
+    planar_a = matrix[0][0]
+    planar_b = matrix[1][1]
+    longitudinal = matrix[2][2]
+    offdiag = matrix[1][2]
+    if not _is_effectively_zero(matrix[2][1] - offdiag):
+        return None
+
+    return {
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "axis_labels": list(axis_labels),
+        "parameter_entries": [
+            {"name": "Jzz", "value": longitudinal, "kind": "longitudinal"},
+            {"name": "Jpm", "value": 0.5 * (planar_a + planar_b), "kind": "planar_average"},
+            {"name": "Jpmpm", "value": 0.5 * (planar_a - planar_b), "kind": "planar_anisotropy"},
+            {"name": "Jzpm", "value": offdiag, "kind": "offdiagonal_mixing"},
+        ],
+    }
+
+
+def _annotate_block_for_humans(block):
+    annotated = dict(block)
+    block_type = block.get("type")
+    if block_type == "quadrupole_coupling":
+        components = list(block.get("components") or [])
+        dominant_component = block.get("dominant_component") or "unspecified"
+        dominant_value = block.get("dominant_coefficient")
+        physical_label = _physical_multipole_label(block.get("multipole_rank"), block.get("multipole_family"))
+        physical_tendency = _quadrupolar_tendency(dominant_component, dominant_value)
+        dominant_channel_label = _quadrupolar_channel_label(dominant_component)
+        annotated["physical_label"] = physical_label
+        annotated["physical_label_aliases"] = _physical_multipole_label_aliases(
+            block.get("multipole_rank"),
+            block.get("multipole_family"),
+        )
+        annotated["dominant_channel_label"] = dominant_channel_label
+        if physical_tendency is not None:
+            annotated["physical_tendency"] = physical_tendency
+        summary = (
+            f"Quadrupolar two-body coupling with {block.get('term_count', len(components))} retained components. "
+            f"Dominant component {dominant_component} = {_format_human_value(dominant_value)}."
+        )
+        summary += f" Dominant channel sits in the {dominant_channel_label} sector."
+        if physical_tendency == "ferroquadrupolar_like":
+            summary += " Dominant channel is ferroquadrupolar-like under the H = JQQ convention."
+        elif physical_tendency == "antiferroquadrupolar_like":
+            summary += " Dominant channel is antiferroquadrupolar-like under the H = JQQ convention."
+        if len(components) > 1:
+            summary += " Residual quadrupole structure remains component-resolved."
+        annotated["human_summary"] = summary
+        annotated["human_parameters"] = [
+            {
+                "name": component.get("label"),
+                "value": component.get("coefficient"),
+                "kind": "quadrupole_component",
+            }
+            for component in components[:6]
+        ]
+        return annotated
+
+    if block_type == "higher_multipole_coupling":
+        components = list(block.get("components") or [])
+        dominant_component = block.get("dominant_component") or "unspecified"
+        dominant_value = block.get("dominant_coefficient")
+        rank = block.get("multipole_rank")
+        physical_label = _physical_multipole_label(rank, block.get("multipole_family"))
+        annotated["physical_label"] = physical_label
+        annotated["physical_label_aliases"] = _physical_multipole_label_aliases(
+            rank,
+            block.get("multipole_family"),
+        )
+        summary = (
+            f"{physical_label.capitalize()} two-body coupling with {block.get('term_count', len(components))} retained components. "
+            f"Dominant component {dominant_component} = {_format_human_value(dominant_value)}."
+        )
+        if len(components) > 1:
+            summary += " Structure remains component-resolved."
+        annotated["human_summary"] = summary
+        annotated["human_parameters"] = [
+            {
+                "name": component.get("label"),
+                "value": component.get("coefficient"),
+                "kind": "higher_multipole_component",
+            }
+            for component in components[:6]
+        ]
+        return annotated
+
+    if block_type == "xxz_exchange":
+        planar_axes = list(block.get("planar_axes") or ["x", "y"])
+        longitudinal_axis = block.get("longitudinal_axis") or "z"
+        coefficient_xy = block.get("coefficient_xy")
+        coefficient_z = block.get("coefficient_z")
+        summary = (
+            f"Planar coupling Jxy = {_format_human_value(block.get('coefficient_xy'))} "
+            f"on ({planar_axes[0]}, {planar_axes[1]}) and longitudinal coupling "
+            f"Jz = {_format_human_value(block.get('coefficient_z'))} on {longitudinal_axis}."
+        )
+        if abs(coefficient_z - coefficient_xy) <= 1e-9:
+            summary += " Nearly isotropic."
+        elif abs(coefficient_z) > abs(coefficient_xy):
+            summary += " Easy-axis-like anisotropy."
+        else:
+            summary += " Easy-plane-like anisotropy."
+        annotated["human_summary"] = summary
+        annotated["human_parameters"] = [
+            {
+                "name": "Jxy",
+                "value": block.get("coefficient_xy"),
+                "kind": "planar",
+                "axes": planar_axes,
+            },
+            {
+                "name": "Jz",
+                "value": block.get("coefficient_z"),
+                "kind": "longitudinal",
+                "axis": longitudinal_axis,
+            },
+        ]
+        return annotated
+
+    if block_type in {"symmetric_exchange_matrix", "exchange_tensor"}:
+        matrix = list(block.get("matrix") or [])
+        if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+            return annotated
+        axis_labels = list(block.get("matrix_axes") or block.get("axis_labels") or ["x", "y", "z"])
+        physical_view = _derive_jzz_jpm_jpmpm_jzpm_view(matrix, axis_labels)
+        if physical_view is not None:
+            parameter_entries = list(physical_view["parameter_entries"])
+            summary = (
+                f"Anisotropic spin exchange on axes ({axis_labels[0]}, {axis_labels[1]}, {axis_labels[2]}) "
+                f"with Jzz = {_format_human_value(parameter_entries[0]['value'])}, "
+                f"Jpm = {_format_human_value(parameter_entries[1]['value'])}, "
+                f"Jpmpm = {_format_human_value(parameter_entries[2]['value'])}, "
+                f"and Jzpm = {_format_human_value(parameter_entries[3]['value'])}."
+            )
+            if abs(parameter_entries[0]["value"]) > abs(parameter_entries[1]["value"]):
+                summary += f" Longitudinal channel along {axis_labels[2]} is dominant over the planar average."
+            else:
+                summary += " Planar average competes with or exceeds the longitudinal channel."
+            if not _is_effectively_zero(parameter_entries[3]["value"]):
+                summary += f" Mixed {axis_labels[1]}{axis_labels[2]} channel is present."
+            annotated["physical_label"] = physical_view["physical_label"]
+            annotated["human_summary"] = summary
+            annotated["human_parameters"] = parameter_entries
+            return annotated
+
+        diagonals = [
+            (axis_labels[0], matrix[0][0]),
+            (axis_labels[1], matrix[1][1]),
+            (axis_labels[2], matrix[2][2]),
+        ]
+        offdiagonals = [
+            ((axis_labels[0], axis_labels[1]), matrix[0][1], matrix[1][0]),
+            ((axis_labels[0], axis_labels[2]), matrix[0][2], matrix[2][0]),
+            ((axis_labels[1], axis_labels[2]), matrix[1][2], matrix[2][1]),
+        ]
+        parameter_entries = [
+            {"name": _matrix_parameter_name(axis_label), "value": value, "kind": "diagonal"}
+            for axis_label, value in diagonals
+        ]
+        nonzero_offdiag = []
+        for (left_axis, right_axis), lhs, rhs in offdiagonals:
+            if lhs == 0.0 and rhs == 0.0:
+                continue
+            value = lhs if lhs == rhs else [lhs, rhs]
+            name = _matrix_parameter_name(left_axis, right_axis)
+            parameter_entries.append({"name": name, "value": value, "kind": "offdiagonal"})
+            nonzero_offdiag.append(((left_axis, right_axis), name, value))
+
+        diagonal_summary = ", ".join(
+            f"{_matrix_parameter_name(axis_label)} = {_format_human_value(value)}"
+            for axis_label, value in diagonals
+        )
+        summary = f"Exchange matrix on axes ({axis_labels[0]}, {axis_labels[1]}, {axis_labels[2]}) with {diagonal_summary}"
+        if nonzero_offdiag:
+            summary += " and off-diagonal "
+            summary += ", ".join(
+                f"{name} = {_format_human_value(value)}" for _axes, name, value in nonzero_offdiag
+            )
+        summary += "."
+        if block_type == "symmetric_exchange_matrix":
+            summary = "Symmetric " + summary[0].lower() + summary[1:]
+        dominant_axis = _dominant_axis_from_diagonal(diagonals)
+        interpretation_bits = [f"Strongest along {dominant_axis}."]
+        if nonzero_offdiag:
+            interpretation_bits.append(
+                ", ".join(
+                    f"{_human_axis_token(left_axis).lower()}{_human_axis_token(right_axis).lower()} mixing present"
+                    for (left_axis, right_axis), _name, _value in nonzero_offdiag
+                ).capitalize()
+                + "."
+            )
+        summary += " " + " ".join(interpretation_bits)
+        annotated["human_summary"] = summary
+        annotated["human_parameters"] = parameter_entries
+        return annotated
+
+    return annotated
 
 
 def _coordinate_convention_for_family(coordinate_convention, family):
@@ -300,10 +712,25 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
     two_body_by_family = _group_terms_by_family(two_body_terms)
     three_body_by_family = _group_terms_by_family(three_body_terms)
     for family, family_two_body_terms in two_body_by_family.items():
+        higher_blocks = _match_higher_multipole_coupling(family_two_body_terms)
+        for block in higher_blocks:
+            if family is not None:
+                block["family"] = family
+            blocks.append(
+                _annotate_block_for_humans(
+                    _annotate_block_with_coordinate_convention(
+                        block,
+                        _coordinate_convention_for_family(coordinate_convention, family),
+                    )
+                )
+            )
+            used.update(id(term) for term in block["source_terms"])
+
         for matcher in (
             _match_isotropic_exchange,
             _match_xxz_exchange,
             _match_symmetric_exchange_matrix,
+            _match_quadrupole_coupling,
             _match_pseudospin_exchange,
             _match_orbital_exchange,
             _match_dm_like,
@@ -314,9 +741,11 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
                 if family is not None:
                     block["family"] = family
                 blocks.append(
-                    _annotate_block_with_coordinate_convention(
-                        block,
-                        _coordinate_convention_for_family(coordinate_convention, family),
+                    _annotate_block_for_humans(
+                        _annotate_block_with_coordinate_convention(
+                            block,
+                            _coordinate_convention_for_family(coordinate_convention, family),
+                        )
                     )
                 )
                 used.update(id(term) for term in block["source_terms"])
@@ -327,9 +756,11 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
             if family is not None:
                 chirality_block["family"] = family
             blocks.append(
-                _annotate_block_with_coordinate_convention(
-                    chirality_block,
-                    _coordinate_convention_for_family(coordinate_convention, family),
+                _annotate_block_for_humans(
+                    _annotate_block_with_coordinate_convention(
+                        chirality_block,
+                        _coordinate_convention_for_family(coordinate_convention, family),
+                    )
                 )
             )
             used.update(id(term) for term in chirality_block["source_terms"])

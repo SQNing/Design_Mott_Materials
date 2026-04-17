@@ -1059,6 +1059,29 @@ def _extract_parameter_registry(parameter_sections: list[dict]) -> dict:
     return registry
 
 
+def _extract_document_energy_units(sections: dict) -> str:
+    def _scan_section_group(section_group):
+        detected = set()
+        for section in section_group:
+            content = str(section.get("content") or "")
+            for match in re.finditer(r"\\text\{\s*(meV|eV)\s*\}|\b(meV|eV)\b", content):
+                unit = match.group(1) or match.group(2)
+                if unit:
+                    detected.add(unit)
+        return detected
+
+    parameter_units = _scan_section_group(list(sections.get("parameter_sections", [])))
+    if len(parameter_units) == 1:
+        return next(iter(parameter_units))
+    if len(parameter_units) > 1:
+        return "unspecified"
+
+    model_units = _scan_section_group(list(sections.get("model_sections", [])))
+    if len(model_units) == 1:
+        return next(iter(model_units))
+    return "unspecified"
+
+
 def _extract_hamiltonian_model(
     sections: dict,
     candidates: list[dict],
@@ -1114,6 +1137,31 @@ def _extend_unsupported_features(record: dict, expression: str) -> list[str]:
     return combined
 
 
+def _matrix_form_expression_for_family(record: dict, family: str | None) -> str | None:
+    if not family:
+        return None
+    matrix_model = _extract_hamiltonian_model(
+        record.get("document_sections", {}),
+        record.get("model_candidates", []),
+        "matrix_form",
+        record.get("parameter_registry", {}),
+    )
+    for entry in matrix_model.get("local_bond_candidates", []):
+        if entry.get("family") == family:
+            return entry.get("expression")
+    return None
+
+
+def _family_expression_with_effective_matrix_fallback(record: dict, family: str | None, expression: str) -> str:
+    expression = str(expression or "")
+    if not family or record.get("selected_model_candidate") != "effective":
+        return expression
+    if "bond_dependent_phase_gamma_terms" not in _operator_expression_unsupported_features(expression):
+        return expression
+    matrix_expression = _matrix_form_expression_for_family(record, family)
+    return matrix_expression or expression
+
+
 def build_intermediate_record(
     source_text: str,
     source_path: str | None = None,
@@ -1165,6 +1213,7 @@ def build_intermediate_record(
                 else _extract_coordinate_convention(sections)
             ),
             "magnetic_order": _extract_magnetic_order(sections),
+            "coefficient_units": _extract_document_energy_units(sections),
         },
         "lattice_model": {},
         "hamiltonian_model": hamiltonian_model,
@@ -1352,17 +1401,21 @@ def land_intermediate_record(record: dict) -> dict:
         by_family = {entry["family"]: entry for entry in local_bond_candidates}
         if selected_family == "all":
             combined_unsupported = list(record.get("unsupported_features", []))
+            expressions = []
             for entry in local_bond_candidates:
-                for feature in _operator_expression_unsupported_features(entry.get("expression", "")):
+                expression = _family_expression_with_effective_matrix_fallback(
+                    record,
+                    entry.get("family"),
+                    entry.get("expression", ""),
+                )
+                expressions.append({"family": entry["family"], "expression": expression})
+                for feature in _operator_expression_unsupported_features(expression):
                     if feature not in combined_unsupported:
                         combined_unsupported.append(feature)
             return {
                 "representation": "operator_family_collection",
                 "support": [0, 1],
-                "expressions": [
-                    {"family": entry["family"], "expression": entry["expression"]}
-                    for entry in local_bond_candidates
-                ],
+                "expressions": expressions,
                 "parameters": dict(record.get("parameter_registry", {})),
                 "coordinate_convention": coordinate_convention,
                 "magnetic_order": magnetic_order,
@@ -1390,6 +1443,18 @@ def land_intermediate_record(record: dict) -> dict:
             or hamiltonian_model.get("value")
             or ""
         )
+    expression_unsupported = _operator_expression_unsupported_features(expression)
+    if (
+        record.get("selected_model_candidate") == "effective"
+        and record.get("selected_local_bond_family")
+        and "bond_dependent_phase_gamma_terms" in expression_unsupported
+    ):
+        matrix_expression = _matrix_form_expression_for_family(
+            record,
+            record.get("selected_local_bond_family"),
+        )
+        if matrix_expression:
+            expression = matrix_expression
     if (
         record.get("source_document", {}).get("source_kind") == "natural_language"
         and not local_bond_candidates

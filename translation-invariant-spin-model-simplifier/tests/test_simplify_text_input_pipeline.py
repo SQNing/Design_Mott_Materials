@@ -444,6 +444,46 @@ J_2^{z\pm} = 0.050
         self.assertIn("project or truncate", result["interaction"]["question"].lower())
         self.assertIn("operator_expression_decomposition_pending", result["unsupported_features"])
 
+    def test_pipeline_lands_fei2_family_one_document_path_after_family_selection(self):
+        result = run_text_simplification_pipeline(
+            self.FEI2_FAMILY_ONE_WITH_MATRIX_FIXTURE,
+            source_path="tests/data/fei2_family_one.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertTrue(result["canonical_model"]["two_body"])
+        self.assertTrue(result["effective_model"]["main"])
+        self.assertNotIn("interaction", result)
+        matrix_blocks = [
+            block
+            for block in result["effective_model"]["main"]
+            if block["type"] in {"symmetric_exchange_matrix", "exchange_tensor"}
+        ]
+        self.assertEqual(len(matrix_blocks), 1)
+        self.assertEqual(matrix_blocks[0]["matrix"], [[-0.397, 0.0, 0.0], [0.0, -0.07499999999999998, -0.261], [0.0, -0.261, -0.236]])
+        self.assertEqual(matrix_blocks[0]["matrix_axes"], ["a", "b", "c"])
+        self.assertIn("human_summary", matrix_blocks[0])
+        self.assertEqual(
+            matrix_blocks[0]["physical_label"],
+            "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        )
+        self.assertIn("Jzz", matrix_blocks[0]["human_summary"])
+        self.assertIn("Jpm", matrix_blocks[0]["human_summary"])
+        self.assertIn("Jpmpm", matrix_blocks[0]["human_summary"])
+        self.assertIn("Jzpm", matrix_blocks[0]["human_summary"])
+        self.assertIn("axes (a, b, c)", matrix_blocks[0]["human_summary"])
+        parameter_names = [entry["name"] for entry in matrix_blocks[0]["human_parameters"]]
+        self.assertEqual(parameter_names, ["Jzz", "Jpm", "Jpmpm", "Jzpm"])
+        parameter_values = {entry["name"]: entry["value"] for entry in matrix_blocks[0]["human_parameters"]}
+        self.assertAlmostEqual(parameter_values["Jzz"], -0.236)
+        self.assertAlmostEqual(parameter_values["Jpm"], -0.236)
+        self.assertAlmostEqual(parameter_values["Jpmpm"], -0.161)
+        self.assertAlmostEqual(parameter_values["Jzpm"], -0.261)
+
     def test_pipeline_completes_for_document_with_explicit_local_bond_operator_subset(self):
         fixture = r"""
 \documentclass[11pt]{article}
@@ -480,6 +520,12 @@ J_1^{\pm} = -0.161
         self.assertEqual(xxz_blocks[0]["axis_labels"], ["a", "b", "c"])
         self.assertEqual(xxz_blocks[0]["planar_axes"], ["a", "b"])
         self.assertEqual(xxz_blocks[0]["longitudinal_axis"], "c")
+        self.assertIn("human_summary", xxz_blocks[0])
+        self.assertIn("planar", xxz_blocks[0]["human_summary"].lower())
+        self.assertIn("longitudinal", xxz_blocks[0]["human_summary"].lower())
+        self.assertIn("easy-axis-like", xxz_blocks[0]["human_summary"].lower())
+        parameter_names = [entry["name"] for entry in xxz_blocks[0]["human_parameters"]]
+        self.assertEqual(parameter_names, ["Jxy", "Jz"])
 
     def test_pipeline_preserves_single_q_rotating_frame_context_from_unified_text_entry(self):
         fixture = r"""
@@ -900,6 +946,124 @@ J_2^{\pm} = 0.017
         self.assertAlmostEqual(shell_block["shells"][0]["coefficient_z"], -0.236)
         self.assertAlmostEqual(shell_block["shells"][1]["coefficient_xy"], 0.017)
         self.assertAlmostEqual(shell_block["shells"][1]["coefficient_z"], 0.052)
+
+    def test_pipeline_all_families_can_mix_matrix_fallback_and_xxz_shell_summary(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Coordinate Convention}
+Spin components are expressed in the global crystallographic a,b,c axes. The local z axis is along c.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}H_{ij}^{(1)}
+\;+\!
+\sum_{n\in\{2,3\}}
+\sum_{\langle i,j\rangle_n}
+\left[
+J_n^{zz}S_i^zS_j^z
++
+\frac{J_n^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right].
+\end{equation}
+\begin{align}
+H_{ij}^{(1)}=\;&
+J_1^{zz}S_i^zS_j^z
++
+\frac{J_1^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
++
+\frac{J_1^{\pm\pm}}{2}
+\left(
+\gamma_{ij}S_i^+S_j^+
++
+\gamma_{ij}^\ast S_i^-S_j^-
+\right)
+\nonumber\\
+&-
+\frac{iJ_1^{z\pm}}{2}
+\left[
+(\gamma_{ij}^\ast S_i^+-\gamma_{ij}S_i^-)S_j^z
++
+S_i^z(\gamma_{ij}^\ast S_j^+-\gamma_{ij}S_j^-)
+\right].
+\end{align}
+\section*{Equivalent Exchange-Matrix Form}
+\begin{equation}
+\mathcal J_{ij}^{(1)}=
+\begin{pmatrix}
+J_1^{xx} & 0 & 0 \\
+0 & J_1^{yy} & J_1^{yz} \\
+0 & J_1^{yz} & J_1^{zz}
+\end{pmatrix}.
+\end{equation}
+\begin{equation}
+J_1^{xx}=J_1^{\pm}+J_1^{\pm\pm},\qquad
+J_1^{yy}=J_1^{\pm}-J_1^{\pm\pm},\qquad
+J_1^{yz}=J_1^{z\pm}.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+J_1^{\pm} = -0.236
+\end{equation}
+\begin{equation}
+J_1^{\pm\pm} = -0.161
+\end{equation}
+\begin{equation}
+J_1^{z\pm} = -0.261
+\end{equation}
+\begin{equation}
+J_2^{zz} = 0.052
+\end{equation}
+\begin{equation}
+J_2^{\pm} = 0.017
+\end{equation}
+\begin{equation}
+J_3^{zz} = 0.211
+\end{equation}
+\begin{equation}
+J_3^{\pm} = 0.166
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/mixed_family_fallback_and_xxz.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="all",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        shell_blocks = [block for block in result["effective_model"]["main"] if block["type"] == "shell_resolved_exchange"]
+        self.assertEqual(len(shell_blocks), 1)
+        shells = shell_blocks[0]["shells"]
+        by_family = {entry["family"]: entry for entry in shells}
+        self.assertEqual(set(by_family), {"1", "2", "3"})
+        self.assertEqual(
+            by_family["1"]["physical_parameter_view"]["view_kind"],
+            "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm",
+        )
+        self.assertEqual(
+            [entry["name"] for entry in by_family["1"]["physical_parameter_view"]["parameters"]],
+            ["Jzz", "Jpm", "Jpmpm", "Jzpm"],
+        )
+        self.assertEqual(
+            by_family["2"]["physical_parameter_view"]["view_kind"],
+            "xxz_exchange_jxy_jz",
+        )
+        self.assertEqual(
+            [entry["name"] for entry in by_family["2"]["physical_parameter_view"]["parameters"]],
+            ["Jxy", "Jz"],
+        )
+        self.assertEqual(
+            by_family["3"]["physical_parameter_view"]["view_kind"],
+            "xxz_exchange_jxy_jz",
+        )
 
     def test_pipeline_adds_isotropic_shell_summary_when_all_families_are_isotropic(self):
         fixture = r"""
