@@ -9,7 +9,12 @@ def _load_payload(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def _shell_sort_key(label):
+def _shell_sort_key(label, shell_index=None):
+    if shell_index is not None:
+        try:
+            return (0, int(shell_index), str(label))
+        except (TypeError, ValueError):
+            pass
     text = str(label)
     digits = "".join(ch for ch in text if ch.isdigit())
     if digits:
@@ -39,6 +44,55 @@ def _derive_physical_parameter_view(block):
             "physical_label": physical_label or "xxz exchange",
         }
 
+    if block.get("type") == "exchange_tensor":
+        parameter_by_name = {entry.get("name"): entry for entry in parameters if entry.get("name")}
+        ordered_parameters = []
+        if "Jiso" in parameter_by_name:
+            ordered_parameters.append(parameter_by_name["Jiso"])
+        for name in ("Gamma_xy", "Gamma_xz", "Gamma_yz"):
+            if name in parameter_by_name:
+                ordered_parameters.append(parameter_by_name[name])
+        for name in ("Dx", "Dy", "Dz"):
+            if name in parameter_by_name:
+                ordered_parameters.append(parameter_by_name[name])
+        if "Jiso" in parameter_by_name and len(ordered_parameters) >= 4:
+            return {
+                "view_kind": "exchange_tensor_jiso_gamma_dm",
+                "parameters": ordered_parameters,
+                "physical_label": physical_label or "general exchange tensor (Jiso/Gamma/DM)",
+            }
+
+    if block.get("type") == "symmetric_exchange_matrix":
+        parameter_by_name = {entry.get("name"): entry for entry in parameters if entry.get("name")}
+        ordered_parameters = []
+        if "Jiso" in parameter_by_name:
+            ordered_parameters.append(parameter_by_name["Jiso"])
+        for name in ("Gamma_xy", "Gamma_xz", "Gamma_yz"):
+            if name in parameter_by_name:
+                ordered_parameters.append(parameter_by_name[name])
+        if "Jiso" in parameter_by_name and len(ordered_parameters) >= 2:
+            return {
+                "view_kind": "symmetric_exchange_matrix_jiso_gamma",
+                "parameters": ordered_parameters,
+                "physical_label": physical_label or "symmetric exchange matrix (Jiso/Gamma)",
+            }
+
+    if block.get("type") == "quadrupole_coupling" and parameters:
+        return {
+            "view_kind": "quadrupole_coupling_components",
+            "parameters": list(parameters),
+            "physical_label": physical_label or "quadrupolar coupling components",
+        }
+
+    if block.get("type") == "higher_multipole_coupling" and parameters:
+        rank = block.get("multipole_rank")
+        if rank is not None:
+            return {
+                "view_kind": f"higher_multipole_coupling_rank_{rank}_components",
+                "parameters": list(parameters),
+                "physical_label": physical_label or f"rank-{rank} multipole coupling components",
+            }
+
     return None
 
 
@@ -54,9 +108,14 @@ def _shell_entry(block):
         entry["coefficient"] = block.get("coefficient")
     elif block.get("type") in {"symmetric_exchange_matrix", "exchange_tensor"}:
         entry["matrix"] = block.get("matrix")
+    elif block.get("type") in {"quadrupole_coupling", "higher_multipole_coupling"}:
+        pass
     else:
         return None
     for optional_key in (
+        "shell_index",
+        "distance",
+        "shell_label",
         "coordinate_frame",
         "axis_labels",
         "planar_axes",
@@ -66,6 +125,7 @@ def _shell_entry(block):
         "physical_tendency",
         "dominant_channel_label",
         "physical_parameter_view",
+        "additional_physical_parameter_views",
         "human_summary",
         "human_parameters",
         "matrix_axes",
@@ -75,6 +135,12 @@ def _shell_entry(block):
         "resolved_longitudinal_axis",
         "resolved_matrix_axes",
         "resolved_matrix",
+        "multipole_family",
+        "multipole_rank",
+        "term_count",
+        "dominant_component",
+        "dominant_coefficient",
+        "components",
     ):
         if optional_key in block:
             entry[optional_key] = block.get(optional_key)
@@ -86,18 +152,76 @@ def _shell_entry(block):
     return entry
 
 
+def _shell_entry_priority(entry):
+    block_type = entry.get("type")
+    if block_type in {
+        "isotropic_exchange",
+        "xxz_exchange",
+        "dm_like",
+        "pseudospin_exchange",
+        "orbital_exchange",
+        "symmetric_exchange_matrix",
+        "exchange_tensor",
+    }:
+        return 0
+    if block_type == "quadrupole_coupling":
+        return 1
+    if block_type == "higher_multipole_coupling":
+        return 2
+    return 99
+
+
+def _append_secondary_views(target, candidate_views, seen_view_kinds):
+    for view in list(candidate_views or []):
+        if not isinstance(view, dict):
+            continue
+        view_kind = view.get("view_kind")
+        if not view_kind or view_kind in seen_view_kinds:
+            continue
+        target.append(view)
+        seen_view_kinds.add(view_kind)
+
+
+def _merge_shell_family_entries(entries):
+    ordered_entries = list(entries)
+    ordered_entries.sort(key=_shell_entry_priority)
+    primary = dict(ordered_entries[0])
+    additional_views = list(primary.get("additional_physical_parameter_views") or [])
+    seen_view_kinds = {
+        view.get("view_kind")
+        for view in additional_views
+        if isinstance(view, dict) and view.get("view_kind")
+    }
+
+    for entry in ordered_entries[1:]:
+        physical_view = entry.get("physical_parameter_view")
+        if isinstance(physical_view, dict):
+            _append_secondary_views(additional_views, [physical_view], seen_view_kinds)
+        _append_secondary_views(
+            additional_views,
+            entry.get("additional_physical_parameter_views") or [],
+            seen_view_kinds,
+        )
+
+    if additional_views:
+        primary["additional_physical_parameter_views"] = additional_views
+    return primary
+
+
 def _shell_resolved_exchange_block(blocks):
-    shell_entries = []
+    family_entries = defaultdict(list)
     for block in blocks:
         family = block.get("family")
         if family is None:
             continue
         entry = _shell_entry(block)
         if entry is not None:
-            shell_entries.append(entry)
+            family_entries[family].append(entry)
+
+    shell_entries = [_merge_shell_family_entries(entries) for entries in family_entries.values()]
     if len(shell_entries) < 2:
         return None
-    shell_entries.sort(key=lambda item: _shell_sort_key(item["family"]))
+    shell_entries.sort(key=lambda item: _shell_sort_key(item["family"], item.get("shell_index")))
     return {
         "type": "shell_resolved_exchange",
         "shells": shell_entries,

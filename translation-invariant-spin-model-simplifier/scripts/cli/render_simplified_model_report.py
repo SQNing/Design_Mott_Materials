@@ -1,14 +1,74 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from cli.operator_expression_help import SUPPORTED_OPERATOR_EXPRESSION_HELP
 
 
 def _format_value(value):
     if isinstance(value, float):
         return f"{value:.3f}"
     return str(value)
+
+
+def _display_family_label(value):
+    text = str(value or "").strip()
+    if not text or text == "all":
+        return text
+    match = re.fullmatch(r"(?P<index>\d+)(?P<suffix>[A-Za-z]*)'?", text)
+    if not match:
+        return text
+    neighbor_index = int(match.group("index"))
+    if "'" in text:
+        neighbor_index += 1
+    if neighbor_index <= 0:
+        return text
+    if neighbor_index % 100 in {11, 12, 13}:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(neighbor_index % 10, "th")
+    return f"{neighbor_index}{suffix} nearest neighbor"
+
+
+def _display_shell_label(shell):
+    if isinstance(shell, dict):
+        shell_index = shell.get("shell_index")
+        if shell_index is not None:
+            try:
+                return _display_family_label(str(int(shell_index)))
+            except (TypeError, ValueError):
+                pass
+        shell_label = str(shell.get("shell_label") or "").strip()
+        if shell_label:
+            return shell_label
+        return _display_family_label(shell.get("family", ""))
+    return _display_family_label(shell)
+
+
+def _display_selected_local_bond_family(normalized):
+    if not isinstance(normalized, dict):
+        return ""
+    local_bond_family = normalized.get("selected_local_bond_family")
+    if not local_bond_family:
+        return ""
+    lattice = normalized.get("lattice", {}) if isinstance(normalized.get("lattice"), dict) else {}
+    family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
+    metadata = family_shell_map.get(str(local_bond_family), {})
+    if isinstance(metadata, dict) and metadata:
+        return _display_shell_label(
+            {
+                "family": local_bond_family,
+                "shell_index": metadata.get("shell_index"),
+                "shell_label": metadata.get("shell_label"),
+            }
+        )
+    return _display_family_label(local_bond_family)
 
 
 def _summary_parts(summary):
@@ -33,7 +93,7 @@ def _context_lines(payload):
         return []
     lines = []
     model_candidate = normalized.get("selected_model_candidate")
-    local_bond_family = normalized.get("selected_local_bond_family")
+    local_bond_family = _display_selected_local_bond_family(normalized)
     coordinate_convention = normalized.get("selected_coordinate_convention")
     provenance = normalized.get("provenance", {}) if isinstance(normalized.get("provenance"), dict) else {}
     source_mode = provenance.get("source_mode")
@@ -152,7 +212,7 @@ def _residual_term_lines(terms):
         rows.append(
             [
                 entry.get("canonical_label", ""),
-                entry.get("multipole_family", entry.get("family", "unspecified")),
+                entry.get("multipole_family", _display_family_label(entry.get("family", "unspecified"))),
                 entry.get("multipole_rank", ""),
                 entry.get("body_order", ""),
                 _format_value(entry.get("coefficient")),
@@ -181,33 +241,52 @@ def _residual_summary_lines(entries):
 def _shell_physical_summary_sections(main_blocks):
     grouped = {}
     order = []
+
+    def _iter_views(shell):
+        primary = shell.get("physical_parameter_view")
+        if isinstance(primary, dict):
+            yield primary
+        for view in list(shell.get("additional_physical_parameter_views") or []):
+            if isinstance(view, dict):
+                yield view
+
     for block in list(main_blocks or []):
         if block.get("type") != "shell_resolved_exchange":
             continue
         for shell in list(block.get("shells") or []):
-            view = shell.get("physical_parameter_view") or {}
-            if not isinstance(view, dict):
-                continue
-            view_kind = view.get("view_kind")
-            parameters = list(view.get("parameters") or [])
-            if not view_kind or not parameters:
-                continue
-            if view_kind not in grouped:
-                grouped[view_kind] = {
-                    "label": view.get("physical_label") or shell.get("physical_label") or view_kind,
-                    "parameter_names": [entry.get("name") for entry in parameters],
-                    "rows": [],
-                }
-                order.append(view_kind)
-            value_map = {entry.get("name"): _format_value(entry.get("value")) for entry in parameters}
-            grouped[view_kind]["rows"].append(
-                [str(shell.get("family", ""))] + [value_map.get(name, "") for name in grouped[view_kind]["parameter_names"]]
-            )
+            for view in _iter_views(shell):
+                view_kind = view.get("view_kind")
+                parameters = list(view.get("parameters") or [])
+                if not view_kind or not parameters:
+                    continue
+                if view_kind not in grouped:
+                    grouped[view_kind] = {
+                        "label": view.get("physical_label") or shell.get("physical_label") or view_kind,
+                        "parameter_names": [],
+                        "rows": [],
+                    }
+                    order.append(view_kind)
+                parameter_names = grouped[view_kind]["parameter_names"]
+                for entry in parameters:
+                    name = entry.get("name")
+                    if name and name not in parameter_names:
+                        parameter_names.append(name)
+                value_map = {entry.get("name"): _format_value(entry.get("value")) for entry in parameters}
+                grouped[view_kind]["rows"].append(
+                    {
+                        "family": _display_shell_label(shell),
+                        "value_map": value_map,
+                    }
+                )
 
     sections = []
     for view_kind in order:
         group = grouped[view_kind]
-        rows = [["Family", *group["parameter_names"]], *group["rows"]]
+        rows = [["Family", *group["parameter_names"]]]
+        for row in group["rows"]:
+            rows.append(
+                [row["family"]] + [row["value_map"].get(name, "") for name in group["parameter_names"]]
+            )
         sections.append(
             {
                 "label": group["label"],
@@ -215,6 +294,21 @@ def _shell_physical_summary_sections(main_blocks):
             }
         )
     return sections
+
+
+def render_shell_resolved_physical_summary(payload):
+    main_blocks = list((payload.get("effective_model") or {}).get("main") or [])
+    shell_sections = _shell_physical_summary_sections(main_blocks)
+    if not shell_sections:
+        return ""
+
+    lines = ["## Shell-Resolved Physical Summary", ""]
+    for section in shell_sections:
+        lines.append(f"### {section['label']}")
+        lines.append("")
+        lines.extend(section["table_lines"])
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def render_simplified_model_report(payload, title="Simplified Model Report"):
@@ -230,6 +324,26 @@ def render_simplified_model_report(payload, title="Simplified Model Report"):
     unsupported = list(payload.get("unsupported_features") or [])
     if unsupported:
         lines.append(f"- unsupported_features: `{unsupported}`")
+
+    interaction = payload.get("interaction", {}) if isinstance(payload.get("interaction"), dict) else {}
+    if interaction.get("status") == "needs_input":
+        lines.extend(["", "## Interaction", ""])
+        lines.append(f"- id: `{interaction.get('id', '')}`")
+        question = str(interaction.get("question") or "").strip()
+        if question:
+            lines.append(f"- question: {question}")
+        options = list(interaction.get("options") or [])
+        if options:
+            lines.append(f"- options: `{options}`")
+        blocker_details = list(interaction.get("unsupported_feature_details") or [])
+        if blocker_details:
+            lines.append("- blockers:")
+            for detail in blocker_details:
+                lines.append(
+                    f"  - `{detail.get('feature', '')}`: {detail.get('description', '')}"
+                )
+        if interaction.get("id") == "projection_or_truncate":
+            lines.append(f"- supported operator-expression shorthand: {SUPPORTED_OPERATOR_EXPRESSION_HELP}")
 
     context_lines = _context_lines(payload)
     if context_lines:
@@ -279,14 +393,9 @@ def render_simplified_model_report(payload, title="Simplified Model Report"):
                 lines.extend(matrix_lines)
             lines.append("")
 
-    shell_sections = _shell_physical_summary_sections(main_blocks)
-    if shell_sections:
-        lines.extend(["", "## Shell-Resolved Physical Summary", ""])
-        for section in shell_sections:
-            lines.append(f"### {section['label']}")
-            lines.append("")
-            lines.extend(section["table_lines"])
-            lines.append("")
+    shell_summary = render_shell_resolved_physical_summary(payload)
+    if shell_summary:
+        lines.extend(["", *shell_summary.rstrip().splitlines(), ""])
 
     residual_summary_lines = _residual_summary_lines(residual_summary)
     if residual_summary_lines:

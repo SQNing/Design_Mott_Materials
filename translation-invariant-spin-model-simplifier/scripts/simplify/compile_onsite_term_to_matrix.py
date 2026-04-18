@@ -43,10 +43,10 @@ def _spin_operator_matrices(local_dimension):
     for index, m_value in enumerate(values):
         sz[index][index] = float(m_value)
         if index > 0:
-            coeff = ((spin - m_value + 1) * (spin + m_value)) ** 0.5
+            coeff = (spin * (spin + 1) - m_value * (m_value + 1)) ** 0.5
             sp[index - 1][index] = complex(float(coeff))
         if index < size - 1:
-            coeff = ((spin + m_value + 1) * (spin - m_value)) ** 0.5
+            coeff = (spin * (spin + 1) - m_value * (m_value - 1)) ** 0.5
             sm[index + 1][index] = complex(float(coeff))
 
     sx = _matrix_scale(

@@ -9,16 +9,37 @@ def _load_payload(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _dipole_operator_aliases(axis):
+    return {
+        "x": ["Sx", "T1_x"],
+        "y": ["Sy", "T1_y"],
+        "z": ["Sz", "T1_z"],
+    }.get(axis, [f"S{axis}"])
+
+
+def _lookup_dipole_term(labels, row_axis, col_axis):
+    for left in _dipole_operator_aliases(row_axis):
+        for right in _dipole_operator_aliases(col_axis):
+            term = labels.get(f"{left}@0 {right}@1")
+            if term is not None:
+                return term
+    return None
+
+
 def _match_isotropic_exchange(two_body_terms):
     labels = {term["canonical_label"]: term for term in two_body_terms}
-    needed = ["Sx@0 Sx@1", "Sy@0 Sy@1", "Sz@0 Sz@1"]
-    if not all(label in labels for label in needed):
+    needed = [
+        _lookup_dipole_term(labels, "x", "x"),
+        _lookup_dipole_term(labels, "y", "y"),
+        _lookup_dipole_term(labels, "z", "z"),
+    ]
+    if not all(needed):
         return None
-    coefficients = [labels[label]["coefficient"] for label in needed]
+    coefficients = [term["coefficient"] for term in needed]
     if coefficients[0] == coefficients[1] == coefficients[2]:
         return {
             "type": "isotropic_exchange",
-            "source_terms": [labels[label] for label in needed],
+            "source_terms": needed,
             "coefficient": coefficients[0],
         }
     return None
@@ -26,17 +47,19 @@ def _match_isotropic_exchange(two_body_terms):
 
 def _match_xxz_exchange(two_body_terms):
     labels = {term["canonical_label"]: term for term in two_body_terms}
-    needed = ["Sx@0 Sx@1", "Sy@0 Sy@1", "Sz@0 Sz@1"]
-    if not all(label in labels for label in needed):
+    xx = _lookup_dipole_term(labels, "x", "x")
+    yy = _lookup_dipole_term(labels, "y", "y")
+    zz = _lookup_dipole_term(labels, "z", "z")
+    if not all((xx, yy, zz)):
         return None
-    coefficient_xy = labels["Sx@0 Sx@1"]["coefficient"]
-    coefficient_y = labels["Sy@0 Sy@1"]["coefficient"]
-    coefficient_z = labels["Sz@0 Sz@1"]["coefficient"]
+    coefficient_xy = xx["coefficient"]
+    coefficient_y = yy["coefficient"]
+    coefficient_z = zz["coefficient"]
     if coefficient_xy != coefficient_y or coefficient_xy == coefficient_z:
         return None
     return {
         "type": "xxz_exchange",
-        "source_terms": [labels[label] for label in needed],
+        "source_terms": [xx, yy, zz],
         "coefficient_xy": coefficient_xy,
         "coefficient_z": coefficient_z,
     }
@@ -45,9 +68,9 @@ def _match_xxz_exchange(two_body_terms):
 def _match_symmetric_exchange_matrix(two_body_terms):
     labels = {term["canonical_label"]: term for term in two_body_terms}
     diagonal = {
-        "xx": labels.get("Sx@0 Sx@1"),
-        "yy": labels.get("Sy@0 Sy@1"),
-        "zz": labels.get("Sz@0 Sz@1"),
+        "xx": _lookup_dipole_term(labels, "x", "x"),
+        "yy": _lookup_dipole_term(labels, "y", "y"),
+        "zz": _lookup_dipole_term(labels, "z", "z"),
     }
     if not all(diagonal.values()):
         return None
@@ -78,14 +101,27 @@ def _match_symmetric_exchange_matrix(two_body_terms):
     if not has_offdiag and (coefficient_x == coefficient_y == coefficient_z or coefficient_x == coefficient_y):
         return None
 
+    matrix = [
+        [coefficient_x, offdiag["xy"], offdiag["xz"]],
+        [offdiag["xy"], coefficient_y, offdiag["yz"]],
+        [offdiag["xz"], offdiag["yz"], coefficient_z],
+    ]
+    isotropic_exchange = (coefficient_x + coefficient_y + coefficient_z) / 3.0
+    symmetric_traceless_matrix = [
+        [
+            matrix[row_index][col_index] - (isotropic_exchange if row_index == col_index else 0.0)
+            for col_index in range(3)
+        ]
+        for row_index in range(3)
+    ]
+
     return {
         "type": "symmetric_exchange_matrix",
         "source_terms": source_terms,
-        "matrix": [
-            [coefficient_x, offdiag["xy"], offdiag["xz"]],
-            [offdiag["xy"], coefficient_y, offdiag["yz"]],
-            [offdiag["xz"], offdiag["yz"], coefficient_z],
-        ],
+        "matrix": matrix,
+        "symmetric_matrix": matrix,
+        "symmetric_traceless_matrix": symmetric_traceless_matrix,
+        "isotropic_exchange": isotropic_exchange,
     }
 
 
@@ -101,8 +137,7 @@ def _match_exchange_tensor(two_body_terms):
     for row_axis in axes:
         row = []
         for col_axis in axes:
-            label = f"S{row_axis}@0 S{col_axis}@1"
-            term = labels.get(label)
+            term = _lookup_dipole_term(labels, row_axis, col_axis)
             coefficient = 0.0 if term is None else term["coefficient"]
             row.append(coefficient)
             if term is not None:
@@ -127,16 +162,45 @@ def _match_exchange_tensor(two_body_terms):
     if not offdiag_present or not asymmetric_present:
         return None
 
+    symmetric_matrix = [
+        [
+            0.5 * (matrix[row_index][col_index] + matrix[col_index][row_index])
+            for col_index in range(3)
+        ]
+        for row_index in range(3)
+    ]
+    antisymmetric_matrix = [
+        [
+            0.5 * (matrix[row_index][col_index] - matrix[col_index][row_index])
+            for col_index in range(3)
+        ]
+        for row_index in range(3)
+    ]
+    isotropic_exchange = (
+        symmetric_matrix[0][0] + symmetric_matrix[1][1] + symmetric_matrix[2][2]
+    ) / 3.0
+    symmetric_traceless_matrix = [
+        [
+            symmetric_matrix[row_index][col_index]
+            - (isotropic_exchange if row_index == col_index else 0.0)
+            for col_index in range(3)
+        ]
+        for row_index in range(3)
+    ]
     dm_vector = [
-        0.5 * (matrix[1][2] - matrix[2][1]),
-        0.5 * (matrix[2][0] - matrix[0][2]),
-        0.5 * (matrix[0][1] - matrix[1][0]),
+        antisymmetric_matrix[1][2],
+        antisymmetric_matrix[2][0],
+        antisymmetric_matrix[0][1],
     ]
 
     return {
         "type": "exchange_tensor",
         "source_terms": source_terms,
         "matrix": matrix,
+        "symmetric_matrix": symmetric_matrix,
+        "antisymmetric_matrix": antisymmetric_matrix,
+        "symmetric_traceless_matrix": symmetric_traceless_matrix,
+        "isotropic_exchange": isotropic_exchange,
         "dm_vector": dm_vector,
     }
 
@@ -181,8 +245,8 @@ def _match_orbital_exchange(two_body_terms):
 
 def _match_dm_like(two_body_terms):
     labels = {term["canonical_label"]: term for term in two_body_terms}
-    lhs = labels.get("Sx@0 Sy@1")
-    rhs = labels.get("Sy@0 Sx@1")
+    lhs = _lookup_dipole_term(labels, "x", "y")
+    rhs = _lookup_dipole_term(labels, "y", "x")
     if lhs and rhs and lhs["coefficient"] == -rhs["coefficient"]:
         return {
             "type": "dm_like",
@@ -236,6 +300,21 @@ def _physical_multipole_label_aliases(rank, family):
     if rank == 6:
         return ["tetrahexacontapolar"]
     return []
+
+
+def _copy_shared_shell_metadata(block, terms):
+    shell_indices = {term.get("shell_index") for term in terms if term.get("shell_index") is not None}
+    if len(shell_indices) == 1:
+        block["shell_index"] = next(iter(shell_indices))
+
+    distances = {term.get("distance") for term in terms if term.get("distance") is not None}
+    if len(distances) == 1:
+        block["distance"] = next(iter(distances))
+
+    shell_labels = {term.get("shell_label") for term in terms if term.get("shell_label") is not None}
+    if len(shell_labels) == 1:
+        block["shell_label"] = next(iter(shell_labels))
+    return block
 
 
 def _same_component_channel(component_label):
@@ -429,6 +508,12 @@ def _matrix_parameter_name(left_axis, right_axis=None):
     return f"J{left}{right}"
 
 
+def _gamma_parameter_name(left_axis, right_axis):
+    left = _human_axis_token(left_axis)
+    right = _human_axis_token(right_axis)
+    return f"Gamma_{left}{right}"
+
+
 def _display_axes_for_block(block, axes):
     axis_list = list(axes or [])
     if len(axis_list) != 3:
@@ -475,6 +560,178 @@ def _derive_jzz_jpm_jpmpm_jzpm_view(matrix, axis_labels):
     }
 
 
+def _derive_symmetric_offdiagonal_parameters(matrix, axis_labels):
+    if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+        return []
+    if len(axis_labels) != 3:
+        return []
+
+    pairs = [
+        (0, 1, axis_labels[0], axis_labels[1]),
+        (0, 2, axis_labels[0], axis_labels[2]),
+        (1, 2, axis_labels[1], axis_labels[2]),
+    ]
+    parameter_entries = []
+    for row_index, col_index, left_axis, right_axis in pairs:
+        value = 0.5 * (matrix[row_index][col_index] + matrix[col_index][row_index])
+        if _is_effectively_zero(value):
+            continue
+        parameter_entries.append(
+            {
+                "name": _gamma_parameter_name(left_axis, right_axis),
+                "value": value,
+                "kind": "symmetric_offdiagonal",
+                "axes": [left_axis, right_axis],
+            }
+        )
+    return parameter_entries
+
+
+def _derive_symmetric_exchange_physical_parameter_view(block, axis_labels):
+    matrix = list(block.get("symmetric_matrix") or block.get("matrix") or [])
+    if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+        return None
+
+    isotropic_exchange = block.get("isotropic_exchange")
+    if isotropic_exchange is None:
+        isotropic_exchange = (matrix[0][0] + matrix[1][1] + matrix[2][2]) / 3.0
+
+    gamma_parameters = _derive_symmetric_offdiagonal_parameters(matrix, axis_labels)
+    if not gamma_parameters:
+        return None
+
+    return {
+        "view_kind": "symmetric_exchange_matrix_jiso_gamma",
+        "parameters": [{"name": "Jiso", "value": isotropic_exchange, "kind": "isotropic"}] + gamma_parameters,
+        "physical_label": "symmetric exchange matrix (Jiso/Gamma)",
+    }
+
+
+def _derive_exchange_tensor_physical_parameter_view(block, axis_labels):
+    isotropic_exchange = block.get("isotropic_exchange")
+    dm_vector = list(block.get("dm_vector") or [])
+    if isotropic_exchange is None or len(dm_vector) != 3:
+        return None
+
+    symmetric_matrix = list(block.get("symmetric_matrix") or block.get("matrix") or [])
+    gamma_parameters = _derive_symmetric_offdiagonal_parameters(symmetric_matrix, axis_labels)
+    parameter_entries = [{"name": "Jiso", "value": isotropic_exchange, "kind": "isotropic"}]
+    parameter_entries.extend(gamma_parameters)
+    parameter_entries.extend(
+        [
+            {"name": "Dx", "value": dm_vector[0], "kind": "dm"},
+            {"name": "Dy", "value": dm_vector[1], "kind": "dm"},
+            {"name": "Dz", "value": dm_vector[2], "kind": "dm"},
+        ]
+    )
+    return {
+        "view_kind": "exchange_tensor_jiso_gamma_dm",
+        "parameters": parameter_entries,
+        "physical_label": "general exchange tensor (Jiso/Gamma/DM)",
+    }
+
+
+def _derive_quadrupole_physical_parameter_view(block):
+    components = list(block.get("components") or [])
+    if not components:
+        return None
+    parameter_entries = [
+        {
+            "name": component.get("label"),
+            "value": component.get("coefficient"),
+            "kind": "quadrupole_component",
+        }
+        for component in components[:6]
+        if component.get("label") is not None
+    ]
+    if not parameter_entries:
+        return None
+    return {
+        "view_kind": "quadrupole_coupling_components",
+        "parameters": parameter_entries,
+        "physical_label": "quadrupolar coupling components",
+    }
+
+
+def _derive_dipole_multipole_physical_parameter_view(source_terms):
+    ordered_names = [
+        "T1_x:T1_x",
+        "T1_y:T1_y",
+        "T1_z:T1_z",
+        "T1_x:T1_y",
+        "T1_x:T1_z",
+        "T1_y:T1_z",
+        "T1_y:T1_x",
+        "T1_z:T1_x",
+        "T1_z:T1_y",
+    ]
+    operator_aliases = {
+        "Sx": "T1_x",
+        "Sy": "T1_y",
+        "Sz": "T1_z",
+    }
+
+    def _as_dipole_parameter_name(label):
+        parts = str(label or "").split(":")
+        if len(parts) != 2:
+            return None
+        converted = []
+        for part in parts:
+            if part.startswith("T1_"):
+                converted.append(part)
+                continue
+            alias = operator_aliases.get(part)
+            if alias is None:
+                return None
+            converted.append(alias)
+        return f"{converted[0]}:{converted[1]}"
+
+    entries = []
+    for term in list(source_terms or []):
+        label = _as_dipole_parameter_name(_quadrupole_component_label(term))
+        if label is None:
+            continue
+        entries.append(
+            {
+                "name": label,
+                "value": term.get("coefficient"),
+                "kind": "dipole_component",
+            }
+        )
+    if not entries:
+        return None
+    order_index = {name: idx for idx, name in enumerate(ordered_names)}
+    entries.sort(key=lambda entry: (order_index.get(entry["name"], 999), entry["name"]))
+    return {
+        "view_kind": "dipole_multipole_components",
+        "parameters": entries,
+        "physical_label": "dipole multipole components",
+    }
+
+
+def _derive_higher_multipole_physical_parameter_view(block):
+    components = list(block.get("components") or [])
+    rank = block.get("multipole_rank")
+    if not components or rank is None:
+        return None
+    parameter_entries = [
+        {
+            "name": component.get("label"),
+            "value": component.get("coefficient"),
+            "kind": "higher_multipole_component",
+        }
+        for component in components[:6]
+        if component.get("label") is not None
+    ]
+    if not parameter_entries:
+        return None
+    return {
+        "view_kind": f"higher_multipole_coupling_rank_{rank}_components",
+        "parameters": parameter_entries,
+        "physical_label": f"{_physical_multipole_label(rank, block.get('multipole_family'))} coupling components",
+    }
+
+
 def _annotate_block_for_humans(block):
     annotated = dict(block)
     block_type = block.get("type")
@@ -513,6 +770,9 @@ def _annotate_block_for_humans(block):
             }
             for component in components[:6]
         ]
+        quadrupole_view = _derive_quadrupole_physical_parameter_view(block)
+        if quadrupole_view is not None:
+            annotated["physical_parameter_view"] = quadrupole_view
         return annotated
 
     if block_type == "higher_multipole_coupling":
@@ -541,6 +801,9 @@ def _annotate_block_for_humans(block):
             }
             for component in components[:6]
         ]
+        higher_view = _derive_higher_multipole_physical_parameter_view(block)
+        if higher_view is not None:
+            annotated["physical_parameter_view"] = higher_view
         return annotated
 
     if block_type == "xxz_exchange":
@@ -574,6 +837,14 @@ def _annotate_block_for_humans(block):
                 "axis": longitudinal_axis,
             },
         ]
+        annotated["physical_parameter_view"] = {
+            "view_kind": "xxz_exchange_jxy_jz",
+            "parameters": list(annotated["human_parameters"]),
+            "physical_label": "xxz exchange",
+        }
+        dipole_view = _derive_dipole_multipole_physical_parameter_view(block.get("source_terms"))
+        if dipole_view is not None:
+            annotated["additional_physical_parameter_views"] = [dipole_view]
         return annotated
 
     if block_type in {"symmetric_exchange_matrix", "exchange_tensor"}:
@@ -582,6 +853,24 @@ def _annotate_block_for_humans(block):
             return annotated
         axis_labels = list(block.get("matrix_axes") or block.get("axis_labels") or ["x", "y", "z"])
         display_axis_labels = _display_axes_for_block(block, axis_labels)
+        exchange_tensor_view = None
+        symmetric_exchange_view = None
+        if block_type == "symmetric_exchange_matrix":
+            symmetric_exchange_view = _derive_symmetric_exchange_physical_parameter_view(block, display_axis_labels)
+            if symmetric_exchange_view is not None:
+                annotated["physical_parameter_view"] = symmetric_exchange_view
+                annotated.setdefault("physical_label", symmetric_exchange_view.get("physical_label"))
+        if block_type == "exchange_tensor":
+            exchange_tensor_view = _derive_exchange_tensor_physical_parameter_view(block, display_axis_labels)
+            if exchange_tensor_view is not None:
+                annotated["physical_parameter_view"] = exchange_tensor_view
+                gamma_parameters = [
+                    entry
+                    for entry in exchange_tensor_view["parameters"]
+                    if str(entry.get("name", "")).startswith("Gamma_")
+                ]
+                if gamma_parameters:
+                    annotated["symmetric_offdiagonal_parameters"] = gamma_parameters
         physical_view = _derive_jzz_jpm_jpmpm_jzpm_view(matrix, display_axis_labels)
         if physical_view is not None:
             parameter_entries = list(physical_view["parameter_entries"])
@@ -598,9 +887,34 @@ def _annotate_block_for_humans(block):
                 summary += " Planar average competes with or exceeds the longitudinal channel."
             if not _is_effectively_zero(parameter_entries[3]["value"]):
                 summary += f" Mixed {display_axis_labels[1]}{display_axis_labels[2]} channel is present."
+            if block_type == "exchange_tensor":
+                dm_vector = list(block.get("dm_vector") or [0.0, 0.0, 0.0])
+                if len(dm_vector) == 3:
+                    summary += (
+                        f" Antisymmetric exchange gives DM = (Dx, Dy, Dz) = "
+                        f"({_format_human_value(dm_vector[0])}, {_format_human_value(dm_vector[1])}, {_format_human_value(dm_vector[2])})."
+                    )
+                    parameter_entries.extend(
+                        [
+                            {"name": "Dx", "value": dm_vector[0], "kind": "dm"},
+                            {"name": "Dy", "value": dm_vector[1], "kind": "dm"},
+                            {"name": "Dz", "value": dm_vector[2], "kind": "dm"},
+                        ]
+                    )
+                if exchange_tensor_view is not None:
+                    annotated["physical_parameter_view"] = exchange_tensor_view
+            elif block_type == "symmetric_exchange_matrix":
+                annotated["physical_parameter_view"] = {
+                    "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm",
+                    "parameters": list(parameter_entries),
+                    "physical_label": physical_view["physical_label"],
+                }
             annotated["physical_label"] = physical_view["physical_label"]
             annotated["human_summary"] = summary
             annotated["human_parameters"] = parameter_entries
+            dipole_view = _derive_dipole_multipole_physical_parameter_view(block.get("source_terms"))
+            if dipole_view is not None:
+                annotated["additional_physical_parameter_views"] = [dipole_view]
             return annotated
 
         diagonals = [
@@ -627,9 +941,37 @@ def _annotate_block_for_humans(block):
             if lhs == 0.0 and rhs == 0.0:
                 continue
             value = lhs if lhs == rhs else [lhs, rhs]
-            name = _matrix_parameter_name(display_left_axis, display_right_axis)
-            parameter_entries.append({"name": name, "value": value, "kind": "offdiagonal"})
+            is_symmetric_offdiagonal = block_type == "symmetric_exchange_matrix" and lhs == rhs
+            name = (
+                _gamma_parameter_name(display_left_axis, display_right_axis)
+                if is_symmetric_offdiagonal
+                else _matrix_parameter_name(display_left_axis, display_right_axis)
+            )
+            parameter_entries.append(
+                {
+                    "name": name,
+                    "value": value,
+                    "kind": "symmetric_offdiagonal" if is_symmetric_offdiagonal else "offdiagonal",
+                }
+            )
             nonzero_offdiag.append(((display_left_axis, display_right_axis), name, value))
+
+        symmetric_matrix = list(block.get("symmetric_matrix") or matrix)
+        symmetric_offdiagonal_parameters = _derive_symmetric_offdiagonal_parameters(
+            symmetric_matrix,
+            display_axis_labels,
+        )
+        if symmetric_offdiagonal_parameters:
+            annotated["symmetric_offdiagonal_parameters"] = symmetric_offdiagonal_parameters
+            existing_parameter_names = {entry.get("name") for entry in parameter_entries}
+            for entry in symmetric_offdiagonal_parameters:
+                if entry["name"] not in existing_parameter_names:
+                    parameter_entries.append(entry)
+        if symmetric_exchange_view is not None:
+            existing_parameter_names = {entry.get("name") for entry in parameter_entries}
+            for entry in symmetric_exchange_view["parameters"]:
+                if entry["name"] not in existing_parameter_names:
+                    parameter_entries.append(entry)
 
         diagonal_summary = ", ".join(
             f"{_matrix_parameter_name(display_axis_label)} = {_format_human_value(value)}"
@@ -644,6 +986,40 @@ def _annotate_block_for_humans(block):
         summary += "."
         if block_type == "symmetric_exchange_matrix":
             summary = "Symmetric " + summary[0].lower() + summary[1:]
+        elif block_type == "exchange_tensor":
+            dm_vector = list(block.get("dm_vector") or [0.0, 0.0, 0.0])
+            isotropic_exchange = block.get("isotropic_exchange")
+            if isotropic_exchange is not None:
+                summary += (
+                    f" Symmetric exchange decomposes into an isotropic part "
+                    f"Jiso = {_format_human_value(isotropic_exchange)} plus anisotropic symmetric corrections."
+                )
+            if len(dm_vector) == 3:
+                parameter_entries.extend(
+                    [
+                        {"name": "Jiso", "value": isotropic_exchange, "kind": "isotropic"}
+                    ]
+                    if isotropic_exchange is not None
+                    else []
+                )
+                parameter_entries.extend(
+                    [
+                        {"name": "Dx", "value": dm_vector[0], "kind": "dm"},
+                        {"name": "Dy", "value": dm_vector[1], "kind": "dm"},
+                        {"name": "Dz", "value": dm_vector[2], "kind": "dm"},
+                    ]
+                )
+                summary += (
+                    f" DM = (Dx, Dy, Dz) = "
+                    f"({_format_human_value(dm_vector[0])}, {_format_human_value(dm_vector[1])}, {_format_human_value(dm_vector[2])})."
+                )
+        if symmetric_offdiagonal_parameters:
+            summary += " Symmetric off-diagonal exchange gives "
+            summary += ", ".join(
+                f"{entry['name']} = {_format_human_value(entry['value'])}"
+                for entry in symmetric_offdiagonal_parameters
+            )
+            summary += "."
         dominant_axis = _dominant_axis_from_diagonal(
             list(zip(display_axis_labels, [value for _axis, value in diagonals]))
         )
@@ -659,6 +1035,13 @@ def _annotate_block_for_humans(block):
         summary += " " + " ".join(interpretation_bits)
         annotated["human_summary"] = summary
         annotated["human_parameters"] = parameter_entries
+        dipole_view = _derive_dipole_multipole_physical_parameter_view(block.get("source_terms"))
+        if dipole_view is not None:
+            annotated["additional_physical_parameter_views"] = [dipole_view]
+        if symmetric_exchange_view is not None:
+            annotated["physical_parameter_view"] = symmetric_exchange_view
+        if exchange_tensor_view is not None:
+            annotated["physical_parameter_view"] = exchange_tensor_view
         return annotated
 
     return annotated
@@ -750,6 +1133,7 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
         for block in higher_blocks:
             if family is not None:
                 block["family"] = family
+            _copy_shared_shell_metadata(block, block.get("source_terms", []))
             blocks.append(
                 _annotate_block_for_humans(
                     _annotate_block_with_coordinate_convention(
@@ -774,6 +1158,7 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
             if block is not None:
                 if family is not None:
                     block["family"] = family
+                _copy_shared_shell_metadata(block, block.get("source_terms", []))
                 blocks.append(
                     _annotate_block_for_humans(
                         _annotate_block_with_coordinate_convention(
@@ -789,6 +1174,7 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
         if chirality_block is not None:
             if family is not None:
                 chirality_block["family"] = family
+            _copy_shared_shell_metadata(chirality_block, chirality_block.get("source_terms", []))
             blocks.append(
                 _annotate_block_for_humans(
                     _annotate_block_with_coordinate_convention(

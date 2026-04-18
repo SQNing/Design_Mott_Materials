@@ -17,6 +17,7 @@ Treat the following as first-class upstream inputs:
 - paper-style inputs containing structure sections, Hamiltonian sections, and parameter tables.
 - freeform text that contains file-path references for structure files and `hr`-style hopping files,
 - structured `many_body_hr` file-pair payloads,
+- agent-normalized paper records that already expose bond-local or matrix-form candidates,
 - mixed inputs that combine prose, formulas, and file references.
 
 Do not promise full automatic support for:
@@ -25,6 +26,36 @@ Do not promise full automatic support for:
 - equations embedded only as images,
 - highly ambiguous multi-model papers without user disambiguation,
 - prose that never specifies a concrete lattice or Hamiltonian.
+
+## Operator-Expression Notes
+
+When the upstream text contains a short operator expression that is already close to a runnable
+spin-model term, prefer landing that content through the shared operator-expression route rather
+than inventing a separate document-specific parser.
+
+Current supported operator-expression families include:
+
+- compact operator strings such as `Sz@0 Sz@1`, `J*Sp@0 Sm@1`, or grouped products like
+  `(J1*Sp@0 Sm@1 + J2*Sm@0 Sp@1) Sz@2`,
+- LaTeX-like spin expressions such as `J S_i^z S_j^z`, `S_i^\pm`, grouped `\left(...\right)`
+  products, and mixed prose-plus-formula fragments,
+- explicit imaginary coefficients such as `i`, `-i`, and `1j`,
+- projection wrappers such as `Re[...]`, `Im[...]`, `\mathrm{Re}[...]`, and `\mathrm{Im}[...]`,
+- common literature shorthand such as `+ h.c.`, `+ c.c.`, `+ (i<->j)`,
+  `+ (i \leftrightarrow j)`, `+ perm.`, `+ cyclic perm.`, and `+ all permutations`.
+
+Interpretation notes:
+
+- These shorthand forms are part of the shared operator-expression semantics for the current
+  spin-`S` route; they are not document-only exceptions.
+- If a shorthand or wrapper expands cleanly into canonical spin-operator terms, keep that expanded
+  operator content and continue through the standard decomposition / canonicalization path.
+- If the text mixes supported operator syntax with unsupported constructs, do not silently keep only
+  the parseable prefix. Either preserve the unmatched structure in the intermediate record or stop
+  with `interaction.status = needs_input`.
+- `perm.` is currently only a safe shorthand when the intended permutation action is clear from the
+  support already present in the explicit base expression. If a document uses `perm.` ambiguously,
+  return `needs_input` instead of guessing the author's intended permutation set.
 
 ## Processing Workflow
 
@@ -54,10 +85,26 @@ Do not promise full automatic support for:
 5. Extract all model candidates that appear in the source.
 6. Bind parameters from tables, inline assignments, and uncertainty annotations.
 7. Build an intermediate extraction record.
+   If an upstream agent has already produced a structured record, translate it into the same
+   intermediate schema instead of reparsing the source text from scratch.
 8. Attempt landing into the currently supported payload families only after the intermediate record
    is complete enough to support a unique interpretation.
 9. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
    focused blocking question.
+
+For document-style sources specifically:
+
+- prefer deterministic extraction first,
+- only recommend agent-assisted document normalization when the document has already been detected as
+  a paper/LaTeX source but deterministic landing still does not yield a trustworthy runnable
+  operator-level payload,
+- do not escalate to agent normalization merely because the user still needs to choose among
+  legitimate physical options such as model candidate, bond family, or coordinate convention.
+- a thin orchestration layer may implement this as a two-pass workflow:
+  first run deterministic normalization on the raw document, then if an
+  `agent_normalization_request`
+  is returned, call an upstream agent and resubmit the same source text together with the produced
+  `agent_normalized_document`.
 
 ## Intermediate Extraction Schema
 
@@ -84,6 +131,35 @@ The intermediate extraction record should contain at least:
 - `unsupported_features`
   - extracted content the current payloads cannot yet represent faithfully
 
+When an upstream agent supplies the intermediate content directly, preserve that same shape rather
+than inventing a second backend-only schema. In practice this means the agent-facing structured
+record should be convertible into the same fields above, with emphasis on:
+
+- `candidate_models`
+- `hamiltonian_model.local_bond_candidates`
+- `hamiltonian_model.matrix_form_candidates`
+- `parameter_registry`
+- `system_context.coordinate_convention`
+- `unresolved_items`
+
+For evidence-backed parameter extraction, prefer rich
+`parameter_registry`
+entries that keep per-source observations inside
+`evidence_values`
+instead of collapsing conflicting values too early.
+This lets downstream verifiers detect disagreement between equations, tables, and supplementary
+material before a final Hamiltonian record is trusted.
+
+If the paper contains distinct named candidates such as an
+`effective`
+Hamiltonian plus an
+`Equivalent Exchange-Matrix Form`,
+prefer storing them in
+`candidate_models`
+under separate keys and letting the shared landing logic apply
+`selected_model_candidate`
+and family-level matrix fallback later.
+
 When fallback inference materially contributes during normalization, the normalized result may also
 surface these compatibility fields alongside the landed payload or `interaction` block:
 
@@ -93,6 +169,12 @@ surface these compatibility fields alongside the landed payload or `interaction`
 - `agent_inferred`
   - helper-produced narrowing metadata such as recognized evidence, proposed safe fields,
     unresolved items, confidence, and a user-facing explanation
+- `agent_normalization_request`
+  - a document-ingestion recommendation that asks an upstream agent to convert the source paper into
+    the constrained `agent_normalized_document` schema before normalization continues
+  - the request should carry a concrete `template_version`, `template`, `example_payload`, and
+    short `prompt_notes` so the upstream agent can fill a fixed contract instead of inventing its
+    own JSON shape
 
 ## Landing Rules
 
@@ -142,6 +224,12 @@ The contract is:
   Current safe narrowing is limited to helper-recognized fields such as `input_family`,
   `structure_file`, and `hamiltonian_file`; downstream stages decide whether to accept and commit
   those fields.
+- A stronger upstream path is also allowed:
+  an agent may convert a literature Hamiltonian into a constrained
+  `agent_normalized_document`
+  object and pass that object into the shared `natural_language` normalization entry.
+  That path still lands through the same intermediate-record and `needs_input` policy described in
+  this document; it does not bypass ambiguity gates or unsupported-feature reporting.
 - `agent_inferred` does not override the mandatory `needs_input` gates below. If the remaining
   ambiguity would materially change the physical model, the result must still surface
   `interaction.status = needs_input` even when the helper recognized a likely route.

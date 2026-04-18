@@ -8,6 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from input import normalize_freeform_text
+from input.unsupported_feature_catalog import unsupported_feature_details
 from input.parse_lattice_description import parse_lattice_description
 from simplify.assemble_effective_model import assemble_effective_model
 from simplify.canonicalize_terms import canonicalize_terms
@@ -20,6 +21,7 @@ from simplify.generate_simplifications import generate_candidates
 from simplify.identify_readable_blocks import identify_readable_blocks
 from simplify.infer_symmetries import infer_symmetries
 from simplify.score_fidelity import score_fidelity
+from cli.operator_expression_help import SUPPORTED_OPERATOR_EXPRESSION_HELP
 from cli.render_simplified_model_report import render_simplified_model_report
 
 
@@ -30,6 +32,20 @@ PUBLIC_AGENT_INFERRED_FIELDS = (
     "unresolved_items",
     "user_explanation",
 )
+
+
+def _json_safe(value):
+    if isinstance(value, complex):
+        if abs(value.imag) <= 1.0e-12:
+            return float(value.real)
+        return {"real": float(value.real), "imag": float(value.imag)}
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 def _public_agent_inferred_view(agent_inferred):
@@ -89,6 +105,11 @@ def _finalize_pipeline_result(result):
 
 
 def _projection_gate(normalized_model, decomposition):
+    unsupported = list(normalized_model.get("unsupported_features", [])) if isinstance(normalized_model, dict) else []
+    details = unsupported_feature_details(unsupported)
+    blocker_text = ""
+    if details:
+        blocker_text = " Remaining blockers include " + ", ".join(detail["description"] for detail in details) + "."
     return {
         "status": "needs_input",
         "stage": "decompose_local_term",
@@ -98,10 +119,14 @@ def _projection_gate(normalized_model, decomposition):
             "status": "needs_input",
             "id": "projection_or_truncate",
             "question": (
-                "The current workflow cannot yet map this operator expression into explicit spin-basis terms. "
+                SUPPORTED_OPERATOR_EXPRESSION_HELP
+                + " The current workflow still cannot map this particular operator expression into explicit spin-basis terms."
+                + blocker_text
+                + " "
                 "Should I project or truncate the model into a supported operator basis first?"
             ),
             "options": ["project", "truncate", "custom"],
+            "unsupported_feature_details": details,
         },
         "unsupported_features": ["operator_expression_decomposition_pending"],
     }
@@ -254,7 +279,7 @@ def main():
     if args.report_md:
         report_markdown = render_simplified_model_report(result, title=str(args.report_title))
         Path(args.report_md).write_text(report_markdown, encoding="utf-8")
-    print(json.dumps(result, indent=2, sort_keys=True))
+    print(json.dumps(_json_safe(result), indent=2, sort_keys=True))
     return 0
 
 

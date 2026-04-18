@@ -8,6 +8,7 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from simplify.assemble_effective_model import assemble_effective_model
 from simplify.canonicalize_terms import canonicalize_terms
+from simplify.compile_local_term_to_matrix import compile_local_term_to_matrix
 from simplify.decompose_local_term import decompose_local_term
 from simplify.identify_readable_blocks import identify_readable_blocks
 from simplify.local_matrix_record import build_local_matrix_record
@@ -33,6 +34,53 @@ class SpinSPipelineTests(unittest.TestCase):
 
         self.assertEqual(result["mode"], "spin-multipole-basis")
         self.assertTrue(any(term["label"].startswith("T2_") for term in result["terms"]))
+
+    def test_spin_one_operator_text_matrix_route_promotes_onsite_quadrupole_metadata(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": "D*(Sz@0)^2",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"D": 2.165},
+        }
+
+        record = compile_local_term_to_matrix(normalized)
+        decomposition = decompose_local_term({"local_term_record": record})
+        canonical = canonicalize_terms({"decomposition": decomposition})
+
+        self.assertEqual(decomposition["mode"], "spin-multipole-basis")
+        self.assertTrue(canonical["one_body"])
+        self.assertTrue(any(term.get("multipole_rank") == 2 for term in canonical["one_body"]))
+        self.assertTrue(any(term.get("multipole_family") == "quadrupole" for term in canonical["one_body"]))
+
+    def test_spin_one_compact_two_body_operator_matrix_route_promotes_dipole_metadata(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "Jx * Sx@0 Sx@1 + Jy * Sy@0 Sy@1 + Jz * Sz@0 Sz@1",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"Jx": 0.4, "Jy": 0.1, "Jz": -0.2},
+            "selected_local_bond_family": "1",
+        }
+
+        record = compile_local_term_to_matrix(normalized)
+        decomposition = decompose_local_term({"local_term_record": record})
+        canonical = canonicalize_terms({"decomposition": decomposition})
+
+        self.assertEqual(decomposition["mode"], "spin-multipole-basis")
+        self.assertTrue(canonical["two_body"])
+        self.assertTrue(any(term.get("multipole_rank") == 1 for term in canonical["two_body"]))
+        self.assertTrue(any(term.get("multipole_family") == "dipole" for term in canonical["two_body"]))
 
     def test_canonicalize_ranked_spin_multipole_labels_and_keep_them_in_residual(self):
         model = {
@@ -160,6 +208,56 @@ class SpinSPipelineTests(unittest.TestCase):
         self.assertIn(block, effective["main"])
         self.assertEqual(effective["residual"], [])
 
+    def test_identify_readable_blocks_can_keep_exchange_and_dipole_multipole_views_together(self):
+        model = {
+            "terms": [
+                {"label": "T1_x@0 T1_x@1", "coefficient": 0.2},
+                {"label": "T1_y@0 T1_y@1", "coefficient": 0.2},
+                {"label": "T1_z@0 T1_z@1", "coefficient": 0.5},
+            ]
+        }
+
+        canonical = canonicalize_terms(model)
+        readable = identify_readable_blocks(canonical)
+
+        xxz_blocks = [block for block in readable["blocks"] if block["type"] == "xxz_exchange"]
+        self.assertEqual(len(xxz_blocks), 1)
+        block = xxz_blocks[0]
+        self.assertEqual(block["physical_parameter_view"]["view_kind"], "xxz_exchange_jxy_jz")
+        additional_views = list(block.get("additional_physical_parameter_views") or [])
+        self.assertEqual(len(additional_views), 1)
+        self.assertEqual(additional_views[0]["view_kind"], "dipole_multipole_components")
+        self.assertEqual(
+            [entry["name"] for entry in additional_views[0]["parameters"]],
+            ["T1_x:T1_x", "T1_y:T1_y", "T1_z:T1_z"],
+        )
+
+    def test_identify_readable_blocks_can_derive_dipole_view_from_spin_operator_source_terms(self):
+        model = {
+            "terms": [
+                {"label": "Sx@0 Sx@1", "coefficient": -0.397},
+                {"label": "Sy@0 Sy@1", "coefficient": -0.075},
+                {"label": "Sz@0 Sz@1", "coefficient": -0.236},
+                {"label": "Sy@0 Sz@1", "coefficient": -0.261},
+                {"label": "Sz@0 Sy@1", "coefficient": -0.261},
+            ]
+        }
+
+        canonical = canonicalize_terms(model)
+        readable = identify_readable_blocks(canonical)
+
+        matrix_blocks = [block for block in readable["blocks"] if block["type"] == "symmetric_exchange_matrix"]
+        self.assertEqual(len(matrix_blocks), 1)
+        block = matrix_blocks[0]
+        self.assertEqual(block["physical_parameter_view"]["view_kind"], "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm")
+        additional_views = list(block.get("additional_physical_parameter_views") or [])
+        self.assertEqual(len(additional_views), 1)
+        self.assertEqual(additional_views[0]["view_kind"], "dipole_multipole_components")
+        self.assertEqual(
+            [entry["name"] for entry in additional_views[0]["parameters"]],
+            ["T1_x:T1_x", "T1_y:T1_y", "T1_z:T1_z", "T1_y:T1_z", "T1_z:T1_y"],
+        )
+
     def test_identify_readable_blocks_splits_mixed_rank_higher_multipoles_into_multiple_blocks(self):
         model = {
             "terms": [
@@ -226,6 +324,253 @@ class SpinSPipelineTests(unittest.TestCase):
         self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
         self.assertTrue(canonical["three_body"])
         self.assertTrue(all(term["body_order"] == 3 for term in canonical["three_body"]))
+
+    def test_latex_three_body_operator_string_enters_spin_s_pipeline_without_raw_operator(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1, 2],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"K_{ijk} S_i^z S_j^z S_k^z",
+                },
+            },
+            "parameters": {"K_{ijk}": 0.5},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertEqual(len(canonical["three_body"]), 1)
+        self.assertEqual(canonical["three_body"][0]["canonical_label"], "Sz@0 Sz@1 Sz@2")
+        self.assertAlmostEqual(canonical["three_body"][0]["coefficient"], 0.5)
+
+    def test_latex_parenthesized_three_body_operator_enters_spin_s_pipeline_without_raw_operator(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1, 2],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"\left(S_i^+ S_j^- + S_i^- S_j^+\right) S_k^z",
+                },
+            },
+            "parameters": {},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["three_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1 Sz@2"], 2.0)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1 Sz@2"], 2.0)
+
+    def test_latex_symbolic_coefficient_parenthesized_three_body_operator_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1, 2],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"K_{ijk}\left(S_i^+ S_j^- + S_i^- S_j^+\right) S_k^z",
+                },
+            },
+            "parameters": {"K_{ijk}": 0.75},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["three_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1 Sz@2"], 1.5)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1 Sz@2"], 1.5)
+
+    def test_compact_grouped_sum_with_term_coefficients_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1, 2],
+                "representation": {
+                    "kind": "operator",
+                    "value": "(J1*Sp@0 Sm@1 + J2*Sm@0 Sp@1) Sz@2",
+                },
+            },
+            "parameters": {"J1": 1.0, "J2": 2.0},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["three_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1 Sz@2"], 3.0)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1 Sz@2"], 3.0)
+        self.assertAlmostEqual(by_label["Sx@0 Sy@1 Sz@2"], 1.0j)
+        self.assertAlmostEqual(by_label["Sy@0 Sx@1 Sz@2"], -1.0j)
+
+    def test_latex_grouped_sum_with_symbolic_coefficient_products_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1, 2],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"\left(J_1 S_i^+ + J_2 S_i^-\right)\left(A S_j^+ + B S_j^-\right) S_k^z",
+                },
+            },
+            "parameters": {"J_1": 1.0, "J_2": 2.0, "A": 3.0, "B": 4.0},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["three_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1 Sz@2"], 21.0)
+        self.assertAlmostEqual(by_label["Sx@0 Sy@1 Sz@2"], -3.0j)
+        self.assertAlmostEqual(by_label["Sy@0 Sx@1 Sz@2"], -7.0j)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1 Sz@2"], -1.0)
+
+    def test_imaginary_unit_two_body_operator_string_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "-i*(Sp@0 Sm@1 - Sm@0 Sp@1)",
+                },
+            },
+            "parameters": {},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["two_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sy@1"], -2.0)
+        self.assertAlmostEqual(by_label["Sy@0 Sx@1"], 2.0)
+
+    def test_complex_literal_two_body_operator_string_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "1j*(Sp@0 Sm@1 - Sm@0 Sp@1)",
+                },
+            },
+            "parameters": {},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["two_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sy@1"], 2.0)
+        self.assertAlmostEqual(by_label["Sy@0 Sx@1"], -2.0)
+
+    def test_hc_shorthand_bypasses_partial_cartesian_fast_path_and_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "J*Sx@0 Sy@1 + h.c.",
+                },
+            },
+            "parameters": {"J": 1.0 + 1.0j},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["two_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertEqual(list(by_label), ["Sx@0 Sy@1"])
+        self.assertAlmostEqual(by_label["Sx@0 Sy@1"], 2.0)
+
+    def test_site_swap_shorthand_bypasses_partial_cartesian_fast_path_and_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "J*Sz@0 Sz@1 + (i<->j)",
+                },
+            },
+            "parameters": {"J": 1.25},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["two_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertEqual(list(by_label), ["Sz@0 Sz@1"])
+        self.assertAlmostEqual(by_label["Sz@0 Sz@1"], 2.5)
+
+    def test_real_part_wrapper_bypasses_partial_fast_path_and_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "Re[J*Sp@0 Sz@1]",
+                },
+            },
+            "parameters": {"J": 1.0 + 2.0j},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["two_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sz@1"], 1.0)
+        self.assertAlmostEqual(by_label["Sy@0 Sz@1"], -2.0)
+
+    def test_cyclic_permutation_shorthand_enters_spin_s_pipeline(self):
+        normalized = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0, 1, 2],
+                "representation": {
+                    "kind": "operator",
+                    "value": "K*Sx@0 Sy@1 Sz@2 + cyclic perm.",
+                },
+            },
+            "parameters": {"K": 0.5},
+        }
+
+        decomposition = decompose_local_term(normalized)
+        canonical = canonicalize_terms({"decomposition": decomposition})
+        by_label = {term["canonical_label"]: term["coefficient"] for term in canonical["three_body"]}
+
+        self.assertEqual(decomposition["mode"], "operator-basis")
+        self.assertFalse(any(term["label"] == "raw-operator" for term in decomposition["terms"]))
+        self.assertAlmostEqual(by_label["Sx@0 Sy@1 Sz@2"], 0.5)
+        self.assertAlmostEqual(by_label["Sz@0 Sx@1 Sy@2"], 0.5)
+        self.assertAlmostEqual(by_label["Sy@0 Sz@1 Sx@2"], 0.5)
 
     def test_canonicalize_five_body_term_into_higher_body_bucket(self):
         canonical = canonicalize_terms(

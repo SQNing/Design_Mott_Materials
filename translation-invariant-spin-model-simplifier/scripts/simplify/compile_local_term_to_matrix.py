@@ -34,6 +34,21 @@ def _local_basis_order(local_dimension):
     return formatted
 
 
+def _is_compact_operator_expression(expression):
+    text = str(expression or "")
+    return "@" in text and "\\frac" not in text and "S_i^" not in text and "S_j^" not in text
+
+
+def _decomposition_preference(*, representation_kind, support, local_dimension, expression):
+    if representation_kind != "operator":
+        return "matrix"
+    if len(support) == 1 and int(local_dimension) > 2:
+        return "matrix"
+    if len(support) == 2 and int(local_dimension) > 2 and _is_compact_operator_expression(expression):
+        return "matrix"
+    return "operator"
+
+
 def compile_local_term_to_matrix(normalized):
     support = list(normalized["local_term"]["support"])
     representation = normalized["local_term"]["representation"]
@@ -74,6 +89,12 @@ def compile_local_term_to_matrix(normalized):
                 "source_kind": "operator_text" if representation["kind"] == "operator" else "matrix_form",
                 "source_expression": representation.get("value"),
                 "parameter_map": parameters,
+                "decomposition_preference": _decomposition_preference(
+                    representation_kind=representation["kind"],
+                    support=support,
+                    local_dimension=local_dimension,
+                    expression=representation.get("value"),
+                ),
             },
         )
     except LocalMatrixRecordError as exc:

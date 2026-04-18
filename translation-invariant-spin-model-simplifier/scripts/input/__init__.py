@@ -7,3 +7,4 @@ from .agent_fallback import (
 )
 from .document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
 from .normalize_input import normalize_freeform_text, normalize_input
+from .verify_agent_normalized_document import verify_agent_normalized_document

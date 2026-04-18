@@ -10,6 +10,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from cli.simplify_text_input import run_text_simplification_pipeline
+from cli.render_simplified_model_report import render_simplified_model_report
 
 
 class SimplifyTextInputPipelineTests(unittest.TestCase):
@@ -125,6 +126,14 @@ J_1^{\pm\pm} = -0.161
 \begin{equation}
 J_1^{z\pm} = -0.261
 \end{equation}
+\end{document}
+"""
+
+    PROSE_ONLY_EFFECTIVE_FIXTURE = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Effective Hamiltonian}
+The effective Hamiltonian contains anisotropic spin interactions discussed in the main text.
 \end{document}
 """
 
@@ -278,6 +287,21 @@ J_2^{z\pm} = 0.050
 \end{equation}
 \end{document}
 """
+
+    def test_pipeline_requests_agent_document_normalization_for_prose_only_document(self):
+        result = run_text_simplification_pipeline(
+            self.PROSE_ONLY_EFFECTIVE_FIXTURE,
+            source_path="tests/data/prose_only_effective.tex",
+            selected_model_candidate="effective",
+        )
+
+        self.assertEqual(result["status"], "needs_input")
+        self.assertEqual(result["stage"], "normalize_input")
+        self.assertEqual(result["interaction"]["id"], "agent_document_normalization")
+        self.assertEqual(
+            result["normalized_model"]["agent_normalization_request"]["target_schema"],
+            "agent_normalized_document",
+        )
 
     @staticmethod
     def _write_minimal_cif(path):
@@ -439,10 +463,202 @@ J_2^{z\pm} = 0.050
         )
 
         self.assertEqual(result["status"], "needs_input")
-        self.assertEqual(result["stage"], "decompose_local_term")
-        self.assertEqual(result["interaction"]["id"], "projection_or_truncate")
-        self.assertIn("project or truncate", result["interaction"]["question"].lower())
-        self.assertIn("operator_expression_decomposition_pending", result["unsupported_features"])
+        self.assertEqual(result["stage"], "normalize_input")
+        self.assertEqual(result["interaction"]["id"], "local_bond_family_selection")
+        self.assertEqual(sorted(result["interaction"]["options"]), ["0'", "1", "1'", "2", "2a'", "3"])
+
+    def test_needs_input_report_surfaces_projection_gate_help_text(self):
+        fixture_path = SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex"
+        fixture = fixture_path.read_text(encoding="utf-8")
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path=str(fixture_path),
+            selected_model_candidate="effective",
+        )
+        report = render_simplified_model_report(result, title="Needs Input Report")
+
+        self.assertIn("## Interaction", report)
+        self.assertIn("local_bond_family_selection", report)
+        self.assertIn("0'", report)
+        self.assertIn("2a'", report)
+
+    def test_pipeline_lands_fei2_document_path_after_family_selection_via_matrix_fallback(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Crystal Structure}
+The magnetic ions form triangular layers.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}H_{ij}^{(1)}
+\;+\!
+\sum_{n\in\{2,3\}}
+\sum_{\langle i,j\rangle_n}
+\left[
+J_n^{zz}S_i^zS_j^z
++
+\frac{J_n^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right].
+\end{equation}
+\section*{Equivalent Exchange-Matrix Form}
+\begin{equation}
+\mathcal J_{ij}^{(1)}=
+\begin{pmatrix}
+J_1^{xx} & 0 & 0 \\
+0 & J_1^{yy} & J_1^{yz} \\
+0 & J_1^{yz} & J_1^{zz}
+\end{pmatrix}.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{xx} = -0.397
+\end{equation}
+\begin{equation}
+J_1^{yy} = -0.075
+\end{equation}
+\begin{equation}
+J_1^{yz} = -0.261
+\end{equation}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+J_2^{zz} = 0.052
+\end{equation}
+\begin{equation}
+J_2^{\pm} = 0.017
+\end{equation}
+\begin{equation}
+J_3^{zz} = 0.101
+\end{equation}
+\begin{equation}
+J_3^{\pm} = 0.023
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/fei2_document_sum_with_matrix_fallback.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["decomposition"]["source_backbone"], "local_matrix_record")
+        by_label = {term["canonical_label"]: term["coefficient"] for term in result["canonical_model"]["two_body"]}
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1"], -0.397)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1"], -0.075)
+        self.assertAlmostEqual(by_label["Sz@0 Sz@1"], -0.236)
+        self.assertAlmostEqual(by_label["Sy@0 Sz@1"], -0.261)
+        self.assertAlmostEqual(by_label["Sz@0 Sy@1"], -0.261)
+
+    def test_pipeline_lands_mathcal_placeholder_document_after_family_selection_via_matrix_fallback(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Crystal Structure}
+The magnetic ions form triangular layers.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}\mathcal{H}_{ij}^{(1)}
+\;+\!
+\sum_{m\in\{2,3\}}
+\sum_{\langle i,j\rangle_m}
+\left[
+J_m^{zz}S_i^zS_j^z
++
+\frac{J_m^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right].
+\end{equation}
+\section*{Equivalent Exchange-Matrix Form}
+\begin{equation}
+\mathcal J_{ij}^{(1)}=
+\begin{pmatrix}
+J_1^{xx} & 0 & 0 \\
+0 & J_1^{yy} & J_1^{yz} \\
+0 & J_1^{yz} & J_1^{zz}
+\end{pmatrix}.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{xx} = -0.397
+\end{equation}
+\begin{equation}
+J_1^{yy} = -0.075
+\end{equation}
+\begin{equation}
+J_1^{yz} = -0.261
+\end{equation}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+J_2^{zz} = 0.052
+\end{equation}
+\begin{equation}
+J_2^{\pm} = 0.017
+\end{equation}
+\begin{equation}
+J_3^{zz} = 0.101
+\end{equation}
+\begin{equation}
+J_3^{\pm} = 0.023
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/mathcal_placeholder_bridge.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        by_label = {term["canonical_label"]: term["coefficient"] for term in result["canonical_model"]["two_body"]}
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1"], -0.397)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1"], -0.075)
+        self.assertAlmostEqual(by_label["Sz@0 Sz@1"], -0.236)
+
+    def test_pipeline_lands_grouped_three_body_spin_s_operator_text_without_projection_gate(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+K_{ijk}\left(S_i^+ S_j^- + S_i^- S_j^+\right) S_k^z .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+K_{ijk} = 0.75
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/grouped_three_body_spin_s_operator.tex",
+            selected_model_candidate="effective",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["decomposition"]["mode"], "operator-basis")
+        by_label = {term["canonical_label"]: term["coefficient"] for term in result["canonical_model"]["three_body"]}
+        self.assertAlmostEqual(by_label["Sx@0 Sx@1 Sz@2"], 1.5)
+        self.assertAlmostEqual(by_label["Sy@0 Sy@1 Sz@2"], 1.5)
 
     def test_pipeline_lands_fei2_family_one_document_path_after_family_selection(self):
         result = run_text_simplification_pipeline(
@@ -495,6 +711,7 @@ J_2^{z\pm} = 0.050
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["unsupported_features"], [])
         self.assertEqual(result["decomposition"]["mode"], "operator-basis")
         self.assertEqual(result["decomposition"]["source_backbone"], "local_matrix_record")
         self.assertEqual(result["local_term_record"]["body_order"], 2)
@@ -1091,6 +1308,113 @@ J_3^{\pm} = 0.166
         self.assertEqual(
             by_family["3"]["physical_parameter_view"]["view_kind"],
             "xxz_exchange_jxy_jz",
+        )
+
+    def test_pipeline_matrix_fallback_family_one_keeps_dipole_secondary_view(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Coordinate Convention}
+Spin components are expressed in the global crystallographic a,b,c axes. The local z axis is along c.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}H_{ij}^{(1)}
+\;+\!
+\sum_{n\in\{2,3\}}
+\sum_{\langle i,j\rangle_n}
+\left[
+J_n^{zz}S_i^zS_j^z
++
+\frac{J_n^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right]
+\end{equation}
+\begin{align}
+H_{ij}^{(1)}=\;&
+J_1^{zz}S_i^zS_j^z
++
+\frac{J_1^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
++
+\frac{J_1^{\pm\pm}}{2}
+\left(
+\gamma_{ij}S_i^+S_j^+
++
+\gamma_{ij}^\ast S_i^-S_j^-
+\right)
+\nonumber\\
+&-
+\frac{iJ_1^{z\pm}}{2}
+\left[
+(\gamma_{ij}^\ast S_i^+-\gamma_{ij}S_i^-)S_j^z
++
+S_i^z(\gamma_{ij}^\ast S_j^+-\gamma_{ij}S_j^-)
+\right].
+\end{align}
+\section*{Equivalent Exchange-Matrix Form}
+\begin{equation}
+\mathcal J_{ij}^{(1)}=
+\begin{pmatrix}
+J_1^{xx} & 0 & 0 \\
+0 & J_1^{yy} & J_1^{yz} \\
+0 & J_1^{yz} & J_1^{zz}
+\end{pmatrix}.
+\end{equation}
+\begin{equation}
+J_1^{xx}=J_1^{\pm}+J_1^{\pm\pm},\qquad
+J_1^{yy}=J_1^{\pm}-J_1^{\pm\pm},\qquad
+J_1^{yz}=J_1^{z\pm}.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+J_1^{\pm} = -0.236
+\end{equation}
+\begin{equation}
+J_1^{\pm\pm} = -0.161
+\end{equation}
+\begin{equation}
+J_1^{z\pm} = -0.261
+\end{equation}
+\begin{equation}
+J_2^{zz} = 0.113
+\end{equation}
+\begin{equation}
+J_2^{\pm} = 0.026
+\end{equation}
+\begin{equation}
+J_3^{zz} = 0.211
+\end{equation}
+\begin{equation}
+J_3^{\pm} = 0.166
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/mixed_family_fallback_and_xxz.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="all",
+            selected_coordinate_convention="global_crystallographic",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        shell_blocks = [block for block in result["effective_model"]["main"] if block["type"] == "shell_resolved_exchange"]
+        self.assertEqual(len(shell_blocks), 1)
+        by_family = {entry["family"]: entry for entry in shell_blocks[0]["shells"]}
+        self.assertEqual(
+            by_family["1"]["physical_parameter_view"]["view_kind"],
+            "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm",
+        )
+        additional_views = list(by_family["1"].get("additional_physical_parameter_views") or [])
+        self.assertEqual(len(additional_views), 1)
+        self.assertEqual(additional_views[0]["view_kind"], "dipole_multipole_components")
+        self.assertEqual(
+            [entry["name"] for entry in additional_views[0]["parameters"]],
+            ["T1_x:T1_x", "T1_y:T1_y", "T1_z:T1_z", "T1_y:T1_z", "T1_z:T1_y"],
         )
 
     def test_pipeline_adds_isotropic_shell_summary_when_all_families_are_isotropic(self):

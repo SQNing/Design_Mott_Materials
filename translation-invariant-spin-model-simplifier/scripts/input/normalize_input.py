@@ -11,11 +11,23 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from input.agent_fallback import apply_agent_inferred_patch, build_agent_inferred
-    from input.document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
+    from input.agent_document_normalization_template import build_agent_document_normalization_template
+    from input.document_input_protocol import (
+        build_intermediate_record,
+        build_intermediate_record_from_agent_normalized,
+        detect_input_kind,
+        land_intermediate_record,
+    )
     from common.rotating_frame_realization import resolve_rotating_frame_realization
 else:
     from .agent_fallback import apply_agent_inferred_patch, build_agent_inferred
-    from .document_input_protocol import build_intermediate_record, detect_input_kind, land_intermediate_record
+    from .agent_document_normalization_template import build_agent_document_normalization_template
+    from .document_input_protocol import (
+        build_intermediate_record,
+        build_intermediate_record_from_agent_normalized,
+        detect_input_kind,
+        land_intermediate_record,
+    )
     from common.rotating_frame_realization import resolve_rotating_frame_realization
 
 
@@ -183,6 +195,7 @@ def _copy_passthrough_fields(source, destination):
         "selected_model_candidate",
         "selected_local_bond_family",
         "selected_coordinate_convention",
+        "agent_normalization_request",
     ):
         if key in source:
             destination[key] = source[key]
@@ -633,6 +646,13 @@ def _document_lattice_text(record, fallback_text):
     return fallback_text
 
 
+def _document_structured_lattice(record):
+    lattice_model = record.get("lattice_model", {}) if isinstance(record, dict) else {}
+    if not isinstance(lattice_model, dict) or not lattice_model:
+        return None
+    return deepcopy(lattice_model)
+
+
 def _build_agent_fallback_proposal(
     text,
     *,
@@ -678,6 +698,98 @@ def _apply_agent_metadata(normalized, *, landed=None, proposal=None, accepted=Fa
     return normalized
 
 
+def _looks_like_spin_operator_expression(text):
+    expression = str(text or "").strip()
+    if not expression:
+        return False
+    return re.search(
+        r"(?:S[xyzpm]@\s*-?\d+|S_[A-Za-z]\^[xyz\+\-]|\\gamma_\{ij\}|gamma_\{ij\}|\\sum_|J_[^\\s=]+)",
+        expression,
+    ) is not None
+
+
+def _document_interaction_is_simple_user_selection(interaction):
+    if not isinstance(interaction, dict):
+        return False
+    return interaction.get("id") in {
+        "model_candidate_selection",
+        "local_bond_family_selection",
+        "coordinate_convention_selection",
+        "wavevector_selection",
+        "wavevector_units_selection",
+    }
+
+
+def _should_request_agent_document_normalization(record, landed):
+    source_kind = ((record or {}).get("source_document") or {}).get("source_kind")
+    if source_kind != "tex_document":
+        return False
+    interaction = (landed or {}).get("interaction")
+    if isinstance(interaction, dict) and interaction.get("status") == "needs_input":
+        return not _document_interaction_is_simple_user_selection(interaction)
+    representation = (landed or {}).get("representation")
+    if representation == "operator":
+        return not _looks_like_spin_operator_expression((landed or {}).get("expression", ""))
+    if representation == "operator_family_collection":
+        expressions = list((landed or {}).get("expressions", []))
+        if not expressions:
+            return True
+        for entry in expressions:
+            if not _looks_like_spin_operator_expression((entry or {}).get("expression", "")):
+                return True
+    return False
+
+
+def _build_agent_document_normalization_request(record, landed):
+    interaction = (landed or {}).get("interaction")
+    model_candidates = [
+        candidate.get("name")
+        for candidate in list((record or {}).get("model_candidates") or [])
+        if isinstance(candidate, dict) and candidate.get("name")
+    ]
+    blocking_reason = (
+        interaction.get("question")
+        if isinstance(interaction, dict) and interaction.get("status") == "needs_input"
+        else (
+            "The document was parsed as a paper-style source, but deterministic extraction did not "
+            "produce a trustworthy runnable spin-operator expression."
+        )
+    )
+    template_bundle = build_agent_document_normalization_template()
+    return {
+        "status": "recommended",
+        "id": "agent_document_normalization",
+        "stage": "document_ingestion",
+        "source_kind": "tex_document",
+        "reason": blocking_reason,
+        "target_schema": "agent_normalized_document",
+        "template_version": template_bundle["template_version"],
+        "template": template_bundle["template"],
+        "example_payload": template_bundle["example_payload"],
+        "prompt_notes": template_bundle["prompt_notes"],
+        "preferred_output_fields": [
+            "source_document",
+            "model_candidates",
+            "candidate_models",
+            "parameter_registry",
+            "system_context",
+            "lattice_model",
+            "unresolved_items",
+            "unsupported_features",
+        ],
+        "selection_context": {
+            "selected_model_candidate": (record or {}).get("selected_model_candidate"),
+            "selected_local_bond_family": (record or {}).get("selected_local_bond_family"),
+            "selected_coordinate_convention": (record or {}).get("selected_coordinate_convention"),
+        },
+        "deterministic_hints": {
+            "model_candidates": model_candidates,
+            "unsupported_features": list((record or {}).get("unsupported_features", [])),
+            "current_interaction_id": interaction.get("id") if isinstance(interaction, dict) else None,
+        },
+    }
+
+
 def _normalize_document_style_natural_language(
     text,
     *,
@@ -703,7 +815,33 @@ def _normalize_document_style_natural_language(
         selected_coordinate_convention=selected_coordinate_convention,
     )
     lattice_text = _document_lattice_text(record, text)
+    structured_lattice = _document_structured_lattice(record)
+    lattice_description_payload = structured_lattice or {"kind": "natural_language", "value": lattice_text}
+    legacy_lattice = structured_lattice or _default_lattice()
     landed = land_intermediate_record(record)
+    if _should_request_agent_document_normalization(record, landed):
+        request = _build_agent_document_normalization_request(record, landed)
+        normalized = _natural_language_base_payload(
+            text,
+            local_dimension=local_dimension,
+            user_notes=text,
+            source_mode=source_mode,
+            system_units=_document_system_units(record),
+        )
+        normalized["lattice"] = legacy_lattice
+        normalized["lattice_description"] = lattice_description_payload
+        normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
+        normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
+        normalized["interaction"] = {
+            "status": "needs_input",
+            "id": request["id"],
+            "question": request["reason"],
+        }
+        normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
+        normalized["document_intermediate"] = record
+        normalized["agent_normalization_request"] = request
+        _apply_agent_metadata(normalized, landed=landed)
+        return _finalize_normalized_payload(normalized)
     if landed.get("interaction", {}).get("status") == "needs_input":
         normalized = _natural_language_base_payload(
             text,
@@ -712,7 +850,8 @@ def _normalize_document_style_natural_language(
             source_mode=source_mode,
             system_units=_document_system_units(record),
         )
-        normalized["lattice_description"] = {"kind": "natural_language", "value": lattice_text}
+        normalized["lattice"] = legacy_lattice
+        normalized["lattice_description"] = lattice_description_payload
         normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
         normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
         normalized["interaction"] = landed["interaction"]
@@ -727,7 +866,8 @@ def _normalize_document_style_natural_language(
             "representation": landed["representation"],
             "support": list(landed.get("support", [])),
             "expression": landed.get("expression", ""),
-            "lattice_description": {"kind": "natural_language", "value": lattice_text},
+            "lattice": legacy_lattice,
+            "lattice_description": lattice_description_payload,
             "parameters": dict(landed.get("parameters", {})),
             "coordinate_convention": dict(landed.get("coordinate_convention", {})),
             "magnetic_order": dict(landed.get("magnetic_order", {})),
@@ -747,7 +887,8 @@ def _normalize_document_style_natural_language(
                 "representation": landed["representation"],
                 "support": list(landed.get("support", [])),
                 "expressions": list(landed.get("expressions", [])),
-                "lattice_description": {"kind": "natural_language", "value": lattice_text},
+                "lattice": legacy_lattice,
+                "lattice_description": lattice_description_payload,
                 "parameters": dict(landed.get("parameters", {})),
                 "coordinate_convention": dict(landed.get("coordinate_convention", {})),
                 "magnetic_order": dict(landed.get("magnetic_order", {})),
@@ -856,6 +997,18 @@ def normalize_input(payload):
     if representation not in SUPPORTED_REPRESENTATIONS:
         raise ValueError("unsupported representation")
     if representation == "natural_language":
+        if payload.get("agent_normalized_document") is not None and payload.get("document_intermediate") is None:
+            payload = {
+                **payload,
+                "document_intermediate": build_intermediate_record_from_agent_normalized(
+                    payload.get("agent_normalized_document", {}),
+                    source_text=str(payload.get("description", "") or ""),
+                    source_path=payload.get("source_path"),
+                    selected_model_candidate=payload.get("selected_model_candidate"),
+                    selected_local_bond_family=payload.get("selected_local_bond_family"),
+                    selected_coordinate_convention=payload.get("selected_coordinate_convention"),
+                ),
+            }
         description = _require_representation_value(payload, representation)
         source_path = payload.get("source_path")
         selected_model_candidate = payload.get("selected_model_candidate")

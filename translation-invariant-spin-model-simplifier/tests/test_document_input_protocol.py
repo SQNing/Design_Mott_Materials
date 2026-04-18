@@ -7,6 +7,7 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from input.document_input_protocol import (
     build_intermediate_record,
+    build_intermediate_record_from_agent_normalized,
     detect_input_kind,
     land_intermediate_record,
 )
@@ -198,6 +199,177 @@ J_1^{z\pm} = -0.261
         self.assertEqual(landed["representation"], "operator")
         self.assertEqual(landed["expression"], "J1zz * Sz@0 Sz@1")
 
+    def test_selected_effective_candidate_collects_family_candidates_from_sum_and_matrix_sections(self):
+        fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/fei2_document_input.tex",
+            selected_model_candidate="effective",
+        )
+
+        candidates = list(record["hamiltonian_model"].get("local_bond_candidates", []))
+        self.assertEqual([entry["family"] for entry in candidates], ["0'", "1", "1'", "2", "2a'", "3"])
+        family_one = next(entry for entry in candidates if entry["family"] == "1")
+        self.assertIn("J_1^{xx} * Sx@0 Sx@1", family_one["expression"])
+        family_two = next(entry for entry in candidates if entry["family"] == "2")
+        self.assertIn("J_2^{zz}S_i^zS_j^z", family_two["expression"])
+
+    def test_selected_effective_candidate_from_fei2_document_requests_family_selection_before_landing(self):
+        fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/fei2_document_input.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["interaction"]["status"], "needs_input")
+        self.assertEqual(landed["interaction"]["id"], "local_bond_family_selection")
+        self.assertEqual(sorted(landed["interaction"]["options"]), ["0'", "1", "1'", "2", "2a'", "3"])
+
+    def test_selected_effective_family_one_from_fei2_document_lands_to_matrix_fallback_expression(self):
+        fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/fei2_document_input.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+            selected_coordinate_convention="global_crystallographic",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertIn("J_1^{xx} * Sx@0 Sx@1", landed["expression"])
+        self.assertEqual(landed["unsupported_features"], [])
+
+    def test_selected_effective_candidate_supports_mathcal_placeholder_families_with_matrix_bridge(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}\mathcal{H}_{ij}^{(1)}
+\;+\!
+\sum_{m\in\{2,3\}}
+\sum_{\langle i,j\rangle_m}
+\left[
+J_m^{zz}S_i^zS_j^z
++
+\frac{J_m^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right].
+\end{equation}
+\section*{Equivalent Exchange-Matrix Form}
+\begin{equation}
+\mathcal J_{ij}^{(1)}=
+\begin{pmatrix}
+J_1^{xx} & 0 & 0 \\
+0 & J_1^{yy} & J_1^{yz} \\
+0 & J_1^{yz} & J_1^{zz}
+\end{pmatrix}.
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J_1^{xx} = -0.397
+\end{equation}
+\begin{equation}
+J_1^{yy} = -0.075
+\end{equation}
+\begin{equation}
+J_1^{yz} = -0.261
+\end{equation}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+J_2^{zz} = 0.052
+\end{equation}
+\begin{equation}
+J_2^{\pm} = 0.017
+\end{equation}
+\begin{equation}
+J_3^{zz} = 0.101
+\end{equation}
+\begin{equation}
+J_3^{\pm} = 0.023
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/mathcal_placeholder_bridge.tex",
+            selected_model_candidate="effective",
+        )
+        candidates = list(record["hamiltonian_model"].get("local_bond_candidates", []))
+        self.assertEqual([entry["family"] for entry in candidates], ["1", "2", "3"])
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["interaction"]["id"], "local_bond_family_selection")
+        self.assertEqual(sorted(landed["interaction"]["options"]), ["1", "2", "3"])
+
+    def test_agent_normalized_candidate_models_select_effective_family_and_use_matrix_fallback(self):
+        record = build_intermediate_record_from_agent_normalized(
+            {
+                "model_candidates": [
+                    {"name": "effective", "role": "main"},
+                    {"name": "matrix_form", "role": "equivalent_form"},
+                ],
+                "candidate_models": {
+                    "effective": {
+                        "local_bond_candidates": [
+                            {
+                                "family": "1",
+                                "expression": (
+                                    "J_1^{zz}S_i^zS_j^z + "
+                                    "\\frac{J_1^{\\pm\\pm}}{2}(\\gamma_{ij}S_i^+S_j^+ + "
+                                    "\\gamma_{ij}^\\ast S_i^-S_j^-)"
+                                ),
+                            },
+                            {"family": "2", "expression": "J_2^{zz} * Sz@0 Sz@1"},
+                        ]
+                    },
+                    "matrix_form": {
+                        "matrix_form": True,
+                        "local_bond_candidates": [
+                            {
+                                "family": "1",
+                                "expression": (
+                                    "J_1^{xx} * Sx@0 Sx@1 + J_1^{yy} * Sy@0 Sy@1 + "
+                                    "J_1^{yz} * Sy@0 Sz@1 + J_1^{yz} * Sz@0 Sy@1 + "
+                                    "J_1^{zz} * Sz@0 Sz@1"
+                                ),
+                                "matrix": [
+                                    ["J_1^{xx}", "0", "0"],
+                                    ["0", "J_1^{yy}", "J_1^{yz}"],
+                                    ["0", "J_1^{yz}", "J_1^{zz}"],
+                                ],
+                            }
+                        ],
+                    },
+                },
+                "parameter_registry": {
+                    "J_1^{xx}": -0.397,
+                    "J_1^{yy}": -0.075,
+                    "J_1^{yz}": -0.261,
+                    "J_1^{zz}": -0.236,
+                },
+            },
+            selected_model_candidate="effective",
+            selected_local_bond_family="1",
+            selected_coordinate_convention="global_cartesian",
+        )
+
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertIn("J_1^{xx} * Sx@0 Sx@1", landed["expression"])
+        self.assertEqual(landed["unsupported_features"], [])
+
     def test_selected_matrix_form_candidate_bypasses_primary_model_selection_ambiguity(self):
         fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
 
@@ -258,10 +430,90 @@ D = 2.165 \pm 0.101~\text{meV}.
         self.assertEqual(record["parameter_registry"]["J_1^{zz}"], -0.236)
         self.assertEqual(record["parameter_registry"]["J_1^{\\pm}"], -0.161)
         self.assertEqual(record["parameter_registry"]["D"], 2.165)
-        self.assertIn("J_1^{zz}S_i^zS_j^z", landed["expression"])
-        self.assertEqual(landed["parameters"]["D"], 2.165)
 
-    def test_selected_family_one_preserves_bond_phase_unsupported_features(self):
+    def test_build_intermediate_record_extracts_fei2_lattice_model_and_shell_map(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\begin{document}
+\section*{Crystal Structure}
+FeI$_2$ crystallizes in the trigonal CdI$_2$-type structure with space group
+\[
+P\bar{3}m1
+\]
+and room-temperature lattice constants
+\[
+a=b=4.05012~\text{\AA}, \qquad c=6.75214~\text{\AA}.
+\]
+The Fe atoms form triangular layers in the $ab$ plane.
+\section*{Atomic Positions}
+\begin{table}[h]
+\centering
+\begin{tabular}{ccccc}
+\toprule
+Atom & Wyckoff site & $x$ & $y$ & $z$ \\
+\midrule
+Fe & $1a$ & 0 & 0 & 0 \\
+I  & $2d$ & $\frac{1}{3}$ & $\frac{2}{3}$ & $\frac{1}{4}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+\sum_{\langle i,j\rangle_1}H_{ij}^{(1)}
+\;+\!
+\sum_{n\in\{2,3,0',1',2a'\}}
+\sum_{\langle i,j\rangle_n}
+\left[
+J_n^{zz}S_i^zS_j^z
++
+\frac{J_n^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+\right].
+\end{equation}
+\begin{align}
+H_{ij}^{(1)}=\;&
+J_1^{zz}S_i^zS_j^z
++
+\frac{J_1^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+).
+\end{align}
+\section*{Parameters}
+\begin{equation}
+J_1^{zz} = -0.236
+\end{equation}
+\begin{equation}
+J_1^{\pm} = -0.236
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/fei2_document_input.tex",
+            selected_model_candidate="effective",
+            selected_local_bond_family="all",
+        )
+
+        lattice = record["lattice_model"]
+        self.assertEqual(lattice["kind"], "trigonal")
+        self.assertEqual(lattice["dimension"], 3)
+        self.assertEqual(lattice["magnetic_species"], ["Fe"])
+        self.assertEqual(lattice["positions"], [[0.0, 0.0, 0.0]])
+        self.assertAlmostEqual(lattice["cell_parameters"]["a"], 4.05012)
+        self.assertAlmostEqual(lattice["cell_parameters"]["b"], 4.05012)
+        self.assertAlmostEqual(lattice["cell_parameters"]["c"], 6.75214)
+        self.assertAlmostEqual(lattice["cell_parameters"]["alpha"], 90.0)
+        self.assertAlmostEqual(lattice["cell_parameters"]["beta"], 90.0)
+        self.assertAlmostEqual(lattice["cell_parameters"]["gamma"], 120.0)
+        self.assertEqual(lattice["family_shell_map"]["1"]["shell_index"], 1)
+        self.assertEqual(lattice["family_shell_map"]["0'"]["shell_index"], 2)
+        self.assertEqual(lattice["family_shell_map"]["2"]["shell_index"], 3)
+        self.assertEqual(lattice["family_shell_map"]["1'"]["shell_index"], 4)
+        self.assertEqual(lattice["family_shell_map"]["3"]["shell_index"], 5)
+        self.assertEqual(lattice["family_shell_map"]["2a'"]["shell_index"], 6)
+
+    def test_selected_family_one_lands_without_gamma_unsupported_marker_once_local_bond_is_resolved(self):
         record = build_intermediate_record(
             source_text=self.FEI2_FAMILY_ONE_FIXTURE,
             source_path="tests/data/fei2_family_one_fixture.tex",
@@ -272,9 +524,44 @@ D = 2.165 \pm 0.101~\text{meV}.
         landed = land_intermediate_record(record)
 
         self.assertEqual(landed["representation"], "operator")
-        self.assertIn("bond_dependent_phase_gamma_terms", landed["unsupported_features"])
-        self.assertIn("double_raising_lowering_exchange_terms", landed["unsupported_features"])
-        self.assertIn("zpm_offdiagonal_exchange_terms", landed["unsupported_features"])
+        self.assertEqual(landed["unsupported_features"], [])
+
+    def test_supported_operator_shorthand_is_not_misclassified_as_unsupported_feature(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\begin{document}
+\section*{Effective Hamiltonian}
+\begin{equation}
+H=
+J\left(S_i^+S_j^-+S_i^-S_j^+\right)
++K\,\mathrm{Re}[S_i^+S_j^z]
++L\left(S_i^+S_j^z+\mathrm{h.c.}\right).
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+J = 1
+\end{equation}
+\begin{equation}
+K = 2
+\end{equation}
+\begin{equation}
+L = 3
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/supported_operator_shorthand_fixture.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(record["unsupported_features"], [])
+        self.assertEqual(landed["unsupported_features"], [])
+        self.assertIn(r"\mathrm{Re}[S_i^+S_j^z]", landed["expression"])
+        self.assertIn(r"\mathrm{h.c.}", landed["expression"])
 
     def test_matrix_form_candidate_derives_exchange_parameters_from_effective_relations(self):
         record = build_intermediate_record(

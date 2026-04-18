@@ -9,10 +9,22 @@ from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from simplify.operator_expression_sparse_expand import sparse_expand_operator_expression
+    from simplify.operator_expression_sparse_expand import (
+        has_special_operator_expression_shorthand,
+        sparse_expand_operator_expression,
+        split_trailing_conjugate_shorthand,
+        split_trailing_permutation_shorthand,
+        split_trailing_site_swap_shorthand,
+    )
     from simplify.spin_multipole_basis import product_spin_multipole_basis
 else:
-    from .operator_expression_sparse_expand import sparse_expand_operator_expression
+    from .operator_expression_sparse_expand import (
+        has_special_operator_expression_shorthand,
+        sparse_expand_operator_expression,
+        split_trailing_conjugate_shorthand,
+        split_trailing_permutation_shorthand,
+        split_trailing_site_swap_shorthand,
+    )
     from .spin_multipole_basis import product_spin_multipole_basis
 
 
@@ -112,20 +124,34 @@ def _resolve_scalar(token, parameters):
     cleaned = str(token).strip()
     if not cleaned:
         raise ValueError("empty coefficient token")
+    if cleaned in {"i", "+i", "j", "+j"}:
+        return 0.0 + 1.0j
+    if cleaned in {"-i", "-j"}:
+        return 0.0 - 1.0j
     try:
         return complex(float(cleaned))
     except ValueError:
         pass
+    try:
+        return complex(cleaned)
+    except ValueError:
+        pass
+    pure_imaginary_i = re.fullmatch(r"(?P<imag>[+\-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?)i$", cleaned)
+    if pure_imaginary_i:
+        return complex(0.0, float(pure_imaginary_i.group("imag")))
     if cleaned in parameters:
         return complex(parameters[cleaned])
     raise ValueError(f"unknown coefficient token: {cleaned}")
 
 
 def _collect_operator_basis_terms(expression, parameters, tolerance):
+    if has_special_operator_expression_shorthand(expression):
+        return []
     pattern = re.compile(
         r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*)+)"
     )
     merged = {}
+    residue = str(expression or "")
     for match in pattern.finditer(expression):
         try:
             coeff = _resolve_scalar(match.group("coeff"), parameters)
@@ -133,6 +159,10 @@ def _collect_operator_basis_terms(expression, parameters, tolerance):
             return []
         label = " ".join(match.group("label").split())
         merged[label] = merged.get(label, 0.0 + 0.0j) + coeff
+        start, end = match.span()
+        residue = residue[:start] + (" " * (end - start)) + residue[end:]
+    if re.sub(r"[\s+\-]", "", residue):
+        return []
     return [
         {"label": label, "coefficient": _real_if_close(coefficient, tolerance)}
         for label, coefficient in sorted(merged.items())
@@ -199,7 +229,7 @@ def _collect_latex_operator_terms(expression, parameters, tolerance):
     residue = ladder_pattern.sub("", residue)
     residue = double_raising_pattern.sub("", residue)
     residue = zpm_pattern.sub("", residue)
-    if re.search(r"S_[ij]\^[xyz\+\-]", residue):
+    if re.search(r"S_[A-Za-z]\^[xyz\+\-]", residue):
         return []
 
     return [
@@ -234,6 +264,9 @@ def _decompose_operator_family_collection(collection, parameters, tolerance):
     combined_terms = []
     for entry in collection:
         family = entry.get("family")
+        shell_index = entry.get("shell_index")
+        distance = entry.get("distance")
+        shell_label = entry.get("shell_label")
         expression = entry.get("expression", "")
         decomposition = _decompose_operator_expression(expression, parameters, tolerance)
         if decomposition.get("mode") != "operator-basis":
@@ -242,12 +275,24 @@ def _decompose_operator_family_collection(collection, parameters, tolerance):
                 raw_term = dict(term)
                 if family is not None:
                     raw_term["family"] = family
+                if shell_index is not None:
+                    raw_term["shell_index"] = shell_index
+                if distance is not None:
+                    raw_term["distance"] = distance
+                if shell_label is not None:
+                    raw_term["shell_label"] = shell_label
                 raw_terms.append(raw_term)
             return {"mode": decomposition.get("mode", "operator"), "terms": raw_terms}
         for term in decomposition.get("terms", []):
             annotated = dict(term)
             if family is not None:
                 annotated["family"] = family
+            if shell_index is not None:
+                annotated["shell_index"] = shell_index
+            if distance is not None:
+                annotated["distance"] = distance
+            if shell_label is not None:
+                annotated["shell_label"] = shell_label
             combined_terms.append(annotated)
     return {"mode": "operator-basis", "terms": combined_terms}
 
@@ -278,16 +323,35 @@ def _validate_hermitian(matrix, tolerance):
 def _decompose_local_matrix_record(record, tolerance):
     provenance = dict(record.get("provenance", {}))
     source_kind = provenance.get("source_kind")
-    if source_kind == "operator_text" and provenance.get("source_expression"):
+    local_dimension = len(record.get("local_basis_order", []))
+    source_expression = provenance.get("source_expression", "")
+    decomposition_preference = provenance.get("decomposition_preference")
+    if (
+        source_kind == "operator_text"
+        and source_expression
+        and decomposition_preference == "operator"
+    ):
         decomposition = _decompose_operator_expression(
-            provenance["source_expression"],
+            source_expression,
             provenance.get("parameter_map", {}),
             tolerance,
         )
         decomposition["source_backbone"] = "local_matrix_record"
         return decomposition
 
-    local_dimension = len(record.get("local_basis_order", []))
+    if (
+        source_kind == "operator_text"
+        and source_expression
+        and decomposition_preference is None
+    ):
+        decomposition = _decompose_operator_expression(
+            source_expression,
+            provenance.get("parameter_map", {}),
+            tolerance,
+        )
+        decomposition["source_backbone"] = "local_matrix_record"
+        return decomposition
+
     normalized = {
         "local_hilbert": {"dimension": local_dimension},
         "local_term": {

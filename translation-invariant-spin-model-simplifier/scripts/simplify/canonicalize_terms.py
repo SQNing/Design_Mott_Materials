@@ -103,7 +103,7 @@ def canonicalize_terms(model):
             source_backbone = model["decomposition"].get("source_backbone")
             if source_backbone is not None:
                 metadata["source_backbone"] = source_backbone
-        for field in ("source_geometry_class",):
+        for field in ("source_geometry_class", "shell_index", "distance", "shell_label"):
             if term.get(field) is not None:
                 metadata[field] = term.get(field)
         term_metadata[merge_key] = metadata

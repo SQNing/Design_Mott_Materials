@@ -92,8 +92,9 @@ class NormalizeInputTests(unittest.TestCase):
         landed_payload = json.loads(landed.stdout)
 
         self.assertEqual(needs_input_payload["interaction"]["id"], "model_candidate_selection")
-        self.assertEqual(landed_payload["local_term"]["representation"]["kind"], "operator")
-        self.assertEqual(landed_payload["parameters"]["D"], 2.165)
+        self.assertEqual(landed_payload["interaction"]["id"], "local_bond_family_selection")
+        self.assertEqual(sorted(landed_payload["interaction"]["options"]), ["0'", "1", "1'", "2", "2a'", "3"])
+        self.assertEqual(landed_payload["document_intermediate"]["parameter_registry"]["D"], 2.165)
 
     def test_normalize_freeform_text_detects_tex_document_and_returns_needs_input(self):
         fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
@@ -118,9 +119,9 @@ class NormalizeInputTests(unittest.TestCase):
 
         normalized = normalize_input(payload)
 
-        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
-        self.assertIn("J_n^{zz}S_i^zS_j^z", normalized["local_term"]["representation"]["value"])
-        self.assertEqual(normalized["parameters"]["D"], 2.165)
+        self.assertEqual(normalized["interaction"]["id"], "local_bond_family_selection")
+        self.assertEqual(sorted(normalized["interaction"]["options"]), ["0'", "1", "1'", "2", "2a'", "3"])
+        self.assertEqual(normalized["document_intermediate"]["parameter_registry"]["D"], 2.165)
 
     def test_normalize_input_document_text_extracts_mev_units_into_system_metadata(self):
         fixture = r"""
@@ -543,6 +544,51 @@ J_1^{zz} = -0.236
         self.assertEqual(normalized["interaction"]["id"], "model_candidate_selection")
         self.assertEqual(normalized["local_hilbert"]["dimension"], 6)
 
+    def test_normalize_input_document_style_requests_agent_normalization_for_prose_only_hamiltonian(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Effective Hamiltonian}
+The effective Hamiltonian contains anisotropic spin interactions discussed in the main text.
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/prose_only_effective.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "agent_document_normalization")
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "natural_language")
+        self.assertEqual(normalized["agent_normalization_request"]["target_schema"], "agent_normalized_document")
+        self.assertEqual(normalized["agent_normalization_request"]["source_kind"], "tex_document")
+        self.assertEqual(normalized["agent_normalization_request"]["selection_context"]["selected_model_candidate"], "effective")
+        self.assertEqual(normalized["agent_normalization_request"]["template_version"], "v1")
+        self.assertIn("candidate_models", normalized["agent_normalization_request"]["template"])
+        self.assertIn("effective", normalized["agent_normalization_request"]["example_payload"]["candidate_models"])
+        self.assertEqual(
+            normalized["agent_normalization_request"]["example_payload"]["model_candidates"][0]["name"],
+            "effective",
+        )
+
+    def test_normalize_input_document_style_selection_gate_does_not_force_agent_normalization(self):
+        fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/fei2_document_input.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["interaction"]["id"], "local_bond_family_selection")
+        self.assertNotIn("agent_normalization_request", normalized)
+
     def test_many_body_hr_representation_is_accepted_with_required_paths(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             structure_path = Path(tmpdir) / "POSCAR"
@@ -814,6 +860,153 @@ D = 2.165
         self.assertEqual(normalized["interaction"]["id"], "model_candidate_selection")
         self.assertEqual(normalized["unsupported_features"], ["matrix_form_metadata"])
         self.assertEqual(normalized["local_term"]["representation"]["kind"], "natural_language")
+
+    def test_normalize_input_accepts_agent_normalized_document_that_lands_to_operator(self):
+        payload = {
+            "representation": "natural_language",
+            "description": "Agent-normalized literature record",
+            "agent_normalized_document": {
+                "source_document": {"source_kind": "agent_normalized_document"},
+                "model_candidates": [{"name": "effective", "role": "main"}],
+                "hamiltonian_model": {
+                    "local_bond_candidates": [
+                        {"family": "1", "expression": "J1zz * Sz@0 Sz@1"}
+                    ]
+                },
+                "parameter_registry": {"J1zz": -0.236},
+                "system_context": {
+                    "coordinate_convention": {
+                        "status": "selected",
+                        "frame": "global_cartesian",
+                        "axis_labels": ["x", "y", "z"],
+                    }
+                },
+                "unsupported_features": [],
+            },
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], "J1zz * Sz@0 Sz@1")
+        self.assertEqual(normalized["parameters"], {"J1zz": -0.236})
+        self.assertEqual(normalized["coordinate_convention"]["frame"], "global_cartesian")
+        self.assertEqual(
+            normalized["document_intermediate"]["source_document"]["source_kind"],
+            "agent_normalized_document",
+        )
+
+    def test_normalize_input_preserves_needs_input_from_agent_normalized_document(self):
+        payload = {
+            "representation": "natural_language",
+            "description": "Agent-normalized anisotropic matrix record",
+            "agent_normalized_document": {
+                "source_document": {"source_kind": "agent_normalized_document"},
+                "model_candidates": [{"name": "matrix_form", "role": "main"}],
+                "hamiltonian_model": {
+                    "matrix_form": True,
+                    "local_bond_candidates": [
+                        {
+                            "family": "1",
+                            "expression": (
+                                "Jxx * Sx@0 Sx@1 + Jyy * Sy@0 Sy@1 + "
+                                "Jyz * Sy@0 Sz@1 + Jyz * Sz@0 Sy@1 + Jzz * Sz@0 Sz@1"
+                            ),
+                            "matrix": [
+                                ["Jxx", "0", "0"],
+                                ["0", "Jyy", "Jyz"],
+                                ["0", "Jyz", "Jzz"],
+                            ],
+                        }
+                    ],
+                },
+                "parameter_registry": {
+                    "Jxx": -0.200,
+                    "Jyy": -0.180,
+                    "Jyz": 0.040,
+                    "Jzz": -0.236,
+                },
+                "unresolved_items": [
+                    {
+                        "field": "coordinate_convention",
+                        "reason": (
+                            "The agent recognized an anisotropic exchange matrix, "
+                            "but the coordinate convention still needs user confirmation."
+                        ),
+                        "policy": "hard_gate",
+                    }
+                ],
+                "unsupported_features": ["matrix_form_metadata"],
+            },
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "coordinate_convention_selection")
+        self.assertEqual(normalized["unsupported_features"], ["matrix_form_metadata"])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "natural_language")
+
+    def test_normalize_input_agent_normalized_candidate_models_support_effective_matrix_hybrid(self):
+        payload = {
+            "representation": "natural_language",
+            "description": "Agent-normalized hybrid effective plus matrix-form record",
+            "selected_model_candidate": "effective",
+            "selected_local_bond_family": "1",
+            "selected_coordinate_convention": "global_cartesian",
+            "agent_normalized_document": {
+                "model_candidates": [
+                    {"name": "effective", "role": "main"},
+                    {"name": "matrix_form", "role": "equivalent_form"},
+                ],
+                "candidate_models": {
+                    "effective": {
+                        "local_bond_candidates": [
+                            {
+                                "family": "1",
+                                "expression": (
+                                    "J_1^{zz}S_i^zS_j^z + "
+                                    "\\frac{J_1^{\\pm\\pm}}{2}(\\gamma_{ij}S_i^+S_j^+ + "
+                                    "\\gamma_{ij}^\\ast S_i^-S_j^-)"
+                                ),
+                            },
+                            {"family": "2", "expression": "J_2^{zz} * Sz@0 Sz@1"},
+                        ]
+                    },
+                    "matrix_form": {
+                        "matrix_form": True,
+                        "local_bond_candidates": [
+                            {
+                                "family": "1",
+                                "expression": (
+                                    "J_1^{xx} * Sx@0 Sx@1 + J_1^{yy} * Sy@0 Sy@1 + "
+                                    "J_1^{yz} * Sy@0 Sz@1 + J_1^{yz} * Sz@0 Sy@1 + "
+                                    "J_1^{zz} * Sz@0 Sz@1"
+                                ),
+                                "matrix": [
+                                    ["J_1^{xx}", "0", "0"],
+                                    ["0", "J_1^{yy}", "J_1^{yz}"],
+                                    ["0", "J_1^{yz}", "J_1^{zz}"],
+                                ],
+                            }
+                        ],
+                    },
+                },
+                "parameter_registry": {
+                    "J_1^{xx}": -0.397,
+                    "J_1^{yy}": -0.075,
+                    "J_1^{yz}": -0.261,
+                    "J_1^{zz}": -0.236,
+                },
+            },
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertIn("J_1^{xx} * Sx@0 Sx@1", normalized["local_term"]["representation"]["value"])
+        self.assertEqual(normalized["unsupported_features"], [])
+        self.assertEqual(normalized["document_intermediate"]["selected_model_candidate"], "effective")
 
     def test_normalize_freeform_text_commits_only_accepted_agent_inferred_fields(self):
         normalized = normalize_freeform_text(

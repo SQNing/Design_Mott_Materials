@@ -6,9 +6,21 @@ import sys
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from simplify.operator_expression_sparse_expand import sparse_expand_operator_expression
+    from simplify.operator_expression_sparse_expand import (
+        has_special_operator_expression_shorthand,
+        sparse_expand_operator_expression,
+        split_trailing_conjugate_shorthand,
+        split_trailing_permutation_shorthand,
+        split_trailing_site_swap_shorthand,
+    )
 else:
-    from .operator_expression_sparse_expand import sparse_expand_operator_expression
+    from .operator_expression_sparse_expand import (
+        has_special_operator_expression_shorthand,
+        sparse_expand_operator_expression,
+        split_trailing_conjugate_shorthand,
+        split_trailing_permutation_shorthand,
+        split_trailing_site_swap_shorthand,
+    )
 
 
 def _infer_spin_from_local_dimension(local_dimension):
@@ -55,10 +67,10 @@ def _spin_operator_matrices(local_dimension):
     for index, m_value in enumerate(values):
         sz[index][index] = float(m_value)
         if index > 0:
-            coeff = ((spin - m_value + 1) * (spin + m_value)) ** 0.5
+            coeff = (spin * (spin + 1) - m_value * (m_value + 1)) ** 0.5
             sp[index - 1][index] = complex(float(coeff))
         if index < size - 1:
-            coeff = ((spin + m_value + 1) * (spin - m_value)) ** 0.5
+            coeff = (spin * (spin + 1) - m_value * (m_value - 1)) ** 0.5
             sm[index + 1][index] = complex(float(coeff))
 
     sx = _matrix_scale(_matrix_add(sp, sm), 0.5)
@@ -68,24 +80,42 @@ def _spin_operator_matrices(local_dimension):
 
 def _resolve_scalar(token, parameters):
     cleaned = str(token).strip()
+    if cleaned in {"i", "+i", "j", "+j"}:
+        return 0.0 + 1.0j
+    if cleaned in {"-i", "-j"}:
+        return 0.0 - 1.0j
     try:
         return complex(float(cleaned))
     except ValueError:
         pass
+    try:
+        return complex(cleaned)
+    except ValueError:
+        pass
+    pure_imaginary_i = re.fullmatch(r"(?P<imag>[+\-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?)i$", cleaned)
+    if pure_imaginary_i:
+        return complex(0.0, float(pure_imaginary_i.group("imag")))
     if cleaned in parameters:
         return complex(parameters[cleaned])
     raise ValueError(f"unknown coefficient token: {cleaned}")
 
 
 def _collect_compact_operator_basis_terms(expression, parameters, tolerance):
+    if has_special_operator_expression_shorthand(expression):
+        return []
     pattern = re.compile(
         r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*){2})"
     )
     merged = {}
+    residue = str(expression or "")
     for match in pattern.finditer(str(expression or "")):
         coeff = _resolve_scalar(match.group("coeff"), parameters)
         label = " ".join(match.group("label").split())
         merged[label] = merged.get(label, 0.0 + 0.0j) + coeff
+        start, end = match.span()
+        residue = residue[:start] + (" " * (end - start)) + residue[end:]
+    if re.sub(r"[\s+\-]", "", residue):
+        return []
     return [
         {"label": label, "coefficient": coefficient}
         for label, coefficient in sorted(merged.items())

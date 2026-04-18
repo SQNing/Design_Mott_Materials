@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import math
 import re
 from pathlib import Path
 
 from .agent_fallback import build_agent_inferred
+from .verify_agent_normalized_document import verify_agent_normalized_document
+from .unsupported_feature_catalog import unsupported_feature_details
+from common.lattice_geometry import resolve_lattice_vectors
 
 
 AGENT_BLOCKING_UNSUPPORTED_FEATURES = frozenset(
@@ -272,6 +276,290 @@ def _extract_source_unsupported_features(source_text: str) -> list[str]:
     ):
         features.append("scalar_spin_chirality_terms")
     return features
+
+
+def _latex_fraction_to_float(text: str) -> float | None:
+    cleaned = _clean_latex_cell(text)
+    fraction_match = re.fullmatch(
+        r"(?P<sign>[-+]?)\\frac\{(?P<num>\d+)\}\{(?P<den>\d+)\}",
+        cleaned,
+    )
+    if fraction_match:
+        value = float(fraction_match.group("num")) / float(fraction_match.group("den"))
+        return -value if fraction_match.group("sign") == "-" else value
+    direct = _parse_direct_numeric_value(cleaned)
+    if direct is not None:
+        return direct
+    return _parse_numeric_value(cleaned)
+
+
+def _extract_magnetic_species(text: str) -> list[str]:
+    species = []
+    for match in re.finditer(
+        r"effective spin model is defined on the\s+([A-Z][a-z]?)\b",
+        text,
+    ):
+        label = match.group(1)
+        if label not in species:
+            species.append(label)
+    if species:
+        return species
+    for match in re.finditer(
+        r"\b([A-Z][a-z]?)\s+atoms form triangular layers\b",
+        text,
+    ):
+        label = match.group(1)
+        if label not in species:
+            species.append(label)
+    return species
+
+
+def _extract_tabular_fractional_positions(text: str) -> list[dict]:
+    extracted = []
+    for match in re.finditer(
+        r"\\begin\{tabular\}\{[^}]*\}(?P<body>.*?)\\end\{tabular\}",
+        text,
+        flags=re.DOTALL,
+    ):
+        body = re.sub(r"\\(?:toprule|midrule|bottomrule|hline)", "", match.group("body"))
+        rows = []
+        for raw_row in re.split(r"\\\\", body):
+            cleaned = raw_row.strip()
+            if not cleaned:
+                continue
+            rows.append([_clean_latex_cell(cell) for cell in cleaned.split("&")])
+        if not rows:
+            continue
+        header = [cell.strip().lower() for cell in rows[0]]
+        if "atom" not in header or not all(axis in header for axis in ("x", "y", "z")):
+            continue
+        atom_index = header.index("atom")
+        x_index = header.index("x")
+        y_index = header.index("y")
+        z_index = header.index("z")
+        for row in rows[1:]:
+            if len(row) <= max(atom_index, x_index, y_index, z_index):
+                continue
+            atom = re.sub(r"[^A-Za-z]", "", row[atom_index])
+            if not atom:
+                continue
+            position = [
+                _latex_fraction_to_float(row[x_index]),
+                _latex_fraction_to_float(row[y_index]),
+                _latex_fraction_to_float(row[z_index]),
+            ]
+            if any(value is None for value in position):
+                continue
+            extracted.append({"atom": atom, "position": [float(value) for value in position]})
+    return extracted
+
+
+def _extract_document_cell_parameters(text: str) -> dict:
+    values = {}
+    ab_match = re.search(r"\ba\s*=\s*b\s*=\s*([-+]?\d+(?:\.\d+)?)", text)
+    if ab_match:
+        values["a"] = float(ab_match.group(1))
+        values["b"] = float(ab_match.group(1))
+
+    for axis in ("a", "b", "c"):
+        if axis in values:
+            continue
+        match = re.search(rf"\b{axis}\s*=\s*([-+]?\d+(?:\.\d+)?)", text)
+        if match:
+            values[axis] = float(match.group(1))
+
+    lowered = text.lower()
+    if ("trigonal" in lowered or "hexagonal setting" in lowered or "hexagonal cell" in lowered) and {
+        "a",
+        "b",
+        "c",
+    }.issubset(values):
+        values.setdefault("alpha", 90.0)
+        values.setdefault("beta", 90.0)
+        values.setdefault("gamma", 120.0)
+    return values
+
+
+def _extract_document_lattice_kind(text: str) -> str:
+    lowered = text.lower()
+    if "trigonal" in lowered:
+        return "trigonal"
+    if "hexagonal" in lowered:
+        return "hexagonal"
+    if "triangular lattice" in lowered or "triangular layers" in lowered:
+        return "triangular"
+    return "unspecified"
+
+
+def _translation_distance(translation: tuple[int, int, int], lattice_vectors: list[list[float]]) -> float:
+    delta = [
+        translation[0] * float(lattice_vectors[0][axis])
+        + translation[1] * float(lattice_vectors[1][axis])
+        + translation[2] * float(lattice_vectors[2][axis])
+        for axis in range(3)
+    ]
+    return math.sqrt(sum(component * component for component in delta))
+
+
+def _unique_sorted(values: list[float], tolerance: float = 1e-6) -> list[float]:
+    unique = []
+    for value in sorted(float(item) for item in values):
+        if not unique or abs(value - unique[-1]) > tolerance:
+            unique.append(value)
+    return unique
+
+
+def _leading_family_index(label: str) -> int | None:
+    match = re.match(r"(?P<index>\d+)", str(label or ""))
+    if not match:
+        return None
+    return int(match.group("index"))
+
+
+def _family_suffix_letter(label: str) -> str:
+    match = re.match(r"\d+(?P<suffix>[A-Za-z]*)'?", str(label or ""))
+    return (match.group("suffix") if match else "").lower()
+
+
+def _distance_to_shell_index(distance: float, shell_distances: list[float], tolerance: float = 1e-6) -> int | None:
+    for index, candidate in enumerate(shell_distances, start=1):
+        if abs(float(candidate) - float(distance)) <= tolerance:
+            return index
+    return None
+
+
+def _infer_family_shell_map(lattice_model: dict, families: list[str]) -> dict:
+    positions = list(lattice_model.get("positions") or [])
+    if len(positions) != 1:
+        return {}
+
+    cell_parameters = lattice_model.get("cell_parameters") or {}
+    if not {"a", "b", "c"}.issubset(cell_parameters):
+        return {}
+
+    lattice_vectors = resolve_lattice_vectors({"cell_parameters": cell_parameters})
+    max_translation = 3
+
+    overall_shell_distances = _unique_sorted(
+        [
+            _translation_distance((ta, tb, tc), lattice_vectors)
+            for ta in range(-max_translation, max_translation + 1)
+            for tb in range(-max_translation, max_translation + 1)
+            for tc in range(-max_translation, max_translation + 1)
+            if not (ta == tb == tc == 0)
+        ]
+    )
+    inplane_shell_distances = _unique_sorted(
+        [
+            _translation_distance((ta, tb, 0), lattice_vectors)
+            for ta in range(-max_translation, max_translation + 1)
+            for tb in range(-max_translation, max_translation + 1)
+            if not (ta == tb == 0)
+        ]
+    )
+    inplane_order_by_distance = {
+        round(distance, 6): index
+        for index, distance in enumerate(inplane_shell_distances, start=1)
+    }
+
+    interlayer_distances_by_order = {}
+    for ta in range(-max_translation, max_translation + 1):
+        for tb in range(-max_translation, max_translation + 1):
+            planar_distance = 0.0 if ta == tb == 0 else _translation_distance((ta, tb, 0), lattice_vectors)
+            planar_key = round(planar_distance, 6)
+            inplane_order = 0 if ta == tb == 0 else inplane_order_by_distance.get(planar_key)
+            if inplane_order is None:
+                continue
+            distance = _translation_distance((ta, tb, 1), lattice_vectors)
+            interlayer_distances_by_order.setdefault(inplane_order, []).append(distance)
+
+    family_shell_map = {}
+    for family in sorted({str(label) for label in families if str(label).strip()}):
+        if "'" not in family:
+            order = _leading_family_index(family)
+            if order is None or order <= 0 or order > len(inplane_shell_distances):
+                continue
+            distance = inplane_shell_distances[order - 1]
+        else:
+            order = _leading_family_index(family)
+            if order is None:
+                continue
+            candidates = _unique_sorted(interlayer_distances_by_order.get(order, []))
+            if not candidates:
+                continue
+            suffix = _family_suffix_letter(family)
+            branch_index = max(0, ord(suffix[0]) - ord("a")) if suffix else 0
+            branch_index = min(branch_index, len(candidates) - 1)
+            distance = candidates[branch_index]
+
+        shell_index = _distance_to_shell_index(distance, overall_shell_distances)
+        if shell_index is None:
+            continue
+        family_shell_map[family] = {
+            "shell_index": shell_index,
+            "distance": float(distance),
+        }
+    return family_shell_map
+
+
+def _extract_family_labels_for_shell_map(source_text: str, hamiltonian_model: dict) -> list[str]:
+    labels = []
+    for entry in list(hamiltonian_model.get("local_bond_candidates", [])) if isinstance(hamiltonian_model, dict) else []:
+        family = str(entry.get("family") or "").strip()
+        if family and family not in labels:
+            labels.append(family)
+
+    for match in re.finditer(
+        r"\\sum_\{\\langle\s*i,j\s*\\rangle_(?P<label>[^}]+)\}",
+        source_text,
+    ):
+        family = match.group("label").strip()
+        if family and family not in labels:
+            labels.append(family)
+
+    for match in re.finditer(
+        r"\\sum_\{[A-Za-z]+\s*\\in\s*\\\{(?P<families>[^}]*)\\\}\}",
+        source_text,
+    ):
+        for family in [item.strip() for item in match.group("families").split(",") if item.strip()]:
+            if family not in labels:
+                labels.append(family)
+    return labels
+
+
+def _extract_lattice_model(source_text: str, sections: dict, hamiltonian_model: dict) -> dict:
+    structure_text = "\n\n".join(
+        str(section.get("content") or "").strip()
+        for section in sections.get("structure_sections", [])
+        if str(section.get("content") or "").strip()
+    )
+    if not structure_text:
+        return {}
+
+    magnetic_species = _extract_magnetic_species(source_text)
+    position_rows = _extract_tabular_fractional_positions(source_text)
+    positions = [row["position"] for row in position_rows if not magnetic_species or row["atom"] in magnetic_species]
+    if not positions and position_rows:
+        positions = [row["position"] for row in position_rows]
+
+    cell_parameters = _extract_document_cell_parameters(structure_text)
+    lattice_model = {
+        "kind": _extract_document_lattice_kind(structure_text),
+        "dimension": 3 if positions or cell_parameters.get("c") is not None else None,
+        "cell_parameters": cell_parameters,
+        "positions": positions,
+        "magnetic_species": magnetic_species,
+        "magnetic_sites": positions,
+        "magnetic_site_count": len(positions),
+    }
+    if {"a", "b", "c"}.issubset(cell_parameters):
+        lattice_model["lattice_vectors"] = resolve_lattice_vectors({"cell_parameters": cell_parameters})
+
+    family_labels = _extract_family_labels_for_shell_map(source_text, hamiltonian_model)
+    family_shell_map = _infer_family_shell_map(lattice_model, family_labels)
+    if family_shell_map:
+        lattice_model["family_shell_map"] = family_shell_map
+    return lattice_model
 
 
 def _extract_magnetic_order(sections: dict) -> dict:
@@ -786,8 +1074,13 @@ def _expand_family_indexed_template(block: str, parameter_registry: dict) -> lis
     for family in families:
         expression = _replace_family_index(body, index_symbol, family)
         tokens = _extract_coefficient_tokens(expression)
-        if tokens and all(_is_resolved_token(token, parameter_registry) for token in tokens):
-            candidates.append({"family": family, "expression": expression})
+        candidates.append(
+            {
+                "family": family,
+                "expression": expression,
+                "parameters_resolved": not tokens or all(_is_resolved_token(token, parameter_registry) for token in tokens),
+            }
+        )
     return candidates
 
 
@@ -796,6 +1089,45 @@ def _extract_family_indexed_candidates(equation_blocks: list[str], parameter_reg
     for block in equation_blocks:
         candidates.extend(_expand_family_indexed_template(block, parameter_registry))
     return candidates
+
+
+def _extract_effective_placeholder_families(content: str) -> list[str]:
+    families = []
+    for match in re.finditer(
+        r"(?:H|\\mathcal\{H\}|\\mathcalH)_\{ij\}\^\{\((?P<family>[^)]+)\)\}",
+        str(content or ""),
+    ):
+        family = match.group("family").strip()
+        if family and family not in families:
+            families.append(family)
+    return families
+
+
+def _matrix_form_candidates(sections: dict, candidates: list[dict]) -> list[dict]:
+    matrix_section = _selected_candidate_section(sections, candidates, "matrix_form")
+    if not matrix_section:
+        return []
+    return _extract_matrix_exchange_candidates(_extract_equation_blocks(str(matrix_section.get("content") or "")))
+
+
+def _augment_effective_candidates_with_matrix_form(
+    sections: dict,
+    candidates: list[dict],
+    content: str,
+    existing_candidates: list[dict],
+) -> list[dict]:
+    if existing_candidates is None:
+        existing_candidates = []
+    by_family = {entry.get("family"): dict(entry) for entry in existing_candidates if entry.get("family")}
+    placeholder_families = _extract_effective_placeholder_families(content)
+    if not placeholder_families:
+        return list(by_family.values())
+
+    for entry in _matrix_form_candidates(sections, candidates):
+        family = entry.get("family")
+        if family in placeholder_families and family not in by_family:
+            by_family[family] = {"family": family, "expression": entry.get("expression", ""), "matrix": entry.get("matrix")}
+    return list(by_family.values())
 
 
 def _clean_latex_cell(cell: str) -> str:
@@ -1100,6 +1432,17 @@ def _extract_hamiltonian_model(
         if matrix_candidates:
             return {"local_bond_candidates": matrix_candidates, "matrix_form": True}
         family_candidates = _extract_family_indexed_candidates(equation_blocks, parameter_registry)
+        if selected_name == "effective":
+            merged_candidates = explicit_local_bond_candidates + family_candidates
+            augmented_candidates = _augment_effective_candidates_with_matrix_form(
+                sections,
+                candidates,
+                content,
+                merged_candidates,
+            )
+            if augmented_candidates:
+                augmented_candidates.sort(key=lambda entry: entry["family"])
+                return {"local_bond_candidates": augmented_candidates}
         if explicit_local_bond_candidates and family_candidates:
             combined = explicit_local_bond_candidates + family_candidates
             combined.sort(key=lambda entry: entry["family"])
@@ -1117,29 +1460,80 @@ def _extract_hamiltonian_model(
     return {}
 
 
-def _operator_expression_unsupported_features(expression: str) -> list[str]:
+def _raw_operator_expression_features(expression: str) -> list[str]:
     compact = re.sub(r"\s+", "", str(expression or ""))
     features = []
+    if "\\sum_" in compact or "\\sum\\limits" in compact or "H_{ij}^{" in compact:
+        features.append("document_level_lattice_sum_notation")
     if "\\gamma_{ij}" in compact or "\\gamma_{ij}^\\ast" in compact:
         features.append("bond_dependent_phase_gamma_terms")
-    if "^{\\pm\\pm}" in compact or "S_i^+S_j^+" in compact or "S_i^-S_j^-" in compact:
-        features.append("double_raising_lowering_exchange_terms")
-    if "^{z\\pm}" in compact or re.search(r"(S_i\^[\+\-]S_j\^z|S_i\^zS_j\^[\+\-])", compact):
-        features.append("zpm_offdiagonal_exchange_terms")
     return features
+
+
+def _operator_expression_unsupported_features(expression: str, allow_local_gamma: bool = False) -> list[str]:
+    features = _raw_operator_expression_features(expression)
+    if allow_local_gamma and "document_level_lattice_sum_notation" not in features:
+        features = [feature for feature in features if feature != "bond_dependent_phase_gamma_terms"]
+    return features
+
+
+def _strip_operator_assignment_prefix(expression: str) -> str:
+    text = str(expression or "").strip()
+    if not text:
+        return text
+    match = re.match(
+        r"^\s*(?:[A-Za-z\\][A-Za-z0-9_{}^\\+\-'\(\)]*)\s*=\s*(?P<body>.+)$",
+        text,
+        flags=re.DOTALL,
+    )
+    if not match:
+        return text.rstrip().rstrip(".").strip()
+    body = match.group("body").strip().rstrip(".").strip()
+    return body or text.rstrip().rstrip(".").strip()
+
+
+def _infer_support_from_operator_expression(expression: str) -> list[int]:
+    text = str(expression or "")
+    explicit_sites = [int(match.group(1)) for match in re.finditer(r"@[ ]*(-?\d+)", text)]
+    if explicit_sites:
+        return sorted({site for site in explicit_sites})
+
+    latex_sites = []
+    for match in re.finditer(r"S_(?P<site>[A-Za-z])\^[xyz\+\-]", text):
+        site = match.group("site")
+        if site not in latex_sites:
+            latex_sites.append(site)
+    if latex_sites:
+        return list(range(len(latex_sites)))
+
+    return [0, 1]
 
 
 def _extend_unsupported_features(record: dict, expression: str) -> list[str]:
     combined = list(record.get("unsupported_features", []))
-    for feature in _operator_expression_unsupported_features(expression):
+    allow_local_gamma = "document_level_lattice_sum_notation" not in _raw_operator_expression_features(expression)
+    for feature in _operator_expression_unsupported_features(expression, allow_local_gamma=allow_local_gamma):
         if feature not in combined:
             combined.append(feature)
     return combined
 
 
+def _has_local_gamma_phase_marker(expression: str) -> bool:
+    text = str(expression or "")
+    return re.search(r"(?:\\gamma|gamma)_\{ij\}", text) is not None
+
+
 def _matrix_form_expression_for_family(record: dict, family: str | None) -> str | None:
     if not family:
         return None
+    direct_candidates = []
+    hamiltonian_model = record.get("hamiltonian_model", {})
+    if isinstance(hamiltonian_model, dict):
+        direct_candidates.extend(list(hamiltonian_model.get("matrix_form_candidates", [])))
+    direct_candidates.extend(list(record.get("matrix_form_candidates", [])))
+    for entry in direct_candidates:
+        if entry.get("family") == family:
+            return entry.get("expression")
     matrix_model = _extract_hamiltonian_model(
         record.get("document_sections", {}),
         record.get("model_candidates", []),
@@ -1156,10 +1550,232 @@ def _family_expression_with_effective_matrix_fallback(record: dict, family: str 
     expression = str(expression or "")
     if not family or record.get("selected_model_candidate") != "effective":
         return expression
-    if "bond_dependent_phase_gamma_terms" not in _operator_expression_unsupported_features(expression):
+    if (
+        "bond_dependent_phase_gamma_terms" not in _raw_operator_expression_features(expression)
+        and not _has_local_gamma_phase_marker(expression)
+    ):
         return expression
     matrix_expression = _matrix_form_expression_for_family(record, family)
     return matrix_expression or expression
+
+
+def _default_agent_source_document(source_path: str | None) -> dict:
+    return {
+        "source_kind": "agent_normalized_document",
+        "source_path": source_path,
+    }
+
+
+def _copy_mapping(value, default=None) -> dict:
+    if isinstance(value, dict):
+        return deepcopy(value)
+    return deepcopy(default if default is not None else {})
+
+
+def _copy_sequence_of_mappings(value) -> list[dict]:
+    copied = []
+    for entry in list(value or []):
+        if isinstance(entry, dict):
+            copied.append(deepcopy(entry))
+    return copied
+
+
+def _copy_named_mapping_of_mappings(value) -> dict[str, dict]:
+    copied = {}
+    if not isinstance(value, dict):
+        return copied
+    for key, entry in value.items():
+        if isinstance(entry, dict):
+            copied[str(key)] = deepcopy(entry)
+    return copied
+
+
+def _normalize_agent_parameter_registry(parameter_registry):
+    flattened = {}
+    metadata = {}
+    for key, value in dict(parameter_registry or {}).items():
+        if isinstance(value, dict) and "value" in value:
+            flattened[str(key)] = deepcopy(value.get("value"))
+            metadata[str(key)] = deepcopy(value)
+        else:
+            flattened[str(key)] = deepcopy(value)
+    return flattened, metadata
+
+
+def _agent_unresolved_items_to_ambiguities(
+    unresolved_items: list[dict],
+    *,
+    selected_model_candidate: str | None,
+    selected_local_bond_family: str | None,
+    selected_coordinate_convention: str | None,
+) -> list[dict]:
+    ambiguities = []
+    for entry in unresolved_items:
+        field = str(entry.get("field") or "").strip()
+        if field == "model_candidate" and selected_model_candidate:
+            continue
+        if field == "local_bond_family" and selected_local_bond_family:
+            continue
+        if field == "coordinate_convention" and selected_coordinate_convention:
+            continue
+        ambiguity_id = {
+            "model_candidate": "model_candidate_selection",
+            "local_bond_family": "local_bond_family_selection",
+            "coordinate_convention": "coordinate_convention_selection",
+            "structure_file": "structure_file_selection",
+            "hamiltonian_file": "hamiltonian_hr_file_selection",
+        }.get(field, "agent_normalized_review")
+        ambiguities.append(
+            {
+                "id": ambiguity_id,
+                "blocks_landing": True,
+                "question": (
+                    str(entry.get("reason") or "").strip()
+                    or "The agent-normalized document still needs user input before landing."
+                ),
+            }
+        )
+    return ambiguities
+
+
+def build_intermediate_record_from_agent_normalized(
+    agent_normalized_document: dict,
+    *,
+    source_text: str = "",
+    source_path: str | None = None,
+    selected_model_candidate: str | None = None,
+    selected_local_bond_family: str | None = None,
+    selected_coordinate_convention: str | None = None,
+) -> dict:
+    agent_normalized_document = agent_normalized_document or {}
+    source_document = _copy_mapping(
+        agent_normalized_document.get("source_document"),
+        _default_agent_source_document(source_path),
+    )
+    if source_document.get("source_path") is None:
+        source_document["source_path"] = source_path
+
+    selected_name = (
+        (selected_model_candidate or "").strip()
+        or str(agent_normalized_document.get("selected_model_candidate") or "").strip()
+        or None
+    )
+    selected_family = (
+        (selected_local_bond_family or "").strip()
+        or str(agent_normalized_document.get("selected_local_bond_family") or "").strip()
+        or None
+    )
+    selected_frame = (
+        (selected_coordinate_convention or "").strip()
+        or str(agent_normalized_document.get("selected_coordinate_convention") or "").strip()
+        or None
+    )
+
+    model_candidates = _copy_sequence_of_mappings(agent_normalized_document.get("model_candidates"))
+    candidate_models = _copy_named_mapping_of_mappings(agent_normalized_document.get("candidate_models"))
+    system_context = _copy_mapping(agent_normalized_document.get("system_context"))
+    if selected_frame:
+        system_context["coordinate_convention"] = _selected_coordinate_convention(selected_frame)
+    else:
+        system_context["coordinate_convention"] = _copy_mapping(
+            system_context.get("coordinate_convention"),
+            _default_coordinate_convention(),
+        )
+    system_context["magnetic_order"] = _copy_mapping(
+        system_context.get("magnetic_order"),
+        _default_magnetic_order(),
+    )
+    system_context["coefficient_units"] = (
+        system_context.get("coefficient_units")
+        or agent_normalized_document.get("coefficient_units")
+    )
+
+    inferred_single_candidate_name = None
+    if len(model_candidates) == 1:
+        inferred_single_candidate_name = str(model_candidates[0].get("name") or "").strip() or None
+    candidate_model_name = selected_name or inferred_single_candidate_name
+
+    hamiltonian_model = _copy_mapping(
+        candidate_models.get(candidate_model_name)
+        if candidate_model_name and candidate_model_name in candidate_models
+        else agent_normalized_document.get("hamiltonian_model")
+    )
+    for key in ("operator_expression", "value", "matrix_form"):
+        if key in agent_normalized_document and key not in hamiltonian_model:
+            hamiltonian_model[key] = deepcopy(agent_normalized_document[key])
+    if "local_bond_candidates" in agent_normalized_document and "local_bond_candidates" not in hamiltonian_model:
+        hamiltonian_model["local_bond_candidates"] = _copy_sequence_of_mappings(
+            agent_normalized_document.get("local_bond_candidates")
+        )
+    if "matrix_form_candidates" in agent_normalized_document and "matrix_form_candidates" not in hamiltonian_model:
+        hamiltonian_model["matrix_form_candidates"] = _copy_sequence_of_mappings(
+            agent_normalized_document.get("matrix_form_candidates")
+        )
+
+    if "matrix_form_candidates" in hamiltonian_model and "local_bond_candidates" not in hamiltonian_model:
+        hamiltonian_model["local_bond_candidates"] = _copy_sequence_of_mappings(
+            hamiltonian_model.get("matrix_form_candidates")
+        )
+
+    unresolved_items = _copy_sequence_of_mappings(agent_normalized_document.get("unresolved_items"))
+    ambiguities = _agent_unresolved_items_to_ambiguities(
+        unresolved_items,
+        selected_model_candidate=selected_name,
+        selected_local_bond_family=selected_family,
+        selected_coordinate_convention=selected_frame,
+    )
+
+    blocking_candidates = [candidate for candidate in model_candidates if candidate.get("role") in {"main", "simplified"}]
+    selected_is_valid = selected_name in {candidate.get("name") for candidate in model_candidates}
+    if len(blocking_candidates) > 1 and not selected_is_valid and not any(
+        entry.get("id") == "model_candidate_selection" for entry in ambiguities
+    ):
+        ambiguities.append(
+            {
+                "id": "model_candidate_selection",
+                "blocks_landing": True,
+                "question": "Multiple Hamiltonian candidates were detected. Which one should I use?",
+            }
+        )
+
+    parameter_registry, parameter_registry_metadata = _normalize_agent_parameter_registry(
+        agent_normalized_document.get("parameter_registry")
+    )
+    lattice_model = _copy_mapping(agent_normalized_document.get("lattice_model"))
+    evidence_items = _copy_sequence_of_mappings(agent_normalized_document.get("evidence_items"))
+    matrix_form_candidates = _copy_sequence_of_mappings(
+        hamiltonian_model.get("matrix_form_candidates", agent_normalized_document.get("matrix_form_candidates"))
+    )
+    if "matrix_form" in candidate_models:
+        matrix_candidate_model = candidate_models["matrix_form"]
+        if not matrix_form_candidates:
+            matrix_form_candidates = _copy_sequence_of_mappings(
+                matrix_candidate_model.get("matrix_form_candidates", matrix_candidate_model.get("local_bond_candidates"))
+            )
+        elif not hamiltonian_model.get("matrix_form_candidates"):
+            hamiltonian_model["matrix_form_candidates"] = _copy_sequence_of_mappings(matrix_form_candidates)
+
+    return {
+        "source_document": source_document,
+        "source_text": source_text,
+        "document_sections": _copy_mapping(agent_normalized_document.get("document_sections"), {}),
+        "model_candidates": model_candidates,
+        "selected_model_candidate": selected_name,
+        "selected_local_bond_family": selected_family,
+        "selected_coordinate_convention": selected_frame,
+        "system_context": system_context,
+        "lattice_model": lattice_model,
+        "hamiltonian_model": hamiltonian_model,
+        "candidate_models": candidate_models,
+        "matrix_form_candidates": matrix_form_candidates,
+        "parameter_registry": parameter_registry,
+        "parameter_registry_metadata": parameter_registry_metadata,
+        "evidence_items": evidence_items,
+        "ambiguities": ambiguities,
+        "confidence_report": _copy_mapping(agent_normalized_document.get("confidence_report"), {}),
+        "verification_report": verify_agent_normalized_document(agent_normalized_document),
+        "unsupported_features": list(agent_normalized_document.get("unsupported_features", [])),
+    }
 
 
 def build_intermediate_record(
@@ -1194,6 +1810,7 @@ def build_intermediate_record(
             list(sections.get("parameter_sections", [])) + list(sections.get("model_sections", []))
         )
         hamiltonian_model = _extract_hamiltonian_model(sections, candidates, selected_name, parameter_registry)
+    lattice_model = _extract_lattice_model(source_text, sections, hamiltonian_model)
 
     return {
         "source_document": {
@@ -1215,7 +1832,7 @@ def build_intermediate_record(
             "magnetic_order": _extract_magnetic_order(sections),
             "coefficient_units": _extract_document_energy_units(sections),
         },
-        "lattice_model": {},
+        "lattice_model": lattice_model,
         "hamiltonian_model": hamiltonian_model,
         "parameter_registry": parameter_registry,
         "ambiguities": ambiguities,
@@ -1278,6 +1895,15 @@ def _agent_fallback_proposal(record: dict) -> dict:
     return proposed
 
 
+def _family_shell_metadata(record: dict, family: str | None) -> dict:
+    if family is None:
+        return {}
+    lattice_model = record.get("lattice_model", {}) if isinstance(record.get("lattice_model"), dict) else {}
+    family_shell_map = lattice_model.get("family_shell_map", {}) if isinstance(lattice_model.get("family_shell_map"), dict) else {}
+    metadata = family_shell_map.get(family, {})
+    return dict(metadata) if isinstance(metadata, dict) else {}
+
+
 def _document_landing_readiness(proposal: dict) -> str:
     if (proposal or {}).get("landing_readiness") == "unsupported_even_with_agent":
         return "unsupported_even_with_agent"
@@ -1320,10 +1946,12 @@ def _interaction_from_agent_fallback(proposal: dict) -> dict | None:
         or "I need a bit more input before I can land this safely."
     )
     if landing_readiness == "unsupported_even_with_agent":
+        blocking_features = list(agent_inferred.get("unsupported_even_with_agent", []))
         return {
             "status": "needs_input",
             "id": "unsupported_features_review",
             "question": summary,
+            "unsupported_feature_details": unsupported_feature_details(blocking_features),
         }
 
     unresolved_items = list(agent_inferred.get("unresolved_items", []))
@@ -1408,8 +2036,15 @@ def land_intermediate_record(record: dict) -> dict:
                     entry.get("family"),
                     entry.get("expression", ""),
                 )
-                expressions.append({"family": entry["family"], "expression": expression})
-                for feature in _operator_expression_unsupported_features(expression):
+                metadata = _family_shell_metadata(record, entry["family"])
+                expressions.append(
+                    {
+                        "family": entry["family"],
+                        "expression": expression,
+                        **metadata,
+                    }
+                )
+                for feature in _operator_expression_unsupported_features(expression, allow_local_gamma=True):
                     if feature not in combined_unsupported:
                         combined_unsupported.append(feature)
             return {
@@ -1443,11 +2078,17 @@ def land_intermediate_record(record: dict) -> dict:
             or hamiltonian_model.get("value")
             or ""
         )
-    expression_unsupported = _operator_expression_unsupported_features(expression)
+    expression = _strip_operator_assignment_prefix(expression)
+    inferred_support = _infer_support_from_operator_expression(expression)
+    allow_local_gamma = "document_level_lattice_sum_notation" not in _raw_operator_expression_features(expression)
+    expression_unsupported = _operator_expression_unsupported_features(expression, allow_local_gamma=allow_local_gamma)
     if (
         record.get("selected_model_candidate") == "effective"
         and record.get("selected_local_bond_family")
-        and "bond_dependent_phase_gamma_terms" in expression_unsupported
+        and (
+            "bond_dependent_phase_gamma_terms" in expression_unsupported
+            or _has_local_gamma_phase_marker(expression)
+        )
     ):
         matrix_expression = _matrix_form_expression_for_family(
             record,
@@ -1475,7 +2116,7 @@ def land_intermediate_record(record: dict) -> dict:
             return landed
     return {
         "representation": "operator",
-        "support": [0, 1],
+        "support": inferred_support,
         "expression": expression,
         "parameters": dict(record.get("parameter_registry", {})),
         "coordinate_convention": coordinate_convention,
