@@ -1,3 +1,4 @@
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -32,8 +33,10 @@ class ClassicalContractResolutionTests(unittest.TestCase):
 
         self.assertEqual(get_classical_state_result(payload), wrapped_contract)
 
-    def test_get_classical_state_result_accepts_bare_contract_without_status_role_or_method(self):
+    def test_get_classical_state_result_accepts_bare_contract_mapping(self):
         bare_contract = {
+            "status": "ok",
+            "role": "final",
             "classical_state": {"site_frames": [{"site": 0}]},
             "downstream_compatibility": {"lswt": {"status": "ready"}},
         }
@@ -59,6 +62,8 @@ class ClassicalContractResolutionTests(unittest.TestCase):
 
     def test_stage_compatibility_and_status_resolve_from_downstream_compatibility(self):
         classical_state_result = {
+            "status": "ok",
+            "role": "final",
             "downstream_compatibility": {
                 "lswt": {"status": "ready"},
                 "gswt": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
@@ -72,12 +77,42 @@ class ClassicalContractResolutionTests(unittest.TestCase):
         )
         self.assertEqual(get_downstream_stage_status(classical_state_result, "gswt"), "blocked")
 
+    def test_stage_helpers_return_none_when_requested_stage_is_missing(self):
+        classical_state_result = {
+            "status": "ok",
+            "role": "final",
+            "downstream_compatibility": {"gswt": {"status": "ready"}},
+        }
+
+        self.assertIsNone(get_downstream_stage_compatibility(classical_state_result, "lswt"))
+        self.assertIsNone(get_downstream_stage_status(classical_state_result, "lswt"))
+
     def test_stage_helpers_return_none_when_standardized_contract_missing(self):
         payload = {"classical_state": {"site_frames": []}}
 
         self.assertIsNone(get_classical_state_result(payload))
         self.assertIsNone(get_downstream_stage_compatibility(payload, "lswt"))
         self.assertIsNone(get_downstream_stage_status(payload, "lswt"))
+
+    def test_helpers_do_not_mutate_payload(self):
+        payload = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "classical_state": {"site_frames": []},
+                "downstream_compatibility": {"lswt": {"status": "ready"}},
+            },
+            "classical_state": {"site_frames": [{"site": 0}]},
+            "classical": {"classical_state": {"site_frames": [{"site": 1}]}}
+        }
+        original = copy.deepcopy(payload)
+
+        get_classical_state_result(payload)
+        get_standardized_classical_state(payload)
+        get_downstream_stage_compatibility(payload, "lswt")
+        get_downstream_stage_status(payload, "lswt")
+
+        self.assertEqual(payload, original)
 
 
 if __name__ == "__main__":

@@ -21,15 +21,16 @@ def get_classical_state_result(payload):
             return nested_result
 
     # Accept a bare classical_state_result mapping after wrapper resolution.
-    if isinstance(mapping.get("downstream_compatibility"), dict):
+    if (
+        isinstance(mapping.get("downstream_compatibility"), dict)
+        and mapping.get("status") is not None
+        and mapping.get("role") is not None
+    ):
         return mapping
     if (
         isinstance(mapping.get("classical_state"), dict)
-        and (
-            mapping.get("status") is not None
-            or mapping.get("role") is not None
-            or mapping.get("method") is not None
-        )
+        and mapping.get("status") is not None
+        and mapping.get("role") is not None
     ):
         return mapping
 
@@ -47,15 +48,15 @@ def get_standardized_classical_state(payload):
     if mapping is None:
         return None
 
+    classical_state = mapping.get("classical_state")
+    if isinstance(classical_state, dict):
+        return classical_state
+
     classical = mapping.get("classical")
     if isinstance(classical, dict):
         nested_state = classical.get("classical_state")
         if isinstance(nested_state, dict):
             return nested_state
-
-    classical_state = mapping.get("classical_state")
-    if isinstance(classical_state, dict):
-        return classical_state
 
     return None
 
