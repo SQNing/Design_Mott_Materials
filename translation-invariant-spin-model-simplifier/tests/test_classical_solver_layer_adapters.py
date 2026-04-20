@@ -1,3 +1,4 @@
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -336,6 +337,46 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(payload["classical_state_result"]["role"], "final")
         self.assertEqual(payload["classical_state"]["supercell_shape"], [1, 1, 1])
         self.assertEqual(payload["classical_state"]["custom_annotation"]["source"], "bare-contract")
+
+    def test_pseudospin_result_payload_does_not_share_standardized_contract_references_with_solver_result(self):
+        solver_result = {
+            "status": "ok",
+            "role": "final",
+            "solver_family": "retained_local_multiplet",
+            "method": "pseudospin-cpn-local-ray-minimize",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "ready"},
+                "thermodynamics": {"status": "ready"},
+            },
+            "classical_state": {
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "supercell_shape": [1, 1, 1],
+                "custom_annotation": {"source": "bare-contract"},
+                "local_rays": [
+                    {
+                        "cell": [0, 0, 0],
+                        "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                    }
+                ],
+            },
+        }
+        original = copy.deepcopy(solver_result)
+
+        payload = solve_pseudospin_orbital_pipeline._build_result_payload(
+            {"inferred": {"local_dimension": 2}, "hamiltonian": {}, "structure": {}, "bond_blocks": []},
+            {"simplification": {}, "canonical_model": {}, "effective_model": {}},
+            solver_result,
+            classical_method="cpn-local-ray-minimize",
+            default_supercell_shape=[1, 1, 1],
+        )
+
+        payload["classical_state_result"]["method"] = "mutated"
+        payload["classical_state"]["custom_annotation"]["source"] = "changed"
+        payload["classical"]["classical_state_result"]["role"] = "diagnostic"
+
+        self.assertEqual(solver_result, original)
 
     def test_pseudospin_result_payload_accepts_wrapped_standardized_contract_and_preserves_mirror(self):
         solver_result = {

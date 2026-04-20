@@ -25,6 +25,7 @@ from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynami
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from cli.write_results_bundle import write_results_bundle
 from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
+from common.classical_output_compatibility import build_classical_output_compatibility_payload
 from common.classical_state_result import (
     build_diagnostic_classical_result,
     build_final_classical_state_result,
@@ -990,13 +991,13 @@ def _build_result_payload(
             "solver_method": solver_result.get("method"),
         },
     }
-    if classical_state is not None:
-        payload["classical"]["classical_state"] = classical_state
-        payload["classical_state"] = classical_state
     classical_state_result = get_classical_state_result(solver_result)
     if isinstance(classical_state_result, dict):
-        payload["classical"]["classical_state_result"] = classical_state_result
-        payload["classical_state_result"] = classical_state_result
+        payload["classical_state_result"] = deepcopy(classical_state_result)
+        payload.update(build_classical_output_compatibility_payload(payload))
+    elif classical_state is not None:
+        payload["classical"]["classical_state"] = deepcopy(classical_state)
+        payload["classical_state"] = deepcopy(classical_state)
     if gswt_payload is not None:
         payload["gswt_payload"] = gswt_payload
     if isinstance(solver_result.get("gswt"), dict):
