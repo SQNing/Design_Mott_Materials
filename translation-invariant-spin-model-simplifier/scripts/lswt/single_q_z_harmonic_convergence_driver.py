@@ -27,11 +27,17 @@ def _load_pipeline_output_directory(path):
     if isinstance(classical_state_result, dict):
         payload["classical_state_result"] = classical_state_result
         compatibility_state = get_standardized_classical_state(solver_result)
-        if isinstance(compatibility_state, dict) and not any(
-            solver_result.get(key) is not None
-            for key in ("reference_ray", "generator_matrix", "site_ansatz", "ansatz_stationarity")
-        ):
-            payload["classical_state"] = compatibility_state
+        if isinstance(compatibility_state, dict):
+            if any(
+                solver_result.get(key) is not None
+                for key in ("reference_ray", "generator_matrix", "site_ansatz", "ansatz_stationarity")
+            ):
+                payload["classical_state"] = {
+                    **solver_result,
+                    "classical_state": compatibility_state,
+                }
+            else:
+                payload["classical_state"] = compatibility_state
 
     gswt_payload_path = path / "gswt_payload.json"
     if gswt_payload_path.exists():

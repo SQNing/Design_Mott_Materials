@@ -2,6 +2,8 @@
 import math
 import numpy as np
 
+from common.classical_contract_resolution import get_standardized_classical_state
+
 
 def _complex_from_serialized(value):
     if isinstance(value, dict):
@@ -100,13 +102,24 @@ def _extract_truncated_harmonics(z_samples, phases, cutoff):
     return harmonics
 
 
+def _canonical_classical_state(classical_state):
+    standardized_state = get_standardized_classical_state(classical_state)
+    if isinstance(standardized_state, dict):
+        return standardized_state
+    if isinstance(classical_state, dict):
+        nested_state = classical_state.get("classical_state")
+        if isinstance(nested_state, dict):
+            return nested_state
+    return classical_state
+
+
 def _infer_site_count(model, classical_state):
     site_count = 1
     positions = list(model.get("positions", []))
     if positions:
         site_count = max(site_count, len(positions))
 
-    canonical_state = classical_state.get("classical_state", classical_state)
+    canonical_state = _canonical_classical_state(classical_state)
     local_rays = list((canonical_state or {}).get("local_rays", []))
     if local_rays:
         site_count = max(site_count, max(int(item.get("site", 0)) for item in local_rays) + 1)
@@ -114,7 +127,7 @@ def _infer_site_count(model, classical_state):
 
 
 def _resolve_site_ansatz(classical_state, site_count):
-    canonical_state = classical_state.get("classical_state", classical_state)
+    canonical_state = _canonical_classical_state(classical_state)
     site_ansatz = classical_state.get("site_ansatz")
     if not (isinstance(site_ansatz, list) and site_ansatz):
         site_ansatz = canonical_state.get("site_ansatz")
@@ -250,12 +263,13 @@ def build_single_q_z_harmonic_payload(
     if not isinstance(classical_state, dict):
         raise ValueError("classical_state must be a dictionary")
 
-    ordering = classical_state.get("ordering", {})
-    ansatz = classical_state.get("ansatz", ordering.get("ansatz"))
+    canonical_state = _canonical_classical_state(classical_state)
+    ordering = classical_state.get("ordering", canonical_state.get("ordering", {}))
+    ansatz = classical_state.get("ansatz", canonical_state.get("ansatz", ordering.get("ansatz")))
     if ansatz != "single-q-unitary-ray":
         raise ValueError("single-q z-harmonic payload requires ansatz='single-q-unitary-ray'")
 
-    q_vector = classical_state.get("q_vector", ordering.get("q_vector"))
+    q_vector = classical_state.get("q_vector", canonical_state.get("q_vector", ordering.get("q_vector")))
     if q_vector is None:
         raise ValueError("single-q z-harmonic payload requires q_vector")
 
