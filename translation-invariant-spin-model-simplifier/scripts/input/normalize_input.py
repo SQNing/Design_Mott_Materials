@@ -16,6 +16,7 @@ if __package__ in {None, ""}:
         build_intermediate_record,
         build_intermediate_record_from_agent_normalized,
         detect_input_kind,
+        expression_has_unresolved_parameters,
         land_intermediate_record,
     )
     from common.rotating_frame_realization import resolve_rotating_frame_realization
@@ -26,6 +27,7 @@ else:
         build_intermediate_record,
         build_intermediate_record_from_agent_normalized,
         detect_input_kind,
+        expression_has_unresolved_parameters,
         land_intermediate_record,
     )
     from common.rotating_frame_realization import resolve_rotating_frame_realization
@@ -729,12 +731,22 @@ def _should_request_agent_document_normalization(record, landed):
         return not _document_interaction_is_simple_user_selection(interaction)
     representation = (landed or {}).get("representation")
     if representation == "operator":
+        if expression_has_unresolved_parameters(
+            (landed or {}).get("expression", ""),
+            (landed or {}).get("parameters", {}),
+        ):
+            return True
         return not _looks_like_spin_operator_expression((landed or {}).get("expression", ""))
     if representation == "operator_family_collection":
         expressions = list((landed or {}).get("expressions", []))
         if not expressions:
             return True
         for entry in expressions:
+            if expression_has_unresolved_parameters(
+                (entry or {}).get("expression", ""),
+                (landed or {}).get("parameters", {}),
+            ):
+                return True
             if not _looks_like_spin_operator_expression((entry or {}).get("expression", "")):
                 return True
     return False
@@ -864,6 +876,7 @@ def _normalize_document_style_natural_language(
         (
             {
             "representation": landed["representation"],
+            "local_dim": int(local_dimension),
             "support": list(landed.get("support", [])),
             "expression": landed.get("expression", ""),
             "lattice": legacy_lattice,
@@ -885,6 +898,7 @@ def _normalize_document_style_natural_language(
             if landed["representation"] != "operator_family_collection"
             else {
                 "representation": landed["representation"],
+                "local_dim": int(local_dimension),
                 "support": list(landed.get("support", [])),
                 "expressions": list(landed.get("expressions", [])),
                 "lattice": legacy_lattice,
@@ -1035,22 +1049,31 @@ def normalize_input(payload):
                 normalized["unsupported_features"] = list(landed.get("unsupported_features", []))
                 _apply_agent_metadata(normalized, landed=landed)
                 return _finalize_normalized_payload(normalized)
+            inferred_local_dimension = _infer_local_dimension_from_text(
+                description,
+                int(payload.get("local_dim", 2)),
+            )
             payload = {
                 **payload,
                 **landed,
                 "representation": landed["representation"],
+                "local_dim": inferred_local_dimension,
             }
             representation = payload["representation"]
         else:
             detected_kind = detect_input_kind(description, source_path=source_path).get("source_kind")
             if detected_kind == "tex_document":
+                inferred_local_dimension = _infer_local_dimension_from_text(
+                    description,
+                    int(payload.get("local_dim", 2)),
+                )
                 return _normalize_document_style_natural_language(
                     description,
                     source_path=source_path,
                     selected_model_candidate=selected_model_candidate,
                     selected_local_bond_family=selected_local_bond_family,
                     selected_coordinate_convention=selected_coordinate_convention,
-                    local_dimension=int(payload.get("local_dim", 2)),
+                    local_dimension=inferred_local_dimension,
                     source_mode=payload.get("source_mode", representation),
                 )
             record = build_intermediate_record(

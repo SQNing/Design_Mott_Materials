@@ -89,6 +89,7 @@ _EXAMPLE_PAYLOAD = {
     "model_candidates": [
         {"name": "effective", "role": "main"},
         {"name": "matrix_form", "role": "equivalent_form"},
+        {"name": "onsite_anisotropy", "role": "equivalent_form"},
     ],
     "candidate_models": {
         "effective": {
@@ -121,8 +122,16 @@ _EXAMPLE_PAYLOAD = {
                 }
             ],
         },
+        "onsite_anisotropy": {
+            "operator_expression": "D * (Sz@0)^2 + B_4^0 * (Sz@0)^4",
+            "evidence_refs": ["eq3"],
+            "confidence": "high",
+            "extraction_method": "equation_block",
+        },
     },
     "parameter_registry": {
+        "D": {"value": 0.42, "evidence_refs": ["eq3"], "confidence": "high", "extraction_method": "equation"},
+        "B_4^0": {"value": -0.018, "evidence_refs": ["eq3"], "confidence": "high", "extraction_method": "equation"},
         "J_1^{xx}": {"value": -0.397, "evidence_refs": ["tbl1"], "confidence": "high", "extraction_method": "parameter_table"},
         "J_1^{yy}": {"value": -0.075, "evidence_refs": ["tbl1"], "confidence": "high", "extraction_method": "parameter_table"},
         "J_1^{zz}": {"value": -0.236, "evidence_refs": ["tbl1"], "confidence": "high", "extraction_method": "parameter_table"},
@@ -145,6 +154,7 @@ _EXAMPLE_PAYLOAD = {
     "evidence_items": [
         {"id": "eq1", "kind": "equation", "text": "H_{ij}^{(1)} = J_1^{zz} S_i^z S_j^z"},
         {"id": "eq2", "kind": "equation", "text": "\\mathcal J_{ij}^{(1)} = \\mathrm{diag}(J_1^{xx}, J_1^{yy}, J_1^{zz})"},
+        {"id": "eq3", "kind": "equation", "text": "H_i = D (\\hat{S}_i^z)^2 + B_4^0 (\\mathbf{S}_{i}^{z})^4"},
         {"id": "tbl1", "kind": "table_cell", "text": "J_1^{xx}, J_1^{yy}, J_1^{zz} values in meV"},
     ],
     "unresolved_items": [],
@@ -157,6 +167,9 @@ _PROMPT_NOTES = [
     "Do not invent Hamiltonian terms that are not supported by the source.",
     "Keep competing named models separate in candidate_models instead of merging them.",
     "Use operator expressions only when the paper gives a trustworthy local bond or onsite form.",
+    "Use higher-power onsite operator_expression entries for trustworthy single-site terms such as D * (Sz@0)^2, C * (Sz@0)^3, or B_4^0 * (Sz@0)^4 instead of forcing them into local_bond_candidates.",
+    "Reserve local_bond_candidates for bond-local terms; use operator_expression for standalone onsite one-body or crystal-field expressions.",
+    "Treat notation variants \\hat{S}, \\mathbf{S}, \\bm{S}, S_{i}, and braced axis superscripts like S_i^{z} as the same spin-component operator when the source meaning is unchanged.",
     "If something is still ambiguous, put it in unresolved_items instead of guessing.",
     "Use fixed orthogonal spin-component labels x,y,z for exchange-component subscripts in the returned model content.",
 ]

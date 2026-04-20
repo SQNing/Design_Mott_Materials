@@ -105,6 +105,16 @@ For document-style sources specifically:
   `agent_normalization_request`
   is returned, call an upstream agent and resubmit the same source text together with the produced
   `agent_normalized_document`.
+- the formal end-to-end version of that workflow is now
+  `scripts/cli/run_document_reader_pipeline.py`,
+  which runs document orchestration first and then continues from the landed
+  `normalized_model`
+  into the shared simplification pipeline without re-reading the raw document as freeform text.
+- if document verification reports
+  `verification_report.status = needs_review`,
+  the document-reader pipeline should preserve that review state visibly in the top-level result,
+  but it may still continue into simplification; this is currently a warning/review condition, not
+  a hard blocker by itself.
 
 ## Intermediate Extraction Schema
 
@@ -310,6 +320,9 @@ The contract is:
 
 This keeps the user-facing entry broad and uniform while allowing richer document-style ambiguity
 handling internally.
+
+When users explicitly want one command for this whole path, prefer the document-reader CLI over
+manually chaining the document-normalization wrapper and the simplify-text CLI.
 
 ## Worked Example
 

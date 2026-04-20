@@ -89,6 +89,13 @@ That request may include:
 
 so that the upstream agent can return a fixed JSON contract rather than inventing a new shape.
 
+The formal end-to-end document reader entrypoint is
+`scripts/cli/run_document_reader_pipeline.py`.
+That driver runs document orchestration first and, once a trustworthy
+`normalized_model`
+has landed, continues directly from that landed payload into the shared simplification/report
+pipeline rather than re-running freeform normalization on the raw source text.
+
 For these document-style `natural_language` inputs:
 
 - callers may provide `source_path` to improve source-kind detection
@@ -154,6 +161,11 @@ If the agent-normalized object is still incomplete, keep the missing or hard-gat
 `unresolved_items`
 instead of fabricating a final landing. Normalization will preserve that state as
 `interaction.status = needs_input`.
+
+If the landed document metadata carries a verifier result such as
+`verification_report.status = needs_review`,
+that review state should remain visible in downstream pipeline outputs but does not by itself turn
+the document-reader path into a hard failure.
 
 Supported spin notation includes integer, half-integer, and `one-half` forms such as `spin-1`, `spin 2`, `spin-3/2`, `spin 3 / 2`, `spin 5/2`, `spin 5 / 2`, and `spin-one-half`.
 

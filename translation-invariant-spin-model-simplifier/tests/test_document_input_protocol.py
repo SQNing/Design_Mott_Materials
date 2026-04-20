@@ -199,6 +199,209 @@ J_1^{z\pm} = -0.261
         self.assertEqual(landed["representation"], "operator")
         self.assertEqual(landed["expression"], "J1zz * Sz@0 Sz@1")
 
+    def test_selected_effective_candidate_lands_spin_three_half_cubic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-3/2 cubic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = C (S_i^z)^3 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+C = 0.12
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin3half_cubic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], "C (S_i^z)^3")
+        self.assertEqual(landed["parameters"]["C"], 0.12)
+
+    def test_selected_effective_candidate_lands_spin_two_quartic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 (S_i^z)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin2_quartic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], "B_4^0 (S_i^z)^4")
+        self.assertEqual(landed["parameters"]["B_4^0"], 0.07)
+
+    def test_selected_effective_candidate_strips_hat_notation_from_spin_two_quartic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( \hat{S}_i^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin2_hat_quartic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(landed["parameters"]["B_4^0"], 0.07)
+
+    def test_selected_effective_candidate_strips_boldface_notation_from_spin_two_quartic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( \mathbf{S}_i^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin2_boldface_quartic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(landed["parameters"]["B_4^0"], 0.07)
+
+    def test_selected_effective_candidate_strips_bm_notation_from_spin_two_quartic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( \bm{S}_i^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin2_bm_quartic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(landed["parameters"]["B_4^0"], 0.07)
+
+    def test_selected_effective_candidate_normalizes_braced_site_index_in_spin_two_quartic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( S_{i}^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin2_braced_subscript_quartic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(landed["parameters"]["B_4^0"], 0.07)
+
+    def test_selected_effective_candidate_normalizes_braced_site_and_axis_in_spin_two_quartic_onsite_document(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( S_{i}^{z} \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+
+        record = build_intermediate_record(
+            source_text=fixture,
+            source_path="tests/data/spin2_braced_sub_super_quartic_single_ion_anisotropy.tex",
+            selected_model_candidate="effective",
+        )
+        landed = land_intermediate_record(record)
+
+        self.assertEqual(landed["representation"], "operator")
+        self.assertEqual(landed["support"], [0])
+        self.assertEqual(landed["expression"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(landed["parameters"]["B_4^0"], 0.07)
+
     def test_selected_effective_candidate_collects_family_candidates_from_sum_and_matrix_sections(self):
         fixture = (SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex").read_text(encoding="utf-8")
 

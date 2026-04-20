@@ -59,6 +59,117 @@ class CompileLocalTermToMatrixTests(unittest.TestCase):
         self.assertEqual(len(record["representation"]["value"]), 3)
         self.assertEqual(record["provenance"]["source_kind"], "operator_text")
 
+    def test_compile_literature_style_spin_one_onsite_anisotropy_to_same_matrix_record(self):
+        compact = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": "D*(Sz@0)^2",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"D": 2.165},
+        }
+        literature = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"D (S_i^z)^2",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"D": 2.165},
+        }
+
+        compact_record = compile_local_term_to_matrix(compact)
+        literature_record = compile_local_term_to_matrix(literature)
+
+        self.assertEqual(literature_record["body_order"], 1)
+        self.assertEqual(literature_record["geometry_class"], "onsite")
+        self.assertEqual(literature_record["representation"]["kind"], "matrix")
+        self.assertEqual(
+            literature_record["representation"]["value"],
+            compact_record["representation"]["value"],
+        )
+
+    def test_compile_literature_style_spin_one_rhombic_onsite_anisotropy_to_same_matrix_record(self):
+        compact = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": "E*((Sx@0)^2-(Sy@0)^2)",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"E": 0.314},
+        }
+        literature = {
+            "local_hilbert": {"dimension": 3},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"E ((S_i^x)^2 - (S_i^y)^2)",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"E": 0.314},
+        }
+
+        compact_record = compile_local_term_to_matrix(compact)
+        literature_record = compile_local_term_to_matrix(literature)
+
+        self.assertEqual(literature_record["body_order"], 1)
+        self.assertEqual(literature_record["geometry_class"], "onsite")
+        self.assertEqual(literature_record["representation"]["kind"], "matrix")
+        self.assertEqual(
+            literature_record["representation"]["value"],
+            compact_record["representation"]["value"],
+        )
+
+    def test_compile_literature_style_spin_two_quartic_onsite_anisotropy_to_same_matrix_record(self):
+        compact = {
+            "local_hilbert": {"dimension": 5},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": "B_4^0*(Sz@0)^4",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"B_4^0": 0.07},
+        }
+        literature = {
+            "local_hilbert": {"dimension": 5},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"B_4^0 (S_i^z)^4",
+                },
+            },
+            "coordinate_convention": {"frame": "global_xyz"},
+            "parameters": {"B_4^0": 0.07},
+        }
+
+        compact_record = compile_local_term_to_matrix(compact)
+        literature_record = compile_local_term_to_matrix(literature)
+
+        self.assertEqual(literature_record["body_order"], 1)
+        self.assertEqual(literature_record["geometry_class"], "onsite")
+        self.assertEqual(literature_record["representation"]["kind"], "matrix")
+        self.assertEqual(
+            literature_record["representation"]["value"],
+            compact_record["representation"]["value"],
+        )
+
     def test_compile_fei2_family_one_operator_text_to_bond_matrix_record(self):
         normalized = {
             "local_hilbert": {"dimension": 3},

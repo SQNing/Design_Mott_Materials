@@ -123,6 +123,43 @@ class NormalizeInputTests(unittest.TestCase):
         self.assertEqual(sorted(normalized["interaction"]["options"]), ["0'", "1", "1'", "2", "2a'", "3"])
         self.assertEqual(normalized["document_intermediate"]["parameter_registry"]["D"], 2.165)
 
+    def test_normalize_input_preserves_spin_one_dimension_for_selected_document_landing(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-1 nearest-neighbor anisotropic exchange.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H_{ij} = Jx * Sx@0 Sx@1 + Jy * Sy@0 Sy@1 + Jz * Sz@0 Sz@1 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+Jx = 0.4
+\end{equation}
+\begin{equation}
+Jy = 0.1
+\end{equation}
+\begin{equation}
+Jz = -0.2
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin1_compact_exchange.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 3)
+        self.assertEqual(
+            normalized["local_term"]["representation"]["value"],
+            "Jx * Sx@0 Sx@1 + Jy * Sy@0 Sy@1 + Jz * Sz@0 Sz@1",
+        )
+
     def test_normalize_input_document_text_extracts_mev_units_into_system_metadata(self):
         fixture = r"""
 \documentclass[11pt]{article}
@@ -588,6 +625,230 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
 
         self.assertEqual(normalized["interaction"]["id"], "local_bond_family_selection")
         self.assertNotIn("agent_normalization_request", normalized)
+
+    def test_normalize_input_document_style_lands_spin_three_half_cubic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-3/2 cubic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = C (S_i^z)^3 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+C = 0.12
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin3half_cubic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 4)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], "C (S_i^z)^3")
+        self.assertEqual(normalized["parameters"]["C"], 0.12)
+
+    def test_normalize_input_document_style_lands_spin_two_quartic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 (S_i^z)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin2_quartic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 5)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], "B_4^0 (S_i^z)^4")
+        self.assertEqual(normalized["parameters"]["B_4^0"], 0.07)
+
+    def test_normalize_input_document_style_strips_hat_notation_from_spin_two_quartic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( \hat{S}_i^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin2_hat_quartic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 5)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(normalized["parameters"]["B_4^0"], 0.07)
+
+    def test_normalize_input_document_style_strips_boldface_notation_from_spin_two_quartic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( \mathbf{S}_i^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin2_boldface_quartic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 5)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(normalized["parameters"]["B_4^0"], 0.07)
+
+    def test_normalize_input_document_style_strips_bm_notation_from_spin_two_quartic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( \bm{S}_i^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin2_bm_quartic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 5)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(normalized["parameters"]["B_4^0"], 0.07)
+
+    def test_normalize_input_document_style_normalizes_braced_site_index_in_spin_two_quartic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( S_{i}^z \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin2_braced_subscript_quartic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 5)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(normalized["parameters"]["B_4^0"], 0.07)
+
+    def test_normalize_input_document_style_normalizes_braced_site_and_axis_in_spin_two_quartic_onsite_operator(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-2 quartic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = B_4^0 \left( S_{i}^{z} \right)^4 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+B_4^0 = 0.07
+\end{equation}
+\end{document}
+"""
+        payload = {
+            "representation": "natural_language",
+            "description": fixture,
+            "source_path": "tests/data/spin2_braced_sub_super_quartic_single_ion_anisotropy.tex",
+            "selected_model_candidate": "effective",
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIsNone(normalized["interaction"])
+        self.assertEqual(normalized["local_hilbert"]["dimension"], 5)
+        self.assertEqual(normalized["local_term"]["support"], [0])
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "operator")
+        self.assertEqual(normalized["local_term"]["representation"]["value"], r"B_4^0 \left( S_i^z \right)^4")
+        self.assertEqual(normalized["parameters"]["B_4^0"], 0.07)
 
     def test_many_body_hr_representation_is_accepted_with_required_paths(self):
         with tempfile.TemporaryDirectory() as tmpdir:

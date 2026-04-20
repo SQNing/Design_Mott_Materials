@@ -161,35 +161,7 @@ def _maybe_compile_local_matrix_record(normalized_model):
         return None
 
 
-def run_text_simplification_pipeline(
-    text,
-    *,
-    source_path=None,
-    selected_model_candidate=None,
-    selected_local_bond_family=None,
-    selected_coordinate_convention=None,
-):
-    normalized_model = normalize_freeform_text(
-        text,
-        source_path=source_path,
-        selected_model_candidate=selected_model_candidate,
-        selected_local_bond_family=selected_local_bond_family,
-        selected_coordinate_convention=selected_coordinate_convention,
-    )
-    normalized_interaction = (
-        normalized_model.get("interaction", {})
-        if isinstance(normalized_model.get("interaction"), dict)
-        else {}
-    )
-    if normalized_interaction.get("status") == "needs_input":
-        return _finalize_pipeline_result({
-            "status": "needs_input",
-            "stage": "normalize_input",
-            "normalized_model": normalized_model,
-            "interaction": dict(normalized_interaction),
-            "unsupported_features": list(normalized_model.get("unsupported_features", [])),
-        })
-
+def run_simplification_from_normalized_model(normalized_model):
     lattice = parse_lattice_description(normalized_model.get("lattice_description", {}))
     lattice_interaction = lattice.get("interaction", {}) if isinstance(lattice.get("interaction"), dict) else {}
     if lattice_interaction.get("status") == "needs_input":
@@ -256,6 +228,37 @@ def run_text_simplification_pipeline(
         "simplification": simplification,
         "unsupported_features": list(normalized_model.get("unsupported_features", [])),
     })
+
+
+def run_text_simplification_pipeline(
+    text,
+    *,
+    source_path=None,
+    selected_model_candidate=None,
+    selected_local_bond_family=None,
+    selected_coordinate_convention=None,
+):
+    normalized_model = normalize_freeform_text(
+        text,
+        source_path=source_path,
+        selected_model_candidate=selected_model_candidate,
+        selected_local_bond_family=selected_local_bond_family,
+        selected_coordinate_convention=selected_coordinate_convention,
+    )
+    normalized_interaction = (
+        normalized_model.get("interaction", {})
+        if isinstance(normalized_model.get("interaction"), dict)
+        else {}
+    )
+    if normalized_interaction.get("status") == "needs_input":
+        return _finalize_pipeline_result({
+            "status": "needs_input",
+            "stage": "normalize_input",
+            "normalized_model": normalized_model,
+            "interaction": dict(normalized_interaction),
+            "unsupported_features": list(normalized_model.get("unsupported_features", [])),
+        })
+    return run_simplification_from_normalized_model(normalized_model)
 
 
 def main():

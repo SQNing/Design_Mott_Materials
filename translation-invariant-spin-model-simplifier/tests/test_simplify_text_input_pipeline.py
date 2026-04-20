@@ -9,7 +9,10 @@ from unittest.mock import patch
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from cli.simplify_text_input import run_text_simplification_pipeline
+from cli.simplify_text_input import (
+    run_simplification_from_normalized_model,
+    run_text_simplification_pipeline,
+)
 from cli.render_simplified_model_report import render_simplified_model_report
 
 
@@ -659,6 +662,45 @@ K_{ijk} = 0.75
         by_label = {term["canonical_label"]: term["coefficient"] for term in result["canonical_model"]["three_body"]}
         self.assertAlmostEqual(by_label["Sx@0 Sx@1 Sz@2"], 1.5)
         self.assertAlmostEqual(by_label["Sy@0 Sy@1 Sz@2"], 1.5)
+
+    def test_pipeline_preserves_spin_one_local_dimension_for_compact_exchange_document_entry(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-1 nearest-neighbor anisotropic exchange.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H_{ij} = Jx * Sx@0 Sx@1 + Jy * Sy@0 Sy@1 + Jz * Sz@0 Sz@1 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+Jx = 0.4
+\end{equation}
+\begin{equation}
+Jy = 0.1
+\end{equation}
+\begin{equation}
+Jz = -0.2
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/spin1_compact_exchange.tex",
+            selected_model_candidate="effective",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["normalized_model"]["local_hilbert"]["dimension"], 3)
+        self.assertEqual(result["decomposition"]["mode"], "spin-multipole-basis")
+        self.assertEqual(result["decomposition"]["source_backbone"], "local_matrix_record")
+        self.assertEqual(
+            [block["type"] for block in result["effective_model"]["main"]],
+            ["symmetric_exchange_matrix"],
+        )
 
     def test_pipeline_lands_fei2_family_one_document_path_after_family_selection(self):
         result = run_text_simplification_pipeline(
@@ -2430,6 +2472,257 @@ J_y^{zz} = 0.090
 
         self.assertEqual(result["status"], "ok")
         self.assertNotIn("agent_inferred", result)
+
+    def test_run_simplification_from_normalized_model_returns_effective_model_for_landed_two_site_operator(self):
+        normalized_model = {
+            "interaction": None,
+            "local_hilbert": {"dimension": 2},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": "Jxy * Sx@0 Sx@1 + Jxy * Sy@0 Sy@1 + Jz * Sz@0 Sz@1",
+                },
+            },
+            "parameters": {"Jxy": -0.161, "Jz": -0.236},
+            "lattice_description": {"kind": "unspecified", "value": ""},
+            "user_required_symmetries": [],
+            "allowed_breaking": [],
+            "coordinate_convention": {},
+            "rotating_frame_transform": {},
+            "unsupported_features": [],
+        }
+
+        result = run_simplification_from_normalized_model(normalized_model)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("effective_model", result)
+        self.assertTrue(result["effective_model"]["main"])
+
+    def test_run_text_simplification_pipeline_preserves_projection_gate_semantics_after_continuation_refactor(self):
+        normalized_model = {
+            "interaction": None,
+            "local_hilbert": {"dimension": 2},
+            "local_term": {
+                "support": [0, 1],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"""
+J_missing^{zz}S_i^zS_j^z
++
+\frac{J_1^{\pm}}{2}(S_i^+S_j^-+S_i^-S_j^+)
+""",
+                },
+            },
+            "parameters": {
+                "J_1^{\\pm}": -0.236,
+            },
+            "lattice_description": {"kind": "unspecified", "value": ""},
+            "user_required_symmetries": [],
+            "allowed_breaking": [],
+            "coordinate_convention": {},
+            "rotating_frame_transform": {},
+            "unsupported_features": [],
+        }
+
+        with patch("cli.simplify_text_input.normalize_freeform_text", return_value=normalized_model):
+            result = run_text_simplification_pipeline("placeholder")
+
+        self.assertEqual(result["status"], "needs_input")
+        self.assertEqual(result["stage"], "decompose_local_term")
+        self.assertEqual(result["interaction"]["id"], "projection_or_truncate")
+
+    def test_run_text_simplification_pipeline_supports_spin_one_literature_style_onsite_anisotropy(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-1 single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = D (S_i^z)^2 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+D = 2.165
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/spin1_single_ion_anisotropy.tex",
+        )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["normalized_model"]["local_hilbert"]["dimension"], 3)
+        self.assertEqual(result["decomposition"]["mode"], "spin-multipole-basis")
+        self.assertTrue(result["effective_model"]["main"] or result["effective_model"]["residual"])
+
+    def test_spin_one_literature_style_onsite_anisotropy_report_keeps_identity_explicit(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-1 single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = D (S_i^z)^2 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+D = 2.165
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/spin1_single_ion_anisotropy.tex",
+        )
+        report = render_simplified_model_report(result)
+
+        residual_labels = {term["canonical_label"] for term in result["effective_model"]["residual"]}
+        summary_families = {entry["multipole_family"] for entry in result["effective_model"]["residual_summary"]}
+
+        self.assertIn("identity", residual_labels)
+        self.assertNotIn("", residual_labels)
+        self.assertIn("identity", summary_families)
+        self.assertNotIn("unspecified", summary_families)
+        self.assertRegex(report, r"\|\s*identity\s*\|\s*identity\s*\|\s*0\s*\|")
+        self.assertNotRegex(report, r"\|\s*\|\s*unspecified\s*\|")
+
+    def test_spin_one_literature_style_onsite_anisotropy_report_explains_residual_strategy(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-1 single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = D (S_i^z)^2 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+D = 2.165
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/spin1_single_ion_anisotropy.tex",
+        )
+        report = render_simplified_model_report(result)
+
+        self.assertEqual(result["effective_model"]["main"], [])
+        self.assertIn("onsite quadrupolar one-body content is retained under residual terms", report)
+        self.assertIn("scalar identity contribution is shown explicitly as `identity`", report)
+
+    def test_spin_one_rhombic_onsite_anisotropy_runs_through_text_pipeline(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-1 rhombic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = E \left( (S_i^x)^2 - (S_i^y)^2 \right) .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+E = 0.314
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/spin1_rhombic_single_ion_anisotropy.tex",
+        )
+        report = render_simplified_model_report(result)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["normalized_model"]["local_hilbert"]["dimension"], 3)
+        self.assertEqual(result["effective_model"]["main"], [])
+        self.assertTrue(result["effective_model"]["residual"])
+        self.assertTrue(
+            any(
+                term.get("multipole_family") == "quadrupole" and term.get("body_order") == 1
+                for term in result["effective_model"]["residual"]
+            )
+        )
+        self.assertIn("onsite quadrupolar one-body content is retained under residual terms", report)
+        self.assertNotIn("scalar identity contribution is shown explicitly as `identity`", report)
+
+    def test_run_simplification_from_normalized_model_supports_spin_two_quartic_onsite_anisotropy(self):
+        normalized_model = {
+            "interaction": None,
+            "local_hilbert": {"dimension": 5},
+            "local_term": {
+                "support": [0],
+                "representation": {
+                    "kind": "operator",
+                    "value": r"B_4^0 (S_i^z)^4",
+                },
+            },
+            "parameters": {"B_4^0": 0.07},
+            "lattice_description": {"kind": "unspecified", "value": ""},
+            "user_required_symmetries": [],
+            "allowed_breaking": [],
+            "coordinate_convention": {},
+            "rotating_frame_transform": {},
+            "unsupported_features": [],
+        }
+
+        result = run_simplification_from_normalized_model(normalized_model)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["normalized_model"]["local_hilbert"]["dimension"], 5)
+        self.assertEqual(result["decomposition"]["mode"], "spin-multipole-basis")
+        self.assertTrue(result["effective_model"]["main"] or result["effective_model"]["residual"])
+        self.assertTrue(
+            any(term.get("body_order") == 1 for term in result["effective_model"]["residual"])
+        )
+
+    def test_spin_three_half_cubic_onsite_anisotropy_report_explains_generic_residual_strategy(self):
+        fixture = r"""
+\documentclass[11pt]{article}
+\begin{document}
+\section*{Model}
+Spin-3/2 cubic single-ion anisotropy.
+\section*{Effective Hamiltonian}
+\begin{equation}
+H = C (S_i^z)^3 .
+\end{equation}
+\section*{Parameters}
+\begin{equation}
+C = 0.12
+\end{equation}
+\end{document}
+"""
+
+        result = run_text_simplification_pipeline(
+            fixture,
+            source_path="tests/data/spin3half_cubic_single_ion_anisotropy.tex",
+        )
+        report = render_simplified_model_report(result)
+        summary_families = {entry["multipole_family"] for entry in result["effective_model"]["residual_summary"]}
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["stage"], "complete")
+        self.assertEqual(result["normalized_model"]["local_hilbert"]["dimension"], 4)
+        self.assertEqual(result["effective_model"]["main"], [])
+        self.assertIn("dipole", summary_families)
+        self.assertIn("higher_multipole", summary_families)
+        self.assertIn(
+            "onsite one-body multipole content outside the current named templates is retained under residual terms",
+            report,
+        )
+        self.assertNotIn("onsite quadrupolar one-body content is retained under residual terms", report)
 
 
 if __name__ == "__main__":

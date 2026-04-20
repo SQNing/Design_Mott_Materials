@@ -32,6 +32,8 @@ def _parse_label_factors(label):
 
 
 def _canonical_label(label):
+    if label == "identity":
+        return "identity"
     factors = sorted(_parse_label_factors(label), key=lambda item: (item[0], item[1]))
     return " ".join(f"{operator}@{site}" for site, operator in factors)
 
@@ -55,6 +57,13 @@ def _multipole_metadata(operator):
 
 
 def _label_multipole_metadata(canonical_label):
+    if canonical_label == "identity":
+        return {
+            "multipole_ranks": [0],
+            "multipole_families": ["identity"],
+            "multipole_rank": 0,
+            "multipole_family": "identity",
+        }
     factors = _parse_label_factors(canonical_label)
     metadata = [_multipole_metadata(operator) for _site, operator in factors]
     metadata = [entry for entry in metadata if entry is not None]

@@ -152,6 +152,54 @@ def _notes_lines(payload, main_blocks):
     return lines
 
 
+def _residual_strategy_lines(payload):
+    effective_model = payload.get("effective_model", {}) if isinstance(payload, dict) else {}
+    residual_terms = list(effective_model.get("residual") or []) if isinstance(effective_model, dict) else []
+    if not residual_terms:
+        return []
+
+    lines = []
+    has_generic_onsite_one_body_multipole = any(
+        term.get("body_order") == 1
+        and term.get("multipole_family") not in {"quadrupole", "identity"}
+        for term in residual_terms
+    )
+    has_onsite_quadrupole = any(
+        term.get("multipole_family") == "quadrupole"
+        and term.get("multipole_rank") == 2
+        and term.get("body_order") == 1
+        for term in residual_terms
+    )
+    has_identity = any(
+        term.get("canonical_label") == "identity"
+        or (
+            term.get("multipole_family") == "identity"
+            and term.get("multipole_rank") == 0
+            and term.get("body_order") == 0
+        )
+        for term in residual_terms
+    )
+
+    if has_generic_onsite_one_body_multipole:
+        prefix = "additional " if has_onsite_quadrupole else ""
+        lines.append(
+            f"- {prefix}onsite one-body multipole content outside the current named templates is retained under residual terms rather than promoted to a named main block"
+        )
+    if has_onsite_quadrupole:
+        lines.append(
+            "- onsite quadrupolar one-body content is retained under residual terms rather than promoted to a named main block"
+        )
+    if has_onsite_quadrupole and not has_identity:
+        lines.append(
+            "- no scalar identity contribution is present, so this remains a traceless onsite quadrupolar residual without a constant energy shift"
+        )
+    if has_identity:
+        lines.append(
+            "- scalar identity contribution is shown explicitly as `identity` so the constant energy shift remains visible in the exact residual view"
+        )
+    return lines
+
+
 def _markdown_table_lines(rows):
     widths = [0] * len(rows[0])
     for row in rows:
@@ -356,6 +404,7 @@ def render_simplified_model_report(payload, title="Simplified Model Report"):
     low_weight_terms = list((payload.get("effective_model") or {}).get("low_weight") or [])
 
     notes_lines = _notes_lines(payload, main_blocks)
+    notes_lines.extend(_residual_strategy_lines(payload))
     if notes_lines:
         lines.extend(["", "## Notes", "", *notes_lines])
 
