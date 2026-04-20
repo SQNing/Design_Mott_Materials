@@ -26,8 +26,8 @@ through every solver.
 
 ## Implementation Status
 
-The first contract-convergence stage of this design has now been landed in the
-repository.
+The first contract-convergence stage and the planned phase-2 completion cleanup
+of this design have now been landed in the repository.
 
 Implemented in code:
 
@@ -68,9 +68,27 @@ Implemented in code:
   - nested `payload["classical"]` bundle shapes
   while still preserving rich single-q metadata needed by the
   `single-q-unitary-ray` path
+- shared classical reference payload helpers now centralize rich single-q
+  wrapper normalization so Python-GLSWT builders, auxiliary single-q adapters,
+  and convergence drivers no longer need independent wrapper heuristics
 - pseudospin bundle export now treats `classical_state_result` as the
   authoritative classical contract, with raw top-level `classical_state`
   retained only as a compatibility mirror
+- LSWT payload construction and rotating-frame realization now consume shared
+  classical ordering / supercell helpers instead of carrying local raw-field
+  crawling logic
+- report and plot rendering now treat standardized classical metadata as
+  authoritative whenever a standardized contract exists, and use legacy
+  `chosen_method` only as a compatibility fallback when no standardized
+  contract is present
+- results-bundle stage manifests now preserve `chosen_method` and
+  `requested_method` only as compatibility mirrors while keeping canonical
+  `method`, `role`, `solver_family`, and `downstream_compatibility` sourced
+  from the standardized contract
+- the current targeted regression slice for this convergence work passes with
+  120 tests covering contract resolution, bundle/report/plot rendering, LSWT /
+  GLSWT payload builders, rotating-frame helpers, and auxiliary single-q
+  workflows
 
 Not yet fully migrated:
 
@@ -78,20 +96,24 @@ Not yet fully migrated:
   parallel for backward compatibility with older scripts and artifacts
 - some helper paths still allow carefully scoped legacy fallback precedence when
   no standardized contract is present
-- repository-wide operation is now strongly contract-first, but not yet
-  contract-only
+- repository-wide operation is now strongly contract-first and much closer to
+  contract-only internally, but emitted artifacts and compatibility shims still
+  deliberately preserve legacy mirrors
 
 ### Next Migration Frontier
 
 The next likely cleanup steps after this stage are:
 
 - reduce remaining compatibility-only legacy mirrors once downstream callers no
-  longer depend on them
-- decide whether to formalize a small shared helper for rich single-q wrapper
-  metadata so that auxiliary GLSWT workflows do not need local wrapper-detection
-  heuristics
+  longer depend on them, especially at CLI/artifact boundaries
+- decide whether to make some CLI and artifact-loading surfaces fully
+  standardized internally while keeping compatibility translation only at
+  explicit read/write edges
 - expand regression coverage beyond the current contract-convergence slice to
   catch future drift in less frequently used solver-entry paths
+- continue the broader unified-classical-solver-layer roadmap above the
+  contract level, especially solver-family routing and later downstream-stage
+  convergence
 
 ## Current State
 
