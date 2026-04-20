@@ -33,6 +33,17 @@ def _spin_only_payload(method, *, sublattices=1):
 
 
 class ClassicalSolverLayerAdapterTests(unittest.TestCase):
+    def test_spin_only_routing_rejects_unsupported_method_names(self):
+        payload = _spin_only_payload("made-up-method")
+
+        with patch.object(
+            classical_solver_driver,
+            "solve_variational",
+            return_value={"method": "variational", "energy": -1.25, "spins": [[0.0, 0.0, 1.0]]},
+        ):
+            with self.assertRaisesRegex(ValueError, "unsupported classical solver method"):
+                classical_solver_driver.run_classical_solver(payload, starts=1, seed=0)
+
     def test_spin_only_variational_result_includes_normalized_classical_state_result(self):
         payload = _spin_only_payload("variational")
 

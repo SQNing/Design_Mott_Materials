@@ -12,11 +12,13 @@ if __package__ in {None, ""}:
     from classical.generalized_lt_solver import find_generalized_lt_ground_state
     from classical.lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
     from classical.lt_solver import find_lt_ground_state
+    from common.classical_solver_family_routing import resolve_classical_solver_method
     from common.classical_state_result import build_final_classical_state_result
 else:
     from .generalized_lt_solver import find_generalized_lt_ground_state
     from .lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
     from .lt_solver import find_lt_ground_state
+    from common.classical_solver_family_routing import resolve_classical_solver_method
     from common.classical_state_result import build_final_classical_state_result
 
 try:
@@ -278,15 +280,6 @@ def _constraint_residual(result):
     return float(residual)
 
 
-def _standardized_spin_only_method(chosen_method):
-    mapping = {
-        "variational": "spin-only-variational",
-        "luttinger-tisza": "spin-only-luttinger-tisza",
-        "generalized-lt": "spin-only-generalized-lt",
-    }
-    return mapping.get(chosen_method)
-
-
 def _selected_solver_result(payload, chosen_method):
     if chosen_method == "variational":
         return payload.get("variational_result", {})
@@ -321,9 +314,9 @@ def _classical_state_supercell_shape(classical_state):
 
 
 def _build_spin_only_classical_state_result(payload, chosen_method, classical_state):
-    standardized_method = _standardized_spin_only_method(chosen_method)
-    if standardized_method is None:
-        return None
+    method_metadata = resolve_classical_solver_method(chosen_method)
+    if method_metadata["solver_family"] != "spin_only_explicit":
+        raise ValueError(f"unsupported classical solver method: {chosen_method}")
     if not isinstance(classical_state, dict) or not classical_state:
         return None
 
@@ -333,8 +326,8 @@ def _build_spin_only_classical_state_result(payload, chosen_method, classical_st
         diagnostics["constraint_recovery"] = constraint_recovery
 
     result = build_final_classical_state_result(classical_state, diagnostics=diagnostics)
-    result["solver_family"] = "spin_only_explicit"
-    result["method"] = standardized_method
+    result["solver_family"] = method_metadata["solver_family"]
+    result["method"] = method_metadata["standardized_method"]
     result["ordering"] = classical_state.get("ordering")
     result["supercell_shape"] = _classical_state_supercell_shape(classical_state)
 
@@ -726,6 +719,8 @@ def run_classical_solver(payload, starts=16, seed=0):
     initial_method = method_resolution["initial_method"]
     auto_mode = method_resolution["auto_mode"]
     auto_settings = _resolve_auto_settings(classical_config)
+
+    resolve_classical_solver_method(initial_method)
 
     classical_config["requested_method"] = requested_method
     classical_config["auto_resolution"] = {
