@@ -241,6 +241,16 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "ready")
         self.assertEqual(standardized["downstream_compatibility"]["thermodynamics"]["status"], "ready")
 
+    def test_pseudospin_routing_exposes_specialized_ansatz_metadata(self):
+        resolver = getattr(solve_pseudospin_orbital_pipeline, "_resolve_pseudospin_classical_method_metadata", None)
+        self.assertIsNotNone(resolver)
+
+        metadata = resolver("sun-gswt-single-q")
+
+        self.assertEqual(metadata["solver_family"], "specialized_classical_ansatz")
+        self.assertEqual(metadata["role"], "specialized")
+        self.assertEqual(metadata["standardized_method"], "pseudospin-sun-gswt-single-q")
+
     def test_pseudospin_glt_adapter_emits_diagnostic_blocked_classical_state_result(self):
         solver_result = {
             "method": "cpn-generalized-lt",
