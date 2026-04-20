@@ -26,11 +26,16 @@ through every solver.
 
 ## Implementation Status
 
-The first working slice of this design has now been landed in the repository.
+The first contract-convergence stage of this design has now been landed in the
+repository.
 
 Implemented in code:
 
 - shared `classical_state_result` helpers and schema tests
+- shared classical-contract resolution helpers for:
+  - `classical_state_result`
+  - standardized `classical_state_result.classical_state`
+  - per-stage `downstream_compatibility` status lookups
 - additive spin-only classical adapters for:
   - `spin-only-variational`
   - `spin-only-luttinger-tisza`
@@ -40,16 +45,53 @@ Implemented in code:
   - `pseudospin-sunny-cpn-minimize`
   - diagnostic-only `pseudospin-cpn-generalized-lt`
   - diagnostic-only `pseudospin-cpn-luttinger-tisza`
+- downstream bundle orchestration now prefers the standardized contract for:
+  - classical-stage presence detection
+  - LSWT / GSWT / thermodynamics auto-run gating
+  - stage summaries and output manifests
+- report and plot layers now surface standardized classical metadata:
+  - `method`
+  - `role`
+  - `solver_family`
+  - `downstream_compatibility`
+- LSWT decision gates now prefer standardized compatibility and standardized
+  LT-family method detection
+- rotating-frame realization now resolves standardized supercell metadata before
+  legacy nested fallbacks
 - LSWT / Python-GLSWT / Sunny-GSWT payload builders now accept
   `classical_state_result.classical_state` as a standardized upstream classical
   reference
+- auxiliary Python-GLSWT / single-q workflows now consume standardized contract
+  inputs for:
+  - bare `classical_state_result` payloads
+  - top-level wrapper payloads
+  - nested `payload["classical"]` bundle shapes
+  while still preserving rich single-q metadata needed by the
+  `single-q-unitary-ray` path
+- pseudospin bundle export now treats `classical_state_result` as the
+  authoritative classical contract, with raw top-level `classical_state`
+  retained only as a compatibility mirror
 
 Not yet fully migrated:
 
-- downstream spectrum and thermodynamics drivers still preserve legacy payload
-  paths in parallel with the new standardized contract
-- repository-wide support is still in staged migration rather than fully
-  contract-only operation
+- legacy `classical_state` and `chosen_method` fields are still emitted in
+  parallel for backward compatibility with older scripts and artifacts
+- some helper paths still allow carefully scoped legacy fallback precedence when
+  no standardized contract is present
+- repository-wide operation is now strongly contract-first, but not yet
+  contract-only
+
+### Next Migration Frontier
+
+The next likely cleanup steps after this stage are:
+
+- reduce remaining compatibility-only legacy mirrors once downstream callers no
+  longer depend on them
+- decide whether to formalize a small shared helper for rich single-q wrapper
+  metadata so that auxiliary GLSWT workflows do not need local wrapper-detection
+  heuristics
+- expand regression coverage beyond the current contract-convergence slice to
+  catch future drift in less frequently used solver-entry paths
 
 ## Current State
 
