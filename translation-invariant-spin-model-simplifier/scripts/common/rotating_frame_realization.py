@@ -150,14 +150,35 @@ def _resolve_lattice_vectors(model):
 def _resolve_supercell_shape(model):
     if not isinstance(model, dict):
         return None
+    classical_state_result = model.get("classical_state_result", {})
+    standardized_classical_state = (
+        classical_state_result.get("classical_state")
+        if isinstance(classical_state_result, dict)
+        else None
+    )
+    classical = model.get("classical", {})
+    classical_state_result_in_classical = (
+        classical.get("classical_state_result")
+        if isinstance(classical, dict)
+        else None
+    )
+    standardized_classical_state_in_classical = (
+        classical_state_result_in_classical.get("classical_state")
+        if isinstance(classical_state_result_in_classical, dict)
+        else None
+    )
     candidate_paths = [
         model.get("supercell_shape"),
         (model.get("ordering", {}) or {}).get("supercell_shape"),
+        (standardized_classical_state or {}).get("supercell_shape"),
+        ((standardized_classical_state or {}).get("ordering", {}) or {}).get("supercell_shape"),
         (model.get("classical_state", {}) or {}).get("supercell_shape"),
         ((model.get("classical_state", {}) or {}).get("ordering", {}) or {}).get("supercell_shape"),
         ((model.get("classical_state", {}) or {}).get("classical_state", {}) or {}).get("supercell_shape"),
         (((model.get("classical_state", {}) or {}).get("classical_state", {}) or {}).get("ordering", {}) or {}).get("supercell_shape"),
         (model.get("classical", {}) or {}).get("supercell_shape"),
+        (standardized_classical_state_in_classical or {}).get("supercell_shape"),
+        ((standardized_classical_state_in_classical or {}).get("ordering", {}) or {}).get("supercell_shape"),
         ((model.get("classical", {}) or {}).get("classical_state", {}) or {}).get("supercell_shape"),
     ]
     for candidate in candidate_paths:
