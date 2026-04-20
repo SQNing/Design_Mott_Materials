@@ -27,10 +27,7 @@ def _downstream_stage_status(payload, stage_name):
 
 
 def _has_classical_state(payload):
-    if get_standardized_classical_state(payload):
-        return True
-    classical = payload.get("classical", {})
-    return bool(classical.get("classical_state") or payload.get("classical_state"))
+    return bool(get_standardized_classical_state(payload))
 
 
 def _has_gswt_result(payload):

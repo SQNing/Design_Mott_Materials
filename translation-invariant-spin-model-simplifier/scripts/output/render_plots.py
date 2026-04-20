@@ -33,8 +33,7 @@ def _get_classical_state(payload):
     classical_state = get_standardized_classical_state(payload)
     if isinstance(classical_state, dict):
         return classical_state
-    classical = payload.get("classical", {})
-    return classical.get("classical_state", payload.get("classical_state", {}))
+    return {}
 
 
 def _is_prebuilt_plot_payload(payload):
@@ -873,6 +872,13 @@ def _classical_summary_lines(payload, classical_state):
         summary_fields.append(f"role={role}")
     if solver_family is not None:
         summary_fields.append(f"solver_family={solver_family}")
+    downstream_compatibility = classical_state_result.get("downstream_compatibility", {})
+    if isinstance(downstream_compatibility, dict) and downstream_compatibility:
+        summary_fields.append(f"lswt={downstream_compatibility.get('lswt', {}).get('status', 'n/a')}")
+        summary_fields.append(f"gswt={downstream_compatibility.get('gswt', {}).get('status', 'n/a')}")
+        summary_fields.append(
+            f"thermodynamics={downstream_compatibility.get('thermodynamics', {}).get('status', 'n/a')}"
+        )
     summary_fields.append(f"render_mode={render_mode}")
     summary_fields.append(f"spatial_dimension={spatial_dimension}")
     lines.append(" ".join(summary_fields))

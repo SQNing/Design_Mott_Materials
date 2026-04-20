@@ -85,6 +85,11 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
                 "role": "diagnostic",
                 "solver_family": "diagnostic_seed_only",
                 "method": "pseudospin-cpn-generalized-lt",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked"},
+                    "gswt": {"status": "blocked"},
+                    "thermodynamics": {"status": "blocked"},
+                },
             },
         }
         classical_state = {
@@ -99,6 +104,9 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("method=pseudospin-cpn-generalized-lt", lines[0])
         self.assertIn("role=diagnostic", lines[0])
         self.assertIn("solver_family=diagnostic_seed_only", lines[0])
+        self.assertIn("lswt=blocked", lines[0])
+        self.assertIn("gswt=blocked", lines[0])
+        self.assertIn("thermodynamics=blocked", lines[0])
 
     def test_plot_payload_metadata_prefers_standardized_classical_method(self):
         payload = {
