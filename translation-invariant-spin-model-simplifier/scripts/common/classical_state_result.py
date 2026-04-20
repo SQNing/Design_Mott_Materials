@@ -10,21 +10,33 @@ def infer_classical_state_semantics(classical_state):
 
     has_site_frames = isinstance(site_frames, list) and bool(site_frames)
     has_local_rays = isinstance(local_rays, list) and bool(local_rays)
-    is_local_ray = has_local_rays or state_kind == "local_rays" or manifold == "CP^(N-1)"
+    declares_local_rays = state_kind == "local_rays" or manifold == "CP^(N-1)"
 
-    if is_local_ray:
+    if has_local_rays:
         return {
             "state_kind": "local_rays",
             "manifold": "CP^(N-1)",
+            "has_local_rays_data": True,
             "supports_lswt": False,
             "supports_gswt": True,
             "supports_thermodynamics": True,
+        }
+
+    if declares_local_rays:
+        return {
+            "state_kind": "local_rays_declared",
+            "manifold": "CP^(N-1)",
+            "has_local_rays_data": False,
+            "supports_lswt": False,
+            "supports_gswt": False,
+            "supports_thermodynamics": False,
         }
 
     if has_site_frames:
         return {
             "state_kind": "spin_frames",
             "manifold": "spin-frame",
+            "has_local_rays_data": False,
             "supports_lswt": True,
             "supports_gswt": False,
             "supports_thermodynamics": False,
@@ -33,6 +45,7 @@ def infer_classical_state_semantics(classical_state):
     return {
         "state_kind": "unknown",
         "manifold": manifold or None,
+        "has_local_rays_data": False,
         "supports_lswt": False,
         "supports_gswt": False,
         "supports_thermodynamics": False,
@@ -46,7 +59,7 @@ def build_downstream_compatibility(
     reason=None,
     thermodynamics_supported=False,
 ):
-    role_name = str(role or "final")
+    role_name = str(role or "final").strip().lower()
     reason_text = str(reason) if reason is not None else None
     semantics_payload = semantics if isinstance(semantics, dict) else {}
 
@@ -76,6 +89,12 @@ def build_downstream_compatibility(
             "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
             "gswt": {"status": "ready"},
             "thermodynamics": {"status": "ready"},
+        }
+    if state_kind == "local_rays_declared":
+        return {
+            "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+            "gswt": {"status": "blocked", "reason": "missing-local-ray-state-data"},
+            "thermodynamics": {"status": "blocked", "reason": "missing-local-ray-state-data"},
         }
 
     return {

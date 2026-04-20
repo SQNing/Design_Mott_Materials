@@ -58,6 +58,7 @@ class ClassicalStateResultTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["role"], "diagnostic")
+        self.assertEqual(result["reason"], "incommensurate-ordering")
         statuses = {
             result["downstream_compatibility"]["lswt"]["status"],
             result["downstream_compatibility"]["gswt"]["status"],
@@ -65,6 +66,23 @@ class ClassicalStateResultTests(unittest.TestCase):
         }
         self.assertEqual(statuses, {"blocked"})
         self.assertNotIn("ready", statuses)
+
+    def test_declared_local_ray_state_without_rays_is_not_downstream_ready(self):
+        classical_state = {
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [],
+        }
+
+        result = build_final_classical_state_result(classical_state)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["role"], "final")
+        self.assertEqual(result["classical_state_semantics"]["state_kind"], "local_rays_declared")
+        self.assertEqual(result["classical_state_semantics"]["has_local_rays_data"], False)
+        self.assertEqual(result["downstream_compatibility"]["gswt"]["status"], "blocked")
+        self.assertEqual(result["downstream_compatibility"]["thermodynamics"]["status"], "blocked")
 
     def test_final_result_rejects_missing_classical_state(self):
         with self.assertRaises(ValueError):
