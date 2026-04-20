@@ -43,8 +43,27 @@ Implemented in code:
 - additive pseudospin classical adapters for:
   - `pseudospin-cpn-local-ray-minimize`
   - `pseudospin-sunny-cpn-minimize`
-  - diagnostic-only `pseudospin-cpn-generalized-lt`
-  - diagnostic-only `pseudospin-cpn-luttinger-tisza`
+  - conditionally final `pseudospin-cpn-generalized-lt`
+  - conditionally final `pseudospin-cpn-luttinger-tisza`
+- spin-only LT / GLT now operates on full tensor exchange kernels rather than
+  isotropic-Heisenberg-only scalar-on-sublattice kernels:
+  - `lt_fourier_exchange.py` now assembles Hermitian `3m x 3m` block kernels
+  - `lt_solver.py` and `generalized_lt_solver.py` now serialize
+    component-resolved eigenspaces and shell metadata
+- spin-only LT / GLT strong-constraint handling is now explicit and multi-stage:
+  - exact relaxed hits are surfaced directly
+  - shell completion can restore sitewise unit-length constraints before any
+    variational fallback
+  - unresolved shells are marked for variational polish instead of silently
+    pretending to be final
+- pseudospin `CP^(N-1)` GLT / LT is now conditionally final instead of
+  globally diagnostic-only:
+  - exact relaxed projector solutions promote to final classical states
+  - exact commensurate shell lifts promote to final classical states
+  - constrained completion can promote non-exact relaxed seeds when the local
+    CP-manifold refinement converges with an acceptable lower-bound gap
+  - unresolved relaxed pseudospin LT / GLT results still remain explicit
+    diagnostic seeds
 - downstream bundle orchestration now prefers the standardized contract for:
   - classical-stage presence detection
   - LSWT / GSWT / thermodynamics auto-run gating
@@ -134,6 +153,9 @@ Not yet fully migrated:
 - repository-wide operation is now effectively contract-first for normal
   internal flow and default emitted artifacts, but legacy export remains
   deliberately available for older downstream consumers that have not migrated
+- pseudospin constrained completion is now available for GLT finalization, but
+  the current implementation is still a scoped promotion layer rather than the
+  last word on every possible `CP^(N-1)` relaxed-shell obstruction
 
 ### Next Migration Frontier
 
@@ -176,6 +198,14 @@ Current classical methods in this family are:
 - `luttinger-tisza`
 - `generalized-lt`
 
+Additional current status in this family:
+
+- `luttinger-tisza` and `generalized-lt` now support full tensor exchange,
+  including anisotropy and DM-style off-diagonal couplings
+- LT-family methods now remain final only when explicit strong-constraint
+  completion succeeds; otherwise the shared solver layer falls back to
+  variational refinement
+
 Current downstream support in this family is:
 
 - classical ground state
@@ -209,6 +239,16 @@ Current public classical methods in this family are:
 - `sunny-cpn-minimize`
 - `cpn-generalized-lt`
 - `cpn-luttinger-tisza`
+
+Additional current status in this family:
+
+- `cpn-generalized-lt` / `cpn-luttinger-tisza` are no longer treated as
+  globally diagnostic-only
+- they now promote to final classical solvers when projector exactness,
+  exact commensurate lifting, certification, or constrained completion succeeds
+- when those promotion checks fail, they remain explicit diagnostic seeds with
+  blocked downstream compatibility rather than silently advertising final-state
+  readiness
 
 Current downstream support in this family is:
 
