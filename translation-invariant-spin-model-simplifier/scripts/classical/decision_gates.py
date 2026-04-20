@@ -10,6 +10,20 @@ else:
     from .classical_solver_driver import choose_method
 
 
+def _get_classical_state_result(model):
+    if not isinstance(model, dict):
+        return {}
+    classical_state_result = model.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        return classical_state_result
+    classical = model.get("classical", {})
+    if isinstance(classical, dict):
+        classical_state_result = classical.get("classical_state_result")
+        if isinstance(classical_state_result, dict):
+            return classical_state_result
+    return {}
+
+
 def _needs_input(question_id, prompt, recommended=None, options=None):
     payload = {
         "status": "needs_input",
@@ -27,12 +41,18 @@ def _needs_input(question_id, prompt, recommended=None, options=None):
 
 def lswt_stability_precheck(model):
     classical = model.get("classical", {}) if isinstance(model, dict) else {}
+    classical_state_result = _get_classical_state_result(model)
     effective_model = model.get("effective_model", {}) if isinstance(model, dict) else {}
     low_weight = effective_model.get("low_weight", []) if isinstance(effective_model, dict) else []
-    chosen_method = classical.get("chosen_method")
+    chosen_method = classical_state_result.get("method", classical.get("chosen_method"))
 
     signals = []
-    if chosen_method in {"luttinger-tisza", "generalized-lt"}:
+    if chosen_method in {
+        "luttinger-tisza",
+        "generalized-lt",
+        "spin-only-luttinger-tisza",
+        "spin-only-generalized-lt",
+    }:
         signals.append(f"classical_method={chosen_method}")
     if low_weight:
         signals.append("low_weight_terms_present")
@@ -100,6 +120,21 @@ def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
         )
     if not run_lswt:
         return {"status": "ok", "enabled": False}
+
+    classical_state_result = _get_classical_state_result(model)
+    downstream_compatibility = (
+        classical_state_result.get("downstream_compatibility", {})
+        if isinstance(classical_state_result, dict)
+        else {}
+    )
+    lswt_compatibility = downstream_compatibility.get("lswt", {}) if isinstance(downstream_compatibility, dict) else {}
+    if lswt_compatibility.get("status") == "blocked":
+        return {
+            "status": "blocked",
+            "enabled": False,
+            "reason": lswt_compatibility.get("reason"),
+            "method": classical_state_result.get("method"),
+        }
 
     precheck = lswt_stability_precheck(model)
     if precheck.get("status") == "warn":
