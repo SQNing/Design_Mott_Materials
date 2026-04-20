@@ -14,18 +14,16 @@ def _n_sublattices(model):
     return max(max(int(bond["source"]), int(bond["target"])) for bond in bonds) + 1
 
 
-def _isotropic_heisenberg_scalar(matrix, tolerance=1e-9):
-    array = np.array(matrix, dtype=float)
+def _bond_matrix(matrix):
+    array = np.array(matrix, dtype=complex)
     if array.shape != (3, 3):
         raise ValueError("bond matrix must be 3x3")
-    diagonal = np.diag(array)
-    if not (
-        abs(diagonal[0] - diagonal[1]) <= tolerance
-        and abs(diagonal[1] - diagonal[2]) <= tolerance
-        and np.allclose(array - np.diag(diagonal), 0.0, atol=tolerance)
-    ):
-        raise ValueError("LT Fourier exchange currently supports isotropic Heisenberg bond matrices only")
-    return float(np.mean(diagonal))
+    return array
+
+
+def _block_slice(site_index):
+    start = 3 * int(site_index)
+    return slice(start, start + 3)
 
 
 def _phase_factor(q, vector):
@@ -41,15 +39,17 @@ def _phase_factor(q, vector):
 
 def fourier_exchange_matrix(model, q):
     sublattice_count = _n_sublattices(model)
-    jq = np.zeros((sublattice_count, sublattice_count), dtype=complex)
+    jq = np.zeros((3 * sublattice_count, 3 * sublattice_count), dtype=complex)
 
     for bond in model.get("bonds", []):
         source = int(bond["source"])
         target = int(bond["target"])
-        scalar = _isotropic_heisenberg_scalar(bond["matrix"])
+        matrix = _bond_matrix(bond["matrix"])
         phase = _phase_factor(q, bond.get("vector", [0.0, 0.0, 0.0]))
-        jq[source, target] += scalar * phase
+        source_block = _block_slice(source)
+        target_block = _block_slice(target)
+        jq[source_block, target_block] += matrix * phase
         if source != target or any(abs(float(value)) > 1e-12 for value in bond.get("vector", [])):
-            jq[target, source] += scalar * phase.conjugate()
+            jq[target_block, source_block] += matrix.conjugate().T * phase.conjugate()
 
     return jq

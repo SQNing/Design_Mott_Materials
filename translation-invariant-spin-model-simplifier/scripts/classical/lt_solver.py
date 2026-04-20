@@ -23,6 +23,9 @@ def _serialize_vector(values):
 def find_lt_ground_state(model, mesh_shape=(33, 33, 1)):
     mesh_shape = tuple(int(value) for value in mesh_shape)
     q_mesh = generate_q_mesh(mesh_shape)
+    sublattice_count = max(1, int(model.get("lattice", {}).get("sublattices", 0) or 0))
+    if sublattice_count == 0:
+        sublattice_count = 1
 
     best_q = None
     best_value = None
@@ -45,6 +48,8 @@ def find_lt_ground_state(model, mesh_shape=(33, 33, 1)):
         "lowest_eigenvalue": float(best_value),
         "eigenvector": _serialize_vector(best_eigenvector),
         "matrix_size": int(matrix_size),
+        "sublattice_count": int(sublattice_count),
+        "components_per_sublattice": int(matrix_size // sublattice_count) if matrix_size else 0,
         "mesh_shape": list(mesh_shape),
         "sample_count": len(q_mesh),
     }
