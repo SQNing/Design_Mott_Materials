@@ -54,6 +54,41 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("Classical downstream compatibility:", report)
         self.assertIn("gswt=ready", report)
 
+    def test_render_report_does_not_fall_back_to_legacy_method_when_contract_exists_without_method(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {
+                "recommended": 0,
+                "candidates": [{"name": "demo-candidate"}],
+            },
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {"risk_notes": []},
+            "projection": {"status": "many_body_hr-pseudospin_orbital"},
+            "classical": {"chosen_method": "legacy-method"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "solver_family": "retained_local_multiplet",
+                "downstream_compatibility": {"gswt": {"status": "ready"}},
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                },
+            },
+        }
+
+        report = render_report.render_text(payload)
+
+        self.assertIn("Chosen classical method: n/a", report)
+        self.assertNotIn("Chosen classical method: legacy-method", report)
+
     def test_render_plots_get_classical_state_accepts_standardized_result_wrapper(self):
         payload = {
             "classical_state_result": {
@@ -130,6 +165,32 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("gswt=blocked", lines[0])
         self.assertIn("thermodynamics=blocked", lines[0])
 
+    def test_render_plots_summary_does_not_fall_back_to_legacy_method_when_contract_exists_without_method(self):
+        payload = {
+            "classical": {"chosen_method": "legacy-method"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "diagnostic",
+                "solver_family": "diagnostic_seed_only",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked"},
+                    "gswt": {"status": "blocked"},
+                    "thermodynamics": {"status": "blocked"},
+                },
+            },
+        }
+        classical_state = {
+            "render_mode": "structure",
+            "spatial_dimension": 2,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+        }
+
+        lines = render_plots._classical_summary_lines(payload, classical_state)
+
+        self.assertIn("method=unknown", lines[0])
+        self.assertNotIn("legacy-method", lines[0])
+
     def test_plot_payload_metadata_prefers_standardized_classical_method(self):
         payload = {
             "classical": {"chosen_method": "legacy-method"},
@@ -146,6 +207,22 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
             plot_payload = render_plots._build_plot_payload(payload)
 
         self.assertEqual(plot_payload["metadata"]["classical_method"], "spin-only-variational")
+
+    def test_plot_payload_metadata_does_not_fall_back_to_legacy_method_when_contract_exists_without_method(self):
+        payload = {
+            "classical": {"chosen_method": "legacy-method"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+            },
+            "lswt": {"status": "ok", "backend": {"name": "Sunny.jl"}, "linear_spin_wave": {"dispersion": []}},
+            "gswt": {},
+        }
+
+        with patch.object(render_plots, "_build_classical_plot_state", return_value={"site_frames": []}):
+            plot_payload = render_plots._build_plot_payload(payload)
+
+        self.assertIsNone(plot_payload["metadata"]["classical_method"])
 
     def test_render_plots_summary_accepts_bare_standardized_contract_payload(self):
         payload = {

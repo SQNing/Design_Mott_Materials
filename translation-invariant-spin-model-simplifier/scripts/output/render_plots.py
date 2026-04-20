@@ -853,16 +853,23 @@ def _classical_legend_title(classical_state):
     return str(classical_state.get("legend_title", "Basis Atoms"))
 
 
+def _resolved_classical_method(payload, *, default=None):
+    classical_state_result = get_classical_state_result(payload)
+    if isinstance(classical_state_result, dict):
+        method = classical_state_result.get("method")
+        return str(method) if method is not None else default
+    classical = payload.get("classical", {}) if isinstance(payload, dict) else {}
+    method = classical.get("chosen_method", default) if isinstance(classical, dict) else default
+    return str(method) if method is not None else default
+
+
 def _classical_summary_lines(payload, classical_state):
     if not isinstance(classical_state, dict) or not classical_state:
         return []
 
     lines = []
     classical_state_result = get_classical_state_result(payload) or {}
-    chosen_method = classical_state_result.get(
-        "method",
-        payload.get("classical", {}).get("chosen_method", "unknown"),
-    )
+    chosen_method = _resolved_classical_method(payload, default="unknown")
     role = classical_state_result.get("role")
     solver_family = classical_state_result.get("solver_family")
     render_mode = classical_state.get("render_mode", "structure")
@@ -1345,10 +1352,7 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
         "metadata": {
             "model_name": payload.get("model_name", ""),
             "backend": lswt.get("backend", {}).get("name", "unknown"),
-            "classical_method": classical_state_result.get(
-                "method",
-                payload.get("classical", {}).get("chosen_method", ""),
-            ),
+            "classical_method": _resolved_classical_method(payload, default=None),
             "lswt_status": lswt.get("status", "missing"),
             "gswt_status": payload.get("gswt", {}).get("status", "missing"),
         },

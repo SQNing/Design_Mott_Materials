@@ -162,6 +162,16 @@ def _gswt_interpretation_line(gswt):
     )
 
 
+def _resolved_classical_method(payload, *, default="n/a"):
+    classical_state_result = get_classical_state_result(payload)
+    if isinstance(classical_state_result, dict):
+        method = classical_state_result.get("method")
+        return str(method) if method is not None else str(default)
+    classical = payload.get("classical", {}) if isinstance(payload, dict) else {}
+    method = classical.get("chosen_method", default) if isinstance(classical, dict) else default
+    return str(method) if method is not None else str(default)
+
+
 def render_text(payload):
     lines = []
     lswt = payload.get("lswt", {})
@@ -326,8 +336,7 @@ def render_text(payload):
             f"strong_constraint_residual={constraint_recovery.get('strong_constraint_residual', 'n/a')}"
         )
     classical_state_result = get_classical_state_result(payload) or {}
-    classical = payload.get("classical", {})
-    chosen_method = classical_state_result.get("method", classical.get("chosen_method", "n/a"))
+    chosen_method = _resolved_classical_method(payload, default="n/a")
     lines.append(f"Projection status: {payload['projection']['status']}")
     lines.append(f"Chosen classical method: {chosen_method}")
     if classical_state_result.get("role") is not None:
