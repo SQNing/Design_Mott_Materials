@@ -140,6 +140,17 @@ def _attach_rotating_frame_preflight(payload):
     return payload
 
 
+def _resolve_classical_reference_payload(source_state):
+    if not isinstance(source_state, dict):
+        return source_state
+    classical_state_result = source_state.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        standardized_state = classical_state_result.get("classical_state")
+        if isinstance(standardized_state, dict):
+            return standardized_state
+    return source_state
+
+
 def build_python_glswt_payload(model, classical_state=None):
     if model.get("payload_kind") in {"python_glswt_local_rays", "python_glswt_single_q_z_harmonic"}:
         return dict(model)
@@ -149,7 +160,8 @@ def build_python_glswt_payload(model, classical_state=None):
 
     conventions = resolve_pseudospin_orbital_conventions(model)
     source_state = classical_state if classical_state is not None else model
-    resolved_state = resolve_cpn_classical_state_payload(source_state)
+    classical_reference = _resolve_classical_reference_payload(source_state)
+    resolved_state = resolve_cpn_classical_state_payload(classical_reference)
     pair_couplings = _resolve_pair_couplings(model)
     supercell_shape = resolved_state.get("supercell_shape", [1, 1, 1])
     q_path_summary = _resolve_q_path(model, supercell_shape)
@@ -159,20 +171,20 @@ def build_python_glswt_payload(model, classical_state=None):
     rotating_frame_realization = resolve_rotating_frame_realization(
         {
             **model,
-            "classical_state": source_state,
+            "classical_state": classical_reference,
         }
     )
     quadratic_phase_dressing = resolve_quadratic_phase_dressing(
         {
             **model,
-            "classical_state": source_state,
+            "classical_state": classical_reference,
         }
     )
 
     if ansatz == "single-q-unitary-ray":
         payload = build_single_q_z_harmonic_payload(
             model,
-            classical_state=source_state,
+            classical_state=classical_reference,
             z_harmonic_cutoff=int(model.get("z_harmonic_cutoff", 1)),
             phase_grid_size=int(model.get("phase_grid_size", 64)),
             sideband_cutoff=int(model.get("sideband_cutoff", 2)),

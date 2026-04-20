@@ -113,26 +113,38 @@ def _resolve_default_q_path(model):
     return {"q_path": q_path, "path": {"labels": nodes["labels"], "node_indices": node_indices}}
 
 
+def _resolve_classical_reference_payload(classical_state):
+    if not isinstance(classical_state, dict):
+        return classical_state
+    classical_state_result = classical_state.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        standardized_state = classical_state_result.get("classical_state")
+        if isinstance(standardized_state, dict):
+            return standardized_state
+    return classical_state
+
+
 def build_sun_gswt_payload(model, classical_state=None):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("Sunny GSWT payload expects a CP^(N-1) classical model")
     adapted_model = adapt_model_for_sunny_pair_couplings(model)
     conventions = resolve_pseudospin_orbital_conventions(adapted_model)
-    resolved_classical_state = resolve_cpn_classical_state_payload(classical_state)
+    classical_reference = _resolve_classical_reference_payload(classical_state)
+    resolved_classical_state = resolve_cpn_classical_state_payload(classical_reference)
 
     q_path_summary = _resolve_default_q_path(adapted_model)
-    ordering = _ordering_summary(classical_state)
+    ordering = _ordering_summary(classical_reference)
     rotating_frame_transform = resolve_rotating_frame_transform(model)
     rotating_frame_realization = resolve_rotating_frame_realization(
         {
             **model,
-            "classical_state": classical_state,
+            "classical_state": classical_reference,
         }
     )
     quadratic_phase_dressing = resolve_quadratic_phase_dressing(
         {
             **model,
-            "classical_state": classical_state,
+            "classical_state": classical_reference,
         }
     )
 

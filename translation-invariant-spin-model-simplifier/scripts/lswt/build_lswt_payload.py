@@ -24,7 +24,18 @@ def _error(code, message):
 
 
 def _get_classical_state(model):
+    classical_state_result = model.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        standardized_state = classical_state_result.get("classical_state")
+        if isinstance(standardized_state, dict):
+            return standardized_state
+
     classical = model.get("classical", {})
+    classical_state_result = classical.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        standardized_state = classical_state_result.get("classical_state")
+        if isinstance(standardized_state, dict):
+            return standardized_state
     return classical.get("classical_state", model.get("classical_state"))
 
 
@@ -190,14 +201,15 @@ def validate_lswt_scope(model):
         )
     if not bonds:
         return _error("unsupported-model-scope", "at least one bilinear bond is required for LSWT payload construction")
-    if not _get_classical_state(model):
+    classical_state = _get_classical_state(model)
+    if not classical_state:
         return _error("invalid-classical-reference-state", "classical_state is required to build an LSWT payload")
-    if is_cpn_local_ray_classical_state(model):
+    if is_cpn_local_ray_classical_state(classical_state):
         return _error(
             "invalid-classical-reference-state",
             "spin-only Sunny LSWT requires classical_state.site_frames; CP^(N-1) local-ray classical states should use the pseudospin-orbital SUN/GSWT path instead",
         )
-    if not has_spin_frame_classical_state(model):
+    if not has_spin_frame_classical_state(classical_state):
         return _error(
             "invalid-classical-reference-state",
             "spin-only Sunny LSWT requires classical_state.site_frames",
