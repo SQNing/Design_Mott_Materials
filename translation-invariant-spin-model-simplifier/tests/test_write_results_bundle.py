@@ -523,6 +523,55 @@ class WriteResultsBundleTests(unittest.TestCase):
         self.assertEqual(run_gswt_stage.called, False)
         self.assertEqual(run_thermodynamics_stage.called, False)
 
+    def test_populate_missing_results_allows_promoted_final_cpn_glt_result(self):
+        payload = {
+            "bonds": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "vector": [0.0, 0.0, 0.0],
+                    "matrix": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                }
+            ],
+            "thermodynamics": {"temperatures": [0.1, 0.2]},
+            "gswt_payload": {"payload_kind": "python_glswt_local_rays"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "solver_family": "retained_local_multiplet",
+                "method": "pseudospin-cpn-generalized-lt",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                    "gswt": {"status": "ready"},
+                    "thermodynamics": {"status": "ready"},
+                },
+            },
+        }
+
+        with (
+            patch.object(
+                write_results_bundle,
+                "_run_gswt_stage",
+                side_effect=lambda bundle: {**bundle, "gswt": {"status": "ok"}},
+            ) as run_gswt_stage,
+            patch.object(
+                write_results_bundle,
+                "_run_thermodynamics_stage",
+                side_effect=lambda bundle: {**bundle, "thermodynamics_result": {"status": "ok"}},
+            ) as run_thermodynamics_stage,
+        ):
+            result = write_results_bundle._populate_missing_results(
+                payload,
+                run_missing_classical=False,
+                run_missing_thermodynamics=True,
+                run_missing_gswt=True,
+                run_missing_lswt=False,
+            )
+
+        self.assertEqual(result["classical_state_result"]["method"], "pseudospin-cpn-generalized-lt")
+        self.assertEqual(run_gswt_stage.called, True)
+        self.assertEqual(run_thermodynamics_stage.called, True)
+
 
 if __name__ == "__main__":
     unittest.main()

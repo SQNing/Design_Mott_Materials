@@ -191,6 +191,7 @@ def find_pseudospin_orbital_relaxed_lt_seed(model, mesh_shape=None):
         "mode": "relaxed-lt-diagnostic",
         "q_seed": best_q,
         "lower_bound": float(best_value),
+        "recommended_followup": "cpn-generalized-lt-constrained-completion",
         "field_basis": [
             "S_x",
             "S_y",

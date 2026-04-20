@@ -13,6 +13,7 @@ if __package__ in {None, ""}:
         reconstruct_commensurate_relaxed_shell,
         reconstruct_commensurate_single_q_texture,
     )
+    from classical.cpn_glt_finalization import finalize_cpn_glt_result
     from classical.sun_gswt_classical_solver import diagnose_sun_gswt_classical_state
     from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 else:
@@ -21,6 +22,7 @@ else:
         reconstruct_commensurate_relaxed_shell,
         reconstruct_commensurate_single_q_texture,
     )
+    from .cpn_glt_finalization import finalize_cpn_glt_result
     from .sun_gswt_classical_solver import diagnose_sun_gswt_classical_state
     from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
@@ -956,5 +958,13 @@ def solve_cpn_generalized_lt_ground_state(
             result["classical_state"] = dict(reconstruction["classical_state"])
             result["solver_role"] = "final"
             result["promotion_reason"] = "exact_commensurate_lift"
+
+    if str(result.get("solver_role")) != "final":
+        result = finalize_cpn_glt_result(
+            model,
+            result,
+            starts=1,
+            seed=seed,
+        )
 
     return result

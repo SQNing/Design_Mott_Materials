@@ -511,6 +511,171 @@ class CpnGeneralizedLtSolverTests(unittest.TestCase):
         self.assertIn([0.5, 0.0, 0.0], observed["q_vectors"])
         self.assertIn([0.5, 0.5, 0.0], observed["q_vectors"])
 
+    def test_solver_can_promote_approximate_seed_via_constrained_completion(self):
+        approximate_reconstruction = {
+            "status": "approximate",
+            "ordering": {
+                "kind": "commensurate-multi-q",
+                "q_vectors": [[0.5, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                "supercell_shape": [2, 2, 1],
+            },
+            "lowest_shell_dimension": 2,
+            "mixing_strategy": "test-double",
+            "mixing_coefficients": [1.0, 0.0],
+            "projector_exactness": {
+                "trace_residual": 0.0,
+                "hermiticity_residual": 0.0,
+                "negativity_residual": 0.0,
+                "purity_residual": 1.0e-2,
+                "rank_one_residual": 1.0e-2,
+                "is_exact_projector_solution": False,
+                "cells": [],
+            },
+            "classical_state": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [2, 2, 1],
+                "local_rays": [],
+                "ordering": {
+                    "kind": "commensurate-multi-q",
+                    "q_vectors": [[0.5, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                    "supercell_shape": [2, 2, 1],
+                },
+            },
+            "completion_candidate": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [2, 2, 1],
+                "local_rays": [],
+            },
+            "obstruction_report": {"reason": "test double"},
+        }
+
+        with (
+            patch(
+                "classical.cpn_generalized_lt_solver.reconstruct_commensurate_relaxed_shell",
+                return_value=approximate_reconstruction,
+            ),
+            patch(
+                "classical.cpn_generalized_lt_solver.finalize_cpn_glt_result",
+                return_value={
+                    "method": "cpn-generalized-lt",
+                    "solver_role": "final",
+                    "promotion_reason": "completed_cp_manifold_solution",
+                    "completion": {
+                        "status": "converged",
+                        "lower_bound_gap": 2.0e-2,
+                        "max_residual_norm": 1.0e-7,
+                    },
+                    "classical_state": {
+                        "schema_version": 1,
+                        "state_kind": "local_rays",
+                        "manifold": "CP^(N-1)",
+                        "basis_order": "orbital_major_spin_minor",
+                        "pair_basis_order": "site_i_major_site_j_minor",
+                        "supercell_shape": [2, 2, 1],
+                        "local_rays": [],
+                        "ordering": {
+                            "kind": "commensurate-multi-q",
+                            "q_vectors": [[0.5, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                            "supercell_shape": [2, 2, 1],
+                        },
+                    },
+                },
+            ),
+        ):
+            result = solve_cpn_generalized_lt_ground_state(
+                _single_sublattice_x_line_degenerate_model(),
+                requested_method="cpn-generalized-lt",
+                mesh_shape=(3, 3, 1),
+                projector_tolerance=1.0e-8,
+            )
+
+        self.assertEqual(result["solver_role"], "final")
+        self.assertEqual(result["promotion_reason"], "completed_cp_manifold_solution")
+        self.assertEqual(result["completion"]["status"], "converged")
+
+    def test_solver_keeps_diagnostic_role_when_constrained_completion_gap_is_too_large(self):
+        approximate_reconstruction = {
+            "status": "approximate",
+            "ordering": {
+                "kind": "commensurate-multi-q",
+                "q_vectors": [[0.5, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                "supercell_shape": [2, 2, 1],
+            },
+            "lowest_shell_dimension": 2,
+            "mixing_strategy": "test-double",
+            "mixing_coefficients": [1.0, 0.0],
+            "projector_exactness": {
+                "trace_residual": 0.0,
+                "hermiticity_residual": 0.0,
+                "negativity_residual": 0.0,
+                "purity_residual": 1.0e-2,
+                "rank_one_residual": 1.0e-2,
+                "is_exact_projector_solution": False,
+                "cells": [],
+            },
+            "classical_state": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [2, 2, 1],
+                "local_rays": [],
+                "ordering": {
+                    "kind": "commensurate-multi-q",
+                    "q_vectors": [[0.5, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                    "supercell_shape": [2, 2, 1],
+                },
+            },
+            "completion_candidate": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [2, 2, 1],
+                "local_rays": [],
+            },
+            "obstruction_report": {"reason": "test double"},
+        }
+
+        with (
+            patch(
+                "classical.cpn_generalized_lt_solver.reconstruct_commensurate_relaxed_shell",
+                return_value=approximate_reconstruction,
+            ),
+            patch(
+                "classical.cpn_generalized_lt_solver.finalize_cpn_glt_result",
+                return_value={
+                    "method": "cpn-generalized-lt",
+                    "solver_role": "diagnostic-only",
+                    "promotion_reason": None,
+                    "completion": {
+                        "status": "gap_too_large",
+                        "lower_bound_gap": 0.4,
+                        "max_residual_norm": 1.0e-3,
+                    },
+                },
+            ),
+        ):
+            result = solve_cpn_generalized_lt_ground_state(
+                _single_sublattice_x_line_degenerate_model(),
+                requested_method="cpn-generalized-lt",
+                mesh_shape=(3, 3, 1),
+                projector_tolerance=1.0e-8,
+            )
+
+        self.assertEqual(result["solver_role"], "diagnostic-only")
+        self.assertEqual(result["completion"]["status"], "gap_too_large")
+
 
 if __name__ == "__main__":
     unittest.main()

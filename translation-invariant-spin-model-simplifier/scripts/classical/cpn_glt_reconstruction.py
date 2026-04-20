@@ -272,6 +272,7 @@ def _build_texture_candidate(
             "local_rays": list(local_rays),
         },
     }
+    candidate["completion_candidate"] = dict(candidate["classical_state"])
     return candidate
 
 
