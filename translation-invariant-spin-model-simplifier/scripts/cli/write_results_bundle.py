@@ -18,7 +18,48 @@ from output.render_plots import render_plots
 from output.render_report import render_text
 
 
+def _get_classical_state_result(payload):
+    if not isinstance(payload, dict):
+        return None
+
+    classical_state_result = payload.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        return classical_state_result
+
+    classical = payload.get("classical", {})
+    if isinstance(classical, dict):
+        classical_state_result = classical.get("classical_state_result")
+        if isinstance(classical_state_result, dict):
+            return classical_state_result
+    return None
+
+
+def _get_standardized_classical_state(payload):
+    classical_state_result = _get_classical_state_result(payload)
+    if isinstance(classical_state_result, dict):
+        classical_state = classical_state_result.get("classical_state")
+        if isinstance(classical_state, dict):
+            return classical_state
+    return None
+
+
+def _downstream_stage_status(payload, stage_name):
+    classical_state_result = _get_classical_state_result(payload)
+    if not isinstance(classical_state_result, dict):
+        return None
+    compatibility = classical_state_result.get("downstream_compatibility", {})
+    if not isinstance(compatibility, dict):
+        return None
+    stage = compatibility.get(stage_name, {})
+    if not isinstance(stage, dict):
+        return None
+    status = stage.get("status")
+    return str(status) if status is not None else None
+
+
 def _has_classical_state(payload):
+    if _get_standardized_classical_state(payload):
+        return True
     classical = payload.get("classical", {})
     return bool(classical.get("classical_state") or payload.get("classical_state"))
 
@@ -39,7 +80,12 @@ def _can_run_classical(payload):
 
 
 def _can_run_gswt(payload):
-    return _get_gswt_payload(payload) is not None
+    if _get_gswt_payload(payload) is None:
+        return False
+    compatibility_status = _downstream_stage_status(payload, "gswt")
+    if compatibility_status is not None:
+        return compatibility_status == "ready"
+    return True
 
 
 def _run_gswt_stage(payload):
@@ -53,6 +99,13 @@ def _run_gswt_stage(payload):
 
 
 def _can_run_lswt(payload):
+    compatibility_status = _downstream_stage_status(payload, "lswt")
+    if compatibility_status is not None:
+        return compatibility_status == "ready"
+
+    standardized_state = _get_standardized_classical_state(payload)
+    if standardized_state is not None:
+        return has_spin_frame_classical_state(standardized_state)
     return has_spin_frame_classical_state(payload)
 
 
@@ -62,7 +115,12 @@ def _has_thermodynamics_result(payload):
 
 def _can_run_thermodynamics(payload):
     thermodynamics = payload.get("thermodynamics", {})
-    return bool(payload.get("bonds")) and bool(thermodynamics.get("temperatures"))
+    if not (bool(payload.get("bonds")) and bool(thermodynamics.get("temperatures"))):
+        return False
+    compatibility_status = _downstream_stage_status(payload, "thermodynamics")
+    if compatibility_status is not None:
+        return compatibility_status in {"ready", "review"}
+    return True
 
 
 def _thermodynamics_configuration(payload):
@@ -139,6 +197,7 @@ def _stage_summary(
     lswt_present_before = "lswt" in original_payload
     lswt_present_after = "lswt" in bundle_payload
     thermodynamics_configuration = _thermodynamics_configuration(bundle_payload)
+    classical_state_result = _get_classical_state_result(bundle_payload) or {}
     lswt_summary = {
         "present": bool(lswt_present_after),
         "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),
@@ -155,6 +214,10 @@ def _stage_summary(
             "auto_ran": bool(run_missing_classical and not classical_present_before and classical_present_after),
             "chosen_method": bundle_payload.get("classical", {}).get("chosen_method"),
             "requested_method": bundle_payload.get("classical", {}).get("requested_method"),
+            "method": classical_state_result.get("method"),
+            "role": classical_state_result.get("role"),
+            "solver_family": classical_state_result.get("solver_family"),
+            "downstream_compatibility": classical_state_result.get("downstream_compatibility"),
         },
         "thermodynamics": {
             "present": bool(thermodynamics_present_after),
