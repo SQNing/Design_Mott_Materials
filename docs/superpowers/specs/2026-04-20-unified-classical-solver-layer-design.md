@@ -92,11 +92,17 @@ Implemented in code:
   `classical_state_result` first and emits `classical_state` plus
   nested `payload["classical"]` mirrors only through the explicit
   compatibility shim
+- solver-family routing is now explicit in code through a shared classical
+  solver method catalog instead of living only as duplicated local mappings in
+  the spin-only and pseudospin entry points
+- both `classical_solver_driver.py` and
+  `solve_pseudospin_orbital_pipeline.py` now derive standardized method ids,
+  solver-family ids, and role metadata from that shared routing catalog
 - the current focused regression slice for this contract-only CLI/artifact
-  surface passes with 99 tests covering contract resolution, compatibility
-  shim emission, bundle/report/plot rendering, pseudospin CLI payload
-  assembly, LSWT / GLSWT payload builders, rotating-frame helpers, and
-  auxiliary single-q workflows
+  surface plus explicit solver-family routing passes with focused tests
+  covering contract resolution, compatibility shim emission, shared routing
+  catalog behavior, bundle/report/plot rendering, spin-only and pseudospin
+  CLI payload assembly, and the current auxiliary contract-adapter layer
 
 Not yet fully migrated:
 
@@ -115,6 +121,9 @@ The next likely cleanup steps after this stage are:
 - reduce remaining compatibility-only legacy mirrors once downstream callers no
   longer depend on them, especially in emitted artifact schemas rather than
   internal assembly paths
+- decide whether the current shared routing catalog should stay as a simple
+  method registry or grow into a broader applicability-predicate / registration
+  layer for future solver families
 - decide whether any remaining CLI or artifact-loading surfaces should be made
   strictly contract-only internally with compatibility translation confined to
   explicit read/write edges
