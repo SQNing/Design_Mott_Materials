@@ -7,9 +7,11 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.classical_solver_driver import choose_method
     from common.classical_contract_resolution import get_classical_state_result
+    from common.downstream_stage_routing import resolve_downstream_stage_route
 else:
     from .classical_solver_driver import choose_method
     from common.classical_contract_resolution import get_classical_state_result
+    from common.downstream_stage_routing import resolve_downstream_stage_route
 
 
 def _needs_input(question_id, prompt, recommended=None, options=None):
@@ -87,7 +89,7 @@ def classical_stage_decision(model, user_choice=None, timed_out=False, allow_aut
     }
 
 
-def thermodynamics_stage_decision(run_thermodynamics=None):
+def thermodynamics_stage_decision(model=None, run_thermodynamics=None):
     if run_thermodynamics is None:
         return _needs_input(
             "run_thermodynamics",
@@ -95,7 +97,25 @@ def thermodynamics_stage_decision(run_thermodynamics=None):
             recommended=False,
             options=[False, True],
         )
-    return {"status": "ok", "enabled": bool(run_thermodynamics)}
+    if not run_thermodynamics:
+        return {"status": "ok", "enabled": False}
+
+    route = resolve_downstream_stage_route(model, "thermodynamics")
+    if route["status"] == "blocked":
+        return {
+            "status": "blocked",
+            "enabled": False,
+            "reason": route.get("reason"),
+            "method": route.get("method"),
+        }
+    if route["status"] == "review":
+        return {
+            "status": "review",
+            "enabled": True,
+            "reason": route.get("reason"),
+            "method": route.get("method"),
+        }
+    return {"status": "ok", "enabled": True, "method": route.get("method")}
 
 
 def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
@@ -109,19 +129,13 @@ def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
     if not run_lswt:
         return {"status": "ok", "enabled": False}
 
-    classical_state_result = get_classical_state_result(model) or {}
-    downstream_compatibility = (
-        classical_state_result.get("downstream_compatibility", {})
-        if isinstance(classical_state_result, dict)
-        else {}
-    )
-    lswt_compatibility = downstream_compatibility.get("lswt", {}) if isinstance(downstream_compatibility, dict) else {}
-    if lswt_compatibility.get("status") == "blocked":
+    route = resolve_downstream_stage_route(model, "lswt")
+    if route["status"] == "blocked":
         return {
             "status": "blocked",
             "enabled": False,
-            "reason": lswt_compatibility.get("reason"),
-            "method": classical_state_result.get("method"),
+            "reason": route.get("reason"),
+            "method": route.get("method"),
         }
 
     precheck = lswt_stability_precheck(model)

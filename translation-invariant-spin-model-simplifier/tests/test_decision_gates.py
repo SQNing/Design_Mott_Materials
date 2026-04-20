@@ -6,7 +6,11 @@ from pathlib import Path
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from classical.decision_gates import linear_spin_wave_stage_decision, lswt_stability_precheck
+from classical.decision_gates import (
+    linear_spin_wave_stage_decision,
+    lswt_stability_precheck,
+    thermodynamics_stage_decision,
+)
 
 
 class DecisionGatesTests(unittest.TestCase):
@@ -84,6 +88,48 @@ class DecisionGatesTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["enabled"], True)
+
+    def test_thermodynamics_stage_decision_reports_review_route_from_standardized_contract(self):
+        model = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-variational",
+                "solver_family": "spin_only_explicit",
+                "downstream_compatibility": {
+                    "lswt": {"status": "ready"},
+                    "gswt": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
+                    "thermodynamics": {"status": "review", "reason": "requires-caller-confirmed-support"},
+                },
+            }
+        }
+
+        result = thermodynamics_stage_decision(model, run_thermodynamics=True)
+
+        self.assertEqual(result["status"], "review")
+        self.assertEqual(result["enabled"], True)
+        self.assertEqual(result["reason"], "requires-caller-confirmed-support")
+
+    def test_thermodynamics_stage_decision_blocks_when_standardized_contract_blocks_stage(self):
+        model = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "diagnostic",
+                "method": "pseudospin-cpn-generalized-lt",
+                "solver_family": "diagnostic_seed_only",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                    "gswt": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                    "thermodynamics": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                },
+            }
+        }
+
+        result = thermodynamics_stage_decision(model, run_thermodynamics=True)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["enabled"], False)
+        self.assertEqual(result["reason"], "diagnostic-seed-method")
 
 
 if __name__ == "__main__":
