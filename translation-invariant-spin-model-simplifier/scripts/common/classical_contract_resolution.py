@@ -10,11 +10,6 @@ def get_classical_state_result(payload):
     if mapping is None:
         return None
 
-    # Accept either a full payload or the standardized contract itself.
-    if "downstream_compatibility" in mapping or "classical_state" in mapping:
-        if mapping.get("status") is not None or mapping.get("role") is not None or mapping.get("method") is not None:
-            return mapping
-
     classical_state_result = mapping.get("classical_state_result")
     if isinstance(classical_state_result, dict):
         return classical_state_result
@@ -24,6 +19,19 @@ def get_classical_state_result(payload):
         nested_result = classical.get("classical_state_result")
         if isinstance(nested_result, dict):
             return nested_result
+
+    # Accept a bare classical_state_result mapping after wrapper resolution.
+    if isinstance(mapping.get("downstream_compatibility"), dict):
+        return mapping
+    if (
+        isinstance(mapping.get("classical_state"), dict)
+        and (
+            mapping.get("status") is not None
+            or mapping.get("role") is not None
+            or mapping.get("method") is not None
+        )
+    ):
+        return mapping
 
     return None
 

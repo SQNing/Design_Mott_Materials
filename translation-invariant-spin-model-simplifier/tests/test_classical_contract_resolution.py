@@ -22,6 +22,24 @@ class ClassicalContractResolutionTests(unittest.TestCase):
         self.assertEqual(get_classical_state_result(top_level), top_level["classical_state_result"])
         self.assertEqual(get_classical_state_result(nested), nested["classical"]["classical_state_result"])
 
+    def test_get_classical_state_result_prefers_top_level_wrapper_over_payload_like_fields(self):
+        wrapped_contract = {"status": "ok", "role": "final", "classical_state": {"site_frames": []}}
+        payload = {
+            "status": "partial",
+            "classical_state": {"site_frames": [{"site": 0}]},
+            "classical_state_result": wrapped_contract,
+        }
+
+        self.assertEqual(get_classical_state_result(payload), wrapped_contract)
+
+    def test_get_classical_state_result_accepts_bare_contract_without_status_role_or_method(self):
+        bare_contract = {
+            "classical_state": {"site_frames": [{"site": 0}]},
+            "downstream_compatibility": {"lswt": {"status": "ready"}},
+        }
+
+        self.assertEqual(get_classical_state_result(bare_contract), bare_contract)
+
     def test_get_standardized_classical_state_prefers_contract_over_legacy(self):
         standardized = {"site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}]}
         legacy = {"site_frames": [{"site": 0, "spin_length": 1.0, "direction": [1.0, 0.0, 0.0]}]}
@@ -41,8 +59,6 @@ class ClassicalContractResolutionTests(unittest.TestCase):
 
     def test_stage_compatibility_and_status_resolve_from_downstream_compatibility(self):
         classical_state_result = {
-            "status": "ok",
-            "role": "final",
             "downstream_compatibility": {
                 "lswt": {"status": "ready"},
                 "gswt": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
@@ -66,4 +82,3 @@ class ClassicalContractResolutionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
