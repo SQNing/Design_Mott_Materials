@@ -1020,8 +1020,14 @@ def _replace_family_index(template: str, index_symbol: str, family_label: str) -
 
 
 def _extract_coefficient_tokens(expression: str) -> set[str]:
+    expression = str(expression or "")
     compact = re.sub(r"\s+", "", expression)
     tokens = set()
+    compact_operator_pattern = re.compile(
+        r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)\s*\*\s*(?P<label>(?:S[xyz]@\d+\s*)+)"
+    )
+    for match in compact_operator_pattern.finditer(expression):
+        tokens.add(match.group("coeff"))
     for match in re.finditer(r"(?P<coeff>[A-Za-z0-9_{}^\\.+\-']+)S_i\^zS_j\^z", compact):
         tokens.add(match.group("coeff"))
     ladder_pattern = re.compile(
@@ -1047,6 +1053,13 @@ def _is_resolved_token(token: str, parameter_registry: dict) -> bool:
         return True
     braced_subscript = re.sub(r"_([A-Za-z0-9]+)(?=\^|$)", r"_{\1}", cleaned)
     return braced_subscript in parameter_registry
+
+
+def expression_has_unresolved_parameters(expression: str, parameter_registry: dict) -> bool:
+    tokens = _extract_coefficient_tokens(expression)
+    if not tokens:
+        return False
+    return any(not _is_resolved_token(token, parameter_registry) for token in tokens)
 
 
 def _expand_family_indexed_template(block: str, parameter_registry: dict) -> list[dict]:
@@ -1492,6 +1505,21 @@ def _strip_operator_assignment_prefix(expression: str) -> str:
     return body or text.rstrip().rstrip(".").strip()
 
 
+def _normalize_document_operator_notation(expression: str) -> str:
+    text = str(expression or "")
+    if not text:
+        return text
+    text = re.sub(r"\\hat\s*\{\s*S\s*\}", "S", text)
+    text = re.sub(r"\\hat\s*S", "S", text)
+    text = re.sub(r"\\mathbf\s*\{\s*S\s*\}", "S", text)
+    text = re.sub(r"\\mathbf\s*S", "S", text)
+    text = re.sub(r"\\bm\s*\{\s*S\s*\}", "S", text)
+    text = re.sub(r"\\bm\s*S", "S", text)
+    text = re.sub(r"S_\{\s*([A-Za-z])\s*\}", r"S_\1", text)
+    text = re.sub(r"\^\{\s*([xyz\+\-])\s*\}", r"^\1", text)
+    return text
+
+
 def _infer_support_from_operator_expression(expression: str) -> list[int]:
     text = str(expression or "")
     explicit_sites = [int(match.group(1)) for match in re.finditer(r"@[ ]*(-?\d+)", text)]
@@ -1773,7 +1801,11 @@ def build_intermediate_record_from_agent_normalized(
         "evidence_items": evidence_items,
         "ambiguities": ambiguities,
         "confidence_report": _copy_mapping(agent_normalized_document.get("confidence_report"), {}),
-        "verification_report": verify_agent_normalized_document(agent_normalized_document),
+        "verification_report": verify_agent_normalized_document(
+            agent_normalized_document,
+            selected_model_candidate=selected_name,
+            selected_local_bond_family=selected_family,
+        ),
         "unsupported_features": list(agent_normalized_document.get("unsupported_features", [])),
     }
 
@@ -2078,7 +2110,9 @@ def land_intermediate_record(record: dict) -> dict:
             or hamiltonian_model.get("value")
             or ""
         )
-    expression = _strip_operator_assignment_prefix(expression)
+    expression = _normalize_document_operator_notation(
+        _strip_operator_assignment_prefix(expression)
+    )
     inferred_support = _infer_support_from_operator_expression(expression)
     allow_local_gamma = "document_level_lattice_sum_notation" not in _raw_operator_expression_features(expression)
     expression_unsupported = _operator_expression_unsupported_features(expression, allow_local_gamma=allow_local_gamma)

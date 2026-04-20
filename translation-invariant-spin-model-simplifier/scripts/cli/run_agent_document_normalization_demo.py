@@ -77,6 +77,16 @@ def _current_agent_document_from_final_result(final_result):
     }
 
 
+def _followup_selection_context_from_final_result(final_result):
+    normalized_model = dict((final_result or {}).get("normalized_model") or {})
+    document_intermediate = dict(normalized_model.get("document_intermediate") or {})
+    return {
+        "selected_model_candidate": document_intermediate.get("selected_model_candidate"),
+        "selected_local_bond_family": document_intermediate.get("selected_local_bond_family"),
+        "selected_coordinate_convention": document_intermediate.get("selected_coordinate_convention"),
+    }
+
+
 def _build_followup_prompt_artifacts(source_text, final_result):
     normalized_model = dict((final_result or {}).get("normalized_model") or {})
     document_intermediate = dict(normalized_model.get("document_intermediate") or {})
@@ -84,19 +94,101 @@ def _build_followup_prompt_artifacts(source_text, final_result):
     if verification_report.get("status") != "needs_review":
         return None
     current_agent_document = _current_agent_document_from_final_result(final_result)
+    selection_context = _followup_selection_context_from_final_result(final_result)
     bundle = build_agent_document_followup_prompt_bundle(
         source_text,
         current_agent_document,
         verification_report,
+        selection_context=selection_context,
     )
     prompt = render_agent_document_followup_prompt(
         source_text,
         current_agent_document,
         verification_report,
+        selection_context=selection_context,
     )
     return {
         "bundle": bundle,
         "prompt": prompt,
+    }
+
+
+def _classify_agent_review_category(findings):
+    evidence_only_ids = {
+        "parameter_registry_missing_evidence",
+        "candidate_models_missing_evidence",
+        "parameter_entry_missing_evidence",
+        "candidate_model_missing_evidence",
+        "candidate_model_entry_missing_evidence",
+    }
+    evidence_present = False
+    semantic_present = False
+    for entry in list(findings or []):
+        if not isinstance(entry, dict):
+            continue
+        finding_id = str(entry.get("id") or "").strip()
+        if not finding_id:
+            continue
+        if finding_id in evidence_only_ids:
+            evidence_present = True
+        else:
+            semantic_present = True
+    if evidence_present and semantic_present:
+        return "mixed"
+    if evidence_present:
+        return "evidence_gap"
+    if semantic_present:
+        return "semantic_conflict"
+    return "needs_review"
+
+
+def _recommended_next_step_for_review_category(review_category):
+    if review_category == "evidence_gap":
+        return (
+            "Add explicit evidence_refs/evidence_values for the kept entries, then rerun the agent revision or review manually."
+        )
+    if review_category == "semantic_conflict":
+        return (
+            "Revise the agent output against the latest followup prompt, then inspect the remaining semantic conflicts manually if they persist."
+        )
+    if review_category == "mixed":
+        return (
+            "First restore the evidence-backed entries, then rerun the latest followup prompt to resolve the remaining semantic conflicts."
+        )
+    return "Run another agent revision using the latest followup prompt, or inspect the remaining findings manually."
+
+
+def _build_agent_review_summary(source_text, final_result, *, completed_agent_rounds, stop_reason):
+    normalized_model = dict((final_result or {}).get("normalized_model") or {})
+    document_intermediate = dict(normalized_model.get("document_intermediate") or {})
+    verification_report = dict(document_intermediate.get("verification_report") or {})
+    if verification_report.get("status") != "needs_review":
+        return None
+
+    current_agent_document = _current_agent_document_from_final_result(final_result)
+    selection_context = _followup_selection_context_from_final_result(final_result)
+    followup_bundle = build_agent_document_followup_prompt_bundle(
+        source_text,
+        current_agent_document,
+        verification_report,
+        selection_context=selection_context,
+    )
+    findings = list(verification_report.get("findings") or [])
+    review_category = _classify_agent_review_category(findings)
+    return {
+        "status": "needs_review",
+        "reason": str(stop_reason or "review_requested"),
+        "review_category": review_category,
+        "completed_agent_rounds": int(completed_agent_rounds),
+        "remaining_finding_ids": [
+            str(entry.get("id"))
+            for entry in findings
+            if isinstance(entry, dict) and entry.get("id")
+        ],
+        "remaining_findings": findings,
+        "priority_corrections": list(followup_bundle.get("priority_corrections") or []),
+        "selection_context": selection_context,
+        "recommended_next_step": _recommended_next_step_for_review_category(review_category),
     }
 
 
@@ -165,6 +257,8 @@ def run_agent_document_normalization_demo(
     current_payload = chosen_agent_payload
     final_result = step1
     total_rounds = max(1, int(max_agent_rounds))
+    completed_rounds = 0
+    stop_reason = None
     for round_index in range(1, total_rounds + 1):
         _write_json(output_dir / f"round{round_index}_agent_normalized_document.json", current_payload)
         if round_index == 1:
@@ -177,6 +271,7 @@ def run_agent_document_normalization_demo(
             selected_coordinate_convention=selected_coordinate_convention,
             agent_normalized_document=current_payload,
         )
+        completed_rounds = round_index
         _write_json(output_dir / f"round{round_index}_final_result.json", final_result)
         _write_json(output_dir / "final_result.json", final_result)
         wrote_followup = _write_followup_prompt_artifacts(
@@ -186,13 +281,32 @@ def run_agent_document_normalization_demo(
             prefix=f"round{round_index}",
         )
         if not wrote_followup:
+            stop_reason = "accepted"
             break
-        if agent_command is None or round_index >= total_rounds:
+        if agent_command is None:
+            stop_reason = "review_requested"
+            break
+        if round_index >= total_rounds:
+            stop_reason = "max_agent_rounds_exhausted"
             break
         current_payload = _execute_agent_command(
             agent_command,
             (output_dir / f"round{round_index}_followup_agent_prompt.txt").read_text(encoding="utf-8"),
         )
+    if stop_reason is None:
+        stop_reason = "accepted"
+    agent_review = _build_agent_review_summary(
+        text,
+        final_result,
+        completed_agent_rounds=completed_rounds,
+        stop_reason=stop_reason,
+    )
+    if agent_review is not None:
+        final_result = dict(final_result)
+        final_result["status"] = "needs_review"
+        final_result["agent_review"] = agent_review
+        _write_json(output_dir / "agent_review.json", agent_review)
+        _write_json(output_dir / "final_result.json", final_result)
     return final_result
 
 
