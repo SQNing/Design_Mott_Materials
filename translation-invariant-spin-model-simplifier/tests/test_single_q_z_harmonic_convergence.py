@@ -116,6 +116,26 @@ def _wrapped_single_q_helical_state():
     }
 
 
+def _nested_bundle_single_q_payload():
+    state = _single_q_helical_state()
+    return {
+        **_simple_chain_model(),
+        "classical": {
+            "classical_state": dict(state),
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "downstream_compatibility": {"gswt": {"status": "ready"}},
+                "classical_state": dict(state["classical_state"]),
+            },
+        },
+        "phase_grid_sizes": [18],
+        "z_harmonic_cutoffs": [1],
+        "sideband_cutoffs": [1],
+        "z_harmonic_reference_mode": "input",
+    }
+
+
 class SingleQZHarmonicConvergenceTests(unittest.TestCase):
     def test_analysis_returns_three_scan_tables_with_reference_parameters(self):
         result = analyze_single_q_z_harmonic_convergence(
@@ -233,6 +253,17 @@ class SingleQZHarmonicConvergenceTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["reference_parameters"]["phase_grid_size"], 20)
+        self.assertEqual(result["reference_parameters"]["z_harmonic_reference_mode"], "input")
+
+    def test_driver_accepts_payload_file_with_nested_classical_bundle_shape(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload_path = Path(tmpdir) / "payload.json"
+            payload_path.write_text(json.dumps(_nested_bundle_single_q_payload()), encoding="utf-8")
+
+            result = run_single_q_z_harmonic_convergence_driver(str(payload_path))
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["reference_parameters"]["phase_grid_size"], 18)
         self.assertEqual(result["reference_parameters"]["z_harmonic_reference_mode"], "input")
 
 

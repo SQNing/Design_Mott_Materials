@@ -431,6 +431,83 @@ class BuildPythonGlswtPayloadTests(unittest.TestCase):
         self.assertEqual(payload["rotating_frame_realization"]["supercell_site_phases"][1]["cell"], [1, 0, 0])
         self.assertAlmostEqual(payload["rotating_frame_realization"]["supercell_site_phases"][1]["phase"], 0.4 * np.pi)
 
+    def test_builder_accepts_nested_classical_bundle_shape_for_single_q_wrapper(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "local_dimension": 2,
+            "orbital_count": 1,
+            "local_basis_labels": ["up", "down"],
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "rotating_frame_transform": {
+                "status": "explicit",
+                "kind": "site_phase_rotation",
+                "source_frame_kind": "single_q_rotating_frame",
+                "source_order_kind": "single_q_spiral",
+                "wavevector": [0.2, 0.0, 0.0],
+                "wavevector_units": "reciprocal_lattice_units",
+                "phase_rule": "Q_dot_r_plus_phi_s",
+                "phase_origin": "Q_dot_r",
+                "sublattice_phase_offsets": {},
+                "rotation_axis": "z",
+            },
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "pair_matrix": _negative_permutation_pair_matrix(2),
+                    "tensor_shape": [2, 2, 2, 2],
+                }
+            ],
+        }
+        classical_payload = {
+            "schema_version": 1,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "supercell_shape": [5, 1, 1],
+            "local_rays": [
+                {
+                    "cell": [0, 0, 0],
+                    "vector": _serialize_vector(np.array([1.0, 1.0], dtype=complex) / np.sqrt(2.0)),
+                }
+            ],
+            "ordering": {"ansatz": "single-q-unitary-ray", "q_vector": [0.2, 0.0, 0.0]},
+        }
+        bundle_payload = {
+            "classical": {
+                "classical_state": {
+                    "method": "sun-gswt-classical-single-q",
+                    "ansatz": "single-q-unitary-ray",
+                    "q_vector": [0.2, 0.0, 0.0],
+                    "ansatz_stationarity": {
+                        "best_objective": -0.75,
+                        "optimizer_success": True,
+                        "optimizer_method": "L-BFGS-B",
+                        "optimization_mode": "direct-joint",
+                    },
+                    "reference_ray": _serialize_vector(np.array([1.0, 1.0], dtype=complex) / np.sqrt(2.0)),
+                    "generator_matrix": _serialize_matrix(np.array([[0.0, 0.0], [0.0, 1.0]], dtype=complex)),
+                    "classical_state": dict(classical_payload),
+                },
+                "classical_state_result": {
+                    "status": "ok",
+                    "role": "final",
+                    "downstream_compatibility": {"gswt": {"status": "ready"}},
+                    "classical_state": dict(classical_payload),
+                },
+            }
+        }
+
+        payload = build_python_glswt_payload(model, classical_state=bundle_payload)
+
+        self.assertEqual(payload["payload_kind"], "python_glswt_single_q_z_harmonic")
+        self.assertEqual(payload["source_classical_ansatz"], "single-q-unitary-ray")
+        self.assertEqual(payload["q_vector"], [0.2, 0.0, 0.0])
+
     def test_builder_preserves_multisite_local_rays_and_pair_coupling_site_indices(self):
         model = {
             "model_type": "sun_gswt_classical",
