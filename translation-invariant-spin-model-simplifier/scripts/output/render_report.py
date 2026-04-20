@@ -11,6 +11,20 @@ from common.lswt_failure_analysis import summarize_lswt_failure
 from common.symmetry_explanations import summarize_symmetry_interpretation
 
 
+def _get_classical_state_result(payload):
+    if not isinstance(payload, dict):
+        return {}
+    classical_state_result = payload.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        return classical_state_result
+    classical = payload.get("classical", {})
+    if isinstance(classical, dict):
+        classical_state_result = classical.get("classical_state_result")
+        if isinstance(classical_state_result, dict):
+            return classical_state_result
+    return {}
+
+
 def _format_summary_float(value):
     if value is None:
         return "n/a"
@@ -324,8 +338,24 @@ def render_text(payload):
             f"best_q={generalized_lt_result.get('q', 'n/a')} "
             f"strong_constraint_residual={constraint_recovery.get('strong_constraint_residual', 'n/a')}"
         )
+    classical_state_result = _get_classical_state_result(payload)
+    classical = payload.get("classical", {})
+    chosen_method = classical_state_result.get("method", classical.get("chosen_method", "n/a"))
     lines.append(f"Projection status: {payload['projection']['status']}")
-    lines.append(f"Chosen classical method: {payload['classical']['chosen_method']}")
+    lines.append(f"Chosen classical method: {chosen_method}")
+    if classical_state_result.get("role") is not None:
+        lines.append(f"Classical solver role: {classical_state_result.get('role')}")
+    if classical_state_result.get("solver_family") is not None:
+        lines.append(f"Classical solver family: {classical_state_result.get('solver_family')}")
+    downstream_compatibility = classical_state_result.get("downstream_compatibility", {})
+    if isinstance(downstream_compatibility, dict) and downstream_compatibility:
+        lines.append("Classical downstream compatibility:")
+        lines.append(
+            "- "
+            f"lswt={downstream_compatibility.get('lswt', {}).get('status', 'n/a')} "
+            f"gswt={downstream_compatibility.get('gswt', {}).get('status', 'n/a')} "
+            f"thermodynamics={downstream_compatibility.get('thermodynamics', {}).get('status', 'n/a')}"
+        )
     auto_resolution = payload.get("classical", {}).get("auto_resolution", {})
     if auto_resolution.get("enabled"):
         lines.append("Classical auto-resolution:")

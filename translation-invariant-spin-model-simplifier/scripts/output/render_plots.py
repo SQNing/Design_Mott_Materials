@@ -29,7 +29,25 @@ from lswt.build_lswt_payload import infer_spatial_dimension
 from common.lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
 
 
+def _get_classical_state_result(payload):
+    if not isinstance(payload, dict):
+        return {}
+    classical_state_result = payload.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        return classical_state_result
+    classical = payload.get("classical", {})
+    if isinstance(classical, dict):
+        classical_state_result = classical.get("classical_state_result")
+        if isinstance(classical_state_result, dict):
+            return classical_state_result
+    return {}
+
+
 def _get_classical_state(payload):
+    classical_state_result = _get_classical_state_result(payload)
+    classical_state = classical_state_result.get("classical_state")
+    if isinstance(classical_state, dict):
+        return classical_state
     classical = payload.get("classical", {})
     return classical.get("classical_state", payload.get("classical_state", {}))
 
@@ -856,12 +874,23 @@ def _classical_summary_lines(payload, classical_state):
         return []
 
     lines = []
-    chosen_method = payload.get("classical", {}).get("chosen_method", "unknown")
+    classical_state_result = _get_classical_state_result(payload)
+    chosen_method = classical_state_result.get(
+        "method",
+        payload.get("classical", {}).get("chosen_method", "unknown"),
+    )
+    role = classical_state_result.get("role")
+    solver_family = classical_state_result.get("solver_family")
     render_mode = classical_state.get("render_mode", "structure")
     spatial_dimension = classical_state.get("spatial_dimension", "n/a")
-    lines.append(
-        f"method={chosen_method} render_mode={render_mode} spatial_dimension={spatial_dimension}"
-    )
+    summary_fields = [f"method={chosen_method}"]
+    if role is not None:
+        summary_fields.append(f"role={role}")
+    if solver_family is not None:
+        summary_fields.append(f"solver_family={solver_family}")
+    summary_fields.append(f"render_mode={render_mode}")
+    summary_fields.append(f"spatial_dimension={spatial_dimension}")
+    lines.append(" ".join(summary_fields))
 
     state_fields = []
     if classical_state.get("state_kind") is not None:
