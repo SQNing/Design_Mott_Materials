@@ -67,6 +67,24 @@ class DecisionGatesTests(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["enabled"], True)
 
+    def test_linear_spin_wave_stage_decision_accepts_bare_standardized_contract_mapping(self):
+        model = {
+            "status": "ok",
+            "role": "final",
+            "method": "spin-only-variational",
+            "downstream_compatibility": {
+                "lswt": {"status": "ready"},
+                "gswt": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
+                "thermodynamics": {"status": "review", "reason": "requires-caller-confirmed-support"},
+            },
+            "q_path": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+        }
+
+        result = linear_spin_wave_stage_decision(model, run_lswt=True)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["enabled"], True)
+
 
 if __name__ == "__main__":
     unittest.main()

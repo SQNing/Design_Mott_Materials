@@ -14,6 +14,7 @@ from common.classical_contract_resolution import (  # noqa: E402
     get_standardized_classical_state,
 )
 from common.classical_state_result import build_final_classical_state_result  # noqa: E402
+from common.cpn_classical_state import resolve_cpn_classical_state_payload  # noqa: E402
 
 
 class ClassicalContractResolutionTests(unittest.TestCase):
@@ -146,6 +147,42 @@ class ClassicalContractResolutionTests(unittest.TestCase):
         self.assertEqual(get_classical_state_result(contract), contract)
         self.assertEqual(get_standardized_classical_state(contract), classical_state)
         self.assertEqual(get_downstream_stage_status(contract, "lswt"), "ready")
+
+    def test_resolve_cpn_classical_state_payload_prefers_standardized_wrapper_over_legacy_state(self):
+        standardized_state = {
+            "schema_version": 1,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [2, 1, 1],
+            "local_rays": [
+                {
+                    "cell": [0, 0, 0],
+                    "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                }
+            ],
+        }
+        legacy_state = {
+            "schema_version": 1,
+            "state_kind": "legacy-top-level",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [],
+        }
+        payload = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "downstream_compatibility": {"gswt": {"status": "ready"}},
+                "classical_state": standardized_state,
+            },
+            "classical_state": legacy_state,
+        }
+
+        resolved = resolve_cpn_classical_state_payload(payload)
+
+        self.assertEqual(resolved["state_kind"], "local_rays")
+        self.assertEqual(resolved["manifold"], "CP^(N-1)")
+        self.assertEqual(resolved["supercell_shape"], [2, 1, 1])
+        self.assertEqual(resolved["local_rays"], standardized_state["local_rays"])
 
 
 if __name__ == "__main__":

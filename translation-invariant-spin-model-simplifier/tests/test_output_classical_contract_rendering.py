@@ -117,6 +117,27 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
 
         self.assertEqual(plot_payload["metadata"]["classical_method"], "spin-only-variational")
 
+    def test_render_plots_summary_accepts_bare_standardized_contract_payload(self):
+        payload = {
+            "status": "ok",
+            "role": "diagnostic",
+            "method": "pseudospin-cpn-generalized-lt",
+            "solver_family": "diagnostic_seed_only",
+            "downstream_compatibility": {"gswt": {"status": "blocked", "reason": "diagnostic-seed-method"}},
+        }
+        classical_state = {
+            "render_mode": "structure",
+            "spatial_dimension": 2,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+        }
+
+        lines = render_plots._classical_summary_lines(payload, classical_state)
+
+        self.assertIn("method=pseudospin-cpn-generalized-lt", lines[0])
+        self.assertIn("role=diagnostic", lines[0])
+        self.assertIn("solver_family=diagnostic_seed_only", lines[0])
+
 
 if __name__ == "__main__":
     unittest.main()

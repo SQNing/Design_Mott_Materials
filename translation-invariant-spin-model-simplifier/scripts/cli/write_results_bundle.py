@@ -9,6 +9,11 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from classical.classical_solver_driver import estimate_thermodynamics, run_classical_solver
+from common.classical_contract_resolution import (
+    get_classical_state_result,
+    get_downstream_stage_status,
+    get_standardized_classical_state,
+)
 from common.cpn_classical_state import has_spin_frame_classical_state
 from common.lswt_failure_analysis import summarize_lswt_failure
 from lswt.linear_spin_wave_driver import run_linear_spin_wave
@@ -17,48 +22,12 @@ from lswt.sun_gswt_driver import run_sun_gswt
 from output.render_plots import render_plots
 from output.render_report import render_text
 
-
-def _get_classical_state_result(payload):
-    if not isinstance(payload, dict):
-        return None
-
-    classical_state_result = payload.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        return classical_state_result
-
-    classical = payload.get("classical", {})
-    if isinstance(classical, dict):
-        classical_state_result = classical.get("classical_state_result")
-        if isinstance(classical_state_result, dict):
-            return classical_state_result
-    return None
-
-
-def _get_standardized_classical_state(payload):
-    classical_state_result = _get_classical_state_result(payload)
-    if isinstance(classical_state_result, dict):
-        classical_state = classical_state_result.get("classical_state")
-        if isinstance(classical_state, dict):
-            return classical_state
-    return None
-
-
 def _downstream_stage_status(payload, stage_name):
-    classical_state_result = _get_classical_state_result(payload)
-    if not isinstance(classical_state_result, dict):
-        return None
-    compatibility = classical_state_result.get("downstream_compatibility", {})
-    if not isinstance(compatibility, dict):
-        return None
-    stage = compatibility.get(stage_name, {})
-    if not isinstance(stage, dict):
-        return None
-    status = stage.get("status")
-    return str(status) if status is not None else None
+    return get_downstream_stage_status(payload, stage_name)
 
 
 def _has_classical_state(payload):
-    if _get_standardized_classical_state(payload):
+    if get_standardized_classical_state(payload):
         return True
     classical = payload.get("classical", {})
     return bool(classical.get("classical_state") or payload.get("classical_state"))
@@ -103,7 +72,7 @@ def _can_run_lswt(payload):
     if compatibility_status is not None:
         return compatibility_status == "ready"
 
-    standardized_state = _get_standardized_classical_state(payload)
+    standardized_state = get_standardized_classical_state(payload)
     if standardized_state is not None:
         return has_spin_frame_classical_state(standardized_state)
     return has_spin_frame_classical_state(payload)
@@ -197,7 +166,7 @@ def _stage_summary(
     lswt_present_before = "lswt" in original_payload
     lswt_present_after = "lswt" in bundle_payload
     thermodynamics_configuration = _thermodynamics_configuration(bundle_payload)
-    classical_state_result = _get_classical_state_result(bundle_payload) or {}
+    classical_state_result = get_classical_state_result(bundle_payload) or {}
     lswt_summary = {
         "present": bool(lswt_present_after),
         "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),

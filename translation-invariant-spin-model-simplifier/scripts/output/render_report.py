@@ -9,20 +9,7 @@ if __package__ in {None, ""}:
 
 from common.lswt_failure_analysis import summarize_lswt_failure
 from common.symmetry_explanations import summarize_symmetry_interpretation
-
-
-def _get_classical_state_result(payload):
-    if not isinstance(payload, dict):
-        return {}
-    classical_state_result = payload.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        return classical_state_result
-    classical = payload.get("classical", {})
-    if isinstance(classical, dict):
-        classical_state_result = classical.get("classical_state_result")
-        if isinstance(classical_state_result, dict):
-            return classical_state_result
-    return {}
+from common.classical_contract_resolution import get_classical_state_result
 
 
 def _format_summary_float(value):
@@ -338,7 +325,7 @@ def render_text(payload):
             f"best_q={generalized_lt_result.get('q', 'n/a')} "
             f"strong_constraint_residual={constraint_recovery.get('strong_constraint_residual', 'n/a')}"
         )
-    classical_state_result = _get_classical_state_result(payload)
+    classical_state_result = get_classical_state_result(payload) or {}
     classical = payload.get("classical", {})
     chosen_method = classical_state_result.get("method", classical.get("chosen_method", "n/a"))
     lines.append(f"Projection status: {payload['projection']['status']}")

@@ -8,6 +8,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from cli import write_results_bundle
+from common.classical_state_result import build_final_classical_state_result
 
 
 class WriteResultsBundleTests(unittest.TestCase):
@@ -134,6 +135,32 @@ class WriteResultsBundleTests(unittest.TestCase):
         self.assertEqual(summary["classical"]["role"], "final")
         self.assertEqual(summary["classical"]["solver_family"], "retained_local_multiplet")
         self.assertEqual(summary["classical"]["downstream_compatibility"]["gswt"]["status"], "ready")
+
+    def test_stage_summary_accepts_bare_standardized_contract_payload(self):
+        classical_state = {
+            "site_frames": [
+                {
+                    "site": 0,
+                    "spin_length": 0.5,
+                    "direction": [0.0, 0.0, 1.0],
+                }
+            ]
+        }
+        bundle_payload = build_final_classical_state_result(classical_state)
+        bundle_payload["method"] = "spin-only-variational"
+        bundle_payload["solver_family"] = "spin_only_explicit"
+
+        summary = write_results_bundle._stage_summary(
+            {},
+            bundle_payload,
+            run_missing_classical=False,
+            run_missing_thermodynamics=False,
+            run_missing_gswt=False,
+            run_missing_lswt=False,
+        )
+
+        self.assertEqual(summary["classical"]["method"], "spin-only-variational")
+        self.assertEqual(summary["classical"]["role"], "final")
 
     def test_populate_missing_results_skips_blocked_gswt_and_thermodynamics(self):
         payload = {

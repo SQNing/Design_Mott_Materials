@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
+from common.classical_contract_resolution import get_standardized_classical_state
+
 
 def _candidate_classical_state_payload(payload):
     if not isinstance(payload, dict):
         return {}
 
-    nested_state = payload.get("classical_state")
-    if isinstance(nested_state, dict):
-        return nested_state
+    standardized_state = get_standardized_classical_state(payload)
+    if isinstance(standardized_state, dict):
+        return standardized_state
 
     classical = payload.get("classical")
     if isinstance(classical, dict):
@@ -22,9 +24,9 @@ def _nested_classical_state_payload(payload):
     if not isinstance(payload, dict):
         return None
 
-    nested_state = payload.get("classical_state")
-    if isinstance(nested_state, dict):
-        return nested_state
+    standardized_state = get_standardized_classical_state(payload)
+    if isinstance(standardized_state, dict):
+        return standardized_state
 
     classical = payload.get("classical")
     if isinstance(classical, dict):

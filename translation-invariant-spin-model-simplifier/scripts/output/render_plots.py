@@ -23,29 +23,14 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.cpn_local_observables import build_cpn_local_observable_summary
 from lswt.build_lswt_payload import infer_spatial_dimension
 from common.lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
 
-
-def _get_classical_state_result(payload):
-    if not isinstance(payload, dict):
-        return {}
-    classical_state_result = payload.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        return classical_state_result
-    classical = payload.get("classical", {})
-    if isinstance(classical, dict):
-        classical_state_result = classical.get("classical_state_result")
-        if isinstance(classical_state_result, dict):
-            return classical_state_result
-    return {}
-
-
 def _get_classical_state(payload):
-    classical_state_result = _get_classical_state_result(payload)
-    classical_state = classical_state_result.get("classical_state")
+    classical_state = get_standardized_classical_state(payload)
     if isinstance(classical_state, dict):
         return classical_state
     classical = payload.get("classical", {})
@@ -874,7 +859,7 @@ def _classical_summary_lines(payload, classical_state):
         return []
 
     lines = []
-    classical_state_result = _get_classical_state_result(payload)
+    classical_state_result = get_classical_state_result(payload) or {}
     chosen_method = classical_state_result.get(
         "method",
         payload.get("classical", {}).get("chosen_method", "unknown"),
@@ -1339,7 +1324,7 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
     dispersion = lswt.get("linear_spin_wave", {}).get("dispersion", [])
     band_count = max((len(point.get("bands", [])) for point in dispersion), default=0)
     plot_options = payload.get("plot_options", {})
-    classical_state_result = _get_classical_state_result(payload)
+    classical_state_result = get_classical_state_result(payload) or {}
     classical_state = _build_classical_plot_state(
         payload,
         commensurate_cells=commensurate_cells,

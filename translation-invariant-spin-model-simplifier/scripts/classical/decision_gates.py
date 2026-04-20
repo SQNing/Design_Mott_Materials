@@ -6,22 +6,10 @@ if __package__ in {None, ""}:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.classical_solver_driver import choose_method
+    from common.classical_contract_resolution import get_classical_state_result
 else:
     from .classical_solver_driver import choose_method
-
-
-def _get_classical_state_result(model):
-    if not isinstance(model, dict):
-        return {}
-    classical_state_result = model.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        return classical_state_result
-    classical = model.get("classical", {})
-    if isinstance(classical, dict):
-        classical_state_result = classical.get("classical_state_result")
-        if isinstance(classical_state_result, dict):
-            return classical_state_result
-    return {}
+    from common.classical_contract_resolution import get_classical_state_result
 
 
 def _needs_input(question_id, prompt, recommended=None, options=None):
@@ -41,7 +29,7 @@ def _needs_input(question_id, prompt, recommended=None, options=None):
 
 def lswt_stability_precheck(model):
     classical = model.get("classical", {}) if isinstance(model, dict) else {}
-    classical_state_result = _get_classical_state_result(model)
+    classical_state_result = get_classical_state_result(model) or {}
     effective_model = model.get("effective_model", {}) if isinstance(model, dict) else {}
     low_weight = effective_model.get("low_weight", []) if isinstance(effective_model, dict) else []
     chosen_method = classical_state_result.get("method", classical.get("chosen_method"))
@@ -121,7 +109,7 @@ def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
     if not run_lswt:
         return {"status": "ok", "enabled": False}
 
-    classical_state_result = _get_classical_state_result(model)
+    classical_state_result = get_classical_state_result(model) or {}
     downstream_compatibility = (
         classical_state_result.get("downstream_compatibility", {})
         if isinstance(classical_state_result, dict)
