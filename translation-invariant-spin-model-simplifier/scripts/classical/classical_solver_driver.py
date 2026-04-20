@@ -12,10 +12,12 @@ if __package__ in {None, ""}:
     from classical.generalized_lt_solver import find_generalized_lt_ground_state
     from classical.lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
     from classical.lt_solver import find_lt_ground_state
+    from common.classical_state_result import build_final_classical_state_result
 else:
     from .generalized_lt_solver import find_generalized_lt_ground_state
     from .lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
     from .lt_solver import find_lt_ground_state
+    from common.classical_state_result import build_final_classical_state_result
 
 try:
     from scipy.optimize import minimize
@@ -274,6 +276,72 @@ def _constraint_residual(result):
     if residual is None:
         return None
     return float(residual)
+
+
+def _standardized_spin_only_method(chosen_method):
+    mapping = {
+        "variational": "spin-only-variational",
+        "luttinger-tisza": "spin-only-luttinger-tisza",
+        "generalized-lt": "spin-only-generalized-lt",
+    }
+    return mapping.get(chosen_method)
+
+
+def _selected_solver_result(payload, chosen_method):
+    if chosen_method == "variational":
+        return payload.get("variational_result", {})
+    if chosen_method == "luttinger-tisza":
+        return payload.get("lt_result", {})
+    if chosen_method == "generalized-lt":
+        return payload.get("generalized_lt_result", {})
+    return {}
+
+
+def _selected_solver_energy(payload, chosen_method):
+    solver_result = _selected_solver_result(payload, chosen_method)
+    if chosen_method == "variational":
+        energy = solver_result.get("energy")
+    elif chosen_method == "luttinger-tisza":
+        energy = solver_result.get("lowest_eigenvalue")
+    elif chosen_method == "generalized-lt":
+        energy = solver_result.get("tightened_lower_bound")
+    else:
+        energy = None
+    if energy is None:
+        return None
+    return float(energy)
+
+
+def _classical_state_supercell_shape(classical_state):
+    ordering = classical_state.get("ordering", {}) if isinstance(classical_state, dict) else {}
+    supercell_shape = ordering.get("supercell_shape")
+    if supercell_shape is None:
+        return [1, 1, 1]
+    return [int(value) for value in supercell_shape]
+
+
+def _build_spin_only_classical_state_result(payload, chosen_method, classical_state):
+    standardized_method = _standardized_spin_only_method(chosen_method)
+    if standardized_method is None:
+        return None
+    if not isinstance(classical_state, dict) or not classical_state:
+        return None
+
+    diagnostics = {}
+    constraint_recovery = classical_state.get("constraint_recovery")
+    if isinstance(constraint_recovery, dict):
+        diagnostics["constraint_recovery"] = constraint_recovery
+
+    result = build_final_classical_state_result(classical_state, diagnostics=diagnostics)
+    result["solver_family"] = "spin_only_explicit"
+    result["method"] = standardized_method
+    result["ordering"] = classical_state.get("ordering")
+    result["supercell_shape"] = _classical_state_supercell_shape(classical_state)
+
+    energy = _selected_solver_energy(payload, chosen_method)
+    if energy is not None:
+        result["energy"] = energy
+    return result
 
 
 def _choose_auto_method(recommended_method, lt_residual, generalized_lt_residual, model, auto_settings):
@@ -748,6 +816,11 @@ def run_classical_solver(payload, starts=16, seed=0):
     if classical_state is not None:
         payload["classical_state"] = classical_state
         classical_config["classical_state"] = classical_state
+        payload["classical_state_result"] = _build_spin_only_classical_state_result(
+            payload,
+            chosen_method,
+            classical_state,
+        )
 
     thermodynamics = payload.get("thermodynamics")
     if isinstance(thermodynamics, dict) and thermodynamics.get("temperatures"):
