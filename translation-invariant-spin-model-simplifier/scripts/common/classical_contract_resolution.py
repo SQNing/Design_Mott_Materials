@@ -32,6 +32,9 @@ def get_classical_state_result(payload):
 
 
 def get_standardized_classical_state(payload, *, prefer_nested_legacy=False):
+    # The canonical path is standardized-contract-first. Legacy fallback is kept only
+    # for compatibility and defaults to top-level-first; some callers may request
+    # nested-first legacy precedence to preserve pre-migration behavior.
     classical_state_result = get_classical_state_result(payload)
     if isinstance(classical_state_result, dict):
         classical_state = classical_state_result.get("classical_state")

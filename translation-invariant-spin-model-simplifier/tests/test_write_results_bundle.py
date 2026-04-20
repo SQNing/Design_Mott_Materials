@@ -73,6 +73,34 @@ class WriteResultsBundleTests(unittest.TestCase):
 
         self.assertEqual(write_results_bundle._can_run_lswt(payload), True)
 
+    def test_can_run_lswt_preserves_top_level_spin_frame_precedence_for_mixed_legacy_payloads(self):
+        payload = {
+            "classical_state": {
+                "site_frames": [
+                    {
+                        "site": 0,
+                        "spin_length": 0.5,
+                        "direction": [0.0, 0.0, 1.0],
+                    }
+                ]
+            },
+            "classical": {
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                }
+            },
+        }
+
+        self.assertEqual(write_results_bundle._can_run_lswt(payload), True)
+
     def test_can_run_gswt_rejects_blocked_standardized_contract(self):
         payload = {
             "gswt_payload": {"payload_kind": "python_glswt_local_rays"},

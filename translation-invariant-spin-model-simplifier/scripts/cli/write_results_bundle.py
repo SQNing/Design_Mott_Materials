@@ -68,10 +68,6 @@ def _can_run_lswt(payload):
     compatibility_status = _downstream_stage_status(payload, "lswt")
     if compatibility_status is not None:
         return compatibility_status == "ready"
-
-    standardized_state = get_standardized_classical_state(payload, prefer_nested_legacy=True)
-    if standardized_state is not None:
-        return has_spin_frame_classical_state(standardized_state)
     return has_spin_frame_classical_state(payload)
 
 
