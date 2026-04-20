@@ -24,6 +24,10 @@ from classical.sunny_sun_classical_driver import run_sunny_sun_classical
 from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynamics
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from cli.write_results_bundle import write_results_bundle
+from common.classical_state_result import (
+    build_diagnostic_classical_result,
+    build_final_classical_state_result,
+)
 from common.cpn_classical_state import resolve_cpn_classical_state_payload, resolve_cpn_local_state
 from common.lattice_geometry import lattice_vector_rank, vector_rank
 from lswt.build_python_glswt_payload import build_python_glswt_payload
@@ -789,6 +793,90 @@ def _normalized_thermodynamics_backend_result(backend_output, thermodynamics_set
     return None
 
 
+def _standardized_pseudospin_method(classical_method):
+    mapping = {
+        "cpn-local-ray-minimize": "pseudospin-cpn-local-ray-minimize",
+        "sunny-cpn-minimize": "pseudospin-sunny-cpn-minimize",
+        "cpn-generalized-lt": "pseudospin-cpn-generalized-lt",
+        "cpn-luttinger-tisza": "pseudospin-cpn-luttinger-tisza",
+    }
+    return mapping.get(str(classical_method))
+
+
+def _pseudospin_result_diagnostics(solver_result):
+    diagnostics = {}
+    for key in (
+        "projector_diagnostics",
+        "stationarity",
+        "convergence",
+        "backend_stationarity",
+        "ansatz_stationarity",
+        "preconditioner",
+        "glt_preconditioner",
+        "glt_preconditioner_diagnostic",
+        "relaxed_lt",
+        "projector_exactness",
+    ):
+        value = solver_result.get(key)
+        if isinstance(value, dict) and value:
+            diagnostics[key] = value
+    return diagnostics or None
+
+
+def _pseudospin_result_energy(solver_result):
+    for key in ("energy", "lower_bound"):
+        value = solver_result.get(key)
+        if value is not None:
+            return float(value)
+    return None
+
+
+def _build_pseudospin_classical_state_result(solver_result, *, classical_method, default_supercell_shape):
+    standardized_method = _standardized_pseudospin_method(classical_method)
+    if standardized_method is None or not isinstance(solver_result, dict):
+        return None
+
+    diagnostics = _pseudospin_result_diagnostics(solver_result)
+
+    if classical_method in {"cpn-local-ray-minimize", "sunny-cpn-minimize"}:
+        classical_state = resolve_cpn_classical_state_payload(
+            solver_result,
+            default_supercell_shape=default_supercell_shape,
+        )
+        if not classical_state.get("local_rays"):
+            return None
+
+        result = build_final_classical_state_result(
+            classical_state,
+            thermodynamics_supported=True,
+            diagnostics=diagnostics,
+        )
+        result["solver_family"] = "retained_local_multiplet"
+        result["method"] = standardized_method
+        result["ordering"] = classical_state.get("ordering")
+        result["supercell_shape"] = [
+            int(value) for value in classical_state.get("supercell_shape", default_supercell_shape)
+        ]
+        energy = _pseudospin_result_energy(solver_result)
+        if energy is not None:
+            result["energy"] = energy
+        return result
+
+    if classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
+        result = build_diagnostic_classical_result(
+            reason="diagnostic-seed-method",
+            diagnostics=diagnostics,
+        )
+        result["solver_family"] = "diagnostic_seed_only"
+        result["method"] = standardized_method
+        for key in ("lower_bound", "seed_candidate", "recommended_followup", "ordering_hint"):
+            if solver_result.get(key) is not None:
+                result[key] = solver_result.get(key)
+        return result
+
+    return None
+
+
 def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
     resolved_state = resolve_cpn_classical_state_payload(
         solver_result,
@@ -874,6 +962,10 @@ def _build_result_payload(
     if classical_state is not None:
         payload["classical"]["classical_state"] = classical_state
         payload["classical_state"] = classical_state
+    classical_state_result = solver_result.get("classical_state_result")
+    if isinstance(classical_state_result, dict):
+        payload["classical"]["classical_state_result"] = classical_state_result
+        payload["classical_state_result"] = classical_state_result
     if gswt_payload is not None:
         payload["gswt_payload"] = gswt_payload
     if isinstance(solver_result.get("gswt"), dict):
@@ -1168,6 +1260,13 @@ def solve_from_files(
     thermodynamics_result = None
     dos_result = None
     thermodynamics_settings = None
+    standardized_classical_result = _build_pseudospin_classical_state_result(
+        solver_result,
+        classical_method=classical_method,
+        default_supercell_shape=supercell_shape,
+    )
+    if standardized_classical_result is not None:
+        solver_result["classical_state_result"] = standardized_classical_result
     if run_thermodynamics:
         thermodynamics_profile = _resolve_thermodynamics_profile(thermo_profile)
         resolved_backend = str(thermodynamics_backend or "sunny-local-sampler")

@@ -8,6 +8,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from classical import classical_solver_driver
+from cli import solve_pseudospin_orbital_pipeline
 
 
 def _spin_only_payload(method, *, sublattices=1):
@@ -165,6 +166,138 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(standardized["ordering"], recovered_state["ordering"])
         self.assertEqual(standardized["energy"], -2.2)
         self.assertIn("generalized_lt_result", result)
+
+    def test_pseudospin_local_ray_minimize_adapter_emits_final_classical_state_result(self):
+        solver_result = {
+            "method": "cpn-local-ray-minimize",
+            "energy": -3.5,
+            "supercell_shape": [2, 1, 1],
+            "classical_state": {
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "supercell_shape": [2, 1, 1],
+                "local_rays": [
+                    {
+                        "cell": [0, 0, 0],
+                        "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                    }
+                ],
+                "ordering": {
+                    "kind": "single-q",
+                    "q_vector": [0.5, 0.0, 0.0],
+                    "supercell_shape": [2, 1, 1],
+                },
+            },
+        }
+
+        standardized = solve_pseudospin_orbital_pipeline._build_pseudospin_classical_state_result(
+            solver_result,
+            classical_method="cpn-local-ray-minimize",
+            default_supercell_shape=[2, 1, 1],
+        )
+
+        self.assertEqual(standardized["role"], "final")
+        self.assertEqual(standardized["solver_family"], "retained_local_multiplet")
+        self.assertEqual(standardized["method"], "pseudospin-cpn-local-ray-minimize")
+        self.assertEqual(standardized["energy"], -3.5)
+        self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "ready")
+        self.assertEqual(standardized["downstream_compatibility"]["thermodynamics"]["status"], "ready")
+
+    def test_pseudospin_sunny_cpn_minimize_adapter_emits_final_classical_state_result(self):
+        solver_result = {
+            "method": "sunny-cpn-minimize",
+            "energy": -4.25,
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [
+                {
+                    "cell": [0, 0, 0],
+                    "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                }
+            ],
+        }
+
+        standardized = solve_pseudospin_orbital_pipeline._build_pseudospin_classical_state_result(
+            solver_result,
+            classical_method="sunny-cpn-minimize",
+            default_supercell_shape=[1, 1, 1],
+        )
+
+        self.assertEqual(standardized["role"], "final")
+        self.assertEqual(standardized["solver_family"], "retained_local_multiplet")
+        self.assertEqual(standardized["method"], "pseudospin-sunny-cpn-minimize")
+        self.assertEqual(standardized["energy"], -4.25)
+        self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "ready")
+        self.assertEqual(standardized["downstream_compatibility"]["thermodynamics"]["status"], "ready")
+
+    def test_pseudospin_glt_adapter_emits_diagnostic_blocked_classical_state_result(self):
+        solver_result = {
+            "method": "cpn-generalized-lt",
+            "lower_bound": -5.0,
+            "recommended_followup": "sunny-cpn-minimize",
+            "seed_candidate": {
+                "kind": "commensurate-projector-seed",
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                },
+            },
+        }
+
+        standardized = solve_pseudospin_orbital_pipeline._build_pseudospin_classical_state_result(
+            solver_result,
+            classical_method="cpn-generalized-lt",
+            default_supercell_shape=[1, 1, 1],
+        )
+
+        self.assertEqual(standardized["role"], "diagnostic")
+        self.assertEqual(standardized["solver_family"], "diagnostic_seed_only")
+        self.assertEqual(standardized["method"], "pseudospin-cpn-generalized-lt")
+        self.assertEqual(standardized["lower_bound"], -5.0)
+        self.assertEqual(standardized["recommended_followup"], "sunny-cpn-minimize")
+        self.assertIn("seed_candidate", standardized)
+        self.assertEqual(standardized["downstream_compatibility"]["lswt"]["status"], "blocked")
+        self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "blocked")
+        self.assertEqual(standardized["downstream_compatibility"]["thermodynamics"]["status"], "blocked")
+
+    def test_pseudospin_result_payload_carries_classical_state_result(self):
+        solver_result = {
+            "method": "cpn-local-ray-minimize",
+            "classical_state": {
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "supercell_shape": [1, 1, 1],
+                "local_rays": [
+                    {
+                        "cell": [0, 0, 0],
+                        "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                    }
+                ],
+            },
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "solver_family": "retained_local_multiplet",
+                "method": "pseudospin-cpn-local-ray-minimize",
+            },
+        }
+
+        payload = solve_pseudospin_orbital_pipeline._build_result_payload(
+            {"inferred": {"local_dimension": 2}, "hamiltonian": {}, "structure": {}, "bond_blocks": []},
+            {"simplification": {}, "canonical_model": {}, "effective_model": {}},
+            solver_result,
+            classical_method="cpn-local-ray-minimize",
+            default_supercell_shape=[1, 1, 1],
+        )
+
+        self.assertEqual(payload["classical"]["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
+        self.assertEqual(payload["classical_state_result"]["solver_family"], "retained_local_multiplet")
 
 
 if __name__ == "__main__":
