@@ -85,10 +85,18 @@ Implemented in code:
   `requested_method` only as compatibility mirrors while keeping canonical
   `method`, `role`, `solver_family`, and `downstream_compatibility` sourced
   from the standardized contract
-- the current targeted regression slice for this convergence work passes with
-  120 tests covering contract resolution, bundle/report/plot rendering, LSWT /
-  GLSWT payload builders, rotating-frame helpers, and auxiliary single-q
-  workflows
+- explicit classical output compatibility shims now derive top-level and nested
+  legacy mirrors from standardized contracts at output boundaries instead of
+  assembling those mirrors ad hoc in CLI payload builders
+- pseudospin CLI/artifact assembly now builds canonical
+  `classical_state_result` first and emits `classical_state` plus
+  nested `payload["classical"]` mirrors only through the explicit
+  compatibility shim
+- the current focused regression slice for this contract-only CLI/artifact
+  surface passes with 99 tests covering contract resolution, compatibility
+  shim emission, bundle/report/plot rendering, pseudospin CLI payload
+  assembly, LSWT / GLSWT payload builders, rotating-frame helpers, and
+  auxiliary single-q workflows
 
 Not yet fully migrated:
 
@@ -105,12 +113,13 @@ Not yet fully migrated:
 The next likely cleanup steps after this stage are:
 
 - reduce remaining compatibility-only legacy mirrors once downstream callers no
-  longer depend on them, especially at CLI/artifact boundaries
-- decide whether to make some CLI and artifact-loading surfaces fully
-  standardized internally while keeping compatibility translation only at
+  longer depend on them, especially in emitted artifact schemas rather than
+  internal assembly paths
+- decide whether any remaining CLI or artifact-loading surfaces should be made
+  strictly contract-only internally with compatibility translation confined to
   explicit read/write edges
-- expand regression coverage beyond the current contract-convergence slice to
-  catch future drift in less frequently used solver-entry paths
+- expand regression coverage beyond the current contract-only CLI/artifact
+  slice to catch future drift in less frequently used solver-entry paths
 - continue the broader unified-classical-solver-layer roadmap above the
   contract level, especially solver-family routing and later downstream-stage
   convergence
