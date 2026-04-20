@@ -877,6 +877,31 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
     return None
 
 
+def _validate_pseudospin_thermodynamics_request(classical_state_result, *, classical_method):
+    if classical_method == "restricted-product-state":
+        raise ValueError("Sunny pseudospin-orbital thermodynamics requires a CP^(N-1) classical state")
+
+    if not isinstance(classical_state_result, dict):
+        return None
+
+    compatibility = classical_state_result.get("downstream_compatibility", {})
+    thermodynamics = compatibility.get("thermodynamics", {}) if isinstance(compatibility, dict) else {}
+    status = thermodynamics.get("status")
+    if status in {"ready", "review"}:
+        return None
+
+    method_name = str(classical_state_result.get("method", classical_method))
+    if classical_state_result.get("role") == "diagnostic":
+        raise ValueError(
+            f"{method_name} is a diagnostic-only lower-bound / seed method and cannot be used directly for thermodynamics"
+        )
+
+    reason = thermodynamics.get("reason")
+    if reason:
+        raise ValueError(f"{method_name} cannot be used directly for thermodynamics: {reason}")
+    return None
+
+
 def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
     resolved_state = resolve_cpn_classical_state_payload(
         solver_result,
@@ -1065,13 +1090,6 @@ def solve_from_files(
         compile_pdf=compile_pdf,
     )
     _progress("Wrote initial human-readable reports")
-
-    if run_thermodynamics and classical_method == "restricted-product-state":
-        raise ValueError("Sunny pseudospin-orbital thermodynamics requires a CP^(N-1) classical state")
-    if run_thermodynamics and classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
-        raise ValueError(
-            "cpn-generalized-lt is a diagnostic-only lower-bound / seed method and cannot be used directly for thermodynamics"
-        )
 
     if classical_method == "restricted-product-state":
         variational_max_linear_size = int(max_linear_size) if int(max_linear_size) > 0 else 5
@@ -1268,6 +1286,10 @@ def solve_from_files(
     if standardized_classical_result is not None:
         solver_result["classical_state_result"] = standardized_classical_result
     if run_thermodynamics:
+        _validate_pseudospin_thermodynamics_request(
+            standardized_classical_result,
+            classical_method=classical_method,
+        )
         thermodynamics_profile = _resolve_thermodynamics_profile(thermo_profile)
         resolved_backend = str(thermodynamics_backend or "sunny-local-sampler")
         if thermodynamics_backend is None and thermodynamics_profile is not None:

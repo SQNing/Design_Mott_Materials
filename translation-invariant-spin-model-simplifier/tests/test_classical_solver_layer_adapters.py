@@ -299,6 +299,50 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(payload["classical"]["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
         self.assertEqual(payload["classical_state_result"]["solver_family"], "retained_local_multiplet")
 
+    def test_pseudospin_thermodynamics_gate_accepts_ready_standardized_result(self):
+        classical_state_result = {
+            "status": "ok",
+            "role": "final",
+            "method": "pseudospin-sunny-cpn-minimize",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "ready"},
+                "thermodynamics": {"status": "ready"},
+            },
+        }
+
+        result = solve_pseudospin_orbital_pipeline._validate_pseudospin_thermodynamics_request(
+            classical_state_result,
+            classical_method="sunny-cpn-minimize",
+        )
+
+        self.assertIsNone(result)
+
+    def test_pseudospin_thermodynamics_gate_rejects_diagnostic_standardized_result(self):
+        classical_state_result = {
+            "status": "ok",
+            "role": "diagnostic",
+            "method": "pseudospin-cpn-generalized-lt",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                "gswt": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                "thermodynamics": {"status": "blocked", "reason": "diagnostic-seed-method"},
+            },
+        }
+
+        with self.assertRaisesRegex(ValueError, "diagnostic-only"):
+            solve_pseudospin_orbital_pipeline._validate_pseudospin_thermodynamics_request(
+                classical_state_result,
+                classical_method="cpn-generalized-lt",
+            )
+
+    def test_pseudospin_thermodynamics_gate_rejects_restricted_product_state_without_cpn_contract(self):
+        with self.assertRaisesRegex(ValueError, "requires a CP\\^\\(N-1\\) classical state"):
+            solve_pseudospin_orbital_pipeline._validate_pseudospin_thermodynamics_request(
+                None,
+                classical_method="restricted-product-state",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
