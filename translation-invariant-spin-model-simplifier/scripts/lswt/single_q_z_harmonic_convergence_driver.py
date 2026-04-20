@@ -7,7 +7,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
+from common.classical_contract_resolution import get_classical_state_result
 from lswt.build_python_glswt_payload import resolve_contract_aware_classical_reference_payload
 from lswt.single_q_z_harmonic_convergence import analyze_single_q_z_harmonic_convergence
 
@@ -27,9 +27,6 @@ def _load_pipeline_output_directory(path):
     classical_state_result = get_classical_state_result(solver_result)
     if isinstance(classical_state_result, dict):
         payload["classical_state_result"] = classical_state_result
-        compatibility_state = get_standardized_classical_state(solver_result)
-        if isinstance(compatibility_state, dict) and not isinstance(payload.get("classical_state"), dict):
-            payload["classical_state"] = compatibility_state
 
     gswt_payload_path = path / "gswt_payload.json"
     if gswt_payload_path.exists():

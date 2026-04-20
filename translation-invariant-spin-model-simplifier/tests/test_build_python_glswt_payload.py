@@ -491,7 +491,10 @@ class BuildPythonGlswtPayloadTests(unittest.TestCase):
                     },
                     "reference_ray": _serialize_vector(np.array([1.0, 1.0], dtype=complex) / np.sqrt(2.0)),
                     "generator_matrix": _serialize_matrix(np.array([[0.0, 0.0], [0.0, 1.0]], dtype=complex)),
-                    "classical_state": dict(classical_payload),
+                    "classical_state": {
+                        **classical_payload,
+                        "supercell_shape": [7, 1, 1],
+                    },
                 },
                 "classical_state_result": {
                     "status": "ok",
@@ -507,6 +510,7 @@ class BuildPythonGlswtPayloadTests(unittest.TestCase):
         self.assertEqual(payload["payload_kind"], "python_glswt_single_q_z_harmonic")
         self.assertEqual(payload["source_classical_ansatz"], "single-q-unitary-ray")
         self.assertEqual(payload["q_vector"], [0.2, 0.0, 0.0])
+        self.assertEqual(payload["quadratic_phase_dressing"]["site_phase_count"], 5)
 
     def test_builder_preserves_multisite_local_rays_and_pair_coupling_site_indices(self):
         model = {

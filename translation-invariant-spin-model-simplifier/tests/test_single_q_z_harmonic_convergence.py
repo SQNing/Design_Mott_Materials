@@ -10,7 +10,10 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from lswt.single_q_z_harmonic_convergence import analyze_single_q_z_harmonic_convergence
-from lswt.single_q_z_harmonic_convergence_driver import run_single_q_z_harmonic_convergence_driver
+from lswt.single_q_z_harmonic_convergence_driver import (
+    _load_pipeline_output_directory,
+    run_single_q_z_harmonic_convergence_driver,
+)
 
 
 def _serialize_complex(value):
@@ -121,7 +124,13 @@ def _nested_bundle_single_q_payload():
     return {
         **_simple_chain_model(),
         "classical": {
-            "classical_state": dict(state),
+            "classical_state": {
+                **state,
+                "classical_state": {
+                    **state["classical_state"],
+                    "supercell_shape": [7, 1, 1],
+                },
+            },
             "classical_state_result": {
                 "status": "ok",
                 "role": "final",
@@ -265,6 +274,22 @@ class SingleQZHarmonicConvergenceTests(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["reference_parameters"]["phase_grid_size"], 18)
         self.assertEqual(result["reference_parameters"]["z_harmonic_reference_mode"], "input")
+
+    def test_pipeline_directory_loader_prefers_standardized_state_inside_rich_wrapper(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir)
+            (output_dir / "classical_model.json").write_text(
+                json.dumps(_simple_chain_model()),
+                encoding="utf-8",
+            )
+            (output_dir / "solver_result.json").write_text(
+                json.dumps(_nested_bundle_single_q_payload()["classical"]),
+                encoding="utf-8",
+            )
+
+            payload = _load_pipeline_output_directory(output_dir)
+
+        self.assertEqual(payload["classical_state"]["classical_state"]["supercell_shape"], [5, 1, 1])
 
 
 if __name__ == "__main__":
