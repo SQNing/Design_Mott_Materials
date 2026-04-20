@@ -335,6 +335,35 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(payload["classical_state_result"]["role"], "final")
         self.assertEqual(payload["classical_state"]["supercell_shape"], [1, 1, 1])
 
+    def test_resolved_bundle_classical_state_preserves_non_cpn_compatibility_state(self):
+        solver_result = {
+            "status": "ok",
+            "role": "final",
+            "solver_family": "retained_local_multiplet",
+            "method": "pseudospin-compatibility-only",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
+                "thermodynamics": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
+            },
+            "classical_state": {
+                "site_frames": [
+                    {
+                        "site": 0,
+                        "spin_length": 0.5,
+                        "direction": [0.0, 0.0, 1.0],
+                    }
+                ]
+            },
+        }
+
+        resolved = solve_pseudospin_orbital_pipeline._resolved_bundle_classical_state(
+            solver_result,
+            default_supercell_shape=[1, 1, 1],
+        )
+
+        self.assertEqual(resolved, solver_result["classical_state"])
+
     def test_pseudospin_thermodynamics_gate_accepts_ready_standardized_result(self):
         classical_state_result = {
             "status": "ok",

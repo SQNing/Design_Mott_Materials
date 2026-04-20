@@ -31,6 +31,26 @@ class WriteResultsBundleTests(unittest.TestCase):
 
         self.assertEqual(write_results_bundle._has_classical_state(payload), True)
 
+    def test_has_classical_state_stays_contract_first_when_raw_mirror_is_empty(self):
+        payload = {
+            "classical_state": {},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "classical_state": {
+                    "site_frames": [
+                        {
+                            "site": 0,
+                            "spin_length": 0.5,
+                            "direction": [0.0, 0.0, 1.0],
+                        }
+                    ]
+                },
+            },
+        }
+
+        self.assertEqual(write_results_bundle._has_classical_state(payload), True)
+
     def test_has_classical_state_preserves_nested_legacy_fallback_when_top_level_mirror_is_empty(self):
         payload = {
             "classical_state": {},

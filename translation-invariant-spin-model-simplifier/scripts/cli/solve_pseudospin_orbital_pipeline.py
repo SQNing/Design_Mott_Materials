@@ -910,7 +910,7 @@ def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
             standardized_state,
             default_supercell_shape=default_supercell_shape,
         )
-        if resolved_state:
+        if resolved_state.get("local_rays"):
             return resolved_state
 
     resolved_state = resolve_cpn_classical_state_payload(
