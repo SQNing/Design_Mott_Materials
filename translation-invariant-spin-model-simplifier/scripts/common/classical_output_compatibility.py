@@ -19,7 +19,17 @@ def _resolved_classical_metadata(payload):
     }
 
 
-def build_classical_output_compatibility_payload(payload):
+def _normalize_compatibility_mode(mode):
+    resolved = "canonical" if mode is None else str(mode).strip().lower()
+    if resolved not in {"canonical", "legacy"}:
+        raise ValueError(f"unsupported classical output compatibility mode: {mode}")
+    return resolved
+
+
+def build_classical_output_compatibility_payload(payload, *, mode="canonical"):
+    if _normalize_compatibility_mode(mode) == "canonical":
+        return {}
+
     classical_state_result = get_classical_state_result(payload)
     if not isinstance(classical_state_result, dict):
         return {}

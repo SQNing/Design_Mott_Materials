@@ -318,8 +318,10 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
             default_supercell_shape=[1, 1, 1],
         )
 
-        self.assertEqual(payload["classical"]["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
         self.assertEqual(payload["classical_state_result"]["solver_family"], "retained_local_multiplet")
+        self.assertEqual(payload["classical_state_result"]["classical_state"]["manifold"], "CP^(N-1)")
+        self.assertNotIn("classical", payload)
+        self.assertNotIn("classical_state", payload)
 
     def test_pseudospin_result_payload_accepts_bare_standardized_contract_as_solver_result(self):
         solver_result = {
@@ -354,10 +356,11 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
             default_supercell_shape=[1, 1, 1],
         )
 
-        self.assertEqual(payload["classical"]["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
         self.assertEqual(payload["classical_state_result"]["role"], "final")
-        self.assertEqual(payload["classical_state"]["supercell_shape"], [1, 1, 1])
-        self.assertEqual(payload["classical_state"]["custom_annotation"]["source"], "bare-contract")
+        self.assertEqual(payload["classical_state_result"]["classical_state"]["supercell_shape"], [1, 1, 1])
+        self.assertEqual(payload["classical_state_result"]["classical_state"]["custom_annotation"]["source"], "bare-contract")
+        self.assertNotIn("classical", payload)
+        self.assertNotIn("classical_state", payload)
 
     def test_pseudospin_result_payload_does_not_share_standardized_contract_references_with_solver_result(self):
         solver_result = {
@@ -394,12 +397,11 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         )
 
         payload["classical_state_result"]["method"] = "mutated"
-        payload["classical_state"]["custom_annotation"]["source"] = "changed"
-        payload["classical"]["classical_state_result"]["role"] = "diagnostic"
+        payload["classical_state_result"]["classical_state"]["custom_annotation"]["source"] = "changed"
 
         self.assertEqual(solver_result, original)
 
-    def test_pseudospin_result_payload_accepts_wrapped_standardized_contract_and_preserves_mirror(self):
+    def test_pseudospin_result_payload_accepts_wrapped_standardized_contract_without_legacy_mirrors_by_default(self):
         solver_result = {
             "classical_state_result": {
                 "status": "ok",
@@ -433,8 +435,46 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         )
 
         self.assertEqual(payload["classical_state_result"]["method"], "pseudospin-compatibility-only")
-        self.assertEqual(payload["classical_state"]["compatibility_label"], "wrapped-contract")
-        self.assertEqual(len(payload["classical_state"]["site_frames"]), 1)
+        self.assertEqual(payload["classical_state_result"]["classical_state"]["compatibility_label"], "wrapped-contract")
+        self.assertEqual(len(payload["classical_state_result"]["classical_state"]["site_frames"]), 1)
+        self.assertNotIn("classical", payload)
+        self.assertNotIn("classical_state", payload)
+
+    def test_pseudospin_result_payload_can_explicitly_export_legacy_mirrors(self):
+        solver_result = {
+            "status": "ok",
+            "role": "final",
+            "solver_family": "retained_local_multiplet",
+            "method": "pseudospin-cpn-local-ray-minimize",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "ready"},
+                "thermodynamics": {"status": "ready"},
+            },
+            "classical_state": {
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "supercell_shape": [1, 1, 1],
+                "local_rays": [
+                    {
+                        "cell": [0, 0, 0],
+                        "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                    }
+                ],
+            },
+        }
+
+        payload = solve_pseudospin_orbital_pipeline._build_result_payload(
+            {"inferred": {"local_dimension": 2}, "hamiltonian": {}, "structure": {}, "bond_blocks": []},
+            {"simplification": {}, "canonical_model": {}, "effective_model": {}},
+            solver_result,
+            classical_method="cpn-local-ray-minimize",
+            default_supercell_shape=[1, 1, 1],
+            compatibility_export_mode="legacy",
+        )
+
+        self.assertEqual(payload["classical"]["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
+        self.assertEqual(payload["classical_state"]["manifold"], "CP^(N-1)")
 
     def test_resolved_bundle_classical_state_preserves_non_cpn_compatibility_state(self):
         solver_result = {

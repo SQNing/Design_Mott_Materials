@@ -944,6 +944,7 @@ def _build_result_payload(
     *,
     classical_method,
     default_supercell_shape,
+    compatibility_export_mode="canonical",
     gswt_payload=None,
     single_q_convergence=None,
     thermodynamics_settings=None,
@@ -978,17 +979,27 @@ def _build_result_payload(
         "pair_basis_order": parsed_payload.get("pair_basis_order"),
         "local_basis_labels": parsed_payload.get("local_basis_labels", []),
         "retained_local_space": parsed_payload.get("retained_local_space", {}),
-        "classical": {
-            "requested_method": str(classical_method),
-            "chosen_method": str(classical_method),
-            "solver_method": solver_result.get("method"),
-        },
+    }
+    classical_metadata = {
+        "requested_method": str(classical_method),
+        "chosen_method": str(classical_method),
+        "solver_method": solver_result.get("method"),
     }
     classical_state_result = get_classical_state_result(solver_result)
     if isinstance(classical_state_result, dict):
         payload["classical_state_result"] = deepcopy(classical_state_result)
-        payload.update(build_classical_output_compatibility_payload(payload))
+        if classical_state is not None and not isinstance(payload["classical_state_result"].get("classical_state"), dict):
+            payload["classical_state_result"]["classical_state"] = deepcopy(classical_state)
+        if str(compatibility_export_mode).strip().lower() == "legacy":
+            payload["classical"] = classical_metadata
+        payload.update(
+            build_classical_output_compatibility_payload(
+                payload,
+                mode=compatibility_export_mode,
+            )
+        )
     elif classical_state is not None:
+        payload["classical"] = dict(classical_metadata)
         payload["classical"]["classical_state"] = deepcopy(classical_state)
         payload["classical_state"] = deepcopy(classical_state)
     if gswt_payload is not None:
@@ -1067,6 +1078,7 @@ def solve_from_files(
     thermo_wl_overlap=0.25,
     thermo_wl_ln_f=1.0,
     thermo_wl_sweeps=100,
+    compatibility_export_mode="canonical",
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1497,6 +1509,7 @@ def solve_from_files(
         solver_result,
         classical_method=classical_method,
         default_supercell_shape=supercell_shape,
+        compatibility_export_mode=compatibility_export_mode,
         gswt_payload=gswt_payload,
         single_q_convergence=single_q_convergence_result,
         thermodynamics_settings=thermodynamics_settings,
@@ -1630,6 +1643,11 @@ def main():
     parser.add_argument("--thermo-wl-overlap", type=float, default=0.25)
     parser.add_argument("--thermo-wl-ln-f", type=float, default=1.0)
     parser.add_argument("--thermo-wl-sweeps", type=int, default=100)
+    parser.add_argument(
+        "--classical-output-compatibility",
+        choices=["canonical", "legacy"],
+        default="canonical",
+    )
     args = parser.parse_args()
 
     manifest = solve_from_files(
@@ -1668,6 +1686,7 @@ def main():
         thermo_wl_overlap=float(args.thermo_wl_overlap),
         thermo_wl_ln_f=float(args.thermo_wl_ln_f),
         thermo_wl_sweeps=int(args.thermo_wl_sweeps),
+        compatibility_export_mode=str(args.classical_output_compatibility),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0

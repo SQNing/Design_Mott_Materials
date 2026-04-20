@@ -37,17 +37,24 @@ def _standardized_contract():
 
 
 class ClassicalOutputCompatibilityTests(unittest.TestCase):
-    def test_shim_emits_top_level_and_nested_legacy_mirrors_from_contract(self):
+    def test_canonical_export_mode_emits_no_legacy_mirrors_from_contract(self):
         payload = {"classical_state_result": _standardized_contract()}
 
-        compatibility = build_classical_output_compatibility_payload(payload)
+        compatibility = build_classical_output_compatibility_payload(payload, mode="canonical")
+
+        self.assertEqual(compatibility, {})
+
+    def test_legacy_export_mode_emits_top_level_and_nested_legacy_mirrors_from_contract(self):
+        payload = {"classical_state_result": _standardized_contract()}
+
+        compatibility = build_classical_output_compatibility_payload(payload, mode="legacy")
 
         self.assertEqual(compatibility["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
         self.assertEqual(compatibility["classical"]["classical_state_result"]["solver_family"], "retained_local_multiplet")
         self.assertEqual(compatibility["classical_state"]["custom_annotation"]["source"], "contract")
         self.assertEqual(compatibility["classical"]["classical_state"]["manifold"], "CP^(N-1)")
 
-    def test_shim_preserves_chosen_and_requested_method_as_compatibility_fields(self):
+    def test_legacy_export_mode_preserves_chosen_and_requested_method_as_compatibility_fields(self):
         payload = {
             "classical_state_result": _standardized_contract(),
             "classical": {
@@ -57,17 +64,17 @@ class ClassicalOutputCompatibilityTests(unittest.TestCase):
             },
         }
 
-        compatibility = build_classical_output_compatibility_payload(payload)
+        compatibility = build_classical_output_compatibility_payload(payload, mode="legacy")
 
         self.assertEqual(compatibility["classical"]["chosen_method"], "legacy-method")
         self.assertEqual(compatibility["classical"]["requested_method"], "auto")
         self.assertEqual(compatibility["classical"]["solver_method"], "backend-method")
         self.assertEqual(compatibility["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
 
-    def test_shim_accepts_bare_standardized_contract_mapping(self):
+    def test_legacy_export_mode_accepts_bare_standardized_contract_mapping(self):
         contract = _standardized_contract()
 
-        compatibility = build_classical_output_compatibility_payload(contract)
+        compatibility = build_classical_output_compatibility_payload(contract, mode="legacy")
 
         self.assertEqual(compatibility["classical_state_result"]["method"], "pseudospin-cpn-local-ray-minimize")
         self.assertEqual(compatibility["classical_state"]["supercell_shape"], [1, 1, 1])
@@ -80,7 +87,7 @@ class ClassicalOutputCompatibilityTests(unittest.TestCase):
 
         self.assertEqual(compatibility, {})
 
-    def test_shim_does_not_mutate_inputs_or_share_mirror_references(self):
+    def test_legacy_export_mode_does_not_mutate_inputs_or_share_mirror_references(self):
         payload = {
             "classical_state_result": _standardized_contract(),
             "classical": {
@@ -90,7 +97,7 @@ class ClassicalOutputCompatibilityTests(unittest.TestCase):
         }
         original = copy.deepcopy(payload)
 
-        compatibility = build_classical_output_compatibility_payload(payload)
+        compatibility = build_classical_output_compatibility_payload(payload, mode="legacy")
         compatibility["classical_state"]["custom_annotation"]["source"] = "mutated"
         compatibility["classical"]["classical_state_result"]["method"] = "changed"
 
