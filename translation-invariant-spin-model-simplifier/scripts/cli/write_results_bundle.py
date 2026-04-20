@@ -11,9 +11,9 @@ if __package__ in {None, ""}:
 from classical.classical_solver_driver import estimate_thermodynamics, run_classical_solver
 from common.classical_contract_resolution import (
     get_classical_state_result,
-    get_downstream_stage_status,
     get_standardized_classical_state,
 )
+from common.downstream_stage_routing import resolve_downstream_stage_route
 from common.cpn_classical_state import has_spin_frame_classical_state
 from common.lswt_failure_analysis import summarize_lswt_failure
 from lswt.linear_spin_wave_driver import run_linear_spin_wave
@@ -21,10 +21,6 @@ from lswt.python_glswt_driver import run_python_glswt_driver
 from lswt.sun_gswt_driver import run_sun_gswt
 from output.render_plots import render_plots
 from output.render_report import render_text
-
-def _downstream_stage_status(payload, stage_name):
-    return get_downstream_stage_status(payload, stage_name)
-
 
 def _has_classical_state(payload):
     return bool(get_standardized_classical_state(payload, prefer_nested_legacy=True))
@@ -48,10 +44,7 @@ def _can_run_classical(payload):
 def _can_run_gswt(payload):
     if _get_gswt_payload(payload) is None:
         return False
-    compatibility_status = _downstream_stage_status(payload, "gswt")
-    if compatibility_status is not None:
-        return compatibility_status == "ready"
-    return True
+    return bool(resolve_downstream_stage_route(payload, "gswt").get("enabled"))
 
 
 def _run_gswt_stage(payload):
@@ -65,10 +58,10 @@ def _run_gswt_stage(payload):
 
 
 def _can_run_lswt(payload):
-    compatibility_status = _downstream_stage_status(payload, "lswt")
-    if compatibility_status is not None:
-        return compatibility_status == "ready"
-    return has_spin_frame_classical_state(payload)
+    route = resolve_downstream_stage_route(payload, "lswt")
+    if route.get("source") == "legacy-fallback":
+        return has_spin_frame_classical_state(payload)
+    return bool(route.get("enabled"))
 
 
 def _has_thermodynamics_result(payload):
@@ -79,10 +72,7 @@ def _can_run_thermodynamics(payload):
     thermodynamics = payload.get("thermodynamics", {})
     if not (bool(payload.get("bonds")) and bool(thermodynamics.get("temperatures"))):
         return False
-    compatibility_status = _downstream_stage_status(payload, "thermodynamics")
-    if compatibility_status is not None:
-        return compatibility_status in {"ready", "review"}
-    return True
+    return bool(resolve_downstream_stage_route(payload, "thermodynamics").get("enabled"))
 
 
 def _thermodynamics_configuration(payload):

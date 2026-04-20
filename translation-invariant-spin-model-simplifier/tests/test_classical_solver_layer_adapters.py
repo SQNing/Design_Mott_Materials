@@ -484,6 +484,26 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
 
         self.assertIsNone(result)
 
+    def test_pseudospin_thermodynamics_gate_prefers_shared_route_over_legacy_method_name(self):
+        classical_state_result = {
+            "status": "ok",
+            "role": "final",
+            "method": "pseudospin-restricted-product-state",
+            "solver_family": "retained_local_multiplet",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "ready"},
+                "thermodynamics": {"status": "review", "reason": "requires-caller-confirmed-support"},
+            },
+        }
+
+        result = solve_pseudospin_orbital_pipeline._validate_pseudospin_thermodynamics_request(
+            classical_state_result,
+            classical_method="restricted-product-state",
+        )
+
+        self.assertIsNone(result)
+
     def test_pseudospin_thermodynamics_gate_rejects_diagnostic_standardized_result(self):
         classical_state_result = {
             "status": "ok",

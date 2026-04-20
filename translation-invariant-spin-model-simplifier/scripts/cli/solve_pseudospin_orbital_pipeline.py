@@ -27,6 +27,7 @@ from cli.write_results_bundle import write_results_bundle
 from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
 from common.classical_output_compatibility import build_classical_output_compatibility_payload
 from common.classical_solver_family_routing import resolve_classical_solver_method
+from common.downstream_stage_routing import resolve_downstream_stage_route
 from common.classical_state_result import (
     build_diagnostic_classical_result,
     build_final_classical_state_result,
@@ -875,16 +876,13 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
 
 
 def _validate_pseudospin_thermodynamics_request(classical_state_result, *, classical_method):
-    if classical_method == "restricted-product-state":
-        raise ValueError("Sunny pseudospin-orbital thermodynamics requires a CP^(N-1) classical state")
-
     if not isinstance(classical_state_result, dict):
+        if classical_method == "restricted-product-state":
+            raise ValueError("Sunny pseudospin-orbital thermodynamics requires a CP^(N-1) classical state")
         return None
 
-    compatibility = classical_state_result.get("downstream_compatibility", {})
-    thermodynamics = compatibility.get("thermodynamics", {}) if isinstance(compatibility, dict) else {}
-    status = thermodynamics.get("status")
-    if status in {"ready", "review"}:
+    route = resolve_downstream_stage_route(classical_state_result, "thermodynamics")
+    if route.get("status") in {"ready", "review"}:
         return None
 
     method_name = str(classical_state_result.get("method", classical_method))
@@ -893,7 +891,7 @@ def _validate_pseudospin_thermodynamics_request(classical_state_result, *, class
             f"{method_name} is a diagnostic-only lower-bound / seed method and cannot be used directly for thermodynamics"
         )
 
-    reason = thermodynamics.get("reason")
+    reason = route.get("reason")
     if reason:
         raise ValueError(f"{method_name} cannot be used directly for thermodynamics: {reason}")
     return None
