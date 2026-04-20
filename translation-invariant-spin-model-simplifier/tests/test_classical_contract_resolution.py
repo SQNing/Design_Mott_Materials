@@ -9,6 +9,8 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from common.classical_contract_resolution import (  # noqa: E402
     get_classical_state_result,
+    get_classical_supercell_shape,
+    get_classical_ordering,
     get_downstream_stage_compatibility,
     get_downstream_stage_status,
     get_standardized_classical_state,
@@ -198,6 +200,39 @@ class ClassicalContractResolutionTests(unittest.TestCase):
         self.assertEqual(resolved["manifold"], "CP^(N-1)")
         self.assertEqual(resolved["supercell_shape"], [2, 1, 1])
         self.assertEqual(resolved["local_rays"], standardized_state["local_rays"])
+
+    def test_classical_ordering_and_supercell_shape_prefer_standardized_contract(self):
+        standardized_state = {
+            "supercell_shape": [3, 1, 1],
+            "ordering": {"ansatz": "single-q-spiral", "q_vector": [0.25, 0.0, 0.0], "supercell_shape": [3, 1, 1]},
+        }
+        legacy_state = {
+            "supercell_shape": [7, 1, 1],
+            "ordering": {"ansatz": "legacy", "q_vector": [0.5, 0.0, 0.0], "supercell_shape": [7, 1, 1]},
+        }
+        payload = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "downstream_compatibility": {"lswt": {"status": "ready"}},
+                "classical_state": standardized_state,
+            },
+            "classical_state": legacy_state,
+            "classical": {"classical_state": legacy_state},
+        }
+
+        self.assertEqual(get_classical_ordering(payload), standardized_state["ordering"])
+        self.assertEqual(get_classical_supercell_shape(payload), [3, 1, 1])
+
+    def test_classical_ordering_and_supercell_shape_fall_back_to_legacy_state_without_contract(self):
+        legacy_state = {
+            "supercell_shape": [5, 1, 1],
+            "ordering": {"ansatz": "single-q-spiral", "q_vector": [0.2, 0.0, 0.0], "supercell_shape": [5, 1, 1]},
+        }
+        payload = {"classical": {"classical_state": legacy_state}}
+
+        self.assertEqual(get_classical_ordering(payload, prefer_nested_legacy=True), legacy_state["ordering"])
+        self.assertEqual(get_classical_supercell_shape(payload, prefer_nested_legacy=True), [5, 1, 1])
 
 
 if __name__ == "__main__":

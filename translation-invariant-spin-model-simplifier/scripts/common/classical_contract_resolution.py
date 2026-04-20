@@ -68,6 +68,46 @@ def get_standardized_classical_state(payload, *, prefer_nested_legacy=False):
     return None
 
 
+def _normalize_supercell_shape(candidate):
+    if isinstance(candidate, list) and len(candidate) == 3:
+        return [int(value) for value in candidate]
+    return None
+
+
+def get_classical_ordering(payload, *, prefer_nested_legacy=False):
+    classical_state = get_standardized_classical_state(
+        payload,
+        prefer_nested_legacy=prefer_nested_legacy,
+    )
+    if not isinstance(classical_state, dict):
+        return None
+    ordering = classical_state.get("ordering")
+    if isinstance(ordering, dict):
+        return ordering
+    return None
+
+
+def get_classical_supercell_shape(payload, *, prefer_nested_legacy=False):
+    classical_state = get_standardized_classical_state(
+        payload,
+        prefer_nested_legacy=prefer_nested_legacy,
+    )
+    if not isinstance(classical_state, dict):
+        return None
+
+    supercell_shape = _normalize_supercell_shape(classical_state.get("supercell_shape"))
+    if supercell_shape is not None:
+        return supercell_shape
+
+    ordering = get_classical_ordering(
+        payload,
+        prefer_nested_legacy=prefer_nested_legacy,
+    )
+    if isinstance(ordering, dict):
+        return _normalize_supercell_shape(ordering.get("supercell_shape"))
+    return None
+
+
 def get_downstream_stage_compatibility(payload, stage_name):
     classical_state_result = get_classical_state_result(payload)
     if not isinstance(classical_state_result, dict):

@@ -2,6 +2,7 @@
 import math
 from itertools import product
 
+from common.classical_contract_resolution import get_classical_supercell_shape
 from common.rotating_frame_metadata import resolve_rotating_frame_transform
 
 
@@ -150,36 +151,11 @@ def _resolve_lattice_vectors(model):
 def _resolve_supercell_shape(model):
     if not isinstance(model, dict):
         return None
-    classical_state_result = model.get("classical_state_result", {})
-    standardized_classical_state = (
-        classical_state_result.get("classical_state")
-        if isinstance(classical_state_result, dict)
-        else None
-    )
-    classical = model.get("classical", {})
-    classical_state_result_in_classical = (
-        classical.get("classical_state_result")
-        if isinstance(classical, dict)
-        else None
-    )
-    standardized_classical_state_in_classical = (
-        classical_state_result_in_classical.get("classical_state")
-        if isinstance(classical_state_result_in_classical, dict)
-        else None
-    )
     candidate_paths = [
         model.get("supercell_shape"),
         (model.get("ordering", {}) or {}).get("supercell_shape"),
-        (standardized_classical_state or {}).get("supercell_shape"),
-        ((standardized_classical_state or {}).get("ordering", {}) or {}).get("supercell_shape"),
-        (model.get("classical_state", {}) or {}).get("supercell_shape"),
-        ((model.get("classical_state", {}) or {}).get("ordering", {}) or {}).get("supercell_shape"),
-        ((model.get("classical_state", {}) or {}).get("classical_state", {}) or {}).get("supercell_shape"),
-        (((model.get("classical_state", {}) or {}).get("classical_state", {}) or {}).get("ordering", {}) or {}).get("supercell_shape"),
         (model.get("classical", {}) or {}).get("supercell_shape"),
-        (standardized_classical_state_in_classical or {}).get("supercell_shape"),
-        ((standardized_classical_state_in_classical or {}).get("ordering", {}) or {}).get("supercell_shape"),
-        ((model.get("classical", {}) or {}).get("classical_state", {}) or {}).get("supercell_shape"),
+        get_classical_supercell_shape(model, prefer_nested_legacy=True),
     ]
     for candidate in candidate_paths:
         if isinstance(candidate, list) and len(candidate) == 3:

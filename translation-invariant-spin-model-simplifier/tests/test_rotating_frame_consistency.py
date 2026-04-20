@@ -67,6 +67,56 @@ class RotatingFrameConsistencyTests(unittest.TestCase):
         self.assertEqual(len(realization["supercell_site_phases"]), 3)
         self.assertAlmostEqual(realization["supercell_site_phases"][1]["phase"], 0.5 * np.pi)
 
+    def test_realization_prefers_standardized_supercell_shape_over_conflicting_legacy_wrapper(self):
+        model = {
+            "positions": [[0.0, 0.0, 0.0]],
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "rotating_frame_transform": {
+                "status": "explicit",
+                "kind": "site_phase_rotation",
+                "source_frame_kind": "single_q_rotating_frame",
+                "source_order_kind": "single_q_spiral",
+                "wavevector": [0.25, 0.0, 0.0],
+                "wavevector_units": "reciprocal_lattice_units",
+                "phase_rule": "Q_dot_r_plus_phi_s",
+                "phase_origin": "Q_dot_r",
+                "sublattice_phase_offsets": {},
+                "rotation_axis": "z",
+            },
+            "classical_state": {
+                "supercell_shape": [7, 1, 1],
+                "ordering": {
+                    "q_vector": [0.5, 0.0, 0.0],
+                    "supercell_shape": [7, 1, 1],
+                },
+                "classical_state": {
+                    "supercell_shape": [9, 1, 1],
+                    "ordering": {
+                        "q_vector": [0.5, 0.0, 0.0],
+                        "supercell_shape": [9, 1, 1],
+                    },
+                },
+            },
+            "classical": {
+                "classical_state_result": {
+                    "status": "ok",
+                    "role": "final",
+                    "classical_state": {
+                        "supercell_shape": [3, 1, 1],
+                        "ordering": {
+                            "q_vector": [0.25, 0.0, 0.0],
+                            "supercell_shape": [3, 1, 1],
+                        },
+                    },
+                }
+            },
+        }
+
+        realization = resolve_rotating_frame_realization(model)
+
+        self.assertEqual(realization["supercell_shape"], [3, 1, 1])
+        self.assertEqual(len(realization["supercell_site_phases"]), 3)
+
     def test_infer_single_q_from_supercell_site_phases_recovers_q_and_offsets(self):
         payload = {
             "positions": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],

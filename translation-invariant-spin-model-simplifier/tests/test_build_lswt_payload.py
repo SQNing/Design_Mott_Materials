@@ -156,6 +156,76 @@ class BuildLswtPayloadTests(unittest.TestCase):
             ],
         )
 
+    def test_builder_prefers_nested_standardized_contract_over_conflicting_legacy_state(self):
+        model = {
+            "lattice": {
+                "kind": "chain",
+                "dimension": 1,
+                "lattice_vectors": [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                ],
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "simplified_model": {
+                "template": "generic",
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1.0, 0.0, 0.0],
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0],
+                        ],
+                    }
+                ],
+            },
+            "classical_state": {
+                "site_frames": [
+                    {
+                        "site": 0,
+                        "spin_length": 0.5,
+                        "direction": [1.0, 0.0, 0.0],
+                    }
+                ],
+                "ordering": {
+                    "ansatz": "legacy-conflict",
+                    "q_vector": [0.5, 0.0, 0.0],
+                    "supercell_shape": [7, 1, 1],
+                },
+            },
+            "classical": {
+                "classical_state_result": {
+                    "status": "ok",
+                    "role": "final",
+                    "classical_state": {
+                        "site_frames": [
+                            {
+                                "site": 0,
+                                "spin_length": 0.5,
+                                "direction": [0.0, 0.0, 1.0],
+                            }
+                        ],
+                        "ordering": {
+                            "ansatz": "single-q-spiral",
+                            "q_vector": [0.25, 0.0, 0.0],
+                            "supercell_shape": [3, 1, 1],
+                        },
+                    },
+                }
+            },
+        }
+
+        result = build_lswt_payload(model)
+
+        self.assertEqual(result["status"], "ok")
+        payload = result["payload"]
+        self.assertEqual(payload["reference_frames"][0]["direction"], [0.0, 0.0, 1.0])
+        self.assertEqual(payload["ordering"]["q_vector"], [0.25, 0.0, 0.0])
+
 
 if __name__ == "__main__":
     unittest.main()

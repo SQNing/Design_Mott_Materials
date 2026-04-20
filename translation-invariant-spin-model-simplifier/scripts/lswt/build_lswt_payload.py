@@ -8,6 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.bravais_kpaths import default_high_symmetry_path
+from common.classical_contract_resolution import get_classical_ordering, get_standardized_classical_state
 from common.cpn_classical_state import has_spin_frame_classical_state, is_cpn_local_ray_classical_state
 from common.lattice_geometry import (
     build_isotropic_heisenberg_bonds_from_parameters,
@@ -24,19 +25,7 @@ def _error(code, message):
 
 
 def _get_classical_state(model):
-    classical_state_result = model.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        standardized_state = classical_state_result.get("classical_state")
-        if isinstance(standardized_state, dict):
-            return standardized_state
-
-    classical = model.get("classical", {})
-    classical_state_result = classical.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        standardized_state = classical_state_result.get("classical_state")
-        if isinstance(standardized_state, dict):
-            return standardized_state
-    return classical.get("classical_state", model.get("classical_state"))
+    return get_standardized_classical_state(model, prefer_nested_legacy=True)
 
 
 def _vector_norm(vector):
@@ -263,7 +252,7 @@ def build_lswt_payload(model):
             }
             for frame in reference_frames
         ],
-        "ordering": classical_state.get("ordering", {}),
+        "ordering": get_classical_ordering(model, prefer_nested_legacy=True) or classical_state.get("ordering", {}),
         "q_path": q_path_summary["q_path"],
         "q_grid": model.get("q_grid", []),
         "q_samples": int(model.get("q_samples", 64)),
