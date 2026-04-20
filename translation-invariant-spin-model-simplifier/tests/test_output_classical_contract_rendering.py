@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -98,6 +99,23 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("method=pseudospin-cpn-generalized-lt", lines[0])
         self.assertIn("role=diagnostic", lines[0])
         self.assertIn("solver_family=diagnostic_seed_only", lines[0])
+
+    def test_plot_payload_metadata_prefers_standardized_classical_method(self):
+        payload = {
+            "classical": {"chosen_method": "legacy-method"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-variational",
+            },
+            "lswt": {"status": "ok", "backend": {"name": "Sunny.jl"}, "linear_spin_wave": {"dispersion": []}},
+            "gswt": {},
+        }
+
+        with patch.object(render_plots, "_build_classical_plot_state", return_value={"site_frames": []}):
+            plot_payload = render_plots._build_plot_payload(payload)
+
+        self.assertEqual(plot_payload["metadata"]["classical_method"], "spin-only-variational")
 
 
 if __name__ == "__main__":

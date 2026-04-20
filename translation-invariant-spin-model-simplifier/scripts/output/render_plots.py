@@ -1339,6 +1339,7 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
     dispersion = lswt.get("linear_spin_wave", {}).get("dispersion", [])
     band_count = max((len(point.get("bands", [])) for point in dispersion), default=0)
     plot_options = payload.get("plot_options", {})
+    classical_state_result = _get_classical_state_result(payload)
     classical_state = _build_classical_plot_state(
         payload,
         commensurate_cells=commensurate_cells,
@@ -1353,7 +1354,10 @@ def _build_plot_payload(payload, commensurate_cells=2, incommensurate_cells=5):
         "metadata": {
             "model_name": payload.get("model_name", ""),
             "backend": lswt.get("backend", {}).get("name", "unknown"),
-            "classical_method": payload.get("classical", {}).get("chosen_method", ""),
+            "classical_method": classical_state_result.get(
+                "method",
+                payload.get("classical", {}).get("chosen_method", ""),
+            ),
             "lswt_status": lswt.get("status", "missing"),
             "gswt_status": payload.get("gswt", {}).get("status", "missing"),
         },
