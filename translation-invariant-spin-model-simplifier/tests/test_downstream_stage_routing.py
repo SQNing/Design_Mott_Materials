@@ -77,7 +77,7 @@ class DownstreamStageRoutingTests(unittest.TestCase):
 
         self.assertEqual(route["status"], "ready")
         self.assertEqual(route["enabled"], True)
-        self.assertEqual(route["recommended_backend"], "python")
+        self.assertEqual(route["recommended_backend"], "python_glswt")
         self.assertEqual(route["method"], "pseudospin-cpn-local-ray-minimize")
 
     def test_resolve_review_thermodynamics_route_is_enabled(self):
