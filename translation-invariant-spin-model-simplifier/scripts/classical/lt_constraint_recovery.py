@@ -4,6 +4,15 @@ import math
 
 import numpy as np
 
+if __package__ in {None, ""}:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from classical.lt_tensor_constraint_completion import complete_lt_constraints
+else:
+    from .lt_tensor_constraint_completion import complete_lt_constraints
+
 
 def reconstruct_single_q_real_space_state(positions, q, amplitudes):
     q_vector = np.array([float(value) for value in q], dtype=float)
@@ -44,6 +53,12 @@ def _pad_vector(values):
     return padded
 
 
+def _complex_from_serialized(value):
+    if isinstance(value, dict):
+        return complex(float(value.get("real", 0.0)), float(value.get("imag", 0.0)))
+    return complex(value)
+
+
 def _basis_positions(model, site_count):
     lattice = model.get("lattice", {})
     positions = []
@@ -72,13 +87,42 @@ def _infer_ordering_kind(q, tolerance=1e-6, max_denominator=12):
 
 def recover_classical_state_from_lt(model, q, amplitudes, spin_length=0.5, source="lt"):
     padded_q = _pad_vector(q)
-    padded_amplitudes = [complex(value) for value in amplitudes]
-    site_count = max(
-        len(padded_amplitudes),
+    padded_amplitudes = [_complex_from_serialized(value) for value in amplitudes]
+    model_site_count = max(
         int(model.get("lattice", {}).get("sublattices", 0) or 0),
         len(model.get("lattice", {}).get("positions") or []),
         1,
     )
+    if len(padded_amplitudes) == 3 * model_site_count:
+        completion = complete_lt_constraints({"q": padded_q, "eigenspace": [padded_amplitudes]}, model)
+        site_frames = []
+        for frame in completion["site_frames"]:
+            site_frames.append(
+                {
+                    "site": int(frame["site"]),
+                    "spin_length": float(spin_length),
+                    "direction": list(frame["direction"]),
+                }
+            )
+        return {
+            "site_frames": site_frames,
+            "ordering": {
+                "kind": _infer_ordering_kind(padded_q),
+                "q_vector": padded_q,
+            },
+            "constraint_recovery": {
+                "source": str(source),
+                "reconstruction": "tensor-single-q",
+                "status": completion["status"],
+                "strong_constraint_residual": completion["strong_constraint_residual"],
+                "max_site_norm_residual": completion["max_site_norm_residual"],
+                "site_norms": completion["site_norms"],
+                "combination_coefficients": completion["combination_coefficients"],
+                "variational_seed": completion["variational_seed"],
+            },
+        }
+
+    site_count = max(len(padded_amplitudes), model_site_count, 1)
     positions = _basis_positions(model, site_count)
     while len(padded_amplitudes) < site_count:
         padded_amplitudes.append(0.0 + 0.0j)
