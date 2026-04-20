@@ -5,9 +5,9 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from common.classical_contract_resolution import get_standardized_classical_state
 from common.bravais_kpaths import default_high_symmetry_path
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
+from common.classical_reference_payloads import resolve_contract_aware_classical_reference_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
 from common.rotating_frame_consistency import (
@@ -18,9 +18,6 @@ from common.rotating_frame_metadata import resolve_rotating_frame_transform
 from common.rotating_frame_realization import resolve_rotating_frame_realization
 from lswt.build_lswt_payload import infer_spatial_dimension
 from lswt.single_q_z_harmonic_adapter import build_single_q_z_harmonic_payload
-
-_SINGLE_Q_WRAPPER_KEYS = ("reference_ray", "generator_matrix", "site_ansatz", "ansatz_stationarity")
-
 
 def _interpolate_q_path(nodes, samples_per_segment):
     samples_per_segment = max(1, int(samples_per_segment))
@@ -141,52 +138,6 @@ def _attach_rotating_frame_preflight(payload):
         )
         return payload
     return payload
-
-
-def _has_single_q_wrapper_metadata(payload):
-    return isinstance(payload, dict) and any(payload.get(key) is not None for key in _SINGLE_Q_WRAPPER_KEYS)
-
-
-def _resolve_rich_single_q_wrapper(source_state):
-    if not isinstance(source_state, dict):
-        return None
-    if _has_single_q_wrapper_metadata(source_state):
-        return source_state
-
-    compatibility_state = source_state.get("classical_state")
-    if _has_single_q_wrapper_metadata(compatibility_state):
-        return compatibility_state
-
-    classical = source_state.get("classical")
-    if isinstance(classical, dict):
-        if _has_single_q_wrapper_metadata(classical):
-            return classical
-        nested_state = classical.get("classical_state")
-        if _has_single_q_wrapper_metadata(nested_state):
-            return nested_state
-
-    return None
-
-
-def resolve_contract_aware_classical_reference_payload(source_state):
-    if not isinstance(source_state, dict):
-        return source_state
-
-    standardized_state = get_standardized_classical_state(source_state)
-    rich_wrapper = _resolve_rich_single_q_wrapper(source_state)
-    if isinstance(rich_wrapper, dict):
-        if isinstance(standardized_state, dict):
-            return {
-                **rich_wrapper,
-                "classical_state": standardized_state,
-            }
-        return rich_wrapper
-
-    if isinstance(standardized_state, dict):
-        return standardized_state
-    return source_state
-
-
 def build_python_glswt_payload(model, classical_state=None):
     if model.get("payload_kind") in {"python_glswt_local_rays", "python_glswt_single_q_z_harmonic"}:
         return dict(model)
