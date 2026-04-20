@@ -277,6 +277,57 @@ class WriteResultsBundleTests(unittest.TestCase):
         self.assertEqual(summary["classical"]["requested_method"], "auto")
         self.assertEqual(summary["classical"]["method"], "spin-only-variational")
 
+    def test_stage_summary_treats_nested_shim_metadata_as_compatibility_only(self):
+        bundle_payload = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "solver_family": "retained_local_multiplet",
+                "method": "pseudospin-cpn-local-ray-minimize",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                    "gswt": {"status": "ready"},
+                    "thermodynamics": {"status": "ready"},
+                },
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                },
+            },
+            "classical": {
+                "chosen_method": "legacy-method",
+                "requested_method": "auto",
+                "classical_state_result": {
+                    "status": "ok",
+                    "role": "diagnostic",
+                    "solver_family": "legacy-nested",
+                    "method": "nested-legacy-method",
+                },
+            },
+        }
+
+        summary = write_results_bundle._stage_summary(
+            {},
+            bundle_payload,
+            run_missing_classical=False,
+            run_missing_thermodynamics=False,
+            run_missing_gswt=False,
+            run_missing_lswt=False,
+        )
+
+        self.assertEqual(summary["classical"]["chosen_method"], "legacy-method")
+        self.assertEqual(summary["classical"]["requested_method"], "auto")
+        self.assertEqual(summary["classical"]["method"], "pseudospin-cpn-local-ray-minimize")
+        self.assertEqual(summary["classical"]["role"], "final")
+        self.assertEqual(summary["classical"]["solver_family"], "retained_local_multiplet")
+
     def test_populate_missing_results_skips_blocked_gswt_and_thermodynamics(self):
         payload = {
             "bonds": [
