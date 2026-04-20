@@ -328,6 +328,162 @@ class WriteResultsBundleTests(unittest.TestCase):
         self.assertEqual(summary["classical"]["role"], "final")
         self.assertEqual(summary["classical"]["solver_family"], "retained_local_multiplet")
 
+    def test_populate_missing_results_routes_gswt_through_shared_execution(self):
+        payload = {
+            "gswt_payload": {"payload_kind": "python_glswt_local_rays"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                    "gswt": {"status": "ready", "recommended_backend": "python_glswt"},
+                    "thermodynamics": {"status": "blocked", "reason": "missing-thermodynamics-inputs"},
+                },
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                },
+            },
+        }
+
+        with (
+            patch.object(
+                write_results_bundle,
+                "execute_downstream_stage",
+                create=True,
+                return_value={"status": "ok", "backend": {"name": "python-glswt"}},
+            ) as execute_stage,
+            patch.object(write_results_bundle, "run_python_glswt_driver", return_value={"status": "legacy-python"}) as python_runner,
+            patch.object(write_results_bundle, "run_sun_gswt", return_value={"status": "legacy-sunny"}) as sunny_runner,
+        ):
+            result = write_results_bundle._populate_missing_results(
+                payload,
+                run_missing_classical=False,
+                run_missing_thermodynamics=False,
+                run_missing_gswt=True,
+                run_missing_lswt=False,
+            )
+
+        self.assertEqual(result["gswt"]["status"], "ok")
+        self.assertEqual(execute_stage.call_args[0][1], "gswt")
+        self.assertEqual(python_runner.called, False)
+        self.assertEqual(sunny_runner.called, False)
+
+    def test_populate_missing_results_routes_thermodynamics_through_shared_execution(self):
+        payload = {
+            "bonds": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "vector": [0.0, 0.0, 0.0],
+                    "matrix": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                }
+            ],
+            "thermodynamics": {
+                "temperatures": [0.1, 0.2],
+                "backend_method": "sunny-local-sampler",
+            },
+            "thermodynamics_payload": {
+                "payload_kind": "sunny_sun_thermodynamics",
+                "backend_method": "sunny-local-sampler",
+            },
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                    "gswt": {"status": "blocked", "reason": "missing-gswt-payload"},
+                    "thermodynamics": {"status": "ready", "recommended_backend": "sunny_thermodynamics"},
+                },
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                },
+            },
+        }
+
+        with (
+            patch.object(
+                write_results_bundle,
+                "execute_downstream_stage",
+                create=True,
+                return_value={
+                    "status": "ok",
+                    "configuration": {"backend_method": "sunny-local-sampler"},
+                    "grid": [{"temperature": 0.1}],
+                },
+            ) as execute_stage,
+            patch.object(write_results_bundle, "estimate_thermodynamics", return_value={"status": "legacy-spin-only"}) as estimate,
+        ):
+            result = write_results_bundle._populate_missing_results(
+                payload,
+                run_missing_classical=False,
+                run_missing_thermodynamics=True,
+                run_missing_gswt=False,
+                run_missing_lswt=False,
+            )
+
+        self.assertEqual(result["thermodynamics_result"]["status"], "ok")
+        self.assertEqual(execute_stage.call_args[0][1], "thermodynamics")
+        self.assertEqual(estimate.called, False)
+
+    def test_populate_missing_results_routes_lswt_through_shared_execution(self):
+        payload = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "downstream_compatibility": {
+                    "lswt": {"status": "ready", "recommended_backend": "linear_spin_wave"},
+                    "gswt": {"status": "blocked", "reason": "requires-local-ray-cpn-state"},
+                    "thermodynamics": {"status": "review", "reason": "requires-caller-confirmed-support"},
+                },
+                "classical_state": {
+                    "site_frames": [
+                        {
+                            "site": 0,
+                            "spin_length": 0.5,
+                            "direction": [0.0, 0.0, 1.0],
+                        }
+                    ]
+                },
+            }
+        }
+
+        with (
+            patch.object(
+                write_results_bundle,
+                "execute_downstream_stage",
+                create=True,
+                return_value={"status": "ok", "backend": {"name": "SpinW"}},
+            ) as execute_stage,
+            patch.object(write_results_bundle, "run_linear_spin_wave", return_value={"status": "legacy-lswt"}) as lswt_runner,
+        ):
+            result = write_results_bundle._populate_missing_results(
+                payload,
+                run_missing_classical=False,
+                run_missing_thermodynamics=False,
+                run_missing_gswt=False,
+                run_missing_lswt=True,
+            )
+
+        self.assertEqual(result["lswt"]["status"], "ok")
+        self.assertEqual(execute_stage.call_args[0][1], "lswt")
+        self.assertEqual(lswt_runner.called, False)
+
     def test_populate_missing_results_skips_blocked_gswt_and_thermodynamics(self):
         payload = {
             "bonds": [

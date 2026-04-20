@@ -13,6 +13,7 @@ from common.classical_contract_resolution import (
     get_classical_state_result,
     get_standardized_classical_state,
 )
+from common.downstream_stage_execution import execute_downstream_stage
 from common.downstream_stage_routing import resolve_downstream_stage_route
 from common.cpn_classical_state import has_spin_frame_classical_state
 from common.lswt_failure_analysis import summarize_lswt_failure
@@ -48,12 +49,7 @@ def _can_run_gswt(payload):
 
 
 def _run_gswt_stage(payload):
-    gswt_payload = _get_gswt_payload(payload)
-    payload_kind = str(gswt_payload.get("payload_kind"))
-    if payload_kind in {"python_glswt_local_rays", "python_glswt_single_q_z_harmonic"}:
-        payload["gswt"] = run_python_glswt_driver(gswt_payload)
-        return payload
-    payload["gswt"] = run_sun_gswt(payload)
+    payload["gswt"] = execute_downstream_stage(payload, "gswt")
     return payload
 
 
@@ -88,20 +84,7 @@ def _thermodynamics_configuration(payload):
 
 
 def _run_thermodynamics_stage(payload):
-    thermodynamics = payload.get("thermodynamics", {})
-    payload["thermodynamics_result"] = estimate_thermodynamics(
-        payload,
-        thermodynamics["temperatures"],
-        sweeps=int(thermodynamics.get("sweeps", 100)),
-        burn_in=int(thermodynamics.get("burn_in", 50)),
-        seed=int(thermodynamics.get("seed", 0)),
-        measurement_interval=int(thermodynamics.get("measurement_interval", 1)),
-        field_direction=thermodynamics.get("field_direction"),
-        high_temperature_entropy=float(thermodynamics.get("high_temperature_entropy", 0.0)),
-        energy_infinite_temperature=thermodynamics.get("energy_infinite_temperature"),
-        scan_order=str(thermodynamics.get("scan_order", "as_given")),
-        reuse_configuration=bool(thermodynamics.get("reuse_configuration", True)),
-    )
+    payload["thermodynamics_result"] = execute_downstream_stage(payload, "thermodynamics")
     return payload
 
 
@@ -126,7 +109,7 @@ def _populate_missing_results(
         payload = _run_gswt_stage(payload)
 
     if run_missing_lswt and "lswt" not in payload and _can_run_lswt(payload):
-        payload["lswt"] = run_linear_spin_wave(payload)
+        payload["lswt"] = execute_downstream_stage(payload, "lswt")
 
     return payload
 
