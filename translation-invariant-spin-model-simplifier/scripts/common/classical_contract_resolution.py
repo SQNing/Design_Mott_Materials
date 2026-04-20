@@ -49,7 +49,7 @@ def get_standardized_classical_state(payload, *, prefer_nested_legacy=False):
     if isinstance(classical, dict):
         nested_state = classical.get("classical_state")
         if isinstance(nested_state, dict):
-            if prefer_nested_legacy:
+            if prefer_nested_legacy and nested_state:
                 return nested_state
             nested_legacy_state = nested_state
         else:

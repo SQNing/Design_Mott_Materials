@@ -49,6 +49,22 @@ class WriteResultsBundleTests(unittest.TestCase):
 
         self.assertEqual(write_results_bundle._has_classical_state(payload), True)
 
+    def test_has_classical_state_preserves_top_level_legacy_state_when_nested_mirror_is_empty(self):
+        payload = {
+            "classical_state": {
+                "site_frames": [
+                    {
+                        "site": 0,
+                        "spin_length": 0.5,
+                        "direction": [0.0, 0.0, 1.0],
+                    }
+                ]
+            },
+            "classical": {"classical_state": {}},
+        }
+
+        self.assertEqual(write_results_bundle._has_classical_state(payload), True)
+
     def test_can_run_lswt_accepts_standardized_ready_contract(self):
         payload = {
             "classical_state_result": {
