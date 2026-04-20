@@ -905,13 +905,6 @@ def _validate_pseudospin_thermodynamics_request(classical_state_result, *, class
 
 def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
     standardized_state = get_standardized_classical_state(solver_result)
-    if isinstance(standardized_state, dict):
-        resolved_state = resolve_cpn_classical_state_payload(
-            standardized_state,
-            default_supercell_shape=default_supercell_shape,
-        )
-        if resolved_state.get("local_rays"):
-            return resolved_state
 
     resolved_state = resolve_cpn_classical_state_payload(
         solver_result,
@@ -919,6 +912,9 @@ def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
     )
     if resolved_state.get("local_rays"):
         return resolved_state
+
+    if isinstance(standardized_state, dict):
+        return dict(standardized_state)
 
     classical_state = solver_result.get("classical_state") if isinstance(solver_result, dict) else None
     if isinstance(classical_state, dict):
