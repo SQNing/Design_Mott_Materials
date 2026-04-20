@@ -105,9 +105,21 @@ Implemented in code:
   stage availability from the same shared contract-first routing helper, while
   keeping only narrow legacy fallback behavior when no standardized contract is
   present
+- downstream backend selection and stage execution are now explicit in code
+  through a shared execution helper that:
+  - selects stable backend ids for LSWT / GSWT / thermodynamics
+  - dispatches to the current LSWT, Python-GLSWT, Sunny-GSWT, spin-only
+    thermodynamics, and Sunny thermodynamics runners
+  - raises on blocked routes instead of silently choosing a local fallback
+- results-bundle auto-run now reuses that shared downstream execution helper
+  instead of open-coding backend choice for GSWT, LSWT, and thermodynamics
 - pseudospin thermodynamics validation now prefers standardized downstream
   routing over legacy method-name guards whenever a standardized classical
   contract exists
+- classical output compatibility is now an explicit export policy:
+  - canonical contract-first payloads are the default artifact shape
+  - legacy top-level `classical_state` and nested `payload["classical"]`
+    mirrors are emitted only through an explicit compatibility-export mode
 - the current focused regression slice for this contract-only CLI/artifact
   surface plus explicit solver-family routing passes with focused tests
   covering contract resolution, compatibility shim emission, shared routing
@@ -117,35 +129,30 @@ Implemented in code:
 
 Not yet fully migrated:
 
-- legacy `classical_state` and `chosen_method` fields are still emitted in
-  parallel for backward compatibility with older scripts and artifacts
 - some helper paths still allow carefully scoped legacy fallback precedence when
   no standardized contract is present
-- repository-wide operation is now strongly contract-first and much closer to
-  contract-only internally, but emitted artifacts and compatibility shims still
-  deliberately preserve legacy mirrors
+- repository-wide operation is now effectively contract-first for normal
+  internal flow and default emitted artifacts, but legacy export remains
+  deliberately available for older downstream consumers that have not migrated
 
 ### Next Migration Frontier
 
 The next likely cleanup steps after this stage are:
 
-- reduce remaining compatibility-only legacy mirrors once downstream callers no
-  longer depend on them, especially in emitted artifact schemas rather than
-  internal assembly paths
 - decide whether the current shared routing catalog should stay as a simple
   method registry or grow into a broader applicability-predicate / registration
   layer for future solver families
 - decide whether the current downstream routing helper should stay as a compact
-  stage router or grow into a broader registration / backend-selection layer as
-  future GLSPW-style downstream stages are added
+  stage router / executor or grow into a broader registration layer as future
+  GLSPW-style downstream stages and backend families are added
 - decide whether any remaining CLI or artifact-loading surfaces should be made
   strictly contract-only internally with compatibility translation confined to
   explicit read/write edges
 - expand regression coverage beyond the current contract-only CLI/artifact
   slice to catch future drift in less frequently used solver-entry paths
 - continue the broader unified-classical-solver-layer roadmap above the
-  contract level, especially solver-family routing and later downstream-stage
-  convergence
+  contract level, especially additive new solver families and later
+  downstream-stage convergence
 
 ## Current State
 
