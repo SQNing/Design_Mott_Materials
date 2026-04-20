@@ -426,6 +426,80 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "blocked")
         self.assertEqual(standardized["downstream_compatibility"]["thermodynamics"]["status"], "blocked")
 
+    def test_pseudospin_glt_adapter_promotes_exact_projector_solution_to_final_classical_state_result(self):
+        solver_result = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "final",
+            "promotion_reason": "exact_projector_solution",
+            "energy": -3.5,
+            "classical_state": {
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "supercell_shape": [1, 1, 1],
+                "local_rays": [
+                    {
+                        "cell": [0, 0, 0],
+                        "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                    }
+                ],
+                "ordering": {"kind": "uniform", "q_vector": [0.0, 0.0, 0.0], "supercell_shape": [1, 1, 1]},
+            },
+        }
+
+        standardized = solve_pseudospin_orbital_pipeline._build_pseudospin_classical_state_result(
+            solver_result,
+            classical_method="cpn-generalized-lt",
+            default_supercell_shape=[1, 1, 1],
+        )
+
+        self.assertEqual(standardized["role"], "final")
+        self.assertEqual(standardized["solver_family"], "retained_local_multiplet")
+        self.assertEqual(standardized["method"], "pseudospin-cpn-generalized-lt")
+        self.assertEqual(standardized["promotion_reason"], "exact_projector_solution")
+        self.assertEqual(standardized["energy"], -3.5)
+        self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "ready")
+        self.assertEqual(standardized["downstream_compatibility"]["thermodynamics"]["status"], "ready")
+
+    def test_pseudospin_glt_adapter_promotes_certified_commensurate_lift_to_final_classical_state_result(self):
+        solver_result = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "final",
+            "promotion_reason": "certified_commensurate_lift",
+            "lower_bound": -2.5,
+            "classical_state": {
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "supercell_shape": [2, 1, 1],
+                "local_rays": [
+                    {
+                        "cell": [0, 0, 0],
+                        "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                    },
+                    {
+                        "cell": [1, 0, 0],
+                        "vector": [{"real": 0.0, "imag": 0.0}, {"real": 1.0, "imag": 0.0}],
+                    },
+                ],
+                "ordering": {
+                    "kind": "commensurate-single-q",
+                    "q_vector": [0.5, 0.0, 0.0],
+                    "supercell_shape": [2, 1, 1],
+                },
+            },
+        }
+
+        standardized = solve_pseudospin_orbital_pipeline._build_pseudospin_classical_state_result(
+            solver_result,
+            classical_method="cpn-generalized-lt",
+            default_supercell_shape=[2, 1, 1],
+        )
+
+        self.assertEqual(standardized["role"], "final")
+        self.assertEqual(standardized["solver_family"], "retained_local_multiplet")
+        self.assertEqual(standardized["promotion_reason"], "certified_commensurate_lift")
+        self.assertEqual(standardized["energy"], -2.5)
+        self.assertEqual(standardized["downstream_compatibility"]["gswt"]["status"], "ready")
+
     def test_pseudospin_result_payload_carries_classical_state_result(self):
         solver_result = {
             "method": "cpn-local-ray-minimize",

@@ -26,7 +26,7 @@ from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payloa
 from cli.write_results_bundle import write_results_bundle
 from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
 from common.classical_output_compatibility import build_classical_output_compatibility_payload
-from common.classical_solver_family_routing import resolve_classical_solver_method
+from common.classical_solver_family_routing import resolve_classical_solver_method, resolve_dynamic_classical_solver_method
 from common.downstream_stage_routing import resolve_downstream_stage_route
 from common.classical_state_result import (
     build_diagnostic_classical_result,
@@ -832,7 +832,7 @@ def _pseudospin_result_energy(solver_result):
 def _build_pseudospin_classical_state_result(solver_result, *, classical_method, default_supercell_shape):
     if not isinstance(solver_result, dict):
         return None
-    method_metadata = _resolve_pseudospin_classical_method_metadata(classical_method)
+    method_metadata = resolve_dynamic_classical_solver_method(classical_method, solver_result)
 
     diagnostics = _pseudospin_result_diagnostics(solver_result)
 
@@ -861,12 +861,38 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
         return result
 
     if classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
+        if str(solver_result.get("solver_role")) == "final":
+            classical_state = resolve_cpn_classical_state_payload(
+                solver_result,
+                default_supercell_shape=default_supercell_shape,
+            )
+            if classical_state.get("local_rays"):
+                result = build_final_classical_state_result(
+                    classical_state,
+                    thermodynamics_supported=True,
+                    diagnostics=diagnostics,
+                )
+                result["solver_family"] = method_metadata["solver_family"]
+                result["method"] = method_metadata["standardized_method"]
+                result["ordering"] = classical_state.get("ordering")
+                result["supercell_shape"] = [
+                    int(value) for value in classical_state.get("supercell_shape", default_supercell_shape)
+                ]
+                energy = _pseudospin_result_energy(solver_result)
+                if energy is not None:
+                    result["energy"] = energy
+                if solver_result.get("promotion_reason") is not None:
+                    result["promotion_reason"] = solver_result.get("promotion_reason")
+                return result
+
         result = build_diagnostic_classical_result(
             reason="diagnostic-seed-method",
             diagnostics=diagnostics,
         )
         result["solver_family"] = method_metadata["solver_family"]
         result["method"] = method_metadata["standardized_method"]
+        if solver_result.get("promotion_reason") is not None:
+            result["promotion_reason"] = solver_result.get("promotion_reason")
         for key in ("lower_bound", "seed_candidate", "recommended_followup", "ordering_hint"):
             if solver_result.get(key) is not None:
                 result[key] = solver_result.get(key)

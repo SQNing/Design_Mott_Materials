@@ -72,6 +72,15 @@ def resolve_classical_solver_method(method_name):
     return dict(metadata)
 
 
+def resolve_dynamic_classical_solver_method(method_name, solver_result=None):
+    metadata = resolve_classical_solver_method(method_name)
+    if str(method_name) in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
+        if isinstance(solver_result, dict) and str(solver_result.get("solver_role")) == FINAL_ROLE:
+            metadata["solver_family"] = RETAINED_LOCAL_MULTIPLET
+            metadata["role"] = FINAL_ROLE
+    return metadata
+
+
 def standardized_method_name(method_name):
     return resolve_classical_solver_method(method_name)["standardized_method"]
 

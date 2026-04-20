@@ -737,6 +737,39 @@ def _classical_state_from_ray(ray, conventions):
     }
 
 
+def _uniform_multisublattice_classical_state(dominant_rays, blocks_payload, conventions):
+    local_rays = []
+    for site_index, ray in enumerate(dominant_rays):
+        site_metadata = (
+            blocks_payload["magnetic_sites"][site_index]
+            if site_index < len(blocks_payload["magnetic_sites"])
+            and isinstance(blocks_payload["magnetic_sites"][site_index], dict)
+            else {}
+        )
+        local_rays.append(
+            {
+                "cell": [0, 0, 0],
+                "site": int(site_index),
+                "label": str(site_metadata.get("label", f"site{site_index}")),
+                "vector": _serialize_vector(_normalized_ray(ray)),
+            }
+        )
+    return {
+        "schema_version": 1,
+        "state_kind": "local_rays",
+        "manifold": "CP^(N-1)",
+        "basis_order": conventions["basis_order"],
+        "pair_basis_order": conventions["pair_basis_order"],
+        "supercell_shape": [1, 1, 1],
+        "local_rays": local_rays,
+        "ordering": {
+            "kind": "uniform",
+            "q_vector": [0.0, 0.0, 0.0],
+            "supercell_shape": [1, 1, 1],
+        },
+    }
+
+
 def solve_cpn_generalized_lt_ground_state(
     model,
     *,
@@ -861,7 +894,9 @@ def solve_cpn_generalized_lt_ground_state(
                 "projector_diagnostics": diagnostics["projector_diagnostics"],
                 "stationarity": diagnostics["stationarity"],
             }
+            result["classical_state"] = dict(classical_state)
         else:
+            classical_state = _uniform_multisublattice_classical_state(dominant_rays, blocks_payload, conventions)
             result["seed_candidate"] = {
                 "kind": "uniform-exact-projector-seed-multisublattice",
                 "magnetic_site_count": int(magnetic_site_count),
@@ -881,6 +916,9 @@ def solve_cpn_generalized_lt_ground_state(
                     "is_exact_projector_solution": True,
                 },
             }
+            result["classical_state"] = classical_state
+        result["solver_role"] = "final"
+        result["promotion_reason"] = "exact_projector_solution"
     elif any(abs(float(component)) > 1.0e-12 for component in winning_q):
         if lowest_shell_sectors:
             reconstruction = reconstruct_commensurate_relaxed_shell(
@@ -915,5 +953,8 @@ def solve_cpn_generalized_lt_ground_state(
                 "projector_exactness": dict(reconstruction["projector_exactness"]),
                 "ordering": dict(reconstruction["ordering"]),
             }
+            result["classical_state"] = dict(reconstruction["classical_state"])
+            result["solver_role"] = "final"
+            result["promotion_reason"] = "exact_commensurate_lift"
 
     return result

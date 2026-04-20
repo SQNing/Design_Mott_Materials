@@ -504,12 +504,27 @@ def certify_cpn_generalized_lt(
         upper_bound=search_result["global_upper_bound"],
         reason="done",
     )
+    promotion_summary = {
+        "solver_role": "diagnostic-only",
+        "promotion_reason": None,
+    }
+    if projector_certificate.get("status") == "certified":
+        promotion_summary = {
+            "solver_role": "final",
+            "promotion_reason": "certified_projector_solution",
+        }
+    elif lift_certificate.get("status") == "commensurate_certified":
+        promotion_summary = {
+            "solver_role": "final",
+            "promotion_reason": "certified_commensurate_lift",
+        }
     return {
         "heuristic_seed": heuristic_seed,
         "relaxed_global_bound": relaxed_certificate,
         "lowest_shell_certificate": shell_certificate,
         "commensurate_lift_certificate": lift_certificate,
         "projector_exactness_certificate": projector_certificate,
+        "promotion_summary": promotion_summary,
         "search_summary": _summarize_search(search_result),
         "next_best_action": next_best_action,
         "next_best_actions": [dict(item) for item in next_best_actions],
