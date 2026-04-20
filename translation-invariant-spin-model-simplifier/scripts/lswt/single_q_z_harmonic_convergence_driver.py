@@ -7,6 +7,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
 from lswt.single_q_z_harmonic_convergence import analyze_single_q_z_harmonic_convergence
 
 
@@ -20,7 +21,17 @@ def _load_pipeline_output_directory(path):
         raise ValueError(f"missing pipeline artifact: {solver_result_path}")
 
     payload = json.loads(classical_model_path.read_text(encoding="utf-8"))
-    payload["classical_state"] = json.loads(solver_result_path.read_text(encoding="utf-8"))
+    solver_result = json.loads(solver_result_path.read_text(encoding="utf-8"))
+    payload["classical_state"] = solver_result
+    classical_state_result = get_classical_state_result(solver_result)
+    if isinstance(classical_state_result, dict):
+        payload["classical_state_result"] = classical_state_result
+        compatibility_state = get_standardized_classical_state(solver_result)
+        if isinstance(compatibility_state, dict) and not any(
+            solver_result.get(key) is not None
+            for key in ("reference_ray", "generator_matrix", "site_ansatz", "ansatz_stationarity")
+        ):
+            payload["classical_state"] = compatibility_state
 
     gswt_payload_path = path / "gswt_payload.json"
     if gswt_payload_path.exists():

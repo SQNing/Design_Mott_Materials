@@ -5,6 +5,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common.classical_contract_resolution import get_standardized_classical_state
 from common.bravais_kpaths import default_high_symmetry_path
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
@@ -143,11 +144,18 @@ def _attach_rotating_frame_preflight(payload):
 def _resolve_classical_reference_payload(source_state):
     if not isinstance(source_state, dict):
         return source_state
-    classical_state_result = source_state.get("classical_state_result")
-    if isinstance(classical_state_result, dict):
-        standardized_state = classical_state_result.get("classical_state")
-        if isinstance(standardized_state, dict):
-            return standardized_state
+
+    # Preserve richer single-q wrappers that carry generator/reference data
+    # outside the standardized classical_state payload.
+    if any(
+        source_state.get(key) is not None
+        for key in ("reference_ray", "generator_matrix", "site_ansatz", "ansatz_stationarity")
+    ):
+        return source_state
+
+    standardized_state = get_standardized_classical_state(source_state)
+    if isinstance(standardized_state, dict):
+        return standardized_state
     return source_state
 
 
