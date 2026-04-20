@@ -10,9 +10,11 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.lt_brillouin_zone import generate_q_mesh
     from classical.lt_fourier_exchange import fourier_exchange_matrix
+    from classical.lt_tensor_constraint_completion import complete_lt_constraints
 else:
     from .lt_brillouin_zone import generate_q_mesh
     from .lt_fourier_exchange import fourier_exchange_matrix
+    from .lt_tensor_constraint_completion import complete_lt_constraints
 
 
 def _n_sublattices(model):
@@ -31,6 +33,18 @@ def _serialize_vectors(vectors):
     return serialized
 
 
+def _components_per_sublattice(matrix_size, sublattice_count):
+    if int(sublattice_count) <= 0:
+        raise ValueError("sublattice_count must be positive")
+    if int(matrix_size) % int(sublattice_count) != 0:
+        raise ValueError("matrix size must be divisible by the sublattice count")
+    return int(matrix_size) // int(sublattice_count)
+
+
+def _lambda_diagonal(lambda_vector, components_per_sublattice):
+    return np.kron(np.diag(lambda_vector), np.eye(int(components_per_sublattice), dtype=float))
+
+
 def _lambda_candidates(sublattice_count, lower, upper, points):
     if sublattice_count < 2:
         return [[0.0]]
@@ -42,13 +56,14 @@ def _lambda_candidates(sublattice_count, lower, upper, points):
 
 
 def _best_for_lambda(model, q_mesh, lambda_vector):
-    lambda_diag = np.diag(lambda_vector)
     best_value = None
     best_q = None
     best_vectors = None
 
     for q in q_mesh:
-        jq = fourier_exchange_matrix(model, q) + lambda_diag
+        base_kernel = fourier_exchange_matrix(model, q)
+        components_per_sublattice = _components_per_sublattice(base_kernel.shape[0], len(lambda_vector))
+        jq = base_kernel + _lambda_diagonal(lambda_vector, components_per_sublattice)
         eigenvalues, eigenvectors = np.linalg.eigh(jq)
         min_value = float(np.real(eigenvalues[0]))
         if best_value is None or min_value < best_value:
@@ -141,11 +156,23 @@ def find_generalized_lt_ground_state(
     else:
         raise ValueError(f"unsupported search_strategy: {search_strategy}")
 
+    matrix_size = int(best_vectors.shape[0])
+    components_per_sublattice = _components_per_sublattice(matrix_size, sublattice_count)
+    constraint_recovery = complete_lt_constraints(
+        {"q": best_q, "eigenspace": _serialize_vectors(best_vectors)},
+        model,
+    )
+
     return {
         "lambda": [float(value) for value in best_lambda],
         "tightened_lower_bound": float(best_value),
         "q": best_q,
         "eigenspace": _serialize_vectors(best_vectors),
+        "matrix_size": matrix_size,
+        "sublattice_count": int(sublattice_count),
+        "components_per_sublattice": int(components_per_sublattice),
+        "active_shell_dimension": int(best_vectors.shape[1]),
+        "constraint_recovery": constraint_recovery,
         "mesh_shape": list(mesh_shape),
         "sample_count": len(q_mesh),
         "optimization": {

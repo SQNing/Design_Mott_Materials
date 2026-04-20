@@ -251,6 +251,22 @@ def _recover_lt_classical_state(payload, chosen_method):
     if chosen_method == "generalized-lt":
         target_result = payload.get("generalized_lt_result", {})
         q_vector = target_result.get("q", q_vector)
+        completion = target_result.get("constraint_recovery")
+        if isinstance(completion, dict) and completion.get("site_frames"):
+            site_frames = []
+            for frame in completion.get("site_frames", []):
+                site_frames.append(
+                    {
+                        "site": int(frame["site"]),
+                        "spin_length": float(spin_length),
+                        "direction": list(frame["direction"]),
+                    }
+                )
+            return {
+                "site_frames": site_frames,
+                "ordering": {"kind": "commensurate", "q_vector": q_vector},
+                "constraint_recovery": completion,
+            }
         eigenspace = target_result.get("eigenspace", [])
         if eigenspace:
             amplitudes = _deserialize_complex_vector(eigenspace[0])
@@ -274,10 +290,43 @@ def _constraint_residual(result):
     if not isinstance(result, dict):
         return None
     constraint_recovery = result.get("constraint_recovery", {})
+    residual = constraint_recovery.get("max_site_norm_residual")
+    if residual is not None:
+        return float(residual)
     residual = constraint_recovery.get("strong_constraint_residual")
     if residual is None:
         return None
     return float(residual)
+
+
+def _constraint_status(result):
+    if not isinstance(result, dict):
+        return None
+    constraint_recovery = result.get("constraint_recovery", {})
+    status = constraint_recovery.get("status")
+    if status is None:
+        return None
+    return str(status)
+
+
+def _constraint_completion_succeeds(result, tolerance):
+    status = _constraint_status(result)
+    if status in {"exact_relaxed_hit", "completed_from_shell"}:
+        return True
+    residual = _constraint_residual(result)
+    if residual is None:
+        return False
+    return residual <= float(tolerance)
+
+
+def _generalized_lt_bound_improvement(payload):
+    lt_result = payload.get("lt_result", {})
+    generalized_lt_result = payload.get("generalized_lt_result", {})
+    lt_bound = lt_result.get("lowest_eigenvalue")
+    generalized_bound = generalized_lt_result.get("tightened_lower_bound")
+    if lt_bound is None or generalized_bound is None:
+        return None
+    return float(generalized_bound) - float(lt_bound)
 
 
 def _selected_solver_result(payload, chosen_method):
@@ -356,6 +405,33 @@ def _choose_auto_method(recommended_method, lt_residual, generalized_lt_residual
         return "variational", "single-sublattice-lt-residual-too-large"
 
     return "variational", "missing-residual-diagnostics"
+
+
+def _resolve_lt_like_method(initial_method, payload, auto_settings):
+    lt_complete = _constraint_completion_succeeds(payload.get("lt_result"), auto_settings["lt_accept_residual"])
+    generalized_lt_complete = _constraint_completion_succeeds(
+        payload.get("generalized_lt_result"),
+        auto_settings["lt_accept_residual"],
+    )
+    improvement = _generalized_lt_bound_improvement(payload)
+
+    if initial_method == "luttinger-tisza":
+        if lt_complete:
+            return "luttinger-tisza", "lt-completion-succeeded"
+        if generalized_lt_complete and improvement is not None and improvement >= auto_settings["generalized_lt_min_improvement"]:
+            return "generalized-lt", "generalized-lt-improved-bound-and-completed"
+        return "variational", "lt-needs-variational-polish"
+
+    if initial_method == "generalized-lt":
+        if lt_complete:
+            return "luttinger-tisza", "lt-already-exact"
+        if generalized_lt_complete and (
+            improvement is None or improvement >= auto_settings["generalized_lt_min_improvement"]
+        ):
+            return "generalized-lt", "generalized-lt-improved-bound-and-completed"
+        return "variational", "no-exact-lt-or-glt-completion"
+
+    return initial_method, "non-lt-like-method"
 
 
 def _normalized_direction(direction):
@@ -789,13 +865,18 @@ def run_classical_solver(payload, starts=16, seed=0):
             generalized_lt_residual = _constraint_residual(payload.get("generalized_lt_result"))
             classical_config["auto_resolution"]["generalized_lt_residual"] = generalized_lt_residual
 
-        chosen_method, resolution_reason = _choose_auto_method(
-            recommended_method,
-            lt_residual=classical_config["auto_resolution"]["lt_residual"],
-            generalized_lt_residual=classical_config["auto_resolution"]["generalized_lt_residual"],
-            model=payload,
-            auto_settings=auto_settings,
-        )
+        if initial_method in {"luttinger-tisza", "generalized-lt"}:
+            chosen_method, resolution_reason = _resolve_lt_like_method(initial_method, payload, auto_settings)
+        else:
+            chosen_method, resolution_reason = _choose_auto_method(
+                recommended_method,
+                lt_residual=classical_config["auto_resolution"]["lt_residual"],
+                generalized_lt_residual=classical_config["auto_resolution"]["generalized_lt_residual"],
+                model=payload,
+                auto_settings=auto_settings,
+            )
+    elif initial_method in {"luttinger-tisza", "generalized-lt"}:
+        chosen_method, resolution_reason = _resolve_lt_like_method(initial_method, payload, auto_settings)
 
     if chosen_method == "luttinger-tisza":
         classical_state = lt_classical_state

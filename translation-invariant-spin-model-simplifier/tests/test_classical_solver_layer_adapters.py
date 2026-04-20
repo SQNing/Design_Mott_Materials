@@ -124,7 +124,26 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
 
     def test_spin_only_generalized_lt_result_uses_generalized_method_mapping(self):
         payload = _spin_only_payload("generalized-lt", sublattices=2)
-        recovered_state = {
+        lt_recovered_state = {
+            "site_frames": [
+                {
+                    "site": 0,
+                    "spin_length": 0.5,
+                    "direction": [1.0, 0.0, 0.0],
+                }
+            ],
+            "ordering": {
+                "kind": "single-q",
+                "q_vector": [0.25, 0.25, 0.0],
+                "supercell_shape": [2, 2, 1],
+            },
+            "constraint_recovery": {
+                "status": "requires_variational_polish",
+                "strong_constraint_residual": 0.25,
+                "max_site_norm_residual": 0.5,
+            },
+        }
+        generalized_recovered_state = {
             "site_frames": [
                 {
                     "site": 0,
@@ -137,8 +156,17 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
                 "q_vector": [0.25, 0.25, 0.0],
                 "supercell_shape": [2, 2, 1],
             },
-            "constraint_recovery": {"strong_constraint_residual": 0.0},
+            "constraint_recovery": {
+                "status": "completed_from_shell",
+                "strong_constraint_residual": 0.0,
+                "max_site_norm_residual": 0.0,
+            },
         }
+
+        def _recover_side_effect(_payload, q, amplitudes, spin_length=0.5, source="lt"):
+            if source == "generalized-lt":
+                return copy.deepcopy(generalized_recovered_state)
+            return copy.deepcopy(lt_recovered_state)
 
         with (
             patch.object(
@@ -146,7 +174,7 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
                 "find_lt_ground_state",
                 return_value={
                     "q": [0.25, 0.25, 0.0],
-                    "lowest_eigenvalue": -1.8,
+                    "lowest_eigenvalue": -2.2,
                     "eigenvector": [{"real": 1.0, "imag": 0.0}],
                 },
             ),
@@ -155,14 +183,14 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
                 "find_generalized_lt_ground_state",
                 return_value={
                     "q": [0.25, 0.25, 0.0],
-                    "tightened_lower_bound": -2.2,
+                    "tightened_lower_bound": -1.6,
                     "eigenspace": [[{"real": 1.0, "imag": 0.0}]],
                 },
             ),
             patch.object(
                 classical_solver_driver,
                 "recover_classical_state_from_lt",
-                return_value=recovered_state,
+                side_effect=_recover_side_effect,
             ),
             patch.object(
                 classical_solver_driver,
@@ -175,9 +203,119 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         standardized = result["classical_state_result"]
         self.assertEqual(standardized["solver_family"], "spin_only_explicit")
         self.assertEqual(standardized["method"], "spin-only-generalized-lt")
-        self.assertEqual(standardized["ordering"], recovered_state["ordering"])
-        self.assertEqual(standardized["energy"], -2.2)
+        self.assertEqual(standardized["ordering"], generalized_recovered_state["ordering"])
+        self.assertEqual(standardized["energy"], -1.6)
         self.assertIn("generalized_lt_result", result)
+
+    def test_generalized_lt_request_prefers_exact_lt_when_lt_is_already_final(self):
+        payload = _spin_only_payload("generalized-lt", sublattices=2)
+        exact_lt_state = {
+            "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [1.0, 0.0, 0.0]}],
+            "ordering": {"kind": "single-q", "q_vector": [0.0, 0.0, 0.0], "supercell_shape": [1, 1, 1]},
+            "constraint_recovery": {
+                "status": "exact_relaxed_hit",
+                "strong_constraint_residual": 0.0,
+                "max_site_norm_residual": 0.0,
+            },
+        }
+        inexact_glt_state = {
+            "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [0.0, 1.0, 0.0]}],
+            "ordering": {"kind": "single-q", "q_vector": [0.25, 0.0, 0.0], "supercell_shape": [2, 1, 1]},
+            "constraint_recovery": {
+                "status": "requires_variational_polish",
+                "strong_constraint_residual": 0.2,
+                "max_site_norm_residual": 0.4,
+            },
+        }
+
+        def _recover_side_effect(_payload, q, amplitudes, spin_length=0.5, source="lt"):
+            if source == "generalized-lt":
+                return copy.deepcopy(inexact_glt_state)
+            return copy.deepcopy(exact_lt_state)
+
+        with (
+            patch.object(
+                classical_solver_driver,
+                "find_lt_ground_state",
+                return_value={
+                    "q": [0.0, 0.0, 0.0],
+                    "lowest_eigenvalue": -1.8,
+                    "eigenvector": [{"real": 1.0, "imag": 0.0}],
+                },
+            ),
+            patch.object(
+                classical_solver_driver,
+                "find_generalized_lt_ground_state",
+                return_value={
+                    "q": [0.25, 0.0, 0.0],
+                    "tightened_lower_bound": -1.5,
+                    "eigenspace": [[{"real": 1.0, "imag": 0.0}]],
+                },
+            ),
+            patch.object(
+                classical_solver_driver,
+                "recover_classical_state_from_lt",
+                side_effect=_recover_side_effect,
+            ),
+            patch.object(
+                classical_solver_driver,
+                "solve_variational",
+                return_value={"method": "variational", "energy": -1.0, "spins": [[0.0, 0.0, 1.0]]},
+            ),
+        ):
+            result = classical_solver_driver.run_classical_solver(payload, starts=1, seed=0)
+
+        self.assertEqual(result["classical"]["chosen_method"], "luttinger-tisza")
+        self.assertEqual(result["classical_state_result"]["method"], "spin-only-luttinger-tisza")
+        self.assertEqual(result["classical_state_result"]["energy"], -1.8)
+
+    def test_generalized_lt_request_falls_back_to_variational_when_neither_lt_nor_glt_completes(self):
+        payload = _spin_only_payload("generalized-lt", sublattices=2)
+        incomplete_state = {
+            "site_frames": [{"site": 0, "spin_length": 0.5, "direction": [1.0, 0.0, 0.0]}],
+            "ordering": {"kind": "single-q", "q_vector": [0.0, 0.0, 0.0], "supercell_shape": [1, 1, 1]},
+            "constraint_recovery": {
+                "status": "requires_variational_polish",
+                "strong_constraint_residual": 0.2,
+                "max_site_norm_residual": 0.4,
+            },
+        }
+
+        with (
+            patch.object(
+                classical_solver_driver,
+                "find_lt_ground_state",
+                return_value={
+                    "q": [0.0, 0.0, 0.0],
+                    "lowest_eigenvalue": -1.8,
+                    "eigenvector": [{"real": 1.0, "imag": 0.0}],
+                },
+            ),
+            patch.object(
+                classical_solver_driver,
+                "find_generalized_lt_ground_state",
+                return_value={
+                    "q": [0.25, 0.0, 0.0],
+                    "tightened_lower_bound": -1.6,
+                    "eigenspace": [[{"real": 1.0, "imag": 0.0}]],
+                },
+            ),
+            patch.object(
+                classical_solver_driver,
+                "recover_classical_state_from_lt",
+                return_value=copy.deepcopy(incomplete_state),
+            ),
+            patch.object(
+                classical_solver_driver,
+                "solve_variational",
+                return_value={"method": "variational", "energy": -1.0, "spins": [[0.0, 0.0, 1.0]]},
+            ),
+        ):
+            result = classical_solver_driver.run_classical_solver(payload, starts=1, seed=0)
+
+        self.assertEqual(result["classical"]["chosen_method"], "variational")
+        self.assertEqual(result["classical_state_result"]["method"], "spin-only-variational")
+        self.assertEqual(result["classical_state_result"]["energy"], -1.0)
 
     def test_pseudospin_local_ray_minimize_adapter_emits_final_classical_state_result(self):
         solver_result = {
