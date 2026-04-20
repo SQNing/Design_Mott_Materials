@@ -160,6 +160,12 @@ def _stage_summary(
     lswt_present_after = "lswt" in bundle_payload
     thermodynamics_configuration = _thermodynamics_configuration(bundle_payload)
     classical_state_result = get_classical_state_result(bundle_payload) or {}
+    original_classical = original_payload.get("classical", {}) if isinstance(original_payload, dict) else {}
+    bundle_classical = bundle_payload.get("classical", {}) if isinstance(bundle_payload, dict) else {}
+    if not isinstance(original_classical, dict):
+        original_classical = {}
+    if not isinstance(bundle_classical, dict):
+        bundle_classical = {}
     lswt_summary = {
         "present": bool(lswt_present_after),
         "auto_ran": bool(run_missing_lswt and not lswt_present_before and lswt_present_after),
@@ -174,8 +180,8 @@ def _stage_summary(
         "classical": {
             "present": bool(classical_present_after),
             "auto_ran": bool(run_missing_classical and not classical_present_before and classical_present_after),
-            "chosen_method": bundle_payload.get("classical", {}).get("chosen_method"),
-            "requested_method": bundle_payload.get("classical", {}).get("requested_method"),
+            "chosen_method": bundle_classical.get("chosen_method", original_classical.get("chosen_method")),
+            "requested_method": bundle_classical.get("requested_method", original_classical.get("requested_method")),
             "method": classical_state_result.get("method"),
             "role": classical_state_result.get("role"),
             "solver_family": classical_state_result.get("solver_family"),
