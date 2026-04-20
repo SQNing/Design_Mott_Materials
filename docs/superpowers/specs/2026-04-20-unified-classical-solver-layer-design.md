@@ -98,11 +98,22 @@ Implemented in code:
 - both `classical_solver_driver.py` and
   `solve_pseudospin_orbital_pipeline.py` now derive standardized method ids,
   solver-family ids, and role metadata from that shared routing catalog
+- downstream LSWT / GSWT / thermodynamics routing is now explicit in code
+  through a shared routing helper instead of being split across local bundle,
+  decision-gate, and pseudospin thermodynamics branches
+- both `decision_gates.py` and `write_results_bundle.py` now derive downstream
+  stage availability from the same shared contract-first routing helper, while
+  keeping only narrow legacy fallback behavior when no standardized contract is
+  present
+- pseudospin thermodynamics validation now prefers standardized downstream
+  routing over legacy method-name guards whenever a standardized classical
+  contract exists
 - the current focused regression slice for this contract-only CLI/artifact
   surface plus explicit solver-family routing passes with focused tests
   covering contract resolution, compatibility shim emission, shared routing
   catalog behavior, bundle/report/plot rendering, spin-only and pseudospin
-  CLI payload assembly, and the current auxiliary contract-adapter layer
+  CLI payload assembly, shared downstream stage routing, and the current
+  auxiliary contract-adapter layer
 
 Not yet fully migrated:
 
@@ -124,6 +135,9 @@ The next likely cleanup steps after this stage are:
 - decide whether the current shared routing catalog should stay as a simple
   method registry or grow into a broader applicability-predicate / registration
   layer for future solver families
+- decide whether the current downstream routing helper should stay as a compact
+  stage router or grow into a broader registration / backend-selection layer as
+  future GLSPW-style downstream stages are added
 - decide whether any remaining CLI or artifact-loading surfaces should be made
   strictly contract-only internally with compatibility translation confined to
   explicit read/write edges
