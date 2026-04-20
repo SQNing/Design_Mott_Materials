@@ -24,6 +24,7 @@ from classical.sunny_sun_classical_driver import run_sunny_sun_classical
 from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynamics
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from cli.write_results_bundle import write_results_bundle
+from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
 from common.classical_state_result import (
     build_diagnostic_classical_result,
     build_final_classical_state_result,
@@ -903,6 +904,15 @@ def _validate_pseudospin_thermodynamics_request(classical_state_result, *, class
 
 
 def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
+    standardized_state = get_standardized_classical_state(solver_result)
+    if isinstance(standardized_state, dict):
+        resolved_state = resolve_cpn_classical_state_payload(
+            standardized_state,
+            default_supercell_shape=default_supercell_shape,
+        )
+        if resolved_state:
+            return resolved_state
+
     resolved_state = resolve_cpn_classical_state_payload(
         solver_result,
         default_supercell_shape=default_supercell_shape,
@@ -910,7 +920,7 @@ def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
     if resolved_state.get("local_rays"):
         return resolved_state
 
-    classical_state = solver_result.get("classical_state")
+    classical_state = solver_result.get("classical_state") if isinstance(solver_result, dict) else None
     if isinstance(classical_state, dict):
         return dict(classical_state)
     return None
@@ -987,7 +997,7 @@ def _build_result_payload(
     if classical_state is not None:
         payload["classical"]["classical_state"] = classical_state
         payload["classical_state"] = classical_state
-    classical_state_result = solver_result.get("classical_state_result")
+    classical_state_result = get_classical_state_result(solver_result)
     if isinstance(classical_state_result, dict):
         payload["classical"]["classical_state_result"] = classical_state_result
         payload["classical_state_result"] = classical_state_result
