@@ -13,6 +13,7 @@ from common.classical_contract_resolution import (  # noqa: E402
     get_downstream_stage_status,
     get_standardized_classical_state,
 )
+from common.classical_state_result import build_final_classical_state_result  # noqa: E402
 
 
 class ClassicalContractResolutionTests(unittest.TestCase):
@@ -59,6 +60,22 @@ class ClassicalContractResolutionTests(unittest.TestCase):
         payload = {"classical": {"classical_state": legacy}}
 
         self.assertEqual(get_standardized_classical_state(payload), legacy)
+
+    def test_get_standardized_classical_state_prefers_top_level_legacy_state_over_nested_legacy_state(self):
+        top_level = {"site_frames": [{"site": 0, "spin_length": 1.0, "direction": [1.0, 0.0, 0.0]}]}
+        nested = {"site_frames": [{"site": 1, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}]}
+        payload = {"classical_state": top_level, "classical": {"classical_state": nested}}
+
+        self.assertEqual(get_standardized_classical_state(payload), top_level)
+
+    def test_get_classical_state_result_rejects_partial_bare_mapping_without_downstream_compatibility(self):
+        partial_mapping = {
+            "status": "ok",
+            "role": "final",
+            "classical_state": {"site_frames": [{"site": 0}]},
+        }
+
+        self.assertIsNone(get_classical_state_result(partial_mapping))
 
     def test_stage_compatibility_and_status_resolve_from_downstream_compatibility(self):
         classical_state_result = {
@@ -113,6 +130,22 @@ class ClassicalContractResolutionTests(unittest.TestCase):
         get_downstream_stage_status(payload, "lswt")
 
         self.assertEqual(payload, original)
+
+    def test_helpers_accept_real_contract_builder_output(self):
+        classical_state = {
+            "site_frames": [
+                {
+                    "site": 0,
+                    "spin_length": 0.5,
+                    "direction": [0.0, 0.0, 1.0],
+                }
+            ]
+        }
+        contract = build_final_classical_state_result(classical_state)
+
+        self.assertEqual(get_classical_state_result(contract), contract)
+        self.assertEqual(get_standardized_classical_state(contract), classical_state)
+        self.assertEqual(get_downstream_stage_status(contract, "lswt"), "ready")
 
 
 if __name__ == "__main__":

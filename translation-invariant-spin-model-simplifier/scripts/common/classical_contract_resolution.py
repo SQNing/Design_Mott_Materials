@@ -27,12 +27,6 @@ def get_classical_state_result(payload):
         and mapping.get("role") is not None
     ):
         return mapping
-    if (
-        isinstance(mapping.get("classical_state"), dict)
-        and mapping.get("status") is not None
-        and mapping.get("role") is not None
-    ):
-        return mapping
 
     return None
 
