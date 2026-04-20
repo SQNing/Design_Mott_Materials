@@ -2,7 +2,7 @@
 import math
 import numpy as np
 
-from common.classical_contract_resolution import get_standardized_classical_state
+from common.classical_reference_payloads import resolve_contract_aware_classical_reference_payload
 
 
 def _complex_from_serialized(value):
@@ -102,15 +102,19 @@ def _extract_truncated_harmonics(z_samples, phases, cutoff):
     return harmonics
 
 
+def _reference_payload(classical_state):
+    if not isinstance(classical_state, dict):
+        return classical_state
+    return resolve_contract_aware_classical_reference_payload(classical_state)
+
+
 def _canonical_classical_state(classical_state):
-    standardized_state = get_standardized_classical_state(classical_state)
-    if isinstance(standardized_state, dict):
-        return standardized_state
-    if isinstance(classical_state, dict):
-        nested_state = classical_state.get("classical_state")
+    reference_payload = _reference_payload(classical_state)
+    if isinstance(reference_payload, dict):
+        nested_state = reference_payload.get("classical_state")
         if isinstance(nested_state, dict):
             return nested_state
-    return classical_state
+    return reference_payload
 
 
 def _infer_site_count(model, classical_state):
@@ -263,18 +267,19 @@ def build_single_q_z_harmonic_payload(
     if not isinstance(classical_state, dict):
         raise ValueError("classical_state must be a dictionary")
 
-    canonical_state = _canonical_classical_state(classical_state)
-    ordering = classical_state.get("ordering", canonical_state.get("ordering", {}))
-    ansatz = classical_state.get("ansatz", canonical_state.get("ansatz", ordering.get("ansatz")))
+    reference_payload = _reference_payload(classical_state)
+    canonical_state = _canonical_classical_state(reference_payload)
+    ordering = reference_payload.get("ordering", canonical_state.get("ordering", {}))
+    ansatz = reference_payload.get("ansatz", canonical_state.get("ansatz", ordering.get("ansatz")))
     if ansatz != "single-q-unitary-ray":
         raise ValueError("single-q z-harmonic payload requires ansatz='single-q-unitary-ray'")
 
-    q_vector = classical_state.get("q_vector", canonical_state.get("q_vector", ordering.get("q_vector")))
+    q_vector = reference_payload.get("q_vector", canonical_state.get("q_vector", ordering.get("q_vector")))
     if q_vector is None:
         raise ValueError("single-q z-harmonic payload requires q_vector")
 
-    site_count = _infer_site_count(model, classical_state)
-    site_ansatz, site_reference_mode = _resolve_site_ansatz(classical_state, site_count)
+    site_count = _infer_site_count(model, reference_payload)
+    site_ansatz, site_reference_mode = _resolve_site_ansatz(reference_payload, site_count)
     phases = _phase_grid(phase_grid_size)
     site_harmonics = {}
     site_diagnostics = []
@@ -336,7 +341,7 @@ def build_single_q_z_harmonic_payload(
         "source_reference_ray": _serialize_vector(first_site_reference),
         "source_generator_matrix": _serialize_matrix(first_site_generator),
         **_top_level_source_reference_metadata(site_reference_mode),
-        "restricted_ansatz_stationarity": dict(classical_state.get("ansatz_stationarity", {})),
+        "restricted_ansatz_stationarity": dict(reference_payload.get("ansatz_stationarity", {})),
         "ordering": {"ansatz": str(ansatz), "q_vector": [float(value) for value in q_vector]},
         "harmonic_diagnostics": {
             "site_count": int(site_count),

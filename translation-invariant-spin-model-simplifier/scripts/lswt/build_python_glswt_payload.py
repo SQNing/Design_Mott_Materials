@@ -6,6 +6,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.bravais_kpaths import default_high_symmetry_path
+from common.classical_contract_resolution import get_classical_state_result
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.classical_reference_payloads import resolve_contract_aware_classical_reference_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
@@ -154,18 +155,19 @@ def build_python_glswt_payload(model, classical_state=None):
     q_path_summary = _resolve_q_path(model, supercell_shape)
     ordering = dict(resolved_state.get("ordering", {}))
     ansatz = str(ordering.get("ansatz", resolved_state.get("ansatz", "")))
+    classical_resolution_context = {
+        **model,
+        "classical_state": classical_reference,
+    }
+    classical_state_result = get_classical_state_result(source_state)
+    if isinstance(classical_state_result, dict):
+        classical_resolution_context["classical_state_result"] = classical_state_result
     rotating_frame_transform = resolve_rotating_frame_transform(model)
     rotating_frame_realization = resolve_rotating_frame_realization(
-        {
-            **model,
-            "classical_state": classical_reference,
-        }
+        classical_resolution_context
     )
     quadratic_phase_dressing = resolve_quadratic_phase_dressing(
-        {
-            **model,
-            "classical_state": classical_reference,
-        }
+        classical_resolution_context
     )
 
     if ansatz == "single-q-unitary-ray":

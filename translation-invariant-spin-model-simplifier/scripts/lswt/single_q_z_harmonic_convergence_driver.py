@@ -8,7 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.classical_contract_resolution import get_classical_state_result
-from lswt.build_python_glswt_payload import resolve_contract_aware_classical_reference_payload
+from common.classical_reference_payloads import resolve_contract_aware_classical_reference_payload
 from lswt.single_q_z_harmonic_convergence import analyze_single_q_z_harmonic_convergence
 
 
