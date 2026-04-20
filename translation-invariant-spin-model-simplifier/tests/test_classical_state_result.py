@@ -32,6 +32,22 @@ class ClassicalStateResultTests(unittest.TestCase):
         self.assertEqual(result["downstream_compatibility"]["gswt"]["status"], "blocked")
         self.assertEqual(result["downstream_compatibility"]["thermodynamics"]["status"], "review")
 
+    def test_spin_frame_thermodynamics_ready_updates_semantics_consistently(self):
+        classical_state = {
+            "site_frames": [
+                {
+                    "site": 0,
+                    "spin_length": 0.5,
+                    "direction": [0.0, 0.0, 1.0],
+                }
+            ]
+        }
+
+        result = build_final_classical_state_result(classical_state, thermodynamics_supported=True)
+
+        self.assertEqual(result["downstream_compatibility"]["thermodynamics"]["status"], "ready")
+        self.assertEqual(result["classical_state_semantics"]["supports_thermodynamics"], True)
+
     def test_local_ray_final_result_normalizes_to_ready_gswt(self):
         classical_state = {
             "state_kind": "local_rays",
@@ -66,6 +82,18 @@ class ClassicalStateResultTests(unittest.TestCase):
         }
         self.assertEqual(statuses, {"blocked"})
         self.assertNotIn("ready", statuses)
+        self.assertEqual(
+            result["downstream_compatibility"]["lswt"]["reason"],
+            "incommensurate-ordering",
+        )
+        self.assertEqual(
+            result["downstream_compatibility"]["gswt"]["reason"],
+            "incommensurate-ordering",
+        )
+        self.assertEqual(
+            result["downstream_compatibility"]["thermodynamics"]["reason"],
+            "incommensurate-ordering",
+        )
 
     def test_declared_local_ray_state_without_rays_is_not_downstream_ready(self):
         classical_state = {

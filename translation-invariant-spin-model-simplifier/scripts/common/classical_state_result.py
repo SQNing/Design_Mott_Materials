@@ -114,17 +114,23 @@ def build_final_classical_state_result(
     if not isinstance(classical_state, dict) or not classical_state:
         raise ValueError("final classical results require a non-empty classical_state mapping")
 
-    semantics_payload = semantics if isinstance(semantics, dict) else infer_classical_state_semantics(classical_state)
+    semantics_payload = dict(semantics) if isinstance(semantics, dict) else infer_classical_state_semantics(classical_state)
+    downstream_compatibility = build_downstream_compatibility(
+        semantics=semantics_payload,
+        role="final",
+        thermodynamics_supported=thermodynamics_supported,
+    )
+    semantics_payload["supports_lswt"] = downstream_compatibility["lswt"]["status"] == "ready"
+    semantics_payload["supports_gswt"] = downstream_compatibility["gswt"]["status"] == "ready"
+    semantics_payload["supports_thermodynamics"] = (
+        downstream_compatibility["thermodynamics"]["status"] == "ready"
+    )
     result = {
         "status": "ok",
         "role": "final",
         "classical_state": classical_state,
         "classical_state_semantics": semantics_payload,
-        "downstream_compatibility": build_downstream_compatibility(
-            semantics=semantics_payload,
-            role="final",
-            thermodynamics_supported=thermodynamics_supported,
-        ),
+        "downstream_compatibility": downstream_compatibility,
     }
     if diagnostics is not None:
         result["diagnostics"] = diagnostics
