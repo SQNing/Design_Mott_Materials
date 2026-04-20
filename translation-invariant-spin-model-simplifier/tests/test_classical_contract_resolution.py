@@ -69,6 +69,21 @@ class ClassicalContractResolutionTests(unittest.TestCase):
 
         self.assertEqual(get_standardized_classical_state(payload), top_level)
 
+    def test_get_standardized_classical_state_can_prefer_nested_legacy_state_for_compatibility(self):
+        payload = {
+            "classical_state": {},
+            "classical": {
+                "classical_state": {
+                    "site_frames": [{"site": 1, "spin_length": 0.5, "direction": [0.0, 0.0, 1.0]}]
+                }
+            },
+        }
+
+        self.assertEqual(
+            get_standardized_classical_state(payload, prefer_nested_legacy=True),
+            payload["classical"]["classical_state"],
+        )
+
     def test_get_classical_state_result_rejects_partial_bare_mapping_without_downstream_compatibility(self):
         partial_mapping = {
             "status": "ok",

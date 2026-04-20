@@ -77,6 +77,28 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertEqual(len(classical_state["site_frames"]), 1)
         self.assertEqual(classical_state["ordering"]["kind"], "commensurate")
 
+    def test_render_plots_get_classical_state_preserves_nested_legacy_fallback_when_top_level_mirror_is_empty(self):
+        payload = {
+            "classical_state": {},
+            "classical": {
+                "classical_state": {
+                    "site_frames": [
+                        {
+                            "site": 0,
+                            "spin_length": 0.5,
+                            "direction": [0.0, 0.0, 1.0],
+                        }
+                    ],
+                    "ordering": {"kind": "commensurate"},
+                }
+            },
+        }
+
+        classical_state = render_plots._get_classical_state(payload)
+
+        self.assertEqual(len(classical_state["site_frames"]), 1)
+        self.assertEqual(classical_state["ordering"]["kind"], "commensurate")
+
     def test_render_plots_summary_prefers_standardized_method_role_and_family(self):
         payload = {
             "classical": {"chosen_method": "legacy-method"},

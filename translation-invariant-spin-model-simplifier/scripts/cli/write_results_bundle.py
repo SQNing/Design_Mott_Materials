@@ -27,7 +27,7 @@ def _downstream_stage_status(payload, stage_name):
 
 
 def _has_classical_state(payload):
-    return bool(get_standardized_classical_state(payload))
+    return bool(get_standardized_classical_state(payload, prefer_nested_legacy=True))
 
 
 def _has_gswt_result(payload):
@@ -69,7 +69,7 @@ def _can_run_lswt(payload):
     if compatibility_status is not None:
         return compatibility_status == "ready"
 
-    standardized_state = get_standardized_classical_state(payload)
+    standardized_state = get_standardized_classical_state(payload, prefer_nested_legacy=True)
     if standardized_state is not None:
         return has_spin_frame_classical_state(standardized_state)
     return has_spin_frame_classical_state(payload)

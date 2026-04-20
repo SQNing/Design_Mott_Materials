@@ -31,7 +31,7 @@ def get_classical_state_result(payload):
     return None
 
 
-def get_standardized_classical_state(payload):
+def get_standardized_classical_state(payload, *, prefer_nested_legacy=False):
     classical_state_result = get_classical_state_result(payload)
     if isinstance(classical_state_result, dict):
         classical_state = classical_state_result.get("classical_state")
@@ -42,15 +42,25 @@ def get_standardized_classical_state(payload):
     if mapping is None:
         return None
 
-    classical_state = mapping.get("classical_state")
-    if isinstance(classical_state, dict):
-        return classical_state
-
     classical = mapping.get("classical")
     if isinstance(classical, dict):
         nested_state = classical.get("classical_state")
         if isinstance(nested_state, dict):
-            return nested_state
+            if prefer_nested_legacy:
+                return nested_state
+            nested_legacy_state = nested_state
+        else:
+            nested_legacy_state = None
+    else:
+        nested_legacy_state = None
+
+    classical_state = mapping.get("classical_state")
+    if isinstance(classical_state, dict):
+        if classical_state or nested_legacy_state is None or not prefer_nested_legacy:
+            return classical_state
+
+    if isinstance(nested_legacy_state, dict):
+        return nested_legacy_state
 
     return None
 

@@ -30,7 +30,7 @@ from lswt.build_lswt_payload import infer_spatial_dimension
 from common.lattice_geometry import fractional_to_cartesian, resolve_lattice_vectors
 
 def _get_classical_state(payload):
-    classical_state = get_standardized_classical_state(payload)
+    classical_state = get_standardized_classical_state(payload, prefer_nested_legacy=True)
     if isinstance(classical_state, dict):
         return classical_state
     return {}
