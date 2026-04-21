@@ -149,10 +149,13 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
                         "shells": [
                             {
                                 "family": "1",
-                                "type": "xxz_exchange",
+                                "type": "symmetric_exchange_matrix",
                                 "shell_index": 1,
-                                "coefficient_xy": -0.161,
-                                "coefficient_z": -0.236,
+                                "matrix": [
+                                    [-0.397, 0.0, 0.0],
+                                    [0.0, -0.075, -0.261],
+                                    [0.0, -0.261, -0.236],
+                                ],
                             },
                             {
                                 "family": "2a'",

@@ -57,8 +57,8 @@ class BuildSpinOnlySolverPayloadTests(unittest.TestCase):
         )
         self.assertEqual(result["payload"]["bridge_metadata"]["selected_family"], "2a'")
 
-    def test_builder_rejects_all_family_bridge_requests(self):
-        with self.assertRaisesRegex(ValueError, "selected_local_bond_family"):
+    def test_builder_rejects_all_mode_when_no_bridgeable_families_exist(self):
+        with self.assertRaisesRegex(ValueError, "no bridgeable families"):
             build_spin_only_solver_payload(
                 {
                     "normalized_model": {
