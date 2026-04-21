@@ -106,22 +106,33 @@ Required when the user asks for:
 Required tools:
 
 - `julia`
-- local Julia project at `scripts/.julia-env-v06`
+- local Julia project at `.julia-env-v07`
 - local Julia depot at `scripts/.julia-depot`
 - Julia packages in that project, especially:
   - `Sunny`
   - `JSON3`
 
+Recommended version line for current LSWT verification:
+
+- Julia 1.12.x
+
 Current expected Sunny line:
 
-- `Sunny.jl 0.9.x`
+- `Sunny.jl 0.7.x`
+
+Optional override:
+
+- `DESIGN_MOTT_JULIA_CMD`
+  Purpose:
+  Lets the LSWT Python driver use a specific Julia binary when `julia` on
+  `PATH` is older than the expected 1.12.x line.
 
 Verification:
 
 ```bash
 cd /path/to/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-julia --project="$PWD/scripts/.julia-env-v06" -e 'using JSON3, Sunny; println("OK")'
+/path/to/julia --project="$PWD/.julia-env-v07" -e 'using JSON3, Sunny; println("OK")'
 ```
 
 If the project or depot is not yet instantiated:
@@ -129,7 +140,7 @@ If the project or depot is not yet instantiated:
 ```bash
 cd /path/to/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-julia --project="$PWD/scripts/.julia-env-v06" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+/path/to/julia --project="$PWD/.julia-env-v07" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 ```
 
 If missing:
@@ -208,8 +219,8 @@ test -d /path/to/output-dir
   `julia` is not installed or not on `PATH`.
 - `missing-sunny-package` or `missing-json3-package`
   Meaning:
-  The Julia project/depot has not been instantiated for the local Sunny
-  backend.
+  The Phase 1 LSWT Julia project/depot has not been instantiated for the local
+  Sunny backend.
 - `pdflatex failed` or `pdflatex` not found
   Meaning:
   PDF output was requested without a working TeX installation.
@@ -226,5 +237,7 @@ Before execution, the skill should ask the user for a quick environment status:
 - Is plotting needed, and if so is `matplotlib` installed?
 - Is a Sunny-backed backend requested, and if so is `julia` plus the local
   Julia project already instantiated?
+- If LSWT needs a newer Julia than the default `julia` on `PATH`, what should
+  `DESIGN_MOTT_JULIA_CMD` point to?
 - Is PDF output required, and if so is `pdflatex` installed?
 - Are all required input files already present?
