@@ -179,6 +179,25 @@ Capture questions like:
 
 Anything involving residual, multipolar, or mixed spin-orbital content should be recorded under V3 notes, not folded into V2.
 
+## V2 Follow-On Questions Captured During V1
+
+The V1 landing work surfaced these concrete V2 questions:
+
+- **Shell expansion semantics:** V1 proves a deterministic representative bond is enough for the first smoke path, but V2 needs an explicit contract for full symmetry-equivalent bond expansion, including pair multiplicity and de-duplication semantics.
+- **Selected-family versus block-local metadata:** real selected-family `effective_model.main` payloads may omit a repeated `family` field once the user choice has already narrowed the model. V2 should define when block-local family labels remain required and when selected-family context is authoritative.
+- **Solver routing hints:** the classical solver's auto-routing depends on preserving enough `effective_model` and `simplified_model` metadata for method recommendation. V2 should decide whether bridge payloads carry these hints verbatim, normalize them into a bridge-specific contract, or both.
+- **All-family aggregation rules:** if `selected_local_bond_family="all"` becomes supported, V2 must define ordering, collision handling, and stable assembly rules when multiple readable block families coexist.
+- **Downstream-stage readiness:** V1 confirms the bridged FeI2 state lands with `lswt = ready`, `gswt = blocked`, and `thermodynamics = review`. V2 should preserve this explicit routing contract when downstream stages are chained automatically.
+
+## V3 Questions Kept Separate From V2
+
+These questions were intentionally not folded into V2 because they imply broader model contracts rather than a wider spin-only bridge:
+
+- **Residual-term promotion policy:** when residual content is present, should the bridge reject, partially emit a spin-only core plus residual warnings, or support a richer contract?
+- **Multipolar bridge shape:** quadrupolar and higher-multipole readable blocks do not naturally collapse to the same spin-only `3x3` exchange matrix and need a separate bridge design.
+- **Mixed spin-orbital payloads:** these require a distinct classical/downstream contract and should not be silently downcast into the spin-only bridge.
+- **Partial-support reporting:** V3 should decide how to encode “supported core plus unsupported remainder” without making downstream results look more faithful than they are.
+
 ## Immediate Execution Handoff
 
 V1 should be executed now using:
