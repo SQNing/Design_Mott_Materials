@@ -4,9 +4,9 @@
 
 **Goal:** Converge the spin-only Sunny LSWT path onto one canonical Julia/Sunny environment, wire the LSWT launchers and reference docs to that environment, and prove the fix with the real FeI2 `V2b` downstream smoke.
 
-**Architecture:** Phase 1 keeps scope narrow: only the spin-only LSWT path moves to the new canonical `.julia-env-v07` project while the local depot remains under `scripts/.julia-depot`. The Julia launcher becomes the single source of truth for repo-local project/depot paths, and the Python LSWT driver gains an explicit Julia-command resolution path so the repo can run against a newer Julia 1.12.x binary without hardcoding a machine-specific absolute path.
+**Architecture:** Phase 1 keeps scope narrow: only the spin-only LSWT path moves to the new canonical `.julia-env-v09` project while the local depot remains under `scripts/.julia-depot`. The Julia launcher becomes the single source of truth for repo-local project/depot paths, and the Python LSWT driver gains an explicit Julia-command resolution path so the repo can run against a newer Julia 1.12.x binary without hardcoding a machine-specific absolute path.
 
-**Tech Stack:** Python 3, Julia 1.12.x, Sunny.jl 0.7.x, JSON3.jl, `pytest` / `unittest`, repo-local Julia project + depot, FeI2 downstream smoke artifacts
+**Tech Stack:** Python 3, Julia 1.12.x, Sunny.jl 0.9.x, JSON3.jl, `pytest` / `unittest`, repo-local Julia project + depot, FeI2 downstream smoke artifacts
 
 ---
 
@@ -36,8 +36,8 @@ Out of scope:
 **Create**
 
 - `docs/superpowers/plans/2026-04-21-sunny-julia-phase-1-lswt-environment.md`
-- `translation-invariant-spin-model-simplifier/.julia-env-v07/Project.toml`
-- `translation-invariant-spin-model-simplifier/.julia-env-v07/Manifest.toml`
+- `translation-invariant-spin-model-simplifier/.julia-env-v09/Project.toml`
+- `translation-invariant-spin-model-simplifier/.julia-env-v09/Manifest.toml`
 - `translation-invariant-spin-model-simplifier/tests/test_run_linear_spin_wave_driver.py`
 - `translation-invariant-spin-model-simplifier/tests/test_sunny_lswt_environment_contract.py`
 
@@ -74,7 +74,7 @@ Out of scope:
 Add a test that reads `run_sunny_lswt.jl` and asserts:
 
 ```python
-self.assertIn('.julia-env-v07', content)
+self.assertIn('.julia-env-v09', content)
 self.assertNotIn('scripts/.julia-env-v06', content)
 self.assertIn('scripts/.julia-depot', content)
 ```
@@ -85,8 +85,8 @@ Add assertions that `reference/environment.md` documents:
 
 ```python
 self.assertIn('Julia 1.12.x', content)
-self.assertIn('`Sunny.jl 0.7.x`', content)
-self.assertIn('.julia-env-v07', content)
+self.assertIn('`Sunny.jl 0.9.x`', content)
+self.assertIn('.julia-env-v09', content)
 self.assertIn('scripts/.julia-depot', content)
 ```
 
@@ -95,7 +95,7 @@ self.assertIn('scripts/.julia-depot', content)
 Update `test_skill_reference_docs.py` so it fails until the environment reference tracks:
 
 ```python
-self.assertIn('`Sunny.jl 0.7.x`', content)
+self.assertIn('`Sunny.jl 0.9.x`', content)
 self.assertNotIn('`Sunny.jl 0.9.x`', content)
 ```
 
@@ -165,11 +165,11 @@ git add translation-invariant-spin-model-simplifier/tests/test_run_linear_spin_w
 git commit -m "test: define lswt julia command resolution"
 ```
 
-### Task 3: Introduce The Canonical `.julia-env-v07` And Rewire LSWT Launchers
+### Task 3: Introduce The Canonical `.julia-env-v09` And Rewire LSWT Launchers
 
 **Files:**
-- Create: `translation-invariant-spin-model-simplifier/.julia-env-v07/Project.toml`
-- Create: `translation-invariant-spin-model-simplifier/.julia-env-v07/Manifest.toml`
+- Create: `translation-invariant-spin-model-simplifier/.julia-env-v09/Project.toml`
+- Create: `translation-invariant-spin-model-simplifier/.julia-env-v09/Manifest.toml`
 - Modify: `translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_lswt.jl`
 - Modify: `translation-invariant-spin-model-simplifier/scripts/lswt/linear_spin_wave_driver.py`
 - Test: `translation-invariant-spin-model-simplifier/tests/test_sunny_lswt_environment_contract.py`
@@ -193,7 +193,7 @@ Update `run_sunny_lswt.jl` so it resolves:
 
 ```julia
 const LOCAL_DEPOT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-depot"))
-const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", "..", ".julia-env-v07"))
+const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", "..", ".julia-env-v09"))
 ```
 
 and keeps the local-project activation before `using JSON3` / `using Sunny`.
@@ -229,13 +229,13 @@ Expected: PASS for launcher path alignment, Julia-command resolution, and versio
 
 - [ ] **Step 5: Commit the canonical LSWT environment slice**
 
-Use forced adds because `.julia-env-v07` is ignored by pattern:
+Use forced adds because `.julia-env-v09` is ignored by pattern:
 
 ```bash
 git add translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_lswt.jl
 git add translation-invariant-spin-model-simplifier/scripts/lswt/linear_spin_wave_driver.py
-git add -f translation-invariant-spin-model-simplifier/.julia-env-v07/Project.toml
-git add -f translation-invariant-spin-model-simplifier/.julia-env-v07/Manifest.toml
+git add -f translation-invariant-spin-model-simplifier/.julia-env-v09/Project.toml
+git add -f translation-invariant-spin-model-simplifier/.julia-env-v09/Manifest.toml
 git add translation-invariant-spin-model-simplifier/tests/test_sunny_lswt_environment_contract.py
 git add translation-invariant-spin-model-simplifier/tests/test_run_linear_spin_wave_driver.py
 git add translation-invariant-spin-model-simplifier/tests/test_skill_reference_docs.py
@@ -254,8 +254,8 @@ git commit -m "feat: align sunny lswt with canonical julia env"
 Document the Phase 1 truth explicitly:
 
 - Julia 1.12.x expected for current LSWT verification
-- Sunny.jl 0.7.x expected
-- local project at `.julia-env-v07`
+- Sunny.jl 0.9.x expected
+- local project at `.julia-env-v09`
 - local depot at `scripts/.julia-depot`
 - `DESIGN_MOTT_JULIA_CMD` as the optional override for non-default Julia binaries
 
@@ -267,7 +267,7 @@ Document commands in the form:
 cd /path/to/translation-invariant-spin-model-simplifier
 DESIGN_MOTT_JULIA_CMD=/path/to/julia \
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-/path/to/julia --project="$PWD/.julia-env-v07" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+/path/to/julia --project="$PWD/.julia-env-v09" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 ```
 
 and:
@@ -275,7 +275,7 @@ and:
 ```bash
 cd /path/to/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-/path/to/julia --project="$PWD/.julia-env-v07" -e 'using JSON3, Sunny; println("OK")'
+/path/to/julia --project="$PWD/.julia-env-v09" -e 'using JSON3, Sunny; println("OK")'
 ```
 
 - [ ] **Step 3: Re-run the doc/launcher regression slice**
@@ -303,8 +303,8 @@ git commit -m "docs: refresh sunny lswt environment reference"
 
 **Files:**
 - Create/refresh outside repo for verification: `/data/work/zhli/soft/julia-1.12.6/`
-- Use: `translation-invariant-spin-model-simplifier/.julia-env-v07/Project.toml`
-- Use: `translation-invariant-spin-model-simplifier/.julia-env-v07/Manifest.toml`
+- Use: `translation-invariant-spin-model-simplifier/.julia-env-v09/Project.toml`
+- Use: `translation-invariant-spin-model-simplifier/.julia-env-v09/Manifest.toml`
 
 - [ ] **Step 1: Provision the current Julia 1.12.x binary if absent**
 
@@ -329,11 +329,11 @@ Run:
 ```bash
 cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-/data/work/zhli/soft/julia-1.12.6/bin/julia --project="$PWD/.julia-env-v07" \
+/data/work/zhli/soft/julia-1.12.6/bin/julia --project="$PWD/.julia-env-v09" \
   -e 'using Pkg; Pkg.instantiate(); Pkg.precompile(); using JSON3, Sunny; println(Pkg.project().path)'
 ```
 
-Expected: instantiate + precompile succeed and `using JSON3, Sunny` works from `.julia-env-v07`.
+Expected: instantiate + precompile succeed and `using JSON3, Sunny` works from `.julia-env-v09`.
 
 - [ ] **Step 3: Sanity-check the LSWT Julia launcher directly**
 
@@ -350,7 +350,7 @@ Expected: a JSON result with either `status="ok"` or a narrower backend/runtime 
 - [ ] **Step 4: Commit the refreshed manifest if it changed after instantiate**
 
 ```bash
-git add -f translation-invariant-spin-model-simplifier/.julia-env-v07/Manifest.toml
+git add -f translation-invariant-spin-model-simplifier/.julia-env-v09/Manifest.toml
 git commit -m "build: instantiate sunny lswt julia environment"
 ```
 
@@ -401,7 +401,7 @@ Expected behavioral improvement:
 Record:
 
 - the Julia version used
-- the Sunny line resolved in `.julia-env-v07`
+- the Sunny line resolved in `.julia-env-v09`
 - whether LSWT now succeeds
 - any remaining narrower runtime issue if success is not yet complete
 

@@ -47,7 +47,7 @@ class SkillReferenceDocsTests(unittest.TestCase):
         content = ENVIRONMENT_REFERENCE.read_text(encoding="utf-8")
 
         self.assertIn("`Sunny.jl 0.9.x`", content)
-        self.assertNotIn("`Sunny.jl 0.9.0`", content)
+        self.assertNotIn("`Sunny.jl 0.7.x`", content)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import os
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,15 @@ from lswt.build_lswt_payload import build_lswt_payload
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUNNY_LSWT_SCRIPT = SCRIPT_DIR / "run_sunny_lswt.jl"
+
+
+def _resolve_julia_cmd(julia_cmd=None):
+    if julia_cmd not in {None, ""}:
+        return str(julia_cmd)
+    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
+    if override:
+        return override
+    return "julia"
 
 
 def _resolve_exchange(model):
@@ -53,7 +63,7 @@ def linear_spin_wave_summary(model):
     }
 
 
-def run_linear_spin_wave(model, julia_cmd="julia"):
+def run_linear_spin_wave(model, julia_cmd=None):
     lswt_payload = build_lswt_payload(model)
     if lswt_payload.get("status") != "ok":
         return {
@@ -68,8 +78,9 @@ def run_linear_spin_wave(model, julia_cmd="julia"):
         json.dump(lswt_payload["payload"], handle, indent=2, sort_keys=True)
 
     try:
+        resolved_julia_cmd = _resolve_julia_cmd(julia_cmd)
         completed = subprocess.run(
-            [julia_cmd, str(SUNNY_LSWT_SCRIPT), str(payload_path)],
+            [resolved_julia_cmd, str(SUNNY_LSWT_SCRIPT), str(payload_path)],
             check=True,
             capture_output=True,
             text=True,
@@ -135,7 +146,7 @@ def _load_payload(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
-    parser.add_argument("--julia-cmd", default="julia")
+    parser.add_argument("--julia-cmd")
     args = parser.parse_args()
     payload = _load_payload(args.input)
     output = run_linear_spin_wave(payload, julia_cmd=args.julia_cmd)
