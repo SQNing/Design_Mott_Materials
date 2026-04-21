@@ -117,6 +117,32 @@ This keeps:
 - `all` aggregation rules separate from shell geometry rules
 - future V2b downstream chaining free to consume one stable assembled payload contract
 
+## Input Source Precedence
+
+V2a should treat **per-family readable blocks** as the authoritative bridge input whenever they are present.
+
+That means:
+
+- if `effective_model.main` contains individual family-resolved readable blocks, the bridge should consume those blocks directly
+- `shell_resolved_exchange` should be treated as:
+  - a stable ordering hint
+  - a summary/checkpoint for cross-validation
+  - a reporting-friendly mirror
+- `shell_resolved_exchange` should become the primary bridge source only when the underlying family-resolved readable blocks are not otherwise available
+
+This rule keeps single-family and all-family bridge logic aligned:
+
+- both modes ultimately consume the same family-level readable block contract
+- shell summaries help with ordering and validation without becoming the only source of truth
+
+If the family-resolved blocks and the shell summary disagree on:
+
+- family membership
+- shell ordering
+- block type
+
+the builder should fail explicitly rather than silently prefer one inconsistent representation.
+
 ## Proposed Components
 
 ### 1. Family Shell Expansion Helper
