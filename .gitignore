@@ -30,3 +30,7 @@ translation-invariant-spin-model-simplifier/.vendor
 translation-invariant-spin-model-simplifier/tests/*
 !translation-invariant-spin-model-simplifier/tests/test_skill_reference_docs.py
 session-memory/
+Hamiltonian-transformation/docs/
+Hamiltonian-transformation/session-memory/
+Hamiltonian-transformation/.pytest_cache/
+Hamiltonian-transformation/tests/
