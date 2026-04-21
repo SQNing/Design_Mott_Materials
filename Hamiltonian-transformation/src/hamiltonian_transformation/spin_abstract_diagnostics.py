@@ -98,3 +98,80 @@ def analyze_hamiltonian_closure(
         "coefficients": coefficients,
         "status": "pass" if relative_residual <= ABSTRACT_HAMILTONIAN_REL_TOL else "fail",
     }
+
+
+def analyze_observable_closure(
+    abstract_spin_operators: dict[str, np.ndarray],
+    projected_observables: dict[str, np.ndarray],
+) -> dict[str, object]:
+    supported_names = ["Mx", "My", "Mz"]
+    tested_names = [name for name in supported_names if name in projected_observables]
+    if not tested_names:
+        return {
+            "available": False,
+            "reason": "missing_supported_observables",
+        }
+
+    basis = {
+        "Jx": np.asarray(abstract_spin_operators["Jx"], dtype=complex),
+        "Jy": np.asarray(abstract_spin_operators["Jy"], dtype=complex),
+        "Jz": np.asarray(abstract_spin_operators["Jz"], dtype=complex),
+    }
+    tested_observables: dict[str, dict[str, object]] = {}
+    for name in tested_names:
+        try:
+            coefficients, absolute_residual, relative_residual = fit_real_hermitian_expansion(
+                target=np.asarray(projected_observables[name], dtype=complex),
+                basis=basis,
+            )
+            status = "pass" if relative_residual <= ABSTRACT_OBSERVABLE_REL_TOL else "fail"
+        except ValueError as exc:
+            coefficients = {basis_name: 0.0 for basis_name in basis}
+            absolute_residual = float("inf")
+            relative_residual = float("inf")
+            status = "fail"
+            tested_observables[name] = {
+                "absolute_residual": absolute_residual,
+                "relative_residual": relative_residual,
+                "coefficients": coefficients,
+                "status": status,
+                "fit_error": str(exc),
+            }
+            continue
+
+        tested_observables[name] = {
+            "absolute_residual": absolute_residual,
+            "relative_residual": relative_residual,
+            "coefficients": coefficients,
+            "status": status,
+        }
+
+    status = (
+        "pass"
+        if all(item["status"] == "pass" for item in tested_observables.values())
+        else "fail"
+    )
+    return {
+        "available": True,
+        "supported_names": supported_names,
+        "missing_supported_observables": [name for name in supported_names if name not in tested_names],
+        "tested_observables": tested_observables,
+        "status": status,
+    }
+
+
+def summarize_abstract_diagnostics_status(
+    hamiltonian_closure: dict[str, object],
+    observable_closure: dict[str, object],
+) -> str:
+    available_sections = [hamiltonian_closure, observable_closure]
+    if any(section.get("available") and section.get("status") == "fail" for section in available_sections):
+        return "weak"
+    if (
+        hamiltonian_closure.get("available")
+        and hamiltonian_closure.get("status") == "pass"
+        and observable_closure.get("available")
+        and observable_closure.get("status") == "pass"
+    ):
+        return "strong"
+    return "unclear"
