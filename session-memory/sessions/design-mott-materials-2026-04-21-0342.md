@@ -5,7 +5,7 @@
 - Session Thread: 019dac64-695f-72f3-8000-ac1e90767d98
 - Workdir: /data/work/zhli/soft/Design_Mott_Materials
 - Previous Note: sessions/design-mott-materials-2026-04-21-0124.md
-- Session Summary: Inherited the active LT / GLT generalization thread after the unified classical solver-layer closure. Resumed execution from the new `lt-glt-generalization-and-cpn-finalization` plan, confirmed that the roadmap memo and follow-on LT/GLT implementation artifacts are not yet present, and switched back to direct `main`-branch development at the user's request. After completing that roadmap and validating FeI2 document-reader plus solver smoke paths, this session reopened the FeI2 bridge thread to assess `V2b`, confirmed that `V2a` shell expansion and all-family assembly are already landed, designed and implemented the original full `V2` downstream-chaining stage, merged that work back to `main`, then pivoted to the next real blocker: the inconsistent Julia / Sunny LSWT runtime environment. Phase 1 of the two-phase Sunny migration is now executed on an isolated branch and corrected to the real upstream release line: the repo has a canonical `.julia-env-v09`, a real Julia 1.12.6 installation, refreshed LSWT launcher/docs/tests, and reruns of the direct LSWT probe plus the real FeI2 `V2b` smoke under `Sunny 0.9.0`, which narrow the failure from missing-package bootstrapping to a real Sunny instability at `q = [0, 0, 0]`.
+- Session Summary: Inherited the active LT / GLT generalization thread after the unified classical solver-layer closure. Resumed execution from the new `lt-glt-generalization-and-cpn-finalization` plan, confirmed that the roadmap memo and follow-on LT/GLT implementation artifacts are not yet present, and switched back to direct `main`-branch development at the user's request. After completing that roadmap and validating FeI2 document-reader plus solver smoke paths, this session reopened the FeI2 bridge thread to assess `V2b`, confirmed that `V2a` shell expansion and all-family assembly are already landed, designed and implemented the original full `V2` downstream-chaining stage, merged that work back to `main`, then pivoted to the next real blocker: the inconsistent Julia / Sunny LSWT runtime environment. Phase 1 of the two-phase Sunny migration was executed on an isolated branch, corrected to the real upstream Sunny `0.9.0` line, and is now merged back to `main` as the canonical LSWT environment baseline. The repo now carries `.julia-env-v09`, refreshed LSWT launcher/docs/tests, and reruns of the direct LSWT probe plus the real FeI2 `V2b` smoke under `Sunny 0.9.0`, which narrow the failure from missing-package bootstrapping to a real Sunny instability at `q = [0, 0, 0]`.
 
 ## Turn Log
 
@@ -243,3 +243,15 @@
   - User: `升级重新跑`
   - Assistant: upgraded the branch to `Sunny 0.9.0`, reran instantiate, regressions, the LSWT probe, and the real FeI2 smoke.
 - Next focus: Merge the corrected `Sunny 0.9.0` Phase 1 baseline if desired, or continue directly into a narrow FeI2 LSWT-stability follow-up.
+
+### 2026-04-21 19:58 CST
+- User intent: Choose option `1` from the completion menu and merge the corrected `Sunny 0.9.0` Phase 1 branch back to `main` locally, then clean up the temporary branch/worktree.
+- Keywords: merge, main, phase 1, cleanup, 32 passed
+- Key result: Merged `sunny-julia-phase1-lswt-env` into `main` as merge commit `ae20ce7`, reran the focused merged regression slice on `main` with `32 passed`, removed the corresponding worktree from `/data/home/zhli/.config/superpowers/worktrees/Design_Mott_Materials/sunny-julia-phase1-lswt-env`, and deleted the merged branch. This makes the `Sunny 0.9.0` LSWT environment baseline the new primary branch state.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/.julia-env-v09/Project.toml, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/.julia-env-v09/Manifest.toml, /data/work/zhli/soft/Design_Mott_Materials/docs/test-reports/test-feature-20260421-194456.md, /data/work/zhli/soft/Design_Mott_Materials/session-memory/sessions/design-mott-materials-2026-04-21-0342.md
+- Conversation:
+  - User: `1`
+  - Assistant: interpreted that as the local-merge option and merged the validated Phase 1 branch into `main`.
+  - User: `继续`
+  - Assistant: completed the cleanup sequence by removing the worktree, deleting the merged branch, and updating session memory on `main`.
+- Next focus: The next real technical frontier is no longer LSWT environment setup. It is either Phase 2 Sunny-family migration work or a narrower FeI2 LSWT-stability investigation against the new `main` baseline.
