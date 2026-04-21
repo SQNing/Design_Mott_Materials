@@ -5,7 +5,7 @@
 - Session Thread: 019dac64-695f-72f3-8000-ac1e90767d98
 - Workdir: /data/work/zhli/soft/Design_Mott_Materials
 - Previous Note: sessions/design-mott-materials-2026-04-21-0124.md
-- Session Summary: Inherited the active LT / GLT generalization thread after the unified classical solver-layer closure. Resumed execution from the new `lt-glt-generalization-and-cpn-finalization` plan, confirmed that the roadmap memo and follow-on LT/GLT implementation artifacts are not yet present, and switched back to direct `main`-branch development at the user's request. After completing that roadmap and validating FeI2 document-reader plus solver smoke paths, this session reopened the FeI2 bridge thread to assess `V2b`, confirmed that `V2a` shell expansion and all-family assembly are already landed, and started designing the original full `V2` downstream-chaining stage while preserving per-turn session memory at the user's request.
+- Session Summary: Inherited the active LT / GLT generalization thread after the unified classical solver-layer closure. Resumed execution from the new `lt-glt-generalization-and-cpn-finalization` plan, confirmed that the roadmap memo and follow-on LT/GLT implementation artifacts are not yet present, and switched back to direct `main`-branch development at the user's request. After completing that roadmap and validating FeI2 document-reader plus solver smoke paths, this session reopened the FeI2 bridge thread to assess `V2b`, confirmed that `V2a` shell expansion and all-family assembly are already landed, designed and implemented the original full `V2` downstream-chaining stage, merged that work back to `main`, then pivoted to the next real blocker: the inconsistent Julia / Sunny LSWT runtime environment. The current frontier is a formal two-phase Sunny migration, with Phase 1 scoped to the spin-only LSWT path, a new canonical local Julia environment, aligned docs/launchers, and a rerun of the real FeI2 `V2b` smoke.
 
 ## Turn Log
 
@@ -171,3 +171,51 @@
   - User: `按照plan开始执行`
   - Assistant: completed the full plan, including the real FeI2 smoke, and found that the `V2b` contract works but the current environment still lacks Sunny.jl for fully successful LSWT execution.
 - Next focus: Present the completed implementation branch with the key verification results and let the user choose whether to merge, push, keep, or discard the branch.
+
+### 2026-04-21 18:05 CST
+- User intent: Safely land the completed FeI2 `V2b` branch onto `main`, preserving a snapshot of the current `main` state first and then cleaning up the feature branch after merge.
+- Keywords: FeI2, V2b, merge, main, cleanup
+- Key result: Created a documentation/session-memory snapshot commit on `main` as `ffd2c69`, merged the completed worktree branch as merge commit `1784c99`, reran the focused regression slice on merged `main` with `21 passed`, and deleted the now-integrated `fei2-v2b-downstream-chaining` branch/worktree. This closed the original `V2b` execution thread on the primary branch without losing the surrounding session-memory state.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/docs/test-reports/test-feature-20260421-171209.md, /data/work/zhli/soft/Design_Mott_Materials/session-memory/sessions/design-mott-materials-2026-04-21-0342.md
+- Conversation:
+  - User: `先add commit目前的main，然后再合并？`
+  - Assistant: agreed that snapshotting `main` first was the safer path, then performed the snapshot commit and merge.
+  - User: `可以`
+  - Assistant: completed the merge flow, verified the merged regression slice, and removed the finished feature branch/worktree.
+- Next focus: Reassess the remaining roadmap frontier after `V2b` lands, especially `V2`/`V3`/`V4` status and any environment blockers exposed by the smoke.
+
+### 2026-04-21 18:26 CST
+- User intent: Re-evaluate the post-merge frontier, verify whether Sunny is really absent, and explain why earlier runs appeared to work.
+- Keywords: Sunny, Julia, environment drift, LSWT, root cause
+- Key result: Checked the active environment carefully and confirmed the real blocker is broader than "Sunny missing": global Julia is still `1.9.0`, the repo-local LSWT launcher points at `scripts/.julia-env-v06`, the actual repo-local environment lives at `.julia-env-v06` at project root, and that manifest still pins a vendor copy of `Sunny-v0.6.0`. This explains the apparent contradiction: earlier pipeline and solver work could pass because they did not require the broken LSWT runtime path, while the real FeI2 `V2b` smoke did.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_lswt.jl, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/.julia-env-v06/Project.toml, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/.julia-env-v06/Manifest.toml, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/reference/environment.md
+- Conversation:
+  - User: `Sunny.jl没有嘛，仔细检查环境`
+  - Assistant: rechecked the launcher, local environment, and manifest instead of stopping at the first missing-package symptom.
+  - User: `为什么之前可以用？`
+  - Assistant: explained that the previously successful paths did not exercise the exact broken LSWT Julia-project resolution now required by the real downstream smoke.
+- Next focus: Decide whether to do a broad one-shot Sunny migration or a narrower staged migration that fixes the LSWT path first.
+
+### 2026-04-21 18:43 CST
+- User intent: Modernize the Julia/Sunny story, but do it in an orderly way with an explicit plan, while continuing to preserve reusable per-turn memory.
+- Keywords: Sunny 0.9.x, Julia 1.12, phase 1, phase 2, spec
+- Key result: Compared a one-shot full-stack Sunny migration against a staged approach and recommended a two-phase migration instead of upgrading every Sunny/SUN backend at once. Phase 1 is now defined as the spin-only LSWT environment convergence stage; Phase 2 is deferred to the broader pseudospin/SUN classical, thermodynamics, and GSWT family. After the user clarified the exact desired sequence, wrote the formal Phase 1 design spec at `docs/superpowers/specs/2026-04-21-sunny-julia-phase-1-lswt-environment-design.md`.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-21-sunny-julia-phase-1-lswt-environment-design.md, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/reference/environment.md, /data/work/zhli/soft/Design_Mott_Materials/session-memory/sessions/design-mott-materials-2026-04-21-0342.md
+- Conversation:
+  - User: `用最新版的julia和最新版的sunny，所有相关的脚本，计划，reference都改。你觉得如何？`
+  - Assistant: recommended not doing a blind one-shot migration and instead proposed a two-phase plan that starts with the LSWT environment.
+  - User: `你完全理解错我的意思了。回到：写正式 spec 写 implementation plan 然后开始执行 Phase 1 吧`
+  - Assistant: realigned to that exact sequence and wrote the formal Phase 1 spec as the first deliverable.
+- Next focus: Refresh the session-memory/index for the new Sunny-migration frontier, write the formal Phase 1 implementation plan, and then start executing Phase 1.
+
+### 2026-04-21 18:20 CST
+- User intent: Turn the approved Phase 1 design into a formal executable plan and then begin implementation from a version target that matches the real upstream Julia/Sunny state rather than stale repo assumptions.
+- Keywords: Sunny 0.7.x, Julia 1.12.6, implementation plan, phase 1, execution
+- Key result: Verified that the current official Julia stable line is `1.12.6` and that the current official Sunny release line is `0.7.x`, so corrected the fresh Phase 1 spec away from the stale `0.9.x` target before writing the implementation plan. Then wrote the formal plan at `docs/superpowers/plans/2026-04-21-sunny-julia-phase-1-lswt-environment.md`, locking a Phase 1 execution strategy around a new canonical `.julia-env-v07`, LSWT-only launcher rewiring, an explicit `DESIGN_MOTT_JULIA_CMD` override path, repo-local environment regression tests, and a final FeI2 `V2b` smoke rerun.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-21-sunny-julia-phase-1-lswt-environment-design.md, /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/plans/2026-04-21-sunny-julia-phase-1-lswt-environment.md, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_lswt.jl, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/reference/environment.md
+- Conversation:
+  - User: `还是按照你之前说的phase1,phase2来做，使用SKILL/data/work/zhli/run/codex/SKILLS/session-project-memory/SKILL.md`
+  - Assistant: kept the two-phase structure and continued manually following the requested session-memory storage rules.
+  - User: `能不能直接按照写plan然后执行Phase 1？`
+  - Assistant: completed the formal Phase 1 plan after correcting the stale Sunny version target to match the real upstream release line.
+- Next focus: Commit the spec/plan/session-memory checkpoint, create an isolated worktree for Phase 1, and start Task 1 under TDD.
