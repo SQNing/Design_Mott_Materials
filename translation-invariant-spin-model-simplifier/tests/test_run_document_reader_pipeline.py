@@ -469,6 +469,342 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
             self.assertTrue((output_dir / "classical" / "solver_payload.json").exists())
             self.assertTrue((output_dir / "classical" / "solver_result.json").exists())
 
+    def test_document_reader_pipeline_writes_downstream_artifacts_when_v2b_is_enabled(self):
+        landed_model = {
+            "selected_model_candidate": "effective",
+            "selected_local_bond_family": "2a'",
+            "selected_coordinate_convention": "global_crystallographic",
+            "local_hilbert": {"dimension": 3},
+            "lattice": {
+                "kind": "trigonal",
+                "dimension": 3,
+                "cell_parameters": {
+                    "a": 4.05012,
+                    "b": 4.05012,
+                    "c": 6.75214,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 120.0,
+                },
+                "positions": [[0.0, 0.0, 0.0]],
+                "family_shell_map": {"2a'": {"shell_index": 6, "distance": 9.736622}},
+            },
+            "unsupported_features": [],
+        }
+        orchestration_result = {"status": "ok", "normalized_model": landed_model}
+        simplification_result = {
+            "status": "ok",
+            "stage": "complete",
+            "normalized_model": landed_model,
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        }
+        bridge_result = {
+            "status": "ok",
+            "payload": {
+                "lattice": landed_model["lattice"],
+                "normalized_model": landed_model,
+                "bonds": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "vector": [1, -1, 1],
+                        "distance": 9.736622,
+                        "matrix": [
+                            [0.068, 0.0, 0.0],
+                            [0.0, 0.068, 0.0],
+                            [0.0, 0.0, 0.073],
+                        ],
+                        "family": "2a'",
+                    }
+                ],
+                "classical": {"method": "auto"},
+                "bridge_metadata": {"bridge_kind": "document_reader_spin_only_shell_expanded"},
+            },
+        }
+        solver_result = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-luttinger-tisza",
+                "ordering": {"q_vector": [0.0, 0.0, 0.5]},
+            }
+        }
+        downstream_result = {
+            "downstream_status": "partial",
+            "downstream_routes": {
+                "lswt": {"status": "ready"},
+                "gswt": {"status": "blocked"},
+                "thermodynamics": {"status": "review"},
+            },
+            "downstream_results": {"lswt": {"status": "ok"}},
+            "downstream_summary": {
+                "lswt": {"execution_decision": "executed"},
+                "gswt": {"execution_decision": "blocked_route"},
+                "thermodynamics": {"execution_decision": "skipped_review"},
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_agent_document_normalization_orchestrator",
+                return_value=orchestration_result,
+            ):
+                with patch(
+                    "cli.run_document_reader_pipeline.run_simplification_from_normalized_model",
+                    return_value=simplification_result,
+                ):
+                    with patch(
+                        "cli.run_document_reader_pipeline.build_spin_only_solver_payload",
+                        return_value=bridge_result,
+                    ):
+                        with patch(
+                            "cli.run_document_reader_pipeline.run_classical_solver",
+                            return_value=solver_result,
+                        ):
+                            with patch(
+                                "cli.run_document_reader_pipeline.orchestrate_document_reader_downstream",
+                                return_value=downstream_result,
+                                create=True,
+                            ):
+                                result = run_document_reader_pipeline(
+                                    self.fei2_fixture,
+                                    source_path=str(self.FEI2_FIXTURE_PATH),
+                                    selected_model_candidate="effective",
+                                    selected_local_bond_family="2a'",
+                                    selected_coordinate_convention="global_crystallographic",
+                                    output_dir=tmpdir,
+                                    agent_command=self._mock_fei2_agent_command(),
+                                    emit_spin_only_solver_payload=True,
+                                    run_spin_only_classical_solver=True,
+                                    run_downstream_stages=True,
+                                )
+
+            output_dir = Path(tmpdir)
+            self.assertEqual(result["downstream_status"], "partial")
+            self.assertTrue((output_dir / "classical" / "downstream_routes.json").exists())
+            self.assertTrue((output_dir / "classical" / "downstream_results.json").exists())
+            self.assertTrue((output_dir / "classical" / "downstream_summary.json").exists())
+
+    def test_document_reader_pipeline_preserves_classical_success_when_downstream_stage_errors(self):
+        landed_model = {
+            "selected_model_candidate": "effective",
+            "selected_local_bond_family": "2a'",
+            "selected_coordinate_convention": "global_crystallographic",
+            "local_hilbert": {"dimension": 3},
+            "lattice": {
+                "kind": "trigonal",
+                "dimension": 3,
+                "cell_parameters": {
+                    "a": 4.05012,
+                    "b": 4.05012,
+                    "c": 6.75214,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 120.0,
+                },
+                "positions": [[0.0, 0.0, 0.0]],
+                "family_shell_map": {"2a'": {"shell_index": 6, "distance": 9.736622}},
+            },
+            "unsupported_features": [],
+        }
+        orchestration_result = {"status": "ok", "normalized_model": landed_model}
+        simplification_result = {
+            "status": "ok",
+            "stage": "complete",
+            "normalized_model": landed_model,
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        }
+        bridge_result = {
+            "status": "ok",
+            "payload": {
+                "lattice": landed_model["lattice"],
+                "normalized_model": landed_model,
+                "bonds": [],
+                "classical": {"method": "auto"},
+                "bridge_metadata": {"bridge_kind": "document_reader_spin_only_shell_expanded"},
+            },
+        }
+        solver_result = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-luttinger-tisza",
+                "ordering": {"q_vector": [0.0, 0.0, 0.5]},
+            }
+        }
+        downstream_result = {
+            "downstream_status": "error",
+            "downstream_routes": {"lswt": {"status": "ready"}},
+            "downstream_results": {"lswt": {"status": "error", "message": "boom"}},
+            "downstream_summary": {"lswt": {"execution_decision": "error"}},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_agent_document_normalization_orchestrator",
+                return_value=orchestration_result,
+            ):
+                with patch(
+                    "cli.run_document_reader_pipeline.run_simplification_from_normalized_model",
+                    return_value=simplification_result,
+                ):
+                    with patch(
+                        "cli.run_document_reader_pipeline.build_spin_only_solver_payload",
+                        return_value=bridge_result,
+                    ):
+                        with patch(
+                            "cli.run_document_reader_pipeline.run_classical_solver",
+                            return_value=solver_result,
+                        ):
+                            with patch(
+                                "cli.run_document_reader_pipeline.orchestrate_document_reader_downstream",
+                                return_value=downstream_result,
+                                create=True,
+                            ):
+                                result = run_document_reader_pipeline(
+                                    self.fei2_fixture,
+                                    source_path=str(self.FEI2_FIXTURE_PATH),
+                                    selected_model_candidate="effective",
+                                    selected_local_bond_family="2a'",
+                                    selected_coordinate_convention="global_crystallographic",
+                                    output_dir=tmpdir,
+                                    agent_command=self._mock_fei2_agent_command(),
+                                    emit_spin_only_solver_payload=True,
+                                    run_spin_only_classical_solver=True,
+                                    run_downstream_stages=True,
+                                )
+
+        self.assertEqual(result["classical_solver"]["classical_state_result"]["status"], "ok")
+        self.assertEqual(result["downstream_results"]["lswt"]["status"], "error")
+
+    def test_document_reader_pipeline_records_route_only_downstream_outcomes(self):
+        landed_model = {
+            "selected_model_candidate": "effective",
+            "selected_local_bond_family": "2a'",
+            "selected_coordinate_convention": "global_crystallographic",
+            "local_hilbert": {"dimension": 3},
+            "lattice": {
+                "kind": "trigonal",
+                "dimension": 3,
+                "cell_parameters": {
+                    "a": 4.05012,
+                    "b": 4.05012,
+                    "c": 6.75214,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 120.0,
+                },
+                "positions": [[0.0, 0.0, 0.0]],
+                "family_shell_map": {"2a'": {"shell_index": 6, "distance": 9.736622}},
+            },
+            "unsupported_features": [],
+        }
+        orchestration_result = {"status": "ok", "normalized_model": landed_model}
+        simplification_result = {
+            "status": "ok",
+            "stage": "complete",
+            "normalized_model": landed_model,
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        }
+        bridge_result = {
+            "status": "ok",
+            "payload": {
+                "lattice": landed_model["lattice"],
+                "normalized_model": landed_model,
+                "bonds": [],
+                "classical": {"method": "auto"},
+                "bridge_metadata": {"bridge_kind": "document_reader_spin_only_shell_expanded"},
+            },
+        }
+        solver_result = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-luttinger-tisza",
+                "ordering": {"q_vector": [0.0, 0.0, 0.5]},
+            }
+        }
+        downstream_result = {
+            "downstream_status": "blocked",
+            "downstream_routes": {
+                "lswt": {"status": "blocked"},
+                "gswt": {"status": "blocked"},
+                "thermodynamics": {"status": "review"},
+            },
+            "downstream_results": {},
+            "downstream_summary": {
+                "lswt": {"execution_decision": "blocked_route"},
+                "gswt": {"execution_decision": "blocked_route"},
+                "thermodynamics": {"execution_decision": "skipped_review"},
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_agent_document_normalization_orchestrator",
+                return_value=orchestration_result,
+            ):
+                with patch(
+                    "cli.run_document_reader_pipeline.run_simplification_from_normalized_model",
+                    return_value=simplification_result,
+                ):
+                    with patch(
+                        "cli.run_document_reader_pipeline.build_spin_only_solver_payload",
+                        return_value=bridge_result,
+                    ):
+                        with patch(
+                            "cli.run_document_reader_pipeline.run_classical_solver",
+                            return_value=solver_result,
+                        ):
+                            with patch(
+                                "cli.run_document_reader_pipeline.orchestrate_document_reader_downstream",
+                                return_value=downstream_result,
+                                create=True,
+                            ):
+                                result = run_document_reader_pipeline(
+                                    self.fei2_fixture,
+                                    source_path=str(self.FEI2_FIXTURE_PATH),
+                                    selected_model_candidate="effective",
+                                    selected_local_bond_family="2a'",
+                                    selected_coordinate_convention="global_crystallographic",
+                                    output_dir=tmpdir,
+                                    agent_command=self._mock_fei2_agent_command(),
+                                    emit_spin_only_solver_payload=True,
+                                    run_spin_only_classical_solver=True,
+                                    run_downstream_stages=True,
+                                )
+
+        self.assertEqual(result["downstream_routes"]["gswt"]["status"], "blocked")
+        self.assertEqual(result["downstream_routes"]["thermodynamics"]["status"], "review")
+        self.assertEqual(result["downstream_results"], {})
+
 
 if __name__ == "__main__":
     unittest.main()
