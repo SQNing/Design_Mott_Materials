@@ -373,3 +373,28 @@ Current V2a non-goals:
 - multipolar bridge contracts
 - mixed spin-orbital bridge contracts
 - silent dropping of unsupported families from `selected_local_bond_family = all`
+
+Current V2b scope:
+
+- consumes the landed `V2a` bridge payload after optional classical solving
+- resolves downstream route status for:
+  - `lswt`
+  - `gswt`
+  - `thermodynamics`
+- auto-runs `lswt` when the downstream route is `ready`
+- records `gswt` route status but keeps auto-execution conservative unless an explicit
+  compatible `gswt_payload` is already present
+- auto-runs `thermodynamics` only when the route is `ready` and required runtime inputs are
+  present
+- records `review` stages explicitly but does not auto-run them by default
+- writes downstream artifacts under `classical/`:
+  - `downstream_routes.json`
+  - `downstream_results.json`
+  - `downstream_summary.json`
+
+Current V2b policy notes:
+
+- `downstream_routes.json` records route evidence even for stages that are not executed
+- `downstream_results.json` records only executed stages
+- `downstream_summary.json` records why each stage was executed, skipped, blocked, or failed
+- downstream stage failures should not erase a valid bridge payload or classical solver result
