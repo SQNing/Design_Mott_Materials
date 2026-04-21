@@ -175,3 +175,32 @@ def summarize_abstract_diagnostics_status(
     ):
         return "strong"
     return "unclear"
+
+
+def analyze_abstract_spin_diagnostics(
+    candidate_spin: float,
+    abstract_spin_operators: dict[str, np.ndarray],
+    h_low: np.ndarray,
+    target_source: str,
+    projected_observables: dict[str, np.ndarray],
+) -> dict[str, object]:
+    hamiltonian_closure = analyze_hamiltonian_closure(
+        candidate_spin=candidate_spin,
+        abstract_spin_operators=abstract_spin_operators,
+        h_low=h_low,
+        target_source=target_source,
+    )
+    observable_closure = analyze_observable_closure(
+        abstract_spin_operators=abstract_spin_operators,
+        projected_observables=projected_observables,
+    )
+    return {
+        "available": True,
+        "candidate_spin": float(candidate_spin),
+        "hamiltonian_closure": hamiltonian_closure,
+        "observable_closure": observable_closure,
+        "overall_status": summarize_abstract_diagnostics_status(
+            hamiltonian_closure=hamiltonian_closure,
+            observable_closure=observable_closure,
+        ),
+    }

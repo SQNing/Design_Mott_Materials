@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from .spin_abstract import build_standard_spin_matrices
+from .spin_abstract_diagnostics import analyze_abstract_spin_diagnostics
 from .spin_diagnostics import (
     candidate_spin_from_dimension,
     casimir_eigenvalue_spread,
@@ -84,4 +85,22 @@ def analyze_low_energy_spin_manifold(
         "Jy": abstract_jy,
         "Jz": abstract_jz,
     }
+    if "H" in projected_operators:
+        h_low = projected_operators["H"]
+        target_source = "projected_full_space_H"
+    else:
+        h_low = np.diag(energies[:retained_dim] - energies[0]).astype(complex)
+        target_source = "retained_energy_diagonal"
+    projected_observables = {
+        name: projected_operators[name]
+        for name in ("Mx", "My", "Mz")
+        if name in projected_operators
+    }
+    result["abstract_diagnostics"] = analyze_abstract_spin_diagnostics(
+        candidate_spin=candidate_spin,
+        abstract_spin_operators=result["abstract_spin_operators"],
+        h_low=h_low,
+        target_source=target_source,
+        projected_observables=projected_observables,
+    )
     return result
