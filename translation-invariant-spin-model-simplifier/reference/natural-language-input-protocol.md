@@ -347,23 +347,29 @@ the protocol should:
 6. land into the nearest supported payload family while carrying unmatched metadata in
    `unsupported_features`.
 
-### Optional Minimal Classical Bridge
+### Optional Spin-Only Classical Bridge
 
-For selected-family spin-only readable exchange results, the document-reader pipeline may also emit
-a minimal classical-solver bridge after simplification.
+For readable spin-only exchange results, the document-reader pipeline may also emit a spin-only
+classical-solver bridge after simplification.
 
-Current first-stage scope:
+Current V2a scope:
 
-- requires a single selected family, not `selected_local_bond_family = all`
 - supports readable spin-only bilinear blocks that map directly to a `3x3` exchange matrix:
   `isotropic_exchange`, `xxz_exchange`, `symmetric_exchange_matrix`, and `exchange_tensor`
-- reconstructs one deterministic representative bond from the selected family's shell geometry
+- if one family is selected, expands that family into the full shell-resolved canonical bond set
+- if `selected_local_bond_family = all`, assembles one aggregated payload from all supported
+  family-resolved readable blocks
+- treats per-family readable blocks as the authoritative bridge input when present
+- uses `shell_resolved_exchange` summaries only for ordering and validation
+- preserves enough `effective_model` / `simplified_model` metadata for the current classical solver
+  routing layer
 - may optionally run the classical solver and save both `classical/solver_payload.json` and
   `classical/solver_result.json`
 
-Current non-goals:
+Current V2a non-goals:
 
-- full symmetry-equivalent bond expansion
-- multi-shell aggregation
 - automatic LSWT / GSWT / thermodynamics chaining
-- residual, multipolar, or mixed spin-orbital bridge generalization
+- residual-term promotion into the spin-only bridge payload
+- multipolar bridge contracts
+- mixed spin-orbital bridge contracts
+- silent dropping of unsupported families from `selected_local_bond_family = all`
