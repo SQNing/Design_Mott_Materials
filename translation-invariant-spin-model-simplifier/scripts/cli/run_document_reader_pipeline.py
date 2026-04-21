@@ -9,9 +9,11 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
+    from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 else:
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
+    from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 
 from cli.orchestrate_agent_document_normalization import (
     run_agent_document_normalization_orchestrator,
@@ -95,6 +97,14 @@ def _write_classical_bridge_artifacts(output_dir, bridge_payload, solver_result=
         _write_json(output_dir / "solver_result.json", solver_result)
 
 
+def _write_downstream_artifacts(output_dir, downstream_result):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(output_dir / "downstream_routes.json", downstream_result.get("downstream_routes", {}))
+    _write_json(output_dir / "downstream_results.json", downstream_result.get("downstream_results", {}))
+    _write_json(output_dir / "downstream_summary.json", downstream_result.get("downstream_summary", {}))
+
+
 def run_document_reader_pipeline(
     text,
     *,
@@ -109,6 +119,8 @@ def run_document_reader_pipeline(
     max_agent_rounds=1,
     emit_spin_only_solver_payload=False,
     run_spin_only_classical_solver=False,
+    run_downstream_stages=False,
+    allow_review_downstream=False,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -175,6 +187,22 @@ def run_document_reader_pipeline(
             artifacts["solver_payload"] = str(classical_output_dir / "solver_payload.json")
             if solver_result is not None:
                 artifacts["solver_result"] = str(classical_output_dir / "solver_result.json")
+            if run_downstream_stages and solver_result is not None:
+                downstream_payload = deepcopy(bridge_payload)
+                if isinstance(solver_result, dict):
+                    downstream_payload.update(deepcopy(solver_result))
+                downstream_result = orchestrate_document_reader_downstream(
+                    downstream_payload,
+                    allow_review_execution=bool(allow_review_downstream),
+                )
+                _write_downstream_artifacts(classical_output_dir, downstream_result)
+                result["downstream_status"] = downstream_result.get("downstream_status")
+                result["downstream_routes"] = downstream_result.get("downstream_routes", {})
+                result["downstream_results"] = downstream_result.get("downstream_results", {})
+                result["downstream_summary"] = downstream_result.get("downstream_summary", {})
+                artifacts["downstream_routes"] = str(classical_output_dir / "downstream_routes.json")
+                artifacts["downstream_results"] = str(classical_output_dir / "downstream_results.json")
+                artifacts["downstream_summary"] = str(classical_output_dir / "downstream_summary.json")
         except Exception as exc:
             result["bridge_status"] = "error"
             result["bridge_error"] = {"message": str(exc)}
@@ -198,6 +226,8 @@ def main():
     parser.add_argument("--max-agent-rounds", type=int, default=1)
     parser.add_argument("--emit-spin-only-solver-payload", action="store_true")
     parser.add_argument("--run-spin-only-classical-solver", action="store_true")
+    parser.add_argument("--run-downstream-stages", action="store_true")
+    parser.add_argument("--allow-review-downstream", action="store_true")
     args = parser.parse_args()
 
     result = run_document_reader_pipeline(
@@ -213,6 +243,8 @@ def main():
         max_agent_rounds=int(args.max_agent_rounds),
         emit_spin_only_solver_payload=bool(args.emit_spin_only_solver_payload),
         run_spin_only_classical_solver=bool(args.run_spin_only_classical_solver),
+        run_downstream_stages=bool(args.run_downstream_stages),
+        allow_review_downstream=bool(args.allow_review_downstream),
     )
     print(json.dumps(_json_safe(result), indent=2, sort_keys=True))
     return 0
