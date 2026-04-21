@@ -135,9 +135,19 @@
 ### 2026-04-21 16:22 CST
 - User intent: Approve the final design section so the agreed `V2b` design can be written out as a formal spec document.
 - Keywords: FeI2, V2b, testing strategy, implementation slicing, spec writing
-- Key result: The user approved the final design section covering layered tests, a new downstream-orchestration helper, minimal file surface, and the recommended implementation order. Based on that approval, the full design was written to `docs/superpowers/specs/2026-04-21-fei2-v2b-downstream-chaining-design.md`, then locally reviewed against the expected sections and checked for consistency with the landed `V2a` boundary.
+- Key result: The user approved the final design section covering layered tests, a new downstream-orchestration helper, minimal file surface, and the recommended implementation order. Based on that approval, the full design was written to `docs/superpowers/specs/2026-04-21-fei2-v2b-downstream-chaining-design.md`, locally reviewed against the expected sections and checked for consistency with the landed `V2a` boundary, then committed together with the updated session-memory files as `3aeb069` (`docs: add FeI2 V2b downstream chaining design`).
 - Files/paths: /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-21-fei2-v2b-downstream-chaining-design.md, /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-21-fei2-v2a-shell-expansion-and-all-family-design.md, /data/work/zhli/soft/Design_Mott_Materials/session-memory/sessions/design-mott-materials-2026-04-21-0342.md
 - Conversation:
   - User: `可以`
-  - Assistant: moved from the approved design into formal spec writing, wrote the full `V2b` design doc, and performed a local section-completeness check before surfacing it for user review.
-- Next focus: Commit the written spec and updated session memory, then ask the user to review the spec file before converting it into an implementation plan.
+  - Assistant: moved from the approved design into formal spec writing, wrote the full `V2b` design doc, performed a local section-completeness check, committed the spec plus session memory, and prepared to ask the user to review the written spec before converting it into an implementation plan.
+- Next focus: Ask the user to review `docs/superpowers/specs/2026-04-21-fei2-v2b-downstream-chaining-design.md` and confirm whether any changes are needed before writing the implementation plan.
+
+### 2026-04-21 16:22 CST
+- User intent: Continue past the approved spec review and move directly into implementation planning for FeI2 `V2b`.
+- Keywords: FeI2, V2b, implementation plan, writing-plans, TDD
+- Key result: Entered the `writing-plans` phase, re-read the approved `V2b` design plus the earlier `V2a` implementation plan format, then wrote a new plan at `docs/superpowers/plans/2026-04-21-fei2-v2b-downstream-chaining.md`. The plan keeps the `V2a` boundary intact, introduces one focused downstream-orchestration helper, drives the work through helper-level RED tests first, then pipeline-level RED tests, then integration, protocol docs, and a final real FeI2 smoke. A local structure check confirmed the plan has the required header, six task blocks, and 32 checkbox steps.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/plans/2026-04-21-fei2-v2b-downstream-chaining.md, /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-21-fei2-v2b-downstream-chaining-design.md, /data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/plans/2026-04-21-fei2-v2a-shell-expansion-and-all-family.md
+- Conversation:
+  - User: `继续`
+  - Assistant: entered the `writing-plans` phase, wrote the full `V2b` implementation plan, ran a local structure check, and prepared to commit the plan plus the updated session memory while leaving the user's unrelated `.gitignore` edit untouched.
+- Next focus: Commit `docs/superpowers/plans/2026-04-21-fei2-v2b-downstream-chaining.md` and the updated session note, then hand the plan back to the user for execution approval.
