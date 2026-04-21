@@ -46,8 +46,8 @@ class SkillReferenceDocsTests(unittest.TestCase):
     def test_environment_reference_tracks_sunny_version_line(self):
         content = ENVIRONMENT_REFERENCE.read_text(encoding="utf-8")
 
-        self.assertIn("`Sunny.jl 0.9.x`", content)
-        self.assertNotIn("`Sunny.jl 0.9.0`", content)
+        self.assertIn("`Sunny.jl 0.7.x`", content)
+        self.assertNotIn("`Sunny.jl 0.9.x`", content)
 
 
 if __name__ == "__main__":
