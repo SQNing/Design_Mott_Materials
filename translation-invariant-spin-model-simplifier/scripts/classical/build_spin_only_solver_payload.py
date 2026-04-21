@@ -97,7 +97,7 @@ def _canonical_pair(pair):
     return min((source, target, translation), (target, source, inverse))
 
 
-def _representative_pair(lattice, shell_index, distance):
+def _expand_family_shell_bonds(lattice, shell_index, distance, matrix, family):
     lattice_vectors = resolve_lattice_vectors(lattice)
     positions = lattice.get("positions") or [[0.0, 0.0, 0.0]]
     shells = enumerate_neighbor_shells(
@@ -118,14 +118,20 @@ def _representative_pair(lattice, shell_index, distance):
     canonical_pairs = sorted({_canonical_pair(pair) for pair in shell.get("pairs", [])}, key=lambda item: item[2])
     if not canonical_pairs:
         raise ValueError(f"shell {shell_index} has no bridgeable representative pairs")
-    source, target, translation = canonical_pairs[0]
-
-    return {
-        "source": source,
-        "target": target,
-        "vector": list(translation),
-        "distance": float(target_distance),
-    }
+    bonds = []
+    for source, target, translation in canonical_pairs:
+        bonds.append(
+            {
+                "source": int(source),
+                "target": int(target),
+                "vector": list(translation),
+                "distance": float(target_distance),
+                "shell_index": int(shell_index),
+                "family": family,
+                "matrix": deepcopy(matrix),
+            }
+        )
+    return bonds
 
 
 def build_spin_only_solver_payload(simplification_payload):
@@ -134,10 +140,12 @@ def build_spin_only_solver_payload(simplification_payload):
     lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
     block = _matching_readable_blocks(simplification_payload, family)
     matrix = _exchange_matrix_from_block(block)
-    pair = _representative_pair(
+    bonds = _expand_family_shell_bonds(
         lattice,
         shell_index=shell_index,
         distance=float(shell_metadata.get("distance")),
+        matrix=matrix,
+        family=family,
     )
 
     payload = {
@@ -148,22 +156,15 @@ def build_spin_only_solver_payload(simplification_payload):
         "simplified_model": {
             "template": _simplified_template_for_block(block),
         },
-        "bonds": [
-            {
-                "source": int(pair["source"]),
-                "target": int(pair["target"]),
-                "vector": list(pair["vector"]),
-                "distance": float(pair["distance"]),
-                "matrix": matrix,
-                "family": family,
-            }
-        ],
+        "bonds": bonds,
         "classical": {"method": "auto"},
         "bridge_metadata": {
-            "bridge_kind": "document_reader_spin_only_minimal",
+            "bridge_kind": "document_reader_spin_only_shell_expanded",
+            "expansion_mode": "full_shell",
             "selected_family": family,
             "block_type": str(block.get("type") or ""),
             "shell_index": int(shell_index),
+            "pair_count": len(bonds),
         },
     }
     return {"status": "ok", "payload": payload}
