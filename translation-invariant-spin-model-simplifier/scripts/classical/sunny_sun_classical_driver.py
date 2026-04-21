@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,15 @@ else:
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUNNY_CLASSICAL_SCRIPT = SCRIPT_DIR / "run_sunny_sun_classical.jl"
+
+
+def _resolve_julia_cmd(julia_cmd=None):
+    if julia_cmd not in {None, ""}:
+        return str(julia_cmd)
+    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
+    if override:
+        return override
+    return "julia"
 
 
 def _error(code, message, *, payload_kind=None, backend=None):
@@ -121,7 +131,7 @@ def _run_backend_process_with_progress(command):
     return stdout, stderr
 
 
-def run_sunny_sun_classical(payload, julia_cmd="julia", stream_progress=False):
+def run_sunny_sun_classical(payload, julia_cmd=None, stream_progress=False):
     classical_payload = _extract_payload(payload)
     if classical_payload is None:
         return _error("missing-classical-payload", "Classical stage requires a `classical_payload` dictionary")
@@ -149,7 +159,8 @@ def run_sunny_sun_classical(payload, julia_cmd="julia", stream_progress=False):
         json.dump(classical_payload, handle, indent=2, sort_keys=True)
 
     try:
-        command = [julia_cmd, str(SUNNY_CLASSICAL_SCRIPT), str(payload_path)]
+        resolved_julia_cmd = _resolve_julia_cmd(julia_cmd)
+        command = [resolved_julia_cmd, str(SUNNY_CLASSICAL_SCRIPT), str(payload_path)]
         if stream_progress:
             stdout, _stderr = _run_backend_process_with_progress(command)
         else:
@@ -194,7 +205,7 @@ def _load_payload(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
-    parser.add_argument("--julia-cmd", default="julia")
+    parser.add_argument("--julia-cmd")
     args = parser.parse_args()
     payload = _load_payload(args.input)
     print(json.dumps(run_sunny_sun_classical(payload, julia_cmd=args.julia_cmd), indent=2, sort_keys=True))

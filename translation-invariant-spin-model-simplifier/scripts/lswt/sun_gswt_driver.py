@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,15 @@ else:
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUNNY_GSWT_SCRIPT = SCRIPT_DIR / "run_sunny_sun_gswt.jl"
+
+
+def _resolve_julia_cmd(julia_cmd=None):
+    if julia_cmd not in {None, ""}:
+        return str(julia_cmd)
+    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
+    if override:
+        return override
+    return "julia"
 
 
 def _error(code, message, *, payload_kind=None, backend=None):
@@ -276,7 +286,7 @@ def _enrich_gswt_result(result, gswt_payload):
     return result
 
 
-def run_sun_gswt(payload, julia_cmd="julia"):
+def run_sun_gswt(payload, julia_cmd=None):
     gswt_payload = _extract_payload(payload)
     if gswt_payload is None:
         return _error("missing-gswt-payload", "GSWT stage requires a `gswt_payload` dictionary")
@@ -300,8 +310,9 @@ def run_sun_gswt(payload, julia_cmd="julia"):
         json.dump(gswt_payload, handle, indent=2, sort_keys=True)
 
     try:
+        resolved_julia_cmd = _resolve_julia_cmd(julia_cmd)
         completed = subprocess.run(
-            [julia_cmd, str(SUNNY_GSWT_SCRIPT), str(payload_path)],
+            [resolved_julia_cmd, str(SUNNY_GSWT_SCRIPT), str(payload_path)],
             check=True,
             capture_output=True,
             text=True,
@@ -355,7 +366,7 @@ def _load_payload(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", nargs="?")
-    parser.add_argument("--julia-cmd", default="julia")
+    parser.add_argument("--julia-cmd")
     args = parser.parse_args()
     payload = _load_payload(args.input)
     print(json.dumps(run_sun_gswt(payload, julia_cmd=args.julia_cmd), indent=2, sort_keys=True))

@@ -2,7 +2,7 @@
 
 const SCRIPT_DIR = dirname(@__FILE__)
 const LOCAL_DEPOT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-depot"))
-const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-env-v06"))
+const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", "..", ".julia-env-v09"))
 
 using LinearAlgebra
 
