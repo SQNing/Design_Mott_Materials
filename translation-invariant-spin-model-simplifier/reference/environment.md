@@ -112,6 +112,13 @@ Required tools:
   - `Sunny`
   - `JSON3`
 
+Shared launcher baseline:
+
+- All checked-in Sunny-family launchers in this repository now share the same
+  repo-local `.julia-env-v09` project and `scripts/.julia-depot` depot.
+- This includes the spin-only LSWT launcher plus the Sunny pseudospin-orbital
+  classical, thermodynamics, and SUN-GSWT launchers.
+
 Recommended version line for current LSWT verification:
 
 - Julia 1.12.x
@@ -124,8 +131,13 @@ Optional override:
 
 - `DESIGN_MOTT_JULIA_CMD`
   Purpose:
-  Lets the LSWT Python driver use a specific Julia binary when `julia` on
-  `PATH` is older than the expected 1.12.x line.
+  Lets the Python-side Sunny drivers use a specific Julia binary when `julia`
+  on `PATH` is older than the expected 1.12.x line.
+  This override applies to:
+  - the spin-only LSWT Python driver
+  - the Sunny pseudospin-orbital classical driver
+  - the Sunny pseudospin-orbital thermodynamics driver
+  - the Sunny SUN-GSWT Python driver
 
 Verification:
 
