@@ -106,7 +106,7 @@ Required when the user asks for:
 Required tools:
 
 - `julia`
-- local Julia project at `.julia-env-v07`
+- local Julia project at `.julia-env-v09`
 - local Julia depot at `scripts/.julia-depot`
 - Julia packages in that project, especially:
   - `Sunny`
@@ -118,7 +118,7 @@ Recommended version line for current LSWT verification:
 
 Current expected Sunny line:
 
-- `Sunny.jl 0.7.x`
+- `Sunny.jl 0.9.x`
 
 Optional override:
 
@@ -132,7 +132,7 @@ Verification:
 ```bash
 cd /path/to/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-/path/to/julia --project="$PWD/.julia-env-v07" -e 'using JSON3, Sunny; println("OK")'
+/path/to/julia --project="$PWD/.julia-env-v09" -e 'using JSON3, Sunny; println("OK")'
 ```
 
 If the project or depot is not yet instantiated:
@@ -140,7 +140,7 @@ If the project or depot is not yet instantiated:
 ```bash
 cd /path/to/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
-/path/to/julia --project="$PWD/.julia-env-v07" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+/path/to/julia --project="$PWD/.julia-env-v09" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 ```
 
 If missing:

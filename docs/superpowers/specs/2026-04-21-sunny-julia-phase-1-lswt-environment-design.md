@@ -9,7 +9,7 @@ through the real FeI2 `V2b` downstream chain.
 Phase 1 should:
 
 - move the spin-only LSWT path onto a canonical local Julia environment
-- target a current Julia 1.12.x line and Sunny 0.7.x line
+- target a current Julia 1.12.x line and Sunny 0.9.x line
 - eliminate the current drift between script paths, local environment layout,
   and reference documentation
 - keep the migration scoped to the spin-only LSWT chain plus directly related
@@ -121,7 +121,7 @@ continuing to overload the ambiguous old `scripts/.julia-env-v06` story.
 Recommended direction:
 
 - create a new canonical local environment directory:
-  - `translation-invariant-spin-model-simplifier/.julia-env-v07`
+  - `translation-invariant-spin-model-simplifier/.julia-env-v09`
 - continue using the local depot under:
   - `translation-invariant-spin-model-simplifier/scripts/.julia-depot`
 
@@ -137,7 +137,7 @@ Why a new environment directory is preferable:
 
 Create or derive one canonical environment for Phase 1:
 
-- `translation-invariant-spin-model-simplifier/.julia-env-v07`
+- `translation-invariant-spin-model-simplifier/.julia-env-v09`
 
 It should declare at least:
 
@@ -174,7 +174,7 @@ Relevant file:
 It should document:
 
 - Julia 1.12.x as the expected stable line
-- Sunny 0.7.x as the expected Sunny line
+- Sunny 0.9.x as the expected Sunny line
 - the new local project location
 - the local depot expectation
 - the exact verification and instantiate commands
@@ -234,7 +234,7 @@ Write failing tests that capture:
 - the required new environment reference
 - the LSWT launcher expectation
 
-### Task 2: Introduce The Canonical `.julia-env-v07`
+### Task 2: Introduce The Canonical `.julia-env-v09`
 
 Create the new local Julia environment metadata and pin the target Sunny line
 there.
