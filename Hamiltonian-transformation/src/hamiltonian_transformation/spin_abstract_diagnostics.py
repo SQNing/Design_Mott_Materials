@@ -84,10 +84,23 @@ def analyze_hamiltonian_closure(
         candidate_spin=candidate_spin,
         abstract_spin_operators=abstract_spin_operators,
     )
-    coefficients, absolute_residual, relative_residual = fit_real_hermitian_expansion(
-        target=np.asarray(h_low, dtype=complex),
-        basis=basis,
-    )
+    try:
+        coefficients, absolute_residual, relative_residual = fit_real_hermitian_expansion(
+            target=np.asarray(h_low, dtype=complex),
+            basis=basis,
+        )
+    except ValueError as exc:
+        return {
+            "available": True,
+            "target_source": target_source,
+            "basis_name": basis_name,
+            "basis_size": len(basis),
+            "absolute_residual": float("inf"),
+            "relative_residual": float("inf"),
+            "coefficients": {name: 0.0 for name in basis},
+            "status": "fail",
+            "fit_error": str(exc),
+        }
     return {
         "available": True,
         "target_source": target_source,
