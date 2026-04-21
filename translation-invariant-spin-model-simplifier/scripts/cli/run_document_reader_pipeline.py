@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 import argparse
+from copy import deepcopy
 import json
 import sys
 from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
+    from classical.classical_solver_driver import run_classical_solver
+else:
+    from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
+    from classical.classical_solver_driver import run_classical_solver
 
 from cli.orchestrate_agent_document_normalization import (
     run_agent_document_normalization_orchestrator,
@@ -48,6 +54,7 @@ def _base_artifacts(output_dir):
         "output_dir": str(output_dir),
         "document_orchestration_dir": str(output_dir / "document_orchestration"),
         "simplification_dir": str(output_dir / "simplification"),
+        "classical_dir": str(output_dir / "classical"),
         "final_pipeline_result": str(output_dir / "final_pipeline_result.json"),
     }
 
@@ -80,6 +87,14 @@ def _write_simplification_artifacts(output_dir, simplification):
     _write_text(output_dir / "report.md", report_markdown)
 
 
+def _write_classical_bridge_artifacts(output_dir, bridge_payload, solver_result=None):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(output_dir / "solver_payload.json", bridge_payload)
+    if solver_result is not None:
+        _write_json(output_dir / "solver_result.json", solver_result)
+
+
 def run_document_reader_pipeline(
     text,
     *,
@@ -92,11 +107,14 @@ def run_document_reader_pipeline(
     agent_command=None,
     use_request_example_payload=False,
     max_agent_rounds=1,
+    emit_spin_only_solver_payload=False,
+    run_spin_only_classical_solver=False,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     document_output_dir = output_dir / "document_orchestration"
     simplification_output_dir = output_dir / "simplification"
+    classical_output_dir = output_dir / "classical"
     document_output_dir.mkdir(parents=True, exist_ok=True)
     simplification_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -141,6 +159,26 @@ def run_document_reader_pipeline(
         "document_orchestration": orchestration,
         "artifacts": artifacts,
     }
+
+    if emit_spin_only_solver_payload or run_spin_only_classical_solver:
+        try:
+            bridge_result = build_spin_only_solver_payload(result)
+            bridge_payload = bridge_result.get("payload", {})
+            solver_result = None
+            if run_spin_only_classical_solver:
+                solver_result = run_classical_solver(deepcopy(bridge_payload))
+            _write_classical_bridge_artifacts(classical_output_dir, bridge_payload, solver_result=solver_result)
+            result["bridge_status"] = bridge_result.get("status")
+            result["bridge_payload"] = bridge_payload
+            if solver_result is not None:
+                result["classical_solver"] = solver_result
+            artifacts["solver_payload"] = str(classical_output_dir / "solver_payload.json")
+            if solver_result is not None:
+                artifacts["solver_result"] = str(classical_output_dir / "solver_result.json")
+        except Exception as exc:
+            result["bridge_status"] = "error"
+            result["bridge_error"] = {"message": str(exc)}
+
     _write_json(output_dir / "final_pipeline_result.json", result)
     return result
 
@@ -158,6 +196,8 @@ def main():
     parser.add_argument("--agent-command", default=None)
     parser.add_argument("--use-request-example-payload", action="store_true")
     parser.add_argument("--max-agent-rounds", type=int, default=1)
+    parser.add_argument("--emit-spin-only-solver-payload", action="store_true")
+    parser.add_argument("--run-spin-only-classical-solver", action="store_true")
     args = parser.parse_args()
 
     result = run_document_reader_pipeline(
@@ -171,6 +211,8 @@ def main():
         agent_command=args.agent_command,
         use_request_example_payload=bool(args.use_request_example_payload),
         max_agent_rounds=int(args.max_agent_rounds),
+        emit_spin_only_solver_payload=bool(args.emit_spin_only_solver_payload),
+        run_spin_only_classical_solver=bool(args.run_spin_only_classical_solver),
     )
     print(json.dumps(_json_safe(result), indent=2, sort_keys=True))
     return 0

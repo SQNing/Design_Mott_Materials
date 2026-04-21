@@ -346,3 +346,24 @@ the protocol should:
 5. bind the selected candidate's parameters into `parameter_registry`,
 6. land into the nearest supported payload family while carrying unmatched metadata in
    `unsupported_features`.
+
+### Optional Minimal Classical Bridge
+
+For selected-family spin-only readable exchange results, the document-reader pipeline may also emit
+a minimal classical-solver bridge after simplification.
+
+Current first-stage scope:
+
+- requires a single selected family, not `selected_local_bond_family = all`
+- supports readable spin-only bilinear blocks that map directly to a `3x3` exchange matrix:
+  `isotropic_exchange`, `xxz_exchange`, `symmetric_exchange_matrix`, and `exchange_tensor`
+- reconstructs one deterministic representative bond from the selected family's shell geometry
+- may optionally run the classical solver and save both `classical/solver_payload.json` and
+  `classical/solver_result.json`
+
+Current non-goals:
+
+- full symmetry-equivalent bond expansion
+- multi-shell aggregation
+- automatic LSWT / GSWT / thermodynamics chaining
+- residual, multipolar, or mixed spin-orbital bridge generalization
