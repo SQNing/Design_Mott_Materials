@@ -37,6 +37,13 @@ def _vector_norm(vector):
     return math.sqrt(sum(float(value) * float(value) for value in vector))
 
 
+def _normalize_vector(vector):
+    norm = _vector_norm(vector)
+    if norm <= 1.0e-12:
+        raise ValueError("rotation axis must have non-zero length")
+    return [float(value) / norm for value in vector]
+
+
 def _active_axes_from_positions(positions, tolerance=1e-9):
     if not positions:
         return [False, False, False]
@@ -227,7 +234,174 @@ def _phase_sign_from_fractional_phase(phase_fraction, *, tolerance=1.0e-8):
     return None
 
 
-def _expand_supercell_reference_frames(reference_frames, positions, supercell_shape, ordering):
+def _resolve_rotation_axis_vector(rotation_axis, lattice_vectors):
+    if isinstance(rotation_axis, list) and len(rotation_axis) == 3:
+        return _normalize_vector(rotation_axis)
+
+    axis_name = str(rotation_axis or "").strip().lower()
+    cartesian_axes = {
+        "x": [1.0, 0.0, 0.0],
+        "y": [0.0, 1.0, 0.0],
+        "z": [0.0, 0.0, 1.0],
+    }
+    if axis_name in cartesian_axes:
+        return cartesian_axes[axis_name]
+
+    lattice_axis_index = {"a": 0, "b": 1, "c": 2}.get(axis_name)
+    if lattice_axis_index is None:
+        raise ValueError(f"unsupported rotation axis {rotation_axis!r}")
+
+    if lattice_axis_index < len(lattice_vectors):
+        candidate = lattice_vectors[lattice_axis_index]
+        if _vector_norm(candidate) > 1.0e-12:
+            return _normalize_vector(candidate)
+    return cartesian_axes[("x", "y", "z")[lattice_axis_index]]
+
+
+def _rotate_direction(direction, axis_vector, phase):
+    unit_axis = _normalize_vector(axis_vector)
+    vector = [float(value) for value in direction]
+    cosine = math.cos(float(phase))
+    sine = math.sin(float(phase))
+    dot = sum(vector[index] * unit_axis[index] for index in range(3))
+    cross = [
+        unit_axis[1] * vector[2] - unit_axis[2] * vector[1],
+        unit_axis[2] * vector[0] - unit_axis[0] * vector[2],
+        unit_axis[0] * vector[1] - unit_axis[1] * vector[0],
+    ]
+    return [
+        vector[index] * cosine
+        + cross[index] * sine
+        + unit_axis[index] * dot * (1.0 - cosine)
+        for index in range(3)
+    ]
+
+
+def _build_supercell_phase_map(entries, supercell_shape, reference_frames):
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("rotating-frame realization is missing usable supercell_site_phases")
+
+    normalized_shape = _normalize_supercell_shape(supercell_shape) or [1, 1, 1]
+    expected_sites = {int(frame["site"]) for frame in reference_frames}
+    phase_map = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError("rotating-frame realization contains a non-dictionary phase entry")
+        cell = entry.get("cell")
+        site = entry.get("site")
+        phase = entry.get("phase")
+        if not isinstance(cell, list) or len(cell) != 3 or site is None or phase is None:
+            raise ValueError("rotating-frame realization contains an invalid phase entry")
+        normalized_cell = [int(value) for value in cell]
+        if any(value < 0 for value in normalized_cell):
+            raise ValueError("rotating-frame phase entry has a negative cell index")
+        if any(normalized_cell[axis] >= normalized_shape[axis] for axis in range(3)):
+            raise ValueError("rotating-frame phase entry falls outside the inferred supercell shape")
+        site_index = int(site)
+        if site_index not in expected_sites:
+            raise ValueError("rotating-frame phase entry references a site outside classical_state.site_frames")
+        key = (tuple(normalized_cell), site_index)
+        if key in phase_map:
+            raise ValueError("rotating-frame realization contains duplicate supercell phase entries")
+        phase_map[key] = float(phase)
+
+    expected_count = normalized_shape[0] * normalized_shape[1] * normalized_shape[2] * len(expected_sites)
+    if len(phase_map) != expected_count:
+        raise ValueError("rotating-frame phase coverage is incomplete for the inferred supercell")
+    return phase_map
+
+
+def _resolve_explicit_rotating_frame_phase_override(model):
+    if not isinstance(model, dict):
+        return None
+    candidates = [
+        model.get("rotating_frame_realization"),
+        (model.get("effective_model", {}) or {}).get("rotating_frame_realization"),
+        (model.get("normalized_model", {}) or {}).get("rotating_frame_realization"),
+    ]
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        entries = candidate.get("supercell_site_phases")
+        if not isinstance(entries, list):
+            continue
+        normalized_entries = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            cell = entry.get("cell")
+            site = entry.get("site")
+            phase = entry.get("phase")
+            if not isinstance(cell, list) or len(cell) != 3 or site is None or phase is None:
+                continue
+            normalized_entries.append(
+                {
+                    "cell": [int(value) for value in cell],
+                    "site": int(site),
+                    "phase": float(phase),
+                }
+            )
+        override = {"supercell_site_phases": normalized_entries}
+        normalized_shape = _normalize_supercell_shape(candidate.get("supercell_shape"))
+        if normalized_shape is not None:
+            override["supercell_shape"] = normalized_shape
+        if candidate.get("rotation_axis") not in {None, ""}:
+            override["rotation_axis"] = candidate.get("rotation_axis")
+        return override
+    return None
+
+
+def _expand_rotating_frame_supercell_reference_frames(
+    reference_frames,
+    supercell_shape,
+    rotating_frame_transform,
+    rotating_frame_realization,
+    lattice_vectors,
+):
+    if rotating_frame_realization is None and rotating_frame_transform is None:
+        return None
+
+    normalized_shape = _normalize_supercell_shape(supercell_shape) or [1, 1, 1]
+    realization_shape = _normalize_supercell_shape(
+        (rotating_frame_realization or {}).get("supercell_shape") if isinstance(rotating_frame_realization, dict) else None
+    )
+    if realization_shape is not None and realization_shape != normalized_shape:
+        raise ValueError(
+            "rotating-frame realization supercell_shape does not match the inferred LSWT supercell"
+        )
+
+    rotation_axis = None
+    if isinstance(rotating_frame_realization, dict):
+        rotation_axis = rotating_frame_realization.get("rotation_axis")
+    if rotation_axis in {None, ""} and isinstance(rotating_frame_transform, dict):
+        rotation_axis = rotating_frame_transform.get("rotation_axis")
+    axis_vector = _resolve_rotation_axis_vector(rotation_axis, lattice_vectors)
+    phase_map = _build_supercell_phase_map(
+        (rotating_frame_realization or {}).get("supercell_site_phases") if isinstance(rotating_frame_realization, dict) else None,
+        normalized_shape,
+        reference_frames,
+    )
+
+    expanded = []
+    for cell_x in range(int(normalized_shape[0])):
+        for cell_y in range(int(normalized_shape[1])):
+            for cell_z in range(int(normalized_shape[2])):
+                cell = [cell_x, cell_y, cell_z]
+                for frame in reference_frames:
+                    site = int(frame["site"])
+                    phase = phase_map[(tuple(cell), site)]
+                    expanded.append(
+                        {
+                            "cell": list(cell),
+                            "site": site,
+                            "spin_length": float(frame["spin_length"]),
+                            "direction": _rotate_direction(frame["direction"], axis_vector, phase),
+                        }
+                    )
+    return expanded
+
+
+def _expand_phase1_sign_flip_supercell_reference_frames(reference_frames, positions, supercell_shape, ordering):
     normalized_shape = _normalize_supercell_shape(supercell_shape) or [1, 1, 1]
     q_vector = _padded_q_vector(ordering)
     if normalized_shape == [1, 1, 1]:
@@ -272,6 +446,32 @@ def _expand_supercell_reference_frames(reference_frames, positions, supercell_sh
                         }
                     )
     return expanded
+
+
+def _expand_supercell_reference_frames(
+    reference_frames,
+    positions,
+    supercell_shape,
+    ordering,
+    rotating_frame_transform,
+    rotating_frame_realization,
+    lattice_vectors,
+):
+    if rotating_frame_transform is not None or rotating_frame_realization is not None:
+        return _expand_rotating_frame_supercell_reference_frames(
+            reference_frames,
+            supercell_shape,
+            rotating_frame_transform,
+            rotating_frame_realization,
+            lattice_vectors,
+        )
+
+    return _expand_phase1_sign_flip_supercell_reference_frames(
+        reference_frames,
+        positions,
+        supercell_shape,
+        ordering,
+    )
 
 
 def validate_lswt_scope(model):
@@ -328,18 +528,37 @@ def build_lswt_payload(model):
     q_path_summary = _resolve_q_path(model, lattice, bonds)
     ordering = get_classical_ordering(model, prefer_nested_legacy=True) or classical_state.get("ordering", {})
     supercell_shape = _resolve_lswt_supercell_shape(model, ordering)
+    rotating_frame_transform = resolve_rotating_frame_transform(model)
+    rotating_frame_realization = resolve_rotating_frame_realization(
+        {
+            **model,
+            "lattice": lattice,
+            "positions": positions,
+            "lattice_vectors": lattice_vectors,
+            "supercell_shape": supercell_shape,
+            "ordering": ordering,
+        }
+    )
+    explicit_phase_override = _resolve_explicit_rotating_frame_phase_override(model)
+    if explicit_phase_override is not None:
+        rotating_frame_realization = dict(rotating_frame_realization or {})
+        rotating_frame_realization.update(explicit_phase_override)
     try:
         supercell_reference_frames = _expand_supercell_reference_frames(
             reference_frames,
             positions,
             supercell_shape,
             ordering,
+            rotating_frame_transform,
+            rotating_frame_realization,
+            lattice_vectors,
         )
     except ValueError as exc:
         return _error(
             "unsupported-lswt-ordering",
             f"spin-only LSWT commensurate supercell expansion failed: {exc}. "
-            "Phase 1 currently supports only commensurate 0/pi collinear supercells.",
+            "Supported cases are Phase 1 commensurate 0/pi collinear supercells or "
+            "Phase 2 commensurate single-q rotating-frame realizations with complete phase coverage.",
         )
 
     payload = {
@@ -376,10 +595,8 @@ def build_lswt_payload(model):
         "path": q_path_summary["path"],
         "shell_map": shell_map,
     }
-    rotating_frame_transform = resolve_rotating_frame_transform(model)
     if rotating_frame_transform is not None:
         payload["rotating_frame_transform"] = rotating_frame_transform
-    rotating_frame_realization = resolve_rotating_frame_realization(model)
     if rotating_frame_realization is not None:
         payload["rotating_frame_realization"] = rotating_frame_realization
     quadratic_phase_dressing = resolve_quadratic_phase_dressing(model)
