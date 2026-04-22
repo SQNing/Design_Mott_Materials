@@ -277,6 +277,24 @@ def _rotate_direction(direction, axis_vector, phase):
     ]
 
 
+def _vectors_match(left, right, *, tolerance=1.0e-8):
+    if len(left) != len(right):
+        return False
+    for left_value, right_value in zip(left, right):
+        if abs(float(left_value) - float(right_value)) > tolerance:
+            return False
+    return True
+
+
+def _maybe_restore_collinear_phase_sign(direction, rotated_direction, phase):
+    if not _vectors_match(rotated_direction, direction):
+        return rotated_direction
+    sign = _phase_sign_from_fractional_phase(float(phase) / (2.0 * math.pi))
+    if sign is None:
+        return rotated_direction
+    return [sign * float(value) for value in direction]
+
+
 def _build_supercell_phase_map(entries, supercell_shape, reference_frames):
     if not isinstance(entries, list) or not entries:
         raise ValueError("rotating-frame realization is missing usable supercell_site_phases")
@@ -390,12 +408,17 @@ def _expand_rotating_frame_supercell_reference_frames(
                 for frame in reference_frames:
                     site = int(frame["site"])
                     phase = phase_map[(tuple(cell), site)]
+                    rotated_direction = _rotate_direction(frame["direction"], axis_vector, phase)
                     expanded.append(
                         {
                             "cell": list(cell),
                             "site": site,
                             "spin_length": float(frame["spin_length"]),
-                            "direction": _rotate_direction(frame["direction"], axis_vector, phase),
+                            "direction": _maybe_restore_collinear_phase_sign(
+                                frame["direction"],
+                                rotated_direction,
+                                phase,
+                            ),
                         }
                     )
     return expanded
