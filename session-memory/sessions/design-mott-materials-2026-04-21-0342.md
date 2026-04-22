@@ -413,3 +413,10 @@
   - `JULIA_DEPOT_PATH=... julia --project=... run_sunny_lswt.jl /tmp/design-mott-phase2-qquarter-payload.json` -> JSON error payload with `Sunny.InstabilityError("Not an energy-minimum; wavevector q = [0, 0, 0] unstable.")`
   - A small candidate sweep over DM-like and symmetric anisotropic one-site chain matrices returned `Symmetry-violating bilinear exchange` rather than a stable noncollinear LSWT solution.
 - Next focus: If a positive backend example is needed, build a lower-symmetry or multi-site synthetic model whose `q = 1/4` rotating-frame state is symmetry-compatible and classically stationary under Sunny.
+
+### 2026-04-22 12:41 CST
+- User intent: Ask why the work did not continue directly on the FeI2 example after the Phase 2 LSWT rotating-frame implementation.
+- Keywords: FeI2, Phase 1, Phase 2, noncollinear LSWT, validation scope
+- Key result: Clarified that FeI2 can absolutely be continued, but the most recent detour into a synthetic `q = 1/4` case was deliberate because the new Phase 2 code path is specifically about commensurate single-q noncollinear rotating-frame textures. The current FeI2 LSWT example already validates Phase 1 successfully: its saved classical result is the collinear `q = (0, 0, 1/2)` supercell case, and the rerun at `/data/work/zhli/run/codex/spin-effective-Hamiltonian/FeI2/results/fei2_v2b_lswt_rerun_phase1_supercell_fix_20260422-111336/` is already `status = ok` with finite dispersion. Continuing only on that same FeI2 payload would mostly re-check the old Phase 1 path and would not prove that the new Phase 2 noncollinear rotating-frame expansion is exercised.
+- Files/paths: /data/work/zhli/run/codex/spin-effective-Hamiltonian/FeI2/results/fei2_v2b_lswt_rerun_phase1_supercell_fix_20260422-111336/lswt_result.json, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/build_lswt_payload.py
+- Next focus: If needed, either resume FeI2-specific follow-up on the now-working collinear path or search/build a real FeI2-style noncollinear rotating-frame case that actually exercises Phase 2.
