@@ -7,8 +7,13 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from classical.cpn_glt_reconstruction import minimal_commensurate_supercell, rationalize_q_vector
 from common.bravais_kpaths import default_high_symmetry_path
-from common.classical_contract_resolution import get_classical_ordering, get_standardized_classical_state
+from common.classical_contract_resolution import (
+    get_classical_ordering,
+    get_classical_supercell_shape,
+    get_standardized_classical_state,
+)
 from common.cpn_classical_state import has_spin_frame_classical_state, is_cpn_local_ray_classical_state
 from common.lattice_geometry import (
     build_isotropic_heisenberg_bonds_from_parameters,
@@ -176,6 +181,99 @@ def build_reference_frames(classical_state):
     ]
 
 
+def _normalize_supercell_shape(shape):
+    if not isinstance(shape, list) or len(shape) != 3:
+        return None
+    normalized = [int(value) for value in shape]
+    if any(value <= 0 for value in normalized):
+        return None
+    return normalized
+
+
+def _padded_q_vector(ordering):
+    if not isinstance(ordering, dict):
+        return None
+    q_vector = ordering.get("q_vector")
+    if not isinstance(q_vector, list):
+        return None
+    padded = [0.0, 0.0, 0.0]
+    for axis in range(min(3, len(q_vector))):
+        padded[axis] = float(q_vector[axis])
+    return padded
+
+
+def _resolve_lswt_supercell_shape(model, ordering):
+    explicit_shape = get_classical_supercell_shape(model, prefer_nested_legacy=True)
+    normalized_explicit = _normalize_supercell_shape(explicit_shape)
+    if normalized_explicit is not None:
+        return normalized_explicit
+
+    q_vector = _padded_q_vector(ordering)
+    if q_vector is None:
+        return [1, 1, 1]
+
+    rational_q = rationalize_q_vector(q_vector)
+    if rational_q is None:
+        return [1, 1, 1]
+    return _normalize_supercell_shape(minimal_commensurate_supercell(rational_q)) or [1, 1, 1]
+
+
+def _phase_sign_from_fractional_phase(phase_fraction, *, tolerance=1.0e-8):
+    wrapped = float(phase_fraction) % 1.0
+    if abs(wrapped) <= tolerance or abs(wrapped - 1.0) <= tolerance:
+        return 1.0
+    if abs(wrapped - 0.5) <= tolerance:
+        return -1.0
+    return None
+
+
+def _expand_supercell_reference_frames(reference_frames, positions, supercell_shape, ordering):
+    normalized_shape = _normalize_supercell_shape(supercell_shape) or [1, 1, 1]
+    q_vector = _padded_q_vector(ordering)
+    if normalized_shape == [1, 1, 1]:
+        return [
+            {
+                "cell": [0, 0, 0],
+                "site": int(frame["site"]),
+                "spin_length": float(frame["spin_length"]),
+                "direction": [float(value) for value in frame["direction"]],
+            }
+            for frame in reference_frames
+        ]
+
+    if q_vector is None:
+        raise ValueError(
+            "commensurate LSWT supercell expansion requires ordering.q_vector when supercell_shape is not [1, 1, 1]"
+        )
+
+    expanded = []
+    for cell_x in range(int(normalized_shape[0])):
+        for cell_y in range(int(normalized_shape[1])):
+            for cell_z in range(int(normalized_shape[2])):
+                cell = [cell_x, cell_y, cell_z]
+                for frame in reference_frames:
+                    site = int(frame["site"])
+                    position = positions[site] if site < len(positions) else [0.0, 0.0, 0.0]
+                    phase_fraction = sum(
+                        float(q_vector[axis]) * (float(cell[axis]) + float(position[axis]))
+                        for axis in range(3)
+                    )
+                    sign = _phase_sign_from_fractional_phase(phase_fraction)
+                    if sign is None:
+                        raise ValueError(
+                            "commensurate single-q LSWT Phase 1 only supports 0/pi collinear cell phases"
+                        )
+                    expanded.append(
+                        {
+                            "cell": list(cell),
+                            "site": site,
+                            "spin_length": float(frame["spin_length"]),
+                            "direction": [sign * float(value) for value in frame["direction"]],
+                        }
+                    )
+    return expanded
+
+
 def validate_lswt_scope(model):
     simplified_model = model.get("simplified_model", {})
     if simplified_model.get("three_body_terms"):
@@ -228,6 +326,22 @@ def build_lswt_payload(model):
     positions = lattice.get("positions") or [[0.0, 0.0, 0.0] for _ in range(site_count)]
     lattice_vectors = resolve_lattice_vectors(lattice)
     q_path_summary = _resolve_q_path(model, lattice, bonds)
+    ordering = get_classical_ordering(model, prefer_nested_legacy=True) or classical_state.get("ordering", {})
+    supercell_shape = _resolve_lswt_supercell_shape(model, ordering)
+    try:
+        supercell_reference_frames = _expand_supercell_reference_frames(
+            reference_frames,
+            positions,
+            supercell_shape,
+            ordering,
+        )
+    except ValueError as exc:
+        return _error(
+            "unsupported-lswt-ordering",
+            f"spin-only LSWT commensurate supercell expansion failed: {exc}. "
+            "Phase 1 currently supports only commensurate 0/pi collinear supercells.",
+        )
+
     payload = {
         "backend": "Sunny.jl",
         "lattice": lattice,
@@ -244,6 +358,8 @@ def build_lswt_payload(model):
             for term in bonds
         ],
         "reference_frames": reference_frames,
+        "supercell_reference_frames": supercell_reference_frames,
+        "supercell_shape": supercell_shape,
         "moments": [
             {
                 "site": int(frame["site"]),
@@ -252,7 +368,7 @@ def build_lswt_payload(model):
             }
             for frame in reference_frames
         ],
-        "ordering": get_classical_ordering(model, prefer_nested_legacy=True) or classical_state.get("ordering", {}),
+        "ordering": ordering,
         "q_path": q_path_summary["q_path"],
         "q_grid": model.get("q_grid", []),
         "q_samples": int(model.get("q_samples", 64)),

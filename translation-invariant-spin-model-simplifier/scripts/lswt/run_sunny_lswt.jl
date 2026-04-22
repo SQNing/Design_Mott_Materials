@@ -66,14 +66,26 @@ function build_system(crystal, payload)
         )
         for moment in payload.moments
     ]
-    sys = Sunny.System(crystal, infos, :dipole; dims=(1, 1, 1))
+    supercell_shape = haskey(payload, :supercell_shape) && !isempty(payload.supercell_shape) ? Tuple(Int.(collect(payload.supercell_shape))) : (1, 1, 1)
+    sys = Sunny.System(crystal, infos, :dipole; dims=supercell_shape)
     for bond in payload.bonds
         matrix = to_float_matrix(bond.exchange_matrix)
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.vector))))
         Sunny.set_exchange!(sys, matrix, Sunny.Bond(Int(bond.source) + 1, Int(bond.target) + 1, offset))
     end
-    for frame in payload.reference_frames
-        Sunny.set_dipole!(sys, to_float_vector(frame.direction), (1, 1, 1, Int(frame.site) + 1))
+    if haskey(payload, :supercell_reference_frames) && !isempty(payload.supercell_reference_frames)
+        for frame in payload.supercell_reference_frames
+            cell = Int.(collect(frame.cell))
+            Sunny.set_dipole!(
+                sys,
+                to_float_vector(frame.direction),
+                (cell[1] + 1, cell[2] + 1, cell[3] + 1, Int(frame.site) + 1),
+            )
+        end
+    else
+        for frame in payload.reference_frames
+            Sunny.set_dipole!(sys, to_float_vector(frame.direction), (1, 1, 1, Int(frame.site) + 1))
+        end
     end
     return sys
 end
@@ -96,7 +108,7 @@ function select_q_points(payload)
     return [to_float_vector(point) for point in source]
 end
 
-function bands_at_q(bands, index::Int)
+function bands_at_q(bands, index::Int, q_count::Int)
     if isa(bands, Number)
         return [Float64(bands)]
     end
@@ -104,14 +116,20 @@ function bands_at_q(bands, index::Int)
         value = bands[index]
         return isa(value, Number) ? [Float64(value)] : Float64.(vec(value))
     end
-    value = bands[index, :]
+    if size(bands, 1) == q_count && size(bands, 2) != q_count
+        value = bands[index, :]
+    elseif size(bands, 2) == q_count && size(bands, 1) != q_count
+        value = bands[:, index]
+    else
+        value = bands[index, :]
+    end
     return isa(value, Number) ? [Float64(value)] : Float64.(vec(value))
 end
 
 function dispersion_payload(q_points, bands)
     entries = []
     for (index, q_point) in enumerate(q_points)
-        band_values = bands_at_q(bands, index)
+        band_values = bands_at_q(bands, index, length(q_points))
         push!(
             entries,
             Dict(
