@@ -18,6 +18,7 @@ from lswt.build_lswt_payload import build_lswt_payload
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUNNY_LSWT_SCRIPT = SCRIPT_DIR / "run_sunny_lswt.jl"
+PROJECT_JULIA_WRAPPER = SCRIPT_DIR.parent / "run_project_julia.sh"
 
 
 def _resolve_julia_cmd(julia_cmd=None):
@@ -26,6 +27,8 @@ def _resolve_julia_cmd(julia_cmd=None):
     override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
     if override:
         return override
+    if PROJECT_JULIA_WRAPPER.is_file():
+        return str(PROJECT_JULIA_WRAPPER)
     return "julia"
 
 

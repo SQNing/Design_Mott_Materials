@@ -185,11 +185,11 @@ class SunnyFamilyJuliaCommandResolutionTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
 
-    def test_gswt_driver_falls_back_to_plain_julia_without_override(self):
+    def test_gswt_driver_prefers_repo_wrapper_without_override(self):
         payload = _gswt_payload()
 
         def fake_run(command, check, capture_output, text):
-            self.assertEqual(command[0], "julia")
+            self.assertTrue(command[0].endswith("run_project_julia.sh"))
             return _completed_stdout(
                 {
                     "status": "ok",

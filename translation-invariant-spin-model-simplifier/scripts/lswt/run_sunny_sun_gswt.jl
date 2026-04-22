@@ -87,12 +87,18 @@ function build_system(payload)
     sys = Sunny.System(crystal, infos, :SUN; dims=supercell_shape)
 
     for bond in payload.pair_couplings
-        matrix = to_complex_matrix(bond.pair_matrix)
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.R))))
-        # Keep the effective two-site operator in its full matrix form instead
-        # of forcing a bilinear/biquadratic or SU(N)-symmetric projection before
-        # pseudospin-orbital SUN-GSWT symmetry / stability checks.
-        Sunny.set_pair_coupling!(sys, matrix, Sunny.Bond(1, 1, offset); extract_parts=false)
+        sunny_bond = Sunny.Bond(1, 1, offset)
+        if haskey(bond, :exchange_matrix)
+            exchange_matrix = to_float_matrix(bond.exchange_matrix)
+            Sunny.set_exchange!(sys, exchange_matrix, sunny_bond)
+        else
+            matrix = to_complex_matrix(bond.pair_matrix)
+            # Keep the effective two-site operator in its full matrix form instead
+            # of forcing a bilinear/biquadratic or SU(N)-symmetric projection before
+            # pseudospin-orbital SUN-GSWT symmetry / stability checks.
+            Sunny.set_pair_coupling!(sys, matrix, sunny_bond; extract_parts=false)
+        end
     end
 
     for ray in payload.initial_local_rays

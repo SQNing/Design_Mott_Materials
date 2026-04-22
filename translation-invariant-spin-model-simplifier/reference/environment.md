@@ -253,3 +253,27 @@ Before execution, the skill should ask the user for a quick environment status:
   `DESIGN_MOTT_JULIA_CMD` point to?
 - Is PDF output required, and if so is `pdflatex` installed?
 - Are all required input files already present?
+## Recommended Julia launcher
+
+Use the repo wrapper at `translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh`
+as the default Julia entry point for all Sunny-family drivers on this machine.
+
+It pins the checked-in Julia baseline and disables the precompile / pkgimage path
+that currently fails in this environment during `REPL`-related precompilation
+with `grantpt failed`.
+
+Recommended shell export:
+
+```bash
+export DESIGN_MOTT_JULIA_CMD=/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh
+```
+
+The wrapper currently applies:
+
+- Julia binary: `/data/work/zhli/soft/julia-1.12.6/bin/julia`
+- project: `translation-invariant-spin-model-simplifier/.julia-env-v09`
+- depot: `translation-invariant-spin-model-simplifier/scripts/.julia-depot`
+- flags: `--startup-file=no --history-file=no --compiled-modules=no --pkgimages=no`
+
+This is the supported workaround until the local Julia runtime can complete a
+clean `Pkg.precompile()` run in a normal PTY-backed shell.

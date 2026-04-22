@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import json
 import math
 import os
@@ -18,6 +19,26 @@ else:
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUNNY_GSWT_SCRIPT = SCRIPT_DIR / "run_sunny_sun_gswt.jl"
+PROJECT_JULIA_WRAPPER = SCRIPT_DIR.parent / "run_project_julia.sh"
+SPIN_HALF_TOLERANCE = 1e-8
+
+_PAULI_IDENTITY = (
+    (1.0 + 0.0j, 0.0 + 0.0j),
+    (0.0 + 0.0j, 1.0 + 0.0j),
+)
+_PAULI_X = (
+    (0.0 + 0.0j, 1.0 + 0.0j),
+    (1.0 + 0.0j, 0.0 + 0.0j),
+)
+_PAULI_Y = (
+    (0.0 + 0.0j, -1.0j),
+    (1.0j, 0.0 + 0.0j),
+)
+_PAULI_Z = (
+    (1.0 + 0.0j, 0.0 + 0.0j),
+    (0.0 + 0.0j, -1.0 + 0.0j),
+)
+_SPIN_HALF_PAULIS = (_PAULI_X, _PAULI_Y, _PAULI_Z)
 
 
 def _resolve_julia_cmd(julia_cmd=None):
@@ -26,6 +47,8 @@ def _resolve_julia_cmd(julia_cmd=None):
     override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
     if override:
         return override
+    if PROJECT_JULIA_WRAPPER.is_file():
+        return str(PROJECT_JULIA_WRAPPER)
     return "julia"
 
 
@@ -36,6 +59,105 @@ def _error(code, message, *, payload_kind=None, backend=None):
         "payload_kind": payload_kind,
         "error": {"code": code, "message": message},
     }
+
+
+def _complex_from_serialized(value):
+    if isinstance(value, dict):
+        return complex(float(value.get("real", 0.0)), float(value.get("imag", 0.0)))
+    return complex(value)
+
+
+def _trace_product(left, right):
+    size = len(left)
+    return sum(left[row][col] * right[col][row] for row in range(size) for col in range(size))
+
+
+def _kron_2x2(left, right):
+    return tuple(
+        tuple(left[row_left][col_left] * right[row_right][col_right] for col_left in range(2) for col_right in range(2))
+        for row_left in range(2)
+        for row_right in range(2)
+    )
+
+
+def _as_real_scalar(value, *, tolerance, context):
+    if abs(value.imag) > tolerance:
+        raise ValueError(f"{context} has a residual imaginary part {value.imag}")
+    return float(value.real)
+
+
+def _decode_spin_half_exchange_matrix(pair_matrix, *, tolerance=SPIN_HALF_TOLERANCE):
+    if len(pair_matrix) != 4 or any(len(row) != 4 for row in pair_matrix):
+        raise ValueError("spin-1/2 pair operators must be encoded as a 4x4 matrix")
+
+    matrix = [[_complex_from_serialized(value) for value in row] for row in pair_matrix]
+    for row in range(4):
+        for col in range(4):
+            mismatch = matrix[row][col] - matrix[col][row].conjugate()
+            if abs(mismatch) > tolerance:
+                raise ValueError("spin-1/2 pair operator must be Hermitian")
+
+    pauli_basis = (_PAULI_IDENTITY, *_SPIN_HALF_PAULIS)
+    coefficients = {}
+    for left_index, left_matrix in enumerate(pauli_basis):
+        for right_index, right_matrix in enumerate(pauli_basis):
+            basis_matrix = _kron_2x2(left_matrix, right_matrix)
+            coefficients[(left_index, right_index)] = _trace_product(basis_matrix, matrix) / 4.0
+
+    left_local_terms = [
+        _as_real_scalar(2.0 * coefficients[(axis + 1, 0)], tolerance=tolerance, context=f"left local term axis {axis}")
+        for axis in range(3)
+    ]
+    right_local_terms = [
+        _as_real_scalar(2.0 * coefficients[(0, axis + 1)], tolerance=tolerance, context=f"right local term axis {axis}")
+        for axis in range(3)
+    ]
+    if any(abs(value) > tolerance for value in (*left_local_terms, *right_local_terms)):
+        raise ValueError(
+            "pair operator contains unsupported single-site terms; only scalar-plus-bilinear spin-1/2 couplings can map to set_exchange!"
+        )
+
+    exchange_matrix = []
+    for left_axis in range(3):
+        exchange_row = []
+        for right_axis in range(3):
+            exchange_row.append(
+                _as_real_scalar(
+                    4.0 * coefficients[(left_axis + 1, right_axis + 1)],
+                    tolerance=tolerance,
+                    context=f"exchange_matrix[{left_axis}][{right_axis}]",
+                )
+            )
+        exchange_matrix.append(exchange_row)
+    return exchange_matrix
+
+
+def _prepare_backend_payload(gswt_payload):
+    prepared = copy.deepcopy(gswt_payload)
+    local_dimension = prepared.get("local_dimension")
+    if local_dimension is None or int(local_dimension) != 2:
+        return prepared, None
+
+    pair_couplings = prepared.get("pair_couplings", [])
+    for bond_index, bond in enumerate(pair_couplings):
+        pair_matrix = bond.get("pair_matrix")
+        if pair_matrix is None:
+            return None, _error(
+                "invalid-gswt-payload",
+                f"Spin-1/2 SUN-GSWT bond {bond_index} is missing pair_matrix data",
+                payload_kind=prepared.get("payload_kind"),
+                backend=prepared.get("backend", "Sunny.jl"),
+            )
+        try:
+            bond["exchange_matrix"] = _decode_spin_half_exchange_matrix(pair_matrix)
+        except ValueError as exc:
+            return None, _error(
+                "unsupported-spin-half-pair-operator",
+                f"Spin-1/2 SUN-GSWT bond {bond_index} with R={bond.get('R', [0, 0, 0])} cannot be lowered to bilinear exchange: {exc}",
+                payload_kind=prepared.get("payload_kind"),
+                backend=prepared.get("backend", "Sunny.jl"),
+            )
+    return prepared, None
 
 
 def _preflight_payload_error(gswt_payload):
@@ -305,9 +427,13 @@ def run_sun_gswt(payload, julia_cmd=None):
             backend=backend,
         )
 
+    backend_payload, preparation_error = _prepare_backend_payload(gswt_payload)
+    if preparation_error is not None:
+        return preparation_error
+
     with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8", delete=False) as handle:
         payload_path = Path(handle.name)
-        json.dump(gswt_payload, handle, indent=2, sort_keys=True)
+        json.dump(backend_payload, handle, indent=2, sort_keys=True)
 
     try:
         resolved_julia_cmd = _resolve_julia_cmd(julia_cmd)

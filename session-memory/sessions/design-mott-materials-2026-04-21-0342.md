@@ -315,3 +315,43 @@
   - User: no further clarification needed
   - Assistant: repaired the depot from local intact package trees, bypassed the sandbox-hostile REPL precompile path, and then ran a real GSWT probe through the merged Python driver.
 - Next focus: Analyze whether the current SUN-GSWT payload should be rewritten to use `set_exchange!`-compatible bilinear couplings for local-dimension-2 cases, or whether the driver should detect and reject this payload class earlier with a clearer compatibility error before Julia runs.
+
+### 2026-04-22 01:45 CST
+- User intent: Execute the agreed `1 then 2` sequence for the Sunny SUN-GSWT spin-1/2 incompatibility on merged `main`: first land the Python-side compatibility work for `local_dimension=2`, then continue with the bilinear `set_exchange!` path, while preserving session-memory.
+- Keywords: spin-1/2, SUN-GSWT, bilinear mapping, set_exchange!, TDD, session-memory
+- Key result: Completed step 2 of the sequence on `main`. The Python driver no longer rejects every `local_dimension=2` SUN-GSWT payload up front. Instead, `sun_gswt_driver.py` now performs a structured spin-1/2 decomposition of each `4x4` pair operator into Pauli-basis coefficients, rejects only operators that contain unsupported single-site terms, and writes a derived `exchange_matrix` for bilinear-compatible bonds. The Julia launcher `run_sunny_sun_gswt.jl` now detects that field and routes those bonds through `Sunny.set_exchange!`, while preserving the existing `set_pair_coupling!` path for higher local dimension cases. The focused driver tests were written first, observed failing, then turned green after implementation. Final verification on merged `main` was `python -m pytest translation-invariant-spin-model-simplifier/tests/test_run_sun_gswt_driver.py translation-invariant-spin-model-simplifier/tests/test_build_sun_gswt_payload.py -q` with `21 passed`.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/sun_gswt_driver.py, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_sun_gswt.jl, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_run_sun_gswt_driver.py
+- Conversation:
+  - User: `先1再2`
+  - Assistant: took that as the ordered implementation direction: early compatibility handling first, then the actual bilinear `set_exchange!` support.
+  - User: no extra clarification in this continuation turn
+  - Assistant: added the failing spin-1/2 mapping tests, implemented the Python-side pair-operator lowering plus the Julia-side `exchange_matrix` branch, reran the focused regression slice, and then updated session-memory.
+- Verification notes: The Python regression slice is green, but a fresh real-Julia smoke confirmation is still blocked by environment-specific Julia runtime behavior on this machine. The no-precompile wrapper path did not return within a short timeout, and a normal Julia load still hits the pre-existing `grantpt failed` / REPL precompile problem while trying to precompile `Sunny` dependencies from the repo-local depot. That means the code path is updated and unit-verified, but the end-to-end backend smoke still needs a clean Julia runtime pass before claiming full runtime validation.
+- Next focus: Once the local Julia runtime is made stable enough for a backend smoke test, rerun the real spin-1/2 SUN-GSWT probe to confirm the old `Use set_exchange! instead` failure is gone and identify the next backend-level physics or model issue, if any.
+
+### 2026-04-22 02:00 CST
+- User intent: Turn the current Julia-runtime workaround into a checked-in project baseline instead of relying on ad hoc shell snippets.
+- Keywords: julia wrapper, grantpt failed, environment workaround, Sunny family
+- Key result: Added a tracked repository wrapper at `translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh` that pins Julia `1.12.6`, the checked-in `.julia-env-v09`, the repo-local depot, and disables startup/history/precompile/pkgimage paths that are unstable in the current environment. Updated the active Sunny drivers so they prefer this wrapper automatically when `DESIGN_MOTT_JULIA_CMD` is unset, added a unit test for wrapper preference in the SUN-GSWT driver test module, and documented the workaround in `reference/environment.md`.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/sun_gswt_driver.py, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/linear_spin_wave_driver.py, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_run_sun_gswt_driver.py, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/reference/environment.md
+- Conversation:
+  - User: `那这个julia的启动怎么办`
+  - Assistant: proposed splitting the fix into a checked-in wrapper for immediate use and a later clean PTY-backed precompile run for root-cause cleanup.
+  - User: `可以`
+  - Assistant: implemented the checked-in wrapper path and updated docs/session memory accordingly.
+- Verification notes: I prepared the code and test change, but terminal command execution was behaving abnormally during this turn, so fresh command-line verification still needs to be rerun in a healthy shell session.
+- Next focus: Re-run the focused regression slice plus a minimal wrapper smoke test, then decide whether to keep wrapper-only operation or attempt a full depot precompile repair in a real terminal.
+
+### 2026-04-22 06:16 CST
+- User intent: Use the checked-in Julia wrapper immediately and rerun a real Sunny probe instead of stopping at unit tests.
+- Keywords: wrapper smoke, real GSWT probe, spin-1/2, Sunny backend
+- Key result: Confirmed the checked-in wrapper starts Julia correctly with `run_project_julia.sh -e 'println(VERSION)'`, which returned `1.12.6`. Then reran a real spin-1/2 SUN-GSWT probe through the merged Python driver with `DESIGN_MOTT_JULIA_CMD` pointed at the wrapper. The generated backend payload included the lowered `exchange_matrix` field, and the full end-to-end Sunny run finished with `status = ok` instead of the previous `Use set_exchange! instead. Quantum spin 1/2 allows only bilinear coupling.` backend error. The returned dispersion was finite and small at `q = [0, 0, 0]` with `omega_min = omega_max = 1.0000000333066881e-08`.
+- Files/paths: /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/sun_gswt_driver.py, /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_sun_gswt.jl
+- Conversation:
+  - User: `可以`
+  - Assistant: reran the wrapper smoke and then a real spin-1/2 SUNNY SUN-GSWT backend probe through the Python driver.
+- Verification notes: Fresh evidence for this turn is:
+  - `timeout 20 .../run_project_julia.sh -e 'println(VERSION)'` -> `1.12.6`
+  - `python -m pytest translation-invariant-spin-model-simplifier/tests/test_run_sun_gswt_driver.py -q` -> `16 passed`
+  - Real wrapper-backed spin-1/2 SUN-GSWT probe -> JSON result with `status: ok`
+- Next focus: The spin-1/2 compatibility blocker is now resolved for the tested minimal GSWT case. The next useful step is to rerun the real project payloads or FeI2-style downstream chain with the wrapper baseline and see what the next physics or model-level issue is.
