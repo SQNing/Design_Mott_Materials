@@ -1,5 +1,7 @@
 #!/usr/bin/env julia
 
+using LinearAlgebra
+
 const SCRIPT_DIR = dirname(@__FILE__)
 const LOCAL_DEPOT = normpath(joinpath(SCRIPT_DIR, "..", ".julia-depot"))
 const LOCAL_PROJECT = normpath(joinpath(SCRIPT_DIR, "..", "..", ".julia-env-v09"))
@@ -50,11 +52,17 @@ function to_float_vector(values)
     return Float64.(collect(values))
 end
 
+function onsite_polynomial_from_matrix(S, onsite_matrix)
+    return sum(onsite_matrix[row, column] * S[row] * S[column] for row in 1:3 for column in 1:3)
+end
+
 function build_crystal(payload)
     latvecs = to_float_matrix(payload.lattice_vectors)
     positions = [to_float_vector(position) for position in payload.positions]
     types = ["site$(index)" for index in 1:length(positions)]
-    return Sunny.Crystal(latvecs, positions; types=types)
+    # Use a P1 crystal so Sunny does not reimpose space-group symmetry on
+    # generic bond payloads whose exchange tensors were already expanded in Python.
+    return Sunny.Crystal(latvecs, positions, 1; types=types)
 end
 
 function build_system(crystal, payload)
@@ -66,14 +74,32 @@ function build_system(crystal, payload)
         )
         for moment in payload.moments
     ]
-    supercell_shape = haskey(payload, :supercell_shape) && !isempty(payload.supercell_shape) ? Tuple(Int.(collect(payload.supercell_shape))) : (1, 1, 1)
+    uses_single_q_spiral = haskey(payload, :single_q_reference_state)
+    supercell_shape =
+        !uses_single_q_spiral && haskey(payload, :supercell_shape) && !isempty(payload.supercell_shape) ?
+        Tuple(Int.(collect(payload.supercell_shape))) : (1, 1, 1)
     sys = Sunny.System(crystal, infos, :dipole; dims=supercell_shape)
     for bond in payload.bonds
         matrix = to_float_matrix(bond.exchange_matrix)
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.vector))))
         Sunny.set_exchange!(sys, matrix, Sunny.Bond(Int(bond.source) + 1, Int(bond.target) + 1, offset))
     end
-    if haskey(payload, :supercell_reference_frames) && !isempty(payload.supercell_reference_frames)
+    if haskey(payload, :onsite_terms) && !isempty(payload.onsite_terms)
+        for onsite in payload.onsite_terms
+            onsite_matrix = to_float_matrix(onsite.matrix)
+            site_index = Int(onsite.site) + 1
+            Sunny.set_onsite_coupling!(
+                sys,
+                S -> onsite_polynomial_from_matrix(S, onsite_matrix),
+                site_index,
+            )
+        end
+    end
+    if uses_single_q_spiral
+        for frame in payload.single_q_reference_state.reference_frames
+            Sunny.set_dipole!(sys, to_float_vector(frame.direction), (1, 1, 1, Int(frame.site) + 1))
+        end
+    elseif haskey(payload, :supercell_reference_frames) && !isempty(payload.supercell_reference_frames)
         for frame in payload.supercell_reference_frames
             cell = Int.(collect(frame.cell))
             Sunny.set_dipole!(
@@ -90,7 +116,17 @@ function build_system(crystal, payload)
     return sys
 end
 
-function build_spin_wave_theory(sys)
+function build_spin_wave_theory(sys, payload)
+    if haskey(payload, :single_q_reference_state)
+        single_q = payload.single_q_reference_state
+        q_vector = to_float_vector(single_q.q_vector)
+        rotation_axis = to_float_vector(single_q.rotation_axis)
+        try
+            return Sunny.SpinWaveTheorySpiral(sys; k=q_vector, axis=rotation_axis, measure=nothing)
+        catch
+            return Sunny.SpinWaveTheorySpiral(sys; k=q_vector, axis=rotation_axis)
+        end
+    end
     try
         return Sunny.SpinWaveTheory(sys; measure=nothing)
     catch
@@ -179,7 +215,7 @@ end
 try
     crystal = build_crystal(payload)
     sys = build_system(crystal, payload)
-    swt = build_spin_wave_theory(sys)
+    swt = build_spin_wave_theory(sys, payload)
     q_points = select_q_points(payload)
     bands = Sunny.dispersion(swt, q_points)
     emit_payload(
