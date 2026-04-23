@@ -28,12 +28,16 @@ def _normalize_realization_component(component):
         "source_order_kind",
         "wavevector_units",
         "phase_rule",
-        "rotation_axis",
         "phase_coordinate_semantics",
     ):
         value = component.get(key)
         if value is not None:
             normalized[key] = str(value)
+    rotation_axis = component.get("rotation_axis")
+    if isinstance(rotation_axis, list):
+        normalized["rotation_axis"] = [float(value) for value in rotation_axis]
+    elif rotation_axis is not None:
+        normalized["rotation_axis"] = str(rotation_axis)
     if "wavevector" in component:
         normalized["wavevector"] = _normalize_wavevector(component.get("wavevector"))
     if "site_phase_offsets" in component:
@@ -68,13 +72,17 @@ def _normalize_realization(realization):
         "source_order_kind",
         "wavevector_units",
         "phase_rule",
-        "rotation_axis",
         "phase_coordinate_semantics",
         "composition_rule",
     ):
         value = realization.get(key)
         if value is not None:
             normalized[key] = str(value)
+    rotation_axis = realization.get("rotation_axis")
+    if isinstance(rotation_axis, list):
+        normalized["rotation_axis"] = [float(value) for value in rotation_axis]
+    elif rotation_axis is not None:
+        normalized["rotation_axis"] = str(rotation_axis)
     if "wavevector" in realization:
         normalized["wavevector"] = _normalize_wavevector(realization.get("wavevector"))
     if "site_phase_offsets" in realization:
@@ -260,6 +268,7 @@ def resolve_rotating_frame_realization(model):
         model.get("rotating_frame_realization"),
         (model.get("effective_model", {}) or {}).get("rotating_frame_realization"),
         (model.get("normalized_model", {}) or {}).get("rotating_frame_realization"),
+        (((model.get("variational_result", {}) or {}).get("phase_fit", {}) or {}).get("realization")),
     ]
     realization = None
     for candidate in candidates:

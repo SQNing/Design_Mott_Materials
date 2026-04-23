@@ -23,6 +23,7 @@ from common.lattice_geometry import (
 from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
 from common.rotating_frame_metadata import resolve_rotating_frame_transform
 from common.rotating_frame_realization import resolve_rotating_frame_realization
+from common.spin_only_onsite_adapter import spin_only_onsite_matrices_by_site
 
 
 def _error(code, message):
@@ -188,6 +189,43 @@ def build_reference_frames(classical_state):
     ]
 
 
+def _infer_local_dimension(model):
+    candidates = [
+        model.get("local_dim"),
+        model.get("local_hilbert", {}).get("dimension"),
+        model.get("normalized_model", {}).get("local_hilbert", {}).get("dimension"),
+        model.get("effective_model", {}).get("local_hilbert", {}).get("dimension"),
+    ]
+    for candidate in candidates:
+        try:
+            local_dim = int(candidate)
+        except (TypeError, ValueError):
+            continue
+        if local_dim >= 2:
+            return local_dim
+    return None
+
+
+def _has_nontrivial_spin_only_onsite(onsite_matrices, *, tolerance=1.0e-12):
+    for matrix in (onsite_matrices or {}).values():
+        for row in matrix.tolist():
+            for value in row:
+                if abs(float(value)) > tolerance:
+                    return True
+    return False
+
+
+def _quantum_spin_from_model(model, fallback_spin_length, *, onsite_matrices=None):
+    local_dim = _infer_local_dimension(model)
+    if local_dim is not None and local_dim >= 3:
+        return 0.5 * float(local_dim - 1)
+    if _has_nontrivial_spin_only_onsite(onsite_matrices):
+        return max(1.0, float(fallback_spin_length))
+    if local_dim is not None and local_dim >= 2:
+        return 0.5 * float(local_dim - 1)
+    return float(fallback_spin_length)
+
+
 def _normalize_supercell_shape(shape):
     if not isinstance(shape, list) or len(shape) != 3:
         return None
@@ -256,6 +294,60 @@ def _resolve_rotation_axis_vector(rotation_axis, lattice_vectors):
         if _vector_norm(candidate) > 1.0e-12:
             return _normalize_vector(candidate)
     return cartesian_axes[("x", "y", "z")[lattice_axis_index]]
+
+
+def _normalize_site_phase_offsets(offsets):
+    if not isinstance(offsets, dict):
+        return None
+    normalized = {}
+    for key, value in offsets.items():
+        normalized[str(key)] = float(value)
+    return normalized
+
+
+def _single_q_reference_state_contract(reference_frames, rotating_frame_realization, lattice_vectors, ordering):
+    if not isinstance(rotating_frame_realization, dict):
+        return None
+    if str(rotating_frame_realization.get("kind", "")).strip() != "single_q_site_phase_rotation":
+        return None
+
+    wavevector = rotating_frame_realization.get("wavevector")
+    if isinstance(wavevector, list) and wavevector:
+        normalized_q = [float(value) for value in wavevector[:3]]
+        while len(normalized_q) < 3:
+            normalized_q.append(0.0)
+    else:
+        normalized_q = _padded_q_vector(ordering)
+        if normalized_q is None:
+            return None
+
+    rotation_axis = rotating_frame_realization.get("rotation_axis")
+    if rotation_axis is None or rotation_axis == "":
+        return None
+    axis_vector = _resolve_rotation_axis_vector(rotation_axis, lattice_vectors)
+
+    site_phase_offsets = _normalize_site_phase_offsets(rotating_frame_realization.get("site_phase_offsets"))
+    if site_phase_offsets is None:
+        return None
+
+    expected_sites = {str(int(frame["site"])) for frame in reference_frames}
+    if not expected_sites.issubset(set(site_phase_offsets.keys())):
+        return None
+
+    return {
+        "kind": "single_q_spiral",
+        "q_vector": normalized_q,
+        "rotation_axis": axis_vector,
+        "site_phase_offsets": {key: site_phase_offsets[key] for key in sorted(expected_sites, key=int)},
+        "reference_frames": [
+            {
+                "site": int(frame["site"]),
+                "spin_length": float(frame["spin_length"]),
+                "direction": [float(value) for value in frame["direction"]],
+            }
+            for frame in reference_frames
+        ],
+    }
 
 
 def _rotate_direction(direction, axis_vector, phase):
@@ -363,8 +455,9 @@ def _resolve_explicit_rotating_frame_phase_override(model):
         normalized_shape = _normalize_supercell_shape(candidate.get("supercell_shape"))
         if normalized_shape is not None:
             override["supercell_shape"] = normalized_shape
-        if candidate.get("rotation_axis") not in {None, ""}:
-            override["rotation_axis"] = candidate.get("rotation_axis")
+        rotation_axis = candidate.get("rotation_axis")
+        if rotation_axis is not None and rotation_axis != "":
+            override["rotation_axis"] = rotation_axis
         return override
     return None
 
@@ -391,7 +484,7 @@ def _expand_rotating_frame_supercell_reference_frames(
     rotation_axis = None
     if isinstance(rotating_frame_realization, dict):
         rotation_axis = rotating_frame_realization.get("rotation_axis")
-    if rotation_axis in {None, ""} and isinstance(rotating_frame_transform, dict):
+    if (rotation_axis is None or rotation_axis == "") and isinstance(rotating_frame_transform, dict):
         rotation_axis = rotating_frame_transform.get("rotation_axis")
     axis_vector = _resolve_rotation_axis_vector(rotation_axis, lattice_vectors)
     phase_map = _build_supercell_phase_map(
@@ -583,6 +676,16 @@ def build_lswt_payload(model):
             "Supported cases are Phase 1 commensurate 0/pi collinear supercells or "
             "Phase 2 commensurate single-q rotating-frame realizations with complete phase coverage.",
         )
+    single_q_reference_state = _single_q_reference_state_contract(
+        reference_frames,
+        rotating_frame_realization,
+        lattice_vectors,
+        ordering,
+    )
+    try:
+        onsite_matrices = spin_only_onsite_matrices_by_site(model, site_count=site_count)
+    except ValueError as exc:
+        return _error("unsupported-spin-only-onsite-term", f"spin-only LSWT onsite lowering failed: {exc}")
 
     payload = {
         "backend": "Sunny.jl",
@@ -600,12 +703,15 @@ def build_lswt_payload(model):
             for term in bonds
         ],
         "reference_frames": reference_frames,
-        "supercell_reference_frames": supercell_reference_frames,
         "supercell_shape": supercell_shape,
         "moments": [
             {
                 "site": int(frame["site"]),
-                "spin": float(frame["spin_length"]),
+                "spin": _quantum_spin_from_model(
+                    model,
+                    frame["spin_length"],
+                    onsite_matrices=onsite_matrices,
+                ),
                 "g": 2.0,
             }
             for frame in reference_frames
@@ -618,6 +724,15 @@ def build_lswt_payload(model):
         "path": q_path_summary["path"],
         "shell_map": shell_map,
     }
+    if single_q_reference_state is None:
+        payload["supercell_reference_frames"] = supercell_reference_frames
+    else:
+        payload["single_q_reference_state"] = single_q_reference_state
+    if onsite_matrices:
+        payload["onsite_terms"] = [
+            {"site": int(site), "matrix": matrix.astype(float).tolist()}
+            for site, matrix in sorted(onsite_matrices.items())
+        ]
     if rotating_frame_transform is not None:
         payload["rotating_frame_transform"] = rotating_frame_transform
     if rotating_frame_realization is not None:
