@@ -34,8 +34,19 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Support operator expressions, local matrices or tensors, structured lattice input, natural-language, LaTeX, and document-style inputs through `reference/natural-language-input-protocol.md`, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
 - When upstream agent help is available for a literature Hamiltonian, prefer converting the paper into a constrained `agent_normalized_document` / intermediate-record shape that the deterministic backend can land, rather than inventing a parallel freeform-only execution path.
 - For document-style `.tex` / literature inputs, use deterministic extraction first and only escalate to an `agent_normalization_request` when the document cannot be turned into a trustworthy runnable payload by the current parser, not when the only remaining work is an honest user choice such as selecting a model candidate or bond family.
+- Broad text and document entrypoints now require an explicit classical-family decision before ambiguous model content is accepted into normalization or simplification.
+  Use
+  `--selected-classical-family spin-only|cpn`
+  for wrapper CLIs such as
+  `scripts/cli/normalize_document_with_agent.py`,
+  `scripts/cli/run_agent_document_normalization_demo.py`,
+  `scripts/cli/orchestrate_agent_document_normalization.py`,
+  `scripts/cli/simplify_text_input.py`,
+  and
+  `scripts/cli/run_document_reader_pipeline.py`
+  whenever the route is not already family-intrinsic.
 - When you want to operationalize that handoff explicitly, use the wrapper CLI `scripts/cli/normalize_document_with_agent.py`: first run it on the raw document, inspect any returned `agent_normalization_request`, then rerun it with an `agent_normalized_document` JSON once an upstream agent has filled the constrained schema.
-- For the formal end-to-end literature reader path, use `scripts/cli/run_document_reader_pipeline.py`; it runs document orchestration first, then continues from the landed `normalized_model` into the shared simplification/report backbone without re-normalizing the raw document text.
+- For the formal end-to-end literature reader path, use `scripts/cli/run_document_reader_pipeline.py`; it runs document orchestration first, then continues from the landed `normalized_model` into the shared simplification/report backbone without re-normalizing the raw document text. If the document route is still broad rather than intrinsically spin-only or `cpn`, pass `--selected-classical-family` explicitly instead of relying on an old default.
 - Treat the returned `agent_normalization_request.template` and `example_payload` as the authoritative contract for what the upstream agent should emit; do not improvise a different JSON shape unless you are also updating the backend schema.
 - For supported spin-model text inputs, route LaTeX-like expressions and compact operator strings through one shared parser core before decomposition, rather than treating each syntax as a separate ad hoc path.
 - For the current spin-`S` operator-text route, treat compact strings and LaTeX-like expressions as one shared operator-expression language with the same expansion semantics, including grouped sums/products, symbolic coefficients, explicit imaginary coefficients such as `i`, `-i`, and `1j`, projection wrappers such as `Re[...]`, `Im[...]`, `\mathrm{Re}[...]`, and `\mathrm{Im}[...]`, and common literature shorthand such as `+ h.c.`, `+ c.c.`, `+ (i<->j)`, `+ (i \leftrightarrow j)`, `+ perm.`, `+ cyclic perm.`, and `+ all permutations`.
