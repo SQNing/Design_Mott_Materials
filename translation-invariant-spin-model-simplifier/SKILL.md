@@ -64,6 +64,13 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
     `classical_family = cpn`
     and whose local classical-state manifold is represented as `CP^(N-1)` local rays
 - For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
+- For explicit retained-local-multiplet / `CP^(N-1)` payload JSON that is not sourced from
+  `many_body_hr`,
+  use
+  `scripts/cli/solve_cpn_payload_pipeline.py`
+  instead of forcing the model through the
+  `POSCAR + hr.dat`
+  entrypoint.
 - For these pseudospin-orbital Sunny `:SUN` paths, treat `CP^(N-1)` as a local-state / payload-manifold statement, not as a claim that the effective Hamiltonian is SU(`N`)-symmetric.
 - If the retained local space is even-dimensional but physically still an arbitrary local multiplet, do not silently infer a Kramers-doublet factorization from dimension alone; prefer or preserve the generic local-space choice instead.
 - For these Sunny-backed pseudospin-orbital options, fail explicitly if `julia` or `Sunny.jl` is unavailable instead of silently falling back to the Python helpers.

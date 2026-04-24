@@ -97,6 +97,14 @@ For `many_body_hr` payloads:
   explicitly; callers should treat this as the route-defining classical-manifold contract rather
   than inferring the route indirectly from
   `input_mode = many_body_hr`
+- explicit retained-local-multiplet payload JSON may also land
+  `classical_family = cpn`
+  without
+  `input_mode = many_body_hr`;
+  these payloads can be executed through
+  `scripts/cli/solve_cpn_payload_pipeline.py`
+  when they provide the same retained-local-space, basis, structure, and pair-interaction
+  contract required by the `CP^(N-1)` builders
 
 `natural_language` freeform input must be non-empty after trimming whitespace.
 
