@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from copy import deepcopy
 import json
 import sys
 from pathlib import Path
@@ -198,11 +199,18 @@ def run_simplification_from_normalized_model(normalized_model):
             "unsupported_features": list(normalized_model.get("unsupported_features", [])),
         })
 
-    canonical_model = canonicalize_terms({"decomposition": decomposition})
+    canonical_model = canonicalize_terms(
+        {
+            "decomposition": decomposition,
+            "onsite_terms": list(normalized_model.get("onsite_terms") or []),
+        }
+    )
     readable_model = identify_readable_blocks(
         canonical_model,
         coordinate_convention=normalized_model.get("coordinate_convention", {}),
     )
+    if canonical_model.get("onsite_terms") is not None:
+        readable_model["onsite_terms"] = deepcopy(canonical_model.get("onsite_terms") or [])
     effective_model = assemble_effective_model(readable_model)
     effective_model["coordinate_convention"] = dict(
         normalized_model.get("coordinate_convention", {})
@@ -234,6 +242,7 @@ def run_text_simplification_pipeline(
     text,
     *,
     source_path=None,
+    selected_classical_family=None,
     selected_model_candidate=None,
     selected_local_bond_family=None,
     selected_coordinate_convention=None,
@@ -241,6 +250,7 @@ def run_text_simplification_pipeline(
     normalized_model = normalize_freeform_text(
         text,
         source_path=source_path,
+        selected_classical_family=selected_classical_family,
         selected_model_candidate=selected_model_candidate,
         selected_local_bond_family=selected_local_bond_family,
         selected_coordinate_convention=selected_coordinate_convention,
@@ -265,6 +275,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--freeform", required=True)
     parser.add_argument("--source-path", default=None)
+    parser.add_argument("--selected-classical-family", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-family", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
@@ -275,6 +286,7 @@ def main():
     result = run_text_simplification_pipeline(
         args.freeform,
         source_path=args.source_path,
+        selected_classical_family=args.selected_classical_family,
         selected_model_candidate=args.selected_model_candidate,
         selected_local_bond_family=args.selected_local_bond_family,
         selected_coordinate_convention=args.selected_coordinate_convention,

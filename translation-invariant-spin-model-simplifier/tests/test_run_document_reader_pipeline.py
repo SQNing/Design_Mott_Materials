@@ -307,6 +307,7 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
                     result = run_document_reader_pipeline(
                         self.PROSE_ONLY_EFFECTIVE_FIXTURE,
                         source_path="tests/data/prose_only_effective.tex",
+                        selected_classical_family="spin-only",
                         selected_model_candidate="effective",
                         output_dir=tmpdir,
                     )
@@ -318,7 +319,10 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
         self.assertEqual(result["normalized_model"], landed_model)
         self.assertTrue(result["effective_model"]["main"])
         orchestrator.assert_called_once()
-        continuation.assert_called_once_with(landed_model)
+        continuation.assert_called_once()
+        passed_model = continuation.call_args.args[0]
+        self.assertEqual(passed_model["classical_family"], "spin-only")
+        self.assertEqual(passed_model["classical_family_metadata"]["family"], "spin-only")
 
     def test_document_reader_pipeline_writes_unified_artifacts(self):
         landed_model = {
@@ -366,6 +370,7 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
                         run_document_reader_pipeline(
                             self.PROSE_ONLY_EFFECTIVE_FIXTURE,
                             source_path="tests/data/prose_only_effective.tex",
+                            selected_classical_family="spin-only",
                             selected_model_candidate="effective",
                             output_dir=tmpdir,
                         )
@@ -417,6 +422,7 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
             result = run_document_reader_pipeline(
                 self.fei2_fixture,
                 source_path=str(self.FEI2_FIXTURE_PATH),
+                selected_classical_family="spin-only",
                 selected_model_candidate="effective",
                 selected_local_bond_family="1",
                 selected_coordinate_convention="global_crystallographic",
@@ -656,7 +662,7 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
             self.assertTrue((output_dir / "classical" / "solver_payload.json").exists())
             self.assertTrue((output_dir / "classical" / "solver_result.json").exists())
 
-    def test_document_reader_pipeline_stops_early_when_classical_family_is_missing(self):
+    def test_document_reader_pipeline_requests_classical_family_before_running_downstream_stages(self):
         landed_model = {
             "selected_model_candidate": "effective",
             "selected_local_bond_family": "2a'",
@@ -679,21 +685,6 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
             "unsupported_features": [],
         }
         orchestration_result = {"status": "ok", "normalized_model": landed_model}
-        simplification_result = {
-            "status": "ok",
-            "stage": "complete",
-            "normalized_model": landed_model,
-            "effective_model": {
-                "main": [
-                    {
-                        "type": "xxz_exchange",
-                        "family": "2a'",
-                        "coefficient_xy": 0.068,
-                        "coefficient_z": 0.073,
-                    }
-                ]
-            },
-        }
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch(
@@ -701,11 +692,7 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
                 return_value=orchestration_result,
             ), patch(
                 "cli.run_document_reader_pipeline.run_simplification_from_normalized_model",
-                return_value=simplification_result,
-            ), patch(
-                "cli.run_document_reader_pipeline.build_spin_only_solver_payload",
-                side_effect=ValueError("missing-classical-family: no explicit classical family was provided"),
-            ) as builder:
+            ) as simplify:
                 result = run_document_reader_pipeline(
                     self.fei2_fixture,
                     source_path=str(self.FEI2_FIXTURE_PATH),
@@ -713,12 +700,13 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
                     selected_local_bond_family="2a'",
                     selected_coordinate_convention="global_crystallographic",
                     output_dir=tmpdir,
-                    emit_spin_only_solver_payload=True,
                 )
 
-        self.assertEqual(result["bridge_status"], "error")
-        self.assertIn("missing-classical-family", result["bridge_error"]["message"])
-        builder.assert_called_once()
+        self.assertEqual(result["status"], "needs_input")
+        self.assertEqual(result["stage"], "classical_family_selection")
+        self.assertEqual(result["interaction"]["id"], "classical_family_selection")
+        self.assertEqual(sorted(result["interaction"]["options"]), ["cpn", "spin-only"])
+        simplify.assert_not_called()
 
     def test_document_reader_pipeline_legacy_spin_only_flags_land_explicit_spin_only_family(self):
         landed_model = {

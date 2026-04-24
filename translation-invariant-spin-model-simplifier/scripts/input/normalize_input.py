@@ -19,6 +19,8 @@ if __package__ in {None, ""}:
         expression_has_unresolved_parameters,
         land_intermediate_record,
     )
+    from common.classical_family_resolution import resolve_input_acceptance_classical_family
+    from common.onsite_terms import derive_canonical_onsite_terms_from_normalized_payload
     from common.rotating_frame_realization import resolve_rotating_frame_realization
 else:
     from .agent_fallback import apply_agent_inferred_patch, build_agent_inferred
@@ -30,6 +32,8 @@ else:
         expression_has_unresolved_parameters,
         land_intermediate_record,
     )
+    from common.classical_family_resolution import resolve_input_acceptance_classical_family
+    from common.onsite_terms import derive_canonical_onsite_terms_from_normalized_payload
     from common.rotating_frame_realization import resolve_rotating_frame_realization
 
 
@@ -165,6 +169,9 @@ def _compile_rotating_frame(normalized):
 
 def _finalize_normalized_payload(normalized):
     finalized = dict(normalized)
+    onsite_terms = derive_canonical_onsite_terms_from_normalized_payload(finalized)
+    if onsite_terms:
+        finalized["onsite_terms"] = onsite_terms
     rotating_frame, rotating_frame_transform, interaction = _compile_rotating_frame(finalized)
     finalized["rotating_frame"] = rotating_frame
     finalized["rotating_frame_transform"] = rotating_frame_transform
@@ -181,6 +188,8 @@ def _finalize_normalized_payload(normalized):
 
 def _copy_passthrough_fields(source, destination):
     for key in (
+        "classical_family",
+        "classical_family_metadata",
         "supercell_shape",
         "positions",
         "lattice_vectors",
@@ -191,6 +200,7 @@ def _copy_passthrough_fields(source, destination):
         "classical_state",
         "classical",
         "ordering",
+        "onsite_terms",
         "document_intermediate",
         "document_source_text",
         "document_source_path",
@@ -202,6 +212,19 @@ def _copy_passthrough_fields(source, destination):
         if key in source:
             destination[key] = source[key]
     return destination
+
+
+def _attach_classical_family_resolution(payload, family_gate):
+    if not isinstance(family_gate, dict) or family_gate.get("status") != "resolved":
+        return payload
+    payload["classical_family"] = family_gate["classical_family"]
+    payload["classical_family_metadata"] = {
+        "family": family_gate["classical_family"],
+        "solver_family": family_gate["solver_family"],
+        "sources": list(family_gate.get("sources", [])),
+        "intrinsic": bool(family_gate.get("intrinsic", False)),
+    }
+    return payload
 
 
 def _normalize_lattice_description(payload, legacy_lattice):
@@ -923,6 +946,7 @@ def normalize_freeform_text(
     text,
     *,
     source_path=None,
+    selected_classical_family=None,
     selected_model_candidate=None,
     selected_local_bond_family=None,
     selected_coordinate_convention=None,
@@ -943,6 +967,21 @@ def normalize_freeform_text(
             source_mode="freeform",
         )
     route_hint = _inspect_many_body_hr_text(text)
+    if route_hint is not None and route_hint.get("status") == "needs_input":
+        return _natural_language_many_body_hr_needs_input_payload(
+            text,
+            local_dimension=_infer_local_dimension_from_text(text),
+            user_notes=text,
+            source_mode="freeform",
+            route_hint=route_hint,
+        )
+    if route_hint is not None and route_hint.get("status") == "ready":
+        return _normalize_ready_many_body_hr_hint(
+            text,
+            source_mode="freeform",
+            user_notes=text,
+            route_hint=route_hint,
+        )
     record = build_intermediate_record(
         source_text=text,
         source_path=source_path,
@@ -962,6 +1001,7 @@ def normalize_freeform_text(
                 "representation": "natural_language",
                 "description": text,
                 "source_path": source_path,
+                "classical_family": selected_classical_family,
                 "selected_model_candidate": selected_model_candidate,
                 "selected_local_bond_family": selected_local_bond_family,
                 "selected_coordinate_convention": selected_coordinate_convention,
@@ -973,21 +1013,6 @@ def normalize_freeform_text(
         normalized = normalize_input(patched_payload)
         _apply_agent_metadata(normalized, proposal=proposal, accepted=True)
         return normalized
-    if route_hint is not None and route_hint.get("status") == "needs_input":
-        return _natural_language_many_body_hr_needs_input_payload(
-            text,
-            local_dimension=_infer_local_dimension_from_text(text),
-            user_notes=text,
-            source_mode="freeform",
-            route_hint=route_hint,
-        )
-    if route_hint is not None and route_hint.get("status") == "ready":
-        return _normalize_ready_many_body_hr_hint(
-            text,
-            source_mode="freeform",
-            user_notes=text,
-            route_hint=route_hint,
-        )
     landed = land_intermediate_record(record)
     normalized = _natural_language_base_payload(
         text,
@@ -995,7 +1020,14 @@ def normalize_freeform_text(
         user_notes=text,
         source_mode="freeform",
     )
+    family_gate = resolve_input_acceptance_classical_family(
+        payload={
+            "representation": "natural_language",
+            "classical_family": selected_classical_family,
+        }
+    )
     if landed.get("interaction", {}).get("status") == "needs_input" or landed.get("agent_inferred") is not None:
+        _attach_classical_family_resolution(normalized, family_gate)
         normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
         normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
         if landed.get("interaction") is not None:
@@ -1003,7 +1035,11 @@ def normalize_freeform_text(
         normalized["document_intermediate"] = record
         _apply_agent_metadata(normalized, landed=landed)
         return _finalize_normalized_payload(normalized)
-    return normalized
+    if family_gate.get("status") == "needs_input":
+        normalized["interaction"] = dict(family_gate["interaction"])
+        return _finalize_normalized_payload(normalized)
+    _attach_classical_family_resolution(normalized, family_gate)
+    return _finalize_normalized_payload(normalized)
 
 
 def normalize_input(payload):
@@ -1028,13 +1064,16 @@ def normalize_input(payload):
         selected_model_candidate = payload.get("selected_model_candidate")
         selected_local_bond_family = payload.get("selected_local_bond_family")
         selected_coordinate_convention = payload.get("selected_coordinate_convention")
+        selected_classical_family = payload.get("classical_family")
         route_hint = _inspect_many_body_hr_text(description)
         if payload.get("document_intermediate") is not None:
-            landed = land_intermediate_record(payload["document_intermediate"])
+            document_record = payload["document_intermediate"]
+            landed = land_intermediate_record(document_record)
             if landed.get("interaction", {}).get("status") == "needs_input":
                 normalized = normalize_freeform_text(
                     description,
                     source_path=source_path,
+                    selected_classical_family=selected_classical_family,
                     selected_model_candidate=selected_model_candidate,
                     selected_local_bond_family=selected_local_bond_family,
                     selected_coordinate_convention=selected_coordinate_convention,
@@ -1053,11 +1092,23 @@ def normalize_input(payload):
                 description,
                 int(payload.get("local_dim", 2)),
             )
+            structured_lattice = _document_structured_lattice(document_record)
+            lattice_description_payload = payload.get("lattice_description")
+            if lattice_description_payload is None:
+                lattice_description_payload = (
+                    structured_lattice
+                    or {
+                        "kind": "natural_language",
+                        "value": _document_lattice_text(document_record, description),
+                    }
+                )
             payload = {
                 **payload,
                 **landed,
                 "representation": landed["representation"],
                 "local_dim": inferred_local_dimension,
+                "lattice": structured_lattice or payload.get("lattice"),
+                "lattice_description": lattice_description_payload,
             }
             representation = payload["representation"]
         else:
@@ -1076,24 +1127,6 @@ def normalize_input(payload):
                     local_dimension=inferred_local_dimension,
                     source_mode=payload.get("source_mode", representation),
                 )
-            record = build_intermediate_record(
-                source_text=description,
-                source_path=source_path,
-                selected_model_candidate=selected_model_candidate,
-                selected_local_bond_family=selected_local_bond_family,
-                selected_coordinate_convention=selected_coordinate_convention,
-            )
-            proposal = _build_agent_fallback_proposal(
-                description,
-                record=record,
-                selected_coordinate_convention=selected_coordinate_convention,
-                selected_local_bond_family=selected_local_bond_family,
-            )
-            if _can_accept_helper_many_body_route(record, proposal):
-                patched_payload = apply_agent_inferred_patch(payload, proposal)
-                normalized = normalize_input(patched_payload)
-                _apply_agent_metadata(normalized, proposal=proposal, accepted=True)
-                return normalized
             if route_hint is not None and route_hint.get("status") == "needs_input":
                 user_notes = payload.get("user_notes", "") or description
                 return _natural_language_many_body_hr_needs_input_payload(
@@ -1115,6 +1148,34 @@ def normalize_input(payload):
                         if key not in {"representation", "description"}
                     },
                 )
+            family_gate = resolve_input_acceptance_classical_family(payload=payload)
+            if family_gate.get("status") == "needs_input":
+                normalized = _natural_language_base_payload(
+                    description,
+                    local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
+                    user_notes=payload.get("user_notes", "") or description,
+                    source_mode=payload.get("source_mode", representation),
+                )
+                normalized["interaction"] = dict(family_gate["interaction"])
+                return _finalize_normalized_payload(normalized)
+            record = build_intermediate_record(
+                source_text=description,
+                source_path=source_path,
+                selected_model_candidate=selected_model_candidate,
+                selected_local_bond_family=selected_local_bond_family,
+                selected_coordinate_convention=selected_coordinate_convention,
+            )
+            proposal = _build_agent_fallback_proposal(
+                description,
+                record=record,
+                selected_coordinate_convention=selected_coordinate_convention,
+                selected_local_bond_family=selected_local_bond_family,
+            )
+            if _can_accept_helper_many_body_route(record, proposal):
+                patched_payload = apply_agent_inferred_patch(payload, proposal)
+                normalized = normalize_input(patched_payload)
+                _apply_agent_metadata(normalized, proposal=proposal, accepted=True)
+                return normalized
             record = build_intermediate_record(
                 source_text=description,
                 source_path=source_path,
@@ -1130,6 +1191,7 @@ def normalize_input(payload):
                     user_notes=payload.get("user_notes", "") or description,
                     source_mode=payload.get("source_mode", representation),
                 )
+                _attach_classical_family_resolution(normalized, family_gate)
                 normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
                 normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
                 if landed.get("interaction") is not None:
@@ -1138,15 +1200,17 @@ def normalize_input(payload):
                 _apply_agent_metadata(normalized, landed=landed)
                 return _finalize_normalized_payload(normalized)
     if representation == "many_body_hr":
+        family_gate = resolve_input_acceptance_classical_family(payload=payload)
         legacy_lattice = payload.get("lattice", _default_lattice())
         lattice_description = _normalize_lattice_description(payload, legacy_lattice)
         hamiltonian_description = _normalize_many_body_hr_representation(payload)
         user_notes = payload.get("user_notes", "")
         return {
             **_finalize_normalized_payload(
-                _copy_passthrough_fields(
-                    payload,
-                    {
+                _attach_classical_family_resolution(
+                    _copy_passthrough_fields(
+                        payload,
+                        {
             "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
             "local_hilbert": {"dimension": int(payload.get("local_dim", 4)), "uniform": True},
             "lattice": legacy_lattice,
@@ -1169,10 +1233,53 @@ def normalize_input(payload):
                 "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             "interaction": payload.get("interaction"),
-                    },
+                        },
+                    ),
+                    family_gate,
                 )
             )
         }
+    should_gate_direct_structured_input = (
+        representation in {"operator", "operator_family_collection", "matrix"}
+        and payload.get("document_intermediate") is None
+        and payload.get("source_mode", representation) == representation
+    )
+    family_gate = (
+        resolve_input_acceptance_classical_family(payload=payload)
+        if should_gate_direct_structured_input
+        else {"status": "unresolved", "interaction": None}
+    )
+    if family_gate.get("status") == "needs_input":
+        value = _require_representation_value(payload, representation)
+        return _finalize_normalized_payload({
+            "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
+            "local_hilbert": {"dimension": int(payload.get("local_dim", 2)), "uniform": True},
+            "lattice": payload.get("lattice", _default_lattice()),
+            "lattice_description": _normalize_lattice_description(payload, payload.get("lattice", _default_lattice())),
+            "local_term": {
+                "support": payload.get("support", []),
+                "representation": {"kind": representation, "value": value},
+            },
+            "hamiltonian_description": {
+                "support": payload.get("support", []),
+                "representation": {"kind": representation, "value": value},
+            },
+            "parameters": payload.get("parameters", {}),
+            "symmetry_hints": payload.get("symmetry_hints", []),
+            "user_required_symmetries": payload.get("user_required_symmetries", []),
+            "allowed_breaking": payload.get("allowed_breaking", []),
+            "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
+            "timeouts": dict(DEFAULT_TIMEOUTS),
+            "user_notes": payload.get("user_notes", "") or (value if representation == "natural_language" else ""),
+            "coordinate_convention": dict(payload.get("coordinate_convention", _default_coordinate_convention())),
+            "magnetic_order": dict(payload.get("magnetic_order", _default_magnetic_order())),
+            "unsupported_features": list(payload.get("unsupported_features", [])),
+            "provenance": {
+                "source_mode": payload.get("source_mode", representation),
+                "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            },
+            "interaction": dict(family_gate["interaction"]),
+        })
     support = payload.get("support", [])
     support = _normalize_support(support)
     if not support and representation != "natural_language":
@@ -1195,29 +1302,34 @@ def normalize_input(payload):
     }
     coordinate_convention = dict(payload.get("coordinate_convention", _default_coordinate_convention()))
     magnetic_order = dict(payload.get("magnetic_order", _default_magnetic_order()))
-    return _finalize_normalized_payload(_copy_passthrough_fields(payload, {
-        "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
-        "local_hilbert": {"dimension": local_dimension, "uniform": True},
-        "lattice": legacy_lattice,
-        "lattice_description": lattice_description,
-        "local_term": dict(hamiltonian_description),
-        "hamiltonian_description": hamiltonian_description,
-        "parameters": payload.get("parameters", {}),
-        "symmetry_hints": payload.get("symmetry_hints", []),
-        "user_required_symmetries": payload.get("user_required_symmetries", []),
-        "allowed_breaking": payload.get("allowed_breaking", []),
-        "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
-        "timeouts": dict(DEFAULT_TIMEOUTS),
-        "user_notes": user_notes,
-        "coordinate_convention": coordinate_convention,
-        "magnetic_order": magnetic_order,
-        "unsupported_features": list(payload.get("unsupported_features", [])),
-        "provenance": {
-            "source_mode": payload.get("source_mode", representation),
-            "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        },
-        "interaction": payload.get("interaction"),
-    }))
+    return _finalize_normalized_payload(
+        _attach_classical_family_resolution(
+            _copy_passthrough_fields(payload, {
+                "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
+                "local_hilbert": {"dimension": local_dimension, "uniform": True},
+                "lattice": legacy_lattice,
+                "lattice_description": lattice_description,
+                "local_term": dict(hamiltonian_description),
+                "hamiltonian_description": hamiltonian_description,
+                "parameters": payload.get("parameters", {}),
+                "symmetry_hints": payload.get("symmetry_hints", []),
+                "user_required_symmetries": payload.get("user_required_symmetries", []),
+                "allowed_breaking": payload.get("allowed_breaking", []),
+                "projection": {"status": "not-needed", "heuristic": ["low-energy", "symmetry", "template"]},
+                "timeouts": dict(DEFAULT_TIMEOUTS),
+                "user_notes": user_notes,
+                "coordinate_convention": coordinate_convention,
+                "magnetic_order": magnetic_order,
+                "unsupported_features": list(payload.get("unsupported_features", [])),
+                "provenance": {
+                    "source_mode": payload.get("source_mode", representation),
+                    "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                },
+                "interaction": payload.get("interaction"),
+            }),
+            family_gate,
+        )
+    )
 
 
 def _load_payload(path):
@@ -1230,6 +1342,7 @@ def main():
     parser.add_argument("input", nargs="?")
     parser.add_argument("--freeform", default=None)
     parser.add_argument("--source-path", default=None)
+    parser.add_argument("--selected-classical-family", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-family", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
@@ -1240,6 +1353,7 @@ def main():
                 normalize_freeform_text(
                     args.freeform,
                     source_path=args.source_path,
+                    selected_classical_family=args.selected_classical_family,
                     selected_model_candidate=args.selected_model_candidate,
                     selected_local_bond_family=args.selected_local_bond_family,
                     selected_coordinate_convention=args.selected_coordinate_convention,

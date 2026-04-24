@@ -14,6 +14,7 @@ from cli.simplify_text_input import (
     run_text_simplification_pipeline,
 )
 from cli.render_simplified_model_report import render_simplified_model_report
+from input.normalize_input import normalize_input
 
 
 class SimplifyTextInputPipelineTests(unittest.TestCase):
@@ -223,6 +224,37 @@ J_2^{z\pm} = 0.050
 \end{equation}
 \end{document}
 """
+
+    def test_simplification_pipeline_preserves_canonical_onsite_terms_into_canonical_and_effective_models(self):
+        normalized = normalize_input(
+            {
+                "representation": "operator",
+                "support": [0],
+                "expression": "-D * Sz@0 Sz@0",
+                "parameters": {"D": 2.165},
+                "local_hilbert": {"dimension": 3},
+                "coordinate_convention": {
+                    "status": "selected",
+                    "frame": "global_cartesian",
+                    "axis_labels": ["x", "y", "z"],
+                },
+            }
+        )
+
+        result = run_simplification_from_normalized_model(normalized)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("onsite_terms", result["canonical_model"])
+        self.assertIn("onsite_terms", result["effective_model"])
+        self.assertEqual(result["effective_model"]["onsite_terms"][0]["kind"], "quadratic_spin_cartesian")
+        self.assertEqual(
+            result["effective_model"]["onsite_terms"][0]["payload"]["matrix"],
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, -2.165],
+            ],
+        )
 
     GENERIC_FAMILY_TWO_WITH_WRONG_MATRIX_FAMILY_FIXTURE = r"""
 \documentclass[11pt]{article}
@@ -2723,6 +2755,18 @@ C = 0.12
             report,
         )
         self.assertNotIn("onsite quadrupolar one-body content is retained under residual terms", report)
+
+    def test_pipeline_surfaces_classical_family_selection_without_entering_simplification(self):
+        fixture = "A nearest-neighbor anisotropic model on a triangular lattice with exchange couplings Jx, Jy, Jz."
+
+        with patch("cli.simplify_text_input.run_simplification_from_normalized_model") as mock_run:
+            result = run_text_simplification_pipeline(fixture)
+
+        self.assertEqual(result["status"], "needs_input")
+        self.assertEqual(result["stage"], "normalize_input")
+        self.assertEqual(result["interaction"]["id"], "classical_family_selection")
+        self.assertEqual(sorted(result["interaction"]["options"]), ["cpn", "spin-only"])
+        mock_run.assert_not_called()
 
 
 if __name__ == "__main__":

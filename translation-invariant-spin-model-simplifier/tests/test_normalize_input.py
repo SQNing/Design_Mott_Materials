@@ -348,6 +348,7 @@ J_1^{zz} = -0.236
     def test_normalize_input_preserves_explicit_composite_rotating_frame_realization(self):
         payload = {
             "representation": "operator",
+            "classical_family": "spin-only",
             "support": [0, 1],
             "expression": "J * Sz_i * Sz_j",
             "lattice": {
@@ -1073,6 +1074,34 @@ D = 2.165
         self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "operator")
         self.assertEqual(normalized["hamiltonian_description"]["support"], [0, 1])
 
+    def test_operator_onsite_input_lands_canonical_onsite_terms(self):
+        payload = {
+            "representation": "operator",
+            "support": [0],
+            "expression": "-D * Sz@0 Sz@0",
+            "parameters": {"D": 2.165},
+            "local_hilbert": {"dimension": 3},
+            "coordinate_convention": {
+                "status": "selected",
+                "frame": "global_cartesian",
+                "axis_labels": ["x", "y", "z"],
+            },
+        }
+
+        normalized = normalize_input(payload)
+
+        self.assertIn("onsite_terms", normalized)
+        self.assertEqual(normalized["onsite_terms"][0]["kind"], "quadratic_spin_cartesian")
+        self.assertEqual(normalized["onsite_terms"][0]["site_scope"], {"kind": "site", "site": 0})
+        self.assertEqual(
+            normalized["onsite_terms"][0]["payload"]["matrix"],
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, -2.165],
+            ],
+        )
+
     def test_normalize_input_accepts_document_intermediate_that_lands_to_operator(self):
         payload = {
             "representation": "natural_language",
@@ -1269,7 +1298,7 @@ D = 2.165
         self.assertEqual(normalized["unsupported_features"], [])
         self.assertEqual(normalized["document_intermediate"]["selected_model_candidate"], "effective")
 
-    def test_normalize_freeform_text_commits_only_accepted_agent_inferred_fields(self):
+    def test_normalize_freeform_text_routes_intrinsic_many_body_hr_inputs_to_cpn_family(self):
         normalized = normalize_freeform_text(
             "structure.cif + wannier90_hr.dat for the effective Hamiltonian"
         )
@@ -1278,7 +1307,8 @@ D = 2.165
             normalized["hamiltonian_description"]["representation"]["kind"],
             "many_body_hr",
         )
-        self.assertEqual(normalized["agent_inferred"]["status"], "accepted")
+        self.assertEqual(normalized["classical_family"], "cpn")
+        self.assertIsNone(normalized["interaction"])
 
     def test_normalize_freeform_text_keeps_hard_gate_as_needs_input(self):
         normalized = normalize_freeform_text(
@@ -1308,6 +1338,76 @@ D = 2.165
         self.assertEqual(normalized["interaction"]["status"], "needs_input")
         self.assertTrue(normalized["unsupported_features"])
         self.assertTrue(normalized["agent_inferred"]["user_explanation"]["summary"])
+
+    def test_normalize_input_ambiguous_natural_language_requires_classical_family_selection(self):
+        normalized = normalize_input(
+            {
+                "representation": "natural_language",
+                "description": "A nearest-neighbor anisotropic model on a triangular lattice with exchange couplings Jx, Jy, Jz.",
+            }
+        )
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "classical_family_selection")
+        self.assertEqual(sorted(normalized["interaction"]["options"]), ["cpn", "spin-only"])
+
+    def test_normalize_input_accepts_explicit_spin_only_natural_language_family(self):
+        normalized = normalize_input(
+            {
+                "representation": "natural_language",
+                "description": "A nearest-neighbor anisotropic model on a triangular lattice with exchange couplings Jx, Jy, Jz.",
+                "classical_family": "spin-only",
+            }
+        )
+
+        self.assertEqual(normalized.get("classical_family"), "spin-only")
+        self.assertNotEqual(
+            (normalized.get("interaction") or {}).get("id"),
+            "classical_family_selection",
+        )
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "natural_language")
+
+    def test_normalize_input_accepts_explicit_cpn_natural_language_family(self):
+        normalized = normalize_input(
+            {
+                "representation": "natural_language",
+                "description": "A nearest-neighbor anisotropic model on a triangular lattice with exchange couplings Jx, Jy, Jz.",
+                "classical_family": "cpn",
+            }
+        )
+
+        self.assertEqual(normalized.get("classical_family"), "cpn")
+        self.assertNotEqual(
+            (normalized.get("interaction") or {}).get("id"),
+            "classical_family_selection",
+        )
+        self.assertEqual(normalized["local_term"]["representation"]["kind"], "natural_language")
+
+    def test_normalize_input_operator_requires_classical_family_selection_when_ambiguous(self):
+        normalized = normalize_input(
+            {
+                "representation": "operator",
+                "support": [0, 1],
+                "expression": "J * Sz@0 Sz@1",
+            }
+        )
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "classical_family_selection")
+        self.assertEqual(sorted(normalized["interaction"]["options"]), ["cpn", "spin-only"])
+
+    def test_normalize_input_matrix_requires_classical_family_selection_when_ambiguous(self):
+        normalized = normalize_input(
+            {
+                "representation": "matrix",
+                "support": [0, 1],
+                "matrix": [[1.0, 0.0], [0.0, -1.0]],
+            }
+        )
+
+        self.assertEqual(normalized["interaction"]["status"], "needs_input")
+        self.assertEqual(normalized["interaction"]["id"], "classical_family_selection")
+        self.assertEqual(sorted(normalized["interaction"]["options"]), ["cpn", "spin-only"])
 
 
 if __name__ == "__main__":

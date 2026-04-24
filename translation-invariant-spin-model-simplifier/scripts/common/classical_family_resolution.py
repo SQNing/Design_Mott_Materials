@@ -13,6 +13,17 @@ _INTERNAL_TO_PUBLIC = {
     "retained_local_multiplet": "cpn",
 }
 
+_INPUT_ACCEPTANCE_INTRINSIC_FAMILIES = {
+    "many_body_hr": "cpn",
+}
+
+_INPUT_ACCEPTANCE_AMBIGUOUS_REPRESENTATIONS = {
+    "natural_language",
+    "operator",
+    "operator_family_collection",
+    "matrix",
+}
+
 
 def normalize_classical_family_label(label):
     if label is None:
@@ -81,4 +92,56 @@ def resolve_classical_family(*, requested_family=None, payload=None, bridge_meta
         "classical_family": resolved_public,
         "solver_family": classical_family_to_solver_family(resolved_public),
         "sources": [name for name, _ in explicit_sources],
+    }
+
+
+def build_classical_family_selection_interaction():
+    return {
+        "status": "needs_input",
+        "id": "classical_family_selection",
+        "question": (
+            "This input can be interpreted either as a spin-only model or as a CP^(N-1) "
+            "multiplet model. Which classical family should the workflow use?"
+        ),
+        "options": ["spin-only", "cpn"],
+    }
+
+
+def resolve_input_acceptance_classical_family(*, payload=None, representation=None, requested_family=None):
+    payload = payload if isinstance(payload, dict) else {}
+    resolved_representation = representation or payload.get("representation")
+
+    intrinsic_family = _INPUT_ACCEPTANCE_INTRINSIC_FAMILIES.get(resolved_representation)
+    if intrinsic_family is not None:
+        resolution = resolve_classical_family(
+            requested_family=requested_family or intrinsic_family,
+            payload={**payload, "classical_family": intrinsic_family},
+        )
+        return {
+            "status": "resolved",
+            **resolution,
+            "intrinsic": True,
+        }
+
+    explicit_family = _extract_payload_family(payload)
+    if requested_family is not None or explicit_family is not None:
+        resolution = resolve_classical_family(
+            requested_family=requested_family,
+            payload=payload,
+        )
+        return {
+            "status": "resolved",
+            **resolution,
+            "intrinsic": False,
+        }
+
+    if resolved_representation in _INPUT_ACCEPTANCE_AMBIGUOUS_REPRESENTATIONS:
+        return {
+            "status": "needs_input",
+            "interaction": build_classical_family_selection_interaction(),
+        }
+
+    return {
+        "status": "unresolved",
+        "interaction": None,
     }

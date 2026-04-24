@@ -40,6 +40,28 @@ class ClassicalFamilyResolutionTests(unittest.TestCase):
                 bridge_metadata=None,
             )
 
+    def test_resolve_input_acceptance_classical_family_requests_selection_for_ambiguous_inputs(self):
+        self.assertIsNotNone(family_resolution)
+
+        resolution = family_resolution.resolve_input_acceptance_classical_family(
+            payload={"representation": "natural_language"}
+        )
+
+        self.assertEqual(resolution["status"], "needs_input")
+        self.assertEqual(resolution["interaction"]["id"], "classical_family_selection")
+        self.assertEqual(sorted(resolution["interaction"]["options"]), ["cpn", "spin-only"])
+
+    def test_resolve_input_acceptance_classical_family_preserves_intrinsic_many_body_hr_family(self):
+        self.assertIsNotNone(family_resolution)
+
+        resolution = family_resolution.resolve_input_acceptance_classical_family(
+            payload={"representation": "many_body_hr"}
+        )
+
+        self.assertEqual(resolution["status"], "resolved")
+        self.assertTrue(resolution["intrinsic"])
+        self.assertEqual(resolution["classical_family"], "cpn")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,12 +9,18 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
-    from common.classical_family_resolution import resolve_classical_family
+    from common.classical_family_resolution import (
+        resolve_classical_family,
+        resolve_input_acceptance_classical_family,
+    )
     from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 else:
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
-    from common.classical_family_resolution import resolve_classical_family
+    from common.classical_family_resolution import (
+        resolve_classical_family,
+        resolve_input_acceptance_classical_family,
+    )
     from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 
 from cli.orchestrate_agent_document_normalization import (
@@ -107,10 +113,51 @@ def _write_downstream_artifacts(output_dir, downstream_result):
     _write_json(output_dir / "downstream_summary.json", downstream_result.get("downstream_summary", {}))
 
 
+def _resolve_document_reader_classical_family(
+    normalized_model,
+    *,
+    selected_classical_family=None,
+    emit_spin_only_solver_payload=False,
+    run_spin_only_classical_solver=False,
+):
+    requested_family = selected_classical_family
+    if requested_family is None and (emit_spin_only_solver_payload or run_spin_only_classical_solver):
+        requested_family = "spin-only"
+
+    representation = (
+        ((normalized_model or {}).get("hamiltonian_description") or {}).get("representation") or {}
+    ).get("kind", "natural_language")
+    family_gate = resolve_input_acceptance_classical_family(
+        payload={
+            **(normalized_model or {}),
+            "representation": representation,
+        },
+        requested_family=requested_family,
+    )
+    if family_gate.get("status") != "resolved":
+        return family_gate
+
+    resolved_model = deepcopy(normalized_model or {})
+    resolved_model["classical_family"] = family_gate["classical_family"]
+    resolved_model["classical_family_metadata"] = {
+        "family": family_gate["classical_family"],
+        "solver_family": family_gate["solver_family"],
+        "sources": list(family_gate.get("sources", [])),
+        "intrinsic": bool(family_gate.get("intrinsic", False)),
+    }
+    return {
+        "status": "resolved",
+        "normalized_model": resolved_model,
+        "classical_family": family_gate["classical_family"],
+        "classical_family_metadata": dict(resolved_model["classical_family_metadata"]),
+    }
+
+
 def run_document_reader_pipeline(
     text,
     *,
     source_path=None,
+    selected_classical_family=None,
     selected_model_candidate=None,
     selected_local_bond_family=None,
     selected_coordinate_convention=None,
@@ -164,6 +211,27 @@ def run_document_reader_pipeline(
         return result
 
     normalized_model = orchestration.get("normalized_model", {})
+    family_resolution = _resolve_document_reader_classical_family(
+        normalized_model,
+        selected_classical_family=selected_classical_family,
+        emit_spin_only_solver_payload=emit_spin_only_solver_payload,
+        run_spin_only_classical_solver=run_spin_only_classical_solver,
+    )
+    if family_resolution.get("status") != "resolved":
+        result = {
+            "status": "needs_input",
+            "stage": "classical_family_selection",
+            "document_orchestration_status": orchestration.get("status"),
+            "simplification_status": None,
+            "normalized_model": normalized_model,
+            "interaction": family_resolution.get("interaction"),
+            "document_orchestration": orchestration,
+            "artifacts": artifacts,
+        }
+        _write_json(output_dir / "final_pipeline_result.json", result)
+        return result
+
+    normalized_model = family_resolution["normalized_model"]
     simplification = run_simplification_from_normalized_model(normalized_model)
     _write_simplification_artifacts(simplification_output_dir, simplification)
     result = {
@@ -221,6 +289,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--freeform", required=True)
     parser.add_argument("--source-path", default=None)
+    parser.add_argument("--selected-classical-family", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-family", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
@@ -239,6 +308,7 @@ def main():
     result = run_document_reader_pipeline(
         args.freeform,
         source_path=args.source_path,
+        selected_classical_family=args.selected_classical_family,
         selected_model_candidate=args.selected_model_candidate,
         selected_local_bond_family=args.selected_local_bond_family,
         selected_coordinate_convention=args.selected_coordinate_convention,
