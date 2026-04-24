@@ -2,6 +2,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
@@ -30,7 +32,13 @@ def _trigonal_lattice_with_shells():
 
 
 class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
-    def test_builder_expands_selected_family_to_full_shell_bond_set(self):
+    @staticmethod
+    def _with_spin_only_family(payload):
+        payload = dict(payload)
+        payload["classical_family"] = "spin-only"
+        return payload
+
+    def test_builder_requires_explicit_spin_only_family(self):
         payload = {
             "normalized_model": {
                 "selected_model_candidate": "effective",
@@ -51,6 +59,77 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
             },
         }
 
+        with self.assertRaisesRegex(ValueError, "missing-classical-family"):
+            build_spin_only_solver_payload(payload)
+
+    def test_builder_lifts_onsite_terms_to_top_level_payload(self):
+        payload = self._with_spin_only_family({
+            "normalized_model": {
+                "selected_model_candidate": "effective",
+                "selected_local_bond_family": "2a'",
+                "selected_coordinate_convention": "global_crystallographic",
+                "local_hilbert": {"dimension": 3},
+                "lattice": _trigonal_lattice_with_shells(),
+                "onsite_terms": [
+                    {
+                        "kind": "quadratic_spin_cartesian",
+                        "site_scope": {"kind": "site", "site": 0},
+                        "payload": {
+                            "matrix": [
+                                [0.0, 0.0, 0.0],
+                                [0.0, 0.0, 0.0],
+                                [0.0, 0.0, -2.165],
+                            ]
+                        },
+                    }
+                ],
+            },
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        })
+
+        result = build_spin_only_solver_payload(payload)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("onsite_terms", result["payload"])
+        self.assertEqual(
+            result["payload"]["onsite_terms"][0]["payload"]["matrix"],
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, -2.165],
+            ],
+        )
+
+    def test_builder_expands_selected_family_to_full_shell_bond_set(self):
+        payload = self._with_spin_only_family({
+            "normalized_model": {
+                "selected_model_candidate": "effective",
+                "selected_local_bond_family": "2a'",
+                "selected_coordinate_convention": "global_crystallographic",
+                "local_hilbert": {"dimension": 3},
+                "lattice": _trigonal_lattice_with_shells(),
+            },
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        })
+
         result = build_spin_only_solver_payload(payload)
 
         self.assertEqual(result["status"], "ok")
@@ -59,8 +138,70 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
         self.assertEqual({bond["family"] for bond in result["payload"]["bonds"]}, {"2a'"})
         self.assertEqual({bond["shell_index"] for bond in result["payload"]["bonds"]}, {6})
 
+    def test_builder_rotates_global_family_one_matrix_across_symmetry_related_bonds(self):
+        payload = self._with_spin_only_family({
+            "normalized_model": {
+                "selected_model_candidate": "effective",
+                "selected_local_bond_family": "1",
+                "selected_coordinate_convention": "global_crystallographic",
+                "local_hilbert": {"dimension": 3},
+                "lattice": _trigonal_lattice_with_shells(),
+            },
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "symmetric_exchange_matrix",
+                        "family": "1",
+                        "matrix": [
+                            [-0.397, 0.0, 0.0],
+                            [0.0, -0.075, -0.261],
+                            [0.0, -0.261, -0.236],
+                        ],
+                    }
+                ]
+            },
+        })
+
+        result = build_spin_only_solver_payload(payload)
+
+        self.assertEqual(result["status"], "ok")
+        bonds_by_vector = {tuple(bond["vector"]): bond for bond in result["payload"]["bonds"]}
+        self.assertTrue(
+            np.allclose(
+                bonds_by_vector[(1, 0, 0)]["matrix"],
+                [
+                    [-0.397, 0.0, 0.0],
+                    [0.0, -0.075, -0.261],
+                    [0.0, -0.261, -0.236],
+                ],
+                atol=1.0e-12,
+            )
+        )
+        self.assertTrue(
+            np.allclose(
+                bonds_by_vector[(0, 1, 0)]["matrix"],
+                [
+                    [-0.1555, 0.13943009000929465, 0.2260326303877385],
+                    [0.13943009000929465, -0.3165, 0.1305],
+                    [0.2260326303877385, 0.1305, -0.236],
+                ],
+                atol=1.0e-12,
+            )
+        )
+        self.assertTrue(
+            np.allclose(
+                bonds_by_vector[(1, 1, 0)]["matrix"],
+                [
+                    [-0.1555, -0.13943009000929465, -0.2260326303877385],
+                    [-0.13943009000929465, -0.3165, 0.1305],
+                    [-0.2260326303877385, 0.1305, -0.236],
+                ],
+                atol=1.0e-12,
+            )
+        )
+
     def test_builder_assembles_all_families_in_shell_order(self):
-        payload = {
+        payload = self._with_spin_only_family({
             "normalized_model": {
                 "selected_model_candidate": "effective",
                 "selected_local_bond_family": "all",
@@ -109,7 +250,7 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
                     },
                 ]
             },
-        }
+        })
 
         result = build_spin_only_solver_payload(payload)
 
@@ -119,7 +260,7 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
         self.assertEqual({bond["family"] for bond in result["payload"]["bonds"]}, {"1", "2a'"})
 
     def test_builder_prefers_family_blocks_over_shell_summary_for_input_authority(self):
-        payload = {
+        payload = self._with_spin_only_family({
             "normalized_model": {
                 "selected_model_candidate": "effective",
                 "selected_local_bond_family": "all",
@@ -168,7 +309,7 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
                     },
                 ]
             },
-        }
+        })
 
         result = build_spin_only_solver_payload(payload)
 
@@ -183,7 +324,7 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
         self.assertEqual(family_summaries["1"]["block_type"], "symmetric_exchange_matrix")
 
     def test_builder_rejects_all_mode_when_any_family_is_unbridgeable(self):
-        payload = {
+        payload = self._with_spin_only_family({
             "normalized_model": {
                 "selected_model_candidate": "effective",
                 "selected_local_bond_family": "all",
@@ -205,7 +346,7 @@ class BuildSpinOnlySolverPayloadV2aTests(unittest.TestCase):
                     },
                 ]
             },
-        }
+        })
 
         with self.assertRaisesRegex(ValueError, "unsupported families"):
             build_spin_only_solver_payload(payload)

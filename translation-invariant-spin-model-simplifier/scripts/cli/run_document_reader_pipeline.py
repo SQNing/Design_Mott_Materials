@@ -9,10 +9,12 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
+    from common.classical_family_resolution import resolve_classical_family
     from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 else:
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
+    from common.classical_family_resolution import resolve_classical_family
     from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 
 from cli.orchestrate_agent_document_normalization import (
@@ -174,7 +176,11 @@ def run_document_reader_pipeline(
 
     if emit_spin_only_solver_payload or run_spin_only_classical_solver:
         try:
-            bridge_result = build_spin_only_solver_payload(result)
+            family_resolution = resolve_classical_family(requested_family="spin-only", payload=result)
+            bridge_input = deepcopy(result)
+            bridge_input["classical_family"] = family_resolution["classical_family"]
+            bridge_input["classical_family_metadata"] = family_resolution
+            bridge_result = build_spin_only_solver_payload(bridge_input)
             bridge_payload = bridge_result.get("payload", {})
             solver_result = None
             if run_spin_only_classical_solver:

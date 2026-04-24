@@ -112,6 +112,96 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
             f"print(base64.b64decode('{encoded}').decode())\""
         )
 
+    @staticmethod
+    def _mock_fei2_agent_document(*, selected_model_candidate="effective", include_lattice_model=False):
+        payload = {
+            "source_document": {"source_kind": "agent_normalized_document", "source_path": "fei2_document_input.tex"},
+            "selected_model_candidate": selected_model_candidate,
+            "selected_local_bond_family": "1",
+            "selected_coordinate_convention": "global_crystallographic",
+            "model_candidates": [
+                {"name": "effective", "role": "main"},
+                {"name": "matrix_form", "role": "equivalent_form"},
+            ],
+            "candidate_models": {
+                "effective": {
+                    "local_bond_candidates": [
+                        {
+                            "family": "1",
+                            "expression": "J_1^{zz} * Sz@0 Sz@1",
+                            "evidence_refs": ["eq_eff_1"],
+                        }
+                    ]
+                },
+                "matrix_form": {
+                    "matrix_form": True,
+                    "local_bond_candidates": [
+                        {
+                            "family": "1",
+                            "expression": "J_1^{xx} * Sx@0 Sx@1 + J_1^{yy} * Sy@0 Sy@1 + J_1^{yz} * Sy@0 Sz@1 + J_1^{yz} * Sz@0 Sy@1 + J_1^{zz} * Sz@0 Sz@1",
+                            "evidence_refs": ["eq_mat_1"],
+                        }
+                    ],
+                },
+            },
+            "parameter_registry": {
+                "D": {
+                    "value": 2.165,
+                    "units": "meV",
+                    "evidence_refs": ["eq_param_d"],
+                },
+                "J_1^{zz}": {
+                    "value": -0.236,
+                    "units": "meV",
+                    "evidence_refs": ["eq_eff_1", "eq_mat_1"],
+                },
+                "J_1^{xx}": {
+                    "value": -0.397,
+                    "units": "meV",
+                    "evidence_refs": ["eq_mat_1"],
+                },
+                "J_1^{yy}": {
+                    "value": -0.075,
+                    "units": "meV",
+                    "evidence_refs": ["eq_mat_1"],
+                },
+                "J_1^{yz}": {
+                    "value": -0.261,
+                    "units": "meV",
+                    "evidence_refs": ["eq_mat_1"],
+                },
+            },
+            "evidence_items": [
+                {"id": "eq_eff_1", "kind": "equation", "text": "H contains H_{ij}^{(1)} for first neighbors"},
+                {"id": "eq_mat_1", "kind": "equation", "text": "\\mathcal J_{ij}^{(1)} = ..."},
+                {"id": "eq_param_d", "kind": "equation", "text": "D = 2.165 \\pm 0.101 meV"},
+            ],
+        }
+        if include_lattice_model:
+            payload["lattice_model"] = {
+                "kind": "trigonal",
+                "dimension": 3,
+                "cell_parameters": {
+                    "a": 4.05012,
+                    "b": 4.05012,
+                    "c": 6.75214,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 120.0,
+                },
+                "positions": [[0.0, 0.0, 0.0]],
+                "magnetic_species": ["Fe"],
+                "family_shell_map": {
+                    "1": {"shell_index": 1, "distance": 4.05012},
+                    "0'": {"shell_index": 2, "distance": 6.75214},
+                    "2": {"shell_index": 3, "distance": 7.01452},
+                    "1'": {"shell_index": 4, "distance": 7.87317},
+                    "3": {"shell_index": 5, "distance": 8.10024},
+                    "2a'": {"shell_index": 6, "distance": 9.736622},
+                },
+            }
+        return payload
+
     def test_document_reader_pipeline_stops_at_document_orchestration_when_agent_normalization_is_needed(self):
         orchestration_result = {
             "status": "needs_agent_normalization",
@@ -342,8 +432,105 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
                 "J_1^{zz} * Sz@0 Sz@1",
             )
             self.assertAlmostEqual(result["normalized_model"]["parameters"]["J_1^{zz}"], -0.236)
+            self.assertIn("onsite_terms", result["normalized_model"])
+            self.assertEqual(
+                result["normalized_model"]["onsite_terms"][0]["kind"],
+                "quadratic_spin_cartesian",
+            )
+            self.assertEqual(
+                result["normalized_model"]["onsite_terms"][0]["payload"]["matrix"],
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, -2.165],
+                ],
+            )
+            self.assertEqual(
+                result["effective_model"]["onsite_terms"][0]["payload"]["matrix"],
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, -2.165],
+                ],
+            )
             self.assertTrue((output_dir / "document_orchestration" / "agent_normalized_document.json").exists())
             self.assertTrue((output_dir / "simplification" / "pipeline_result.json").exists())
+
+    def test_document_reader_pipeline_preserves_agent_lattice_into_bridgeable_matrix_form_workflow(self):
+        solver_result = {
+            "classical": {"chosen_method": "luttinger-tisza"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-luttinger-tisza",
+                "ordering": {"q_vector": [0.0, 0.0, 0.5]},
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_classical_solver",
+                return_value=solver_result,
+            ):
+                result = run_document_reader_pipeline(
+                    self.fei2_fixture,
+                    source_path=str(self.FEI2_FIXTURE_PATH),
+                    selected_model_candidate="matrix_form",
+                    selected_local_bond_family="1",
+                    selected_coordinate_convention="global_crystallographic",
+                    output_dir=tmpdir,
+                    agent_normalized_document=self._mock_fei2_agent_document(
+                        selected_model_candidate="matrix_form",
+                        include_lattice_model=True,
+                    ),
+                    emit_spin_only_solver_payload=True,
+                    run_spin_only_classical_solver=True,
+                )
+
+        self.assertEqual(result["normalized_model"]["lattice"]["kind"], "trigonal")
+        self.assertEqual(result["normalized_model"]["lattice"]["family_shell_map"]["1"]["shell_index"], 1)
+        self.assertEqual(result["bridge_status"], "ok")
+        self.assertEqual(result["bridge_payload"]["bridge_metadata"]["selected_family"], "1")
+        self.assertEqual(result["classical_solver"]["classical"]["chosen_method"], "luttinger-tisza")
+
+    def test_document_reader_pipeline_can_reuse_agent_document_selection_context_without_explicit_cli_selection(self):
+        solver_result = {
+            "classical": {"chosen_method": "luttinger-tisza"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "spin-only-luttinger-tisza",
+                "ordering": {"q_vector": [0.0, 0.0, 0.0]},
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_classical_solver",
+                return_value=solver_result,
+            ):
+                result = run_document_reader_pipeline(
+                    self.fei2_fixture,
+                    source_path=str(self.FEI2_FIXTURE_PATH),
+                    output_dir=tmpdir,
+                    agent_normalized_document=self._mock_fei2_agent_document(
+                        selected_model_candidate="matrix_form",
+                        include_lattice_model=True,
+                    ),
+                    emit_spin_only_solver_payload=True,
+                    run_spin_only_classical_solver=True,
+                )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["document_orchestration_status"], "ok")
+        self.assertEqual(result["normalized_model"]["selected_model_candidate"], "matrix_form")
+        self.assertEqual(result["normalized_model"]["selected_local_bond_family"], "1")
+        self.assertEqual(
+            result["normalized_model"]["selected_coordinate_convention"],
+            "global_crystallographic",
+        )
+        self.assertEqual(result["bridge_status"], "ok")
+        self.assertEqual(result["bridge_payload"]["bridge_metadata"]["selected_family"], "1")
 
     def test_document_reader_pipeline_can_emit_bridge_and_solver_artifacts_when_opted_in(self):
         landed_model = {
@@ -468,6 +655,148 @@ The effective Hamiltonian contains anisotropic spin interactions discussed in th
             )
             self.assertTrue((output_dir / "classical" / "solver_payload.json").exists())
             self.assertTrue((output_dir / "classical" / "solver_result.json").exists())
+
+    def test_document_reader_pipeline_stops_early_when_classical_family_is_missing(self):
+        landed_model = {
+            "selected_model_candidate": "effective",
+            "selected_local_bond_family": "2a'",
+            "selected_coordinate_convention": "global_crystallographic",
+            "local_hilbert": {"dimension": 3},
+            "lattice": {
+                "kind": "trigonal",
+                "dimension": 3,
+                "cell_parameters": {
+                    "a": 4.05012,
+                    "b": 4.05012,
+                    "c": 6.75214,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 120.0,
+                },
+                "positions": [[0.0, 0.0, 0.0]],
+                "family_shell_map": {"2a'": {"shell_index": 6, "distance": 9.736622}},
+            },
+            "unsupported_features": [],
+        }
+        orchestration_result = {"status": "ok", "normalized_model": landed_model}
+        simplification_result = {
+            "status": "ok",
+            "stage": "complete",
+            "normalized_model": landed_model,
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_agent_document_normalization_orchestrator",
+                return_value=orchestration_result,
+            ), patch(
+                "cli.run_document_reader_pipeline.run_simplification_from_normalized_model",
+                return_value=simplification_result,
+            ), patch(
+                "cli.run_document_reader_pipeline.build_spin_only_solver_payload",
+                side_effect=ValueError("missing-classical-family: no explicit classical family was provided"),
+            ) as builder:
+                result = run_document_reader_pipeline(
+                    self.fei2_fixture,
+                    source_path=str(self.FEI2_FIXTURE_PATH),
+                    selected_model_candidate="effective",
+                    selected_local_bond_family="2a'",
+                    selected_coordinate_convention="global_crystallographic",
+                    output_dir=tmpdir,
+                    emit_spin_only_solver_payload=True,
+                )
+
+        self.assertEqual(result["bridge_status"], "error")
+        self.assertIn("missing-classical-family", result["bridge_error"]["message"])
+        builder.assert_called_once()
+
+    def test_document_reader_pipeline_legacy_spin_only_flags_land_explicit_spin_only_family(self):
+        landed_model = {
+            "selected_model_candidate": "effective",
+            "selected_local_bond_family": "2a'",
+            "selected_coordinate_convention": "global_crystallographic",
+            "local_hilbert": {"dimension": 3},
+            "lattice": {
+                "kind": "trigonal",
+                "dimension": 3,
+                "cell_parameters": {
+                    "a": 4.05012,
+                    "b": 4.05012,
+                    "c": 6.75214,
+                    "alpha": 90.0,
+                    "beta": 90.0,
+                    "gamma": 120.0,
+                },
+                "positions": [[0.0, 0.0, 0.0]],
+                "family_shell_map": {"2a'": {"shell_index": 6, "distance": 9.736622}},
+            },
+            "unsupported_features": [],
+        }
+        orchestration_result = {"status": "ok", "normalized_model": landed_model}
+        simplification_result = {
+            "status": "ok",
+            "stage": "complete",
+            "normalized_model": landed_model,
+            "effective_model": {
+                "main": [
+                    {
+                        "type": "xxz_exchange",
+                        "family": "2a'",
+                        "coefficient_xy": 0.068,
+                        "coefficient_z": 0.073,
+                    }
+                ]
+            },
+        }
+        captured_payload = {}
+
+        def _capture_bridge_payload(payload):
+            captured_payload["classical_family"] = payload.get("classical_family")
+            return {
+                "status": "ok",
+                "payload": {
+                    "classical_family": payload.get("classical_family"),
+                    "lattice": landed_model["lattice"],
+                    "normalized_model": landed_model,
+                    "bonds": [],
+                    "classical": {"method": "auto"},
+                    "bridge_metadata": {"bridge_kind": "document_reader_spin_only_minimal"},
+                },
+            }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch(
+                "cli.run_document_reader_pipeline.run_agent_document_normalization_orchestrator",
+                return_value=orchestration_result,
+            ), patch(
+                "cli.run_document_reader_pipeline.run_simplification_from_normalized_model",
+                return_value=simplification_result,
+            ), patch(
+                "cli.run_document_reader_pipeline.build_spin_only_solver_payload",
+                side_effect=_capture_bridge_payload,
+            ):
+                result = run_document_reader_pipeline(
+                    self.fei2_fixture,
+                    source_path=str(self.FEI2_FIXTURE_PATH),
+                    selected_model_candidate="effective",
+                    selected_local_bond_family="2a'",
+                    selected_coordinate_convention="global_crystallographic",
+                    output_dir=tmpdir,
+                    emit_spin_only_solver_payload=True,
+                )
+
+        self.assertEqual(result["bridge_status"], "ok")
+        self.assertEqual(captured_payload["classical_family"], "spin-only")
 
     def test_document_reader_pipeline_writes_downstream_artifacts_when_v2b_is_enabled(self):
         landed_model = {
