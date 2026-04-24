@@ -60,6 +60,13 @@ For `many_body_hr` payloads:
 
 - `structure_file` must point to a crystal-structure file such as `POSCAR`
 - `hamiltonian_file` must point to a Wannier-style `hr.dat` file
+- runnable classical entrypoints must resolve an explicit
+  `classical_family`
+  before selecting builders or solvers;
+  current public values are
+  `spin-only`
+  and
+  `cpn`
 - the current semantics assume a local
   `pseudospin_orbital`
   space
@@ -85,6 +92,11 @@ For `many_body_hr` payloads:
   `orbital x spin(2)`, callers should prefer the default
   `generic-multiplet`
   route or select it explicitly instead of relying on dimension-based inference
+- current `many_body_hr` pseudospin payload builders land
+  `classical_family = cpn`
+  explicitly; callers should treat this as the route-defining classical-manifold contract rather
+  than inferring the route indirectly from
+  `input_mode = many_body_hr`
 
 `natural_language` freeform input must be non-empty after trimming whitespace.
 

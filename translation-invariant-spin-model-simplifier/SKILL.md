@@ -49,12 +49,20 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Distinguish missing baseline dependencies from missing optional backend dependencies, and explain the difference clearly.
 - Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
 - For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space.
+- Resolve the classical manifold family explicitly before builder or solver selection.
+  Current public values are:
+  `spin-only`
+  and
+  `cpn`.
+  Do not silently default between them once a classical route is being requested.
 - The current default `many_body_hr` payload/report path is `generic-multiplet`, so the retained local basis should be understood first as a generic retained-state index basis rather than as an implicit `orbital x spin(2)` factorization.
 - Preserve the legacy `orbital x spin(2)` / Kramers-style interpretation only when that retained local-space semantics is actually intended, using an explicit `orbital-times-spin` choice or the compatibility-preserving `restricted-product-state` path.
 - For these generic retained-local-multiplet inputs, treat the local basis as a retained-state index basis, build a Hermitian generator basis directly on the retained `N`-dimensional local space, and route the model through the `CP^(N-1)` Sunny / local-ray path rather than pretending there is a physical `spin x orbital` split.
 - Keep the two Sunny families distinct in user-facing explanations and downstream choices:
   - spin-only Sunny LSWT is for explicit bilinear spin models with `classical_state.site_frames`
-  - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes are for `many_body_hr` models whose local classical-state manifold is represented as `CP^(N-1)` local rays
+  - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes are for payloads that explicitly resolve
+    `classical_family = cpn`
+    and whose local classical-state manifold is represented as `CP^(N-1)` local rays
 - For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
 - For these pseudospin-orbital Sunny `:SUN` paths, treat `CP^(N-1)` as a local-state / payload-manifold statement, not as a claim that the effective Hamiltonian is SU(`N`)-symmetric.
 - If the retained local space is even-dimensional but physically still an arbitrary local multiplet, do not silently infer a Kramers-doublet factorization from dimension alone; prefer or preserve the generic local-space choice instead.

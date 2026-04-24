@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
 
+from common.classical_family_resolution import resolve_classical_family
+from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
 
@@ -48,8 +50,12 @@ def _pair_matrix_to_tensor(pair_matrix, local_dimension):
 
 
 def build_sun_gswt_classical_payload(parsed_payload):
-    if parsed_payload.get("input_mode") != "many_body_hr":
-        raise ValueError("sun-gswt classical payload currently expects input_mode = many_body_hr")
+    family_resolution = resolve_classical_family(payload=parsed_payload)
+    if family_resolution["classical_family"] != "cpn":
+        raise ValueError(
+            "incompatible-classical-family: "
+            f"sun-gswt classical payload requires cpn family, got {family_resolution['classical_family']}"
+        )
     conventions = resolve_pseudospin_orbital_conventions(parsed_payload, require_local_space=True)
 
     inferred = parsed_payload.get("inferred", {})
@@ -104,9 +110,10 @@ def build_sun_gswt_classical_payload(parsed_payload):
             }
         )
 
-    return {
+    payload = {
         "model_version": 2,
         "model_type": "sun_gswt_classical",
+        "classical_family": family_resolution["classical_family"],
         "input_mode": parsed_payload.get("input_mode"),
         "classical_manifold": "CP^(N-1)",
         "classical_variable": "local_ray",
@@ -138,3 +145,7 @@ def build_sun_gswt_classical_payload(parsed_payload):
             },
         },
     }
+    onsite_terms = lower_pseudospin_orbital_onsite_terms(parsed_payload, local_dimension=local_dimension)
+    if onsite_terms:
+        payload["onsite_terms"] = onsite_terms
+    return payload

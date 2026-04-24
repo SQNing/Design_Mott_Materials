@@ -356,6 +356,10 @@ Current V2a scope:
 
 - supports readable spin-only bilinear blocks that map directly to a `3x3` exchange matrix:
   `isotropic_exchange`, `xxz_exchange`, `symmetric_exchange_matrix`, and `exchange_tensor`
+- lands
+  `classical_family = spin-only`
+  explicitly before bridge builder and solver selection; the document-reader bridge should not
+  silently default to another classical manifold family
 - if one family is selected, expands that family into the full shell-resolved canonical bond set
 - if `selected_local_bond_family = all`, assembles one aggregated payload from all supported
   family-resolved readable blocks
