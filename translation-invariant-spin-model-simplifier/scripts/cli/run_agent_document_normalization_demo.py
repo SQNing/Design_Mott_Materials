@@ -8,7 +8,10 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from cli.normalize_document_with_agent import run_document_normalization_with_agent
+from cli.normalize_document_with_agent import (
+    _resolved_selection_context,
+    run_document_normalization_with_agent,
+)
 from input.agent_document_prompt_builder import (
     build_agent_document_prompt_bundle,
     build_agent_document_followup_prompt_bundle,
@@ -210,6 +213,7 @@ def run_agent_document_normalization_demo(
     text,
     *,
     source_path=None,
+    selected_classical_family=None,
     selected_model_candidate=None,
     selected_local_bond_family=None,
     selected_coordinate_convention=None,
@@ -221,13 +225,21 @@ def run_agent_document_normalization_demo(
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    selection_context = _resolved_selection_context(
+        selected_classical_family=selected_classical_family,
+        selected_model_candidate=selected_model_candidate,
+        selected_local_bond_family=selected_local_bond_family,
+        selected_coordinate_convention=selected_coordinate_convention,
+        agent_normalized_document=agent_normalized_document,
+    )
 
     step1 = run_document_normalization_with_agent(
         text,
         source_path=source_path,
-        selected_model_candidate=selected_model_candidate,
-        selected_local_bond_family=selected_local_bond_family,
-        selected_coordinate_convention=selected_coordinate_convention,
+        selected_classical_family=selection_context["selected_classical_family"],
+        selected_model_candidate=selection_context["selected_model_candidate"],
+        selected_local_bond_family=selection_context["selected_local_bond_family"],
+        selected_coordinate_convention=selection_context["selected_coordinate_convention"],
         agent_normalized_document=None,
     )
     _write_json(output_dir / "step1_request.json", step1)
@@ -266,9 +278,10 @@ def run_agent_document_normalization_demo(
         final_result = run_document_normalization_with_agent(
             text,
             source_path=source_path,
-            selected_model_candidate=selected_model_candidate,
-            selected_local_bond_family=selected_local_bond_family,
-            selected_coordinate_convention=selected_coordinate_convention,
+            selected_classical_family=selection_context["selected_classical_family"],
+            selected_model_candidate=selection_context["selected_model_candidate"],
+            selected_local_bond_family=selection_context["selected_local_bond_family"],
+            selected_coordinate_convention=selection_context["selected_coordinate_convention"],
             agent_normalized_document=current_payload,
         )
         completed_rounds = round_index
@@ -324,6 +337,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--freeform", required=True)
     parser.add_argument("--source-path", default=None)
+    parser.add_argument("--selected-classical-family", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-family", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
@@ -338,6 +352,7 @@ def main():
     result = run_agent_document_normalization_demo(
         args.freeform,
         source_path=args.source_path,
+        selected_classical_family=args.selected_classical_family,
         selected_model_candidate=args.selected_model_candidate,
         selected_local_bond_family=args.selected_local_bond_family,
         selected_coordinate_convention=args.selected_coordinate_convention,

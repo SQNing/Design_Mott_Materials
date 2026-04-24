@@ -66,7 +66,19 @@ Interpretation notes:
 2. Treat broader upstream cases such as short dialogue-style requests, mixed prose-plus-formula
    inputs, and file-reference-heavy natural-language requests as conceptual routing cases within
    those concrete `source_kind` values rather than as separate emitted detector tags.
-3. If the text contains both:
+3. Before broad ambiguous text/model input is accepted into semantic normalization, resolve the
+   classical family:
+   - `spin-only`
+   - `cpn`
+   If the family is not already intrinsic to the route and the caller did not provide it
+   explicitly, stop with
+   `interaction.status = needs_input`
+   and
+   `interaction.id = classical_family_selection`.
+   Current broad ambiguous upstreams include direct `natural_language`, `operator`, and `matrix`
+   inputs, plus document-style orchestration flows that have not yet committed to an intrinsic
+   bridge family.
+4. If the text contains both:
    - a structure path such as `POSCAR`, `CONTCAR`, `*.cif`, `*.cell`, `*.gen`, `*.stru`, `*.res`,
      `*.pdb`, `*.xyz`, `*.vasp`, or `*.xsf`, and
    - a hopping/integral path whose filename or explicit role indicates an `hr`-style file such as
@@ -77,19 +89,19 @@ Interpretation notes:
    automatically.
    If only one side of that file pair is detected, stop with `interaction.status = needs_input`
    and ask for the missing counterpart instead of silently guessing.
-4. If the input is a document-style source, segment it into semantic blocks such as:
+5. If the input is a document-style source, segment it into semantic blocks such as:
    - structure-related passages,
    - Hamiltonian/model passages,
    - parameter tables,
    - ordered-state or analysis notes.
-5. Extract all model candidates that appear in the source.
-6. Bind parameters from tables, inline assignments, and uncertainty annotations.
-7. Build an intermediate extraction record.
+6. Extract all model candidates that appear in the source.
+7. Bind parameters from tables, inline assignments, and uncertainty annotations.
+8. Build an intermediate extraction record.
    If an upstream agent has already produced a structured record, translate it into the same
    intermediate schema instead of reparsing the source text from scratch.
-8. Attempt landing into the currently supported payload families only after the intermediate record
+9. Attempt landing into the currently supported payload families only after the intermediate record
    is complete enough to support a unique interpretation.
-9. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
+10. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
    focused blocking question.
 
 For document-style sources specifically:
@@ -110,11 +122,44 @@ For document-style sources specifically:
   which runs document orchestration first and then continues from the landed
   `normalized_model`
   into the shared simplification pipeline without re-reading the raw document as freeform text.
+- broad document-reader and agent-wrapper entrypoints should pass the family choice explicitly with
+  `--selected-classical-family spin-only|cpn`
+  whenever the route is not already intrinsic.
 - if document verification reports
   `verification_report.status = needs_review`,
   the document-reader pipeline should preserve that review state visibly in the top-level result,
   but it may still continue into simplification; this is currently a warning/review condition, not
   a hard blocker by itself.
+
+## Family-Selection Examples
+
+Broad text entrypoints now require an explicit family choice unless the route itself is already
+intrinsic.
+
+Examples:
+
+```bash
+python scripts/cli/simplify_text_input.py \
+  --freeform "Spin-1 nearest-neighbor XXZ model on a triangular lattice" \
+  --selected-classical-family spin-only
+```
+
+```bash
+python scripts/cli/run_document_reader_pipeline.py \
+  --freeform "$(cat tests/data/fei2_document_input.tex)" \
+  --source-path tests/data/fei2_document_input.tex \
+  --selected-classical-family spin-only \
+  --selected-model-candidate effective \
+  --selected-local-bond-family 1 \
+  --output-dir tmp/document-reader-fei2
+```
+
+```bash
+python scripts/cli/normalize_document_with_agent.py \
+  --freeform "$(cat tests/data/prose_only_effective.tex)" \
+  --source-path tests/data/prose_only_effective.tex \
+  --selected-classical-family spin-only
+```
 
 ## Intermediate Extraction Schema
 

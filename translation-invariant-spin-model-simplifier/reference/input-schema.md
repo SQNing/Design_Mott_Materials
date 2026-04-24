@@ -113,6 +113,48 @@ For `natural_language` payloads, `local_hilbert.dimension` is normalized from ex
 Document-style text inputs such as LaTeX notes and `.tex` sources still enter through the
 `natural_language` representation rather than a separate top-level representation kind.
 
+For broad upstream payloads that can describe either a spin-only model or a retained-local-multiplet
+`CP^(N-1)` model, input acceptance now requires an explicit
+`classical_family`
+decision before normalization or simplification proceeds.
+
+Current broad ambiguous upstreams include:
+
+- direct `natural_language` payloads,
+- direct `operator` payloads,
+- direct `matrix` payloads,
+- document-reader or agent-wrapper flows that have not yet entered an intrinsic spin-only or `cpn`
+  route.
+
+Current public values are:
+
+- `spin-only`
+- `cpn`
+
+If a broad ambiguous payload omits
+`classical_family`,
+normalization returns
+`interaction.status = needs_input`
+with
+`interaction.id = classical_family_selection`
+instead of continuing by default.
+
+Current CLI wrappers expose this decision with:
+
+- `--selected-classical-family spin-only|cpn`
+  for broad document/text entrypoints such as
+  `scripts/cli/normalize_document_with_agent.py`,
+  `scripts/cli/run_agent_document_normalization_demo.py`,
+  `scripts/cli/orchestrate_agent_document_normalization.py`,
+  `scripts/cli/simplify_text_input.py`,
+  and
+  `scripts/cli/run_document_reader_pipeline.py`
+- `--classical-family spin-only|cpn`
+  for family-validating classical solver entrypoints such as
+  `scripts/cli/solve_pseudospin_orbital_pipeline.py`
+  and
+  `scripts/cli/solve_cpn_payload_pipeline.py`
+
 `natural_language` payloads may also carry an optional
 `agent_normalized_document`
 object when an upstream agent has already converted a paper-style Hamiltonian into a structured

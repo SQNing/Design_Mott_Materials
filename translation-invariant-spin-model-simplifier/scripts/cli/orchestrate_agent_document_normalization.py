@@ -18,6 +18,7 @@ def run_agent_document_normalization_orchestrator(
     text,
     *,
     source_path=None,
+    selected_classical_family=None,
     selected_model_candidate=None,
     selected_local_bond_family=None,
     selected_coordinate_convention=None,
@@ -30,6 +31,7 @@ def run_agent_document_normalization_orchestrator(
     return run_agent_document_normalization_demo(
         text,
         source_path=source_path,
+        selected_classical_family=selected_classical_family,
         selected_model_candidate=selected_model_candidate,
         selected_local_bond_family=selected_local_bond_family,
         selected_coordinate_convention=selected_coordinate_convention,
@@ -45,6 +47,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--freeform", required=True)
     parser.add_argument("--source-path", default=None)
+    parser.add_argument("--selected-classical-family", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-family", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
@@ -59,6 +62,7 @@ def main():
     result = run_agent_document_normalization_orchestrator(
         args.freeform,
         source_path=args.source_path,
+        selected_classical_family=args.selected_classical_family,
         selected_model_candidate=args.selected_model_candidate,
         selected_local_bond_family=args.selected_local_bond_family,
         selected_coordinate_convention=args.selected_coordinate_convention,
