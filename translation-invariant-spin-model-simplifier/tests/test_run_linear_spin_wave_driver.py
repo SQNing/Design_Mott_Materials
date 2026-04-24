@@ -22,6 +22,61 @@ def _lswt_payload():
 
 
 class RunLinearSpinWaveDriverTests(unittest.TestCase):
+    def test_driver_passes_onsite_terms_to_launcher_payload(self):
+        payload = {"spin": 1.0}
+
+        def fake_run(command, check, capture_output, text):
+            backend_payload = json.loads(Path(command[2]).read_text(encoding="utf-8"))
+            self.assertEqual(
+                backend_payload["onsite_terms"],
+                [
+                    {
+                        "site": 0,
+                        "matrix": [
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, -2.165],
+                        ],
+                    }
+                ],
+            )
+
+            class Completed:
+                stdout = json.dumps(
+                    {
+                        "status": "ok",
+                        "backend": {"name": "Sunny.jl"},
+                        "linear_spin_wave": {"dispersion": []},
+                    }
+                )
+
+            return Completed()
+
+        with patch(
+            "lswt.linear_spin_wave_driver.build_lswt_payload",
+            return_value={
+                "status": "ok",
+                "payload": {
+                    "payload_kind": "spin_only_lswt",
+                    "path": {"labels": ["G", "X"], "node_indices": [0, 1]},
+                    "onsite_terms": [
+                        {
+                            "site": 0,
+                            "matrix": [
+                                [0.0, 0.0, 0.0],
+                                [0.0, 0.0, 0.0],
+                                [0.0, 0.0, -2.165],
+                            ],
+                        }
+                    ],
+                },
+            },
+        ):
+            with patch("lswt.linear_spin_wave_driver.subprocess.run", side_effect=fake_run):
+                result = run_linear_spin_wave(payload)
+
+        self.assertEqual(result["status"], "ok")
+
     def test_driver_preserves_noncollinear_supercell_reference_frames_in_launcher_payload(self):
         payload = {"spin": 1.0}
 
@@ -166,6 +221,36 @@ class RunLinearSpinWaveDriverTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["path"]["node_indices"], [0, 1])
+
+    def test_driver_promotes_nested_dispersion_and_adds_energies_alias(self):
+        payload = {"spin": 1.0}
+
+        def fake_run(command, check, capture_output, text):
+            class Completed:
+                stdout = json.dumps(
+                    {
+                        "status": "ok",
+                        "backend": {"name": "Sunny.jl"},
+                        "linear_spin_wave": {
+                            "dispersion": [
+                                {"q": [0.0, 0.0, 0.0], "bands": [0.39435572206250286], "omega": 0.39435572206250286}
+                            ],
+                            "density_of_states": {"omega_min": 0.39435572206250286, "omega_max": 0.39435572206250286},
+                        },
+                    }
+                )
+
+            return Completed()
+
+        with patch("lswt.linear_spin_wave_driver.build_lswt_payload", return_value=_lswt_payload()):
+            with patch("lswt.linear_spin_wave_driver.subprocess.run", side_effect=fake_run):
+                result = run_linear_spin_wave(payload)
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["dispersion"][0]["bands"], [0.39435572206250286])
+        self.assertEqual(result["dispersion"][0]["energies"], [0.39435572206250286])
+        self.assertEqual(result["linear_spin_wave"]["dispersion"][0]["energies"], [0.39435572206250286])
+        self.assertEqual(result["density_of_states"]["omega_min"], 0.39435572206250286)
 
 
 if __name__ == "__main__":

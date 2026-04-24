@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from common.bravais_kpaths import default_high_symmetry_path
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
+from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
 from common.rotating_frame_metadata import resolve_rotating_frame_transform
@@ -129,6 +130,10 @@ def build_sun_gswt_payload(model, classical_state=None):
         raise ValueError("Sunny GSWT payload expects a CP^(N-1) classical model")
     adapted_model = adapt_model_for_sunny_pair_couplings(model)
     conventions = resolve_pseudospin_orbital_conventions(adapted_model)
+    onsite_terms = lower_pseudospin_orbital_onsite_terms(
+        adapted_model,
+        local_dimension=int(adapted_model["local_dimension"]),
+    )
     classical_reference = _resolve_classical_reference_payload(classical_state)
     resolved_classical_state = resolve_cpn_classical_state_payload(classical_reference)
 
@@ -198,6 +203,8 @@ def build_sun_gswt_payload(model, classical_state=None):
         },
         "sunny_adapter": dict(adapted_model.get("sunny_adapter", {})),
     }
+    if onsite_terms:
+        payload["onsite_terms"] = onsite_terms
     if ordering is not None:
         payload["ordering"] = ordering
     if rotating_frame_transform is not None:

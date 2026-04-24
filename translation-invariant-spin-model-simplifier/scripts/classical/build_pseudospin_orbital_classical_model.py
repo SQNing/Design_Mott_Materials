@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
 
+from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
+
 
 def _complex_from_serialized(value):
     return complex(float(value["real"]), float(value["imag"]))
@@ -74,7 +76,7 @@ def build_pseudospin_orbital_classical_model(parsed_payload):
                 }
             )
 
-    return {
+    model = {
         "model_type": "classical_pseudospin_orbital",
         "site_fields": ["spin", "orbital"],
         "orbital_count": orbital_count,
@@ -85,3 +87,10 @@ def build_pseudospin_orbital_classical_model(parsed_payload):
         "bond_count": len(parsed_payload.get("bond_blocks", [])),
         "terms": terms,
     }
+    onsite_terms = lower_pseudospin_orbital_onsite_terms(
+        parsed_payload,
+        local_dimension=int(inferred.get("local_dimension", 0)),
+    )
+    if onsite_terms:
+        model["onsite_terms"] = onsite_terms
+    return model

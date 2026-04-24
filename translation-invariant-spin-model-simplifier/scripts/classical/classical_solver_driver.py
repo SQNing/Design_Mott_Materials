@@ -244,6 +244,26 @@ def _resolve_variational_settings(classical_config, model):
             classical_config.get("variational_lt_seed_enabled", True),
         )
     )
+    spin_gradient_tolerance = float(
+        variational_config.get(
+            "spin_gradient_tolerance",
+            classical_config.get("variational_spin_gradient_tolerance", 1.0e-6),
+        )
+    )
+    q_gradient_tolerance = float(
+        variational_config.get(
+            "q_gradient_tolerance",
+            classical_config.get("variational_q_gradient_tolerance", 1.0e-6),
+        )
+    )
+    cg_beta_max = variational_config.get(
+        "cg_beta_max",
+        classical_config.get("variational_cg_beta_max", 5.0),
+    )
+    guided_q_vectors = variational_config.get(
+        "guided_q_vectors",
+        classical_config.get("variational_guided_q_vectors", []),
+    )
 
     return {
         "max_linear_size": max(1, max_linear_size),
@@ -255,6 +275,10 @@ def _resolve_variational_settings(classical_config, model):
         "maxiter": max(1, maxiter),
         "constraint_tolerance": max(0.0, constraint_tolerance),
         "lt_seed_enabled": bool(lt_seed_enabled),
+        "spin_gradient_tolerance": max(0.0, spin_gradient_tolerance),
+        "q_gradient_tolerance": max(0.0, q_gradient_tolerance),
+        "cg_beta_max": cg_beta_max,
+        "guided_q_vectors": list(guided_q_vectors or []),
     }
 
 
@@ -749,6 +773,48 @@ def _wrap_angle(value):
     return float((float(value) + math.pi) % (2.0 * math.pi) - math.pi)
 
 
+def _wrap_periodic_value(value, lower, upper):
+    value = float(value)
+    lower = float(lower)
+    upper = float(upper)
+    width = upper - lower
+    if not np.isfinite(value) or not np.isfinite(lower) or not np.isfinite(upper) or width <= 0.0:
+        return float(np.clip(value, lower, upper))
+    wrapped = ((value - lower) % width) + lower
+    if wrapped >= upper:
+        wrapped -= width
+    return float(wrapped)
+
+
+def _wrap_reduced_q_vector(reduced_q, q_bounds):
+    wrapped = np.array(reduced_q, dtype=float, copy=True)
+    if q_bounds is None:
+        return wrapped
+    for axis_index, (lower, upper) in enumerate(q_bounds[: len(wrapped)]):
+        wrapped[axis_index] = _wrap_periodic_value(wrapped[axis_index], lower, upper)
+    return wrapped
+
+
+def _single_q_harmonic_characteristic_energy_scale(model):
+    scale = 0.0
+    for bond in model.get("bonds", []):
+        matrix = np.array(bond.get("matrix", np.zeros((3, 3))), dtype=float)
+        if matrix.size:
+            scale += float(np.linalg.norm(matrix, ord=2))
+    for matrix in spin_only_onsite_matrices_by_site(model, site_count=_site_count(model)).values():
+        onsite = np.array(matrix, dtype=float)
+        if onsite.size:
+            scale += float(np.linalg.norm(onsite, ord=2))
+    return max(1.0, float(scale))
+
+
+def _single_q_harmonic_effective_gradient_tolerances(model, settings):
+    scale = _single_q_harmonic_characteristic_energy_scale(model)
+    spin_tolerance = max(0.0, float(settings.get("spin_gradient_tolerance", 1.0e-6)) * scale)
+    q_tolerance = max(0.0, float(settings.get("q_gradient_tolerance", 1.0e-6)) * scale)
+    return float(scale), float(spin_tolerance), float(q_tolerance)
+
+
 def _spin_state_from_single_q_cosine_ansatz(
     *,
     model,
@@ -1128,6 +1194,201 @@ def _single_q_harmonic_raw_norm_diagnostics(model, vector, shape):
     }
 
 
+def _single_q_harmonic_retract_pair(pair):
+    pair = np.array(pair, dtype=float).reshape((3, 2))
+    first = np.array(pair[:, 0], dtype=float)
+    second = np.array(pair[:, 1], dtype=float)
+
+    if float(np.linalg.norm(first)) <= 1.0e-12:
+        if float(np.linalg.norm(second)) > 1.0e-12:
+            first = np.array(second, dtype=float)
+        else:
+            first = np.array([1.0, 0.0, 0.0], dtype=float)
+    first = first / max(float(np.linalg.norm(first)), 1.0e-12)
+
+    second = second - float(np.dot(second, first)) * first
+    if float(np.linalg.norm(second)) <= 1.0e-12:
+        second = _perpendicular_axis(first)
+    else:
+        second = second / max(float(np.linalg.norm(second)), 1.0e-12)
+
+    return np.column_stack([first, second]).astype(float)
+
+
+def _single_q_harmonic_project_pair_tangent(pair, gradient):
+    pair = _single_q_harmonic_retract_pair(pair)
+    gradient = np.array(gradient, dtype=float).reshape((3, 2))
+    symmetric_component = 0.5 * (pair.T @ gradient + gradient.T @ pair)
+    return (gradient - pair @ symmetric_component).astype(float)
+
+
+def _single_q_harmonic_retract_vector(model, vector, *, site_count=None, q_bounds=None):
+    q_vector, cosine_coefficients, sine_coefficients = _split_single_q_harmonic_vector(
+        model,
+        vector,
+        site_count=site_count,
+    )
+    q_axes = _active_q_axes(model)
+    reduced_q = _reduced_q_vector(q_vector, q_axes)
+    reduced_q = _wrap_reduced_q_vector(reduced_q, q_bounds)
+
+    retracted_cosine = np.zeros_like(cosine_coefficients)
+    retracted_sine = np.zeros_like(sine_coefficients)
+    for site in range(int(cosine_coefficients.shape[0])):
+        pair = _single_q_harmonic_retract_pair(
+            np.column_stack([cosine_coefficients[site], sine_coefficients[site]])
+        )
+        retracted_cosine[site] = pair[:, 0]
+        retracted_sine[site] = pair[:, 1]
+
+    return _single_q_harmonic_vector(model, reduced_q, retracted_cosine, retracted_sine)
+
+
+def _single_q_harmonic_projected_gradient(model, vector, shape, *, site_count=None):
+    q_axes = _active_q_axes(model)
+    q_count = len(q_axes)
+    q_vector, cosine_coefficients, sine_coefficients = _split_single_q_harmonic_vector(
+        model,
+        vector,
+        site_count=site_count,
+    )
+    del q_vector
+    value, gradient = _single_q_harmonic_value_and_gradient(model, vector, shape)
+    projected_gradient = np.array(gradient, dtype=float, copy=True)
+    cosine_base = q_count
+    sine_base = q_count + 3 * int(cosine_coefficients.shape[0])
+
+    for site in range(int(cosine_coefficients.shape[0])):
+        pair = np.column_stack([cosine_coefficients[site], sine_coefficients[site]])
+        pair_gradient = np.column_stack(
+            [
+                projected_gradient[cosine_base + 3 * site : cosine_base + 3 * (site + 1)],
+                projected_gradient[sine_base + 3 * site : sine_base + 3 * (site + 1)],
+            ]
+        )
+        projected_pair_gradient = _single_q_harmonic_project_pair_tangent(pair, pair_gradient)
+        projected_gradient[cosine_base + 3 * site : cosine_base + 3 * (site + 1)] = projected_pair_gradient[:, 0]
+        projected_gradient[sine_base + 3 * site : sine_base + 3 * (site + 1)] = projected_pair_gradient[:, 1]
+
+    spin_gradient_norm = float(np.linalg.norm(projected_gradient[q_count:]))
+    q_gradient_norm = float(np.linalg.norm(projected_gradient[:q_count]))
+    return float(value), np.array(gradient, dtype=float), projected_gradient, spin_gradient_norm, q_gradient_norm
+
+
+def _single_q_harmonic_transport_vector(model, current_vector, tangent_vector, *, site_count=None):
+    q_axes = _active_q_axes(model)
+    q_count = len(q_axes)
+    q_vector, cosine_coefficients, sine_coefficients = _split_single_q_harmonic_vector(
+        model,
+        current_vector,
+        site_count=site_count,
+    )
+    del q_vector
+    transported = np.array(tangent_vector, dtype=float, copy=True)
+    cosine_base = q_count
+    sine_base = q_count + 3 * int(cosine_coefficients.shape[0])
+
+    for site in range(int(cosine_coefficients.shape[0])):
+        pair = np.column_stack([cosine_coefficients[site], sine_coefficients[site]])
+        pair_tangent = np.column_stack(
+            [
+                transported[cosine_base + 3 * site : cosine_base + 3 * (site + 1)],
+                transported[sine_base + 3 * site : sine_base + 3 * (site + 1)],
+            ]
+        )
+        projected_pair_tangent = _single_q_harmonic_project_pair_tangent(pair, pair_tangent)
+        transported[cosine_base + 3 * site : cosine_base + 3 * (site + 1)] = projected_pair_tangent[:, 0]
+        transported[sine_base + 3 * site : sine_base + 3 * (site + 1)] = projected_pair_tangent[:, 1]
+
+    return transported
+
+
+def _single_q_harmonic_polak_ribiere_beta(current_gradient, previous_gradient):
+    current_gradient = np.array(current_gradient, dtype=float)
+    previous_gradient = np.array(previous_gradient, dtype=float)
+    denominator = float(np.dot(previous_gradient, previous_gradient))
+    if not np.isfinite(denominator) or denominator <= 1.0e-18:
+        return 0.0
+    numerator = float(np.dot(current_gradient, current_gradient - previous_gradient))
+    beta = numerator / denominator
+    if not np.isfinite(beta):
+        return 0.0
+    return max(0.0, float(beta))
+
+
+def _single_q_harmonic_backtracking_step(
+    model,
+    vector,
+    direction,
+    shape,
+    *,
+    site_count,
+    q_bounds,
+    initial_value,
+    directional_derivative,
+    initial_step,
+    armijo=1.0e-4,
+    shrink=0.5,
+    max_trials=20,
+):
+    step = float(initial_step)
+    if not np.isfinite(directional_derivative) or directional_derivative >= 0.0:
+        return np.array(vector, dtype=float, copy=True), float(initial_value), 0.0, False, 0
+
+    evaluations = 0
+    for _trial in range(int(max_trials)):
+        trial_vector = np.array(vector, dtype=float, copy=True) + step * np.array(direction, dtype=float)
+        trial_vector = _single_q_harmonic_retract_vector(
+            model,
+            trial_vector,
+            site_count=site_count,
+            q_bounds=q_bounds,
+        )
+        trial_value, _trial_gradient = _single_q_harmonic_value_and_gradient(model, trial_vector, shape)
+        evaluations += 1
+        if float(trial_value) <= float(initial_value) + float(armijo) * step * float(directional_derivative):
+            return trial_vector, float(trial_value), float(step), True, evaluations
+        step *= float(shrink)
+
+    return np.array(vector, dtype=float, copy=True), float(initial_value), 0.0, False, evaluations
+
+
+def _single_q_harmonic_next_step_guess(step, *, growth=2.0, max_step=10.0):
+    step = float(step)
+    growth = float(growth)
+    max_step = float(max_step)
+    if not np.isfinite(step) or step <= 0.0:
+        return 1.0
+    if not np.isfinite(growth) or growth <= 1.0:
+        growth = 2.0
+    if not np.isfinite(max_step) or max_step <= 0.0:
+        max_step = 10.0
+    return float(min(max_step, max(step * growth, 1.0e-6)))
+
+
+def _single_q_harmonic_jitter_vector(model, vector, *, site_count=None, q_bounds=None, rng=None, magnitude=1.0e-8):
+    magnitude = float(magnitude)
+    if not np.isfinite(magnitude) or magnitude <= 0.0:
+        return _single_q_harmonic_retract_vector(
+            model,
+            vector,
+            site_count=site_count,
+            q_bounds=q_bounds,
+        )
+    if rng is None:
+        rng = np.random.default_rng()
+    jittered = np.array(vector, dtype=float, copy=True)
+    q_count = len(_active_q_axes(model))
+    if jittered.size > q_count:
+        jittered[q_count:] += rng.normal(scale=magnitude, size=jittered.size - q_count)
+    return _single_q_harmonic_retract_vector(
+        model,
+        jittered,
+        site_count=site_count,
+        q_bounds=q_bounds,
+    )
+
+
 def _single_q_cosine_candidate_is_better(candidate, incumbent, constraint_tolerance):
     if incumbent is None:
         return True
@@ -1200,6 +1461,128 @@ def _single_q_harmonic_planar_feasible_guess(model, site_count, reduced_q, rng=N
         cosine_coefficients[site, 1] = math.sin(angle)
         sine_coefficients[site, 1] = math.cos(angle)
     return _single_q_harmonic_vector(model, reduced_q, cosine_coefficients, sine_coefficients)
+
+
+def _single_q_harmonic_lt_aligned_feasible_guess(model, cosine_coefficients, sine_coefficients, reduced_q):
+    cosine_coefficients = np.array(cosine_coefficients, dtype=float)
+    sine_coefficients = np.array(sine_coefficients, dtype=float)
+    site_count = int(cosine_coefficients.shape[0])
+    feasible_cosine = np.zeros_like(cosine_coefficients)
+    feasible_sine = np.zeros_like(sine_coefficients)
+
+    for site in range(site_count):
+        cosine_vector = np.array(cosine_coefficients[site], dtype=float)
+        sine_vector = np.array(sine_coefficients[site], dtype=float)
+
+        if float(np.linalg.norm(cosine_vector)) <= 1.0e-8 and float(np.linalg.norm(sine_vector)) <= 1.0e-8:
+            primary = np.array([1.0, 0.0, 0.0], dtype=float)
+            secondary = np.array([0.0, 1.0, 0.0], dtype=float)
+        else:
+            if float(np.linalg.norm(cosine_vector)) > 1.0e-8:
+                primary = cosine_vector / float(np.linalg.norm(cosine_vector))
+            else:
+                primary = sine_vector / max(float(np.linalg.norm(sine_vector)), 1.0e-12)
+
+            secondary = sine_vector - float(np.dot(sine_vector, primary)) * primary
+            if float(np.linalg.norm(secondary)) <= 1.0e-8:
+                secondary = cosine_vector - float(np.dot(cosine_vector, primary)) * primary
+            if float(np.linalg.norm(secondary)) <= 1.0e-8:
+                secondary = _perpendicular_axis(primary)
+            secondary = secondary / max(float(np.linalg.norm(secondary)), 1.0e-12)
+
+        feasible_cosine[site] = primary
+        feasible_sine[site] = secondary
+
+    return _single_q_harmonic_vector(model, reduced_q, feasible_cosine, feasible_sine)
+
+
+def _single_q_harmonic_lt_randomized_feasible_guess(
+    model,
+    cosine_coefficients,
+    sine_coefficients,
+    reduced_q,
+    *,
+    rng,
+    q_bounds=None,
+):
+    base_vector = _single_q_harmonic_lt_aligned_feasible_guess(
+        model,
+        cosine_coefficients,
+        sine_coefficients,
+        reduced_q,
+    )
+    _q_vector, base_cosine, base_sine = _split_single_q_harmonic_vector(
+        model,
+        base_vector,
+        site_count=int(np.array(cosine_coefficients, dtype=float).shape[0]),
+    )
+
+    randomized_q = np.array(reduced_q, dtype=float, copy=True)
+    if q_bounds is not None and len(randomized_q):
+        randomized_q += rng.normal(scale=0.1, size=len(randomized_q))
+        randomized_q = _wrap_reduced_q_vector(randomized_q, q_bounds)
+
+    randomized_cosine = np.zeros_like(base_cosine)
+    randomized_sine = np.zeros_like(base_sine)
+    for site in range(int(base_cosine.shape[0])):
+        angle = float(rng.uniform(-math.pi, math.pi))
+        cosine_theta = math.cos(angle)
+        sine_theta = math.sin(angle)
+        randomized_cosine[site] = cosine_theta * base_cosine[site] + sine_theta * base_sine[site]
+        randomized_sine[site] = -sine_theta * base_cosine[site] + cosine_theta * base_sine[site]
+
+    return _single_q_harmonic_vector(model, randomized_q, randomized_cosine, randomized_sine)
+
+
+def _single_q_harmonic_clamp_beta(beta, beta_max):
+    beta = float(beta)
+    if beta_max is None:
+        return beta, False
+    beta_max = float(beta_max)
+    if not np.isfinite(beta_max) or beta_max < 0.0:
+        return beta, False
+    if float(beta) > float(beta_max):
+        return float(beta_max), True
+    return float(beta), False
+
+
+def _single_q_harmonic_guided_reduced_q_vectors(model, settings, q_bounds):
+    q_axes = _active_q_axes(model)
+    guided_vectors = []
+    for item in list(settings.get("guided_q_vectors", []) or []):
+        full_q = _padded_q_vector(item)
+        reduced_q = np.array(_reduced_q_vector(full_q, q_axes), dtype=float, copy=True)
+        reduced_q = _wrap_reduced_q_vector(reduced_q, q_bounds)
+        guided_vectors.append(reduced_q)
+    return guided_vectors
+
+
+def _single_q_harmonic_guided_feasible_guesses(model, cosine_coefficients, sine_coefficients, guided_reduced_q_vectors):
+    guided = []
+    site_count = int(np.array(cosine_coefficients, dtype=float).shape[0])
+    for guided_index, reduced_q in enumerate(guided_reduced_q_vectors):
+        guided.append(
+            (
+                f"guided-lt-aligned-q-{guided_index}",
+                _single_q_harmonic_lt_aligned_feasible_guess(
+                    model,
+                    cosine_coefficients,
+                    sine_coefficients,
+                    reduced_q,
+                ),
+            )
+        )
+        guided.append(
+            (
+                f"guided-planar-q-{guided_index}",
+                _single_q_harmonic_planar_feasible_guess(
+                    model,
+                    site_count,
+                    reduced_q,
+                ),
+            )
+        )
+    return guided
 
 
 def _lt_single_q_cosine_variational(model, *, starts, seed, settings):
@@ -1506,28 +1889,80 @@ def _lt_single_q_harmonic_variational(model, *, starts, seed, settings):
     initial_q = _reduced_q_vector(lt_payload["q_vector"], q_axes)
     initial_cosine = np.array(lt_payload["cosine_coefficients"], dtype=float)
     initial_sine = np.array(lt_payload["sine_coefficients"], dtype=float)
-    initial_vector = _single_q_harmonic_vector(model, initial_q, initial_cosine, initial_sine)
-    bounds = _single_q_cosine_q_bounds(model) + _single_q_harmonic_coefficient_bounds(initial_cosine, initial_sine)
+    q_bounds = _single_q_cosine_q_bounds(model)
+    initial_vector = _single_q_harmonic_retract_vector(
+        model,
+        _single_q_harmonic_vector(model, initial_q, initial_cosine, initial_sine),
+        site_count=lt_payload["site_count"],
+        q_bounds=q_bounds,
+    )
+    guided_reduced_q_vectors = _single_q_harmonic_guided_reduced_q_vectors(
+        model,
+        settings,
+        q_bounds,
+    )
 
     deterministic_guesses = [
-        initial_vector,
-        _single_q_harmonic_planar_feasible_guess(model, lt_payload["site_count"], initial_q),
-        _single_q_harmonic_uniform_feasible_guess(model, lt_payload["site_count"]),
+        ("lt-harmonic-seed", initial_vector),
+        (
+            "lt-aligned-feasible",
+            _single_q_harmonic_lt_aligned_feasible_guess(model, initial_cosine, initial_sine, initial_q),
+        ),
+        (
+            "planar-feasible",
+            _single_q_harmonic_planar_feasible_guess(model, lt_payload["site_count"], initial_q),
+        ),
+        (
+            "uniform-feasible",
+            _single_q_harmonic_uniform_feasible_guess(model, lt_payload["site_count"]),
+        ),
     ]
+    deterministic_guesses.extend(
+        _single_q_harmonic_guided_feasible_guesses(
+            model,
+            initial_cosine,
+            initial_sine,
+            guided_reduced_q_vectors,
+        )
+    )
     rng = np.random.default_rng(seed)
     best = None
-    constraint_tolerance = float(settings.get("constraint_tolerance", 1.0e-6))
+    best_start_index = None
+    best_start_source = None
+    candidate_start_summaries = []
+    gradient_tolerance_scale, spin_gradient_tolerance, q_gradient_tolerance = _single_q_harmonic_effective_gradient_tolerances(
+        model,
+        settings,
+    )
+    cg_beta_max = settings.get("cg_beta_max", 5.0)
+    jitter_magnitude = float(settings.get("jitter", 1.0e-8))
+    lt_randomized_guess_count = max(
+        0,
+        min(4, max(1, int(starts)) - len(deterministic_guesses)),
+    )
 
     for start_index in range(max(1, int(starts))):
         if start_index < len(deterministic_guesses):
-            guess = np.array(deterministic_guesses[start_index], dtype=float, copy=True)
+            start_source, start_guess = deterministic_guesses[start_index]
+            guess = np.array(start_guess, dtype=float, copy=True)
+        elif start_index < len(deterministic_guesses) + lt_randomized_guess_count:
+            randomized_index = start_index - len(deterministic_guesses)
+            start_source = f"lt-randomized-planar-{randomized_index}"
+            guess = _single_q_harmonic_lt_randomized_feasible_guess(
+                model,
+                initial_cosine,
+                initial_sine,
+                initial_q,
+                rng=rng,
+                q_bounds=q_bounds,
+            )
         else:
+            start_source = f"random-planar-{start_index - len(deterministic_guesses) - lt_randomized_guess_count}"
             q_count = len(q_axes)
             random_q = np.array(initial_q, dtype=float, copy=True)
             if q_count:
                 random_q += rng.normal(scale=0.1, size=q_count)
-                for axis_index, (lower, upper) in enumerate(bounds[:q_count]):
-                    random_q[axis_index] = float(np.clip(random_q[axis_index], lower, upper))
+                random_q = _wrap_reduced_q_vector(random_q, q_bounds)
             guess = _single_q_harmonic_planar_feasible_guess(
                 model,
                 lt_payload["site_count"],
@@ -1536,72 +1971,193 @@ def _lt_single_q_harmonic_variational(model, *, starts, seed, settings):
             )
             if guess.size > q_count:
                 guess[q_count:] += rng.normal(scale=0.25, size=guess.size - q_count)
-            for index, (lower, upper) in enumerate(bounds):
-                guess[index] = float(np.clip(guess[index], lower, upper))
 
-        if minimize is None or NonlinearConstraint is None or Bounds is None:
-            value, _gradient = _single_q_harmonic_value_and_gradient(model, guess, shape)
-            constraints, _jacobian = _single_q_harmonic_constraints_and_jacobian(model, guess, shape)
-            vector = np.array(guess, dtype=float)
-            optimizer = {
-                "success": True,
-                "nit": 0,
-                "nfev": 1,
-                "method": "raw-random-sampling-fallback",
-                "optimality": None,
-                "constr_violation": float(np.max(np.abs(constraints))) if constraints.size else 0.0,
-            }
-        else:
-            constraint = NonlinearConstraint(
-                lambda x: _single_q_harmonic_constraints_and_jacobian(model, x, shape)[0],
-                np.zeros(int(np.prod(shape)) * int(lt_payload["site_count"]), dtype=float),
-                np.zeros(int(np.prod(shape)) * int(lt_payload["site_count"]), dtype=float),
-                jac=lambda x: _single_q_harmonic_constraints_and_jacobian(model, x, shape)[1],
-            )
-            lower_bounds = np.array([lower for lower, _upper in bounds], dtype=float)
-            upper_bounds = np.array([upper for _lower, upper in bounds], dtype=float)
-            try:
-                result = minimize(
-                    lambda x: _single_q_harmonic_value_and_gradient(model, x, shape),
-                    guess,
-                    method="trust-constr",
-                    jac=True,
-                    bounds=Bounds(lower_bounds, upper_bounds),
-                    constraints=[constraint],
-                    options={
-                        "maxiter": int(settings.get("maxiter", 200)),
-                        "gtol": 1e-8,
-                        "xtol": 1e-10,
-                        "barrier_tol": 1e-10,
-                        "verbose": 0,
-                    },
+        current_vector = _single_q_harmonic_retract_vector(
+            model,
+            guess,
+            site_count=lt_payload["site_count"],
+            q_bounds=q_bounds,
+        )
+        current_vector = _single_q_harmonic_jitter_vector(
+            model,
+            current_vector,
+            site_count=lt_payload["site_count"],
+            q_bounds=q_bounds,
+            rng=rng,
+            magnitude=jitter_magnitude,
+        )
+        nfev = 0
+        (
+            initial_value,
+            _initial_gradient,
+            projected_gradient,
+            spin_gradient_norm,
+            q_gradient_norm,
+        ) = _single_q_harmonic_projected_gradient(
+            model,
+            current_vector,
+            shape,
+            site_count=lt_payload["site_count"],
+        )
+        nfev += 1
+        current_value = float(initial_value)
+        accepted_iterations = 0
+        optimizer_nit = 0
+        optimizer_success = False
+        optimizer_stopped_reason = "minimize-line-search-failed"
+        previous_projected_gradient = None
+        previous_direction = None
+        restart_count = 0
+        line_search_restart_count = 0
+        final_beta = 0.0
+        beta_clamped_count = 0
+        step_guess = 1.0
+        max_line_search_restarts = max(4, min(16, int(settings.get("maxiter", 200))))
+
+        for iteration in range(int(settings.get("maxiter", 200))):
+            optimizer_nit = int(iteration)
+            if spin_gradient_norm <= spin_gradient_tolerance and q_gradient_norm <= q_gradient_tolerance:
+                optimizer_success = True
+                optimizer_stopped_reason = "minimize-converged"
+                break
+
+            direction = -np.array(projected_gradient, dtype=float)
+            final_beta = 0.0
+            if previous_projected_gradient is not None and previous_direction is not None:
+                transported_previous_gradient = _single_q_harmonic_transport_vector(
+                    model,
+                    current_vector,
+                    previous_projected_gradient,
+                    site_count=lt_payload["site_count"],
                 )
-                value = float(result.fun)
-                vector = np.array(result.x, dtype=float)
-                optimizer = {
-                    "success": bool(result.success),
-                    "nit": int(getattr(result, "nit", 0)),
-                    "nfev": int(getattr(result, "nfev", 0)),
-                    "method": "trust-constr",
-                    "optimality": None if getattr(result, "optimality", None) is None else float(result.optimality),
-                    "constr_violation": float(getattr(result, "constr_violation", 0.0)),
-                }
-            except (FloatingPointError, ValueError, np.linalg.LinAlgError) as error:
-                value, _gradient = _single_q_harmonic_value_and_gradient(model, guess, shape)
-                constraints, _jacobian = _single_q_harmonic_constraints_and_jacobian(model, guess, shape)
-                vector = np.array(guess, dtype=float)
-                optimizer = {
-                    "success": False,
-                    "nit": 0,
-                    "nfev": 1,
-                    "method": "trust-constr-error",
-                    "optimality": None,
-                    "constr_violation": float(np.max(np.abs(constraints))) if constraints.size else 0.0,
-                    "error": str(error),
-                }
+                transported_previous_direction = _single_q_harmonic_transport_vector(
+                    model,
+                    current_vector,
+                    previous_direction,
+                    site_count=lt_payload["site_count"],
+                )
+                final_beta = _single_q_harmonic_polak_ribiere_beta(
+                    projected_gradient,
+                    transported_previous_gradient,
+                )
+                final_beta, beta_was_clamped = _single_q_harmonic_clamp_beta(
+                    final_beta,
+                    cg_beta_max,
+                )
+                if beta_was_clamped:
+                    beta_clamped_count += 1
+                candidate_direction = -np.array(projected_gradient, dtype=float) + final_beta * transported_previous_direction
+                directional_derivative = float(np.dot(projected_gradient, candidate_direction))
+                if np.isfinite(directional_derivative) and directional_derivative < -1.0e-18:
+                    direction = candidate_direction
+                else:
+                    restart_count += 1
+                    final_beta = 0.0
+                    direction = -np.array(projected_gradient, dtype=float)
+                    step_guess = max(1.0e-6, 0.5 * float(step_guess))
+
+            directional_derivative = float(np.dot(projected_gradient, direction))
+            if not np.isfinite(directional_derivative) or directional_derivative >= -1.0e-18:
+                restart_count += 1
+                final_beta = 0.0
+                direction = -np.array(projected_gradient, dtype=float)
+                directional_derivative = float(np.dot(projected_gradient, direction))
+                step_guess = max(1.0e-6, 0.5 * float(step_guess))
+
+            (
+                trial_vector,
+                trial_value,
+                accepted_step,
+                accepted,
+                evaluations,
+            ) = _single_q_harmonic_backtracking_step(
+                model,
+                current_vector,
+                direction,
+                shape,
+                site_count=lt_payload["site_count"],
+                q_bounds=q_bounds,
+                initial_value=current_value,
+                directional_derivative=directional_derivative,
+                initial_step=step_guess,
+            )
+            nfev += int(evaluations)
+            if not accepted:
+                restart_count += 1
+                line_search_restart_count += 1
+                previous_projected_gradient = None
+                previous_direction = None
+                final_beta = 0.0
+                step_guess = max(1.0e-6, 0.5 * float(step_guess))
+                if line_search_restart_count > max_line_search_restarts:
+                    optimizer_stopped_reason = "minimize-line-search-failed"
+                    break
+                optimizer_stopped_reason = "minimize-line-search-restarted"
+                continue
+            accepted_iterations += 1
+            previous_projected_gradient = np.array(projected_gradient, dtype=float, copy=True)
+            previous_direction = np.array(direction, dtype=float, copy=True)
+            current_vector = np.array(trial_vector, dtype=float, copy=True)
+            current_value = float(trial_value)
+            step_guess = _single_q_harmonic_next_step_guess(accepted_step)
+
+            (
+                current_value,
+                _ambient_gradient,
+                projected_gradient,
+                spin_gradient_norm,
+                q_gradient_norm,
+            ) = _single_q_harmonic_projected_gradient(
+                model,
+                current_vector,
+                shape,
+                site_count=lt_payload["site_count"],
+            )
+            nfev += 1
+        else:
+            optimizer_nit = int(settings.get("maxiter", 200))
+            optimizer_stopped_reason = "minimize-maxiter-reached"
+
+        vector = np.array(current_vector, dtype=float)
+        value = float(current_value)
+        optimizer = {
+            "success": bool(optimizer_success),
+            "nit": int(optimizer_nit),
+            "nfev": int(nfev),
+            "method": "minimize-spiral-manifold-cg",
+            "optimality": float(max(spin_gradient_norm, q_gradient_norm)),
+            "constr_violation": 0.0,
+            "spin_gradient_norm": float(spin_gradient_norm),
+            "q_gradient_norm": float(q_gradient_norm),
+            "gradient_tolerance_scale": float(gradient_tolerance_scale),
+            "effective_spin_gradient_tolerance": float(spin_gradient_tolerance),
+            "effective_q_gradient_tolerance": float(q_gradient_tolerance),
+            "accepted_iterations": int(accepted_iterations),
+            "restart_count": int(restart_count),
+            "line_search_restart_count": int(line_search_restart_count),
+            "final_beta": float(final_beta),
+            "beta_clamped_count": int(beta_clamped_count),
+            "stopped_reason": str(optimizer_stopped_reason),
+            "initial_objective": float(initial_value),
+        }
         candidate = {"value": float(value), "vector": vector, "optimizer": optimizer}
-        if _single_q_cosine_candidate_is_better(candidate, best, constraint_tolerance):
+        candidate_start_summaries.append(
+            {
+                "start_index": int(start_index),
+                "start_source": str(start_source),
+                "initial_objective": float(initial_value),
+                "initial_constraint_violation": 0.0,
+                "final_objective": float(value),
+                "final_constraint_violation": 0.0,
+                "optimizer_success": bool(optimizer.get("success", False)),
+                "optimizer_nit": int(optimizer.get("nit", 0)),
+                "optimizer_nfev": int(optimizer.get("nfev", 0)),
+            }
+        )
+        if _single_q_cosine_candidate_is_better(candidate, best, 1.0e-12):
             best = candidate
+            best_start_index = int(start_index)
+            best_start_source = str(start_source)
 
     final_q_vector, final_cosine, final_sine = _split_single_q_harmonic_vector(
         model,
@@ -1610,15 +2166,13 @@ def _lt_single_q_harmonic_variational(model, *, starts, seed, settings):
     )
     final_state, _final_cache = _single_q_harmonic_raw_state_and_cache(model, best["vector"], shape)
     raw_norm_diagnostics = _single_q_harmonic_raw_norm_diagnostics(model, best["vector"], shape)
-    constraint_violation = float(best["optimizer"].get("constr_violation", float("inf")))
-    constraints_satisfied = constraint_violation <= constraint_tolerance
-    optimizer_success = bool(best["optimizer"].get("success", True)) and constraints_satisfied
+    constraint_violation = float(best["optimizer"].get("constr_violation", 0.0))
+    constraints_satisfied = True
+    optimizer_success = bool(best["optimizer"].get("success", False))
     if optimizer_success:
-        stopped_reason = "optimizer_converged"
-    elif constraints_satisfied:
-        stopped_reason = "optimizer_feasible_not_converged"
+        stopped_reason = "minimize-converged"
     else:
-        stopped_reason = "optimizer_infeasible"
+        stopped_reason = str(best["optimizer"].get("stopped_reason", "minimize-not-converged"))
 
     positions = _normalize_positions_for_site_count(model, lt_payload["site_count"])
     structure_factor = _spin_structure_factor_peak(final_state, shape, lt_payload["site_count"])
@@ -1682,21 +2236,35 @@ def _lt_single_q_harmonic_variational(model, *, starts, seed, settings):
             "best_objective": float(best["value"]),
             "optimizer_success": bool(optimizer_success),
             "optimizer_method": str(best["optimizer"].get("method", "unknown")),
-            "optimization_mode": "direct-q-and-cartesian-harmonic-coefficients",
+            "optimization_mode": "lt-seeded-minimize-spiral-manifold-cg-and-q-relaxation",
             "gradient_mode": "analytic",
             "optimizer_nit": int(best["optimizer"].get("nit", 0)),
             "optimizer_nfev": int(best["optimizer"].get("nfev", 0)),
             "optimizer_optimality": best["optimizer"].get("optimality"),
             "optimizer_constraint_violation": best["optimizer"].get("constr_violation"),
-            "constraint_tolerance": float(constraint_tolerance),
+            "constraint_tolerance": 0.0,
+            "initial_objective": float(best["optimizer"].get("initial_objective", best["value"])),
+            "spin_gradient_norm": float(best["optimizer"].get("spin_gradient_norm", 0.0)),
+            "q_gradient_norm": float(best["optimizer"].get("q_gradient_norm", 0.0)),
+            "gradient_tolerance_scale": float(best["optimizer"].get("gradient_tolerance_scale", 1.0)),
+            "effective_spin_gradient_tolerance": float(best["optimizer"].get("effective_spin_gradient_tolerance", 0.0)),
+            "effective_q_gradient_tolerance": float(best["optimizer"].get("effective_q_gradient_tolerance", 0.0)),
+            "accepted_iterations": int(best["optimizer"].get("accepted_iterations", 0)),
+            "restart_count": int(best["optimizer"].get("restart_count", 0)),
+            "line_search_restart_count": int(best["optimizer"].get("line_search_restart_count", 0)),
+            "final_beta": float(best["optimizer"].get("final_beta", 0.0)),
+            "beta_clamped_count": int(best["optimizer"].get("beta_clamped_count", 0)),
             "coefficient_mode": "optimized",
             "optimized_cosine_coefficients": [[float(value) for value in row] for row in final_cosine.tolist()],
             "optimized_sine_coefficients": [[float(value) for value in row] for row in final_sine.tolist()],
             "initial_cosine_coefficients": [[float(value) for value in row] for row in initial_cosine.tolist()],
             "initial_sine_coefficients": [[float(value) for value in row] for row in initial_sine.tolist()],
             "raw_norm_diagnostics": raw_norm_diagnostics,
-            "objective_definition": "direct constrained minimization of single-q harmonic spin ansatz energy over q and per-site Cartesian c/s coefficients with explicit |u_i(R)|^2 = 1 constraints",
+            "objective_definition": "direct LT-seeded Sunny-like manifold minimization of single-q harmonic spin ansatz energy over q and per-site orthonormal cosine/sine spin pairs",
             "active_q_axes": list(q_axes),
+            "best_start_index": best_start_index,
+            "best_start_source": best_start_source,
+            "candidate_start_summaries": candidate_start_summaries,
         },
         "starts": int(starts),
         "seed": int(seed),

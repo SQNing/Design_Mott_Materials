@@ -99,6 +99,8 @@ def canonicalize_terms(model):
         "four_body": [],
         "higher_body": [],
     }
+    if isinstance(model, dict) and model.get("onsite_terms") is not None:
+        grouped["onsite_terms"] = list(model.get("onsite_terms") or [])
     merged = defaultdict(float)
     term_metadata = {}
 

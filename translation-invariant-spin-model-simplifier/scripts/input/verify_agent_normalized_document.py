@@ -249,6 +249,8 @@ def _selected_local_bond_family_findings(candidate_models, selected_local_bond_f
     selected_family = str(selected_local_bond_family or "").strip()
     if not selected_family or not isinstance(candidate_models, dict):
         return findings
+    if selected_family == "all":
+        return findings
 
     effective = candidate_models.get("effective", {})
     matrix_form = candidate_models.get("matrix_form", {})

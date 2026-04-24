@@ -4,6 +4,15 @@ import math
 
 import numpy as np
 
+if __package__ in {None, ""}:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from common.spin_only_onsite_adapter import spin_only_onsite_matrices_by_site
+else:
+    from common.spin_only_onsite_adapter import spin_only_onsite_matrices_by_site
+
 
 def _n_sublattices(model):
     if model.get("lattice", {}).get("sublattices"):
@@ -40,6 +49,10 @@ def _phase_factor(q, vector):
 def fourier_exchange_matrix(model, q):
     sublattice_count = _n_sublattices(model)
     jq = np.zeros((3 * sublattice_count, 3 * sublattice_count), dtype=complex)
+
+    for site, matrix in spin_only_onsite_matrices_by_site(model, site_count=sublattice_count).items():
+        site_block = _block_slice(site)
+        jq[site_block, site_block] += matrix
 
     for bond in model.get("bonds", []):
         source = int(bond["source"])

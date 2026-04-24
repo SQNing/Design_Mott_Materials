@@ -41,6 +41,47 @@ def _resolve_exchange(model):
     return 1.0
 
 
+def _normalize_dispersion_entries(dispersion):
+    if not isinstance(dispersion, list):
+        return dispersion
+
+    normalized = []
+    for point in dispersion:
+        if not isinstance(point, dict):
+            normalized.append(point)
+            continue
+
+        entry = dict(point)
+        bands = entry.get("bands")
+        energies = entry.get("energies")
+        if energies is None and isinstance(bands, list):
+            entry["energies"] = list(bands)
+        elif bands is None and isinstance(energies, list):
+            entry["bands"] = list(energies)
+        normalized.append(entry)
+    return normalized
+
+
+def _normalize_linear_spin_wave_result(result):
+    if not isinstance(result, dict):
+        return result
+
+    linear_spin_wave = result.get("linear_spin_wave")
+    if not isinstance(linear_spin_wave, dict):
+        return result
+
+    normalized_linear_spin_wave = dict(linear_spin_wave)
+    if "dispersion" in normalized_linear_spin_wave:
+        normalized_linear_spin_wave["dispersion"] = _normalize_dispersion_entries(normalized_linear_spin_wave.get("dispersion"))
+    result["linear_spin_wave"] = normalized_linear_spin_wave
+
+    if "dispersion" not in result and "dispersion" in normalized_linear_spin_wave:
+        result["dispersion"] = normalized_linear_spin_wave["dispersion"]
+    if "density_of_states" not in result and "density_of_states" in normalized_linear_spin_wave:
+        result["density_of_states"] = normalized_linear_spin_wave["density_of_states"]
+    return result
+
+
 def linear_spin_wave_summary(model):
     spin = float(model.get("spin", 0.5))
     exchange = _resolve_exchange(model)
@@ -116,6 +157,7 @@ def run_linear_spin_wave(model, julia_cmd=None):
             "error": {"code": "invalid-backend-json", "message": str(exc)},
         }
 
+    result = _normalize_linear_spin_wave_result(result)
     if isinstance(result, dict) and "path" not in result:
         result["path"] = lswt_payload["payload"].get("path", {})
     return result

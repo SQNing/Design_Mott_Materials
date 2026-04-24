@@ -36,6 +36,24 @@ def _serialize_matrix(matrix):
     return [[_serialize_complex(value) for value in row] for row in matrix]
 
 
+def _canonical_local_operator_onsite_term(diagonal):
+    return {
+        "kind": "local_operator_matrix",
+        "site_scope": {"kind": "site", "site": 0},
+        "operator_basis": {
+            "family": "retained_local_basis",
+            "labels": ["up", "down"],
+        },
+        "frame": {"kind": "retained_local_basis"},
+        "payload": {
+            "matrix": [
+                [float(diagonal[0]), 0.0],
+                [0.0, float(diagonal[1])],
+            ]
+        },
+    }
+
+
 def _single_q_supercell_site_phases(*, q_vector, positions, supercell_shape, site_phase_offsets=None):
     site_phase_offsets = site_phase_offsets or {}
     entries = []
@@ -53,6 +71,45 @@ def _single_q_supercell_site_phases(*, q_vector, positions, supercell_shape, sit
 
 
 class BuildPythonGlswtPayloadTests(unittest.TestCase):
+    def test_builder_lowers_local_operator_onsite_terms_for_local_rays(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "local_dimension": 2,
+            "orbital_count": 1,
+            "local_basis_labels": ["up", "down"],
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "onsite_terms": [_canonical_local_operator_onsite_term([0.0, 1.0])],
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "pair_matrix": _negative_permutation_pair_matrix(2),
+                    "tensor_shape": [2, 2, 2, 2],
+                }
+            ],
+        }
+        classical_state = {
+            "schema_version": 1,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [
+                {"cell": [0, 0, 0], "vector": [_serialize_complex(1.0), _serialize_complex(0.0)]},
+            ],
+        }
+
+        payload = build_python_glswt_payload(model, classical_state=classical_state)
+
+        self.assertIn("onsite_terms", payload)
+        self.assertEqual(payload["onsite_terms"][0]["site"], 0)
+        self.assertEqual(payload["onsite_terms"][0]["matrix_shape"], [2, 2])
+        self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
+
     def test_builder_accepts_canonical_local_rays_state(self):
         model = {
             "model_type": "sun_gswt_classical",
@@ -290,6 +347,7 @@ class BuildPythonGlswtPayloadTests(unittest.TestCase):
             "pair_basis_order": "site_i_major_site_j_minor",
             "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
             "positions": [[0.0, 0.0, 0.0]],
+            "onsite_terms": [_canonical_local_operator_onsite_term([0.0, 1.0])],
             "z_harmonic_reference_mode": "refined-retained-local",
             "rotating_frame_transform": {
                 "status": "explicit",
@@ -348,6 +406,8 @@ class BuildPythonGlswtPayloadTests(unittest.TestCase):
         self.assertEqual(payload["restricted_ansatz_stationarity"]["optimization_mode"], "direct-joint")
         self.assertEqual(payload["z_harmonic_reference_mode"], "refined-retained-local")
         self.assertEqual(payload["rotating_frame_transform"]["kind"], "site_phase_rotation")
+        self.assertIn("onsite_terms", payload)
+        self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
 
     def test_builder_preserves_single_q_wrapper_when_standardized_contract_is_nested(self):
         model = {

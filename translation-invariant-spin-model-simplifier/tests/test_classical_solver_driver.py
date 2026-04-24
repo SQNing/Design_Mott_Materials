@@ -245,7 +245,7 @@ class ClassicalSolverDriverTests(unittest.TestCase):
             True,
         )
 
-    def test_lswt_builder_consumes_supercell_variational_output(self):
+    def test_lswt_builder_exports_single_q_reference_state_from_supercell_variational_output(self):
         result = run_classical_solver(
             self._one_site_antiferromagnetic_chain(),
             starts=4,
@@ -257,11 +257,16 @@ class ClassicalSolverDriverTests(unittest.TestCase):
         self.assertEqual(lswt_payload["status"], "ok")
         payload = lswt_payload["payload"]
         self.assertEqual(payload["supercell_shape"], [2, 1, 1])
-        self.assertEqual(len(payload["supercell_reference_frames"]), 2)
-        first = payload["supercell_reference_frames"][0]["direction"]
-        second = payload["supercell_reference_frames"][1]["direction"]
-        for first_value, second_value in zip(first, second):
-            self.assertAlmostEqual(first_value, -second_value, places=6)
+        self.assertNotIn("supercell_reference_frames", payload)
+        self.assertEqual(payload["single_q_reference_state"]["kind"], "single_q_spiral")
+        self.assertEqual(payload["single_q_reference_state"]["q_vector"], [0.5, 0.0, 0.0])
+        self.assertEqual(payload["single_q_reference_state"]["rotation_axis"], [0.0, -0.0, 1.0])
+        self.assertEqual(payload["single_q_reference_state"]["site_phase_offsets"], {"0": 0.0})
+        self.assertEqual(len(payload["single_q_reference_state"]["reference_frames"]), 1)
+        self.assertEqual(
+            payload["single_q_reference_state"]["reference_frames"][0]["direction"],
+            [1.0, -0.0, -0.0],
+        )
 
     def test_auto_prefers_lt_for_single_sublattice_generic_bilinear_model(self):
         model = self._one_site_antiferromagnetic_chain()
@@ -471,14 +476,10 @@ class ClassicalSolverDriverTests(unittest.TestCase):
             seed=2,
         )
 
-        self.assertEqual(result["variational_result"]["ansatz_stationarity"]["optimizer_method"], "trust-constr")
+        self.assertEqual(result["variational_result"]["ansatz_stationarity"]["optimizer_method"], "minimize-spiral-manifold-cg")
         self.assertEqual(
             result["variational_result"]["ansatz_stationarity"]["optimization_mode"],
-            "direct-q-and-cartesian-harmonic-coefficients",
-        )
-        self.assertLess(
-            result["variational_result"]["ansatz_stationarity"]["optimizer_constraint_violation"],
-            1.0e-8,
+            "lt-seeded-minimize-spiral-manifold-cg-and-q-relaxation",
         )
         self.assertLess(
             result["variational_result"]["ansatz_stationarity"]["raw_norm_diagnostics"]["max_abs_norm_minus_1"],
@@ -488,8 +489,270 @@ class ClassicalSolverDriverTests(unittest.TestCase):
             result["variational_result"]["initialization"]["lt_seed_q_vector"],
             [0.25, 0.0, 0.0],
         )
+        self.assertLessEqual(
+            result["variational_result"]["energy"],
+            result["variational_result"]["ansatz_stationarity"]["initial_objective"] + 1.0e-10,
+        )
+        self.assertIn("spin_gradient_norm", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("q_gradient_norm", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("gradient_tolerance_scale", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("effective_spin_gradient_tolerance", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("effective_q_gradient_tolerance", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("restart_count", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("line_search_restart_count", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("final_beta", result["variational_result"]["ansatz_stationarity"])
+        self.assertIn("beta_clamped_count", result["variational_result"]["ansatz_stationarity"])
         self.assertIn("optimized_cosine_coefficients", result["variational_result"]["ansatz_stationarity"])
         self.assertIn("optimized_sine_coefficients", result["variational_result"]["ansatz_stationarity"])
+
+    def test_lt_single_q_harmonic_variational_reports_start_diagnostics(self):
+        result = run_classical_solver(
+            self._one_site_antiferromagnetic_chain_with_lt_quarter_seed_harmonic(),
+            starts=4,
+            seed=2,
+        )
+
+        stationarity = result["variational_result"]["ansatz_stationarity"]
+        candidate_summaries = stationarity["candidate_start_summaries"]
+        self.assertEqual(len(candidate_summaries), 4)
+        self.assertEqual(
+            [item["start_source"] for item in candidate_summaries],
+            [
+                "lt-harmonic-seed",
+                "lt-aligned-feasible",
+                "planar-feasible",
+                "uniform-feasible",
+            ],
+        )
+        self.assertEqual(
+            [item["start_index"] for item in candidate_summaries],
+            [0, 1, 2, 3],
+        )
+        self.assertIn(stationarity["best_start_source"], [item["start_source"] for item in candidate_summaries])
+        self.assertGreaterEqual(stationarity["best_start_index"], 0)
+
+    def test_lt_single_q_harmonic_variational_reports_lt_randomized_start_sources(self):
+        result = run_classical_solver(
+            self._one_site_antiferromagnetic_chain_with_lt_quarter_seed_harmonic(),
+            starts=6,
+            seed=0,
+        )
+
+        candidate_summaries = result["variational_result"]["ansatz_stationarity"]["candidate_start_summaries"]
+        self.assertEqual(
+            [item["start_source"] for item in candidate_summaries],
+            [
+                "lt-harmonic-seed",
+                "lt-aligned-feasible",
+                "planar-feasible",
+                "uniform-feasible",
+                "lt-randomized-planar-0",
+                "lt-randomized-planar-1",
+            ],
+        )
+
+    def test_lt_single_q_harmonic_variational_reports_guided_q_start_sources(self):
+        model = self._one_site_antiferromagnetic_chain_with_lt_quarter_seed_harmonic()
+        model["classical"]["variational"]["guided_q_vectors"] = [
+            [0.5, 0.25, 0.0],
+            [0.75, 0.0, 0.0],
+        ]
+
+        result = run_classical_solver(
+            model,
+            starts=8,
+            seed=0,
+        )
+
+        candidate_summaries = result["variational_result"]["ansatz_stationarity"]["candidate_start_summaries"]
+        self.assertEqual(
+            [item["start_source"] for item in candidate_summaries],
+            [
+                "lt-harmonic-seed",
+                "lt-aligned-feasible",
+                "planar-feasible",
+                "uniform-feasible",
+                "guided-lt-aligned-q-0",
+                "guided-planar-q-0",
+                "guided-lt-aligned-q-1",
+                "guided-planar-q-1",
+            ],
+        )
+
+    def test_single_q_harmonic_beta_clamp_helper_applies_ceiling(self):
+        from classical.classical_solver_driver import _single_q_harmonic_clamp_beta
+
+        beta, was_clamped = _single_q_harmonic_clamp_beta(18.5, 5.0)
+
+        self.assertEqual(beta, 5.0)
+        self.assertTrue(was_clamped)
+
+    def test_single_q_harmonic_pair_retraction_returns_orthonormal_columns(self):
+        from classical.classical_solver_driver import _single_q_harmonic_retract_pair
+
+        pair = np.array(
+            [
+                [1.2, 0.1],
+                [0.3, 0.9],
+                [0.0, 0.4],
+            ],
+            dtype=float,
+        )
+
+        retracted = _single_q_harmonic_retract_pair(pair)
+
+        np.testing.assert_allclose(retracted.T @ retracted, np.eye(2), atol=1.0e-8)
+
+    def test_single_q_harmonic_pair_tangent_projection_satisfies_stiefel_condition(self):
+        from classical.classical_solver_driver import (
+            _single_q_harmonic_project_pair_tangent,
+            _single_q_harmonic_retract_pair,
+        )
+
+        pair = _single_q_harmonic_retract_pair(
+            np.array(
+                [
+                    [1.2, 0.1],
+                    [0.3, 0.9],
+                    [0.0, 0.4],
+                ],
+                dtype=float,
+            )
+        )
+        gradient = np.array(
+            [
+                [0.2, -0.1],
+                [-0.4, 0.3],
+                [0.7, 0.5],
+            ],
+            dtype=float,
+        )
+
+        projected = _single_q_harmonic_project_pair_tangent(pair, gradient)
+
+        np.testing.assert_allclose(
+            pair.T @ projected + projected.T @ pair,
+            np.zeros((2, 2), dtype=float),
+            atol=1.0e-8,
+        )
+
+    def test_single_q_harmonic_retract_vector_wraps_q_periodically(self):
+        from classical.classical_solver_driver import (
+            _single_q_harmonic_retract_vector,
+            _single_q_harmonic_vector,
+            _split_single_q_harmonic_vector,
+        )
+
+        model = self._one_site_antiferromagnetic_chain()
+        vector = _single_q_harmonic_vector(
+            model,
+            np.array([0.6], dtype=float),
+            np.array([[1.0, 0.0, 0.0]], dtype=float),
+            np.array([[0.0, 1.0, 0.0]], dtype=float),
+        )
+
+        retracted = _single_q_harmonic_retract_vector(
+            model,
+            vector,
+            site_count=1,
+            q_bounds=[(-0.5, 0.5)],
+        )
+        wrapped_q, _cosine, _sine = _split_single_q_harmonic_vector(
+            model,
+            retracted,
+            site_count=1,
+        )
+
+        self.assertAlmostEqual(wrapped_q[0], -0.4, places=6)
+
+    def test_single_q_harmonic_jitter_vector_changes_spin_plane_but_preserves_constraints(self):
+        from classical.classical_solver_driver import (
+            _single_q_harmonic_jitter_vector,
+            _single_q_harmonic_vector,
+            _split_single_q_harmonic_vector,
+        )
+
+        model = self._one_site_antiferromagnetic_chain()
+        vector = _single_q_harmonic_vector(
+            model,
+            np.array([0.25], dtype=float),
+            np.array([[1.0, 0.0, 0.0]], dtype=float),
+            np.array([[0.0, 1.0, 0.0]], dtype=float),
+        )
+
+        jittered = _single_q_harmonic_jitter_vector(
+            model,
+            vector,
+            site_count=1,
+            q_bounds=[(-0.5, 0.5)],
+            rng=np.random.default_rng(0),
+            magnitude=1.0e-3,
+        )
+        _q_vector, cosine, sine = _split_single_q_harmonic_vector(
+            model,
+            jittered,
+            site_count=1,
+        )
+        pair = np.column_stack([cosine[0], sine[0]])
+
+        self.assertFalse(np.allclose(jittered, vector))
+        np.testing.assert_allclose(pair.T @ pair, np.eye(2), atol=1.0e-8)
+
+    def test_single_q_harmonic_characteristic_energy_scale_tracks_coupling_size(self):
+        from classical.classical_solver_driver import _single_q_harmonic_characteristic_energy_scale
+
+        weak_model = self._one_site_antiferromagnetic_chain()
+        strong_model = self._one_site_antiferromagnetic_chain()
+        strong_model["bonds"][0]["matrix"] = [
+            [10.0, 0.0, 0.0],
+            [0.0, 10.0, 0.0],
+            [0.0, 0.0, 10.0],
+        ]
+
+        weak_scale = _single_q_harmonic_characteristic_energy_scale(weak_model)
+        strong_scale = _single_q_harmonic_characteristic_energy_scale(strong_model)
+
+        self.assertGreaterEqual(weak_scale, 1.0)
+        self.assertGreater(strong_scale, weak_scale)
+
+    def test_lt_single_q_harmonic_variational_restarts_after_line_search_failure(self):
+        from classical import classical_solver_driver as driver
+
+        model = self._one_site_antiferromagnetic_chain_with_lt_quarter_seed_harmonic()
+        model["classical"]["variational"]["maxiter"] = 16
+        real_backtracking_step = driver._single_q_harmonic_backtracking_step
+        real_projected_gradient = driver._single_q_harmonic_projected_gradient
+        call_count = {"count": 0}
+        gradient_call_count = {"count": 0}
+
+        def flaky_backtracking_step(*args, **kwargs):
+            call_count["count"] += 1
+            if call_count["count"] == 1:
+                return np.array(args[1], dtype=float, copy=True), float(kwargs["initial_value"]), 0.0, False, 0
+            return real_backtracking_step(*args, **kwargs)
+
+        def forced_nonzero_gradient(*args, **kwargs):
+            gradient_call_count["count"] += 1
+            if gradient_call_count["count"] == 1:
+                vector = np.array(args[1], dtype=float, copy=False)
+                gradient = np.ones_like(vector)
+                q_count = len(driver._active_q_axes(model))
+                return 0.0, np.zeros_like(vector), gradient, float(np.linalg.norm(gradient[q_count:])), float(
+                    np.linalg.norm(gradient[:q_count])
+                )
+            return real_projected_gradient(*args, **kwargs)
+
+        with patch.object(driver, "_single_q_harmonic_projected_gradient", side_effect=forced_nonzero_gradient):
+            with patch.object(driver, "_single_q_harmonic_backtracking_step", side_effect=flaky_backtracking_step):
+                result = driver.run_classical_solver(model, starts=1, seed=0)
+
+        stationarity = result["variational_result"]["ansatz_stationarity"]
+        stopped_reason = result["variational_result"]["convergence"]["stopped_reason"]
+        self.assertGreater(call_count["count"], 0)
+        self.assertGreaterEqual(stationarity["restart_count"], 1)
+        self.assertGreaterEqual(stationarity["line_search_restart_count"], 1)
+        self.assertEqual(stationarity["line_search_restart_count"], call_count["count"])
+        self.assertNotEqual(stopped_reason, "minimize-line-search-failed")
 
     def test_single_q_cosine_analytic_gradient_matches_finite_difference(self):
         model = self._one_site_antiferromagnetic_chain()
@@ -637,6 +900,68 @@ class ClassicalSolverDriverTests(unittest.TestCase):
 
         self.assertEqual(constraints.shape, (3,))
         np.testing.assert_allclose(jacobian, finite_difference, rtol=2.0e-5, atol=2.0e-6)
+
+    def test_single_q_harmonic_lt_aligned_feasible_guess_satisfies_constraints(self):
+        from classical.classical_solver_driver import (
+            _single_q_harmonic_constraints_and_jacobian,
+            _single_q_harmonic_lt_aligned_feasible_guess,
+            _split_single_q_harmonic_vector,
+        )
+
+        model = self._one_site_antiferromagnetic_chain()
+        reduced_q = np.array([0.25], dtype=float)
+        cosine_coefficients = np.array([[2.0, 1.0, 0.0]], dtype=float)
+        sine_coefficients = np.array([[1.0, 2.0, 0.0]], dtype=float)
+
+        vector = _single_q_harmonic_lt_aligned_feasible_guess(
+            model,
+            cosine_coefficients,
+            sine_coefficients,
+            reduced_q,
+        )
+        _q_vector, feasible_cosine, feasible_sine = _split_single_q_harmonic_vector(
+            model,
+            vector,
+            site_count=1,
+        )
+        constraints, _jacobian = _single_q_harmonic_constraints_and_jacobian(
+            model,
+            vector,
+            [4, 1, 1],
+        )
+
+        self.assertAlmostEqual(float(np.linalg.norm(feasible_cosine[0])), 1.0, places=6)
+        self.assertAlmostEqual(float(np.linalg.norm(feasible_sine[0])), 1.0, places=6)
+        self.assertAlmostEqual(float(np.dot(feasible_cosine[0], feasible_sine[0])), 0.0, places=6)
+        self.assertLess(float(np.max(np.abs(constraints))), 1.0e-8)
+
+    def test_single_q_harmonic_lt_randomized_feasible_guess_satisfies_constraints(self):
+        from classical.classical_solver_driver import (
+            _single_q_harmonic_constraints_and_jacobian,
+            _single_q_harmonic_lt_randomized_feasible_guess,
+        )
+
+        model = self._one_site_antiferromagnetic_chain()
+        reduced_q = np.array([0.25], dtype=float)
+        cosine_coefficients = np.array([[2.0, 1.0, 0.0]], dtype=float)
+        sine_coefficients = np.array([[1.0, 2.0, 0.0]], dtype=float)
+        rng = np.random.default_rng(0)
+
+        vector = _single_q_harmonic_lt_randomized_feasible_guess(
+            model,
+            cosine_coefficients,
+            sine_coefficients,
+            reduced_q,
+            rng=rng,
+            q_bounds=[(-0.5, 0.5)],
+        )
+        constraints, _jacobian = _single_q_harmonic_constraints_and_jacobian(
+            model,
+            vector,
+            [4, 1, 1],
+        )
+
+        self.assertLess(float(np.max(np.abs(constraints))), 1.0e-8)
 
     def test_build_variational_classical_state_prefers_explicit_variational_ordering(self):
         payload = self._one_site_antiferromagnetic_chain()

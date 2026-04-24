@@ -39,11 +39,15 @@ def _deserialize_vector(serialized):
     return np.array([_complex_from_serialized(value) for value in serialized], dtype=complex)
 
 
-def _deserialize_pair_matrix(serialized):
+def _deserialize_operator_matrix(serialized):
     return np.array(
         [[_complex_from_serialized(value) for value in row] for row in serialized],
         dtype=complex,
     )
+
+
+def _deserialize_pair_matrix(serialized):
+    return _deserialize_operator_matrix(serialized)
 
 
 def _pair_matrix_to_tensor(pair_matrix, local_dimension):
@@ -368,6 +372,33 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
                     target_phase,
                 )
                 * rotated[1:, 0, 1:, 0],
+            )
+
+    for onsite_term in payload.get("onsite_terms", []):
+        site = int(onsite_term.get("site", 0))
+        if not 0 <= site < site_count:
+            raise ValueError(f"onsite term site {site} out of range for site_count={site_count}")
+        onsite_matrix = _deserialize_operator_matrix(onsite_term["matrix"])
+        if onsite_matrix.shape != (local_dimension, local_dimension):
+            raise ValueError(
+                f"onsite term matrix shape {onsite_matrix.shape} does not match local_dimension={local_dimension}"
+            )
+        for cell in cells:
+            mode_site = (cell, site)
+            site_index = lookup[mode_site]
+            site_slice = slice(
+                site_index * excited_dimension,
+                (site_index + 1) * excited_dimension,
+            )
+            frame = frames[mode_site]
+            rotated_onsite = frame.conjugate().T @ onsite_matrix @ frame
+            e00 = complex(rotated_onsite[0, 0])
+            linear_dag[site_index] += rotated_onsite[1:, 0]
+            linear_ann[site_index] += rotated_onsite[0, 1:]
+            _block_add(
+                normal_terms,
+                (site_index, site_index, (0, 0, 0)),
+                rotated_onsite[1:, 1:] - e00 * identity,
             )
 
     return {

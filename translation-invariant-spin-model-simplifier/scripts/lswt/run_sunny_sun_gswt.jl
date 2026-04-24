@@ -100,6 +100,13 @@ function build_system(payload)
             Sunny.set_pair_coupling!(sys, matrix, sunny_bond; extract_parts=false)
         end
     end
+    if haskey(payload, :onsite_terms) && !isempty(payload.onsite_terms)
+        for onsite in payload.onsite_terms
+            onsite_matrix = to_complex_matrix(onsite.matrix)
+            site_index = Int(onsite.site) + 1
+            Sunny.set_onsite_coupling!(sys, onsite_matrix, site_index)
+        end
+    end
 
     for ray in payload.initial_local_rays
         cell = Int.(collect(ray.cell))

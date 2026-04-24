@@ -33,6 +33,37 @@ def _spin_model(*, sublattices, bonds):
 
 
 class GeneralizedLtSolverTests(unittest.TestCase):
+    def test_generalized_lt_supports_single_sublattice_zero_lambda_limit(self):
+        model = _spin_model(
+            sublattices=1,
+            bonds=[
+                _bond(
+                    source=0,
+                    target=0,
+                    vector=[1.0, 0.0, 0.0],
+                    matrix=[
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ],
+                )
+            ],
+        )
+
+        glt_result = find_generalized_lt_ground_state(
+            model,
+            mesh_shape=(9, 1, 1),
+            lambda_bounds=(-1.0, 1.0),
+            lambda_points=5,
+            search_strategy="grid",
+        )
+
+        self.assertEqual(glt_result["lambda"], [0.0])
+        self.assertEqual(glt_result["matrix_size"], 3)
+        self.assertEqual(glt_result["components_per_sublattice"], 3)
+        self.assertEqual(glt_result["q"], [0.5, 0.0, 0.0])
+        self.assertLess(glt_result["tightened_lower_bound"], -1.9)
+
     def test_generalized_lt_improves_lt_bound_while_preserving_zero_sum_lambda_gauge(self):
         model = _spin_model(
             sublattices=2,

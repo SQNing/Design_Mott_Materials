@@ -38,11 +38,15 @@ def _serialize_vector(vector):
     return [_serialize_complex(value) for value in vector]
 
 
-def _deserialize_pair_matrix(serialized):
+def _deserialize_operator_matrix(serialized):
     return np.array(
         [[_complex_from_serialized(value) for value in row] for row in serialized],
         dtype=complex,
     )
+
+
+def _deserialize_pair_matrix(serialized):
+    return _deserialize_operator_matrix(serialized)
 
 
 def _pair_matrix_to_tensor(pair_matrix, local_dimension):
@@ -666,6 +670,24 @@ def _phase_resolved_terms(payload):
             hop_plus[displacement][index][source_slice, target_slice] += rotated_fwd[1:, 0, 0, 1:]
             hop_minus[displacement][index][target_slice, source_slice] += np.transpose(rotated_prev[0, 1:, 1:, 0])
             pair_plus[displacement][index][source_slice, target_slice] += rotated_fwd[1:, 0, 1:, 0]
+
+    for onsite_term in payload.get("onsite_terms", []):
+        site = int(onsite_term.get("site", 0))
+        if not 0 <= site < site_count:
+            raise ValueError(f"onsite term site {site} out of range for site_count={site_count}")
+        onsite_matrix = _deserialize_operator_matrix(onsite_term["matrix"])
+        if onsite_matrix.shape != (local_dimension, local_dimension):
+            raise ValueError(
+                f"onsite term matrix shape {onsite_matrix.shape} does not match local_dimension={local_dimension}"
+            )
+        site_slice = _site_slice(site, excited_dimension)
+        for index, phase in enumerate(phases):
+            frame = get_frame(site, phase)
+            rotated_onsite = frame.conjugate().T @ onsite_matrix @ frame
+            e00 = complex(rotated_onsite[0, 0])
+            linear_dag[index][site_slice] += rotated_onsite[1:, 0]
+            linear_ann[index][site_slice] += rotated_onsite[0, 1:]
+            onsite[index][site_slice, site_slice] += rotated_onsite[1:, 1:] - e00 * identity
 
     return {
         "excited_dimension": int(excited_dimension),

@@ -101,6 +101,13 @@ function build_system(model, supercell_shape, seed)
         # before pseudospin-orbital :SUN thermodynamics.
         Sunny.set_pair_coupling!(sys, matrix, Sunny.Bond(1, 1, offset); extract_parts=false)
     end
+    if haskey(model, :onsite_terms) && !isempty(model.onsite_terms)
+        for onsite in model.onsite_terms
+            onsite_matrix = to_complex_matrix(onsite.matrix)
+            site_index = Int(onsite.site) + 1
+            Sunny.set_onsite_coupling!(sys, onsite_matrix, site_index)
+        end
+    end
 
     return sys
 end

@@ -9,6 +9,7 @@ from common.bravais_kpaths import default_high_symmetry_path
 from common.classical_contract_resolution import get_classical_state_result
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.classical_reference_payloads import resolve_contract_aware_classical_reference_payload
+from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
 from common.rotating_frame_consistency import (
@@ -151,6 +152,10 @@ def build_python_glswt_payload(model, classical_state=None):
     classical_reference = resolve_contract_aware_classical_reference_payload(source_state)
     resolved_state = resolve_cpn_classical_state_payload(classical_reference)
     pair_couplings = _resolve_pair_couplings(model)
+    onsite_terms = lower_pseudospin_orbital_onsite_terms(
+        model,
+        local_dimension=int(model["local_dimension"]),
+    )
     supercell_shape = resolved_state.get("supercell_shape", [1, 1, 1])
     q_path_summary = _resolve_q_path(model, supercell_shape)
     ordering = dict(resolved_state.get("ordering", {}))
@@ -210,6 +215,8 @@ def build_python_glswt_payload(model, classical_state=None):
             payload["rotating_frame_realization"] = rotating_frame_realization
         if quadratic_phase_dressing is not None:
             payload["quadratic_phase_dressing"] = quadratic_phase_dressing
+        if onsite_terms:
+            payload["onsite_terms"] = onsite_terms
         return _attach_rotating_frame_preflight(payload)
 
     local_rays = list(resolved_state.get("local_rays", []))
@@ -255,4 +262,6 @@ def build_python_glswt_payload(model, classical_state=None):
         payload["rotating_frame_realization"] = rotating_frame_realization
     if quadratic_phase_dressing is not None:
         payload["quadratic_phase_dressing"] = quadratic_phase_dressing
+    if onsite_terms:
+        payload["onsite_terms"] = onsite_terms
     return _attach_rotating_frame_preflight(payload)

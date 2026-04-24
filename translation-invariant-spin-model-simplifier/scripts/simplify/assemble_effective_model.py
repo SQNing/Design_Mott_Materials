@@ -274,6 +274,8 @@ def assemble_effective_model(readable_model, low_weight_threshold=0.1):
         "residual_summary": [],
         "low_weight_summary": [],
     }
+    if readable_model.get("onsite_terms") is not None:
+        assembled["onsite_terms"] = list(readable_model.get("onsite_terms") or [])
 
     for term in readable_model.get("residual_terms", []):
         if term.get("relative_weight", 0.0) < low_weight_threshold:

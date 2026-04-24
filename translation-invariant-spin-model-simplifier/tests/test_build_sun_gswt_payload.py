@@ -28,7 +28,65 @@ def _permutation_tensor(local_dimension):
     return tensor
 
 
+def _canonical_local_operator_onsite_term(diagonal):
+    return {
+        "kind": "local_operator_matrix",
+        "site_scope": {"kind": "site", "site": 0},
+        "operator_basis": {
+            "family": "retained_local_basis",
+            "labels": ["up", "down"],
+        },
+        "frame": {"kind": "retained_local_basis"},
+        "payload": {
+            "matrix": [
+                [float(diagonal[0]), 0.0],
+                [0.0, float(diagonal[1])],
+            ]
+        },
+    }
+
+
 class BuildSunGswtPayloadTests(unittest.TestCase):
+    def test_build_payload_lowers_local_operator_onsite_terms(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "local_dimension": 2,
+            "orbital_count": 1,
+            "local_basis_labels": ["up", "down"],
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "onsite_terms": [_canonical_local_operator_onsite_term([0.0, 1.0])],
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "tensor_shape": [2, 2, 2, 2],
+                    "pair_matrix": [
+                        [_serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(1.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(1.0)],
+                    ],
+                    "tensor": _permutation_tensor(2),
+                }
+            ],
+        }
+        classical_state = {
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [
+                {"cell": [0, 0, 0], "vector": [_serialize_complex(1.0), _serialize_complex(0.0)]},
+            ],
+        }
+
+        payload = build_sun_gswt_payload(model, classical_state=classical_state)
+
+        self.assertIn("onsite_terms", payload)
+        self.assertEqual(payload["onsite_terms"][0]["site"], 0)
+        self.assertEqual(payload["onsite_terms"][0]["matrix_shape"], [2, 2])
+        self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
+
     def test_build_payload_exports_local_rays_and_pair_couplings(self):
         model = {
             "model_type": "sun_gswt_classical",

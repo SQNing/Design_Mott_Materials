@@ -47,7 +47,8 @@ def _lambda_diagonal(lambda_vector, components_per_sublattice):
 
 def _lambda_candidates(sublattice_count, lower, upper, points):
     if sublattice_count < 2:
-        return [[0.0]]
+        yield [0.0]
+        return
     axis = np.linspace(float(lower), float(upper), int(points))
     for candidate in itertools.product(axis, repeat=sublattice_count - 1):
         candidate = [float(value) for value in candidate]
