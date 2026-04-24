@@ -131,12 +131,18 @@ def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
 
     route = resolve_downstream_stage_route(model, "lswt")
     if route["status"] == "blocked":
-        return {
-            "status": "blocked",
-            "enabled": False,
-            "reason": route.get("reason"),
-            "method": route.get("method"),
-        }
+        classical_state_result = get_classical_state_result(model) or {}
+        # Keep the skill-layer decision usable for abstract models that only record
+        # a chosen classical method but do not yet carry explicit spin-frame site data.
+        if route.get("reason") == "missing-spin-frame-site-frames" and not classical_state_result:
+            route = {"status": "ready"}
+        else:
+            return {
+                "status": "blocked",
+                "enabled": False,
+                "reason": route.get("reason"),
+                "method": route.get("method"),
+            }
 
     precheck = lswt_stability_precheck(model)
     if precheck.get("status") == "warn":
