@@ -99,6 +99,11 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
             ),
             patch.object(
                 classical_solver_driver,
+                "complete_lt_constraints",
+                return_value={},
+            ),
+            patch.object(
+                classical_solver_driver,
                 "recover_classical_state_from_lt",
                 return_value=recovered_state,
             ),
@@ -189,6 +194,11 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
             ),
             patch.object(
                 classical_solver_driver,
+                "complete_lt_constraints",
+                return_value={},
+            ),
+            patch.object(
+                classical_solver_driver,
                 "recover_classical_state_from_lt",
                 side_effect=_recover_side_effect,
             ),
@@ -254,6 +264,11 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
             ),
             patch.object(
                 classical_solver_driver,
+                "complete_lt_constraints",
+                return_value={},
+            ),
+            patch.object(
+                classical_solver_driver,
                 "recover_classical_state_from_lt",
                 side_effect=_recover_side_effect,
             ),
@@ -299,6 +314,11 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
                     "tightened_lower_bound": -1.6,
                     "eigenspace": [[{"real": 1.0, "imag": 0.0}]],
                 },
+            ),
+            patch.object(
+                classical_solver_driver,
+                "complete_lt_constraints",
+                return_value={},
             ),
             patch.object(
                 classical_solver_driver,
@@ -388,6 +408,16 @@ class ClassicalSolverLayerAdapterTests(unittest.TestCase):
         self.assertEqual(metadata["solver_family"], "specialized_classical_ansatz")
         self.assertEqual(metadata["role"], "specialized")
         self.assertEqual(metadata["standardized_method"], "pseudospin-sun-gswt-single-q")
+
+    def test_pseudospin_routing_marks_glt_methods_as_promotion_capable(self):
+        resolver = getattr(solve_pseudospin_orbital_pipeline, "_resolve_pseudospin_classical_method_metadata", None)
+        self.assertIsNotNone(resolver)
+
+        generalized_lt_metadata = resolver("cpn-generalized-lt")
+        cpn_lt_metadata = resolver("cpn-luttinger-tisza")
+
+        self.assertTrue(generalized_lt_metadata["promotion_capable"])
+        self.assertTrue(cpn_lt_metadata["promotion_capable"])
 
     def test_pseudospin_glt_adapter_emits_diagnostic_blocked_classical_state_result(self):
         solver_result = {

@@ -7,6 +7,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from classical.cpn_generalized_lt_solver import solve_cpn_generalized_lt_ground_state
+from classical.cpn_glt_finalization import finalize_cpn_glt_result
 
 
 def _complex(value):
@@ -675,6 +676,245 @@ class CpnGeneralizedLtSolverTests(unittest.TestCase):
 
         self.assertEqual(result["solver_role"], "diagnostic-only")
         self.assertEqual(result["completion"]["status"], "gap_too_large")
+
+    def test_solver_forwards_completion_settings_to_finalization(self):
+        approximate_reconstruction = {
+            "status": "approximate",
+            "ordering": {
+                "kind": "commensurate-multi-q",
+                "q_vectors": [[0.5, 0.0, 0.0], [0.5, 0.5, 0.0]],
+                "supercell_shape": [2, 2, 1],
+            },
+            "lowest_shell_dimension": 2,
+            "mixing_strategy": "test-double",
+            "mixing_coefficients": [1.0, 0.0],
+            "projector_exactness": {
+                "trace_residual": 0.0,
+                "hermiticity_residual": 0.0,
+                "negativity_residual": 0.0,
+                "purity_residual": 1.0e-2,
+                "rank_one_residual": 1.0e-2,
+                "is_exact_projector_solution": False,
+                "cells": [],
+            },
+            "classical_state": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [2, 2, 1],
+                "local_rays": [],
+            },
+            "completion_candidate": {
+                "schema_version": 1,
+                "state_kind": "local_rays",
+                "manifold": "CP^(N-1)",
+                "basis_order": "orbital_major_spin_minor",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "supercell_shape": [2, 2, 1],
+                "local_rays": [],
+            },
+            "obstruction_report": {"reason": "test double"},
+        }
+
+        with (
+            patch(
+                "classical.cpn_generalized_lt_solver.reconstruct_commensurate_relaxed_shell",
+                return_value=approximate_reconstruction,
+            ),
+            patch(
+                "classical.cpn_generalized_lt_solver.finalize_cpn_glt_result",
+                return_value={
+                    "method": "cpn-generalized-lt",
+                    "solver_role": "diagnostic-only",
+                    "completion": {"status": "failed"},
+                },
+            ) as finalize_mock,
+        ):
+            solve_cpn_generalized_lt_ground_state(
+                _single_sublattice_x_line_degenerate_model(),
+                requested_method="cpn-generalized-lt",
+                mesh_shape=(3, 3, 1),
+                projector_tolerance=1.0e-8,
+                completion_backend="sunny-cpn-minimize",
+                completion_max_linear_size=4,
+                completion_convergence_repeats=2,
+                completion_gap_tolerance=0.3,
+                completion_stationarity_tolerance=1.0e-5,
+            )
+
+        finalize_mock.assert_called_once()
+        _, kwargs = finalize_mock.call_args
+        self.assertEqual(kwargs["completion_backend"], "sunny-cpn-minimize")
+        self.assertEqual(kwargs["max_linear_size"], 4)
+        self.assertEqual(kwargs["convergence_repeats"], 2)
+        self.assertEqual(kwargs["gap_tolerance"], 0.3)
+        self.assertEqual(kwargs["stationarity_tolerance"], 1.0e-5)
+
+
+class CpnGltFinalizationTests(unittest.TestCase):
+    @staticmethod
+    def _completion_candidate_state():
+        return {
+            "schema_version": 1,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "supercell_shape": [2, 1, 1],
+            "local_rays": [
+                {
+                    "cell": [0, 0, 0],
+                    "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                },
+                {
+                    "cell": [1, 0, 0],
+                    "vector": [{"real": 0.0, "imag": 0.0}, {"real": 1.0, "imag": 0.0}],
+                },
+            ],
+        }
+
+    def test_finalization_records_bounded_completion_diagnostics(self):
+        glt_result = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "diagnostic-only",
+            "energy": -2.0,
+            "reconstruction": {
+                "completion_candidate": self._completion_candidate_state(),
+            },
+        }
+
+        with patch(
+            "classical.cpn_glt_finalization.solve_cpn_local_ray_ground_state",
+            return_value={
+                "energy": -1.9,
+                "classical_state": {
+                    "schema_version": 1,
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": [],
+                },
+                "stationarity": {"max_residual_norm": 1.0e-7},
+                "convergence": {
+                    "energy_converged": True,
+                    "search_mode": "bounded",
+                    "max_linear_size": 3,
+                    "repeats_required": 2,
+                    "stopped_reason": "converged",
+                },
+            },
+        ) as local_ray_mock:
+            result = finalize_cpn_glt_result(
+                _single_sublattice_x_line_degenerate_model(),
+                glt_result,
+                max_linear_size=3,
+                convergence_repeats=2,
+            )
+
+        local_ray_mock.assert_called_once()
+        self.assertEqual(result["completion"]["status"], "converged")
+        self.assertEqual(result["completion"]["backend"], "cpn-local-ray-minimize")
+        self.assertEqual(result["completion"]["search_mode"], "bounded")
+        self.assertEqual(result["completion"]["max_linear_size"], 3)
+        self.assertEqual(result["completion"]["repeats_required"], 2)
+        self.assertEqual(result["completion"]["stopped_reason"], "converged")
+
+    def test_finalization_marks_gap_too_large_with_completion_metadata(self):
+        glt_result = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "diagnostic-only",
+            "energy": -2.0,
+            "reconstruction": {
+                "completion_candidate": self._completion_candidate_state(),
+            },
+        }
+
+        with patch(
+            "classical.cpn_glt_finalization.solve_cpn_local_ray_ground_state",
+            return_value={
+                "energy": -1.5,
+                "classical_state": {
+                    "schema_version": 1,
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": [],
+                },
+                "stationarity": {"max_residual_norm": 1.0e-7},
+                "convergence": {
+                    "energy_converged": True,
+                    "search_mode": "bounded",
+                    "max_linear_size": 3,
+                    "repeats_required": 2,
+                    "stopped_reason": "converged",
+                },
+            },
+        ):
+            result = finalize_cpn_glt_result(
+                _single_sublattice_x_line_degenerate_model(),
+                glt_result,
+                max_linear_size=3,
+                convergence_repeats=2,
+                gap_tolerance=0.25,
+            )
+
+        self.assertEqual(result["solver_role"], "diagnostic-only")
+        self.assertEqual(result["completion"]["status"], "gap_too_large")
+        self.assertEqual(result["completion"]["backend"], "cpn-local-ray-minimize")
+        self.assertEqual(result["completion"]["search_mode"], "bounded")
+
+    def test_finalization_supports_sunny_completion_backend(self):
+        glt_result = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "diagnostic-only",
+            "energy": -2.0,
+            "reconstruction": {
+                "completion_candidate": self._completion_candidate_state(),
+            },
+        }
+
+        with (
+            patch(
+                "classical.cpn_glt_finalization.run_sunny_sun_classical",
+                return_value={
+                    "status": "ok",
+                    "backend": {"name": "Sunny.jl", "mode": "SUN"},
+                    "method": "sunny-cpn-minimize",
+                    "energy": -1.9,
+                    "supercell_shape": [2, 1, 1],
+                    "local_rays": self._completion_candidate_state()["local_rays"],
+                    "backend_stationarity": {"max_torque_norm": 1.0e-7},
+                    "starts": 1,
+                    "seed": 0,
+                },
+            ) as sunny_mock,
+            patch(
+                "classical.cpn_glt_finalization.diagnose_sun_gswt_classical_state",
+                return_value={
+                    "projector_diagnostics": {},
+                    "stationarity": {"max_residual_norm": 1.0e-7},
+                },
+            ),
+        ):
+            result = finalize_cpn_glt_result(
+                _single_sublattice_x_line_degenerate_model(),
+                glt_result,
+                completion_backend="sunny-cpn-minimize",
+                gap_tolerance=0.2,
+            )
+
+        sunny_mock.assert_called_once()
+        payload = sunny_mock.call_args.args[0]
+        self.assertEqual(payload["payload_kind"], "sunny_sun_classical")
+        self.assertEqual(payload["supercell_shape"], [2, 1, 1])
+        self.assertEqual(payload["initial_local_rays"], self._completion_candidate_state()["local_rays"])
+        self.assertEqual(result["solver_role"], "final")
+        self.assertEqual(result["completion"]["status"], "converged")
+        self.assertEqual(result["completion"]["backend"], "sunny-cpn-minimize")
+        self.assertEqual(result["completion"]["search_mode"], "single-shot")
+        self.assertEqual(result["completion"]["stopped_reason"], "backend-finished")
 
 
 if __name__ == "__main__":

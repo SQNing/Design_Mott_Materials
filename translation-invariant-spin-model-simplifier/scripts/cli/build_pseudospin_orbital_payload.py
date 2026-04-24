@@ -109,7 +109,12 @@ def _load_structure_payload(structure_path):
     return parse_structure_file(structure_path)
 
 
-def build_pseudospin_orbital_payload(poscar_path, hr_path, coefficient_tolerance=1e-10, local_space_mode="auto"):
+def build_pseudospin_orbital_payload(
+    poscar_path,
+    hr_path,
+    coefficient_tolerance=1e-10,
+    local_space_mode="generic-multiplet",
+):
     structure = _load_structure_payload(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
 
@@ -187,7 +192,7 @@ def main():
     parser.add_argument(
         "--local-space-mode",
         choices=["auto", "orbital-times-spin", "generic-multiplet"],
-        default="auto",
+        default="generic-multiplet",
     )
     args = parser.parse_args()
 

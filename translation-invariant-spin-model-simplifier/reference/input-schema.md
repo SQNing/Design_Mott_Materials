@@ -6,6 +6,7 @@ The normalized payload must contain:
 - `local_hilbert`
 - `lattice`
 - `local_term`
+- `onsite_terms`
 - `parameters`
 - `symmetry_hints`
 - `projection`
@@ -27,6 +28,32 @@ Required content fields:
 - `natural_language` -> `description`
 - `many_body_hr` -> `structure_file` and `hamiltonian_file`
 
+`onsite_terms` is optional when no local onsite contribution is present, but once onsite physics is
+landed it should be carried explicitly as canonical workflow data rather than left implicit in prose.
+
+Phase-1 canonical onsite kinds support:
+
+- `quadratic_spin_cartesian`
+- `local_operator_matrix`
+
+Each canonical onsite term must carry:
+
+- `kind`
+- `site_scope`
+- `operator_basis`
+- `frame`
+- `payload`
+
+For `quadratic_spin_cartesian` payloads:
+
+- `payload.matrix` must be a real `3x3` matrix
+- anisotropic terms require explicit `frame` metadata
+
+For `local_operator_matrix` payloads:
+
+- `payload.matrix` must be a square matrix acting on the retained local Hilbert space
+- matrix shape must match `local_hilbert.dimension` when that dimension is already fixed
+
 `support` must be provided for `operator` and `matrix` payloads and must be an iterable of integers, not a string-like value.
 
 For `many_body_hr` payloads:
@@ -36,22 +63,28 @@ For `many_body_hr` payloads:
 - the current semantics assume a local
   `pseudospin_orbital`
   space
-- the default retained-local-space mode is the legacy
-  `orbital-times-spin`
-  interpretation with basis order
-  `orbital_major_spin_minor`
-  so the local basis is interpreted as
-  `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`
-- an explicit
-  `generic-multiplet`
-  retained-local-space mode is also supported; in that branch the local basis order is
+- the default retained-local-space mode in the current `many_body_hr` payload builder and report
+  CLI is
+  `generic-multiplet`;
+  in that branch the local basis order is
   `retained_state_index`
   and the basis labels are generic retained-state labels such as
   `state_1`, `state_2`, ...
+- the explicit legacy
+  `orbital-times-spin`
+  mode is still supported; in that branch the basis order is
+  `orbital_major_spin_minor`
+  so the local basis is interpreted as
+  `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`
+- the pseudospin solver pipeline keeps a compatibility exception for the legacy
+  `restricted-product-state`
+  classical method: if no explicit local-space mode is provided there, it still resolves through
+  `auto`
+  so the old even-dimensional `orbital-times-spin` behavior remains available
 - when the retained local space is even-dimensional but does not physically factorize into
-  `orbital x spin(2)`, callers should use the explicit
+  `orbital x spin(2)`, callers should prefer the default
   `generic-multiplet`
-  mode instead of relying on dimension-based inference
+  route or select it explicitly instead of relying on dimension-based inference
 
 `natural_language` freeform input must be non-empty after trimming whitespace.
 

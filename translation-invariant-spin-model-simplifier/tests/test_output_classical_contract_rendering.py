@@ -245,6 +245,31 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("role=diagnostic", lines[0])
         self.assertIn("solver_family=diagnostic_seed_only", lines[0])
 
+    def test_render_plots_summary_shows_ready_gswt_for_promoted_pseudospin_glt(self):
+        payload = {
+            "status": "ok",
+            "role": "final",
+            "method": "pseudospin-cpn-generalized-lt",
+            "solver_family": "retained_local_multiplet",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "ready"},
+                "thermodynamics": {"status": "ready"},
+            },
+        }
+        classical_state = {
+            "render_mode": "structure",
+            "spatial_dimension": 2,
+            "state_kind": "local_rays",
+            "manifold": "CP^(N-1)",
+        }
+
+        lines = render_plots._classical_summary_lines(payload, classical_state)
+
+        self.assertIn("method=pseudospin-cpn-generalized-lt", lines[0])
+        self.assertIn("role=final", lines[0])
+        self.assertIn("gswt=ready", lines[0])
+
 
 if __name__ == "__main__":
     unittest.main()

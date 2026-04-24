@@ -249,6 +249,9 @@ Additional current status in this family:
 - when those promotion checks fail, they remain explicit diagnostic seeds with
   blocked downstream compatibility rather than silently advertising final-state
   readiness
+- the shared routing catalog keeps these methods under their stable
+  pseudospin GLT method ids while marking them as promotion-capable, so callers
+  can distinguish "diagnostic by default" from "permanently seed-only"
 
 Current downstream support in this family is:
 

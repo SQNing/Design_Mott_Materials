@@ -46,11 +46,13 @@ _METHOD_CATALOG = {
         "solver_family": DIAGNOSTIC_SEED_ONLY,
         "role": DIAGNOSTIC_ROLE,
         "standardized_method": "pseudospin-cpn-generalized-lt",
+        "promotion_capable": True,
     },
     "cpn-luttinger-tisza": {
         "solver_family": DIAGNOSTIC_SEED_ONLY,
         "role": DIAGNOSTIC_ROLE,
         "standardized_method": "pseudospin-cpn-luttinger-tisza",
+        "promotion_capable": True,
     },
     "sun-gswt-cpn": {
         "solver_family": SPECIALIZED_CLASSICAL_ANSATZ,

@@ -48,15 +48,16 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
 - Ask the user which baseline and optional dependencies are already installed before promising any execution path.
 - Distinguish missing baseline dependencies from missing optional backend dependencies, and explain the difference clearly.
 - Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
-- For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space and use the fixed local basis order `|up, orb1>, |down, orb1>, |up, orb2>, |down, orb2>, ...`.
-- For `many_body_hr` pseudospin-orbital inputs, preserve the legacy `orbital x spin(2)` / Kramers-style interpretation when that retained local-space semantics is actually intended, but allow an explicit generic retained-local-multiplet branch when the low-energy manifold is not a Kramers-doublet factorization.
+- For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space.
+- The current default `many_body_hr` payload/report path is `generic-multiplet`, so the retained local basis should be understood first as a generic retained-state index basis rather than as an implicit `orbital x spin(2)` factorization.
+- Preserve the legacy `orbital x spin(2)` / Kramers-style interpretation only when that retained local-space semantics is actually intended, using an explicit `orbital-times-spin` choice or the compatibility-preserving `restricted-product-state` path.
 - For these generic retained-local-multiplet inputs, treat the local basis as a retained-state index basis, build a Hermitian generator basis directly on the retained `N`-dimensional local space, and route the model through the `CP^(N-1)` Sunny / local-ray path rather than pretending there is a physical `spin x orbital` split.
 - Keep the two Sunny families distinct in user-facing explanations and downstream choices:
   - spin-only Sunny LSWT is for explicit bilinear spin models with `classical_state.site_frames`
   - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes are for `many_body_hr` models whose local classical-state manifold is represented as `CP^(N-1)` local rays
 - For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
 - For these pseudospin-orbital Sunny `:SUN` paths, treat `CP^(N-1)` as a local-state / payload-manifold statement, not as a claim that the effective Hamiltonian is SU(`N`)-symmetric.
-- If the retained local space is even-dimensional but physically still an arbitrary local multiplet, do not silently infer a Kramers-doublet factorization from dimension alone; require or preserve an explicit generic local-space choice instead.
+- If the retained local space is even-dimensional but physically still an arbitrary local multiplet, do not silently infer a Kramers-doublet factorization from dimension alone; prefer or preserve the generic local-space choice instead.
 - For these Sunny-backed pseudospin-orbital options, fail explicitly if `julia` or `Sunny.jl` is unavailable instead of silently falling back to the Python helpers.
 - If the user requests a backend whose optional dependencies are missing, stop, explain the gap, and ask whether to install them or switch to an available alternative.
 - Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.

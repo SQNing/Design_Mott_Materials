@@ -780,6 +780,11 @@ def solve_cpn_generalized_lt_ground_state(
     projector_tolerance=1.0e-8,
     starts=1,
     seed=0,
+    completion_backend="cpn-local-ray-minimize",
+    completion_max_linear_size=None,
+    completion_convergence_repeats=1,
+    completion_gap_tolerance=2.5e-1,
+    completion_stationarity_tolerance=1.0e-6,
 ):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("cpn generalized-LT solver expects a CP^(N-1) classical payload")
@@ -965,6 +970,11 @@ def solve_cpn_generalized_lt_ground_state(
             result,
             starts=1,
             seed=seed,
+            completion_backend=completion_backend,
+            max_linear_size=completion_max_linear_size,
+            convergence_repeats=completion_convergence_repeats,
+            gap_tolerance=completion_gap_tolerance,
+            stationarity_tolerance=completion_stationarity_tolerance,
         )
 
     return result

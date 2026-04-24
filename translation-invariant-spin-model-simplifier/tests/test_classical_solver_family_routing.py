@@ -39,6 +39,30 @@ class ClassicalSolverFamilyRoutingTests(unittest.TestCase):
         self.assertEqual(metadata["solver_family"], "diagnostic_seed_only")
         self.assertEqual(metadata["role"], "diagnostic")
         self.assertEqual(metadata["standardized_method"], "pseudospin-cpn-generalized-lt")
+        self.assertTrue(metadata["promotion_capable"])
+
+    def test_resolve_pseudospin_luttinger_tisza_is_promotion_capable(self):
+        self.assertIsNotNone(routing)
+
+        metadata = routing.resolve_classical_solver_method("cpn-luttinger-tisza")
+
+        self.assertEqual(metadata["solver_family"], "diagnostic_seed_only")
+        self.assertEqual(metadata["role"], "diagnostic")
+        self.assertEqual(metadata["standardized_method"], "pseudospin-cpn-luttinger-tisza")
+        self.assertTrue(metadata["promotion_capable"])
+
+    def test_dynamic_resolution_promotes_final_pseudospin_glt_result(self):
+        self.assertIsNotNone(routing)
+
+        metadata = routing.resolve_dynamic_classical_solver_method(
+            "cpn-generalized-lt",
+            {"solver_role": "final"},
+        )
+
+        self.assertEqual(metadata["solver_family"], "retained_local_multiplet")
+        self.assertEqual(metadata["role"], "final")
+        self.assertEqual(metadata["standardized_method"], "pseudospin-cpn-generalized-lt")
+        self.assertTrue(metadata["promotion_capable"])
 
     def test_resolve_specialized_ansatz_metadata(self):
         self.assertIsNotNone(routing)

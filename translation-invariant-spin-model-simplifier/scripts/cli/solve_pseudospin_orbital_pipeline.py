@@ -12,6 +12,7 @@ if __package__ in {None, ""}:
 
 from classical.build_pseudospin_orbital_classical_model import build_pseudospin_orbital_classical_model
 from classical.build_sun_gswt_classical_payload import build_sun_gswt_classical_payload
+from classical.certified_glt.certify_cpn_glt import certify_cpn_generalized_lt
 from classical.cpn_generalized_lt_solver import solve_cpn_generalized_lt_ground_state
 from classical.cpn_local_ray_solver import solve_cpn_local_ray_ground_state
 from classical.pseudospin_orbital_solver import solve_pseudospin_orbital_variational
@@ -630,8 +631,8 @@ def _solver_phase_summary(
         "",
         "- for `sun-gswt-cpn`, the physically relevant ordering wavevector is read from the Fourier components of the projector field `Q_R = |z_R><z_R|`, not from a gauge phase of `z_R` itself",
         "- for `sun-gswt-single-q`, the current implementation performs single-q direct joint optimization over the ordering vector and internal ansatz variables; it does not do a preliminary q-mesh sweep",
-        "- for `cpn-generalized-lt`, the current branch is diagnostic-only: it now performs generalized relaxed `CP^(N-1)` GLT with weighted multisublattice kernels plus commensurate lowest-shell lifting when available, but it is still not the final constrained classical ground-state solver",
-        "- exact or approximate commensurate GLT local-ray textures can be used as preconditioners for `sunny-cpn-minimize`, but choosing `cpn-generalized-lt` directly still does not auto-run GSWT or thermodynamics",
+        "- for `cpn-generalized-lt`, the direct pseudospin GLT route is conditionally final: exact projector, certified, or completion-promoted solutions become ordinary final `CP^(N-1)` local-ray states, while the route remains diagnostic when promotion checks fail",
+        "- when direct `cpn-generalized-lt` promotion succeeds, the promoted local-ray state can feed GSWT and thermodynamics through the standardized classical-state contract; when promotion fails, the GLT texture should be treated as a lower-bound / seed for constrained minimization",
         f"- stored projector diagnostic grid: {grid_shape}",
         f"- stationarity residual definition: {stationarity.get('residual_definition')}",
         f"- backend stationarity residual definition: {backend_stationarity.get('residual_definition')}",
@@ -799,6 +800,87 @@ def _normalized_thermodynamics_backend_result(backend_output, thermodynamics_set
 
 def _resolve_pseudospin_classical_method_metadata(classical_method):
     return resolve_classical_solver_method(classical_method)
+
+
+def _solve_direct_pseudospin_glt(
+    classical_model,
+    *,
+    classical_method,
+    seed,
+    glt_certification_mode,
+):
+    if str(glt_certification_mode) == "required":
+        certified_result = certify_cpn_generalized_lt(
+            classical_model,
+            seed=seed,
+            starts=1,
+        )
+        return _solver_result_from_certified_glt(
+            certified_result,
+            requested_method=str(classical_method),
+        )
+
+    solver_result = solve_cpn_generalized_lt_ground_state(
+        classical_model,
+        requested_method=str(classical_method),
+        starts=1,
+        seed=seed,
+    )
+    if (
+        str(glt_certification_mode) == "auto"
+        and str(solver_result.get("solver_role")) != "final"
+    ):
+        certified_result = certify_cpn_generalized_lt(
+            classical_model,
+            heuristic_result=solver_result,
+            seed=seed,
+            starts=1,
+        )
+        return _solver_result_from_certified_glt(
+            certified_result,
+            requested_method=str(classical_method),
+        )
+    return solver_result
+
+
+def _solver_result_from_certified_glt(certified_result, *, requested_method):
+    if not isinstance(certified_result, dict):
+        raise ValueError("certified_result must be a dictionary")
+
+    heuristic_seed = (
+        certified_result.get("heuristic_seed", {})
+        if isinstance(certified_result.get("heuristic_seed"), dict)
+        else {}
+    )
+    raw_result = (
+        heuristic_seed.get("raw_result", {})
+        if isinstance(heuristic_seed.get("raw_result"), dict)
+        else {}
+    )
+    promotion_summary = (
+        certified_result.get("promotion_summary", {})
+        if isinstance(certified_result.get("promotion_summary"), dict)
+        else {}
+    )
+    relaxed_global_bound = (
+        certified_result.get("relaxed_global_bound", {})
+        if isinstance(certified_result.get("relaxed_global_bound"), dict)
+        else {}
+    )
+
+    solver_result = dict(raw_result)
+    solver_result["method"] = str(requested_method)
+    solver_result["solver_role"] = str(
+        promotion_summary.get("solver_role", raw_result.get("solver_role", "diagnostic-only"))
+    )
+    if promotion_summary.get("promotion_reason") is not None:
+        solver_result["promotion_reason"] = promotion_summary.get("promotion_reason")
+    if solver_result.get("energy") is None and relaxed_global_bound.get("lower_bound") is not None:
+        solver_result["energy"] = float(relaxed_global_bound.get("lower_bound"))
+    if solver_result.get("lower_bound") is None and relaxed_global_bound.get("lower_bound") is not None:
+        solver_result["lower_bound"] = float(relaxed_global_bound.get("lower_bound"))
+    solver_result["certified_glt"] = dict(certified_result)
+    return solver_result
 
 
 def _pseudospin_result_diagnostics(solver_result):
@@ -1075,7 +1157,7 @@ def solve_from_files(
     *,
     compile_pdf=True,
     coefficient_tolerance=1e-10,
-    local_space_mode="auto",
+    local_space_mode=None,
     classical_method="restricted-product-state",
     supercell_shape=(1, 1, 1),
     starts=16,
@@ -1104,17 +1186,25 @@ def solve_from_files(
     thermo_wl_overlap=0.25,
     thermo_wl_ln_f=1.0,
     thermo_wl_sweeps=100,
+    glt_certification_mode="off",
     compatibility_export_mode="canonical",
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     classical_checkpoint_path = output_dir / "classical_checkpoint.json"
+    resolved_classical_method = str(classical_method)
+
+    resolved_local_space_mode = (
+        str(local_space_mode)
+        if local_space_mode is not None
+        else ("auto" if str(classical_method) == "restricted-product-state" else "generic-multiplet")
+    )
 
     parsed_payload = build_pseudospin_orbital_payload(
         poscar_path=poscar_path,
         hr_path=hr_path,
         coefficient_tolerance=coefficient_tolerance,
-        local_space_mode=local_space_mode,
+        local_space_mode=resolved_local_space_mode,
     )
     _progress("Parsed POSCAR + hr.dat payload")
     simplified_payload = simplify_pseudospin_orbital_payload(parsed_payload)
@@ -1129,7 +1219,76 @@ def solve_from_files(
     )
     _progress("Wrote initial human-readable reports")
 
-    if classical_method == "restricted-product-state":
+    if classical_method == "auto":
+        _progress("Starting pseudospin auto classical routing")
+        classical_model = build_sun_gswt_classical_payload(parsed_payload)
+        glt_solver_result = _solve_direct_pseudospin_glt(
+            classical_model,
+            classical_method="cpn-generalized-lt",
+            seed=seed,
+            glt_certification_mode=glt_certification_mode,
+        )
+        gswt_payload = None
+        if str(glt_solver_result.get("solver_role")) == "final":
+            solver_result = dict(glt_solver_result)
+            resolved_classical_method = "cpn-generalized-lt"
+            solver_result["auto_resolution"] = {
+                "initial_method": "cpn-generalized-lt",
+                "resolved_method": "cpn-generalized-lt",
+                "reason": "glt-promoted-to-final",
+            }
+            _progress("Pseudospin auto routing accepted promoted GLT result")
+        else:
+            progress_callback = _build_cpn_local_ray_progress_callback(classical_checkpoint_path)
+            glt_initial_state = None
+            glt_preconditioner = {
+                "method": "cpn-generalized-lt",
+                "used": False,
+                "source": None,
+                "q_vector": None,
+                "projector_exact_solution": None,
+            }
+            try:
+                glt_initial_state, glt_preconditioner = _extract_cpn_glt_preconditioner(
+                    glt_solver_result,
+                    default_supercell_shape=supercell_shape,
+                )
+            except Exception as exc:
+                _progress(f"Auto GLT preconditioner unavailable: {exc}")
+                glt_preconditioner["error"] = {
+                    "code": "glt-preconditioner-failed",
+                    "message": str(exc),
+                }
+            solver_result = solve_cpn_local_ray_ground_state(
+                classical_model,
+                starts=starts,
+                seed=seed,
+                initial_state=glt_initial_state,
+                max_linear_size=max_linear_size,
+                convergence_repeats=convergence_repeats,
+                max_sweeps=max_sweeps,
+                progress_callback=progress_callback,
+            )
+            resolved_classical_method = "cpn-local-ray-minimize"
+            solver_result["glt_preconditioner"] = glt_preconditioner
+            solver_result["glt_preconditioner_diagnostic"] = glt_solver_result
+            solver_result["auto_resolution"] = {
+                "initial_method": "cpn-generalized-lt",
+                "resolved_method": "cpn-local-ray-minimize",
+                "reason": "glt-remained-diagnostic",
+            }
+            gswt_payload = (
+                _build_selected_gswt_payload(
+                    classical_model,
+                    solver_result,
+                    gswt_backend=gswt_backend,
+                    z_harmonic_reference_mode=z_harmonic_reference_mode,
+                )
+                if run_gswt
+                else None
+            )
+            _progress("Pseudospin auto routing fell back to local-ray minimization")
+    elif classical_method == "restricted-product-state":
         variational_max_linear_size = int(max_linear_size) if int(max_linear_size) > 0 else 5
         classical_model = build_pseudospin_orbital_classical_model(parsed_payload)
         solver_result = solve_pseudospin_orbital_variational(
@@ -1303,11 +1462,11 @@ def solve_from_files(
         _progress("Finished Sunny pseudospin-orbital classical minimization")
     elif classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
         classical_model = build_sun_gswt_classical_payload(parsed_payload)
-        solver_result = solve_cpn_generalized_lt_ground_state(
+        solver_result = _solve_direct_pseudospin_glt(
             classical_model,
-            requested_method=str(classical_method),
-            starts=1,
+            classical_method=classical_method,
             seed=seed,
+            glt_certification_mode=glt_certification_mode,
         )
         gswt_payload = None
     else:
@@ -1318,15 +1477,28 @@ def solve_from_files(
     thermodynamics_settings = None
     standardized_classical_result = _build_pseudospin_classical_state_result(
         solver_result,
-        classical_method=classical_method,
+        classical_method=resolved_classical_method,
         default_supercell_shape=supercell_shape,
     )
     if standardized_classical_result is not None:
         solver_result["classical_state_result"] = standardized_classical_result
+    if (
+        gswt_payload is None
+        and run_gswt
+        and classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}
+        and isinstance(standardized_classical_result, dict)
+        and str(standardized_classical_result.get("role")) == "final"
+    ):
+        gswt_payload = _build_selected_gswt_payload(
+            classical_model,
+            solver_result,
+            gswt_backend=gswt_backend,
+            z_harmonic_reference_mode=z_harmonic_reference_mode,
+        )
     if run_thermodynamics:
         _validate_pseudospin_thermodynamics_request(
             standardized_classical_result,
-            classical_method=classical_method,
+            classical_method=resolved_classical_method,
         )
         thermodynamics_profile = _resolve_thermodynamics_profile(thermo_profile)
         resolved_backend = str(thermodynamics_backend or "sunny-local-sampler")
@@ -1533,7 +1705,7 @@ def solve_from_files(
         parsed_payload,
         simplified_payload,
         solver_result,
-        classical_method=classical_method,
+        classical_method=resolved_classical_method,
         default_supercell_shape=supercell_shape,
         compatibility_export_mode=compatibility_export_mode,
         gswt_payload=gswt_payload,
@@ -1560,7 +1732,7 @@ def solve_from_files(
             classical_model,
             solver_result,
             report_manifest,
-            classical_method,
+            resolved_classical_method,
             thermodynamics_backend=thermodynamics_backend,
             thermodynamics_result=thermodynamics_result,
             dos_result=dos_result,
@@ -1615,12 +1787,13 @@ def main():
     parser.add_argument(
         "--local-space-mode",
         choices=["auto", "orbital-times-spin", "generic-multiplet"],
-        default="auto",
+        default=None,
     )
     parser.add_argument(
         "--classical-method",
         default="restricted-product-state",
         choices=[
+            "auto",
             "restricted-product-state",
             "sun-gswt-cpn",
             "sun-gswt-single-q",
@@ -1670,6 +1843,11 @@ def main():
     parser.add_argument("--thermo-wl-ln-f", type=float, default=1.0)
     parser.add_argument("--thermo-wl-sweeps", type=int, default=100)
     parser.add_argument(
+        "--glt-certification-mode",
+        choices=["off", "auto", "required"],
+        default="off",
+    )
+    parser.add_argument(
         "--classical-output-compatibility",
         choices=["canonical", "legacy"],
         default="canonical",
@@ -1683,7 +1861,7 @@ def main():
         docs_dir=Path(args.docs_dir),
         compile_pdf=not args.no_pdf,
         coefficient_tolerance=float(args.coefficient_tolerance),
-        local_space_mode=str(args.local_space_mode),
+        local_space_mode=None if args.local_space_mode is None else str(args.local_space_mode),
         classical_method=str(args.classical_method),
         supercell_shape=tuple(int(value) for value in args.supercell_shape),
         starts=int(args.starts),
@@ -1712,6 +1890,7 @@ def main():
         thermo_wl_overlap=float(args.thermo_wl_overlap),
         thermo_wl_ln_f=float(args.thermo_wl_ln_f),
         thermo_wl_sweeps=int(args.thermo_wl_sweeps),
+        glt_certification_mode=str(args.glt_certification_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))

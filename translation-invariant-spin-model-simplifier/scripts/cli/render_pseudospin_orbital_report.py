@@ -55,7 +55,7 @@ def render_from_files(
     docs_dir,
     compile_pdf=True,
     coefficient_tolerance=1e-10,
-    local_space_mode="auto",
+    local_space_mode="generic-multiplet",
 ):
     parsed_payload = build_pseudospin_orbital_payload(
         poscar_path=poscar_path,
@@ -103,7 +103,7 @@ def main():
     parser.add_argument(
         "--local-space-mode",
         choices=["auto", "orbital-times-spin", "generic-multiplet"],
-        default="auto",
+        default="generic-multiplet",
     )
     args = parser.parse_args()
 

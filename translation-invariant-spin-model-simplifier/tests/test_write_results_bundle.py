@@ -328,6 +328,45 @@ class WriteResultsBundleTests(unittest.TestCase):
         self.assertEqual(summary["classical"]["role"], "final")
         self.assertEqual(summary["classical"]["solver_family"], "retained_local_multiplet")
 
+    def test_stage_summary_reports_ready_gswt_for_promoted_pseudospin_glt(self):
+        bundle_payload = {
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "solver_family": "retained_local_multiplet",
+                "method": "pseudospin-cpn-generalized-lt",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                    "gswt": {"status": "ready"},
+                    "thermodynamics": {"status": "ready"},
+                },
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+                        }
+                    ],
+                },
+            },
+        }
+
+        summary = write_results_bundle._stage_summary(
+            {},
+            bundle_payload,
+            run_missing_classical=True,
+            run_missing_thermodynamics=True,
+            run_missing_gswt=True,
+            run_missing_lswt=True,
+        )
+
+        self.assertEqual(summary["classical"]["method"], "pseudospin-cpn-generalized-lt")
+        self.assertEqual(summary["classical"]["role"], "final")
+        self.assertEqual(summary["classical"]["downstream_compatibility"]["gswt"]["status"], "ready")
+
     def test_populate_missing_results_routes_gswt_through_shared_execution(self):
         payload = {
             "gswt_payload": {"payload_kind": "python_glswt_local_rays"},
