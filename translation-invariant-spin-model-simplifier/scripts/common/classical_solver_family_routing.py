@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from common.classical_family_resolution import classical_family_to_solver_family
+
 
 SPIN_ONLY_EXPLICIT = "spin_only_explicit"
 RETAINED_LOCAL_MULTIPLET = "retained_local_multiplet"
@@ -93,3 +95,23 @@ def solver_family_for_method(method_name):
 
 def solver_role_for_method(method_name):
     return resolve_classical_solver_method(method_name)["role"]
+
+
+def validate_method_for_classical_family(method_name, classical_family):
+    metadata = resolve_classical_solver_method(method_name)
+    requested_solver_family = classical_family_to_solver_family(classical_family)
+    method_solver_family = metadata["solver_family"]
+
+    if requested_solver_family == SPIN_ONLY_EXPLICIT:
+        allowed = {SPIN_ONLY_EXPLICIT}
+    elif requested_solver_family == RETAINED_LOCAL_MULTIPLET:
+        allowed = {RETAINED_LOCAL_MULTIPLET, DIAGNOSTIC_SEED_ONLY, SPECIALIZED_CLASSICAL_ANSATZ}
+    else:
+        allowed = {requested_solver_family}
+
+    if method_solver_family not in allowed:
+        raise ValueError(
+            "incompatible-classical-family: "
+            f"method {method_name} is not valid for classical family {classical_family}"
+        )
+    return metadata

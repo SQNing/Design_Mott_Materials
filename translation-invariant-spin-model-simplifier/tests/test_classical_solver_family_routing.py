@@ -79,6 +79,18 @@ class ClassicalSolverFamilyRoutingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported classical solver method"):
             routing.resolve_classical_solver_method("made-up-method")
 
+    def test_spin_only_method_rejected_for_cpn_family(self):
+        self.assertIsNotNone(routing)
+
+        with self.assertRaisesRegex(ValueError, "incompatible-classical-family"):
+            routing.validate_method_for_classical_family("variational", "cpn")
+
+    def test_cpn_method_rejected_for_spin_only_family(self):
+        self.assertIsNotNone(routing)
+
+        with self.assertRaisesRegex(ValueError, "incompatible-classical-family"):
+            routing.validate_method_for_classical_family("cpn-local-ray-minimize", "spin-only")
+
 
 if __name__ == "__main__":
     unittest.main()
