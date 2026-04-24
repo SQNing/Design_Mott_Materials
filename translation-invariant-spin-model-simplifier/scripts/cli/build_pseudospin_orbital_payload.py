@@ -154,6 +154,7 @@ def build_pseudospin_orbital_payload(
     return {
         "schema_version": 2,
         "input_mode": "many_body_hr",
+        "classical_family": "cpn",
         "basis_semantics": {
             "local_space": "pseudospin_orbital",
             "local_space_mode": str(local_space_spec["mode"]),

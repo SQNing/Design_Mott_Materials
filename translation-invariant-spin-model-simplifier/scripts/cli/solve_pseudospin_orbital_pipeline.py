@@ -26,6 +26,7 @@ from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynami
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from cli.write_results_bundle import write_results_bundle
 from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
+from common.classical_family_resolution import resolve_classical_family
 from common.classical_output_compatibility import build_classical_output_compatibility_payload
 from common.classical_solver_family_routing import resolve_classical_solver_method, resolve_dynamic_classical_solver_method
 from common.downstream_stage_routing import resolve_downstream_stage_route
@@ -1188,6 +1189,7 @@ def solve_from_files(
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
     compatibility_export_mode="canonical",
+    classical_family=None,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1206,6 +1208,20 @@ def solve_from_files(
         coefficient_tolerance=coefficient_tolerance,
         local_space_mode=resolved_local_space_mode,
     )
+    family_resolution = resolve_classical_family(
+        requested_family=classical_family,
+        payload=parsed_payload,
+    )
+    if family_resolution["classical_family"] != "cpn":
+        raise ValueError(
+            "incompatible-classical-family: "
+            f"pseudospin orbital pipeline requires cpn family, got {family_resolution['classical_family']}"
+        )
+    parsed_payload = {
+        **parsed_payload,
+        "classical_family": family_resolution["classical_family"],
+        "classical_family_metadata": family_resolution,
+    }
     _progress("Parsed POSCAR + hr.dat payload")
     simplified_payload = simplify_pseudospin_orbital_payload(parsed_payload)
     grouped_payload = group_pseudospin_orbital_terms(parsed_payload)
@@ -1790,6 +1806,11 @@ def main():
         default=None,
     )
     parser.add_argument(
+        "--classical-family",
+        choices=["spin-only", "cpn"],
+        default=None,
+    )
+    parser.add_argument(
         "--classical-method",
         default="restricted-product-state",
         choices=[
@@ -1892,6 +1913,7 @@ def main():
         thermo_wl_sweeps=int(args.thermo_wl_sweeps),
         glt_certification_mode=str(args.glt_certification_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
+        classical_family=None if args.classical_family is None else str(args.classical_family),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
