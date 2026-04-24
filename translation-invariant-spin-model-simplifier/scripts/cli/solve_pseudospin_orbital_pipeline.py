@@ -1150,15 +1150,12 @@ def _run_selected_gswt(gswt_payload, *, gswt_backend):
     raise ValueError(f"unsupported gswt_backend: {gswt_backend!r}")
 
 
-def solve_from_files(
-    poscar_path,
-    hr_path,
+def _solve_from_parsed_payload_core(
+    parsed_payload,
+    *,
     output_dir,
     docs_dir,
-    *,
     compile_pdf=True,
-    coefficient_tolerance=1e-10,
-    local_space_mode=None,
     classical_method="restricted-product-state",
     supercell_shape=(1, 1, 1),
     starts=16,
@@ -1196,18 +1193,6 @@ def solve_from_files(
     classical_checkpoint_path = output_dir / "classical_checkpoint.json"
     resolved_classical_method = str(classical_method)
 
-    resolved_local_space_mode = (
-        str(local_space_mode)
-        if local_space_mode is not None
-        else ("auto" if str(classical_method) == "restricted-product-state" else "generic-multiplet")
-    )
-
-    parsed_payload = build_pseudospin_orbital_payload(
-        poscar_path=poscar_path,
-        hr_path=hr_path,
-        coefficient_tolerance=coefficient_tolerance,
-        local_space_mode=resolved_local_space_mode,
-    )
     family_resolution = resolve_classical_family(
         requested_family=classical_family,
         payload=parsed_payload,
@@ -1222,7 +1207,6 @@ def solve_from_files(
         "classical_family": family_resolution["classical_family"],
         "classical_family_metadata": family_resolution,
     }
-    _progress("Parsed POSCAR + hr.dat payload")
     simplified_payload = simplify_pseudospin_orbital_payload(parsed_payload)
     grouped_payload = group_pseudospin_orbital_terms(parsed_payload)
     shell_count = len(grouped_payload.get("distance_shells", [])) if isinstance(grouped_payload, dict) else 0
@@ -1790,6 +1774,177 @@ def solve_from_files(
             "phase_note": str(phase_note),
         },
     }
+
+
+def solve_from_parsed_payload(
+    parsed_payload,
+    *,
+    output_dir,
+    docs_dir,
+    compile_pdf=True,
+    classical_method="restricted-product-state",
+    supercell_shape=(1, 1, 1),
+    starts=16,
+    seed=0,
+    max_linear_size=5,
+    convergence_repeats=2,
+    max_sweeps=200,
+    run_gswt=True,
+    gswt_backend="sunny",
+    z_harmonic_reference_mode="input",
+    run_thermodynamics=False,
+    thermodynamics_backend=None,
+    temperatures=None,
+    thermo_seed=0,
+    thermo_profile=None,
+    thermo_sweeps=100,
+    thermo_burn_in=50,
+    thermo_measurement_interval=1,
+    thermo_proposal="delta",
+    thermo_proposal_scale=0.2,
+    thermo_pt_temperatures=None,
+    thermo_pt_exchange_interval=1,
+    thermo_wl_bounds=None,
+    thermo_wl_bin_size=None,
+    thermo_wl_windows=1,
+    thermo_wl_overlap=0.25,
+    thermo_wl_ln_f=1.0,
+    thermo_wl_sweeps=100,
+    glt_certification_mode="off",
+    compatibility_export_mode="canonical",
+    classical_family=None,
+):
+    _progress("Loaded parsed CPN payload")
+    return _solve_from_parsed_payload_core(
+        parsed_payload,
+        output_dir=output_dir,
+        docs_dir=docs_dir,
+        compile_pdf=compile_pdf,
+        classical_method=classical_method,
+        supercell_shape=supercell_shape,
+        starts=starts,
+        seed=seed,
+        max_linear_size=max_linear_size,
+        convergence_repeats=convergence_repeats,
+        max_sweeps=max_sweeps,
+        run_gswt=run_gswt,
+        gswt_backend=gswt_backend,
+        z_harmonic_reference_mode=z_harmonic_reference_mode,
+        run_thermodynamics=run_thermodynamics,
+        thermodynamics_backend=thermodynamics_backend,
+        temperatures=temperatures,
+        thermo_seed=thermo_seed,
+        thermo_profile=thermo_profile,
+        thermo_sweeps=thermo_sweeps,
+        thermo_burn_in=thermo_burn_in,
+        thermo_measurement_interval=thermo_measurement_interval,
+        thermo_proposal=thermo_proposal,
+        thermo_proposal_scale=thermo_proposal_scale,
+        thermo_pt_temperatures=thermo_pt_temperatures,
+        thermo_pt_exchange_interval=thermo_pt_exchange_interval,
+        thermo_wl_bounds=thermo_wl_bounds,
+        thermo_wl_bin_size=thermo_wl_bin_size,
+        thermo_wl_windows=thermo_wl_windows,
+        thermo_wl_overlap=thermo_wl_overlap,
+        thermo_wl_ln_f=thermo_wl_ln_f,
+        thermo_wl_sweeps=thermo_wl_sweeps,
+        glt_certification_mode=glt_certification_mode,
+        compatibility_export_mode=compatibility_export_mode,
+        classical_family=classical_family,
+    )
+
+
+def solve_from_files(
+    poscar_path,
+    hr_path,
+    output_dir,
+    docs_dir,
+    *,
+    compile_pdf=True,
+    coefficient_tolerance=1e-10,
+    local_space_mode=None,
+    classical_method="restricted-product-state",
+    supercell_shape=(1, 1, 1),
+    starts=16,
+    seed=0,
+    max_linear_size=5,
+    convergence_repeats=2,
+    max_sweeps=200,
+    run_gswt=True,
+    gswt_backend="sunny",
+    z_harmonic_reference_mode="input",
+    run_thermodynamics=False,
+    thermodynamics_backend=None,
+    temperatures=None,
+    thermo_seed=0,
+    thermo_profile=None,
+    thermo_sweeps=100,
+    thermo_burn_in=50,
+    thermo_measurement_interval=1,
+    thermo_proposal="delta",
+    thermo_proposal_scale=0.2,
+    thermo_pt_temperatures=None,
+    thermo_pt_exchange_interval=1,
+    thermo_wl_bounds=None,
+    thermo_wl_bin_size=None,
+    thermo_wl_windows=1,
+    thermo_wl_overlap=0.25,
+    thermo_wl_ln_f=1.0,
+    thermo_wl_sweeps=100,
+    glt_certification_mode="off",
+    compatibility_export_mode="canonical",
+    classical_family=None,
+):
+    resolved_local_space_mode = (
+        str(local_space_mode)
+        if local_space_mode is not None
+        else ("auto" if str(classical_method) == "restricted-product-state" else "generic-multiplet")
+    )
+
+    parsed_payload = build_pseudospin_orbital_payload(
+        poscar_path=poscar_path,
+        hr_path=hr_path,
+        coefficient_tolerance=coefficient_tolerance,
+        local_space_mode=resolved_local_space_mode,
+    )
+    _progress("Parsed POSCAR + hr.dat payload")
+    return _solve_from_parsed_payload_core(
+        parsed_payload,
+        output_dir=output_dir,
+        docs_dir=docs_dir,
+        compile_pdf=compile_pdf,
+        classical_method=classical_method,
+        supercell_shape=supercell_shape,
+        starts=starts,
+        seed=seed,
+        max_linear_size=max_linear_size,
+        convergence_repeats=convergence_repeats,
+        max_sweeps=max_sweeps,
+        run_gswt=run_gswt,
+        gswt_backend=gswt_backend,
+        z_harmonic_reference_mode=z_harmonic_reference_mode,
+        run_thermodynamics=run_thermodynamics,
+        thermodynamics_backend=thermodynamics_backend,
+        temperatures=temperatures,
+        thermo_seed=thermo_seed,
+        thermo_profile=thermo_profile,
+        thermo_sweeps=thermo_sweeps,
+        thermo_burn_in=thermo_burn_in,
+        thermo_measurement_interval=thermo_measurement_interval,
+        thermo_proposal=thermo_proposal,
+        thermo_proposal_scale=thermo_proposal_scale,
+        thermo_pt_temperatures=thermo_pt_temperatures,
+        thermo_pt_exchange_interval=thermo_pt_exchange_interval,
+        thermo_wl_bounds=thermo_wl_bounds,
+        thermo_wl_bin_size=thermo_wl_bin_size,
+        thermo_wl_windows=thermo_wl_windows,
+        thermo_wl_overlap=thermo_wl_overlap,
+        thermo_wl_ln_f=thermo_wl_ln_f,
+        thermo_wl_sweeps=thermo_wl_sweeps,
+        glt_certification_mode=glt_certification_mode,
+        compatibility_export_mode=compatibility_export_mode,
+        classical_family=classical_family,
+    )
 
 
 def main():
