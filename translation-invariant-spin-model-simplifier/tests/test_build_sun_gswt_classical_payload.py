@@ -233,6 +233,74 @@ class BuildSunGswtClassicalPayloadTests(unittest.TestCase):
         self.assertEqual(payload["classical_constraints"], "normalized_ray_mod_u1")
         self.assertTrue(payload["bond_tensors"])
 
+    def test_build_payload_accepts_non_many_body_cpn_payload_when_structure_contract_is_present(self):
+        parsed_payload = self._with_cpn_family({
+            "basis_semantics": {"local_space": "pseudospin_orbital"},
+            "basis_order": "retained_state_index",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "retained_local_space": {
+                "dimension": 3,
+                "factorization": {
+                    "kind": "generic_multiplet",
+                    "multiplet_dimension": 3,
+                },
+                "basis_labels": ["state_1", "state_2", "state_3"],
+            },
+            "pair_operator_convention": {
+                "representation": "pair_matrix",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "tensor_view": {
+                    "kind": "K_ab_cd",
+                    "index_order": ["left_bra", "right_bra", "left_ket", "right_ket"],
+                },
+            },
+            "operator_dictionary": {
+                "local_basis_kind": "generic_multiplet",
+                "local_operator_basis": {
+                    "matrix_construction": "local_generator_basis",
+                    "generator_basis": "Hermitian orthonormal basis on the retained local multiplet",
+                    "operator_basis_labels": ["multiplet_I", "multiplet_SYM_1_2"],
+                },
+            },
+            "structure": {
+                "lattice_vectors": [[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]],
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "inferred": {
+                "local_dimension": 3,
+                "multiplet_dimension": 3,
+                "two_site_dimension": 9,
+            },
+            "local_basis_labels": ["state_1", "state_2", "state_3"],
+            "bond_blocks": [
+                {
+                    "R": [1, 0, 0],
+                    "source": 0,
+                    "target": 0,
+                    "matrix_shape": [9, 9],
+                    "pair_matrix": [
+                        [{"real": 1.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 8,
+                        [{"real": 0.0, "imag": 0.0}, {"real": 2.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 7,
+                        [{"real": 0.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}, {"real": 3.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 6,
+                        [{"real": 0.0, "imag": 0.0}] * 3 + [{"real": 4.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 5,
+                        [{"real": 0.0, "imag": 0.0}] * 4 + [{"real": 5.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 4,
+                        [{"real": 0.0, "imag": 0.0}] * 5 + [{"real": 6.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 3,
+                        [{"real": 0.0, "imag": 0.0}] * 6 + [{"real": 7.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 2,
+                        [{"real": 0.0, "imag": 0.0}] * 7 + [{"real": 8.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}],
+                        [{"real": 0.0, "imag": 0.0}] * 8 + [{"real": 9.0, "imag": 0.0}],
+                    ],
+                }
+            ],
+        })
+
+        payload = build_sun_gswt_classical_payload(parsed_payload)
+
+        self.assertEqual(payload["classical_family"], "cpn")
+        self.assertIsNone(payload["input_mode"])
+        self.assertEqual(payload["local_dimension"], 3)
+        self.assertEqual(payload["basis_order"], "retained_state_index")
+        self.assertEqual(payload["bond_tensors"][0]["tensor_shape"], [3, 3, 3, 3])
+
     def test_build_payload_preserves_explicit_multisublattice_source_target_metadata(self):
         parsed_payload = self._with_cpn_family({
             "input_mode": "many_body_hr",
