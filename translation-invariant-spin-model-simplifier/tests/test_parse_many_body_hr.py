@@ -34,6 +34,35 @@ class ParseManyBodyHRTests(unittest.TestCase):
         self.assertEqual(first["n"], 0)
         self.assertEqual(first["value"], complex(1.5, 0.0))
 
+    def test_parse_many_body_hr_text_keeps_same_R_entries_distinguishable(self):
+        hr_text = """wannier_hr.dat created by gutz.py
+          2
+          1
+    1
+    0    0    0    1    1                  1.500000000000000                  0.000000000000000
+    0    0    0    2    1                  0.000000000000000                  1.000000000000000
+    0    0    0    1    2                  0.000000000000000                 -1.000000000000000
+    0    0    0    2    2                 -0.500000000000000                  0.000000000000000
+"""
+
+        parsed = parse_many_body_hr_text(hr_text)
+
+        self.assertEqual(len(parsed["entries"]), 4)
+        self.assertEqual({entry["R"] for entry in parsed["entries"]}, {(0, 0, 0)})
+        self.assertEqual(
+            {(entry["m"], entry["n"]) for entry in parsed["entries"]},
+            {
+                (0, 0),
+                (1, 0),
+                (0, 1),
+                (1, 1),
+            },
+        )
+        self.assertEqual(
+            [entry["row_index"] for entry in parsed["entries"]],
+            [0, 1, 2, 3],
+        )
+
     def test_parse_many_body_hr_text_reads_header_and_one_block(self):
         hr_text = """wannier_hr.dat created by gutz.py
           2
