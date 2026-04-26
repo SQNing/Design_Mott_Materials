@@ -336,6 +336,23 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
             "pair-identity-unavailable-for-multisite-direct-route",
         )
 
+    def test_build_pseudospin_orbital_payload_canonicalizer_boundary_reports_pair_identity_blocker(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["canonicalization_status"], "unresolved")
+        self.assertEqual(payload["pair_identity_status"], "unavailable")
+        self.assertIn("diagnostics", payload)
+        self.assertEqual(
+            payload["diagnostics"]["identity_blocker"],
+            "pair-identity-unavailable",
+        )
+
     def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             poscar_path = Path(tmpdir) / "POSCAR"
