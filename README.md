@@ -124,6 +124,13 @@ The preferred auxiliary JSON is a local-level ownership map, not an
 }
 ```
 
+You can generate a starter template with:
+
+```bash
+python translation-invariant-spin-model-simplifier/scripts/cli/generate_local_level_to_site_mapping.py \
+  --levels-per-site 2,2
+```
+
 Semantics:
 
 - `site` is the site index in the normalized structure payload
