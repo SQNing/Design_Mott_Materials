@@ -9,7 +9,8 @@ from pathlib import Path
 from .agent_fallback import build_agent_inferred
 from .verify_agent_normalized_document import verify_agent_normalized_document
 from .unsupported_feature_catalog import unsupported_feature_details
-from common.lattice_geometry import resolve_lattice_vectors
+from common.bond_orbits import canonicalize_directed_bond, generate_noncull_directed_bond_orbit
+from common.lattice_geometry import enumerate_neighbor_shells, resolve_lattice_vectors
 
 
 AGENT_BLOCKING_UNSUPPORTED_FEATURES = frozenset(
@@ -428,6 +429,15 @@ def _distance_to_shell_index(distance: float, shell_distances: list[float], tole
     return None
 
 
+def _bond_score(source: int, target: int, translation: tuple[int, int, int]) -> float:
+    score = math.sqrt(
+        sum((((float(translation[axis]) - 0.1) * weight) ** 2) for axis, weight in enumerate((0.07, 0.08, 0.09)))
+    )
+    score += 1.0e-2 * (int(source) + int(target))
+    score += 1.0e-2 * (-1 if int(source) < int(target) else 1)
+    return float(score)
+
+
 def _infer_family_shell_map(lattice_model: dict, families: list[str]) -> dict:
     positions = list(lattice_model.get("positions") or [])
     if len(positions) != 1:
@@ -502,6 +512,98 @@ def _infer_family_shell_map(lattice_model: dict, families: list[str]) -> dict:
     return family_shell_map
 
 
+def _infer_family_representative_map(lattice_model: dict, families: list[str], family_shell_map: dict) -> dict:
+    positions = list(lattice_model.get("positions") or [])
+    if len(positions) != 1 or not family_shell_map:
+        return {}
+
+    cell_parameters = lattice_model.get("cell_parameters") or {}
+    if not {"a", "b", "c"}.issubset(cell_parameters):
+        return {}
+
+    lattice_vectors = resolve_lattice_vectors({"cell_parameters": cell_parameters})
+    shells = enumerate_neighbor_shells(
+        lattice_vectors,
+        positions,
+        shell_count=max(int(metadata.get("shell_index", 0)) for metadata in family_shell_map.values()),
+        max_translation=3,
+    )
+
+    shell_pairs = {}
+    for shell_index, shell in enumerate(shells, start=1):
+        canonical_pairs = sorted(
+            {
+                canonicalize_directed_bond(pair["source"], pair["target"], pair["translation"])
+                for pair in shell.get("pairs", [])
+            },
+            key=lambda item: item[2],
+        )
+        shell_pairs[shell_index] = canonical_pairs
+
+    orbit_groups_by_shell = {}
+    for shell_index, canonical_pairs in shell_pairs.items():
+        seen = set()
+        orbit_groups = []
+        for source, target, translation in canonical_pairs:
+            if (source, target, translation) in seen:
+                continue
+            orbit = generate_noncull_directed_bond_orbit(
+                lattice_model,
+                representative_bond={
+                    "source": int(source),
+                    "target": int(target),
+                    "translation": list(translation),
+                },
+            )
+            orbit_members = {
+                (
+                    int(member["source"]),
+                    int(member["target"]),
+                    tuple(int(component) for component in member["translation"]),
+                )
+                for member in orbit["members"]
+            }
+            seen.update(orbit_members)
+            representative = min(orbit_members, key=lambda item: _bond_score(item[0], item[1], item[2]))
+            orbit_groups.append(
+                {
+                    "representative": representative,
+                    "members": orbit_members,
+                }
+            )
+        orbit_groups.sort(key=lambda item: _bond_score(item["representative"][0], item["representative"][1], item["representative"][2]))
+        orbit_groups_by_shell[shell_index] = orbit_groups
+
+    families_by_shell = {}
+    for family in sorted({str(label) for label in families if str(label).strip()}):
+        metadata = family_shell_map.get(family)
+        if not isinstance(metadata, dict):
+            continue
+        shell_index = int(metadata.get("shell_index") or 0)
+        if shell_index <= 0:
+            continue
+        families_by_shell.setdefault(shell_index, []).append(family)
+
+    representative_map = {}
+    for shell_index, shell_families in families_by_shell.items():
+        orbit_groups = orbit_groups_by_shell.get(shell_index, [])
+        if not orbit_groups:
+            continue
+        shell_families.sort(key=lambda label: (_leading_family_index(label) or 0, _family_suffix_letter(label), str(label)))
+        for family in shell_families:
+            suffix = _family_suffix_letter(family)
+            branch_index = max(0, ord(suffix[0]) - ord("a")) if suffix else 0
+            branch_index = min(branch_index, len(orbit_groups) - 1)
+            source, target, translation = orbit_groups[branch_index]["representative"]
+            representative_map[family] = {
+                "source": int(source),
+                "target": int(target),
+                "translation": list(translation),
+                "coordinate_convention": "global_crystallographic",
+            }
+    return representative_map
+
+
 def _extract_family_labels_for_shell_map(source_text: str, hamiltonian_model: dict) -> list[str]:
     labels = []
     for entry in list(hamiltonian_model.get("local_bond_candidates", [])) if isinstance(hamiltonian_model, dict) else []:
@@ -538,6 +640,8 @@ def _extract_lattice_model(source_text: str, sections: dict, hamiltonian_model: 
 
     magnetic_species = _extract_magnetic_species(source_text)
     position_rows = _extract_tabular_fractional_positions(source_text)
+    symmetry_positions = [row["position"] for row in position_rows]
+    symmetry_types = [row["atom"] for row in position_rows]
     positions = [row["position"] for row in position_rows if not magnetic_species or row["atom"] in magnetic_species]
     if not positions and position_rows:
         positions = [row["position"] for row in position_rows]
@@ -551,6 +655,8 @@ def _extract_lattice_model(source_text: str, sections: dict, hamiltonian_model: 
         "magnetic_species": magnetic_species,
         "magnetic_sites": positions,
         "magnetic_site_count": len(positions),
+        "symmetry_positions": symmetry_positions,
+        "symmetry_types": symmetry_types,
     }
     if {"a", "b", "c"}.issubset(cell_parameters):
         lattice_model["lattice_vectors"] = resolve_lattice_vectors({"cell_parameters": cell_parameters})
@@ -559,6 +665,9 @@ def _extract_lattice_model(source_text: str, sections: dict, hamiltonian_model: 
     family_shell_map = _infer_family_shell_map(lattice_model, family_labels)
     if family_shell_map:
         lattice_model["family_shell_map"] = family_shell_map
+        family_representative_map = _infer_family_representative_map(lattice_model, family_labels, family_shell_map)
+        if family_representative_map:
+            lattice_model["family_representative_map"] = family_representative_map
     return lattice_model
 
 
@@ -1652,6 +1761,7 @@ def _agent_unresolved_items_to_ambiguities(
             "coordinate_convention": "coordinate_convention_selection",
             "structure_file": "structure_file_selection",
             "hamiltonian_file": "hamiltonian_hr_file_selection",
+            "orbital_to_atom_mapping_file": "orbital_to_atom_mapping_file_selection",
         }.get(field, "agent_normalized_review")
         ambiguities.append(
             {
@@ -1995,6 +2105,7 @@ def _interaction_from_agent_fallback(proposal: dict) -> dict | None:
             "model_candidate": "model_candidate_selection",
             "structure_file": "structure_file_selection",
             "hamiltonian_file": "hamiltonian_hr_file_selection",
+            "orbital_to_atom_mapping_file": "orbital_to_atom_mapping_file_selection",
         }.get(field, "agent_fallback_review")
         return {
             "status": "needs_input",

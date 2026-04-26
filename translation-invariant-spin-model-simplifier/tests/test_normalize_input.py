@@ -9,6 +9,8 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from input.normalize_input import normalize_freeform_text, normalize_input
+from input.agent_fallback import build_agent_inferred
+from input.document_input_protocol import _interaction_from_agent_fallback
 
 
 class NormalizeInputTests(unittest.TestCase):
@@ -53,6 +55,23 @@ class NormalizeInputTests(unittest.TestCase):
                 value = "1.0" if left == right else "0.0"
                 lines.append(f"0 0 0 {left} {right} {value} 0.0")
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    @staticmethod
+    def _write_minimal_orbital_mapping(path):
+        path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "site_basis_mapping": [
+                        {"site": 0, "orbital_indexes": [0]},
+                        {"site": 1, "orbital_indexes": [1]},
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
 
     def test_normalize_input_cli_freeform_tex_supports_candidate_selection_contract(self):
         fixture_path = SKILL_ROOT / "tests" / "data" / "fei2_document_input.tex"
@@ -883,6 +902,61 @@ B_4^0 = 0.07
 
         with self.assertRaises(ValueError):
             normalize_input({"representation": "many_body_hr", "hamiltonian_file": "VR_hr.dat"})
+
+    def test_many_body_hr_structure_orbital_mapping_route_requires_mapping_file(self):
+        with self.assertRaisesRegex(ValueError, "many_body_hr automatic pair-identity route requires orbital_to_atom_mapping_file"):
+            normalize_input(
+                {
+                    "representation": "many_body_hr",
+                    "structure_file": "POSCAR",
+                    "hamiltonian_file": "VR_hr.dat",
+                    "pair_identity_mode": "structure+orbital-mapping",
+                }
+            )
+
+    def test_many_body_hr_structure_orbital_mapping_route_accepts_mapping_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            structure_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "VR_hr.dat"
+            mapping_path = Path(tmpdir) / "orbital_mapping.json"
+            self._write_minimal_poscar(structure_path)
+            self._write_minimal_many_body_hr(hr_path)
+            self._write_minimal_orbital_mapping(mapping_path)
+
+            normalized = normalize_input(
+                {
+                    "representation": "many_body_hr",
+                    "structure_file": str(structure_path),
+                    "hamiltonian_file": str(hr_path),
+                    "pair_identity_mode": "structure+orbital-mapping",
+                    "orbital_to_atom_mapping_file": str(mapping_path),
+                }
+            )
+
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["orbital_to_atom_mapping_file"],
+            str(mapping_path),
+        )
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["pair_identity_mode"],
+            "structure+orbital-mapping",
+        )
+
+    def test_many_body_hr_structure_orbital_mapping_route_requests_mapping_file_selection(self):
+        proposal = build_agent_inferred(
+            source_text="Use POSCAR and VR_hr.dat for this many_body_hr workflow.",
+            intermediate_record={},
+            normalization_context={"pair_identity_mode": "structure+orbital-mapping"},
+        )
+
+        unresolved_fields = [item["field"] for item in proposal["agent_inferred"]["unresolved_items"]]
+        self.assertIn("orbital_to_atom_mapping_file", unresolved_fields)
+
+        interaction = _interaction_from_agent_fallback(proposal)
+        self.assertIsNotNone(interaction)
+        self.assertEqual(interaction["status"], "needs_input")
+        self.assertEqual(interaction["id"], "orbital_to_atom_mapping_file_selection")
 
     def test_normalize_freeform_text_auto_routes_poscar_and_vr_hr_paths_to_many_body_hr(self):
         with tempfile.TemporaryDirectory() as tmpdir:

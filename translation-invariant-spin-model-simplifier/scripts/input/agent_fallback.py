@@ -76,6 +76,8 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
     ]
     selected_coordinate_convention = normalization_context.get("selected_coordinate_convention")
     selected_local_bond_family = normalization_context.get("selected_local_bond_family")
+    pair_identity_mode = normalization_context.get("pair_identity_mode")
+    orbital_to_atom_mapping_file = normalization_context.get("orbital_to_atom_mapping_file")
 
     source_spans = []
     extracted_evidence = []
@@ -144,6 +146,17 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
                 "reason": (
                     "A selected local bond family requires an explicit coordinate "
                     "convention before landing."
+                ),
+                "policy": "hard_gate",
+            }
+        )
+    if pair_identity_mode == "structure+orbital-mapping" and not orbital_to_atom_mapping_file:
+        unresolved_items.append(
+            {
+                "field": "orbital_to_atom_mapping_file",
+                "reason": (
+                    "Automatic structure-aware CP^(N-1) bond identification also "
+                    "requires an orbital-to-atom mapping file. Which mapping file should I use?"
                 ),
                 "policy": "hard_gate",
             }
