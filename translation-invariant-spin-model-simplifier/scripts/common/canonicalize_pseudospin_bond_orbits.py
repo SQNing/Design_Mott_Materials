@@ -42,6 +42,13 @@ def _orbit_lattice(structure, magnetic_site_payload):
     }
 
 
+def _has_usable_lattice_vectors(structure):
+    lattice_vectors = list(structure.get("lattice_vectors", []))
+    if len(lattice_vectors) != 3:
+        return False
+    return any(abs(float(component)) > 1.0e-12 for vector in lattice_vectors for component in vector)
+
+
 def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bond_blocks):
     if (
         len(list(structure.get("positions", []))) > 1
@@ -58,6 +65,17 @@ def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bo
             },
         }
 
+    if not _has_usable_lattice_vectors(structure):
+        return {
+            "canonicalization_status": "unresolved",
+            "bond_blocks": [],
+            "raw_bond_blocks": list(raw_bond_blocks),
+            "diagnostics": {
+                "reason": "missing-or-invalid-lattice-vectors-for-symmetry-canonicalization",
+                "unresolved_blocks": list(range(len(raw_bond_blocks))),
+            },
+        }
+
     orbit_lattice = _orbit_lattice(structure, magnetic_site_payload)
     canonical_blocks_by_key = {}
     for block_index, raw_block in enumerate(raw_bond_blocks):
@@ -66,7 +84,18 @@ def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bo
             "target": int(raw_block.get("target", 0)),
             "translation": [int(value) for value in raw_block.get("R", [0, 0, 0])],
         }
-        orbit = generate_noncull_directed_bond_orbit(orbit_lattice, representative)
+        try:
+            orbit = generate_noncull_directed_bond_orbit(orbit_lattice, representative)
+        except ValueError:
+            return {
+                "canonicalization_status": "unresolved",
+                "bond_blocks": [],
+                "raw_bond_blocks": list(raw_bond_blocks),
+                "diagnostics": {
+                    "reason": "unable-to-determine-lattice-symmetry-for-canonicalization",
+                    "unresolved_blocks": list(range(len(raw_bond_blocks))),
+                },
+            }
         canonical_member = min(
             (
                 int(member["source"]),

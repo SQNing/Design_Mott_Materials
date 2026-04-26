@@ -211,9 +211,11 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
             "local_generator_basis",
         )
         self.assertTrue(payload["bond_blocks"])
+        self.assertEqual(payload["canonicalization_status"], "canonicalized")
 
         first_block = payload["bond_blocks"][0]
-        self.assertEqual(len(payload["bond_blocks"]), payload["hamiltonian"]["nrpts"])
+        self.assertEqual(len(payload["raw_bond_blocks"]), payload["hamiltonian"]["nrpts"])
+        self.assertLessEqual(len(payload["bond_blocks"]), len(payload["raw_bond_blocks"]))
         self.assertEqual(len(first_block["R"]), 3)
         self.assertEqual(first_block["source"], 0)
         self.assertEqual(first_block["target"], 0)
