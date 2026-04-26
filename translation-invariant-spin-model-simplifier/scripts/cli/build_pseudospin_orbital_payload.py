@@ -22,6 +22,21 @@ def _serialize_matrix(matrix):
     return [[_serialize_complex(value) for value in row] for row in matrix]
 
 
+def _serialize_raw_hr_entries(entries):
+    serialized = []
+    for entry in entries:
+        serialized.append(
+            {
+                "row_index": int(entry["row_index"]),
+                "R": [int(value) for value in entry["R"]],
+                "m": int(entry["m"]),
+                "n": int(entry["n"]),
+                "value": _serialize_complex(entry["value"]),
+            }
+        )
+    return serialized
+
+
 def _default_magnetic_site_payload():
     return {
         "magnetic_site_count": 1,
@@ -123,9 +138,14 @@ def build_pseudospin_orbital_payload(
     local_space_spec = resolve_local_space_spec(local_dimension, local_space_mode=local_space_mode)
     magnetic_site_payload = _default_magnetic_site_payload()
     local_basis_labels = build_local_basis_labels(local_space_spec)
+    raw_hr_entries = list(hamiltonian.get("entries", []))
 
     bond_blocks = []
     operator_basis_labels = None
+    entries_by_R = {}
+    for entry in raw_hr_entries:
+        entries_by_R.setdefault(tuple(entry["R"]), []).append(int(entry["row_index"]))
+
     for R in hamiltonian["R_vectors"]:
         projected = project_two_site_bond_matrix(
             hamiltonian["blocks_by_R"][R],
@@ -139,6 +159,7 @@ def build_pseudospin_orbital_payload(
                 "R": list(R),
                 "source": 0,
                 "target": 0,
+                "entry_refs": list(entries_by_R.get(tuple(R), [])),
                 "matrix_shape": list(hamiltonian["blocks_by_R"][R].shape),
                 "pair_matrix": _serialize_matrix(hamiltonian["blocks_by_R"][R]),
                 "coefficients": [
@@ -184,6 +205,7 @@ def build_pseudospin_orbital_payload(
         },
         "inferred": _inferred_payload(local_space_spec, hamiltonian["num_wann"]),
         **magnetic_site_payload,
+        "raw_hr_entries": _serialize_raw_hr_entries(raw_hr_entries),
         "canonicalization_status": canonicalized["canonicalization_status"],
         "raw_bond_blocks": canonicalized["raw_bond_blocks"],
         "bond_blocks": canonicalized["bond_blocks"],

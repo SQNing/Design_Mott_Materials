@@ -319,6 +319,25 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertIn("unresolved_blocks", payload["diagnostics"])
         self.assertEqual(payload["diagnostics"]["unresolved_blocks"], [0])
 
+    def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_minimal_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertIn("raw_hr_entries", payload)
+        self.assertEqual(len(payload["raw_hr_entries"]), 16)
+        first_entry = payload["raw_hr_entries"][0]
+        self.assertIn("row_index", first_entry)
+        self.assertIn("R", first_entry)
+
+        first_raw_block = payload["raw_bond_blocks"][0]
+        self.assertIn("entry_refs", first_raw_block)
+        self.assertEqual(len(first_raw_block["entry_refs"]), 16)
+
     def test_build_pseudospin_orbital_payload_reads_xsf_structure_file(self):
         hr_path = Path(
             "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/VR_hr.dat"
