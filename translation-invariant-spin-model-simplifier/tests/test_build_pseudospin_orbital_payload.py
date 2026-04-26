@@ -353,6 +353,19 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
             "pair-identity-unavailable",
         )
 
+    def test_build_pseudospin_orbital_payload_exposes_pair_identity_extension_point(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertIn("pair_identity_provider", payload)
+        self.assertIsNone(payload["pair_identity_provider"])
+        self.assertEqual(payload["pair_identity_source"], "unavailable")
+
     def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             poscar_path = Path(tmpdir) / "POSCAR"
