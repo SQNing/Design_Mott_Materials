@@ -87,4 +87,69 @@ For `many_body_hr` pseudospin-orbital models, the current Sunny-backed options a
 
 If one of these Sunny-backed options is requested but `julia` or `Sunny.jl` is unavailable, the current pseudospin-orbital pipeline now fails explicitly instead of silently falling back to the Python helpers.
 
+For direct `many_body_hr -> CP^(N-1)` payload construction, the default parser
+still only guarantees `matrix_entry` provenance. That means:
+
+- without extra metadata, multisite inputs remain conservative and may stay
+  unresolved because the direct HR route does not intrinsically encode explicit
+  magnetic-site `source/target` identity
+- if you do have an external mapping from preserved HR `entry_refs` onto
+  physical directed pairs, you can now provide it explicitly through
+  `--pair-identity-sidecar`
+
+Minimal CLI example:
+
+```bash
+python translation-invariant-spin-model-simplifier/scripts/cli/build_pseudospin_orbital_payload.py \
+  --poscar POSCAR \
+  --hr VR_hr.dat \
+  --pair-identity-sidecar pair_identity.json
+```
+
+The first-iteration sidecar is a narrow JSON bridge from preserved HR
+`entry_refs` to explicit directed bonds. Its top-level contract is:
+
+```json
+{
+  "schema_version": 1,
+  "pair_identity_provider": "sidecar",
+  "site_pair_encoding": "explicit-source-target",
+  "coordinate_convention": "global_crystallographic",
+  "hr_binding": {
+    "num_wann": 4,
+    "nrpts": 1,
+    "R_vectors": [[1, 0, 0]]
+  },
+  "pair_records": [
+    {
+      "source": 0,
+      "target": 1,
+      "translation": [1, 0, 0],
+      "entry_refs": [0, 1, 2, 3]
+    }
+  ]
+}
+```
+
+Current validation is intentionally strict:
+
+- `hr_binding` must match the parsed HR content
+- every parsed HR row must be covered exactly once across `pair_records`
+- `entry_refs` ownership must be unique
+- every record must use one parser-side `R`
+- record `translation` must match that parser-side `R`
+
+When the sidecar validates, the payload upgrades from:
+
+- `identity_level = "matrix_entry"`
+
+to:
+
+- `identity_level = "site_pair"`
+- `pair_identity_status = "available"`
+- `magnetic_site_metadata.site_pair_encoding = "explicit-source-target"`
+
+If the sidecar is invalid, the builder raises a validation error; it does not
+silently fall back to the no-sidecar path.
+
 For translation-invariant Heisenberg-like models, the current `variational` ground-state helper does not stay locked to a single crystallographic unit cell. It scans progressively larger magnetic supercells, tracks the energy per spin, and stops early when the result is converged, with a default search cap of `6x6x6` in 3D.

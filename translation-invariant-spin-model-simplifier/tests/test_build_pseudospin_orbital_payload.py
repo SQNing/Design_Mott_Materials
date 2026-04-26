@@ -3,12 +3,15 @@ import tempfile
 import unittest
 import warnings
 import json
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
-from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
+from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload, main
 
 
 class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
@@ -560,6 +563,60 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
                     hr_path=hr_path,
                     pair_identity_sidecar_path=sidecar_path,
                 )
+
+    def test_build_pseudospin_orbital_payload_cli_accepts_pair_identity_sidecar(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 4,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                        "comment": "minimal wannier_hr.dat",
+                    },
+                    "pair_records": [
+                        {
+                            "source": 0,
+                            "target": 1,
+                            "translation": [1, 0, 0],
+                            "entry_refs": list(range(16)),
+                        }
+                    ],
+                },
+            )
+
+            stdout = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "build_pseudospin_orbital_payload.py",
+                    "--poscar",
+                    str(poscar_path),
+                    "--hr",
+                    str(hr_path),
+                    "--pair-identity-sidecar",
+                    str(sidecar_path),
+                ],
+            ):
+                with redirect_stdout(stdout):
+                    exit_code = main()
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["pair_identity_provider"], "sidecar")
+        self.assertEqual(payload["pair_identity_status"], "available")
+        self.assertEqual(payload["magnetic_site_metadata"]["site_pair_encoding"], "explicit-source-target")
 
     def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
