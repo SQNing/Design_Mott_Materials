@@ -1761,7 +1761,7 @@ def _agent_unresolved_items_to_ambiguities(
             "coordinate_convention": "coordinate_convention_selection",
             "structure_file": "structure_file_selection",
             "hamiltonian_file": "hamiltonian_hr_file_selection",
-            "orbital_to_atom_mapping_file": "orbital_to_atom_mapping_file_selection",
+            "local_level_to_site_mapping_file": "local_level_to_site_mapping_file_selection",
         }.get(field, "agent_normalized_review")
         ambiguities.append(
             {
@@ -2105,7 +2105,7 @@ def _interaction_from_agent_fallback(proposal: dict) -> dict | None:
             "model_candidate": "model_candidate_selection",
             "structure_file": "structure_file_selection",
             "hamiltonian_file": "hamiltonian_hr_file_selection",
-            "orbital_to_atom_mapping_file": "orbital_to_atom_mapping_file_selection",
+            "local_level_to_site_mapping_file": "local_level_to_site_mapping_file_selection",
         }.get(field, "agent_fallback_review")
         return {
             "status": "needs_input",

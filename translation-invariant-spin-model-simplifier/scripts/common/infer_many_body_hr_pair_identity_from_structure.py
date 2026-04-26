@@ -12,27 +12,17 @@ def _local_indexes_from_pair_basis_index(pair_basis_index, local_dimension):
     return pair_basis_index // local_dimension, pair_basis_index % local_dimension
 
 
-def _orbital_index_from_local_index(local_index, local_space_spec):
-    _require(
-        str(local_space_spec.get("kind")) == "orbital_times_spin",
-        "automatic structure inference currently requires orbital_times_spin local space",
-    )
-    spin_dimension = int(local_space_spec.get("spin_dimension", 0))
-    _require(spin_dimension > 0, "spin_dimension must be positive")
-    return int(local_index) // spin_dimension
-
-
 def _pair_identity_for_entry(entry, mapping, local_space_spec):
     local_dimension = int(local_space_spec.get("local_dimension", 0))
     _require(local_dimension > 0, "local_dimension must be positive")
-    owner_by_orbital = dict(mapping.get("orbital_owner_by_index") or {})
+    owner_by_level = dict(mapping.get("level_owner_by_index") or {})
 
     left_bra, right_bra = _local_indexes_from_pair_basis_index(entry["m"], local_dimension)
     left_ket, right_ket = _local_indexes_from_pair_basis_index(entry["n"], local_dimension)
-    source_bra = owner_by_orbital[_orbital_index_from_local_index(left_bra, local_space_spec)]
-    target_bra = owner_by_orbital[_orbital_index_from_local_index(right_bra, local_space_spec)]
-    source_ket = owner_by_orbital[_orbital_index_from_local_index(left_ket, local_space_spec)]
-    target_ket = owner_by_orbital[_orbital_index_from_local_index(right_ket, local_space_spec)]
+    source_bra = owner_by_level[int(left_bra)]
+    target_bra = owner_by_level[int(right_bra)]
+    source_ket = owner_by_level[int(left_ket)]
+    target_ket = owner_by_level[int(right_ket)]
 
     _require(
         source_bra == source_ket and target_bra == target_ket,
@@ -62,7 +52,7 @@ def infer_many_body_hr_pair_identity_from_structure(structure, hamiltonian, mapp
 
     return {
         "schema_version": 1,
-        "pair_identity_provider": "structure+orbital-mapping",
+        "pair_identity_provider": "structure+level-mapping",
         "site_pair_encoding": "explicit-source-target",
         "coordinate_convention": "global_crystallographic",
         "hr_binding": {

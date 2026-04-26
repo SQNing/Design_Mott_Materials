@@ -279,13 +279,11 @@ def _normalize_many_body_hr_representation(payload):
     structure_file = payload.get("structure_file")
     hamiltonian_file = payload.get("hamiltonian_file")
     pair_identity_mode = payload.get("pair_identity_mode")
-    orbital_to_atom_mapping_file = payload.get("orbital_to_atom_mapping_file")
+    local_level_to_site_mapping_file = payload.get("local_level_to_site_mapping_file")
     if not structure_file:
         raise ValueError("many_body_hr payload requires structure_file")
     if not hamiltonian_file:
         raise ValueError("many_body_hr payload requires hamiltonian_file")
-    if pair_identity_mode == "structure+orbital-mapping" and not orbital_to_atom_mapping_file:
-        raise ValueError("many_body_hr automatic pair-identity route requires orbital_to_atom_mapping_file")
 
     representation = {
         "kind": "many_body_hr",
@@ -294,8 +292,8 @@ def _normalize_many_body_hr_representation(payload):
     }
     if pair_identity_mode is not None:
         representation["pair_identity_mode"] = str(pair_identity_mode)
-    if orbital_to_atom_mapping_file is not None:
-        representation["orbital_to_atom_mapping_file"] = str(orbital_to_atom_mapping_file)
+    if local_level_to_site_mapping_file is not None:
+        representation["local_level_to_site_mapping_file"] = str(local_level_to_site_mapping_file)
     return {
         "support": [],
         "representation": representation,

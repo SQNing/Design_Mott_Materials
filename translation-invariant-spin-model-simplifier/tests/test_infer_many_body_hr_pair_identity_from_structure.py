@@ -27,20 +27,19 @@ def _minimal_structure():
 def _local_space_spec():
     return {
         "local_dimension": 4,
-        "orbital_count": 2,
-        "kind": "orbital_times_spin",
-        "spin_dimension": 2,
+        "level_count": 4,
+        "kind": "generic_multiplet",
     }
 
 
 def _mapping():
     return {
         "schema_version": 1,
-        "site_basis_mapping": [
-            {"site": 0, "orbital_indexes": [0]},
-            {"site": 1, "orbital_indexes": [1]},
+        "site_level_mapping": [
+            {"site": 0, "level_indexes": [0, 1]},
+            {"site": 1, "level_indexes": [2, 3]},
         ],
-        "orbital_owner_by_index": {0: 0, 1: 1},
+        "level_owner_by_index": {0: 0, 1: 0, 2: 1, 3: 1},
     }
 
 
@@ -66,7 +65,7 @@ class InferManyBodyHrPairIdentityFromStructureTests(unittest.TestCase):
             local_space_spec=_local_space_spec(),
         )
 
-        self.assertEqual(inferred["pair_identity_provider"], "structure+orbital-mapping")
+        self.assertEqual(inferred["pair_identity_provider"], "structure+level-mapping")
         self.assertEqual(inferred["site_pair_encoding"], "explicit-source-target")
         self.assertEqual(inferred["coordinate_convention"], "global_crystallographic")
         self.assertEqual(inferred["hr_binding"]["num_wann"], 16)

@@ -77,7 +77,7 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
     selected_coordinate_convention = normalization_context.get("selected_coordinate_convention")
     selected_local_bond_family = normalization_context.get("selected_local_bond_family")
     pair_identity_mode = normalization_context.get("pair_identity_mode")
-    orbital_to_atom_mapping_file = normalization_context.get("orbital_to_atom_mapping_file")
+    local_level_to_site_mapping_file = normalization_context.get("local_level_to_site_mapping_file")
 
     source_spans = []
     extracted_evidence = []
@@ -150,15 +150,15 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
                 "policy": "hard_gate",
             }
         )
-    if pair_identity_mode == "structure+orbital-mapping" and not orbital_to_atom_mapping_file:
+    if pair_identity_mode == "structure+level-mapping" and not local_level_to_site_mapping_file:
         unresolved_items.append(
             {
-                "field": "orbital_to_atom_mapping_file",
+                "field": "local_level_to_site_mapping_file",
                 "reason": (
-                    "Automatic structure-aware CP^(N-1) bond identification also "
-                    "requires an orbital-to-atom mapping file. Which mapping file should I use?"
+                    "For multisublattice automatic CP^(N-1) bond identification, "
+                    "I also need a local-level-to-site mapping file. Which mapping file should I use?"
                 ),
-                "policy": "hard_gate",
+                "policy": "recommended_for_multisublattice_inference",
             }
         )
 

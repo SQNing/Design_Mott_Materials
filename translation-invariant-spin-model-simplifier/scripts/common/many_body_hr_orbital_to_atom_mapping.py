@@ -10,42 +10,42 @@ def _require(condition, message):
 
 def validate_many_body_hr_orbital_to_atom_mapping(mapping, structure, local_space_spec):
     _require(int(mapping.get("schema_version", -1)) == 1, "mapping schema_version must be 1")
-    site_basis_mapping = list(mapping.get("site_basis_mapping") or [])
-    _require(site_basis_mapping, "site_basis_mapping must be non-empty")
+    site_level_mapping = list(mapping.get("site_level_mapping") or [])
+    _require(site_level_mapping, "site_level_mapping must be non-empty")
 
     structure_positions = list(structure.get("positions") or [])
     site_count = len(structure_positions)
-    orbital_count = int(local_space_spec.get("orbital_count", 0))
-    _require(orbital_count > 0, "local_space_spec.orbital_count must be positive")
+    local_level_count = int(local_space_spec.get("local_dimension", 0))
+    _require(local_level_count > 0, "local_space_spec.local_dimension must be positive")
 
     normalized_mappings = []
-    orbital_owner_by_index = {}
-    duplicate_orbitals = set()
-    for item in site_basis_mapping:
+    level_owner_by_index = {}
+    duplicate_levels = set()
+    for item in site_level_mapping:
         site = int(item.get("site", -1))
         _require(0 <= site < site_count, "site index does not exist in structure")
-        orbital_indexes = [int(value) for value in list(item.get("orbital_indexes") or [])]
-        _require(orbital_indexes, "orbital_indexes must be non-empty")
-        for orbital_index in orbital_indexes:
-            _require(0 <= orbital_index < orbital_count, "orbital index is out of range")
-            if orbital_index in orbital_owner_by_index:
-                duplicate_orbitals.add(orbital_index)
-            orbital_owner_by_index[orbital_index] = site
+        level_indexes = [int(value) for value in list(item.get("level_indexes") or [])]
+        _require(level_indexes, "level_indexes must be non-empty")
+        for level_index in level_indexes:
+            _require(0 <= level_index < local_level_count, "level index is out of range")
+            if level_index in level_owner_by_index:
+                duplicate_levels.add(level_index)
+            level_owner_by_index[level_index] = site
         normalized_mappings.append(
             {
                 "site": site,
-                "orbital_indexes": orbital_indexes,
+                "level_indexes": level_indexes,
             }
         )
 
-    _require(not duplicate_orbitals, "duplicate orbital ownership")
-    missing_orbitals = sorted(set(range(orbital_count)) - set(orbital_owner_by_index))
-    _require(not missing_orbitals, f"missing orbital ownership: {missing_orbitals}")
+    _require(not duplicate_levels, "duplicate level ownership")
+    missing_levels = sorted(set(range(local_level_count)) - set(level_owner_by_index))
+    _require(not missing_levels, f"missing level ownership: {missing_levels}")
 
     return {
         "schema_version": 1,
-        "site_basis_mapping": normalized_mappings,
-        "orbital_owner_by_index": {int(key): int(value) for key, value in orbital_owner_by_index.items()},
+        "site_level_mapping": normalized_mappings,
+        "level_owner_by_index": {int(key): int(value) for key, value in level_owner_by_index.items()},
     }
 
 

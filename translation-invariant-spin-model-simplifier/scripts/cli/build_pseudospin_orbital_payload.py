@@ -224,7 +224,7 @@ def build_pseudospin_orbital_payload(
     coefficient_tolerance=1e-10,
     local_space_mode="generic-multiplet",
     pair_identity_sidecar_path=None,
-    orbital_to_atom_mapping_path=None,
+    local_level_to_site_mapping_path=None,
 ):
     structure = _load_structure_payload(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
@@ -252,9 +252,9 @@ def build_pseudospin_orbital_payload(
         pair_identity_status = "available"
         pair_identity_provider = "sidecar"
         pair_identity_source = "sidecar"
-    elif orbital_to_atom_mapping_path is not None:
+    elif local_level_to_site_mapping_path is not None:
         mapping = load_many_body_hr_orbital_to_atom_mapping(
-            mapping_path=orbital_to_atom_mapping_path,
+            mapping_path=local_level_to_site_mapping_path,
             structure=structure,
             local_space_spec=local_space_spec,
         )
@@ -281,8 +281,8 @@ def build_pseudospin_orbital_payload(
         )
         identity_level = "site_pair"
         pair_identity_status = "available"
-        pair_identity_provider = "structure+orbital-mapping"
-        pair_identity_source = "structure+orbital-mapping"
+        pair_identity_provider = "structure+level-mapping"
+        pair_identity_source = "structure+level-mapping"
     else:
         magnetic_site_payload = _default_magnetic_site_payload()
         entries_by_R = {}
@@ -367,7 +367,7 @@ def main():
         default="generic-multiplet",
     )
     parser.add_argument("--pair-identity-sidecar")
-    parser.add_argument("--orbital-to-atom-mapping")
+    parser.add_argument("--local-level-to-site-mapping")
     args = parser.parse_args()
 
     payload = build_pseudospin_orbital_payload(
@@ -376,7 +376,9 @@ def main():
         coefficient_tolerance=float(args.coefficient_tolerance),
         local_space_mode=str(args.local_space_mode),
         pair_identity_sidecar_path=Path(args.pair_identity_sidecar) if args.pair_identity_sidecar else None,
-        orbital_to_atom_mapping_path=Path(args.orbital_to_atom_mapping) if args.orbital_to_atom_mapping else None,
+        local_level_to_site_mapping_path=Path(args.local_level_to_site_mapping)
+        if args.local_level_to_site_mapping
+        else None,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0

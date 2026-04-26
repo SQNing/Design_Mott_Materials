@@ -57,14 +57,14 @@ class NormalizeInputTests(unittest.TestCase):
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     @staticmethod
-    def _write_minimal_orbital_mapping(path):
+    def _write_minimal_level_mapping(path):
         path.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
-                    "site_basis_mapping": [
-                        {"site": 0, "orbital_indexes": [0]},
-                        {"site": 1, "orbital_indexes": [1]},
+                    "site_level_mapping": [
+                        {"site": 0, "level_indexes": [0]},
+                        {"site": 1, "level_indexes": [1]},
                     ],
                 },
                 indent=2,
@@ -903,60 +903,69 @@ B_4^0 = 0.07
         with self.assertRaises(ValueError):
             normalize_input({"representation": "many_body_hr", "hamiltonian_file": "VR_hr.dat"})
 
-    def test_many_body_hr_structure_orbital_mapping_route_requires_mapping_file(self):
-        with self.assertRaisesRegex(ValueError, "many_body_hr automatic pair-identity route requires orbital_to_atom_mapping_file"):
-            normalize_input(
-                {
-                    "representation": "many_body_hr",
-                    "structure_file": "POSCAR",
-                    "hamiltonian_file": "VR_hr.dat",
-                    "pair_identity_mode": "structure+orbital-mapping",
-                }
-            )
+    def test_many_body_hr_structure_level_mapping_route_defaults_to_single_sublattice_without_mapping(self):
+        normalized = normalize_input(
+            {
+                "representation": "many_body_hr",
+                "structure_file": "POSCAR",
+                "hamiltonian_file": "VR_hr.dat",
+                "pair_identity_mode": "structure+level-mapping",
+            }
+        )
 
-    def test_many_body_hr_structure_orbital_mapping_route_accepts_mapping_file(self):
+        self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
+        self.assertEqual(
+            normalized["hamiltonian_description"]["representation"]["pair_identity_mode"],
+            "structure+level-mapping",
+        )
+        self.assertNotIn(
+            "local_level_to_site_mapping_file",
+            normalized["hamiltonian_description"]["representation"],
+        )
+
+    def test_many_body_hr_structure_level_mapping_route_accepts_mapping_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             structure_path = Path(tmpdir) / "POSCAR"
             hr_path = Path(tmpdir) / "VR_hr.dat"
-            mapping_path = Path(tmpdir) / "orbital_mapping.json"
+            mapping_path = Path(tmpdir) / "level_mapping.json"
             self._write_minimal_poscar(structure_path)
             self._write_minimal_many_body_hr(hr_path)
-            self._write_minimal_orbital_mapping(mapping_path)
+            self._write_minimal_level_mapping(mapping_path)
 
             normalized = normalize_input(
                 {
                     "representation": "many_body_hr",
                     "structure_file": str(structure_path),
                     "hamiltonian_file": str(hr_path),
-                    "pair_identity_mode": "structure+orbital-mapping",
-                    "orbital_to_atom_mapping_file": str(mapping_path),
+                    "pair_identity_mode": "structure+level-mapping",
+                    "local_level_to_site_mapping_file": str(mapping_path),
                 }
             )
 
         self.assertEqual(normalized["hamiltonian_description"]["representation"]["kind"], "many_body_hr")
         self.assertEqual(
-            normalized["hamiltonian_description"]["representation"]["orbital_to_atom_mapping_file"],
+            normalized["hamiltonian_description"]["representation"]["local_level_to_site_mapping_file"],
             str(mapping_path),
         )
         self.assertEqual(
             normalized["hamiltonian_description"]["representation"]["pair_identity_mode"],
-            "structure+orbital-mapping",
+            "structure+level-mapping",
         )
 
-    def test_many_body_hr_structure_orbital_mapping_route_requests_mapping_file_selection(self):
+    def test_many_body_hr_structure_level_mapping_route_requests_level_mapping_file_selection(self):
         proposal = build_agent_inferred(
             source_text="Use POSCAR and VR_hr.dat for this many_body_hr workflow.",
             intermediate_record={},
-            normalization_context={"pair_identity_mode": "structure+orbital-mapping"},
+            normalization_context={"pair_identity_mode": "structure+level-mapping"},
         )
 
         unresolved_fields = [item["field"] for item in proposal["agent_inferred"]["unresolved_items"]]
-        self.assertIn("orbital_to_atom_mapping_file", unresolved_fields)
+        self.assertIn("local_level_to_site_mapping_file", unresolved_fields)
 
         interaction = _interaction_from_agent_fallback(proposal)
         self.assertIsNotNone(interaction)
         self.assertEqual(interaction["status"], "needs_input")
-        self.assertEqual(interaction["id"], "orbital_to_atom_mapping_file_selection")
+        self.assertEqual(interaction["id"], "local_level_to_site_mapping_file_selection")
 
     def test_normalize_freeform_text_auto_routes_poscar_and_vr_hr_paths_to_many_body_hr(self):
         with tempfile.TemporaryDirectory() as tmpdir:

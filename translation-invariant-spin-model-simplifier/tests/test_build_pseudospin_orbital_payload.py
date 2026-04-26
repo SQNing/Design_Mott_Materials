@@ -85,14 +85,14 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
     @staticmethod
-    def _write_minimal_orbital_mapping(path):
+    def _write_minimal_level_mapping(path):
         path.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
-                    "site_basis_mapping": [
-                        {"site": 0, "orbital_indexes": [0]},
-                        {"site": 1, "orbital_indexes": [1]},
+                    "site_level_mapping": [
+                        {"site": 0, "level_indexes": [0, 1]},
+                        {"site": 1, "level_indexes": [2, 3]},
                     ],
                 },
                 indent=2,
@@ -444,26 +444,26 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertEqual(first_raw_block["target"], 1)
         self.assertEqual(first_raw_block["R"], [1, 0, 0])
 
-    def test_build_pseudospin_orbital_payload_structure_orbital_mapping_happy_path(self):
+    def test_build_pseudospin_orbital_payload_structure_level_mapping_happy_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             poscar_path = Path(tmpdir) / "POSCAR"
             hr_path = Path(tmpdir) / "wannier_hr.dat"
-            mapping_path = Path(tmpdir) / "orbital_mapping.json"
+            mapping_path = Path(tmpdir) / "level_mapping.json"
             self._write_two_site_poscar(poscar_path)
             self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),), num_wann=16)
-            self._write_minimal_orbital_mapping(mapping_path)
+            self._write_minimal_level_mapping(mapping_path)
 
             payload = build_pseudospin_orbital_payload(
                 poscar_path=poscar_path,
                 hr_path=hr_path,
                 local_space_mode="auto",
-                orbital_to_atom_mapping_path=mapping_path,
+                local_level_to_site_mapping_path=mapping_path,
             )
 
         self.assertEqual(payload["identity_level"], "site_pair")
         self.assertEqual(payload["pair_identity_status"], "available")
-        self.assertEqual(payload["pair_identity_provider"], "structure+orbital-mapping")
-        self.assertEqual(payload["pair_identity_source"], "structure+orbital-mapping")
+        self.assertEqual(payload["pair_identity_provider"], "structure+level-mapping")
+        self.assertEqual(payload["pair_identity_source"], "structure+level-mapping")
         self.assertEqual(payload["canonicalization_status"], "canonicalized")
         self.assertEqual(
             payload["magnetic_site_metadata"]["site_pair_encoding"],
@@ -477,10 +477,10 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
             poscar_path = Path(tmpdir) / "POSCAR"
             hr_path = Path(tmpdir) / "wannier_hr.dat"
             sidecar_path = Path(tmpdir) / "pair_identity.json"
-            mapping_path = Path(tmpdir) / "orbital_mapping.json"
+            mapping_path = Path(tmpdir) / "level_mapping.json"
             self._write_two_site_poscar(poscar_path)
             self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),), num_wann=16)
-            self._write_minimal_orbital_mapping(mapping_path)
+            self._write_minimal_level_mapping(mapping_path)
             pair_records_by_key = {}
             for row_index in range(256):
                 pair_basis_index = row_index // 16
@@ -518,7 +518,7 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
                 poscar_path=poscar_path,
                 hr_path=hr_path,
                 local_space_mode="auto",
-                orbital_to_atom_mapping_path=mapping_path,
+                local_level_to_site_mapping_path=mapping_path,
             )
             sidecar_payload = build_pseudospin_orbital_payload(
                 poscar_path=poscar_path,
@@ -544,6 +544,23 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
                 for block in sidecar_payload["raw_bond_blocks"]
             ],
         )
+
+    def test_build_pseudospin_orbital_payload_structure_level_mapping_falls_back_without_mapping(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),), num_wann=16)
+
+            payload = build_pseudospin_orbital_payload(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                local_space_mode="auto",
+            )
+
+        self.assertEqual(payload["identity_level"], "matrix_entry")
+        self.assertEqual(payload["pair_identity_status"], "unavailable")
+        self.assertEqual(payload["canonicalization_status"], "unresolved")
 
     def test_build_pseudospin_orbital_payload_no_sidecar_backward_compatibility(self):
         with tempfile.TemporaryDirectory() as tmpdir:
