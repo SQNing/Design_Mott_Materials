@@ -12,6 +12,47 @@ from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payloa
 
 class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
     @staticmethod
+    def _write_minimal_poscar(path):
+        path.write_text(
+            "\n".join(
+                [
+                    "minimal triangular one-site lattice",
+                    "1.0",
+                    "1.0 0.0 0.0",
+                    "0.5 0.8660254037844386 0.0",
+                    "0.0 0.0 8.0",
+                    "Fe",
+                    "1",
+                    "Direct",
+                    "0.0 0.0 0.0",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _write_minimal_many_body_hr(path):
+        rows = []
+        for m in range(1, 5):
+            for n in range(1, 5):
+                value = 1.0 if m == n else 0.0
+                rows.append(f"    1    0    0    {m}    {n}    {value:.15f}    0.000000000000000")
+        path.write_text(
+            "\n".join(
+                [
+                    "minimal wannier_hr.dat",
+                    "4",
+                    "1",
+                    "1",
+                    *rows,
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    @staticmethod
     def _write_minimal_cif(path):
         path.write_text(
             "\n".join(
@@ -192,6 +233,26 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertEqual(payload["structure"]["source_format"], "cif")
         self.assertEqual(len(payload["structure"]["lattice_vectors"]), 3)
         self.assertEqual(len(payload["structure"]["positions"]), 1)
+
+    def test_build_pseudospin_orbital_payload_canonicalized_many_body_hr_contract(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_minimal_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path)
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["canonicalization_status"], "canonicalized")
+        self.assertIn("raw_bond_blocks", payload)
+        self.assertTrue(payload["raw_bond_blocks"])
+        self.assertTrue(payload["bond_blocks"])
+
+        first_block = payload["bond_blocks"][0]
+        self.assertIn("orbit_id", first_block)
+        self.assertIn("orbit_representative", first_block)
+        self.assertIn("orbit_members", first_block)
+        self.assertIn("coordinate_convention", first_block)
 
     def test_build_pseudospin_orbital_payload_reads_xsf_structure_file(self):
         hr_path = Path(

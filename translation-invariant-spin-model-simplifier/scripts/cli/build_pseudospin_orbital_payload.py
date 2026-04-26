@@ -3,6 +3,7 @@ import argparse
 import json
 from pathlib import Path
 
+from common.canonicalize_pseudospin_bond_orbits import canonicalize_pseudospin_bond_blocks
 from input.parse_many_body_hr import parse_many_body_hr_file
 from input.parse_poscar import parse_poscar_file, parse_structure_file
 from simplify.project_pseudospin_orbital_basis import (
@@ -151,6 +152,8 @@ def build_pseudospin_orbital_payload(
             }
         )
 
+    canonicalized = canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, bond_blocks)
+
     return {
         "schema_version": 2,
         "input_mode": "many_body_hr",
@@ -181,7 +184,9 @@ def build_pseudospin_orbital_payload(
         },
         "inferred": _inferred_payload(local_space_spec, hamiltonian["num_wann"]),
         **magnetic_site_payload,
-        "bond_blocks": bond_blocks,
+        "canonicalization_status": canonicalized["canonicalization_status"],
+        "raw_bond_blocks": canonicalized["raw_bond_blocks"],
+        "bond_blocks": canonicalized["bond_blocks"],
     }
 
 
