@@ -57,11 +57,11 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         )
 
     @staticmethod
-    def _write_minimal_many_body_hr(path, R_vectors=((1, 0, 0),)):
+    def _write_minimal_many_body_hr(path, R_vectors=((1, 0, 0),), num_wann=4):
         rows = []
         for rx, ry, rz in R_vectors:
-            for m in range(1, 5):
-                for n in range(1, 5):
+            for m in range(1, int(num_wann) + 1):
+                for n in range(1, int(num_wann) + 1):
                     value = 1.0 if m == n else 0.0
                     rows.append(
                         f"    {rx}    {ry}    {rz}    {m}    {n}    {value:.15f}    0.000000000000000"
@@ -70,7 +70,7 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
             "\n".join(
                 [
                     "minimal wannier_hr.dat",
-                    "4",
+                    str(int(num_wann)),
                     str(len(tuple(R_vectors))),
                     " ".join(["1"] * len(tuple(R_vectors))),
                     *rows,
@@ -83,6 +83,23 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
     @staticmethod
     def _write_pair_identity_sidecar(path, payload):
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+    @staticmethod
+    def _write_minimal_orbital_mapping(path):
+        path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "site_basis_mapping": [
+                        {"site": 0, "orbital_indexes": [0]},
+                        {"site": 1, "orbital_indexes": [1]},
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
 
     @staticmethod
     def _write_minimal_cif(path):
@@ -426,6 +443,107 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertEqual(first_raw_block["source"], 0)
         self.assertEqual(first_raw_block["target"], 1)
         self.assertEqual(first_raw_block["R"], [1, 0, 0])
+
+    def test_build_pseudospin_orbital_payload_structure_orbital_mapping_happy_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            mapping_path = Path(tmpdir) / "orbital_mapping.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),), num_wann=16)
+            self._write_minimal_orbital_mapping(mapping_path)
+
+            payload = build_pseudospin_orbital_payload(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                local_space_mode="auto",
+                orbital_to_atom_mapping_path=mapping_path,
+            )
+
+        self.assertEqual(payload["identity_level"], "site_pair")
+        self.assertEqual(payload["pair_identity_status"], "available")
+        self.assertEqual(payload["pair_identity_provider"], "structure+orbital-mapping")
+        self.assertEqual(payload["pair_identity_source"], "structure+orbital-mapping")
+        self.assertEqual(payload["canonicalization_status"], "canonicalized")
+        self.assertEqual(
+            payload["magnetic_site_metadata"]["site_pair_encoding"],
+            "explicit-source-target",
+        )
+        self.assertEqual(payload["magnetic_site_count"], 2)
+        self.assertTrue(payload["raw_bond_blocks"])
+
+    def test_build_pseudospin_orbital_payload_automatic_vs_sidecar_equivalence(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            mapping_path = Path(tmpdir) / "orbital_mapping.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),), num_wann=16)
+            self._write_minimal_orbital_mapping(mapping_path)
+            pair_records_by_key = {}
+            for row_index in range(256):
+                pair_basis_index = row_index // 16
+                left_local_index = pair_basis_index // 4
+                right_local_index = pair_basis_index % 4
+                source = left_local_index // 2
+                target = right_local_index // 2
+                pair_records_by_key.setdefault((source, target), []).append(row_index)
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 16,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                        "comment": "minimal wannier_hr.dat",
+                    },
+                    "pair_records": [
+                        {
+                            "source": int(source),
+                            "target": int(target),
+                            "translation": [1, 0, 0],
+                            "entry_refs": list(entry_refs),
+                        }
+                        for (source, target), entry_refs in sorted(pair_records_by_key.items())
+                    ],
+                },
+            )
+
+            automatic_payload = build_pseudospin_orbital_payload(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                local_space_mode="auto",
+                orbital_to_atom_mapping_path=mapping_path,
+            )
+            sidecar_payload = build_pseudospin_orbital_payload(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                local_space_mode="auto",
+                pair_identity_sidecar_path=sidecar_path,
+            )
+
+        self.assertEqual(automatic_payload["identity_level"], sidecar_payload["identity_level"])
+        self.assertEqual(automatic_payload["pair_identity_status"], sidecar_payload["pair_identity_status"])
+        self.assertEqual(
+            automatic_payload["magnetic_site_metadata"]["site_pair_encoding"],
+            sidecar_payload["magnetic_site_metadata"]["site_pair_encoding"],
+        )
+        self.assertEqual(automatic_payload["canonicalization_status"], sidecar_payload["canonicalization_status"])
+        self.assertEqual(
+            [
+                (block["source"], block["target"], tuple(block["R"]))
+                for block in automatic_payload["raw_bond_blocks"]
+            ],
+            [
+                (block["source"], block["target"], tuple(block["R"]))
+                for block in sidecar_payload["raw_bond_blocks"]
+            ],
+        )
 
     def test_build_pseudospin_orbital_payload_no_sidecar_backward_compatibility(self):
         with tempfile.TemporaryDirectory() as tmpdir:

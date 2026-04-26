@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 from common.canonicalize_pseudospin_bond_orbits import canonicalize_pseudospin_bond_blocks
+from common.infer_many_body_hr_pair_identity_from_structure import infer_many_body_hr_pair_identity_from_structure
+from common.many_body_hr_orbital_to_atom_mapping import load_many_body_hr_orbital_to_atom_mapping
 from common.many_body_hr_pair_identity_sidecar import load_many_body_hr_pair_identity_sidecar
 from input.parse_many_body_hr import parse_many_body_hr_file
 from input.parse_poscar import parse_poscar_file, parse_structure_file
@@ -194,12 +196,35 @@ def _build_pair_matrix_from_entry_refs(hamiltonian, entry_refs):
     return matrix
 
 
+def _build_bond_blocks_from_pair_records(hamiltonian, pair_records, local_space_spec, coefficient_tolerance):
+    bond_blocks = []
+    operator_basis_labels = None
+    for record in pair_records:
+        pair_matrix = _build_pair_matrix_from_entry_refs(hamiltonian, record["entry_refs"])
+        projected = _project_raw_bond_block(pair_matrix, local_space_spec, coefficient_tolerance)
+        if operator_basis_labels is None:
+            operator_basis_labels = list(projected["operator_basis_labels"])
+        bond_blocks.append(
+            {
+                "R": [int(value) for value in record["translation"]],
+                "source": int(record["source"]),
+                "target": int(record["target"]),
+                "entry_refs": [int(value) for value in record["entry_refs"]],
+                "matrix_shape": list(pair_matrix.shape),
+                "pair_matrix": _serialize_matrix(pair_matrix),
+                "coefficients": list(projected["coefficients"]),
+            }
+        )
+    return bond_blocks, operator_basis_labels
+
+
 def build_pseudospin_orbital_payload(
     poscar_path,
     hr_path,
     coefficient_tolerance=1e-10,
     local_space_mode="generic-multiplet",
     pair_identity_sidecar_path=None,
+    orbital_to_atom_mapping_path=None,
 ):
     structure = _load_structure_payload(poscar_path)
     hamiltonian = parse_many_body_hr_file(hr_path)
@@ -217,26 +242,47 @@ def build_pseudospin_orbital_payload(
             hamiltonian=hamiltonian,
         )
         magnetic_site_payload = _explicit_magnetic_site_payload(structure, sidecar["pair_records"])
-        for record in sidecar["pair_records"]:
-            pair_matrix = _build_pair_matrix_from_entry_refs(hamiltonian, record["entry_refs"])
-            projected = _project_raw_bond_block(pair_matrix, local_space_spec, coefficient_tolerance)
-            if operator_basis_labels is None:
-                operator_basis_labels = list(projected["operator_basis_labels"])
-            bond_blocks.append(
-                {
-                    "R": [int(value) for value in record["translation"]],
-                    "source": int(record["source"]),
-                    "target": int(record["target"]),
-                    "entry_refs": [int(value) for value in record["entry_refs"]],
-                    "matrix_shape": list(pair_matrix.shape),
-                    "pair_matrix": _serialize_matrix(pair_matrix),
-                    "coefficients": list(projected["coefficients"]),
-                }
-            )
+        bond_blocks, operator_basis_labels = _build_bond_blocks_from_pair_records(
+            hamiltonian,
+            sidecar["pair_records"],
+            local_space_spec,
+            coefficient_tolerance,
+        )
         identity_level = "site_pair"
         pair_identity_status = "available"
         pair_identity_provider = "sidecar"
         pair_identity_source = "sidecar"
+    elif orbital_to_atom_mapping_path is not None:
+        mapping = load_many_body_hr_orbital_to_atom_mapping(
+            mapping_path=orbital_to_atom_mapping_path,
+            structure=structure,
+            local_space_spec=local_space_spec,
+        )
+        active_hamiltonian = {
+            **hamiltonian,
+            "entries": [
+                entry
+                for entry in list(hamiltonian.get("entries") or [])
+                if abs(entry["value"]) > 0.0
+            ],
+        }
+        inferred_pair_identity = infer_many_body_hr_pair_identity_from_structure(
+            structure=structure,
+            hamiltonian=active_hamiltonian,
+            mapping=mapping,
+            local_space_spec=local_space_spec,
+        )
+        magnetic_site_payload = _explicit_magnetic_site_payload(structure, inferred_pair_identity["pair_records"])
+        bond_blocks, operator_basis_labels = _build_bond_blocks_from_pair_records(
+            hamiltonian,
+            inferred_pair_identity["pair_records"],
+            local_space_spec,
+            coefficient_tolerance,
+        )
+        identity_level = "site_pair"
+        pair_identity_status = "available"
+        pair_identity_provider = "structure+orbital-mapping"
+        pair_identity_source = "structure+orbital-mapping"
     else:
         magnetic_site_payload = _default_magnetic_site_payload()
         entries_by_R = {}
@@ -321,6 +367,7 @@ def main():
         default="generic-multiplet",
     )
     parser.add_argument("--pair-identity-sidecar")
+    parser.add_argument("--orbital-to-atom-mapping")
     args = parser.parse_args()
 
     payload = build_pseudospin_orbital_payload(
@@ -329,6 +376,7 @@ def main():
         coefficient_tolerance=float(args.coefficient_tolerance),
         local_space_mode=str(args.local_space_mode),
         pair_identity_sidecar_path=Path(args.pair_identity_sidecar) if args.pair_identity_sidecar else None,
+        orbital_to_atom_mapping_path=Path(args.orbital_to_atom_mapping) if args.orbital_to_atom_mapping else None,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
