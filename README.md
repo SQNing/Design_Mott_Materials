@@ -93,11 +93,66 @@ still only guarantees `matrix_entry` provenance. That means:
 - without extra metadata, multisite inputs remain conservative and may stay
   unresolved because the direct HR route does not intrinsically encode explicit
   magnetic-site `source/target` identity
-- if you do have an external mapping from preserved HR `entry_refs` onto
-  physical directed pairs, you can now provide it explicitly through
+- the preferred automatic route is now:
+  normalized structure + `local_level_to_site_mapping`
+- if no level-to-site mapping is provided, the route honestly falls back to the
+  current assumed single-sublattice interpretation
+- if you already have an explicit `entry_refs -> (source, target, translation)`
+  file, you can still bypass automatic inference with
   `--pair-identity-sidecar`
 
-Minimal CLI example:
+Preferred CLI example:
+
+```bash
+python translation-invariant-spin-model-simplifier/scripts/cli/build_pseudospin_orbital_payload.py \
+  --poscar POSCAR \
+  --hr VR_hr.dat \
+  --local-level-to-site-mapping \
+  translation-invariant-spin-model-simplifier/docs/local_level_to_site_mapping.example.json
+```
+
+The preferred auxiliary JSON is a local-level ownership map, not an
+`orbital × spin` factorization. Minimal example:
+
+```json
+{
+  "schema_version": 1,
+  "site_level_mapping": [
+    { "site": 0, "level_indexes": [0, 1] },
+    { "site": 1, "level_indexes": [2, 3] }
+  ]
+}
+```
+
+Semantics:
+
+- `site` is the site index in the normalized structure payload
+- `level_indexes` are zero-based retained local levels in the `N`-level
+  `CP^(N-1)` local space
+- this does not require a specific `orbital × spin` interpretation
+
+Current validation for the level-mapping route is intentionally strict:
+
+- every referenced `site` must exist in the normalized structure
+- every `level_index` must belong to exactly one site
+- no required local level may be missing ownership
+
+When a valid level-mapping file is present, the payload upgrades from:
+
+- `identity_level = "matrix_entry"`
+
+to:
+
+- `identity_level = "site_pair"`
+- `pair_identity_status = "available"`
+- `pair_identity_provider = "structure+level-mapping"`
+- `magnetic_site_metadata.site_pair_encoding = "explicit-source-target"`
+
+If the level-mapping file is absent, the builder does not hard-fail; it keeps
+the current single-sublattice fallback. If the level-mapping file is present
+but invalid, the builder raises a validation error.
+
+Explicit pair-identity sidecars remain supported as an advanced interface:
 
 ```bash
 python translation-invariant-spin-model-simplifier/scripts/cli/build_pseudospin_orbital_payload.py \
@@ -106,7 +161,7 @@ python translation-invariant-spin-model-simplifier/scripts/cli/build_pseudospin_
   --pair-identity-sidecar pair_identity.json
 ```
 
-The first-iteration sidecar is a narrow JSON bridge from preserved HR
+The explicit sidecar is still a narrow JSON bridge from preserved HR
 `entry_refs` to explicit directed bonds. Its top-level contract is:
 
 ```json
@@ -131,25 +186,12 @@ The first-iteration sidecar is a narrow JSON bridge from preserved HR
 }
 ```
 
-Current validation is intentionally strict:
+Current sidecar validation is also strict:
 
 - `hr_binding` must match the parsed HR content
 - every parsed HR row must be covered exactly once across `pair_records`
 - `entry_refs` ownership must be unique
 - every record must use one parser-side `R`
 - record `translation` must match that parser-side `R`
-
-When the sidecar validates, the payload upgrades from:
-
-- `identity_level = "matrix_entry"`
-
-to:
-
-- `identity_level = "site_pair"`
-- `pair_identity_status = "available"`
-- `magnetic_site_metadata.site_pair_encoding = "explicit-source-target"`
-
-If the sidecar is invalid, the builder raises a validation error; it does not
-silently fall back to the no-sidecar path.
 
 For translation-invariant Heisenberg-like models, the current `variational` ground-state helper does not stay locked to a single crystallographic unit cell. It scans progressively larger magnetic supercells, tracks the energy per spin, and stops early when the result is converged, with a default search cap of `6x6x6` in 3D.

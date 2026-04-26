@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "site_level_mapping": [
+    {
+      "site": 0,
+      "level_indexes": [0, 1]
+    },
+    {
+      "site": 1,
+      "level_indexes": [2, 3]
+    }
+  ]
+}
