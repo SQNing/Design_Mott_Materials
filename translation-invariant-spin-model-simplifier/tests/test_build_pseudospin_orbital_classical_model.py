@@ -1,4 +1,6 @@
 import sys
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,6 +12,55 @@ from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payloa
 
 
 class BuildPseudoSpinOrbitalClassicalModelTests(unittest.TestCase):
+    @staticmethod
+    def _write_two_site_poscar(path):
+        path.write_text(
+            "\n".join(
+                [
+                    "two-site triangular lattice",
+                    "1.0",
+                    "1.0 0.0 0.0",
+                    "0.5 0.8660254037844386 0.0",
+                    "0.0 0.0 8.0",
+                    "Fe",
+                    "2",
+                    "Direct",
+                    "0.0 0.0 0.0",
+                    "0.3333333333333333 0.6666666666666666 0.0",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _write_minimal_many_body_hr(path, R_vectors=((1, 0, 0),), num_wann=4):
+        rows = []
+        for rx, ry, rz in R_vectors:
+            for m in range(1, int(num_wann) + 1):
+                for n in range(1, int(num_wann) + 1):
+                    value = 1.0 if m == n else 0.0
+                    rows.append(
+                        f"    {rx}    {ry}    {rz}    {m}    {n}    {value:.15f}    0.000000000000000"
+                    )
+        path.write_text(
+            "\n".join(
+                [
+                    "minimal wannier_hr.dat",
+                    str(int(num_wann)),
+                    str(len(tuple(R_vectors))),
+                    " ".join(["1"] * len(tuple(R_vectors))),
+                    *rows,
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _write_pair_identity_sidecar(path, payload):
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
     def test_build_classical_model_preserves_lowered_onsite_terms(self):
         parsed_payload = {
             "basis_order": "orbital_major_spin_minor",
@@ -244,6 +295,52 @@ class BuildPseudoSpinOrbitalClassicalModelTests(unittest.TestCase):
 
         self.assertEqual(model["orbital_count"], 2)
         self.assertTrue(model["terms"])
+
+    def test_build_classical_model_sidecar_explicit_source_target_payload(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),), num_wann=16)
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 16,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                        "comment": "minimal wannier_hr.dat",
+                    },
+                    "pair_records": [
+                        {
+                            "source": 0,
+                            "target": 1,
+                            "translation": [1, 0, 0],
+                            "entry_refs": list(range(256)),
+                        }
+                    ],
+                },
+            )
+
+            parsed = build_pseudospin_orbital_payload(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                local_space_mode="auto",
+                pair_identity_sidecar_path=sidecar_path,
+            )
+            model = build_pseudospin_orbital_classical_model(parsed)
+
+        self.assertEqual(parsed["canonicalization_status"], "canonicalized")
+        self.assertEqual(parsed["pair_identity_status"], "available")
+        self.assertEqual(parsed["magnetic_site_metadata"]["site_pair_encoding"], "explicit-source-target")
+        self.assertGreater(model["bond_count"], 0)
+        self.assertTrue(model["terms"])
+        self.assertIn([1, 0, 0], [term["R"] for term in model["terms"]])
 
 
 if __name__ == "__main__":

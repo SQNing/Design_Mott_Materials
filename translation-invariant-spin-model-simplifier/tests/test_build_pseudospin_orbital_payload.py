@@ -424,6 +424,143 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertEqual(first_raw_block["target"], 1)
         self.assertEqual(first_raw_block["R"], [1, 0, 0])
 
+    def test_build_pseudospin_orbital_payload_no_sidecar_backward_compatibility(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["identity_level"], "matrix_entry")
+        self.assertEqual(payload["pair_identity_status"], "unavailable")
+        self.assertIsNone(payload["pair_identity_provider"])
+        self.assertEqual(payload["pair_identity_source"], "unavailable")
+        self.assertEqual(payload["canonicalization_status"], "unresolved")
+        self.assertEqual(payload["magnetic_site_count"], 1)
+        self.assertEqual(
+            payload["magnetic_site_metadata"]["site_pair_encoding"],
+            "assumed-single-sublattice-many_body_hr",
+        )
+
+    def test_build_pseudospin_orbital_payload_sidecar_validation_error_missing_coverage(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 4,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                    },
+                    "pair_records": [
+                        {
+                            "source": 0,
+                            "target": 1,
+                            "translation": [1, 0, 0],
+                            "entry_refs": list(range(15)),
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "missing sidecar coverage"):
+                build_pseudospin_orbital_payload(
+                    poscar_path=poscar_path,
+                    hr_path=hr_path,
+                    pair_identity_sidecar_path=sidecar_path,
+                )
+
+    def test_build_pseudospin_orbital_payload_sidecar_validation_error_duplicate_ownership(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 4,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                    },
+                    "pair_records": [
+                        {
+                            "source": 0,
+                            "target": 1,
+                            "translation": [1, 0, 0],
+                            "entry_refs": [0, 1, 2, 3],
+                        },
+                        {
+                            "source": 1,
+                            "target": 0,
+                            "translation": [1, 0, 0],
+                            "entry_refs": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+                        },
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "duplicate sidecar entry_ref ownership"):
+                build_pseudospin_orbital_payload(
+                    poscar_path=poscar_path,
+                    hr_path=hr_path,
+                    pair_identity_sidecar_path=sidecar_path,
+                )
+
+    def test_build_pseudospin_orbital_payload_sidecar_validation_error_translation_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 4,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                    },
+                    "pair_records": [
+                        {
+                            "source": 0,
+                            "target": 1,
+                            "translation": [0, 0, 0],
+                            "entry_refs": list(range(16)),
+                        }
+                    ],
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "translation does not match parser R"):
+                build_pseudospin_orbital_payload(
+                    poscar_path=poscar_path,
+                    hr_path=hr_path,
+                    pair_identity_sidecar_path=sidecar_path,
+                )
+
     def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             poscar_path = Path(tmpdir) / "POSCAR"
