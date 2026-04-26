@@ -66,6 +66,8 @@ def parse_many_body_hr_text(text):
         "num_wann": num_wann,
         "nrpts": nrpts,
         "degeneracies": degeneracies,
+        "identity_level": "matrix_entry",
+        "pair_identity_available": False,
         "R_vectors": R_vectors,
         "blocks_by_R": blocks_by_R,
         "entries": entries,

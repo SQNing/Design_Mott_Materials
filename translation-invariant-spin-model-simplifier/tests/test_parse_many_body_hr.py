@@ -11,6 +11,25 @@ from input.parse_many_body_hr import parse_many_body_hr_file, parse_many_body_hr
 
 
 class ParseManyBodyHRTests(unittest.TestCase):
+    def test_parse_many_body_hr_text_exposes_identity_level_metadata(self):
+        hr_text = """wannier_hr.dat created by gutz.py
+          2
+          1
+    1
+    0    0    0    1    1                  1.500000000000000                  0.000000000000000
+    0    0    0    2    1                  0.000000000000000                  1.000000000000000
+    0    0    0    1    2                  0.000000000000000                 -1.000000000000000
+    0    0    0    2    2                 -0.500000000000000                  0.000000000000000
+"""
+
+        parsed = parse_many_body_hr_text(hr_text)
+
+        self.assertEqual(parsed["identity_level"], "matrix_entry")
+        self.assertFalse(parsed["pair_identity_available"])
+        self.assertIn("entries", parsed)
+        self.assertNotIn("source_site_index", parsed["entries"][0])
+        self.assertNotIn("target_site_index", parsed["entries"][0])
+
     def test_parse_many_body_hr_text_preserves_pre_aggregation_entries(self):
         hr_text = """wannier_hr.dat created by gutz.py
           2
