@@ -32,19 +32,22 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         )
 
     @staticmethod
-    def _write_minimal_many_body_hr(path):
+    def _write_minimal_many_body_hr(path, R_vectors=((1, 0, 0),)):
         rows = []
-        for m in range(1, 5):
-            for n in range(1, 5):
-                value = 1.0 if m == n else 0.0
-                rows.append(f"    1    0    0    {m}    {n}    {value:.15f}    0.000000000000000")
+        for rx, ry, rz in R_vectors:
+            for m in range(1, 5):
+                for n in range(1, 5):
+                    value = 1.0 if m == n else 0.0
+                    rows.append(
+                        f"    {rx}    {ry}    {rz}    {m}    {n}    {value:.15f}    0.000000000000000"
+                    )
         path.write_text(
             "\n".join(
                 [
                     "minimal wannier_hr.dat",
                     "4",
-                    "1",
-                    "1",
+                    str(len(tuple(R_vectors))),
+                    " ".join(["1"] * len(tuple(R_vectors))),
                     *rows,
                     "",
                 ]
@@ -253,6 +256,31 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertIn("orbit_representative", first_block)
         self.assertIn("orbit_members", first_block)
         self.assertIn("coordinate_convention", first_block)
+
+    def test_build_pseudospin_orbital_payload_orbit_merge_preserves_raw_provenance(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_minimal_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0), (0, 1, 0)))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["canonicalization_status"], "canonicalized")
+        self.assertEqual(len(payload["raw_bond_blocks"]), 2)
+        self.assertEqual(len(payload["bond_blocks"]), 1)
+        self.assertEqual(payload["bond_blocks"][0]["raw_block_refs"], [0, 1])
+        self.assertEqual(
+            {
+                tuple(member["translation"])
+                for member in payload["bond_blocks"][0]["orbit_members"]
+            },
+            {
+                (1, 0, 0),
+                (0, 1, 0),
+                (1, -1, 0),
+            },
+        )
 
     def test_build_pseudospin_orbital_payload_reads_xsf_structure_file(self):
         hr_path = Path(

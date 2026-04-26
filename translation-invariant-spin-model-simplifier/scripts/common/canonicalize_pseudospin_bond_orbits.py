@@ -44,7 +44,7 @@ def _orbit_lattice(structure, magnetic_site_payload):
 
 def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bond_blocks):
     orbit_lattice = _orbit_lattice(structure, magnetic_site_payload)
-    canonical_blocks = []
+    canonical_blocks_by_key = {}
     for block_index, raw_block in enumerate(raw_bond_blocks):
         representative = {
             "source": int(raw_block.get("source", 0)),
@@ -52,18 +52,42 @@ def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bo
             "translation": [int(value) for value in raw_block.get("R", [0, 0, 0])],
         }
         orbit = generate_noncull_directed_bond_orbit(orbit_lattice, representative)
-        canonical_block = dict(raw_block)
-        canonical_block["orbit_id"] = (
-            f"{representative['source']}:{representative['target']}:"
-            f"{tuple(int(value) for value in representative['translation'])}"
+        canonical_member = min(
+            (
+                int(member["source"]),
+                int(member["target"]),
+                tuple(int(value) for value in member["translation"]),
+            )
+            for member in orbit["members"]
         )
+        orbit_key = canonical_member
+        canonical_block = canonical_blocks_by_key.get(orbit_key)
+        if canonical_block is None:
+            canonical_block = dict(raw_block)
+            canonical_block["source"] = int(canonical_member[0])
+            canonical_block["target"] = int(canonical_member[1])
+            canonical_block["R"] = list(canonical_member[2])
+            canonical_block["orbit_id"] = (
+                f"{canonical_member[0]}:{canonical_member[1]}:{canonical_member[2]}"
+            )
+            canonical_block["orbit_representative"] = {
+                "source": int(canonical_member[0]),
+                "target": int(canonical_member[1]),
+                "translation": list(canonical_member[2]),
+                "coordinate_convention": "global_crystallographic",
+            }
+            canonical_block["orbit_members"] = list(orbit["members"])
+            canonical_block["coordinate_convention"] = "global_crystallographic"
+            canonical_block["raw_block_refs"] = []
+            canonical_blocks_by_key[orbit_key] = canonical_block
+        canonical_block["raw_block_refs"].append(block_index)
+    canonical_blocks = []
+    for canonical_member in sorted(canonical_blocks_by_key):
+        canonical_block = canonical_blocks_by_key[canonical_member]
         canonical_block["orbit_representative"] = {
-            **representative,
+            **canonical_block["orbit_representative"],
             "coordinate_convention": "global_crystallographic",
         }
-        canonical_block["orbit_members"] = list(orbit["members"])
-        canonical_block["coordinate_convention"] = "global_crystallographic"
-        canonical_block["raw_block_refs"] = [block_index]
         canonical_blocks.append(canonical_block)
     return {
         "canonicalization_status": "canonicalized",
