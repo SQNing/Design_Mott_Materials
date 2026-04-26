@@ -2,6 +2,7 @@ import sys
 import tempfile
 import unittest
 import warnings
+import json
 from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -75,6 +76,10 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+
+    @staticmethod
+    def _write_pair_identity_sidecar(path, payload):
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
     @staticmethod
     def _write_minimal_cif(path):
@@ -365,6 +370,59 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertIn("pair_identity_provider", payload)
         self.assertIsNone(payload["pair_identity_provider"])
         self.assertEqual(payload["pair_identity_source"], "unavailable")
+
+    def test_build_pseudospin_orbital_payload_sidecar_happy_path_upgrades_to_explicit_source_target(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            sidecar_path = Path(tmpdir) / "pair_identity.json"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+            self._write_pair_identity_sidecar(
+                sidecar_path,
+                {
+                    "schema_version": 1,
+                    "pair_identity_provider": "sidecar",
+                    "site_pair_encoding": "explicit-source-target",
+                    "coordinate_convention": "global_crystallographic",
+                    "hr_binding": {
+                        "num_wann": 4,
+                        "nrpts": 1,
+                        "R_vectors": [[1, 0, 0]],
+                        "comment": "minimal wannier_hr.dat",
+                    },
+                    "pair_records": [
+                        {
+                            "source": 0,
+                            "target": 1,
+                            "translation": [1, 0, 0],
+                            "entry_refs": list(range(16)),
+                        }
+                    ],
+                },
+            )
+
+            payload = build_pseudospin_orbital_payload(
+                poscar_path=poscar_path,
+                hr_path=hr_path,
+                pair_identity_sidecar_path=sidecar_path,
+            )
+
+        self.assertEqual(payload["identity_level"], "site_pair")
+        self.assertEqual(payload["pair_identity_status"], "available")
+        self.assertEqual(payload["pair_identity_provider"], "sidecar")
+        self.assertEqual(payload["pair_identity_source"], "sidecar")
+        self.assertEqual(
+            payload["magnetic_site_metadata"]["site_pair_encoding"],
+            "explicit-source-target",
+        )
+        self.assertEqual(payload["canonicalization_status"], "canonicalized")
+        self.assertEqual(payload["magnetic_site_count"], 2)
+        self.assertEqual(len(payload["raw_bond_blocks"]), 1)
+        first_raw_block = payload["raw_bond_blocks"][0]
+        self.assertEqual(first_raw_block["source"], 0)
+        self.assertEqual(first_raw_block["target"], 1)
+        self.assertEqual(first_raw_block["R"], [1, 0, 0])
 
     def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
