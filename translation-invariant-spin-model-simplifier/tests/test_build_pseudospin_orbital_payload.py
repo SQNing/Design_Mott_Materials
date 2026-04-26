@@ -32,6 +32,27 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         )
 
     @staticmethod
+    def _write_two_site_poscar(path):
+        path.write_text(
+            "\n".join(
+                [
+                    "two-site triangular lattice",
+                    "1.0",
+                    "1.0 0.0 0.0",
+                    "0.5 0.8660254037844386 0.0",
+                    "0.0 0.0 8.0",
+                    "Fe",
+                    "2",
+                    "Direct",
+                    "0.0 0.0 0.0",
+                    "0.3333333333333333 0.6666666666666666 0.0",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    @staticmethod
     def _write_minimal_many_body_hr(path, R_vectors=((1, 0, 0),)):
         rows = []
         for rx, ry, rz in R_vectors:
@@ -281,6 +302,20 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
                 (1, -1, 0),
             },
         )
+
+    def test_build_pseudospin_orbital_payload_unresolved_when_multisite_structure_lacks_site_pair_assignment(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["canonicalization_status"], "unresolved")
+        self.assertIn("diagnostics", payload)
+        self.assertIn("unresolved_blocks", payload["diagnostics"])
+        self.assertEqual(payload["diagnostics"]["unresolved_blocks"], [0])
 
     def test_build_pseudospin_orbital_payload_reads_xsf_structure_file(self):
         hr_path = Path(

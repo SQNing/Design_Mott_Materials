@@ -154,7 +154,7 @@ def build_pseudospin_orbital_payload(
 
     canonicalized = canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, bond_blocks)
 
-    return {
+    payload = {
         "schema_version": 2,
         "input_mode": "many_body_hr",
         "classical_family": "cpn",
@@ -188,6 +188,9 @@ def build_pseudospin_orbital_payload(
         "raw_bond_blocks": canonicalized["raw_bond_blocks"],
         "bond_blocks": canonicalized["bond_blocks"],
     }
+    if "diagnostics" in canonicalized:
+        payload["diagnostics"] = canonicalized["diagnostics"]
+    return payload
 
 
 def main():

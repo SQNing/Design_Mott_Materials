@@ -43,6 +43,21 @@ def _orbit_lattice(structure, magnetic_site_payload):
 
 
 def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bond_blocks):
+    if (
+        len(list(structure.get("positions", []))) > 1
+        and magnetic_site_payload.get("magnetic_site_metadata", {}).get("site_pair_encoding")
+        == "assumed-single-sublattice-many_body_hr"
+    ):
+        return {
+            "canonicalization_status": "unresolved",
+            "bond_blocks": [],
+            "raw_bond_blocks": list(raw_bond_blocks),
+            "diagnostics": {
+                "reason": "multisite-structure-requires-explicit-site-pair-assignment",
+                "unresolved_blocks": list(range(len(raw_bond_blocks))),
+            },
+        }
+
     orbit_lattice = _orbit_lattice(structure, magnetic_site_payload)
     canonical_blocks_by_key = {}
     for block_index, raw_block in enumerate(raw_bond_blocks):
@@ -93,4 +108,7 @@ def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bo
         "canonicalization_status": "canonicalized",
         "bond_blocks": canonical_blocks,
         "raw_bond_blocks": list(raw_bond_blocks),
+        "diagnostics": {
+            "unresolved_blocks": [],
+        },
     }
