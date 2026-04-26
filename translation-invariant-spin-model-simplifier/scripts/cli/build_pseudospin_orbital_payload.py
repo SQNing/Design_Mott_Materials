@@ -179,6 +179,8 @@ def build_pseudospin_orbital_payload(
         "schema_version": 2,
         "input_mode": "many_body_hr",
         "classical_family": "cpn",
+        "identity_level": str(hamiltonian.get("identity_level", "unknown")),
+        "pair_identity_status": "available" if hamiltonian.get("pair_identity_available") else "unavailable",
         "basis_semantics": {
             "local_space": "pseudospin_orbital",
             "local_space_mode": str(local_space_spec["mode"]),

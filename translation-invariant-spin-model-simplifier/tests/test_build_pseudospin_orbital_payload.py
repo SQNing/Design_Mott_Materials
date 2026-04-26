@@ -319,6 +319,23 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertIn("unresolved_blocks", payload["diagnostics"])
         self.assertEqual(payload["diagnostics"]["unresolved_blocks"], [0])
 
+    def test_build_pseudospin_orbital_payload_reports_pair_identity_missing_for_multisite_direct_route(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            poscar_path = Path(tmpdir) / "POSCAR"
+            hr_path = Path(tmpdir) / "wannier_hr.dat"
+            self._write_two_site_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path, R_vectors=((1, 0, 0),))
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["identity_level"], "matrix_entry")
+        self.assertEqual(payload["pair_identity_status"], "unavailable")
+        self.assertTrue(payload["raw_hr_entries"])
+        self.assertEqual(
+            payload["diagnostics"]["reason"],
+            "pair-identity-unavailable-for-multisite-direct-route",
+        )
+
     def test_build_pseudospin_orbital_payload_preserves_pre_aggregation_provenance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             poscar_path = Path(tmpdir) / "POSCAR"

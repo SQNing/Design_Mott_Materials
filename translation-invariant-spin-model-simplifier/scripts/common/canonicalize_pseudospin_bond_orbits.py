@@ -60,7 +60,7 @@ def canonicalize_pseudospin_bond_blocks(structure, magnetic_site_payload, raw_bo
             "bond_blocks": [],
             "raw_bond_blocks": list(raw_bond_blocks),
             "diagnostics": {
-                "reason": "multisite-structure-requires-explicit-site-pair-assignment",
+                "reason": "pair-identity-unavailable-for-multisite-direct-route",
                 "unresolved_blocks": list(range(len(raw_bond_blocks))),
             },
         }
