@@ -34,7 +34,8 @@ def parse_many_body_hr_text(text):
 
     blocks_by_R = {}
     R_vectors = []
-    for line in data_lines:
+    entries = []
+    for row_index, line in enumerate(data_lines):
         fields = line.split()
         if len(fields) < 7:
             raise ValueError("data row must contain at least 7 fields")
@@ -43,6 +44,15 @@ def parse_many_body_hr_text(text):
         n = int(fields[4]) - 1
         value = complex(float(fields[5]), float(fields[6]))
         R = (rx, ry, rz)
+        entries.append(
+            {
+                "row_index": int(row_index),
+                "R": R,
+                "m": int(m),
+                "n": int(n),
+                "value": value,
+            }
+        )
         if R not in blocks_by_R:
             blocks_by_R[R] = np.zeros((num_wann, num_wann), dtype=complex)
             R_vectors.append(R)
@@ -58,6 +68,7 @@ def parse_many_body_hr_text(text):
         "degeneracies": degeneracies,
         "R_vectors": R_vectors,
         "blocks_by_R": blocks_by_R,
+        "entries": entries,
     }
 
 

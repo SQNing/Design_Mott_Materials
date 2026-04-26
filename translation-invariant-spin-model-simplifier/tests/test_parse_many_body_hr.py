@@ -11,6 +11,29 @@ from input.parse_many_body_hr import parse_many_body_hr_file, parse_many_body_hr
 
 
 class ParseManyBodyHRTests(unittest.TestCase):
+    def test_parse_many_body_hr_text_preserves_pre_aggregation_entries(self):
+        hr_text = """wannier_hr.dat created by gutz.py
+          2
+          1
+    1
+    0    0    0    1    1                  1.500000000000000                  0.000000000000000
+    0    0    0    2    1                  0.000000000000000                  1.000000000000000
+    0    0    0    1    2                  0.000000000000000                 -1.000000000000000
+    0    0    0    2    2                 -0.500000000000000                  0.000000000000000
+"""
+
+        parsed = parse_many_body_hr_text(hr_text)
+
+        self.assertIn("blocks_by_R", parsed)
+        self.assertIn("entries", parsed)
+        self.assertEqual(len(parsed["entries"]), 4)
+        first = parsed["entries"][0]
+        self.assertEqual(first["R"], (0, 0, 0))
+        self.assertEqual(first["row_index"], 0)
+        self.assertEqual(first["m"], 0)
+        self.assertEqual(first["n"], 0)
+        self.assertEqual(first["value"], complex(1.5, 0.0))
+
     def test_parse_many_body_hr_text_reads_header_and_one_block(self):
         hr_text = """wannier_hr.dat created by gutz.py
           2
