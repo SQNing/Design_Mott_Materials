@@ -58,7 +58,7 @@ function to_float_matrix(rows)
 end
 
 function deserialize_complex(value)
-    if haskey(value, :real) || haskey(value, :imag)
+    if value isa AbstractDict || (Base.hasproperty(value, :real) && Base.hasproperty(value, :imag))
         return ComplexF64(Float64(get(value, :real, 0.0)), Float64(get(value, :imag, 0.0)))
     end
     return ComplexF64(value)
@@ -130,7 +130,7 @@ function set_initial_state!(sys, rays)
 end
 
 function serialize_state(sys)
-    shape = Int.(collect(sys.latsize))
+    shape = Int.(collect(sys.dims))
     rays = Any[]
     for x in 1:shape[1], y in 1:shape[2], z in 1:shape[3]
         amplitudes = sys.coherents[x, y, z, 1]
@@ -147,7 +147,7 @@ end
 
 function backend_stationarity_summary(sys)
     gradient = Sunny.energy_grad_coherents(sys)
-    shape = Int.(collect(sys.latsize))
+    shape = Int.(collect(sys.dims))
     norms = Float64[]
     for x in 1:shape[1], y in 1:shape[2], z in 1:shape[3]
         amplitudes = sys.coherents[x, y, z, 1]

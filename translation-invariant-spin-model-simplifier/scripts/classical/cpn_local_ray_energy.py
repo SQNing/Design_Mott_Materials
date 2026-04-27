@@ -34,6 +34,13 @@ def deserialize_tensor(serialized):
     return tensor
 
 
+def deserialize_matrix(serialized):
+    return np.array(
+        [[complex_from_serialized(value) for value in row] for row in serialized],
+        dtype=complex,
+    )
+
+
 def unit_norm_ray(vector):
     vector = np.array(vector, dtype=complex)
     norm = float(np.linalg.norm(vector))
@@ -146,6 +153,11 @@ def evaluate_cpn_local_ray_energy(model, state_array):
             left_vector = state_array[cell_index + (source,)]
             right_vector = state_array[right_index + (target,)]
             energy += bond_energy(tensor, left_vector, right_vector)
+        for onsite in model.get("onsite_terms", []):
+            site = int(onsite.get("site", 0))
+            onsite_matrix = deserialize_matrix(onsite["matrix"])
+            vector = state_array[cell_index + (site,)]
+            energy += complex(np.vdot(vector, onsite_matrix @ vector))
     return float(np.real(energy) / float(np.prod(cell_shape)))
 
 
@@ -168,6 +180,11 @@ def effective_local_matrix(model, state_array, cell_index, site_index):
             left_index = mod_index(tuple(cell_index[axis] - R[axis] for axis in range(3)), cell_shape)
             partner = state_array[left_index + (source,)]
             matrix += np.einsum("cdab,c,d->ab", tensor, np.conjugate(partner), partner, optimize=True)
+
+    for onsite in model.get("onsite_terms", []):
+        if int(onsite.get("site", 0)) != int(site_index):
+            continue
+        matrix += deserialize_matrix(onsite["matrix"])
 
     return 0.5 * (matrix + matrix.conjugate().T)
 

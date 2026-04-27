@@ -10,6 +10,17 @@ from common.sunny_bond_adapter import adapt_model_for_sunny_pair_couplings
 from lswt.build_lswt_payload import infer_spatial_dimension
 
 
+def _sunny_export_conventions(conventions):
+    factorization_kind = str(conventions.get("factorization_kind", ""))
+    if factorization_kind != "generic_multiplet":
+        return None
+    return {
+        "source_basis_order": str(conventions.get("basis_order", "retained_state_index")),
+        "source_factorization_kind": factorization_kind,
+        "local_coordinate_layout": "generic_multiplet",
+    }
+
+
 def _ordering_compatibility_with_supercell(q_vector, supercell_shape, *, tolerance=1e-8):
     axis_products = []
     commensurate = True
@@ -160,7 +171,11 @@ def build_sun_gswt_payload(model, classical_state=None):
         "payload_kind": "sun_gswt_prototype",
         "local_dimension": int(adapted_model["local_dimension"]),
         "orbital_count": int(adapted_model.get("orbital_count", 0)),
-        "basis_order": conventions["basis_order"],
+        "basis_order": (
+            "orbital_major_spin_minor"
+            if conventions.get("factorization_kind") == "generic_multiplet"
+            else conventions["basis_order"]
+        ),
         "pair_basis_order": conventions["pair_basis_order"],
         "local_basis_labels": list(adapted_model.get("local_basis_labels", [])),
         "lattice_vectors": adapted_model.get("lattice_vectors", []),
@@ -203,6 +218,9 @@ def build_sun_gswt_payload(model, classical_state=None):
         },
         "sunny_adapter": dict(adapted_model.get("sunny_adapter", {})),
     }
+    sunny_export_conventions = _sunny_export_conventions(conventions)
+    if sunny_export_conventions is not None:
+        payload["sunny_export_conventions"] = sunny_export_conventions
     if onsite_terms:
         payload["onsite_terms"] = onsite_terms
     if ordering is not None:

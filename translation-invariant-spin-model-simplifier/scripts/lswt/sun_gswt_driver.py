@@ -160,16 +160,41 @@ def _prepare_backend_payload(gswt_payload):
     return prepared, None
 
 
+def _is_generic_multiplet_sunny_export(gswt_payload):
+    export_conventions = gswt_payload.get("sunny_export_conventions")
+    if not isinstance(export_conventions, dict):
+        return False
+    return str(export_conventions.get("source_factorization_kind")) == "generic_multiplet"
+
+
 def _preflight_payload_error(gswt_payload):
-    try:
-        resolve_pseudospin_orbital_conventions(gswt_payload)
-    except ValueError as exc:
-        return _error(
-            "invalid-gswt-convention",
-            str(exc),
-            payload_kind=gswt_payload.get("payload_kind"),
-            backend=gswt_payload.get("backend", "Sunny.jl"),
-        )
+    if _is_generic_multiplet_sunny_export(gswt_payload):
+        basis_order = gswt_payload.get("basis_order")
+        if basis_order != "orbital_major_spin_minor":
+            return _error(
+                "invalid-gswt-convention",
+                f"Sunny generic-multiplet export requires basis_order = 'orbital_major_spin_minor', got {basis_order!r}",
+                payload_kind=gswt_payload.get("payload_kind"),
+                backend=gswt_payload.get("backend", "Sunny.jl"),
+            )
+        pair_basis_order = gswt_payload.get("pair_basis_order")
+        if pair_basis_order not in {None, "site_i_major_site_j_minor"}:
+            return _error(
+                "invalid-gswt-convention",
+                f"pair_basis_order must be 'site_i_major_site_j_minor', got {pair_basis_order!r}",
+                payload_kind=gswt_payload.get("payload_kind"),
+                backend=gswt_payload.get("backend", "Sunny.jl"),
+            )
+    else:
+        try:
+            resolve_pseudospin_orbital_conventions(gswt_payload)
+        except ValueError as exc:
+            return _error(
+                "invalid-gswt-convention",
+                str(exc),
+                payload_kind=gswt_payload.get("payload_kind"),
+                backend=gswt_payload.get("backend", "Sunny.jl"),
+            )
 
     classical_reference = gswt_payload.get("classical_reference")
     if isinstance(classical_reference, dict):
@@ -480,6 +505,8 @@ def run_sun_gswt(payload, julia_cmd=None):
             result["ordering"] = gswt_payload.get("ordering", {})
         if "supercell_shape" not in result and gswt_payload.get("supercell_shape") is not None:
             result["supercell_shape"] = gswt_payload.get("supercell_shape")
+        if "sunny_export_conventions" not in result and isinstance(gswt_payload.get("sunny_export_conventions"), dict):
+            result["sunny_export_conventions"] = gswt_payload.get("sunny_export_conventions", {})
     return _enrich_gswt_result(result, gswt_payload)
 
 

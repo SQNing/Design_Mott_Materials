@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
 
+from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
+
 
 def _complex_from_serialized(value):
     return complex(float(value["real"]), float(value["imag"]))
@@ -354,9 +356,10 @@ def group_pseudospin_orbital_terms(parsed_payload, significant_threshold=1e-4):
     factorization = parsed_payload.get("retained_local_space", {}).get("factorization", {})
     factorization_kind = str(factorization.get("kind") or "orbital_times_spin")
     orbital_count = int(parsed_payload.get("inferred", {}).get("orbital_count", 0))
+    realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
     bonds = [
         _group_single_bond(block, lattice_vectors, orbital_count, significant_threshold, factorization_kind)
-        for block in parsed_payload.get("bond_blocks", [])
+        for block in realized_bond_blocks
     ]
 
     shells = {}

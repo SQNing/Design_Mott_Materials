@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 from simplify.assemble_effective_model import assemble_effective_model
 from simplify.canonicalize_terms import canonicalize_terms
 from simplify.generate_simplifications import generate_candidates
@@ -13,7 +14,7 @@ def _serialize_coefficient(value):
 
 def _decomposition_terms(parsed_payload):
     terms = []
-    for block in parsed_payload.get("bond_blocks", []):
+    for block in realize_pseudospin_bond_blocks(parsed_payload):
         for item in block.get("coefficients", []):
             terms.append(
                 {

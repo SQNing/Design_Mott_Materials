@@ -2,6 +2,7 @@
 import math
 
 from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
+from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 
 
 def _complex_from_serialized(value):
@@ -54,8 +55,9 @@ def build_pseudospin_orbital_classical_model(parsed_payload):
     if not lattice_vectors:
         raise ValueError("parsed payload must include structure.lattice_vectors")
 
+    realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
     terms = []
-    for block in parsed_payload.get("bond_blocks", []):
+    for block in realized_bond_blocks:
         displacement = _cartesian_from_R(block["R"], lattice_vectors)
         distance = _vector_norm(displacement)
         for item in block.get("coefficients", []):
@@ -84,7 +86,7 @@ def build_pseudospin_orbital_classical_model(parsed_payload):
         "basis_order": parsed_payload.get("basis_order"),
         "lattice_vectors": lattice_vectors,
         "positions": parsed_payload.get("structure", {}).get("positions", []),
-        "bond_count": len(parsed_payload.get("bond_blocks", [])),
+        "bond_count": len(realized_bond_blocks),
         "terms": terms,
     }
     onsite_terms = lower_pseudospin_orbital_onsite_terms(

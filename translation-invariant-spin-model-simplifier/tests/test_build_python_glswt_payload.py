@@ -110,6 +110,38 @@ class BuildPythonGlswtPayloadTests(unittest.TestCase):
         self.assertEqual(payload["onsite_terms"][0]["matrix_shape"], [2, 2])
         self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
 
+    def test_builder_accepts_pre_lowered_onsite_terms_for_local_rays(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "local_dimension": 2,
+            "orbital_count": 1,
+            "local_basis_labels": ["up", "down"],
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "onsite_terms": [{"site": 0, "matrix_shape": [2, 2], "matrix": [[0.0, 0.0], [0.0, 1.0]]}],
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "tensor_shape": [2, 2, 2, 2],
+                    "pair_matrix": _negative_permutation_pair_matrix(2),
+                }
+            ],
+        }
+        classical_state = {
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [
+                {"cell": [0, 0, 0], "vector": [_serialize_complex(1.0), _serialize_complex(0.0)]},
+            ],
+        }
+
+        payload = build_python_glswt_payload(model, classical_state=classical_state)
+
+        self.assertEqual(payload["onsite_terms"][0]["site"], 0)
+        self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
+
     def test_builder_accepts_canonical_local_rays_state(self):
         model = {
             "model_type": "sun_gswt_classical",

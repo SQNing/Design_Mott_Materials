@@ -8,6 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
+from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 from output.render_pseudospin_orbital_report import (
     write_pseudospin_orbital_reports,
     write_stage_markdown,
@@ -18,6 +19,7 @@ from simplify.simplify_pseudospin_orbital_payload import simplify_pseudospin_orb
 
 def _phase_summary(parsed_payload, simplified_payload, grouped_payload):
     inferred = parsed_payload.get("inferred", {})
+    realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
     lines = [
         "# Pseudospin-Orbital Report Phase",
         "",
@@ -37,7 +39,7 @@ def _phase_summary(parsed_payload, simplified_payload, grouped_payload):
         "",
         "## Current counts",
         "",
-        f"- bond blocks: {len(parsed_payload['bond_blocks'])}",
+        f"- bond blocks: {len(realized_bond_blocks)}",
         f"- grouped bonds: {len(grouped_payload['bonds'])}",
         f"- simplification candidates: {len(simplified_payload['simplification']['candidates'])}",
     ]

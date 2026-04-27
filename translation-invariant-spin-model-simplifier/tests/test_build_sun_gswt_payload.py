@@ -47,6 +47,70 @@ def _canonical_local_operator_onsite_term(diagonal):
 
 
 class BuildSunGswtPayloadTests(unittest.TestCase):
+    def test_build_payload_exports_sunny_compatible_basis_order_for_generic_multiplet(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "basis_semantics": {"local_space": "pseudospin_orbital"},
+            "basis_order": "retained_state_index",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "retained_local_space": {
+                "dimension": 3,
+                "factorization": {
+                    "kind": "generic_multiplet",
+                    "multiplet_dimension": 3,
+                },
+                "basis_labels": ["m=1", "m=0", "m=-1"],
+            },
+            "pair_operator_convention": {
+                "representation": "pair_matrix",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "tensor_view": {
+                    "kind": "K_ab_cd",
+                    "index_order": ["left_bra", "right_bra", "left_ket", "right_ket"],
+                },
+            },
+            "operator_dictionary": {
+                "local_basis_kind": "generic_multiplet",
+                "local_operator_basis": {
+                    "matrix_construction": "local_generator_basis",
+                },
+            },
+            "local_dimension": 3,
+            "orbital_count": 0,
+            "local_basis_labels": ["m=1", "m=0", "m=-1"],
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "tensor_shape": [3, 3, 3, 3],
+                    "pair_matrix": [
+                        [_serialize_complex(1.0 if row == col else 0.0) for col in range(9)]
+                        for row in range(9)
+                    ],
+                    "tensor": _permutation_tensor(3),
+                }
+            ],
+        }
+        classical_state = {
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [
+                {
+                    "cell": [0, 0, 0],
+                    "vector": [_serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                },
+            ],
+        }
+
+        payload = build_sun_gswt_payload(model, classical_state=classical_state)
+
+        self.assertEqual(payload["basis_order"], "orbital_major_spin_minor")
+        self.assertEqual(payload["sunny_export_conventions"]["source_basis_order"], "retained_state_index")
+        self.assertEqual(payload["sunny_export_conventions"]["source_factorization_kind"], "generic_multiplet")
+        self.assertEqual(payload["sunny_export_conventions"]["local_coordinate_layout"], "generic_multiplet")
+
     def test_build_payload_lowers_local_operator_onsite_terms(self):
         model = {
             "model_type": "sun_gswt_classical",
@@ -85,6 +149,44 @@ class BuildSunGswtPayloadTests(unittest.TestCase):
         self.assertIn("onsite_terms", payload)
         self.assertEqual(payload["onsite_terms"][0]["site"], 0)
         self.assertEqual(payload["onsite_terms"][0]["matrix_shape"], [2, 2])
+        self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
+
+    def test_build_payload_accepts_pre_lowered_onsite_terms_from_classical_model(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "local_dimension": 2,
+            "orbital_count": 1,
+            "local_basis_labels": ["up", "down"],
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "onsite_terms": [{"site": 0, "matrix_shape": [2, 2], "matrix": [[0.0, 0.0], [0.0, 1.0]]}],
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "tensor_shape": [2, 2, 2, 2],
+                    "pair_matrix": [
+                        [_serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(1.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(1.0)],
+                    ],
+                    "tensor": _permutation_tensor(2),
+                }
+            ],
+        }
+        classical_state = {
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [1, 1, 1],
+            "local_rays": [
+                {"cell": [0, 0, 0], "vector": [_serialize_complex(1.0), _serialize_complex(0.0)]},
+            ],
+        }
+
+        payload = build_sun_gswt_payload(model, classical_state=classical_state)
+
+        self.assertEqual(payload["onsite_terms"][0]["site"], 0)
         self.assertEqual(payload["onsite_terms"][0]["matrix"], [[0.0, 0.0], [0.0, 1.0]])
 
     def test_build_payload_exports_local_rays_and_pair_couplings(self):

@@ -703,6 +703,14 @@ J_1^{\pm} = -0.236
         self.assertEqual(lattice["dimension"], 3)
         self.assertEqual(lattice["magnetic_species"], ["Fe"])
         self.assertEqual(lattice["positions"], [[0.0, 0.0, 0.0]])
+        self.assertEqual(
+            lattice["symmetry_positions"],
+            [
+                [0.0, 0.0, 0.0],
+                [1.0 / 3.0, 2.0 / 3.0, 1.0 / 4.0],
+            ],
+        )
+        self.assertEqual(lattice["symmetry_types"], ["Fe", "I"])
         self.assertAlmostEqual(lattice["cell_parameters"]["a"], 4.05012)
         self.assertAlmostEqual(lattice["cell_parameters"]["b"], 4.05012)
         self.assertAlmostEqual(lattice["cell_parameters"]["c"], 6.75214)
@@ -715,6 +723,24 @@ J_1^{\pm} = -0.236
         self.assertEqual(lattice["family_shell_map"]["1'"]["shell_index"], 4)
         self.assertEqual(lattice["family_shell_map"]["3"]["shell_index"], 5)
         self.assertEqual(lattice["family_shell_map"]["2a'"]["shell_index"], 6)
+        self.assertEqual(
+            lattice["family_representative_map"]["1"],
+            {
+                "source": 0,
+                "target": 0,
+                "translation": [1, 0, 0],
+                "coordinate_convention": "global_crystallographic",
+            },
+        )
+        self.assertEqual(
+            lattice["family_representative_map"]["2a'"],
+            {
+                "source": 0,
+                "target": 0,
+                "translation": [1, -1, 1],
+                "coordinate_convention": "global_crystallographic",
+            },
+        )
 
     def test_selected_family_one_lands_without_gamma_unsupported_marker_once_local_bond_is_resolved(self):
         record = build_intermediate_record(

@@ -4,6 +4,7 @@ import math
 from common.classical_family_resolution import resolve_classical_family
 from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
+from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 
 
 def _complex_from_serialized(value):
@@ -90,7 +91,8 @@ def build_sun_gswt_classical_payload(parsed_payload):
         }
 
     bond_tensors = []
-    for block in parsed_payload.get("bond_blocks", []):
+    realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
+    for block in realized_bond_blocks:
         pair_matrix_serialized = block.get("pair_matrix")
         if pair_matrix_serialized is None:
             raise ValueError("parsed payload must include bond_blocks[*].pair_matrix for GSWT classical payloads")

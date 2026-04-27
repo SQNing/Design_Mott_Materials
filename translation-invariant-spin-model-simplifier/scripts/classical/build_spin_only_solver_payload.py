@@ -9,11 +9,13 @@ import spglib
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from common.bond_orbits import generate_noncull_directed_bond_orbit
     from common.classical_family_resolution import resolve_classical_family
-    from common.lattice_geometry import enumerate_neighbor_shells, resolve_lattice_vectors
+    from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
 else:
+    from common.bond_orbits import generate_noncull_directed_bond_orbit
     from common.classical_family_resolution import resolve_classical_family
-    from common.lattice_geometry import enumerate_neighbor_shells, resolve_lattice_vectors
+    from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
 
 
 def _selected_family(simplification_payload):
@@ -34,6 +36,22 @@ def _family_shell_metadata(normalized_model, family):
     if shell_index <= 0:
         raise ValueError(f"invalid shell_index for family {family!r}")
     return lattice, metadata, shell_index
+
+
+def _family_representative_metadata(normalized_model, family):
+    lattice = normalized_model.get("lattice", {})
+    representative_map = (
+        lattice.get("family_representative_map", {})
+        if isinstance(lattice.get("family_representative_map"), dict)
+        else {}
+    )
+    metadata = representative_map.get(family)
+    if not isinstance(metadata, dict):
+        return lattice, None
+    required_fields = {"source", "target", "translation"}
+    if not required_fields.issubset(metadata):
+        raise ValueError(f"incomplete representative bond metadata for family {family!r}")
+    return lattice, metadata
 
 
 def _supported_block_type(block):
@@ -76,11 +94,16 @@ def _validate_shell_summary_against_family_blocks(family_blocks, shell_summary):
 
 
 def _family_sort_key(normalized_model, family, shell_summary):
+    _lattice, representative_metadata = _family_representative_metadata(normalized_model, family)
+    if representative_metadata is not None:
+        translation = tuple(int(component) for component in representative_metadata["translation"])
+        return (0, translation, str(family))
+
     _lattice, metadata, shell_index = _family_shell_metadata(normalized_model, family)
     summary_index = shell_summary.get(family, {}).get("shell_index")
     if summary_index is not None and int(summary_index) != int(shell_index):
         raise ValueError(f"inconsistent shell summary ordering for family {family!r}")
-    return (int(shell_index), str(family))
+    return (1, int(shell_index), str(family))
 
 
 def _collect_bridgeable_family_blocks(simplification_payload):
@@ -164,6 +187,18 @@ def _simplified_template_for_block(block):
 
 def _distance(left, right):
     return math.sqrt(sum((float(a) - float(b)) ** 2 for a, b in zip(left, right)))
+
+
+def _bond_distance(lattice, source, target, translation):
+    lattice_vectors = resolve_lattice_vectors(lattice)
+    positions = list(lattice.get("positions") or [[0.0, 0.0, 0.0]])
+    source_position = positions[int(source)]
+    target_position = [
+        float(positions[int(target)][axis]) + float(translation[axis]) for axis in range(3)
+    ]
+    source_cart = fractional_to_cartesian([source_position], lattice_vectors)[0]
+    target_cart = fractional_to_cartesian([target_position], lattice_vectors)[0]
+    return _distance(source_cart, target_cart)
 
 
 def _canonical_pair(pair):
@@ -330,6 +365,53 @@ def _expanded_pair_matrices(lattice, canonical_pairs, matrix, family, block_type
     return rotated
 
 
+def _expand_family_representative_bonds(
+    lattice,
+    representative_metadata,
+    matrix,
+    family,
+    *,
+    block_type="",
+    selected_coordinate_convention="",
+    shell_index=None,
+    distance=None,
+):
+    orbit = generate_noncull_directed_bond_orbit(
+        lattice,
+        representative_bond=representative_metadata,
+    )
+    canonical_pairs = [
+        (
+            int(member["source"]),
+            int(member["target"]),
+            tuple(int(component) for component in member["translation"]),
+        )
+        for member in orbit["members"]
+    ]
+    matrices_by_pair = _expanded_pair_matrices(
+        lattice,
+        canonical_pairs,
+        matrix,
+        family,
+        block_type,
+        selected_coordinate_convention,
+    )
+    bonds = []
+    for source, target, translation in canonical_pairs:
+        bonds.append(
+            {
+                "source": int(source),
+                "target": int(target),
+                "vector": list(translation),
+                "distance": float(distance) if distance is not None else _bond_distance(lattice, source, target, translation),
+                "shell_index": int(shell_index) if shell_index is not None else None,
+                "family": family,
+                "matrix": deepcopy(matrices_by_pair[(source, target, translation)]),
+            }
+        )
+    return bonds
+
+
 def _expand_family_shell_bonds(lattice, shell_index, distance, matrix, family, *, block_type="", selected_coordinate_convention=""):
     lattice_vectors = resolve_lattice_vectors(lattice)
     positions = lattice.get("positions") or [[0.0, 0.0, 0.0]]
@@ -398,26 +480,49 @@ def build_spin_only_solver_payload(simplification_payload):
         first_template = None
         template_consistent = True
         for family in families:
-            lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
+            lattice, representative_metadata = _family_representative_metadata(normalized_model, family)
+            shell_metadata = None
+            shell_index = None
+            if representative_metadata is None:
+                lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
+            else:
+                family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
+                shell_metadata = family_shell_map.get(family, {})
+                shell_index = shell_metadata.get("shell_index")
             block = dict(collected["family_blocks"][family])
             block.setdefault("family", family)
             matrix = _exchange_matrix_from_block(block)
-            expanded_bonds = _expand_family_shell_bonds(
-                lattice,
-                shell_index=shell_index,
-                distance=float(shell_metadata.get("distance")),
-                matrix=matrix,
-                family=family,
-                block_type=str(block.get("type") or ""),
-                selected_coordinate_convention=selected_coordinate_convention,
-            )
+            if representative_metadata is not None:
+                expanded_bonds = _expand_family_representative_bonds(
+                    lattice,
+                    representative_metadata=representative_metadata,
+                    matrix=matrix,
+                    family=family,
+                    block_type=str(block.get("type") or ""),
+                    selected_coordinate_convention=selected_coordinate_convention,
+                    shell_index=shell_index,
+                    distance=shell_metadata.get("distance") if isinstance(shell_metadata, dict) else None,
+                )
+                family_expansion_mode = "representative_orbit"
+            else:
+                expanded_bonds = _expand_family_shell_bonds(
+                    lattice,
+                    shell_index=shell_index,
+                    distance=float(shell_metadata.get("distance")),
+                    matrix=matrix,
+                    family=family,
+                    block_type=str(block.get("type") or ""),
+                    selected_coordinate_convention=selected_coordinate_convention,
+                )
+                family_expansion_mode = "full_shell"
             all_bonds.extend(expanded_bonds)
             family_summaries.append(
                 {
                     "family": family,
-                    "shell_index": int(shell_index),
+                    "shell_index": int(shell_index) if shell_index is not None else None,
                     "block_type": str(block.get("type") or ""),
                     "pair_count": len(expanded_bonds),
+                    "expansion_mode": family_expansion_mode,
                 }
             )
             template = _simplified_template_for_block(block)
@@ -451,18 +556,40 @@ def build_spin_only_solver_payload(simplification_payload):
         return {"status": "ok", "payload": payload}
 
     family = requested_family
-    lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
+    lattice, representative_metadata = _family_representative_metadata(normalized_model, family)
+    shell_metadata = None
+    shell_index = None
+    if representative_metadata is None:
+        lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
+    else:
+        family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
+        shell_metadata = family_shell_map.get(family, {})
+        shell_index = shell_metadata.get("shell_index")
     block = _matching_readable_blocks(simplification_payload, family)
     matrix = _exchange_matrix_from_block(block)
-    bonds = _expand_family_shell_bonds(
-        lattice,
-        shell_index=shell_index,
-        distance=float(shell_metadata.get("distance")),
-        matrix=matrix,
-        family=family,
-        block_type=str(block.get("type") or ""),
-        selected_coordinate_convention=selected_coordinate_convention,
-    )
+    if representative_metadata is not None:
+        bonds = _expand_family_representative_bonds(
+            lattice,
+            representative_metadata=representative_metadata,
+            matrix=matrix,
+            family=family,
+            block_type=str(block.get("type") or ""),
+            selected_coordinate_convention=selected_coordinate_convention,
+            shell_index=shell_index,
+            distance=shell_metadata.get("distance") if isinstance(shell_metadata, dict) else None,
+        )
+        expansion_mode = "representative_orbit"
+    else:
+        bonds = _expand_family_shell_bonds(
+            lattice,
+            shell_index=shell_index,
+            distance=float(shell_metadata.get("distance")),
+            matrix=matrix,
+            family=family,
+            block_type=str(block.get("type") or ""),
+            selected_coordinate_convention=selected_coordinate_convention,
+        )
+        expansion_mode = "full_shell"
 
     payload = {
         "classical_family": family_resolution["classical_family"],
@@ -477,10 +604,10 @@ def build_spin_only_solver_payload(simplification_payload):
         "classical": {"method": "auto"},
         "bridge_metadata": {
             "bridge_kind": "document_reader_spin_only_shell_expanded",
-            "expansion_mode": "full_shell",
+            "expansion_mode": expansion_mode,
             "selected_family": family,
             "block_type": str(block.get("type") or ""),
-            "shell_index": int(shell_index),
+            "shell_index": int(shell_index) if shell_index is not None else None,
             "pair_count": len(bonds),
         },
     }

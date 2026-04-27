@@ -19,7 +19,7 @@ class BuildSunGswtClassicalPayloadTests(unittest.TestCase):
         parsed_payload = {
             "input_mode": "many_body_hr",
             "basis_semantics": {"local_space": "pseudospin_orbital"},
-            "basis_order": "orbital_major_spin_minor",
+            "basis_order": "retained_state_index",
             "structure": {
                 "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
                 "positions": [[0.0, 0.0, 0.0]],
@@ -368,6 +368,77 @@ class BuildSunGswtClassicalPayloadTests(unittest.TestCase):
         self.assertEqual(payload["magnetic_site_metadata"]["site_pair_encoding"], "explicit-source-target")
         self.assertEqual(payload["bond_tensors"][0]["source"], 1)
         self.assertEqual(payload["bond_tensors"][0]["target"], 0)
+
+    def test_build_payload_expands_family_representative_orbit_for_single_family_block(self):
+        zero = {"real": 0.0, "imag": 0.0}
+        one = {"real": 1.0, "imag": 0.0}
+        parsed_payload = self._with_cpn_family({
+            "input_mode": "document",
+            "selected_local_bond_family": "J1",
+            "family_representative_map": {
+                "J1": {
+                    "source": 0,
+                    "target": 0,
+                    "translation": [1, 0, 0],
+                }
+            },
+            "basis_semantics": {"local_space": "pseudospin_orbital"},
+            "basis_order": "orbital_major_spin_minor",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "structure": {
+                "lattice_vectors": [
+                    [1.0, 0.0, 0.0],
+                    [0.5, 0.8660254037844386, 0.0],
+                    [0.0, 0.0, 8.0],
+                ],
+                "positions": [
+                    [0.0, 0.0, 0.0],
+                ],
+                "species": ["Fe"],
+                "counts": [1],
+            },
+            "inferred": {
+                "local_dimension": 2,
+                "multiplet_dimension": 2,
+                "two_site_dimension": 4,
+            },
+            "local_basis_labels": ["up", "down"],
+            "magnetic_site_count": 1,
+            "magnetic_sites": [
+                {"index": 0, "label": "Fe", "position": [0.0, 0.0, 0.0]},
+            ],
+            "bond_blocks": [
+                {
+                    "family": "J1",
+                    "R": [1, 0, 0],
+                    "source": 0,
+                    "target": 0,
+                    "matrix_shape": [4, 4],
+                    "pair_matrix": [
+                        [one, zero, zero, zero],
+                        [zero, one, zero, zero],
+                        [zero, zero, one, zero],
+                        [zero, zero, zero, one],
+                    ],
+                }
+            ],
+        })
+
+        payload = build_sun_gswt_classical_payload(parsed_payload)
+
+        realized_bonds = {
+            (bond["source"], bond["target"], tuple(bond["R"]))
+            for bond in payload["bond_tensors"]
+        }
+        self.assertEqual(
+            realized_bonds,
+            {
+                (0, 0, (1, 0, 0)),
+                (0, 0, (0, 1, 0)),
+                (0, 0, (1, -1, 0)),
+            },
+        )
+        self.assertEqual(len(payload["bond_tensors"]), 3)
 
     def test_build_payload_rejects_explicitly_inconsistent_basis_convention(self):
         parsed_payload = self._with_cpn_family({

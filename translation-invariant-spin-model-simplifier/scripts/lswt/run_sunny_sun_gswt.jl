@@ -51,7 +51,7 @@ function to_float_matrix(rows)
 end
 
 function deserialize_complex(value)
-    if haskey(value, :real) || haskey(value, :imag)
+    if value isa AbstractDict || (Base.hasproperty(value, :real) && Base.hasproperty(value, :imag))
         return ComplexF64(Float64(get(value, :real, 0.0)), Float64(get(value, :imag, 0.0)))
     end
     return ComplexF64(value)
@@ -128,7 +128,7 @@ function select_q_points(payload)
     return [to_float_vector(point) for point in source]
 end
 
-function bands_at_q(bands, index::Int)
+function bands_at_q(bands, index::Int, q_count::Int)
     if isa(bands, Number)
         return [Float64(real(bands))]
     end
@@ -136,14 +136,20 @@ function bands_at_q(bands, index::Int)
         value = bands[index]
         return isa(value, Number) ? [Float64(real(value))] : Float64.(real.(vec(value)))
     end
-    value = bands[index, :]
+    if size(bands, 1) == q_count && size(bands, 2) != q_count
+        value = bands[index, :]
+    elseif size(bands, 2) == q_count && size(bands, 1) != q_count
+        value = bands[:, index]
+    else
+        value = bands[index, :]
+    end
     return isa(value, Number) ? [Float64(real(value))] : Float64.(real.(vec(value)))
 end
 
 function dispersion_payload(q_points, bands)
     entries = []
     for (index, q_point) in enumerate(q_points)
-        band_values = bands_at_q(bands, index)
+        band_values = bands_at_q(bands, index, length(q_points))
         push!(
             entries,
             Dict(

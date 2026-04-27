@@ -10,9 +10,15 @@ from classical.build_spin_only_solver_payload import build_spin_only_solver_payl
 
 
 class BuildSpinOnlySolverPayloadTests(unittest.TestCase):
+    @staticmethod
+    def _with_spin_only_family(payload):
+        payload = dict(payload)
+        payload["classical_family"] = "spin-only"
+        return payload
+
     def test_builder_maps_selected_xxz_block_to_minimal_classical_payload(self):
         result = build_spin_only_solver_payload(
-            {
+            self._with_spin_only_family({
                 "normalized_model": {
                     "selected_model_candidate": "effective",
                     "selected_local_bond_family": "2a'",
@@ -43,7 +49,7 @@ class BuildSpinOnlySolverPayloadTests(unittest.TestCase):
                         }
                     ]
                 },
-            }
+            })
         )
 
         self.assertEqual(result["status"], "ok")
@@ -60,17 +66,17 @@ class BuildSpinOnlySolverPayloadTests(unittest.TestCase):
     def test_builder_rejects_all_mode_when_no_bridgeable_families_exist(self):
         with self.assertRaisesRegex(ValueError, "no bridgeable families"):
             build_spin_only_solver_payload(
-                {
+                self._with_spin_only_family({
                     "normalized_model": {
                         "selected_local_bond_family": "all",
                     }
-                }
+                })
             )
 
     def test_builder_rejects_unsupported_readable_block_types(self):
         with self.assertRaisesRegex(ValueError, "unsupported readable block"):
             build_spin_only_solver_payload(
-                {
+                self._with_spin_only_family({
                     "normalized_model": {
                         "selected_local_bond_family": "2a'",
                         "lattice": {
@@ -87,12 +93,12 @@ class BuildSpinOnlySolverPayloadTests(unittest.TestCase):
                             }
                         ]
                     },
-                }
+                })
             )
 
     def test_builder_accepts_single_familyless_main_block_after_family_selection(self):
         result = build_spin_only_solver_payload(
-            {
+            self._with_spin_only_family({
                 "normalized_model": {
                     "selected_model_candidate": "effective",
                     "selected_local_bond_family": "2a'",
@@ -122,7 +128,7 @@ class BuildSpinOnlySolverPayloadTests(unittest.TestCase):
                         }
                     ]
                 },
-            }
+            })
         )
 
         self.assertEqual(result["status"], "ok")
