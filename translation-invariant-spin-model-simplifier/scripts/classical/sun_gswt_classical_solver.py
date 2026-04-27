@@ -2,6 +2,7 @@
 from fractions import Fraction
 
 import numpy as np
+from common.cpn_classical_state import resolve_cpn_classical_state_payload
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
 try:
@@ -31,6 +32,13 @@ def _serialize_vector(vector):
 
 def _serialize_matrix(matrix):
     return [[_serialize_complex(value) for value in row] for row in matrix]
+
+
+def _deserialize_matrix(serialized):
+    return np.array(
+        [[_complex_from_serialized(value) for value in row] for row in serialized],
+        dtype=complex,
+    )
 
 
 def _deserialize_tensor(serialized):
@@ -82,6 +90,22 @@ def _serialize_state_array(state_array):
     return {"shape": shape, "local_rays": rays}
 
 
+def _reject_magnetic_supercell_energy_state(state):
+    if not isinstance(state, dict):
+        return
+    resolved_state = resolve_cpn_classical_state_payload(state)
+    magnetic_supercell_matrix = resolved_state.get("magnetic_supercell_matrix")
+    if magnetic_supercell_matrix is None:
+        ordering = resolved_state.get("ordering")
+        if isinstance(ordering, dict):
+            magnetic_supercell_matrix = ordering.get("magnetic_supercell_matrix")
+    if magnetic_supercell_matrix is not None:
+        raise ValueError(
+            "sun-gswt classical energy does not yet support states encoded in a magnetic-supercell convention; "
+            "use the Sunny backend energy until this state lifting is implemented"
+        )
+
+
 def _q_from_index(q_index, shape):
     return [float(q_index[axis]) / float(shape[axis]) for axis in range(3)]
 
@@ -129,6 +153,12 @@ def _effective_local_matrix(model, state_array, cell_index):
         left_index = _mod_index(tuple(cell_index[axis] - R[axis] for axis in range(3)), state_array.shape[:3])
         z_left = state_array[left_index]
         matrix += np.einsum("cdab,c,d->ab", tensor, np.conjugate(z_left), z_left)
+
+    for onsite in model.get("onsite_terms", []):
+        site = int(onsite.get("site", 0))
+        if site != 0:
+            raise ValueError("sun-gswt classical solver currently supports only onsite terms on site 0")
+        matrix += _deserialize_matrix(onsite["matrix"])
 
     return 0.5 * (matrix + matrix.conjugate().T)
 
@@ -213,6 +243,19 @@ def _single_q_energy(model, q_vector, reference_ray, generator):
         tensor = _deserialize_tensor(bond["tensor"])
         right_vector = _single_q_ray(reference_ray, generator, q_vector, bond["R"])
         energy += _bond_energy(tensor, reference_ray, right_vector)
+    onsite_terms = model.get("onsite_terms", [])
+    if onsite_terms:
+        shape = _supercell_shape_from_q(model, q_vector)
+        onsite_energy = 0.0 + 0.0j
+        for cell_index in np.ndindex(shape):
+            vector = _single_q_ray(reference_ray, generator, q_vector, cell_index)
+            for onsite in onsite_terms:
+                site = int(onsite.get("site", 0))
+                if site != 0:
+                    raise ValueError("sun-gswt single-q solver currently supports only onsite terms on site 0")
+                onsite_matrix = _deserialize_matrix(onsite["matrix"])
+                onsite_energy += complex(np.vdot(vector, onsite_matrix @ vector))
+        energy += onsite_energy / float(np.prod(shape))
     return float(np.real(energy))
 
 
@@ -502,6 +545,7 @@ def evaluate_sun_gswt_classical_energy(model, state):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("sun-gswt classical energy expects a CP^(N-1) classical payload")
     resolve_pseudospin_orbital_conventions(model)
+    _reject_magnetic_supercell_energy_state(state)
     state_array = _state_array_from_serialized(state) if isinstance(state, dict) else state
     energy = 0.0 + 0.0j
     for cell_index in np.ndindex(state_array.shape[:3]):
@@ -510,6 +554,13 @@ def evaluate_sun_gswt_classical_energy(model, state):
             R = tuple(int(value) for value in bond["R"])
             right_index = _mod_index(tuple(cell_index[axis] + R[axis] for axis in range(3)), state_array.shape[:3])
             energy += _bond_energy(tensor, state_array[cell_index], state_array[right_index])
+        for onsite in model.get("onsite_terms", []):
+            site = int(onsite.get("site", 0))
+            if site != 0:
+                raise ValueError("sun-gswt classical energy currently supports only onsite terms on site 0")
+            onsite_matrix = _deserialize_matrix(onsite["matrix"])
+            vector = state_array[cell_index]
+            energy += complex(np.vdot(vector, onsite_matrix @ vector))
     return float(np.real(energy) / float(np.prod(state_array.shape[:3])))
 
 

@@ -243,6 +243,49 @@ class BuildSunGswtPayloadTests(unittest.TestCase):
         self.assertEqual(payload["path"]["labels"], ["G", "X"])
         self.assertEqual(payload["q_path"][0], [0.0, 0.0, 0.0])
 
+    def test_build_payload_preserves_magnetic_supercell_matrix_from_classical_ordering(self):
+        model = {
+            "model_type": "sun_gswt_classical",
+            "classical_manifold": "CP^(N-1)",
+            "local_dimension": 2,
+            "orbital_count": 1,
+            "local_basis_labels": ["up", "down"],
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            "positions": [[0.0, 0.0, 0.0]],
+            "bond_tensors": [
+                {
+                    "R": [1, 0, 0],
+                    "tensor_shape": [2, 2, 2, 2],
+                    "pair_matrix": [
+                        [_serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(1.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(1.0), _serialize_complex(0.0), _serialize_complex(0.0)],
+                        [_serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(0.0), _serialize_complex(1.0)],
+                    ],
+                    "tensor": _permutation_tensor(2),
+                }
+            ],
+        }
+        classical_state = {
+            "manifold": "CP^(N-1)",
+            "supercell_shape": [1, 2, 4],
+            "ordering": {
+                "kind": "commensurate-supercell",
+                "q_vector": [0.0, -0.25, 0.25],
+                "supercell_shape": [1, 2, 4],
+                "magnetic_supercell_matrix": [[1, 0, 0], [0, 1, -2], [0, 1, 2]],
+            },
+            "local_rays": [
+                {"cell": [0, 0, 0], "vector": [_serialize_complex(1.0), _serialize_complex(0.0)]},
+            ],
+        }
+
+        payload = build_sun_gswt_payload(model, classical_state=classical_state)
+
+        self.assertEqual(payload["magnetic_supercell_matrix"], [[1, 0, 0], [0, 1, -2], [0, 1, 2]])
+        self.assertEqual(payload["ordering"]["magnetic_supercell_matrix"], [[1, 0, 0], [0, 1, -2], [0, 1, 2]])
+
     def test_build_payload_marks_incommensurate_single_q_ordering(self):
         model = {
             "model_type": "sun_gswt_classical",

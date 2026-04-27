@@ -87,6 +87,19 @@ function build_crystal(model)
     return Sunny.Crystal(latvecs, positions, 1; types=types)
 end
 
+function to_int_matrix(rows)
+    matrix_rows = [Int.(collect(row)) for row in rows]
+    return reduce(vcat, (reshape(row, 1, :) for row in matrix_rows))
+end
+
+function maybe_reshape_supercell(sys, payload)
+    if !haskey(payload, :magnetic_supercell_matrix) || isempty(payload.magnetic_supercell_matrix)
+        return sys
+    end
+    matrix = to_int_matrix(payload.magnetic_supercell_matrix)
+    return Sunny.reshape_supercell(sys, matrix)
+end
+
 function build_system(model, supercell_shape, seed)
     positions = haskey(model, :positions) ? model.positions : []
     if length(positions) != 1
@@ -211,6 +224,7 @@ try
         start_seed = seed + start_index - 1
         progress_log("[sunny-classical] start $(start_index)/$(starts): seed=$(start_seed)")
         sys = build_system(model, supercell_shape, start_seed)
+        sys = maybe_reshape_supercell(sys, payload)
         if start_index == 1 && !isempty(initial_local_rays)
             set_initial_state!(sys, initial_local_rays)
         else
@@ -237,6 +251,7 @@ try
             "method" => "sunny-cpn-minimize",
             "energy" => best_energy,
             "supercell_shape" => collect(supercell_shape),
+            "magnetic_supercell_matrix" => haskey(payload, :magnetic_supercell_matrix) ? payload.magnetic_supercell_matrix : nothing,
             "local_rays" => best_state["local_rays"],
             "backend_stationarity" => best_backend_stationarity,
             "starts" => starts,

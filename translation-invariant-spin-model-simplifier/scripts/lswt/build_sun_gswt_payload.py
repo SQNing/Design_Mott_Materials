@@ -62,6 +62,12 @@ def _ordering_summary(classical_state):
         supercell_shape = summary.get("supercell_shape")
         if supercell_shape is not None:
             summary["supercell_shape"] = [int(value) for value in supercell_shape]
+        magnetic_supercell_matrix = summary.get("magnetic_supercell_matrix")
+        if isinstance(magnetic_supercell_matrix, list):
+            summary["magnetic_supercell_matrix"] = [
+                [int(value) for value in row]
+                for row in magnetic_supercell_matrix
+            ]
         ansatz = summary.get("ansatz")
         if ansatz is not None:
             summary["ansatz"] = str(ansatz)
@@ -75,6 +81,7 @@ def _ordering_summary(classical_state):
     ansatz = resolved_state.get("ansatz")
     q_vector = resolved_state.get("q_vector")
     supercell_shape = resolved_state.get("supercell_shape")
+    magnetic_supercell_matrix = resolved_state.get("magnetic_supercell_matrix")
     if ansatz is None and q_vector is None:
         return None
 
@@ -85,6 +92,11 @@ def _ordering_summary(classical_state):
         ordering["q_vector"] = [float(value) for value in q_vector]
     if supercell_shape is not None:
         ordering["supercell_shape"] = [int(value) for value in supercell_shape]
+    if isinstance(magnetic_supercell_matrix, list):
+        ordering["magnetic_supercell_matrix"] = [
+            [int(value) for value in row]
+            for row in magnetic_supercell_matrix
+        ]
     if q_vector is not None and supercell_shape is not None:
         ordering["compatibility_with_supercell"] = _ordering_compatibility_with_supercell(q_vector, supercell_shape)
     return ordering
@@ -225,6 +237,12 @@ def build_sun_gswt_payload(model, classical_state=None):
         payload["onsite_terms"] = onsite_terms
     if ordering is not None:
         payload["ordering"] = ordering
+        magnetic_supercell_matrix = ordering.get("magnetic_supercell_matrix")
+        if isinstance(magnetic_supercell_matrix, list):
+            payload["magnetic_supercell_matrix"] = [
+                [int(value) for value in row]
+                for row in magnetic_supercell_matrix
+            ]
     if rotating_frame_transform is not None:
         payload["rotating_frame_transform"] = rotating_frame_transform
     if rotating_frame_realization is not None:

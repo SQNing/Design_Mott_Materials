@@ -55,6 +55,7 @@ def resolve_cpn_classical_state_payload(payload, *, default_supercell_shape=None
         "basis_order": payload.get("basis_order"),
         "pair_basis_order": payload.get("pair_basis_order"),
         "supercell_shape": payload.get("supercell_shape", fallback_shape),
+        "magnetic_supercell_matrix": payload.get("magnetic_supercell_matrix"),
         "local_rays": payload.get("local_rays"),
         "ordering": payload.get("ordering"),
         "ansatz": payload.get("ansatz"),
@@ -73,6 +74,8 @@ def resolve_cpn_classical_state_payload(payload, *, default_supercell_shape=None
         ordering["q_vector"] = resolved["q_vector"]
     if ordering.get("supercell_shape") is None and resolved.get("supercell_shape") is not None:
         ordering["supercell_shape"] = resolved["supercell_shape"]
+    if ordering.get("magnetic_supercell_matrix") is None and resolved.get("magnetic_supercell_matrix") is not None:
+        ordering["magnetic_supercell_matrix"] = resolved["magnetic_supercell_matrix"]
     if ordering:
         resolved["ordering"] = ordering
 

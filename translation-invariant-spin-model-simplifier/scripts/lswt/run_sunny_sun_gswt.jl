@@ -50,6 +50,11 @@ function to_float_matrix(rows)
     return reduce(vcat, (reshape(row, 1, :) for row in matrix_rows))
 end
 
+function to_int_matrix(rows)
+    matrix_rows = [Int.(collect(row)) for row in rows]
+    return reduce(vcat, (reshape(row, 1, :) for row in matrix_rows))
+end
+
 function deserialize_complex(value)
     if value isa AbstractDict || (Base.hasproperty(value, :real) && Base.hasproperty(value, :imag))
         return ComplexF64(Float64(get(value, :real, 0.0)), Float64(get(value, :imag, 0.0)))
@@ -106,6 +111,11 @@ function build_system(payload)
             site_index = Int(onsite.site) + 1
             Sunny.set_onsite_coupling!(sys, onsite_matrix, site_index)
         end
+    end
+
+    if haskey(payload, :magnetic_supercell_matrix) && !isempty(payload.magnetic_supercell_matrix)
+        matrix = to_int_matrix(payload.magnetic_supercell_matrix)
+        sys = Sunny.reshape_supercell(sys, matrix)
     end
 
     for ray in payload.initial_local_rays
@@ -210,6 +220,7 @@ try
             "payload_kind" => "sun_gswt_prototype",
             "dispersion" => dispersion_payload(q_points, bands),
             "path" => haskey(payload, :path) ? payload.path : Dict("labels" => ["Q0"], "node_indices" => [0]),
+            "magnetic_supercell_matrix" => haskey(payload, :magnetic_supercell_matrix) ? payload.magnetic_supercell_matrix : nothing,
         ),
     )
 catch exc
