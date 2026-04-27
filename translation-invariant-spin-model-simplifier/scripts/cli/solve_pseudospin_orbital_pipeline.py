@@ -36,6 +36,7 @@ from common.classical_state_result import (
 )
 from common.cpn_classical_state import resolve_cpn_classical_state_payload, resolve_cpn_local_state
 from common.lattice_geometry import lattice_vector_rank, vector_rank
+from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 from lswt.build_python_glswt_payload import build_python_glswt_payload
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
 from lswt.single_q_z_harmonic_convergence_driver import run_single_q_z_harmonic_convergence_driver
@@ -522,6 +523,7 @@ def _solver_phase_summary(
         else {}
     )
     inferred = parsed_payload.get("inferred", {})
+    realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
     lines = [
         "# Pseudospin-Orbital Solver Phase",
         "",
@@ -544,7 +546,7 @@ def _solver_phase_summary(
         "",
         "## Current counts",
         "",
-        f"- bond blocks: {len(parsed_payload['bond_blocks'])}",
+        f"- bond blocks: {len(realized_bond_blocks)}",
         f"- grouped bonds: {len(grouped_payload['bonds'])}",
         f"- simplification candidates: {len(simplified_payload['simplification']['candidates'])}",
         f"- classical payload bond count: {classical_model.get('bond_count', classical_model.get('bond_count', len(classical_model.get('bond_tensors', []))))}",
@@ -1027,7 +1029,7 @@ def _resolved_bundle_classical_state(solver_result, *, default_supercell_shape):
 
 def _bundle_lattice_payload(parsed_payload):
     structure = parsed_payload.get("structure", {})
-    bond_blocks = parsed_payload.get("bond_blocks", [])
+    bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
     translation_vectors = [
         block.get("R")
         for block in bond_blocks
@@ -1894,6 +1896,7 @@ def solve_from_files(
     glt_certification_mode="off",
     compatibility_export_mode="canonical",
     classical_family=None,
+    local_level_to_site_mapping_path=None,
 ):
     resolved_local_space_mode = (
         str(local_space_mode)
@@ -1906,6 +1909,7 @@ def solve_from_files(
         hr_path=hr_path,
         coefficient_tolerance=coefficient_tolerance,
         local_space_mode=resolved_local_space_mode,
+        local_level_to_site_mapping_path=local_level_to_site_mapping_path,
     )
     _progress("Parsed POSCAR + hr.dat payload")
     return _solve_from_parsed_payload_core(
@@ -1951,6 +1955,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--poscar", required=True)
     parser.add_argument("--hr", required=True)
+    parser.add_argument("--local-level-to-site-mapping")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--docs-dir", required=True)
     parser.add_argument("--no-pdf", action="store_true")
@@ -2069,6 +2074,9 @@ def main():
         glt_certification_mode=str(args.glt_certification_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
         classical_family=None if args.classical_family is None else str(args.classical_family),
+        local_level_to_site_mapping_path=Path(args.local_level_to_site_mapping)
+        if args.local_level_to_site_mapping is not None
+        else None,
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0

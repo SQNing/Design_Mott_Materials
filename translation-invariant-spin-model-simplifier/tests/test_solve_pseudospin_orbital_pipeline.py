@@ -105,6 +105,73 @@ def _certified_final_result():
 
 
 class SolvePseudospinOrbitalPipelineTests(unittest.TestCase):
+    def test_solve_from_files_passes_local_level_mapping_to_payload_builder(self):
+        parsed_payload = _parsed_payload_with_cpn_family()
+        simplified_payload = _simplified_payload()
+        report_manifest = _report_manifest()
+        final_glt_result = {
+            "method": "cpn-generalized-lt",
+            "solver_role": "final",
+            "promotion_reason": "exact_projector_solution",
+            "energy": -2.25,
+            "starts": 1,
+            "seed": 0,
+            "classical_state": _final_local_ray_state(),
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "out"
+            docs_dir = Path(tmpdir) / "docs"
+            mapping_path = Path(tmpdir) / "level_mapping.json"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            mapping_path.write_text('{"schema_version": 1, "site_level_mapping": []}', encoding="utf-8")
+
+            with patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "build_pseudospin_orbital_payload",
+                return_value=parsed_payload,
+            ) as build_payload_mock, patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "simplify_pseudospin_orbital_payload",
+                return_value=simplified_payload,
+            ), patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "group_pseudospin_orbital_terms",
+                return_value={"distance_shells": [], "bonds": []},
+            ), patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "write_pseudospin_orbital_reports",
+                return_value=report_manifest,
+            ), patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "solve_cpn_generalized_lt_ground_state",
+                return_value=final_glt_result,
+            ), patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "write_results_bundle",
+                return_value={"status": "ok"},
+            ), patch.object(
+                solve_pseudospin_orbital_pipeline,
+                "_write_solver_stage_markdown",
+                return_value=docs_dir / "phase-note.md",
+            ):
+                solve_pseudospin_orbital_pipeline.solve_from_files(
+                    poscar_path=Path(tmpdir) / "POSCAR",
+                    hr_path=Path(tmpdir) / "hr.dat",
+                    output_dir=output_dir,
+                    docs_dir=docs_dir,
+                    compile_pdf=False,
+                    classical_method="cpn-generalized-lt",
+                    local_level_to_site_mapping_path=mapping_path,
+                    run_gswt=False,
+                )
+
+        self.assertEqual(
+            build_payload_mock.call_args.kwargs["local_level_to_site_mapping_path"],
+            mapping_path,
+        )
+
     def test_solve_from_parsed_payload_accepts_non_many_body_cpn_payload(self):
         parsed_payload = _parsed_payload_with_cpn_family()
         simplified_payload = _simplified_payload()
