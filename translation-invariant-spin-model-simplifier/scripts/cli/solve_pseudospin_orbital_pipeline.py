@@ -524,12 +524,14 @@ def _solver_phase_summary(
     )
     inferred = parsed_payload.get("inferred", {})
     realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
+    model_family = str(parsed_payload.get("model_family") or "unknown")
     lines = [
         "# Pseudospin-Orbital Solver Phase",
         "",
         "## Conventions",
         "",
         "- local space: pseudospin_orbital",
+        f"- model family: {model_family}",
         f"- basis order: {parsed_payload.get('basis_order')}",
         f"- local_dimension: {inferred['local_dimension']}",
         f"- classical_method: {classical_method}",
@@ -538,7 +540,8 @@ def _solver_phase_summary(
         "## Process",
         "",
         "- parsed POSCAR into lattice metadata",
-        "- parsed wannier-style VR_hr.dat into R-resolved bond blocks",
+        "- treated legacy many_body_hr input as a legacy many_body_hr adapter into the canonical cpn_pair_model contract",
+        "- normalized pair interactions into canonical bond terms on the site-local tensor-product space",
         "- projected bond matrices into pseudospin-orbital operator basis",
         "- generated both human-friendly and full-coefficient reports",
         "- built a classical solver payload",
@@ -546,7 +549,7 @@ def _solver_phase_summary(
         "",
         "## Current counts",
         "",
-        f"- bond blocks: {len(realized_bond_blocks)}",
+        f"- canonical bond terms: {len(realized_bond_blocks)}",
         f"- grouped bonds: {len(grouped_payload['bonds'])}",
         f"- simplification candidates: {len(simplified_payload['simplification']['candidates'])}",
         f"- classical payload bond count: {classical_model.get('bond_count', classical_model.get('bond_count', len(classical_model.get('bond_tensors', []))))}",
@@ -1082,7 +1085,7 @@ def _build_result_payload(
         "effective_model": effective_model,
         "fidelity": score_fidelity(effective_model),
         "projection": {
-            "status": "many_body_hr-pseudospin_orbital",
+            "status": str(parsed_payload.get("model_family") or "cpn_pair_model"),
         },
         "lattice": _bundle_lattice_payload(parsed_payload),
         "bonds": [],

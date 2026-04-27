@@ -1,6 +1,7 @@
 import sys
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,6 +10,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from cli import solve_pseudospin_orbital_pipeline  # noqa: E402
+from cli import render_pseudospin_orbital_report  # noqa: E402
 
 
 def _parsed_payload():
@@ -225,10 +227,12 @@ class SolvePseudospinOrbitalPipelineTests(unittest.TestCase):
                     classical_method="cpn-generalized-lt",
                     run_gswt=False,
                 )
+                result_payload = json.loads(Path(manifest["artifacts"]["result_payload"]).read_text(encoding="utf-8"))
 
         self.assertEqual(manifest["status"], "ok")
         self.assertEqual(manifest["solver"]["classical_state_result"]["role"], "final")
         self.assertEqual(manifest["solver"]["classical_state_result"]["solver_family"], "retained_local_multiplet")
+        self.assertEqual(result_payload["projection"]["status"], "cpn_pair_model")
 
     def test_pseudospin_pipeline_fails_when_parsed_payload_has_no_explicit_family(self):
         parsed_payload = _parsed_payload()
@@ -737,6 +741,10 @@ class SolvePseudospinOrbitalPipelineTests(unittest.TestCase):
         )
 
         self.assertIn("conditionally final", summary)
+        self.assertIn("legacy many_body_hr adapter", summary)
+        self.assertIn("canonical bond terms", summary)
+        self.assertNotIn("VR_hr.dat", summary)
+        self.assertNotIn("bond blocks", summary)
         self.assertNotIn("the current branch is diagnostic-only", summary)
         self.assertNotIn("does not auto-run GSWT or thermodynamics", summary)
 
@@ -764,6 +772,32 @@ class SolvePseudospinOrbitalPipelineTests(unittest.TestCase):
 
         self.assertIn("conditionally final", summary)
         self.assertIn("diagnostic when promotion checks fail", summary)
+
+    def test_report_phase_summary_uses_canonical_cpn_language(self):
+        summary = render_pseudospin_orbital_report._phase_summary(
+            {
+                **_parsed_payload(),
+                "model_family": "cpn_pair_model",
+                "inferred": {"local_dimension": 4, "multiplet_dimension": 4},
+                "bond_terms": [
+                    {
+                        "source": 0,
+                        "target": 0,
+                        "translation": [1, 0, 0],
+                        "matrix_shape": [16, 16],
+                        "pair_matrix": [],
+                    }
+                ],
+            },
+            _simplified_payload(),
+            {"bonds": [], "distance_shells": []},
+        )
+
+        self.assertIn("canonical cpn_pair_model", summary)
+        self.assertIn("legacy many_body_hr adapter", summary)
+        self.assertIn("canonical bond terms", summary)
+        self.assertNotIn("wannier-style hr.dat", summary)
+        self.assertNotIn("bond blocks", summary)
 
     def test_cli_main_preserves_none_local_space_mode_when_flag_is_omitted(self):
         with tempfile.TemporaryDirectory() as tmpdir:

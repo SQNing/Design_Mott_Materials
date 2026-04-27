@@ -32,6 +32,12 @@ def _infer_local_dimension(payload, classical_state):
     raise ValueError("cannot infer local_dimension for CP^(N-1) local-ray observables")
 
 
+def _factorization_kind(payload):
+    retained_local_space = payload.get("retained_local_space", {})
+    factorization = retained_local_space.get("factorization", {})
+    return str(factorization.get("kind") or "orbital_times_spin")
+
+
 def _infer_orbital_count(payload, local_dimension):
     retained_local_space = payload.get("retained_local_space", {})
     factorization = retained_local_space.get("factorization", {})
@@ -75,6 +81,45 @@ def build_cpn_local_observable_summary(payload, classical_state):
         return None
 
     local_dimension = _infer_local_dimension(payload, resolved_state)
+    factorization_kind = _factorization_kind(payload)
+    if factorization_kind == "generic_multiplet":
+        basis_labels = list(payload.get("local_basis_labels") or [])
+        if len(basis_labels) != int(local_dimension):
+            basis_labels = [f"state_{index + 1}" for index in range(int(local_dimension))]
+
+        observables = []
+        for item in local_rays:
+            vector = _deserialize_vector(item.get("vector", []))
+            if vector.size != int(local_dimension):
+                raise ValueError(
+                    f"local ray at cell {item.get('cell')} has dimension {vector.size}, expected {local_dimension}"
+                )
+            norm = float(np.linalg.norm(vector))
+            if norm <= 1e-14:
+                raise ValueError(f"local ray at cell {item.get('cell')} must not be zero")
+            vector = vector / norm
+            basis_probabilities = [float(np.abs(value) ** 2) for value in vector]
+            dominant_basis_index = int(np.argmax(basis_probabilities)) if basis_probabilities else 0
+            observables.append(
+                {
+                    "cell": [int(value) for value in item.get("cell", [0, 0, 0])],
+                    "basis_probabilities": basis_probabilities,
+                    "basis_probability_map": {
+                        basis_labels[index]: float(basis_probabilities[index]) for index in range(int(local_dimension))
+                    },
+                    "dominant_basis_index": dominant_basis_index,
+                    "dominant_basis_label": basis_labels[dominant_basis_index],
+                    "dominant_basis_weight": float(basis_probabilities[dominant_basis_index]) if basis_probabilities else 0.0,
+                }
+            )
+
+        return {
+            "local_dimension": int(local_dimension),
+            "factorization_kind": "generic_multiplet",
+            "basis_labels": basis_labels,
+            "local_observables": observables,
+        }
+
     orbital_count = _infer_orbital_count(payload, local_dimension)
     if int(local_dimension) != 2 * int(orbital_count):
         raise ValueError("local_dimension must equal 2 * orbital_count for orbital_major_spin_minor")
@@ -143,6 +188,7 @@ def build_cpn_local_observable_summary(payload, classical_state):
 
     return {
         "local_dimension": int(local_dimension),
+        "factorization_kind": "orbital_times_spin",
         "orbital_count": int(orbital_count),
         "orbital_labels": orbital_labels,
         "local_observables": observables,

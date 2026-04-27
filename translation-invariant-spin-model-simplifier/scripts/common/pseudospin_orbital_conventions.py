@@ -33,6 +33,27 @@ def _validate_equal(field_name, actual, expected):
         raise ValueError(f"{field_name} must be {expected!r}, got {actual!r}")
 
 
+def _infer_factorization_kind(payload, retained_local_space, operator_dictionary):
+    factorization = _mapping(retained_local_space.get("factorization"))
+    explicit_kind = factorization.get("kind")
+    if explicit_kind:
+        return str(explicit_kind)
+
+    basis_order = payload.get("basis_order")
+    if basis_order == "retained_state_index":
+        return "generic_multiplet"
+
+    local_basis_kind = operator_dictionary.get("local_basis_kind")
+    if local_basis_kind == "generic_multiplet":
+        return "generic_multiplet"
+
+    local_operator_basis = _mapping(operator_dictionary.get("local_operator_basis"))
+    if local_operator_basis.get("matrix_construction") == "local_generator_basis":
+        return "generic_multiplet"
+
+    return "orbital_times_spin"
+
+
 def resolve_pseudospin_orbital_conventions(payload, *, require_local_space=False):
     payload = _mapping(payload)
 
@@ -46,7 +67,8 @@ def resolve_pseudospin_orbital_conventions(payload, *, require_local_space=False
 
     retained_local_space = _mapping(payload.get("retained_local_space"))
     factorization = _mapping(retained_local_space.get("factorization"))
-    factorization_kind = str(factorization.get("kind") or "orbital_times_spin")
+    operator_dictionary = _mapping(payload.get("operator_dictionary"))
+    factorization_kind = _infer_factorization_kind(payload, retained_local_space, operator_dictionary)
     if factorization_kind not in SUPPORTED_FACTORIZATIONS:
         raise ValueError(
             "retained_local_space.factorization.kind must be one of "
@@ -92,7 +114,6 @@ def resolve_pseudospin_orbital_conventions(payload, *, require_local_space=False
                 f"{CANONICAL_PAIR_TENSOR_INDEX_ORDER!r}, got {actual_index_order!r}"
             )
 
-    operator_dictionary = _mapping(payload.get("operator_dictionary"))
     _validate_equal(
         "operator_dictionary.local_basis_kind",
         operator_dictionary.get("local_basis_kind"),

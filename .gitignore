@@ -29,6 +29,7 @@ translation-invariant-spin-model-simplifier/.vendor
 !translation-invariant-spin-model-simplifier/tests/
 translation-invariant-spin-model-simplifier/tests/*
 !translation-invariant-spin-model-simplifier/tests/test_skill_reference_docs.py
+!translation-invariant-spin-model-simplifier/tests/test_cpn_pair_model_fei2_bridge.py
 translation-invariant-spin-model-simplifier/scripts/plot_payload.json
 translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json
 session-memory/

@@ -20,26 +20,29 @@ from simplify.simplify_pseudospin_orbital_payload import simplify_pseudospin_orb
 def _phase_summary(parsed_payload, simplified_payload, grouped_payload):
     inferred = parsed_payload.get("inferred", {})
     realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
+    model_family = str(parsed_payload.get("model_family") or "unknown")
     lines = [
         "# Pseudospin-Orbital Report Phase",
         "",
         "## Conventions",
         "",
         "- local space: pseudospin_orbital",
+        f"- model family: {model_family}",
         f"- basis order: {parsed_payload.get('basis_order')}",
         f"- local_dimension: {inferred['local_dimension']}",
         "",
         "## Process",
         "",
         "- parsed POSCAR into lattice metadata",
-        "- parsed wannier-style hr.dat into R-resolved bond blocks",
+        "- treated legacy many_body_hr input as a legacy many_body_hr adapter into the canonical cpn_pair_model contract",
+        "- normalized pair interactions into canonical bond terms on the site-local tensor-product space",
         "- projected bond matrices into pseudospin-orbital operator basis",
         "- simplified coefficients into readable and residual channels",
         "- grouped bonds by distance shells",
         "",
         "## Current counts",
         "",
-        f"- bond blocks: {len(realized_bond_blocks)}",
+        f"- canonical bond terms: {len(realized_bond_blocks)}",
         f"- grouped bonds: {len(grouped_payload['bonds'])}",
         f"- simplification candidates: {len(simplified_payload['simplification']['candidates'])}",
     ]
