@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,17 @@ from lswt.fei2_sunny_glswt_official_compare import run_official_compare
 
 
 class FeI2SunnyGswtOfficialCompareTests(unittest.TestCase):
+    def test_official_compare_cli_bootstraps_import_path_for_direct_script_execution(self):
+        script = REPO_ROOT / "scripts" / "lswt" / "fei2_sunny_glswt_official_compare.py"
+        completed = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("--output-json", completed.stdout)
+
     def test_official_compare_writes_categorized_json(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             output_json = Path(tmpdir) / "summary.json"

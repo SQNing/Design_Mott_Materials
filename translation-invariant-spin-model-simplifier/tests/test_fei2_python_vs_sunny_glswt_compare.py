@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -10,6 +11,17 @@ from lswt.fei2_python_vs_sunny_glswt_compare import compare_python_vs_sunny_case
 
 
 class FeI2PythonVsSunnyGswtCompareTests(unittest.TestCase):
+    def test_python_vs_sunny_compare_cli_bootstraps_import_path_for_direct_script_execution(self):
+        script = REPO_ROOT / "scripts" / "lswt" / "fei2_python_vs_sunny_glswt_compare.py"
+        completed = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("--output-json", completed.stdout)
+
     def test_python_vs_sunny_compare_skips_cases_blocked_by_contract(self):
         sunny_result = {
             "status": "error",

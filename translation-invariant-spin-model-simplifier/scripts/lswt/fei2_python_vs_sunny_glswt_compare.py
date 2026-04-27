@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import sys
 from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lswt.fei2_sunny_glswt_cases import (
     classify_fei2_sunny_glswt_result,
