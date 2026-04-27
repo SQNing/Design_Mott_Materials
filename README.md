@@ -131,6 +131,16 @@ python translation-invariant-spin-model-simplifier/scripts/cli/generate_local_le
   --levels-per-site 2,2
 ```
 
+If you already have a structure file and want the tool to infer the site count,
+you can provide a single repeated level count plus optional labels:
+
+```bash
+python translation-invariant-spin-model-simplifier/scripts/cli/generate_local_level_to_site_mapping.py \
+  --structure POSCAR \
+  --levels-per-site 2 \
+  --site-labels A,B
+```
+
 Semantics:
 
 - `site` is the site index in the normalized structure payload
