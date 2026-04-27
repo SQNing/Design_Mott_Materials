@@ -225,6 +225,18 @@ def _preflight_payload_error(gswt_payload):
     ordering = gswt_payload.get("ordering")
     if not isinstance(ordering, dict):
         return None
+    if ordering.get("ansatz") == "single-q-unitary-ray":
+        realization_kind = classical_reference.get("realization_kind")
+        if realization_kind not in {None, "explicit-periodic-local-rays"}:
+            result = _error(
+                "unsupported-reduced-single-q-sun-gswt",
+                "Sunny.jl SUN SpinWaveTheory requires an explicit periodic realization for single-q states; "
+                f"got classical_reference.realization_kind = {realization_kind!r} instead of an explicit periodic realization.",
+                payload_kind=gswt_payload.get("payload_kind"),
+                backend=gswt_payload.get("backend", "Sunny.jl"),
+            )
+            result["ordering"] = ordering
+            return result
     compatibility = ordering.get("compatibility_with_supercell")
     if not isinstance(compatibility, dict):
         return None

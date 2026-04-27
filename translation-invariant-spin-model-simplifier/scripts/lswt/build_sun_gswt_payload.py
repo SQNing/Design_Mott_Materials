@@ -148,6 +148,19 @@ def _resolve_classical_reference_payload(classical_state):
     return classical_state
 
 
+def _classical_reference_realization(resolved_classical_state, ordering):
+    magnetic_supercell_matrix = ordering.get("magnetic_supercell_matrix") if isinstance(ordering, dict) else None
+    if isinstance(magnetic_supercell_matrix, list) and magnetic_supercell_matrix:
+        return {
+            "realization_kind": "explicit-periodic-local-rays",
+            "backend_periodicity": "magnetic_supercell_matrix",
+        }
+    return {
+        "realization_kind": "explicit-periodic-local-rays",
+        "backend_periodicity": "supercell_shape",
+    }
+
+
 def build_sun_gswt_payload(model, classical_state=None):
     if model.get("classical_manifold") != "CP^(N-1)":
         raise ValueError("Sunny GSWT payload expects a CP^(N-1) classical model")
@@ -209,6 +222,7 @@ def build_sun_gswt_payload(model, classical_state=None):
             "manifold": str(resolved_classical_state.get("manifold", adapted_model.get("classical_manifold", "CP^(N-1)"))),
             "frame_construction": "first-column-is-reference-ray",
             "schema_version": int(resolved_classical_state.get("schema_version", 1)),
+            **_classical_reference_realization(resolved_classical_state, ordering),
         },
         "backend_requirements": {
             "sunny_sun_gswt": {
