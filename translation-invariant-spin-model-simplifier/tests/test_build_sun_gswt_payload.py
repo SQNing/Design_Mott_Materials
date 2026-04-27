@@ -242,6 +242,8 @@ class BuildSunGswtPayloadTests(unittest.TestCase):
         self.assertEqual(payload["capabilities"]["spin_wave"], "prototype")
         self.assertEqual(payload["path"]["labels"], ["G", "X"])
         self.assertEqual(payload["q_path"][0], [0.0, 0.0, 0.0])
+        self.assertEqual(payload["classical_reference"]["realization_kind"], "explicit-periodic-local-rays")
+        self.assertEqual(payload["classical_reference"]["backend_periodicity"], "supercell_shape")
 
     def test_build_payload_preserves_magnetic_supercell_matrix_from_classical_ordering(self):
         model = {
@@ -285,6 +287,8 @@ class BuildSunGswtPayloadTests(unittest.TestCase):
 
         self.assertEqual(payload["magnetic_supercell_matrix"], [[1, 0, 0], [0, 1, -2], [0, 1, 2]])
         self.assertEqual(payload["ordering"]["magnetic_supercell_matrix"], [[1, 0, 0], [0, 1, -2], [0, 1, 2]])
+        self.assertEqual(payload["classical_reference"]["realization_kind"], "explicit-periodic-local-rays")
+        self.assertEqual(payload["classical_reference"]["backend_periodicity"], "magnetic_supercell_matrix")
 
     def test_build_payload_marks_incommensurate_single_q_ordering(self):
         model = {
