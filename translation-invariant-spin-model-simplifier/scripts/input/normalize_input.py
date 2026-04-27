@@ -295,6 +295,9 @@ def _normalize_many_body_hr_representation(payload):
     if local_level_to_site_mapping_file is not None:
         representation["local_level_to_site_mapping_file"] = str(local_level_to_site_mapping_file)
     return {
+        "model_family": "cpn_pair_model",
+        "adapter_family": "many_body_hr",
+        "adapter_role": "legacy_storage_input",
         "support": [],
         "representation": representation,
         "basis_semantics": {

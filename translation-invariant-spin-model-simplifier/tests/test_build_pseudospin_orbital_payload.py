@@ -247,6 +247,30 @@ class BuildPseudoSpinOrbitalPayloadTests(unittest.TestCase):
         self.assertEqual(first_block["matrix_shape"], [16, 16])
         self.assertGreater(len(first_block["coefficients"]), 0)
 
+    def test_build_pseudospin_orbital_payload_normalizes_legacy_hr_into_canonical_bond_terms(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            poscar_path = tmpdir / "POSCAR"
+            hr_path = tmpdir / "VR_hr.dat"
+            self._write_minimal_poscar(poscar_path)
+            self._write_minimal_many_body_hr(hr_path)
+
+            payload = build_pseudospin_orbital_payload(poscar_path=poscar_path, hr_path=hr_path)
+
+        self.assertEqual(payload["model_family"], "cpn_pair_model")
+        self.assertEqual(payload["classical_family"], "cpn")
+        self.assertEqual(payload["local_dimension"], 2)
+        self.assertEqual(payload["pair_operator_convention"]["pair_basis_order"], "site_i_major_site_j_minor")
+        self.assertTrue(payload["bond_terms"])
+
+        first_term = payload["bond_terms"][0]
+        self.assertEqual(first_term["source"], 0)
+        self.assertEqual(first_term["target"], 0)
+        self.assertEqual(len(first_term["translation"]), 3)
+        self.assertEqual(first_term["matrix_shape"], [4, 4])
+        self.assertEqual(len(first_term["pair_matrix"]), 4)
+        self.assertIn([1, 0, 0], [member["translation"] for member in first_term["orbit_members"]])
+
     def test_build_pseudospin_orbital_payload_explicit_auto_keeps_legacy_even_dim_factorization(self):
         poscar_path = Path(
             "/data/work/zhli/run/codex/spin-effective-Hamiltonian/U2.0J0.0-not-mix/POSCAR"

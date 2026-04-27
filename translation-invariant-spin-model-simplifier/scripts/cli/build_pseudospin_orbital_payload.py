@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from common.canonicalize_pseudospin_bond_orbits import canonicalize_pseudospin_bond_blocks
+from common.cpn_pair_model import normalize_cpn_pair_model
 from common.infer_many_body_hr_pair_identity_from_structure import infer_many_body_hr_pair_identity_from_structure
 from common.many_body_hr_orbital_to_atom_mapping import load_many_body_hr_orbital_to_atom_mapping
 from common.many_body_hr_pair_identity_sidecar import load_many_body_hr_pair_identity_sidecar
@@ -218,6 +219,23 @@ def _build_bond_blocks_from_pair_records(hamiltonian, pair_records, local_space_
     return bond_blocks, operator_basis_labels
 
 
+def _canonical_bond_terms_from_blocks(bond_blocks):
+    bond_terms = []
+    for block in list(bond_blocks or []):
+        term = {
+            "source": int(block.get("source", 0)),
+            "target": int(block.get("target", 0)),
+            "translation": [int(value) for value in block["R"]],
+            "matrix_shape": list(block["matrix_shape"]),
+            "pair_matrix": block["pair_matrix"],
+        }
+        for optional_key in ("family", "orbit", "orbit_members", "diagnostics", "entry_refs", "coefficients"):
+            if optional_key in block:
+                term[optional_key] = block[optional_key]
+        bond_terms.append(term)
+    return bond_terms
+
+
 def build_pseudospin_orbital_payload(
     poscar_path,
     hr_path,
@@ -314,8 +332,10 @@ def build_pseudospin_orbital_payload(
 
     payload = {
         "schema_version": 2,
+        "model_family": "cpn_pair_model",
         "input_mode": "many_body_hr",
         "classical_family": "cpn",
+        "local_dimension": int(local_space_spec["local_dimension"]),
         "identity_level": str(identity_level),
         "pair_identity_status": str(pair_identity_status),
         "pair_identity_provider": pair_identity_provider,
@@ -350,10 +370,12 @@ def build_pseudospin_orbital_payload(
         "canonicalization_status": canonicalized["canonicalization_status"],
         "raw_bond_blocks": canonicalized["raw_bond_blocks"],
         "bond_blocks": canonicalized["bond_blocks"],
+        "bond_terms": _canonical_bond_terms_from_blocks(canonicalized["bond_blocks"]),
+        "onsite_terms": [],
     }
     if "diagnostics" in canonicalized:
         payload["diagnostics"] = canonicalized["diagnostics"]
-    return payload
+    return normalize_cpn_pair_model(payload)
 
 
 def main():

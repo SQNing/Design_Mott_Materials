@@ -2,6 +2,7 @@
 import math
 
 from common.classical_family_resolution import resolve_classical_family
+from common.cpn_pair_model import validate_cpn_pair_model
 from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
@@ -51,6 +52,9 @@ def _pair_matrix_to_tensor(pair_matrix, local_dimension):
 
 
 def build_sun_gswt_classical_payload(parsed_payload):
+    if parsed_payload.get("model_family") == "cpn_pair_model":
+        validate_cpn_pair_model(parsed_payload)
+
     family_resolution = resolve_classical_family(payload=parsed_payload)
     if family_resolution["classical_family"] != "cpn":
         raise ValueError(

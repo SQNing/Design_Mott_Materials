@@ -235,6 +235,8 @@ class BuildSunGswtClassicalPayloadTests(unittest.TestCase):
 
     def test_build_payload_accepts_non_many_body_cpn_payload_when_structure_contract_is_present(self):
         parsed_payload = self._with_cpn_family({
+            "model_family": "cpn_pair_model",
+            "local_dimension": 3,
             "basis_semantics": {"local_space": "pseudospin_orbital"},
             "basis_order": "retained_state_index",
             "pair_basis_order": "site_i_major_site_j_minor",
@@ -272,6 +274,25 @@ class BuildSunGswtClassicalPayloadTests(unittest.TestCase):
                 "two_site_dimension": 9,
             },
             "local_basis_labels": ["state_1", "state_2", "state_3"],
+            "bond_terms": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "translation": [1, 0, 0],
+                    "matrix_shape": [9, 9],
+                    "pair_matrix": [
+                        [{"real": 1.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 8,
+                        [{"real": 0.0, "imag": 0.0}, {"real": 2.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 7,
+                        [{"real": 0.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}, {"real": 3.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 6,
+                        [{"real": 0.0, "imag": 0.0}] * 3 + [{"real": 4.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 5,
+                        [{"real": 0.0, "imag": 0.0}] * 4 + [{"real": 5.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 4,
+                        [{"real": 0.0, "imag": 0.0}] * 5 + [{"real": 6.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 3,
+                        [{"real": 0.0, "imag": 0.0}] * 6 + [{"real": 7.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}] * 2,
+                        [{"real": 0.0, "imag": 0.0}] * 7 + [{"real": 8.0, "imag": 0.0}] + [{"real": 0.0, "imag": 0.0}],
+                        [{"real": 0.0, "imag": 0.0}] * 8 + [{"real": 9.0, "imag": 0.0}],
+                    ],
+                }
+            ],
             "bond_blocks": [
                 {
                     "R": [1, 0, 0],
@@ -300,6 +321,87 @@ class BuildSunGswtClassicalPayloadTests(unittest.TestCase):
         self.assertEqual(payload["local_dimension"], 3)
         self.assertEqual(payload["basis_order"], "retained_state_index")
         self.assertEqual(payload["bond_tensors"][0]["tensor_shape"], [3, 3, 3, 3])
+
+    def test_build_payload_accepts_canonical_bond_terms_with_onsite_terms(self):
+        pair_matrix = []
+        counter = 1.0
+        for row_index in range(9):
+            row = []
+            for column_index in range(9):
+                if row_index == column_index:
+                    row.append({"real": counter, "imag": 0.0})
+                    counter += 1.0
+                else:
+                    row.append({"real": 0.0, "imag": 0.0})
+            pair_matrix.append(row)
+
+        parsed_payload = self._with_cpn_family({
+            "model_family": "cpn_pair_model",
+            "local_dimension": 3,
+            "basis_semantics": {"local_space": "pseudospin_orbital"},
+            "basis_order": "retained_state_index",
+            "pair_basis_order": "site_i_major_site_j_minor",
+            "retained_local_space": {
+                "dimension": 3,
+                "factorization": {
+                    "kind": "generic_multiplet",
+                    "multiplet_dimension": 3,
+                },
+                "basis_labels": ["state_1", "state_2", "state_3"],
+            },
+            "pair_operator_convention": {
+                "representation": "pair_matrix",
+                "pair_basis_order": "site_i_major_site_j_minor",
+                "tensor_view": {
+                    "kind": "K_ab_cd",
+                    "index_order": ["left_bra", "right_bra", "left_ket", "right_ket"],
+                },
+            },
+            "structure": {
+                "lattice_vectors": [[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]],
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "inferred": {
+                "local_dimension": 3,
+                "multiplet_dimension": 3,
+                "two_site_dimension": 9,
+            },
+            "local_basis_labels": ["state_1", "state_2", "state_3"],
+            "bond_terms": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "translation": [1, 0, 0],
+                    "matrix_shape": [9, 9],
+                    "pair_matrix": pair_matrix,
+                }
+            ],
+            "onsite_terms": [
+                {
+                    "kind": "local_operator_matrix",
+                    "site_scope": {"kind": "site", "site": 0},
+                    "operator_basis": {
+                        "family": "retained_local_basis",
+                        "labels": ["state_1", "state_2", "state_3"],
+                    },
+                    "frame": {"kind": "retained_local_basis"},
+                    "payload": {
+                        "matrix": [
+                            [1.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, -1.0],
+                        ]
+                    },
+                }
+            ],
+        })
+
+        payload = build_sun_gswt_classical_payload(parsed_payload)
+
+        self.assertEqual(payload["classical_family"], "cpn")
+        self.assertEqual(payload["local_dimension"], 3)
+        self.assertEqual(payload["bond_tensors"][0]["tensor_shape"], [3, 3, 3, 3])
+        self.assertEqual(payload["onsite_terms"][0]["matrix_shape"], [3, 3])
 
     def test_build_payload_preserves_explicit_multisublattice_source_target_metadata(self):
         parsed_payload = self._with_cpn_family({

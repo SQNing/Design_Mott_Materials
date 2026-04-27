@@ -79,8 +79,30 @@ def _expand_canonical_orbit_blocks(source_blocks):
     return expanded_blocks
 
 
+def _canonical_bond_terms_to_blocks(bond_terms):
+    blocks = []
+    for term in list(bond_terms or []):
+        block = {
+            "R": [int(value) for value in term["translation"]],
+            "source": int(term["source"]),
+            "target": int(term["target"]),
+            "matrix_shape": list(term["matrix_shape"]),
+            "pair_matrix": term["pair_matrix"],
+        }
+        for optional_key in ("family", "orbit", "orbit_members", "diagnostics", "provenance", "entry_refs"):
+            if optional_key in term:
+                block[optional_key] = term[optional_key]
+        blocks.append(block)
+    return blocks
+
+
 def realize_pseudospin_bond_blocks(parsed_payload, bond_blocks=None):
-    source_blocks = list(parsed_payload.get("bond_blocks", []) if bond_blocks is None else bond_blocks)
+    if bond_blocks is None:
+        source_blocks = list(parsed_payload.get("bond_blocks", []))
+        if not source_blocks and parsed_payload.get("model_family") == "cpn_pair_model":
+            source_blocks = _canonical_bond_terms_to_blocks(parsed_payload.get("bond_terms", []))
+    else:
+        source_blocks = list(bond_blocks)
     if any(block.get("orbit_members") for block in source_blocks):
         return _expand_canonical_orbit_blocks(source_blocks)
 

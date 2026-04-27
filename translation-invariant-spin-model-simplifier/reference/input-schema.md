@@ -21,6 +21,14 @@ The normalized payload must contain:
 - `natural_language`
 - `many_body_hr`
 
+The canonical internal `CP^(N-1)` model family is:
+
+- `model_family = cpn_pair_model`
+
+This is not a separate freeform top-level representation kind. Instead, current `many_body_hr`
+inputs normalize into a legacy-adapter description that targets the canonical `cpn_pair_model`
+payload family downstream.
+
 Required content fields:
 
 - `operator` -> `expression`
@@ -60,6 +68,9 @@ For `many_body_hr` payloads:
 
 - `structure_file` must point to a crystal-structure file such as `POSCAR`
 - `hamiltonian_file` must point to a Wannier-style `hr.dat` file
+- normalization should treat this as a legacy adapter route into
+  `model_family = cpn_pair_model`,
+  not as the conceptual model family itself
 - runnable classical entrypoints must resolve an explicit
   `classical_family`
   before selecting builders or solvers;
@@ -97,6 +108,11 @@ For `many_body_hr` payloads:
   explicitly; callers should treat this as the route-defining classical-manifold contract rather
   than inferring the route indirectly from
   `input_mode = many_body_hr`
+- normalized metadata may also expose
+  `adapter_family = many_body_hr`
+  and
+  `adapter_role = legacy_storage_input`
+  to make the boundary explicit
 - explicit retained-local-multiplet payload JSON may also land
   `classical_family = cpn`
   without

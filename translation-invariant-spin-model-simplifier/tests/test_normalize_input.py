@@ -895,6 +895,9 @@ B_4^0 = 0.07
             )
             self.assertEqual(normalized["basis_semantics"]["local_space"], "pseudospin_orbital")
             self.assertEqual(normalized["basis_order"], "orbital_major_spin_minor")
+            self.assertEqual(normalized["hamiltonian_description"]["model_family"], "cpn_pair_model")
+            self.assertEqual(normalized["hamiltonian_description"]["adapter_family"], "many_body_hr")
+            self.assertEqual(normalized["hamiltonian_description"]["adapter_role"], "legacy_storage_input")
 
     def test_many_body_hr_requires_structure_and_hamiltonian_paths(self):
         with self.assertRaises(ValueError):

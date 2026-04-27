@@ -15,6 +15,15 @@ The current Sunny integrations therefore split into two separate families:
 - spin-only Sunny LSWT for explicit bilinear spin Hamiltonians with spin-frame classical references
 - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes for `many_body_hr` models on the local `CP^(N-1)` variational manifold
 
+For the pseudospin-orbital route, the internal target contract is now the canonical
+`cpn_pair_model` family:
+
+- `N` means the retained site-local energy-level count
+- onsite terms are first-class canonical data
+- two-site bond operators are always `N^2 x N^2` matrices on the site-local tensor-product space
+- legacy `VR_hr.dat` / `many_body_hr` files are adapter formats into that canonical payload, not the
+  conceptual model definition
+
 ## Quick Install
 
 ### Install Directly From GitHub In Codex
