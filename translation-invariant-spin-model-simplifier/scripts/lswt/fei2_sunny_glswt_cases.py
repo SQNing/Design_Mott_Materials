@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 
 from common.fei2_official_sunny_reproduction import (
     OFFICIAL_FEI2_DOMAIN_ROTATIONS,
@@ -33,6 +34,13 @@ def official_fei2_reference_metadata():
             for axis, angle in OFFICIAL_FEI2_DOMAIN_ROTATIONS
         ],
     }
+
+
+def normalize_official_reshaped_local_rays_payload(payload):
+    payload = copy.deepcopy(payload)
+    if isinstance(payload, dict) and "q_path_sampling_count" not in payload:
+        payload["q_path_sampling_count"] = 500
+    return payload
 
 
 def dispersion_summary_from_result(result):

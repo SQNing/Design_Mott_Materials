@@ -63,6 +63,22 @@ function serialize_numeric_array(values; limit=8)
     )
 end
 
+function serialize_real_matrix(matrix)
+    return [[Float64(matrix[row, col]) for col in 1:size(matrix, 2)] for row in 1:size(matrix, 1)]
+end
+
+function serialize_complex_matrix(matrix)
+    return [[serialize_scalar(matrix[row, col]) for col in 1:size(matrix, 2)] for row in 1:size(matrix, 1)]
+end
+
+function serialize_crystal(cryst)
+    return Dict{String, Any}(
+        "lattice_vectors" => [[serialize_scalar(value) for value in vector] for vector in eachcol(cryst.latvecs)],
+        "positions" => [[serialize_scalar(value) for value in position] for position in eachcol(cryst.positions)],
+        "types" => [string(value) for value in cryst.types],
+    )
+end
+
 function maybe_summarize_property(container, name::Symbol)
     if !hasproperty(container, name)
         return nothing
@@ -107,17 +123,79 @@ end
 function serialize_local_rays(sys)
     shape = Int.(collect(sys.dims))
     rays = Any[]
-    for x in 1:shape[1], y in 1:shape[2], z in 1:shape[3]
-        vector = sys.coherents[x, y, z, 1]
+    for x in 1:shape[1], y in 1:shape[2], z in 1:shape[3], site in 1:size(sys.coherents, 4)
+        vector = sys.coherents[x, y, z, site]
         push!(
             rays,
             Dict{String, Any}(
                 "cell" => [x - 1, y - 1, z - 1],
+                "site" => site - 1,
                 "vector" => [serialize_scalar(value) for value in vector],
             ),
         )
     end
-    return Dict{String, Any}("shape" => shape, "local_rays" => rays)
+    return Dict{String, Any}(
+        "shape" => shape,
+        "site_count" => Int(size(sys.coherents, 4)),
+        "local_rays" => rays,
+    )
+end
+
+function serialize_sun_gswt_payload(sys)
+    pair_couplings = Any[]
+    onsite_terms = Any[]
+    for (site_index, interaction) in enumerate(sys.interactions_union)
+        onsite_matrix = Matrix(interaction.onsite)
+        push!(
+            onsite_terms,
+            Dict(
+                "site" => site_index - 1,
+                "matrix" => serialize_complex_matrix(onsite_matrix),
+            ),
+        )
+        for pair in interaction.pair
+            pair.isculled && continue
+            push!(
+                pair_couplings,
+                Dict(
+                    "source" => Int(getfield(pair.bond, :i)) - 1,
+                    "target" => Int(getfield(pair.bond, :j)) - 1,
+                    "R" => Int.(collect(getfield(pair.bond, :n))),
+                    "exchange_matrix" => serialize_real_matrix(Matrix(pair.bilin)),
+                ),
+            )
+        end
+    end
+
+    return Dict{String, Any}(
+        "payload_version" => 2,
+        "backend" => "Sunny.jl",
+        "mode" => "SUN",
+        "payload_kind" => "sun_gswt_prototype",
+        "local_dimension" => 3,
+        "orbital_count" => 1,
+        "basis_order" => "orbital_major_spin_minor",
+        "pair_basis_order" => "site_i_major_site_j_minor",
+        "local_basis_labels" => ["state-0", "state-1", "state-2"],
+        "lattice_vectors" => serialize_crystal(sys.crystal)["lattice_vectors"],
+        "positions" => serialize_crystal(sys.crystal)["positions"],
+        "pair_couplings" => pair_couplings,
+        "onsite_terms" => onsite_terms,
+        "initial_local_rays" => serialize_local_rays(sys)["local_rays"],
+        "supercell_shape" => Int.(collect(sys.dims)),
+        "classical_reference" => Dict(
+            "state_kind" => "local_rays",
+            "manifold" => "CP^(N-1)",
+            "frame_construction" => "first-column-is-reference-ray",
+            "realization_kind" => "explicit-periodic-local-rays",
+            "backend_periodicity" => "supercell_shape",
+        ),
+        "q_path_coordinates" => "crystallographic_reciprocal_basis",
+        "q_path_reference_lattice_vectors" => serialize_crystal(orig_crystal(sys))["lattice_vectors"],
+        "q_path" => [[0.0,0.0,0.0], [1.0,0.0,0.0], [0.0,1.0,0.0], [1/2,0.0,0.0], [0.0,1.0,0.0], [0.0,0.0,0.0]],
+        "q_path_sampling_count" => 500,
+        "path" => Dict("labels" => ["G", "M1", "M2", "K", "M2", "G"], "node_indices" => [0, 1, 2, 3, 4, 5]),
+    )
 end
 
 units = Units(:meV, :angstrom)
@@ -213,10 +291,13 @@ result = Dict(
     "reshaped_energy_per_site" => Float64(energy_per_site(sys_min)),
     "chemical_dims" => Int.(collect(sys.dims)),
     "reshaped_dims" => Int.(collect(sys_min.dims)),
+    "chemical_crystal" => serialize_crystal(sys.crystal),
+    "reshaped_crystal" => serialize_crystal(sys_min.crystal),
     "wrapped_intensities_text" => wrapped_intensities_text,
     "suggested_supercell_text" => suggested_supercell_text,
     "chemical_local_rays" => serialize_local_rays(sys),
     "reshaped_local_rays" => serialize_local_rays(sys_min),
+    "reshaped_sun_gswt_payload" => serialize_sun_gswt_payload(sys_min),
     "bands_summary" => summarize_result(res_bands),
     "domain_average_summary" => summarize_result(res_domain),
 )

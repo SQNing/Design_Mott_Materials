@@ -79,8 +79,8 @@ end
 
 function build_system(payload)
     positions = haskey(payload, :positions) ? payload.positions : []
-    if length(positions) != 1
-        error("SUN-GSWT prototype backend currently supports exactly one local unit per crystallographic cell")
+    if isempty(positions)
+        error("SUN-GSWT prototype backend requires at least one crystallographic position")
     end
 
     local_dimension = Int(payload.local_dimension)
@@ -88,12 +88,14 @@ function build_system(payload)
     supercell_shape = haskey(payload, :supercell_shape) && !isempty(payload.supercell_shape) ? Tuple(Int.(collect(payload.supercell_shape))) : (1, 1, 1)
 
     crystal = build_crystal(payload)
-    infos = [1 => Sunny.Moment(; s=spin_quantum_number, g=2.0)]
+    infos = [site_index => Sunny.Moment(; s=spin_quantum_number, g=2.0) for site_index in 1:length(positions)]
     sys = Sunny.System(crystal, infos, :SUN; dims=supercell_shape)
 
     for bond in payload.pair_couplings
         offset = NTuple{3, Int}(Tuple(Int.(collect(bond.R))))
-        sunny_bond = Sunny.Bond(1, 1, offset)
+        source_index = Int(get(bond, :source, 0)) + 1
+        target_index = Int(get(bond, :target, 0)) + 1
+        sunny_bond = Sunny.Bond(source_index, target_index, offset)
         if haskey(bond, :exchange_matrix)
             exchange_matrix = to_float_matrix(bond.exchange_matrix)
             Sunny.set_exchange!(sys, exchange_matrix, sunny_bond)
@@ -123,8 +125,9 @@ function build_system(payload)
         if length(cell) != 3
             error("Each local ray must include a three-component cell index")
         end
+        site = Int(get(ray, :site, 0))
         amplitudes = ComplexF64[deserialize_complex(value) for value in collect(ray.vector)]
-        Sunny.set_coherent!(sys, amplitudes, (cell[1] + 1, cell[2] + 1, cell[3] + 1, 1))
+        Sunny.set_coherent!(sys, amplitudes, (cell[1] + 1, cell[2] + 1, cell[3] + 1, site + 1))
     end
 
     return sys
@@ -135,7 +138,15 @@ function select_q_points(payload)
     if isempty(source)
         source = [[0.0, 0.0, 0.0]]
     end
-    return [to_float_vector(point) for point in source]
+    q_points = [to_float_vector(point) for point in source]
+    if haskey(payload, :q_path_sampling_count)
+        sample_count = Int(payload.q_path_sampling_count)
+        if sample_count > length(q_points) && length(q_points) >= 2
+            path = Sunny.q_space_path(build_crystal(payload), q_points, sample_count)
+            return collect(getproperty(path, :qs))
+        end
+    end
+    return q_points
 end
 
 function bands_at_q(bands, index::Int, q_count::Int)
@@ -163,7 +174,7 @@ function dispersion_payload(q_points, bands)
         push!(
             entries,
             Dict(
-                "q" => q_point,
+                "q" => Float64.(collect(q_point)),
                 "bands" => band_values,
                 "omega" => isempty(band_values) ? 0.0 : minimum(band_values),
             ),

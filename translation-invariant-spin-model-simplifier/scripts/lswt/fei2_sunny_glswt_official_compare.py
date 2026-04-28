@@ -9,6 +9,7 @@ if __package__ in {None, ""}:
 
 from lswt.fei2_sunny_glswt_cases import (
     classify_fei2_sunny_glswt_result,
+    normalize_official_reshaped_local_rays_payload,
     official_fei2_reference_metadata,
 )
 from lswt.sun_gswt_driver import run_sun_gswt
@@ -16,11 +17,16 @@ from lswt.sun_gswt_driver import run_sun_gswt
 
 def _load_case_payload(case):
     if isinstance(case.get("gswt_payload"), dict):
-        return dict(case["gswt_payload"])
-    payload_path = case.get("gswt_payload_path")
-    if payload_path:
-        return json.loads(Path(payload_path).read_text(encoding="utf-8"))
-    raise ValueError(f"case {case.get('case_id')!r} is missing gswt_payload or gswt_payload_path")
+        payload = dict(case["gswt_payload"])
+    else:
+        payload_path = case.get("gswt_payload_path")
+        if payload_path:
+            payload = json.loads(Path(payload_path).read_text(encoding="utf-8"))
+        else:
+            raise ValueError(f"case {case.get('case_id')!r} is missing gswt_payload or gswt_payload_path")
+    if case.get("source") == "official":
+        return normalize_official_reshaped_local_rays_payload(payload)
+    return payload
 
 
 def _default_cases():
