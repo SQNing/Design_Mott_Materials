@@ -51,12 +51,16 @@ def _deserialize_pair_matrix(serialized):
 
 
 def _pair_matrix_to_tensor(pair_matrix, local_dimension):
-    return np.array(pair_matrix, dtype=complex).reshape(
+    matrix = np.array(pair_matrix, dtype=complex).reshape(
         local_dimension,
         local_dimension,
         local_dimension,
         local_dimension,
     )
+    # pair_matrix uses site-major bra/ket flattening: (left_bra, right_bra; left_ket, right_ket).
+    # The quadratic-form contractions below expect grouped site indices:
+    # (left_bra, left_ket, right_bra, right_ket).
+    return np.transpose(matrix, (0, 2, 1, 3))
 
 
 def _normalize(vector, *, tolerance=1e-12):
@@ -204,6 +208,41 @@ def _phase_from_k_and_translation(q_vector, translation):
     )
 
 
+def _lattice_matrix_from_serialized(vectors):
+    matrix = np.array(vectors, dtype=float)
+    if matrix.shape != (3, 3):
+        raise ValueError(f"lattice_vectors must be a 3x3 array, got shape {matrix.shape}")
+    return matrix.T
+
+
+def _q_vector_to_internal_reciprocal_basis(payload, q_vector):
+    coordinate_basis = str(
+        payload.get("q_path_coordinates", "magnetic_supercell_reciprocal_basis")
+    )
+    if coordinate_basis in {
+        "magnetic_supercell_reciprocal_basis",
+        "reshaped_reciprocal_basis",
+        "internal_supercell_reciprocal_basis",
+    }:
+        return [float(value) for value in q_vector]
+    if coordinate_basis != "crystallographic_reciprocal_basis":
+        raise ValueError(f"unsupported q_path_coordinates {coordinate_basis!r}")
+
+    reference_vectors = payload.get("q_path_reference_lattice_vectors")
+    if reference_vectors is None:
+        raise ValueError(
+            "q_path_reference_lattice_vectors is required when q_path_coordinates = "
+            "'crystallographic_reciprocal_basis'"
+        )
+
+    reference_lattice = _lattice_matrix_from_serialized(reference_vectors)
+    internal_lattice = _lattice_matrix_from_serialized(payload["lattice_vectors"])
+    reference_reciprocal = np.linalg.inv(reference_lattice).T
+    internal_reciprocal = np.linalg.inv(internal_lattice).T
+    transform = np.linalg.solve(internal_reciprocal, reference_reciprocal)
+    return [float(value) for value in (transform @ np.array(q_vector, dtype=float))]
+
+
 def _block_add(mapping, key, value):
     if key not in mapping:
         mapping[key] = np.array(value, dtype=complex)
@@ -260,7 +299,12 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
 
     linear_dag = np.zeros((len(mode_sites), excited_dimension), dtype=complex)
     linear_ann = np.zeros((len(mode_sites), excited_dimension), dtype=complex)
+    # Directed real-space kernels before Fourier assembly:
+    # normal_terms -> particle block A_ab(Delta)
+    # hole_terms   -> lower-right block A^T_ba(-Delta), assembled independently
+    # pair_terms   -> anomalous block B_ab(Delta)
     normal_terms = {}
+    hole_terms = {}
     pair_terms = {}
 
     for source_cell in cells:
@@ -334,6 +378,16 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
                 * (rotated[1:, 1:, 0, 0] - e00 * identity),
             )
             _block_add(
+                hole_terms,
+                (source_index, source_index, (0, 0, 0)),
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    source_phase,
+                    source_phase,
+                )
+                * np.transpose(rotated[1:, 1:, 0, 0] - e00 * identity),
+            )
+            _block_add(
                 normal_terms,
                 (target_index, target_index, (0, 0, 0)),
                 _phase_factor_from_rule(
@@ -344,6 +398,24 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
                 * (rotated[0, 0, 1:, 1:] - e00 * identity),
             )
             _block_add(
+                hole_terms,
+                (target_index, target_index, (0, 0, 0)),
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    target_phase,
+                    target_phase,
+                )
+                * np.transpose(rotated[0, 0, 1:, 1:] - e00 * identity),
+            )
+            normal_forward = rotated[1:, 0, 0, 1:]
+            hole_forward = np.transpose(rotated[1:, 0, 0, 1:])
+            normal_backward = np.transpose(rotated[0, 1:, 1:, 0])
+            hole_backward = rotated[0, 1:, 1:, 0]
+            # Keep the directed hole kernel explicitly. At q = 0 one can hide this
+            # distinction, but at nonzero q the lower-right block must retain its own
+            # bond direction and phase history instead of being reconstructed from a
+            # final Hermitianized H11 block.
+            _block_add(
                 normal_terms,
                 (source_index, target_index, translation),
                 _phase_factor_from_rule(
@@ -351,7 +423,17 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
                     source_phase,
                     target_phase,
                 )
-                * rotated[1:, 0, 0, 1:],
+                * normal_forward,
+            )
+            _block_add(
+                hole_terms,
+                (target_index, source_index, _negate_translation(translation)),
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    target_phase,
+                    source_phase,
+                )
+                * hole_forward,
             )
             _block_add(
                 normal_terms,
@@ -361,7 +443,17 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
                     target_phase,
                     source_phase,
                 )
-                * np.transpose(rotated[0, 1:, 1:, 0]),
+                * normal_backward,
+            )
+            _block_add(
+                hole_terms,
+                (source_index, target_index, translation),
+                _phase_factor_from_rule(
+                    channel_rules.get("normal", "identity"),
+                    source_phase,
+                    target_phase,
+                )
+                * hole_backward,
             )
             _block_add(
                 pair_terms,
@@ -400,6 +492,11 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
                 (site_index, site_index, (0, 0, 0)),
                 rotated_onsite[1:, 1:] - e00 * identity,
             )
+            _block_add(
+                hole_terms,
+                (site_index, site_index, (0, 0, 0)),
+                np.transpose(rotated_onsite[1:, 1:] - e00 * identity),
+            )
 
     return {
         "shape": shape,
@@ -410,6 +507,7 @@ def _quadratic_terms_from_rays(payload, rays, *, rotating_frame=None, phase_dres
         "linear_dag": linear_dag,
         "linear_ann": linear_ann,
         "normal_terms": normal_terms,
+        "hole_terms": hole_terms,
         "pair_terms": pair_terms,
         "frames": frames,
         "rotating_frame": rotating_frame,
@@ -421,7 +519,12 @@ def _assemble_k_blocks(terms, q_vector):
     excited_dimension = int(terms["excited_dimension"])
     mode_count = mode_site_count * excited_dimension
     normal = np.zeros((mode_count, mode_count), dtype=complex)
+    hole = np.zeros((mode_count, mode_count), dtype=complex)
     pair = np.zeros((mode_count, mode_count), dtype=complex)
+    negative_q_vector = [-float(value) for value in q_vector]
+    # Fourier-sum the directed real-space kernels into BdG blocks at momentum q.
+    # normal/pair/hole here are the k-space block matrices before the final
+    # BdG assembly [[A(q), B(q)], [B^\dagger(q), A^T(-q)]].
 
     for (source, target, translation), block in terms["normal_terms"].items():
         phase = _phase_from_k_and_translation(q_vector, translation)
@@ -429,15 +532,48 @@ def _assemble_k_blocks(terms, q_vector):
         col = slice(target * excited_dimension, (target + 1) * excited_dimension)
         normal[row, col] += phase * block
 
-    for (source, target, translation), block in terms["pair_terms"].items():
+    for (source, target, translation), block in terms.get("hole_terms", {}).items():
         phase = _phase_from_k_and_translation(q_vector, translation)
         row = slice(source * excited_dimension, (source + 1) * excited_dimension)
         col = slice(target * excited_dimension, (target + 1) * excited_dimension)
-        pair[row, col] += phase * block
+        hole[row, col] += phase * block
+
+    for (source, target, translation), block in terms["pair_terms"].items():
+        forward_phase = _phase_from_k_and_translation(q_vector, translation)
+        backward_phase = _phase_from_k_and_translation(negative_q_vector, translation)
+        row = slice(source * excited_dimension, (source + 1) * excited_dimension)
+        col = slice(target * excited_dimension, (target + 1) * excited_dimension)
+        pair[row, col] += forward_phase * block
+        pair[col, row] += backward_phase * block.T
 
     normal = 0.5 * (normal + normal.conjugate().T)
-    pair = 0.5 * (pair + pair.T)
-    return normal, pair
+    return normal, pair, hole
+
+
+def _sigma3_metric(mode_count):
+    identity = np.eye(mode_count, dtype=complex)
+    zeros = np.zeros((mode_count, mode_count), dtype=complex)
+    return np.block([[identity, zeros], [zeros, -identity]])
+
+
+def _bdg_hamiltonian_from_blocks(normal, pair, hole=None):
+    # The validated GLSWT path passes in an explicit lower-right block assembled
+    # from directed hole terms. The hole = normal.T fallback is only a convenience
+    # default for callers that already know they are in that restricted setting.
+    if hole is None:
+        hole = normal.T
+    bdg_hamiltonian = np.block(
+        [
+            [normal, pair],
+            [pair.conjugate().T, hole],
+        ]
+    )
+    return 0.5 * (bdg_hamiltonian + bdg_hamiltonian.conjugate().T)
+
+
+def _dynamical_matrix_from_blocks(normal, pair, hole=None):
+    bdg_hamiltonian = _bdg_hamiltonian_from_blocks(normal, pair, hole=hole)
+    return _sigma3_metric(normal.shape[0]) @ bdg_hamiltonian
 
 
 def _positive_branches(eigenvalues, mode_count, *, tolerance=1e-8):
@@ -663,9 +799,10 @@ def _solve_local_rays_python_glswt(payload, *, stationarity_tolerance=1e-8, eige
     max_pair_asymmetry_norm = 0.0
     max_complex_eigenvalue_count = 0
 
-    for q_vector in payload.get("q_path", []):
-        q_vector = [float(value) for value in q_vector]
-        normal, pair = _assemble_k_blocks(terms, q_vector)
+    for raw_q_vector in payload.get("q_path", []):
+        raw_q_vector = [float(value) for value in raw_q_vector]
+        q_vector = _q_vector_to_internal_reciprocal_basis(payload, raw_q_vector)
+        normal, pair, hole = _assemble_k_blocks(terms, q_vector)
         max_antihermitian_norm = max(
             max_antihermitian_norm,
             float(np.linalg.norm(normal - normal.conjugate().T)),
@@ -675,12 +812,7 @@ def _solve_local_rays_python_glswt(payload, *, stationarity_tolerance=1e-8, eige
             float(np.linalg.norm(pair - pair.T)),
         )
 
-        dynamical_matrix = np.block(
-            [
-                [normal, pair],
-                [-pair.conjugate(), -normal.conjugate()],
-            ]
-        )
+        dynamical_matrix = _dynamical_matrix_from_blocks(normal, pair, hole=hole)
         eigenvalues = np.linalg.eigvals(dynamical_matrix)
         max_complex_eigenvalue_count = max(
             max_complex_eigenvalue_count,
@@ -690,7 +822,7 @@ def _solve_local_rays_python_glswt(payload, *, stationarity_tolerance=1e-8, eige
         bands = [float(np.real(value)) for value in positive]
         dispersion.append(
             {
-                "q": q_vector,
+                "q": raw_q_vector,
                 "bands": bands,
                 "omega": float(min(bands)) if bands else None,
             }

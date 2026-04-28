@@ -200,6 +200,8 @@ def build_python_glswt_payload(model, classical_state=None):
                 },
                 "ordering": ordering,
                 "spatial_dimension": int(q_path_summary["spatial_dimension"]),
+                "q_path_coordinates": "crystallographic_reciprocal_basis",
+                "q_path_reference_lattice_vectors": list(model.get("lattice_vectors", [])),
                 "q_path": q_path_summary["q_path"],
                 "path": q_path_summary["path"],
                 "z_harmonic_reference_mode": str(model.get("z_harmonic_reference_mode", "input")),
@@ -249,6 +251,7 @@ def build_python_glswt_payload(model, classical_state=None):
         },
         "ordering": dict(resolved_state.get("ordering", {})),
         "spatial_dimension": int(q_path_summary["spatial_dimension"]),
+        "q_path_coordinates": "magnetic_supercell_reciprocal_basis",
         "q_path": q_path_summary["q_path"],
         "path": q_path_summary["path"],
         "notes": {
