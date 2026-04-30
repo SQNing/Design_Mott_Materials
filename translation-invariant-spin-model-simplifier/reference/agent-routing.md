@@ -76,6 +76,7 @@ toward retained-local-multiplet handling, or stopping for clarification.
 
 ### Evidence that should stop at `needs_input`
 
+- missing detail alone is not evidence that retained-local-multiplet handling is required
 - the text mixes ordinary spin-model notation with retained-local-multiplet or
   pseudospin language strongly enough that the family choice would change the
   executable route

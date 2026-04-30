@@ -54,6 +54,7 @@ class SkillSurfaceDocsTests(unittest.TestCase):
             "Agent-Assisted Landing Audit",
             "Evidence that usually supports staying `spin-only`",
             "Evidence that should trigger escalation",
+            "missing detail alone is not evidence that retained-local-multiplet handling is required",
             "What agent assistance may transform",
             "What agent assistance must preserve",
             "What still forces `needs_input`",
