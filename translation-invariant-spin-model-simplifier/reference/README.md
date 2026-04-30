@@ -6,6 +6,10 @@ skill's required supporting material is obvious at a glance.
 
 The retained reference files are:
 
+- `agent-routing.md`
+  Documents the current repository-specific routing decisions for input
+  classes, agent-assisted landing, classical-family resolution, backend
+  selection, semantic conventions, and recommended entrypoints.
 - `environment.md`
   Documents the baseline and optional environment dependencies for this skill,
   including Python, Sunny-backed Julia paths, plotting, PDF generation, and

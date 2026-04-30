@@ -11,6 +11,7 @@ ENVIRONMENT_REFERENCE = REFERENCE_DIR / "environment.md"
 
 EXPECTED_REFERENCE_FILES = {
     "README.md",
+    "agent-routing.md",
     "cpn-pair-model-schema.md",
     "cpn-refinement-and-promotion-controls.md",
     "cpn-workflow-readiness-checklist.md",
@@ -21,6 +22,7 @@ EXPECTED_REFERENCE_FILES = {
 }
 
 EXPECTED_SKILL_REFERENCES = {
+    "reference/agent-routing.md",
     "reference/environment.md",
     "reference/fallback-rules.md",
     "reference/input-schema.md",
