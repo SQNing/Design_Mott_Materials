@@ -33,16 +33,9 @@ The retained reference files are:
   User-facing smoke checklist for deciding whether a `CP^(N-1)` workflow result
   is ready to trust or needs further validation.
 
-## Important scope note
+## Scope
 
-These reference files are primarily skill-facing documentation. They are not
-currently a hard runtime dependency of the Python or Julia scripts in this
-directory.
-
-In other words:
-
-- the skill may instruct an agent to consult these files
-- the scripts do not currently parse or load them automatically
+These files are skill-facing documentation, not a direct runtime dependency.
 
 Historical plans and runtime entrypoint notes outside the files listed above
 should not be treated as required reference material for this directory.
