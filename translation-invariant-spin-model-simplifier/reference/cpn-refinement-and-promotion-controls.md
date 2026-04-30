@@ -86,7 +86,9 @@ python scripts/cli/solve_pseudospin_orbital_pipeline.py \
   --gswt-backend python
 ```
 
-If you are working from the canonical FeI2 payload fixture instead of raw `POSCAR/hr.dat`, use the dedicated wrapper under `tmp/fei2-canonical-cpn-validation-2026-04-27/`.
+If you are working from a canonical FeI2 payload fixture instead of raw
+`POSCAR/hr.dat`, use a dedicated payload-wrapper workflow rather than the raw
+structure-plus-`hr` entrypoint.
 
 ## Practical Tuning Order
 
@@ -100,7 +102,8 @@ When a `CP^(N-1)` case looks underfit:
 
 ## Regression Coverage
 
-The current workflow regression fixtures under `tests/fixtures/cpn_workflow/` intentionally cover three small branch categories:
+The current workflow regression coverage intentionally exercises three small
+branch categories:
 
 - a uniform `sun-gswt-cpn` smoke path with no accepted refinement,
 - an accepted commensurate magnetic-supercell refinement path,

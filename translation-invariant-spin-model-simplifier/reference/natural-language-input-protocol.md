@@ -146,18 +146,18 @@ python scripts/cli/simplify_text_input.py \
 
 ```bash
 python scripts/cli/run_document_reader_pipeline.py \
-  --freeform "$(cat tests/data/fei2_document_input.tex)" \
-  --source-path tests/data/fei2_document_input.tex \
+  --freeform "$(cat /path/to/fei2_document_input.tex)" \
+  --source-path /path/to/fei2_document_input.tex \
   --selected-classical-family spin-only \
   --selected-model-candidate effective \
   --selected-local-bond-family 1 \
-  --output-dir tmp/document-reader-fei2
+  --output-dir /path/to/output/document-reader-fei2
 ```
 
 ```bash
 python scripts/cli/normalize_document_with_agent.py \
-  --freeform "$(cat tests/data/prose_only_effective.tex)" \
-  --source-path tests/data/prose_only_effective.tex \
+  --freeform "$(cat /path/to/prose_only_effective.tex)" \
+  --source-path /path/to/prose_only_effective.tex \
   --selected-classical-family spin-only
 ```
 

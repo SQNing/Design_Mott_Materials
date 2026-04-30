@@ -8,6 +8,8 @@ SKILL_FILE = SKILL_ROOT / "SKILL.md"
 REFERENCE_DIR = SKILL_ROOT / "reference"
 REFERENCE_README = REFERENCE_DIR / "README.md"
 ENVIRONMENT_REFERENCE = REFERENCE_DIR / "environment.md"
+NATURAL_LANGUAGE_REFERENCE = REFERENCE_DIR / "natural-language-input-protocol.md"
+CPN_CONTROLS_REFERENCE = REFERENCE_DIR / "cpn-refinement-and-promotion-controls.md"
 
 EXPECTED_REFERENCE_FILES = {
     "README.md",
@@ -53,6 +55,17 @@ class SkillReferenceDocsTests(unittest.TestCase):
 
         self.assertIn("`Sunny.jl 0.9.x`", content)
         self.assertNotIn("`Sunny.jl 0.7.x`", content)
+
+    def test_stable_reference_docs_do_not_depend_on_develop_only_example_paths(self):
+        for reference_file in (
+            NATURAL_LANGUAGE_REFERENCE,
+            CPN_CONTROLS_REFERENCE,
+        ):
+            content = reference_file.read_text(encoding="utf-8")
+
+            self.assertNotIn("tmp/", content)
+            self.assertNotIn("tests/data/", content)
+            self.assertNotIn("tests/fixtures/", content)
 
 
 if __name__ == "__main__":
