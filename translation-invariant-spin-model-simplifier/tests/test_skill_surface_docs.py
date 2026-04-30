@@ -7,6 +7,7 @@ SKILL_FILE = SKILL_ROOT / "SKILL.md"
 ROUTING_FILE = SKILL_ROOT / "reference" / "agent-routing.md"
 REFERENCE_README = SKILL_ROOT / "reference" / "README.md"
 ENVIRONMENT_FILE = SKILL_ROOT / "reference" / "environment.md"
+TOP_LEVEL_README = SKILL_ROOT / "README.md"
 
 
 def _read_text(path: Path) -> str:
@@ -72,6 +73,19 @@ class SkillSurfaceDocsTests(unittest.TestCase):
         content = _read_text(REFERENCE_README)
 
         self.assertIn("agent-routing.md", content)
+
+    def test_top_level_readme_describes_the_stable_surface(self):
+        content = _read_text(TOP_LEVEL_README)
+
+        for needle in (
+            "stable expert-facing surface",
+            "`SKILL.md`",
+            "`reference/`",
+            "`scripts/`",
+            "`tests/`",
+            "contract guardrails",
+        ):
+            self.assertIn(needle, content)
 
 
 if __name__ == "__main__":
