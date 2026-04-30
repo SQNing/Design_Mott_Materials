@@ -1,114 +1,70 @@
 ---
 name: translation-invariant-spin-model-simplifier
-description: Use when Codex needs to simplify a translation-invariant spin model from operator expressions, local-term matrices or tensors, or natural-language periodic-spin descriptions into a readable effective model with explicit ambiguity handling, fidelity reporting, and downstream classical, thermodynamic, or spin-wave analysis.
+description: Use when Codex needs to simplify a translation-invariant spin or pseudospin model from operator expressions, local-term matrices or tensors, structured model inputs, or broad text/document descriptions into a readable effective model with explicit ambiguity handling, fidelity reporting, and optional downstream classical, thermodynamic, or spin-wave analysis.
 ---
 
 # Translation-Invariant Spin Model Simplifier
 
-This skill uses a semi-interactive, fidelity-aware simplification workflow. It favors explicit ambiguity handling, preserves low-weight terms by default, and presents results as a readable main model plus residual structure instead of silently collapsing everything into an aggressively pruned template.
+## Overview
+
+Use this skill to turn a translation-invariant spin or pseudospin model into a
+readable effective model and, when appropriate, continue into downstream
+classical, thermodynamic, or spin-wave analysis.
+
+This skill is written for expert or semi-skilled users, including users who
+expect a strong agent to help route broad inputs into the repository's supported
+backends. It is not a novice-first guided tutorial.
+
+## Core Guarantees
+
+- If any ambiguity would materially change the physical meaning, accepted model
+  family, or executable route, stop with `interaction.status = needs_input`.
+- Do not silently guess physically important branches.
+- Preserve the readable decomposition as
+  `H_main + H_low_weight + H_residual`.
+- Prefer explicit residual structure and unsupported-feature reporting over
+  fake simplification.
+- Surface environment blockers early, before promising unavailable backend
+  paths.
+- Do not silently replace a required Sunny-backed route with a different
+  backend.
+- Keep canonicalized structure as the internal source of truth when a readable
+  block is incomplete or unavailable.
 
 ## Workflow
 
-1. Read `reference/environment.md` and identify the baseline and backend-specific dependencies for the requested path.
-2. Ask the user which baseline and optional dependencies are already installed before choosing execution paths.
-3. If the input is natural-language, LaTeX, or a document-style source, read `reference/natural-language-input-protocol.md` and construct an intermediate extraction record before normalization.
-4. Normalize the raw model with `scripts/input/normalize_input.py`.
-5. Parse the lattice description with `scripts/input/parse_lattice_description.py`.
-6. Infer candidate symmetries with `scripts/simplify/infer_symmetries.py`.
-7. If any ambiguity would materially change the result, stop and return `interaction.status = needs_input` with one clarification question.
-8. Decompose matrix or tensor local terms with `scripts/simplify/decompose_local_term.py`.
-9. Canonicalize decomposed terms with `scripts/simplify/canonicalize_terms.py`.
-10. Extract high-confidence readable blocks with `scripts/simplify/identify_readable_blocks.py`.
-11. Assemble `H_main`, `H_low_weight`, and `H_residual` with `scripts/simplify/assemble_effective_model.py`.
-12. Score fidelity with `scripts/simplify/score_fidelity.py`.
-13. Generate 2-3 simplification views with `scripts/simplify/generate_simplifications.py`.
-14. Ask the user to choose a view whenever an aggressive simplification would hide low-weight or residual structure.
-15. Ask whether to project to a spin model if the current basis is not already explicit.
-16. Present classical solver options and recommend one default.
-17. Run classical ground-state and thermodynamics calculations with `scripts/classical/classical_solver_driver.py`, or use the pseudospin-orbital Sunny adapters when the input path is `many_body_hr`.
-18. Run linear spin-wave analysis and optional small-cluster ED with `scripts/lswt/linear_spin_wave_driver.py`.
-19. Render the final report with `scripts/output/render_report.py`.
+1. Identify the input route.
+2. Check environment and execution constraints.
+3. Land the input into a trusted normalized form.
+4. Resolve material ambiguity before simplification.
+5. Build the readable effective model.
+6. Run optional downstream analysis when appropriate.
+7. Report assumptions, limits, choices, and recommendations.
 
-## Input Notes
+## Output Contract
 
-- Support operator expressions, local matrices or tensors, structured lattice input, natural-language, LaTeX, and document-style inputs through `reference/natural-language-input-protocol.md`, and a dedicated `many_body_hr` input mode for `POSCAR + hr.dat`-style pseudo-spin-orbital effective models.
-- When upstream agent help is available for a literature Hamiltonian, prefer converting the paper into a constrained `agent_normalized_document` / intermediate-record shape that the deterministic backend can land, rather than inventing a parallel freeform-only execution path.
-- For document-style `.tex` / literature inputs, use deterministic extraction first and only escalate to an `agent_normalization_request` when the document cannot be turned into a trustworthy runnable payload by the current parser, not when the only remaining work is an honest user choice such as selecting a model candidate or bond family.
-- Broad text and document entrypoints now require an explicit classical-family decision before ambiguous model content is accepted into normalization or simplification.
-  Use
-  `--selected-classical-family spin-only|cpn`
-  for wrapper CLIs such as
-  `scripts/cli/normalize_document_with_agent.py`,
-  `scripts/cli/run_agent_document_normalization_demo.py`,
-  `scripts/cli/orchestrate_agent_document_normalization.py`,
-  `scripts/cli/simplify_text_input.py`,
-  and
-  `scripts/cli/run_document_reader_pipeline.py`
-  whenever the route is not already family-intrinsic.
-- When you want to operationalize that handoff explicitly, use the wrapper CLI `scripts/cli/normalize_document_with_agent.py`: first run it on the raw document, inspect any returned `agent_normalization_request`, then rerun it with an `agent_normalized_document` JSON once an upstream agent has filled the constrained schema.
-- For the formal end-to-end literature reader path, use `scripts/cli/run_document_reader_pipeline.py`; it runs document orchestration first, then continues from the landed `normalized_model` into the shared simplification/report backbone without re-normalizing the raw document text. If the document route is still broad rather than intrinsically spin-only or `cpn`, pass `--selected-classical-family` explicitly instead of relying on an old default.
-- Treat the returned `agent_normalization_request.template` and `example_payload` as the authoritative contract for what the upstream agent should emit; do not improvise a different JSON shape unless you are also updating the backend schema.
-- For supported spin-model text inputs, route LaTeX-like expressions and compact operator strings through one shared parser core before decomposition, rather than treating each syntax as a separate ad hoc path.
-- For the current spin-`S` operator-text route, treat compact strings and LaTeX-like expressions as one shared operator-expression language with the same expansion semantics, including grouped sums/products, symbolic coefficients, explicit imaginary coefficients such as `i`, `-i`, and `1j`, projection wrappers such as `Re[...]`, `Im[...]`, `\mathrm{Re}[...]`, and `\mathrm{Im}[...]`, and common literature shorthand such as `+ h.c.`, `+ c.c.`, `+ (i<->j)`, `+ (i \leftrightarrow j)`, `+ perm.`, `+ cyclic perm.`, and `+ all permutations`.
-- Treat the current one-body and two-body simplification backbone as a `local_matrix_record` pipeline: extract or compile a local onsite / bond term, attach support, family, basis, and coordinate metadata, then decompose that local matrix deterministically.
-- In the current phase, fully support `body_order <= 2` through this local-matrix backbone, and treat higher-body terms as future-facing schema / failure-path cases rather than silently forcing them into a fake bond interpretation.
-- Support generic `n-body` operator monomials in the spin-`S` operator route, including higher-body terms that may remain outside the current readable-block library.
-- When a supported operator expression can be parsed and canonicalized but not promoted into a trusted readable block, keep it as canonical residual structure instead of collapsing it to a raw opaque fallback.
-- Assume translation invariance and a repeated local term `H = sum_i H_i`.
-- Read `reference/environment.md` before solver selection, and treat it as the source of truth for baseline versus optional backend dependencies.
-- Ask the user which baseline and optional dependencies are already installed before promising any execution path.
-- Distinguish missing baseline dependencies from missing optional backend dependencies, and explain the difference clearly.
-- Prefer exact parsing for common lattices and shell language; otherwise stop and ask instead of guessing.
-- For `many_body_hr` inputs, treat the `hr.dat` object as a bond Hamiltonian on a two-site tensor-product space.
-- Resolve the classical manifold family explicitly before builder or solver selection.
-  Current public values are:
-  `spin-only`
-  and
-  `cpn`.
-  Do not silently default between them once a classical route is being requested.
-- The current default `many_body_hr` payload/report path is `generic-multiplet`, so the retained local basis should be understood first as a generic retained-state index basis rather than as an implicit `orbital x spin(2)` factorization.
-- Preserve the legacy `orbital x spin(2)` / Kramers-style interpretation only when that retained local-space semantics is actually intended, using an explicit `orbital-times-spin` choice or the compatibility-preserving `restricted-product-state` path.
-- For these generic retained-local-multiplet inputs, treat the local basis as a retained-state index basis, build a Hermitian generator basis directly on the retained `N`-dimensional local space, and route the model through the `CP^(N-1)` Sunny / local-ray path rather than pretending there is a physical `spin x orbital` split.
-- Keep the two Sunny families distinct in user-facing explanations and downstream choices:
-  - spin-only Sunny LSWT is for explicit bilinear spin models with `classical_state.site_frames`
-  - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes are for payloads that explicitly resolve
-    `classical_family = cpn`
-    and whose local classical-state manifold is represented as `CP^(N-1)` local rays
-- For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
-- Treat `cpn-generalized-lt` as conditionally final rather than unconditionally final:
-  when `solver_role == "final"` it can be used as an ordinary final `CP^(N-1)` classical branch,
-  but when it remains `diagnostic-only` it should be treated only as a lower bound or seed for fallback constrained minimization.
-- For explicit retained-local-multiplet / `CP^(N-1)` payload JSON that is not sourced from
-  `many_body_hr`,
-  use
-  `scripts/cli/solve_cpn_payload_pipeline.py`
-  instead of forcing the model through the
-  `POSCAR + hr.dat`
-  entrypoint.
-- For these pseudospin-orbital Sunny `:SUN` paths, treat `CP^(N-1)` as a local-state / payload-manifold statement, not as a claim that the effective Hamiltonian is SU(`N`)-symmetric.
-- If the retained local space is even-dimensional but physically still an arbitrary local multiplet, do not silently infer a Kramers-doublet factorization from dimension alone; prefer or preserve the generic local-space choice instead.
-- For these Sunny-backed pseudospin-orbital options, fail explicitly if `julia` or `Sunny.jl` is unavailable instead of silently falling back to the Python helpers.
-- If the user requests a backend whose optional dependencies are missing, stop, explain the gap, and ask whether to install them or switch to an available alternative.
-- Distinguish `detected_symmetries`, `user_required_symmetries`, and `allowed_breaking`.
-- Treat canonical form as the internal source of truth.
-- Low-weight terms are surfaced for user choice; they are not dropped automatically.
-- For supported two-body local matrices, prefer matrix-driven physical interpretation over text-template guessing, including general exchange tensors, DM terms, and literature-specific anisotropic exchange parameterizations such as `Jzz`, `Jpm`, `Jpmpm`, and `Jzpm` when the matrix pattern justifies them.
-- When explaining exchange-component subscripts such as `Jxx`, `Jxy`, `Jyz`, `Jzz`, `Jpm`, or `Jzpm`, interpret them in a fixed orthogonal spin-component frame `x,y,z` by default; do not reinterpret those subscripts as crystallographic `a,b,c` labels in user-facing explanations. If crystallographic directions matter, surface `a,b,c` separately as reference directions instead of overloading the exchange subscripts.
-- Return `interaction.status = needs_input` whenever lattice interpretation, shell mapping, symmetry status, or simplification classification is ambiguous.
-- Do not claim that a document-style natural-language input has been converted into a runnable model unless the intermediate extraction record has either landed in a supported payload or explicitly returned `interaction.status = needs_input`.
-- If document verification returns `verification_report.status = needs_review`, surface that status clearly but continue through the document-reader pipeline unless a separate hard blocker is present; treat it as a warning/review state, not a hard stop.
-- Prefer a faithful readable model with explicit `residual` structure over an over-compressed Hamiltonian that hides unmatched or weak but meaningful terms.
-- Read `reference/input-schema.md` for required normalized fields, `reference/natural-language-input-protocol.md` for broad text and document inputs, `reference/fallback-rules.md` whenever an unsupported or ambiguous branch is triggered, and `reference/environment.md` before environment-sensitive solver choices.
+The final result should include:
 
-## Output Requirements
+- the recommended simplified result
+- `H_main`, `H_low_weight`, and `H_residual`
+- key assumptions and any unresolved limitations
+- unsupported features or blocked routes
+- the chosen solver or backend path, or the blocker that prevented it
+- fidelity or reconstruction context when available
 
-- Always show 2-3 simplification candidates with trade-offs.
-- Always present the readable result as `H_main + H_low_weight + H_residual`.
-- Always state the recommendation and whether aggressive simplification was user-approved.
-- Always list low-weight terms, residual terms, projection decisions, solver choices, and unsupported features.
-- Always include a fidelity report with reconstruction and weight-coverage summaries.
-- If a low-weight term is the only visible source of symmetry breaking, warn the user before demoting or dropping it.
-- Always prefer surfacing ambiguity, residual structure, and symmetry-sensitive weak terms over silently pruning them away.
-- When discussing LSW for a known classical ground state, default to the local-frame Holstein-Primakoff plus paraunitary-Bogoliubov method unless you explicitly state that a narrower approximation is being used.
-- If an open-source package such as SpinW or Sunny.jl is the better path for the current model, say so explicitly instead of pretending the in-skill helper scripts are sufficient.
-- Always surface environment blockers early rather than discovering them deep in the workflow.
+Provide multiple simplification views when there are materially different
+trusted views and the choice matters. Do not fabricate extra choices when one
+faithful readable result is clearly preferable.
+
+## Routing References
+
+Use the repository reference docs to choose the current supported route:
+
+- `reference/agent-routing.md`
+- `reference/input-schema.md`
+- `reference/natural-language-input-protocol.md`
+- `reference/fallback-rules.md`
+- `reference/environment.md`
+
+Treat those references as the detailed routing, schema, fallback, and
+environment companions for this top-level contract.
