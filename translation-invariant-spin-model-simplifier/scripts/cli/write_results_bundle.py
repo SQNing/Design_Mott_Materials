@@ -149,6 +149,32 @@ def _stage_summary(
     if lswt_failure_summary:
         lswt_summary.update(lswt_failure_summary)
 
+    classical_diagnostics = (
+        classical_state_result.get("diagnostics", {})
+        if isinstance(classical_state_result.get("diagnostics"), dict)
+        else {}
+    )
+    refinement = (
+        classical_diagnostics.get("magnetic_supercell_refinement", {})
+        if isinstance(classical_diagnostics.get("magnetic_supercell_refinement"), dict)
+        else {}
+    )
+    refinement_summary = None
+    if refinement:
+        refinement_summary = {
+            "accepted": refinement.get("accepted"),
+            "acceptance_backend": refinement.get("acceptance_backend"),
+            "trigger_q": refinement.get("trigger_q"),
+            "candidate_matrix": refinement.get("candidate_matrix"),
+            "energy_before_per_site": refinement.get("energy_before_per_site"),
+            "energy_after_python_per_site": refinement.get("energy_after_python_per_site"),
+            "energy_after_sunny_per_site": refinement.get("energy_after_sunny_per_site"),
+            "energy_gain_per_site": refinement.get("energy_gain_per_site"),
+            "candidate_count": len(refinement.get("candidates", []))
+            if isinstance(refinement.get("candidates"), list)
+            else 0,
+        }
+
     return {
         "classical": {
             "present": bool(classical_present_after),
@@ -158,7 +184,9 @@ def _stage_summary(
             "method": classical_state_result.get("method"),
             "role": classical_state_result.get("role"),
             "solver_family": classical_state_result.get("solver_family"),
+            "selected_classical_branch": classical_state_result.get("selected_classical_branch"),
             "downstream_compatibility": classical_state_result.get("downstream_compatibility"),
+            "magnetic_supercell_refinement": refinement_summary,
         },
         "thermodynamics": {
             "present": bool(thermodynamics_present_after),

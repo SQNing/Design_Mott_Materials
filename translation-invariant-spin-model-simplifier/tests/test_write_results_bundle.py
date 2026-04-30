@@ -1,5 +1,7 @@
 import sys
 import unittest
+import json
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,6 +11,78 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from cli import write_results_bundle
 from common.classical_state_result import build_final_classical_state_result
+
+
+def _minimal_refined_bundle_payload():
+    classical_state = {
+        "state_kind": "local_rays",
+        "manifold": "CP^(N-1)",
+        "supercell_shape": [4, 4, 1],
+        "local_rays": [
+            {
+                "cell": [0, 0, 0],
+                "site": 0,
+                "vector": [{"real": 1.0, "imag": 0.0}, {"real": 0.0, "imag": 0.0}],
+            }
+        ],
+        "ordering": {
+            "kind": "commensurate-supercell",
+            "q_vector": [0.75, 0.25, 0.75],
+            "supercell_shape": [4, 4, 1],
+        },
+    }
+    payload = {
+        "normalized_model": {"local_hilbert": {"dimension": 2}},
+        "simplification": {"candidates": [{"name": "toy"}], "recommended": 0},
+        "canonical_model": {},
+        "effective_model": {"main": [], "low_weight": [], "residual": []},
+        "fidelity": {
+            "reconstruction_error": 0.0,
+            "main_fraction": 1.0,
+            "low_weight_fraction": 0.0,
+            "residual_fraction": 0.0,
+            "risk_notes": [],
+        },
+        "projection": {"status": "cpn_pair_model"},
+        "classical_state_result": {
+            "status": "ok",
+            "role": "final",
+            "solver_family": "retained_local_multiplet",
+            "method": "pseudospin-sun-gswt-cpn",
+            "selected_classical_branch": "magnetic-supercell-refined",
+            "downstream_compatibility": {
+                "lswt": {"status": "blocked", "reason": "requires-spin-frame-site-frames"},
+                "gswt": {"status": "ready"},
+                "thermodynamics": {"status": "ready"},
+            },
+            "classical_state": classical_state,
+            "diagnostics": {
+                "magnetic_supercell_refinement": {
+                    "accepted": True,
+                    "acceptance_backend": "sunny",
+                    "trigger_q": [0.75, 0.25, 0.75],
+                    "candidate_matrix": [[0, 3, -1], [1, -3, 0], [0, 4, 0]],
+                    "energy_before_per_site": -2.782712359221584,
+                    "energy_after_python_per_site": -2.9163427233459576,
+                    "energy_after_sunny_per_site": -3.0184994995404986,
+                    "energy_gain_per_site": 0.13363036412437346,
+                    "candidates": [
+                        {
+                            "accepted": False,
+                            "trigger_q": [0.25, 0.75, 0.25],
+                            "energy_after_python_per_site": -2.7710803677952422,
+                        },
+                        {
+                            "accepted": True,
+                            "trigger_q": [0.75, 0.25, 0.75],
+                            "energy_after_python_per_site": -2.9163427233459576,
+                        },
+                    ],
+                }
+            },
+        },
+    }
+    return payload
 
 
 class WriteResultsBundleTests(unittest.TestCase):
@@ -366,6 +440,64 @@ class WriteResultsBundleTests(unittest.TestCase):
         self.assertEqual(summary["classical"]["method"], "pseudospin-cpn-generalized-lt")
         self.assertEqual(summary["classical"]["role"], "final")
         self.assertEqual(summary["classical"]["downstream_compatibility"]["gswt"]["status"], "ready")
+
+    def test_stage_summary_exports_selected_refined_branch_and_magnetic_supercell_refinement_summary(self):
+        bundle_payload = _minimal_refined_bundle_payload()
+
+        summary = write_results_bundle._stage_summary(
+            {},
+            bundle_payload,
+            run_missing_classical=False,
+            run_missing_thermodynamics=False,
+            run_missing_gswt=False,
+            run_missing_lswt=False,
+        )
+
+        self.assertEqual(summary["classical"]["selected_classical_branch"], "magnetic-supercell-refined")
+        refinement = summary["classical"]["magnetic_supercell_refinement"]
+        self.assertEqual(refinement["accepted"], True)
+        self.assertEqual(refinement["acceptance_backend"], "sunny")
+        self.assertEqual(refinement["trigger_q"], [0.75, 0.25, 0.75])
+        self.assertEqual(refinement["candidate_matrix"], [[0, 3, -1], [1, -3, 0], [0, 4, 0]])
+        self.assertEqual(refinement["energy_after_python_per_site"], -2.9163427233459576)
+        self.assertEqual(refinement["energy_after_sunny_per_site"], -3.0184994995404986)
+        self.assertEqual(refinement["candidate_count"], 2)
+
+    def test_write_results_bundle_renders_magnetic_supercell_refinement_section_in_report(self):
+        payload = _minimal_refined_bundle_payload()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir)
+            with patch.object(
+                write_results_bundle,
+                "render_plots",
+                return_value={"status": "ok", "plots": {}},
+            ):
+                manifest = write_results_bundle.write_results_bundle(
+                    payload,
+                    output_dir=output_dir,
+                    run_missing_classical=False,
+                    run_missing_thermodynamics=False,
+                    run_missing_gswt=False,
+                    run_missing_lswt=False,
+                )
+
+            bundle_manifest = json.loads((output_dir / "bundle_manifest.json").read_text(encoding="utf-8"))
+            report_text = (output_dir / "report.txt").read_text(encoding="utf-8")
+
+        self.assertEqual(manifest["status"], "ok")
+        self.assertEqual(
+            bundle_manifest["stages"]["classical"]["selected_classical_branch"],
+            "magnetic-supercell-refined",
+        )
+        self.assertIn("Magnetic supercell refinement:", report_text)
+        self.assertIn("selected_classical_branch=magnetic-supercell-refined", report_text)
+        self.assertIn("accepted=True", report_text)
+        self.assertIn("trigger_q=[0.75, 0.25, 0.75]", report_text)
+        self.assertIn("candidate_matrix=[[0, 3, -1], [1, -3, 0], [0, 4, 0]]", report_text)
+        self.assertIn("energy_before_per_site=-2.7827124", report_text)
+        self.assertIn("energy_after_python_per_site=-2.9163427", report_text)
+        self.assertIn("energy_after_sunny_per_site=-3.0184995", report_text)
 
     def test_populate_missing_results_routes_gswt_through_shared_execution(self):
         payload = {

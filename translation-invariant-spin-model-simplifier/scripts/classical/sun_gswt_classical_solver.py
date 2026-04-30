@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
+from copy import deepcopy
 from fractions import Fraction
 
 import numpy as np
+from classical.sunny_sun_classical_driver import run_sunny_sun_classical
 from common.cpn_classical_state import resolve_cpn_classical_state_payload
+from common.cpn_magnetic_supercell import (
+    lift_cpn_state_between_cells,
+    magnetic_supercell_candidate_from_projector,
+    reshape_cpn_model_to_magnetic_supercell,
+)
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
 
 try:
@@ -71,23 +78,51 @@ def _normalized_ray(vector):
 
 
 def _state_array_from_serialized(state):
-    shape = tuple(int(value) for value in state["shape"])
+    raw_shape = state.get("shape", state.get("supercell_shape"))
+    if raw_shape is None:
+        raise ValueError("local-ray state must provide shape or supercell_shape")
+    shape = tuple(int(value) for value in raw_shape)
     vectors = {}
+    max_site = 0
     for item in state.get("local_rays", []):
-        vectors[tuple(int(value) for value in item["cell"])] = _normalized_ray(_deserialize_vector(item["vector"]))
-    local_dimension = len(next(iter(vectors.values())))
-    array = np.zeros(shape + (local_dimension,), dtype=complex)
+        cell = tuple(int(value) for value in item["cell"])
+        site = int(item.get("site", 0))
+        vectors[(cell, site)] = _normalized_ray(_deserialize_vector(item["vector"]))
+        max_site = max(max_site, site)
+    first_vector = next(iter(vectors.values()))
+    local_dimension = len(first_vector)
+    site_count = max_site + 1 if vectors else 1
+    array = np.zeros(shape + (site_count, local_dimension), dtype=complex)
     for index in np.ndindex(shape):
-        array[index] = vectors[index]
+        for site in range(site_count):
+            key = (index, site)
+            if key not in vectors:
+                raise ValueError(f"missing local ray for cell {list(index)} site {site}")
+            array[index + (site,)] = vectors[key]
     return array
 
 
 def _serialize_state_array(state_array):
-    shape = list(state_array.shape[:3])
+    site_aware = _with_explicit_site_axis(state_array)
+    shape = list(site_aware.shape[:3])
+    site_count = int(site_aware.shape[3])
     rays = []
     for index in np.ndindex(tuple(shape)):
-        rays.append({"cell": [int(value) for value in index], "vector": _serialize_vector(_normalized_ray(state_array[index]))})
+        for site in range(site_count):
+            entry = {
+                "cell": [int(value) for value in index],
+                "vector": _serialize_vector(_normalized_ray(site_aware[index + (site,)])),
+            }
+            if site_count > 1:
+                entry["site"] = int(site)
+            rays.append(entry)
     return {"shape": shape, "local_rays": rays}
+
+
+def _with_explicit_site_axis(state_array):
+    if state_array.ndim == 4:
+        return np.expand_dims(state_array, axis=3)
+    return state_array
 
 
 def _reject_magnetic_supercell_energy_state(state):
@@ -132,46 +167,54 @@ def _state_array_from_model(model, supercell_shape, seed):
     shape = _state_shape_from_model(model, supercell_shape)
     rng = np.random.default_rng(seed)
     local_dimension = int(model["local_dimension"])
-    state = np.zeros(shape + (local_dimension,), dtype=complex)
+    site_count = max(1, int(len(model.get("positions", [])) or model.get("magnetic_site_count", 1)))
+    state = np.zeros(shape + (site_count, local_dimension), dtype=complex)
     for index in np.ndindex(shape):
-        vector = rng.normal(size=local_dimension) + 1.0j * rng.normal(size=local_dimension)
-        state[index] = _unit_norm_ray(vector)
+        for site in range(site_count):
+            vector = rng.normal(size=local_dimension) + 1.0j * rng.normal(size=local_dimension)
+            state[index + (site,)] = _unit_norm_ray(vector)
     return state
 
 
-def _effective_local_matrix(model, state_array, cell_index):
+def _effective_local_matrix(model, state_array, cell_index, site):
     local_dimension = int(model["local_dimension"])
     matrix = np.zeros((local_dimension, local_dimension), dtype=complex)
+    state_array = _with_explicit_site_axis(state_array)
     for bond in model.get("bond_tensors", []):
         tensor = _deserialize_tensor(bond["tensor"])
         R = tuple(int(value) for value in bond["R"])
+        source = int(bond.get("source", 0))
+        target = int(bond.get("target", 0))
 
-        right_index = _mod_index(tuple(cell_index[axis] + R[axis] for axis in range(3)), state_array.shape[:3])
-        z_right = state_array[right_index]
-        matrix += np.einsum("abcd,c,d->ab", tensor, np.conjugate(z_right), z_right)
+        if source == int(site):
+            right_index = _mod_index(tuple(cell_index[axis] + R[axis] for axis in range(3)), state_array.shape[:3])
+            z_right = state_array[right_index + (target,)]
+            matrix += np.einsum("abcd,c,d->ab", tensor, np.conjugate(z_right), z_right)
 
-        left_index = _mod_index(tuple(cell_index[axis] - R[axis] for axis in range(3)), state_array.shape[:3])
-        z_left = state_array[left_index]
-        matrix += np.einsum("cdab,c,d->ab", tensor, np.conjugate(z_left), z_left)
+        if target == int(site):
+            left_index = _mod_index(tuple(cell_index[axis] - R[axis] for axis in range(3)), state_array.shape[:3])
+            z_left = state_array[left_index + (source,)]
+            matrix += np.einsum("cdab,c,d->ab", tensor, np.conjugate(z_left), z_left)
 
     for onsite in model.get("onsite_terms", []):
-        site = int(onsite.get("site", 0))
-        if site != 0:
-            raise ValueError("sun-gswt classical solver currently supports only onsite terms on site 0")
-        matrix += _deserialize_matrix(onsite["matrix"])
+        onsite_site = int(onsite.get("site", 0))
+        if onsite_site == int(site):
+            matrix += _deserialize_matrix(onsite["matrix"])
 
     return 0.5 * (matrix + matrix.conjugate().T)
 
 
 def _sweep(model, state_array):
     max_change = 0.0
-    for cell_index in np.ndindex(state_array.shape[:3]):
-        local_matrix = _effective_local_matrix(model, state_array, cell_index)
-        eigenvalues, eigenvectors = np.linalg.eigh(local_matrix)
-        new_vector = _normalized_ray(eigenvectors[:, int(np.argmin(eigenvalues))])
-        max_change = max(max_change, float(np.linalg.norm(new_vector - state_array[cell_index])))
-        state_array[cell_index] = new_vector
-    return state_array, float(max_change)
+    site_aware = _with_explicit_site_axis(state_array)
+    for cell_index in np.ndindex(site_aware.shape[:3]):
+        for site in range(site_aware.shape[3]):
+            local_matrix = _effective_local_matrix(model, site_aware, cell_index, site)
+            eigenvalues, eigenvectors = np.linalg.eigh(local_matrix)
+            new_vector = _normalized_ray(eigenvectors[:, int(np.argmin(eigenvalues))])
+            max_change = max(max_change, float(np.linalg.norm(new_vector - site_aware[cell_index + (site,)])))
+            site_aware[cell_index + (site,)] = new_vector
+    return site_aware, float(max_change)
 
 
 def _bond_energy(tensor, left_vector, right_vector):
@@ -261,9 +304,9 @@ def _single_q_energy(model, q_vector, reference_ray, generator):
 
 def _single_q_state_array(reference_ray, generator, q_vector, shape):
     local_dimension = int(reference_ray.shape[0])
-    state = np.zeros(tuple(shape) + (local_dimension,), dtype=complex)
+    state = np.zeros(tuple(shape) + (1, local_dimension), dtype=complex)
     for cell_index in np.ndindex(tuple(shape)):
-        state[cell_index] = _single_q_ray(reference_ray, generator, q_vector, cell_index)
+        state[cell_index + (0,)] = _single_q_ray(reference_ray, generator, q_vector, cell_index)
     return state
 
 
@@ -421,8 +464,10 @@ def _optimize_single_q_joint_state(model, *, starts, seed, maxiter=200):
 
 
 def _projector_fourier_components(state_array):
-    shape = tuple(int(value) for value in state_array.shape[:3])
-    local_dimension = int(state_array.shape[3])
+    site_aware = _with_explicit_site_axis(state_array)
+    shape = tuple(int(value) for value in site_aware.shape[:3])
+    site_count = int(site_aware.shape[3])
+    local_dimension = int(site_aware.shape[4])
     cell_count = int(np.prod(shape))
     components = []
     zero_q = (0.0, 0.0, 0.0)
@@ -439,8 +484,9 @@ def _projector_fourier_components(state_array):
                 * np.pi
                 * sum(float(q[axis]) * float(cell_index[axis]) for axis in range(3))
             )
-            matrix += phase * _projector_matrix(state_array[cell_index])
-        matrix /= float(cell_count)
+            for site in range(site_count):
+                matrix += phase * _projector_matrix(site_aware[cell_index + (site,)])
+        matrix /= float(cell_count * site_count)
         weight = float(np.real(np.sum(np.abs(matrix) ** 2)))
         is_zero_q = all(abs(value) <= 1e-12 for value in q)
         if is_zero_q:
@@ -472,21 +518,24 @@ def _projector_fourier_components(state_array):
 
 
 def _stationarity_summary(model, state_array):
+    site_aware = _with_explicit_site_axis(state_array)
     residuals = []
-    for cell_index in np.ndindex(state_array.shape[:3]):
-        local_matrix = _effective_local_matrix(model, state_array, cell_index)
-        vector = state_array[cell_index]
-        lagrange_multiplier = complex(np.vdot(vector, local_matrix @ vector))
-        residual = local_matrix @ vector - lagrange_multiplier * vector
-        residual_norm = float(np.linalg.norm(residual))
-        residuals.append(
-            {
-                "cell": [int(value) for value in cell_index],
-                "lagrange_multiplier": _serialize_complex(lagrange_multiplier),
-                "residual_norm": residual_norm,
-                "residual_vector": _serialize_vector(residual),
-            }
-        )
+    for cell_index in np.ndindex(site_aware.shape[:3]):
+        for site in range(site_aware.shape[3]):
+            local_matrix = _effective_local_matrix(model, site_aware, cell_index, site)
+            vector = site_aware[cell_index + (site,)]
+            lagrange_multiplier = complex(np.vdot(vector, local_matrix @ vector))
+            residual = local_matrix @ vector - lagrange_multiplier * vector
+            residual_norm = float(np.linalg.norm(residual))
+            residuals.append(
+                {
+                    "cell": [int(value) for value in cell_index],
+                    "site": int(site),
+                    "lagrange_multiplier": _serialize_complex(lagrange_multiplier),
+                    "residual_norm": residual_norm,
+                    "residual_vector": _serialize_vector(residual),
+                }
+            )
 
     norms = [item["residual_norm"] for item in residuals]
     return {
@@ -547,21 +596,26 @@ def evaluate_sun_gswt_classical_energy(model, state):
     resolve_pseudospin_orbital_conventions(model)
     _reject_magnetic_supercell_energy_state(state)
     state_array = _state_array_from_serialized(state) if isinstance(state, dict) else state
+    site_aware = _with_explicit_site_axis(state_array)
     energy = 0.0 + 0.0j
-    for cell_index in np.ndindex(state_array.shape[:3]):
+    for cell_index in np.ndindex(site_aware.shape[:3]):
         for bond in model.get("bond_tensors", []):
             tensor = _deserialize_tensor(bond["tensor"])
             R = tuple(int(value) for value in bond["R"])
-            right_index = _mod_index(tuple(cell_index[axis] + R[axis] for axis in range(3)), state_array.shape[:3])
-            energy += _bond_energy(tensor, state_array[cell_index], state_array[right_index])
+            source = int(bond.get("source", 0))
+            target = int(bond.get("target", 0))
+            right_index = _mod_index(tuple(cell_index[axis] + R[axis] for axis in range(3)), site_aware.shape[:3])
+            energy += _bond_energy(
+                tensor,
+                site_aware[cell_index + (source,)],
+                site_aware[right_index + (target,)],
+            )
         for onsite in model.get("onsite_terms", []):
-            site = int(onsite.get("site", 0))
-            if site != 0:
-                raise ValueError("sun-gswt classical energy currently supports only onsite terms on site 0")
             onsite_matrix = _deserialize_matrix(onsite["matrix"])
-            vector = state_array[cell_index]
+            site = int(onsite.get("site", 0))
+            vector = site_aware[cell_index + (site,)]
             energy += complex(np.vdot(vector, onsite_matrix @ vector))
-    return float(np.real(energy) / float(np.prod(state_array.shape[:3])))
+    return float(np.real(energy) / float(np.prod(site_aware.shape[:3])))
 
 
 def solve_sun_gswt_classical_ground_state(
@@ -683,4 +737,439 @@ def solve_sun_gswt_single_q_ground_state(
         },
         "starts": int(starts),
         "seed": int(seed),
+    }
+
+
+def _is_zero_q_vector(q_vector, *, tolerance=1e-10):
+    return all(abs(float(value)) <= tolerance for value in q_vector)
+
+
+def _ranked_nonzero_projector_components(projector_summary):
+    projector_summary = projector_summary if isinstance(projector_summary, dict) else {}
+    top_components = projector_summary.get("top_components")
+    if isinstance(top_components, list) and top_components:
+        components = top_components
+    else:
+        components = projector_summary.get("components", [])
+
+    ranked = []
+    for component in components:
+        if not isinstance(component, dict):
+            continue
+        q_vector = list(component.get("q", []))
+        if len(q_vector) != 3 or _is_zero_q_vector(q_vector):
+            continue
+        ranked.append(
+            {
+                "q": [float(value) for value in q_vector],
+                "weight": float(component.get("weight", 0.0)),
+            }
+        )
+    ranked.sort(key=lambda item: (-item["weight"], item["q"]))
+    return ranked
+
+
+def _candidate_matrix_key(matrix):
+    return tuple(tuple(int(value) for value in row) for row in matrix)
+
+
+def build_cpn_magnetic_supercell_refinement_candidates(
+    model,
+    classical_result,
+    *,
+    max_candidates=4,
+    max_denominator=16,
+):
+    del model
+    projector = classical_result.get("projector_diagnostics", {}) if isinstance(classical_result, dict) else {}
+    components = _ranked_nonzero_projector_components(projector)
+    candidate_entries = []
+    seen_matrices = set()
+    first_failure = None
+
+    for component in components:
+        candidate = magnetic_supercell_candidate_from_projector(
+            {"top_components": [{"q": list(component["q"]), "weight": float(component["weight"])}]},
+            max_denominator=max_denominator,
+        )
+        if candidate.get("status") != "ok":
+            if first_failure is None:
+                first_failure = candidate
+            continue
+        matrix_key = _candidate_matrix_key(candidate.get("matrix", []))
+        if matrix_key in seen_matrices:
+            continue
+        seen_matrices.add(matrix_key)
+        candidate_entries.append(
+            {
+                "candidate": candidate,
+                "trigger_q": list(candidate.get("selected_q", [])),
+                "projector_weight": float(component["weight"]),
+            }
+        )
+        if len(candidate_entries) >= max(1, int(max_candidates)):
+            break
+
+    if not candidate_entries:
+        failure = first_failure or {
+            "status": "no_nonzero_component",
+            "selected_q": None,
+            "matrix": None,
+            "determinant": 0,
+        }
+        return {
+            "status": "no_candidate",
+            "reason": failure.get("status", "missing-projector-candidate"),
+            "candidate": failure,
+            "candidates": [],
+        }
+
+    return {
+        "status": "candidates",
+        "candidates": candidate_entries,
+    }
+
+
+def build_cpn_magnetic_supercell_refinement_candidate(model, classical_result):
+    branch = build_cpn_magnetic_supercell_refinement_candidates(
+        model,
+        classical_result,
+        max_candidates=1,
+    )
+    if branch.get("status") != "candidates":
+        return {
+            "status": "no_candidate",
+            "reason": branch.get("reason", branch.get("status")),
+            "candidate": branch.get("candidate"),
+        }
+    candidate_entry = branch["candidates"][0]
+    candidate = candidate_entry["candidate"]
+    return {
+        "status": "candidate",
+        "candidate": candidate,
+        "trigger_q": list(candidate.get("selected_q", [])),
+        "chemical_site_count": int(len(model.get("positions", []))),
+    }
+
+
+def choose_refined_classical_branch(
+    *,
+    original_energy,
+    original_site_count=1,
+    refined_python_energy=None,
+    refined_sunny_energy=None,
+    refined_site_count=1,
+    refined_state=None,
+    refined_python_state=None,
+    refined_sunny_state=None,
+    energy_gain_tolerance=1e-6,
+):
+    original_site_count = max(1, int(original_site_count))
+    refined_site_count = max(1, int(refined_site_count))
+    original_energy_per_site = float(original_energy) / float(original_site_count)
+    energy_candidates = []
+    if refined_python_energy is not None:
+        energy_candidates.append(("python", float(refined_python_energy) / float(refined_site_count)))
+    if refined_sunny_energy is not None:
+        energy_candidates.append(("sunny", float(refined_sunny_energy) / float(refined_site_count)))
+
+    if not energy_candidates:
+        return {
+            "accepted": False,
+            "reason": "no-refined-energy",
+            "energy_before": float(original_energy),
+            "energy_before_per_site": float(original_energy_per_site),
+            "energy_after_python": None,
+            "energy_after_python_per_site": None,
+            "energy_after_sunny": None,
+            "energy_after_sunny_per_site": None,
+            "energy_gain": None,
+            "energy_gain_per_site": None,
+            "selected_backend": None,
+            "acceptance_backend": None,
+            "selected_energy_per_site": None,
+            "selected_classical_state": None,
+        }
+
+    selected_backend, selected_energy_per_site = min(energy_candidates, key=lambda item: item[1])
+    energy_gain_per_site = float(original_energy_per_site) - float(selected_energy_per_site)
+    accepted = energy_gain_per_site > float(energy_gain_tolerance)
+    if selected_backend == "sunny":
+        selected_state = refined_sunny_state if refined_sunny_state is not None else refined_state
+    else:
+        selected_state = refined_python_state if refined_python_state is not None else refined_state
+    return {
+        "accepted": bool(accepted),
+        "reason": "energy-improved" if accepted else "energy-gain-below-tolerance",
+        "energy_before": float(original_energy),
+        "energy_before_per_site": float(original_energy_per_site),
+        "energy_after_python": None if refined_python_energy is None else float(refined_python_energy),
+        "energy_after_python_per_site": (
+            None if refined_python_energy is None else float(refined_python_energy) / float(refined_site_count)
+        ),
+        "energy_after_sunny": None if refined_sunny_energy is None else float(refined_sunny_energy),
+        "energy_after_sunny_per_site": (
+            None if refined_sunny_energy is None else float(refined_sunny_energy) / float(refined_site_count)
+        ),
+        "energy_gain": None if refined_python_energy is None and refined_sunny_energy is None else (
+            float(original_energy) - (
+                float(refined_python_energy)
+                if selected_backend == "python"
+                else float(refined_sunny_energy)
+            )
+        ),
+        "energy_gain_per_site": float(energy_gain_per_site),
+        "selected_backend": str(selected_backend),
+        "acceptance_backend": str(selected_backend) if accepted else None,
+        "selected_energy_per_site": float(selected_energy_per_site),
+        "selected_classical_state": selected_state if accepted else None,
+    }
+
+
+def _run_sunny_cpn_refinement_verification(
+    reshaped_model,
+    *,
+    lifted_state,
+    starts,
+    seed,
+):
+    payload = {
+        "backend": "Sunny.jl",
+        "payload_kind": "sunny_sun_classical",
+        "model": reshaped_model,
+        "supercell_shape": [int(value) for value in lifted_state.get("supercell_shape", [])],
+        "initial_local_rays": list(lifted_state.get("local_rays", [])),
+        "starts": int(starts),
+        "seed": int(seed),
+    }
+    backend_result = run_sunny_sun_classical(payload)
+    if backend_result.get("status") != "ok":
+        return None
+    resolved_state = resolve_cpn_classical_state_payload(
+        backend_result,
+        default_supercell_shape=lifted_state.get("supercell_shape"),
+    )
+    return {
+        **backend_result,
+        "supercell_shape": list(
+            resolved_state.get("supercell_shape", backend_result.get("supercell_shape", lifted_state.get("supercell_shape", [])))
+        ),
+        "local_rays": list(resolved_state.get("local_rays", backend_result.get("local_rays", []))),
+        "classical_state": resolved_state,
+    }
+
+
+def _run_single_cpn_magnetic_supercell_refinement_candidate(
+    model,
+    *,
+    source_state,
+    original_energy,
+    original_site_count,
+    candidate_entry,
+    starts,
+    seed,
+    max_sweeps,
+    sweep_tolerance,
+    energy_gain_tolerance,
+    verify_with_sunny=False,
+):
+    candidate = dict(candidate_entry.get("candidate", {}))
+    reshaped_model = reshape_cpn_model_to_magnetic_supercell(model, candidate["matrix"])
+    lifting_mapping = dict(reshaped_model["magnetic_supercell_mapping"])
+    if source_state.get("supercell_shape") is not None:
+        lifting_mapping["chemical_supercell_shape"] = [
+            int(value) for value in source_state["supercell_shape"]
+        ]
+    lifted_state = lift_cpn_state_between_cells(
+        source_state,
+        lifting_mapping,
+        direction="chemical_to_magnetic",
+    )
+    refined_python = solve_sun_gswt_classical_ground_state(
+        reshaped_model,
+        supercell_shape=lifted_state.get("supercell_shape"),
+        starts=starts,
+        seed=seed,
+        max_sweeps=max_sweeps,
+        sweep_tolerance=sweep_tolerance,
+    )
+    refined_site_count = max(
+        1,
+        int(len(reshaped_model.get("positions", [])) or reshaped_model.get("magnetic_site_count", 1)),
+    )
+    refined_sunny = (
+        _run_sunny_cpn_refinement_verification(
+            reshaped_model,
+            lifted_state=lifted_state,
+            starts=starts,
+            seed=seed,
+        )
+        if verify_with_sunny
+        else None
+    )
+    decision = choose_refined_classical_branch(
+        original_energy=float(original_energy),
+        original_site_count=int(original_site_count),
+        refined_python_energy=refined_python.get("energy"),
+        refined_sunny_energy=refined_sunny.get("energy") if isinstance(refined_sunny, dict) else None,
+        refined_site_count=refined_site_count,
+        refined_state=resolve_cpn_classical_state_payload(refined_python),
+        refined_python_state=resolve_cpn_classical_state_payload(refined_python),
+        refined_sunny_state=(
+            resolve_cpn_classical_state_payload(
+                refined_sunny,
+                default_supercell_shape=lifted_state.get("supercell_shape"),
+            )
+            if isinstance(refined_sunny, dict)
+            else None
+        ),
+        energy_gain_tolerance=energy_gain_tolerance,
+    )
+    lifted_energy = evaluate_sun_gswt_classical_energy(reshaped_model, lifted_state)
+    summary = {
+        "trigger_q": list(candidate.get("selected_q", [])),
+        "projector_weight": candidate_entry.get("projector_weight"),
+        "candidate_matrix": deepcopy(candidate.get("matrix")),
+        "candidate_determinant": candidate.get("determinant"),
+        "lifted_supercell_shape": list(lifted_state.get("supercell_shape", [])),
+        "lifted_initial_energy": float(lifted_energy),
+        "lifted_initial_energy_per_site": float(lifted_energy) / float(refined_site_count),
+        "refined_site_count": int(refined_site_count),
+        "accepted": bool(decision.get("accepted", False)),
+        "reason": decision.get("reason"),
+        "energy_after_python": decision.get("energy_after_python"),
+        "energy_after_python_per_site": decision.get("energy_after_python_per_site"),
+        "energy_after_sunny": decision.get("energy_after_sunny"),
+        "energy_after_sunny_per_site": decision.get("energy_after_sunny_per_site"),
+        "energy_gain_per_site": decision.get("energy_gain_per_site"),
+        "acceptance_backend": decision.get("acceptance_backend"),
+        "selected_backend": decision.get("selected_backend"),
+    }
+    return {
+        "candidate": candidate,
+        "reshaped_model": reshaped_model,
+        "lifted_initial_state": lifted_state,
+        "refined_python_result": refined_python,
+        "refined_sunny_result": refined_sunny,
+        "decision": decision,
+        "summary": summary,
+    }
+
+
+def run_cpn_magnetic_supercell_refinement(
+    model,
+    *,
+    classical_result,
+    starts=8,
+    seed=0,
+    max_sweeps=200,
+    sweep_tolerance=1e-10,
+    energy_gain_tolerance=1e-6,
+    max_candidate_components=4,
+    max_denominator=16,
+    verify_with_sunny=False,
+):
+    branch = build_cpn_magnetic_supercell_refinement_candidates(
+        model,
+        classical_result,
+        max_candidates=max_candidate_components,
+        max_denominator=max_denominator,
+    )
+    diagnostics = {
+        "status": None,
+        "trigger_q": None,
+        "candidate_matrix": None,
+        "candidates": [],
+        "accepted": False,
+        "max_candidate_components": int(max_candidate_components),
+        "max_denominator": int(max_denominator),
+        "original_site_count": int(len(model.get("positions", [])) or 1),
+        "refined_site_count": None,
+        "energy_before": classical_result.get("energy") if isinstance(classical_result, dict) else None,
+        "energy_before_per_site": None,
+        "energy_after_python": None,
+        "energy_after_python_per_site": None,
+        "energy_after_sunny": None,
+        "energy_after_sunny_per_site": None,
+        "energy_gain_per_site": None,
+        "acceptance_backend": None,
+        "selected_backend": None,
+    }
+    if diagnostics["energy_before"] is not None:
+        diagnostics["energy_before_per_site"] = float(diagnostics["energy_before"]) / float(diagnostics["original_site_count"])
+    if branch.get("status") != "candidates":
+        diagnostics["status"] = branch.get("status")
+        return {
+            "status": branch.get("status"),
+            "candidate": branch.get("candidate"),
+            "decision": {
+                "accepted": False,
+                "reason": branch.get("reason", branch.get("status")),
+                "selected_classical_state": None,
+            },
+            "magnetic_supercell_refinement": diagnostics,
+        }
+
+    source_state = resolve_cpn_classical_state_payload(classical_result)
+    candidate_results = []
+    for candidate_entry in branch.get("candidates", []):
+        result = _run_single_cpn_magnetic_supercell_refinement_candidate(
+            model,
+            source_state=source_state,
+            original_energy=float(classical_result.get("energy")),
+            original_site_count=diagnostics["original_site_count"],
+            candidate_entry=candidate_entry,
+            starts=starts,
+            seed=seed,
+            max_sweeps=max_sweeps,
+            sweep_tolerance=sweep_tolerance,
+            energy_gain_tolerance=energy_gain_tolerance,
+            verify_with_sunny=verify_with_sunny,
+        )
+        candidate_results.append(result)
+
+    diagnostics["status"] = "candidate"
+    diagnostics["candidates"] = [deepcopy(result["summary"]) for result in candidate_results]
+
+    accepted_results = [result for result in candidate_results if result["decision"].get("accepted", False)]
+    if accepted_results:
+        selected_result = min(
+            accepted_results,
+            key=lambda result: float(result["decision"].get("selected_energy_per_site")),
+        )
+    else:
+        selected_result = min(
+            candidate_results,
+            key=lambda result: float(result["decision"].get("selected_energy_per_site")),
+        )
+
+    candidate = selected_result["candidate"]
+    decision = selected_result["decision"]
+    reshaped_model = selected_result["reshaped_model"]
+    lifted_state = selected_result["lifted_initial_state"]
+    refined_python = selected_result["refined_python_result"]
+    diagnostics.update(
+        {
+            "trigger_q": list(candidate.get("selected_q", [])),
+            "candidate_matrix": deepcopy(candidate.get("matrix")),
+            "accepted": bool(decision.get("accepted", False)),
+            "refined_site_count": int(selected_result["summary"]["refined_site_count"]),
+            "energy_after_python": refined_python.get("energy"),
+            "energy_after_python_per_site": decision.get("energy_after_python_per_site"),
+            "energy_after_sunny": decision.get("energy_after_sunny"),
+            "energy_after_sunny_per_site": decision.get("energy_after_sunny_per_site"),
+            "energy_gain_per_site": decision.get("energy_gain_per_site"),
+            "acceptance_backend": decision.get("acceptance_backend"),
+            "selected_backend": decision.get("selected_backend"),
+        }
+    )
+    return {
+        "status": "candidate",
+        "candidate": candidate,
+        "reshaped_model": reshaped_model,
+        "lifted_initial_state": lifted_state,
+        "refined_python_result": refined_python,
+        "refined_sunny_result": selected_result.get("refined_sunny_result"),
+        "decision": decision,
+        "magnetic_supercell_refinement": diagnostics,
     }

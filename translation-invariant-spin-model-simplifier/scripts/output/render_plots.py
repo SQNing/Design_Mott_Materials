@@ -983,7 +983,34 @@ def _build_cpn_local_ray_plot_state(
     ]
     base_position = _basis_position(lattice, 0, 1)
     base_cartesian = fractional_to_cartesian([base_position], lattice_vectors)[0]
-    palette = _cpn_orbital_palette(summary["orbital_count"])
+    factorization_kind = str(summary.get("factorization_kind") or "orbital_times_spin")
+    if factorization_kind == "generic_multiplet":
+        basis_labels = list(summary.get("basis_labels", []))
+        palette = _cpn_orbital_palette(len(basis_labels))
+        color_mode = "dominant_basis"
+        legend_title = "Dominant Basis"
+        basis_legend = [
+            {"basis_index": index, "label": label, "color": palette[index % len(palette)]}
+            for index, label in enumerate(basis_labels)
+        ]
+        orbital_count = None
+        orbital_labels = None
+        orbital_legend = []
+    else:
+        palette = _cpn_orbital_palette(summary["orbital_count"])
+        color_mode = "dominant_orbital"
+        legend_title = "Dominant Orbital"
+        orbital_count = int(summary["orbital_count"])
+        orbital_labels = list(summary["orbital_labels"])
+        orbital_legend = [
+            {"orbital_index": index, "label": label, "color": palette[index % len(palette)]}
+            for index, label in enumerate(orbital_labels)
+        ]
+        basis_labels = list(orbital_labels)
+        basis_legend = [
+            {"basis_index": index, "label": label, "color": palette[index % len(palette)]}
+            for index, label in enumerate(basis_labels)
+        ]
     display_rotation = _default_display_rotation()
     expanded_sites = []
     for mx in range(magnetic_repeat_cells[0]):
@@ -1008,16 +1035,26 @@ def _build_cpn_local_ray_plot_state(
                     else:
                         direction = _normalize(spin_expectation)
                     display_direction = direction if spatial_dimension <= 2 else _rotate_vector(direction, display_rotation["matrix"])
-                    color = palette[int(item.get("dominant_orbital_index", 0)) % len(palette)]
-                    annotation = (
-                        f"{item.get('dominant_orbital_label', 'orb')} "
-                        f"(w={float(item.get('dominant_orbital_weight', 0.0)):.3f}, "
-                        f"|<S>|={float(item.get('spin_polarization_norm', 0.0)):.3f})"
-                    )
+                    if factorization_kind == "generic_multiplet":
+                        dominant_basis_index = int(item.get("dominant_basis_index", 0))
+                        color = palette[dominant_basis_index % len(palette)]
+                        label = item.get("dominant_basis_label", "basis")
+                        annotation = (
+                            f"{label} "
+                            f"(w={float(item.get('dominant_basis_weight', 0.0)):.3f})"
+                        )
+                    else:
+                        color = palette[int(item.get("dominant_orbital_index", 0)) % len(palette)]
+                        label = item.get("dominant_orbital_label", "orb")
+                        annotation = (
+                            f"{label} "
+                            f"(w={float(item.get('dominant_orbital_weight', 0.0)):.3f}, "
+                            f"|<S>|={float(item.get('spin_polarization_norm', 0.0)):.3f})"
+                        )
                     expanded_sites.append(
                         {
                             "basis_index": 0,
-                            "label": item.get("dominant_orbital_label", "orb"),
+                            "label": label,
                             "position": cart_position,
                             "direction": direction,
                             "display_direction": display_direction,
@@ -1043,21 +1080,14 @@ def _build_cpn_local_ray_plot_state(
         "local_ray_count": len(resolved_cpn_state.get("local_rays", [])),
         "spatial_dimension": spatial_dimension,
         "observable_mode": "cpn_local_observables",
-        "color_mode": "dominant_orbital",
+        "color_mode": color_mode,
         "local_dimension": int(summary["local_dimension"]),
-        "orbital_count": int(summary["orbital_count"]),
-        "orbital_labels": list(summary["orbital_labels"]),
         "local_observables": list(summary["local_observables"]),
         "expanded_sites": expanded_sites,
-        "legend_title": "Dominant Orbital",
-        "orbital_legend": [
-            {"orbital_index": index, "label": label, "color": palette[index % len(palette)]}
-            for index, label in enumerate(summary["orbital_labels"])
-        ],
-        "basis_legend": [
-            {"basis_index": index, "label": label, "color": palette[index % len(palette)]}
-            for index, label in enumerate(summary["orbital_labels"])
-        ],
+        "legend_title": legend_title,
+        "basis_labels": basis_labels,
+        "orbital_legend": orbital_legend,
+        "basis_legend": basis_legend,
         "unit_cell_segments": _build_unit_cell_segments(lattice_vectors, repeat_cells, spatial_dimension),
         "lattice_vectors": lattice_vectors,
         "render_mode": render_mode,
@@ -1071,8 +1101,11 @@ def _build_cpn_local_ray_plot_state(
         },
         "lattice_labels": _lattice_label_positions(lattice_vectors, spatial_dimension),
     }
-
-
+    if orbital_count is not None:
+        result["orbital_count"] = orbital_count
+    if orbital_labels is not None:
+        result["orbital_labels"] = orbital_labels
+    return result
 def _build_classical_plot_state(payload, commensurate_cells, incommensurate_cells):
     classical_state = _get_classical_state(payload)
     frames = classical_state.get("site_frames", [])

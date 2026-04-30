@@ -89,6 +89,34 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("Chosen classical method: n/a", report)
         self.assertNotIn("Chosen classical method: legacy-method", report)
 
+    def test_render_report_marks_diagnostic_cpn_glt_as_nonfinal_seed_route(self):
+        payload = {
+            "normalized_model": {"local_hilbert": {"dimension": 2}},
+            "simplification": {
+                "recommended": 0,
+                "candidates": [{"name": "demo-candidate"}],
+            },
+            "effective_model": {"main": [], "low_weight": [], "residual": []},
+            "fidelity": {"risk_notes": []},
+            "projection": {"status": "many_body_hr-pseudospin_orbital"},
+            "classical_state_result": {
+                "status": "ok",
+                "role": "diagnostic",
+                "solver_family": "diagnostic_seed_only",
+                "method": "pseudospin-cpn-generalized-lt",
+                "downstream_compatibility": {
+                    "lswt": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                    "gswt": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                    "thermodynamics": {"status": "blocked", "reason": "diagnostic-seed-method"},
+                },
+            },
+        }
+
+        report = render_report.render_text(payload)
+
+        self.assertIn("not a final classical branch", report)
+        self.assertIn("lower bound or seed", report)
+
     def test_render_plots_get_classical_state_accepts_standardized_result_wrapper(self):
         payload = {
             "classical_state_result": {
@@ -269,6 +297,52 @@ class OutputClassicalContractRenderingTests(unittest.TestCase):
         self.assertIn("method=pseudospin-cpn-generalized-lt", lines[0])
         self.assertIn("role=final", lines[0])
         self.assertIn("gswt=ready", lines[0])
+
+    def test_render_plots_builds_cpn_plot_state_for_generic_multiplet_local_rays_without_orbital_count(self):
+        payload = {
+            "lattice": {
+                "lattice_vectors": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                "positions": [[0.0, 0.0, 0.0]],
+            },
+            "retained_local_space": {
+                "dimension": 3,
+                "factorization": {"kind": "generic_multiplet", "multiplet_dimension": 3},
+            },
+            "local_basis_labels": ["m_plus_1", "m_zero", "m_minus_1"],
+            "classical_state_result": {
+                "status": "ok",
+                "role": "final",
+                "method": "pseudospin-sun-gswt-cpn",
+                "classical_state": {
+                    "state_kind": "local_rays",
+                    "manifold": "CP^(N-1)",
+                    "supercell_shape": [1, 1, 1],
+                    "local_rays": [
+                        {
+                            "cell": [0, 0, 0],
+                            "vector": [
+                                {"real": 1.0, "imag": 0.0},
+                                {"real": 0.0, "imag": 0.0},
+                                {"real": 0.0, "imag": 0.0},
+                            ],
+                        }
+                    ],
+                },
+            },
+        }
+
+        classical_state = render_plots._build_classical_plot_state(
+            payload,
+            commensurate_cells=2,
+            incommensurate_cells=5,
+        )
+
+        self.assertEqual(classical_state["observable_mode"], "cpn_local_observables")
+        self.assertEqual(classical_state["color_mode"], "dominant_basis")
+        self.assertEqual(classical_state["legend_title"], "Dominant Basis")
+        self.assertEqual(classical_state["basis_labels"], ["m_plus_1", "m_zero", "m_minus_1"])
+        self.assertEqual(classical_state["expanded_sites"][0]["label"], "m_plus_1")
+        self.assertNotIn("orbital_count", classical_state)
 
 
 if __name__ == "__main__":

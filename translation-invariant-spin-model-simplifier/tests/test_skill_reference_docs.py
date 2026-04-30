@@ -11,6 +11,9 @@ ENVIRONMENT_REFERENCE = REFERENCE_DIR / "environment.md"
 
 EXPECTED_REFERENCE_FILES = {
     "README.md",
+    "cpn-pair-model-schema.md",
+    "cpn-refinement-and-promotion-controls.md",
+    "cpn-workflow-readiness-checklist.md",
     "environment.md",
     "fallback-rules.md",
     "input-schema.md",
@@ -26,7 +29,7 @@ EXPECTED_SKILL_REFERENCES = {
 
 
 class SkillReferenceDocsTests(unittest.TestCase):
-    def test_reference_directory_only_contains_skill_facing_docs(self):
+    def test_reference_directory_contains_only_the_supported_reference_docs(self):
         actual = {path.name for path in REFERENCE_DIR.glob("*.md")}
 
         self.assertEqual(actual, EXPECTED_REFERENCE_FILES)
@@ -37,7 +40,7 @@ class SkillReferenceDocsTests(unittest.TestCase):
 
         self.assertEqual(referenced, EXPECTED_SKILL_REFERENCES)
 
-    def test_reference_readme_lists_only_the_retained_reference_docs(self):
+    def test_reference_readme_lists_only_the_supported_reference_docs(self):
         content = REFERENCE_README.read_text(encoding="utf-8")
         listed = set(re.findall(r"`([A-Za-z0-9._-]+\.md)`", content))
 

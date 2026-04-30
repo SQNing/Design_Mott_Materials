@@ -343,6 +343,8 @@ def render_text(payload):
         lines.append(f"Classical solver role: {classical_state_result.get('role')}")
     if classical_state_result.get("solver_family") is not None:
         lines.append(f"Classical solver family: {classical_state_result.get('solver_family')}")
+    if classical_state_result.get("selected_classical_branch") is not None:
+        lines.append(f"Selected classical branch: {classical_state_result.get('selected_classical_branch')}")
     downstream_compatibility = classical_state_result.get("downstream_compatibility", {})
     if isinstance(downstream_compatibility, dict) and downstream_compatibility:
         lines.append("Classical downstream compatibility:")
@@ -352,6 +354,53 @@ def render_text(payload):
             f"gswt={downstream_compatibility.get('gswt', {}).get('status', 'n/a')} "
             f"thermodynamics={downstream_compatibility.get('thermodynamics', {}).get('status', 'n/a')}"
         )
+    if classical_state_result.get("method") == "pseudospin-cpn-generalized-lt":
+        if classical_state_result.get("role") == "final":
+            lines.append(
+                "CPN GLT interpretation: this branch is conditionally final and can be treated as an ordinary final classical branch."
+            )
+        else:
+            lines.append(
+                "CPN GLT interpretation: this branch is not a final classical branch; treat it as a lower bound or seed for fallback constrained minimization."
+            )
+    classical_diagnostics = (
+        classical_state_result.get("diagnostics", {})
+        if isinstance(classical_state_result.get("diagnostics"), dict)
+        else {}
+    )
+    refinement = (
+        classical_diagnostics.get("magnetic_supercell_refinement", {})
+        if isinstance(classical_diagnostics.get("magnetic_supercell_refinement"), dict)
+        else {}
+    )
+    if refinement:
+        lines.append("Magnetic supercell refinement:")
+        lines.append(
+            "- "
+            f"selected_classical_branch={classical_state_result.get('selected_classical_branch', 'n/a')} "
+            f"accepted={refinement.get('accepted', 'n/a')} "
+            f"acceptance_backend={refinement.get('acceptance_backend', 'n/a')} "
+            f"trigger_q={refinement.get('trigger_q', 'n/a')} "
+            f"candidate_matrix={refinement.get('candidate_matrix', 'n/a')} "
+            f"energy_before_per_site={_format_summary_float(refinement.get('energy_before_per_site'))} "
+            f"energy_after_python_per_site={_format_summary_float(refinement.get('energy_after_python_per_site'))} "
+            f"energy_after_sunny_per_site={_format_summary_float(refinement.get('energy_after_sunny_per_site'))} "
+            f"energy_gain_per_site={_format_summary_float(refinement.get('energy_gain_per_site'))} "
+            f"candidate_count={len(refinement.get('candidates', [])) if isinstance(refinement.get('candidates'), list) else 0}"
+        )
+        candidate_summaries = refinement.get("candidates", [])
+        if isinstance(candidate_summaries, list) and candidate_summaries:
+            lines.append("- candidate summaries:")
+            for item in candidate_summaries[:3]:
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    "  - "
+                    f"accepted={item.get('accepted', 'n/a')} "
+                    f"trigger_q={item.get('trigger_q', 'n/a')} "
+                    f"energy_after_python_per_site={_format_summary_float(item.get('energy_after_python_per_site'))} "
+                    f"energy_after_sunny_per_site={_format_summary_float(item.get('energy_after_sunny_per_site'))}"
+                )
     auto_resolution = payload.get("classical", {}).get("auto_resolution", {})
     if auto_resolution.get("enabled"):
         lines.append("Classical auto-resolution:")

@@ -75,17 +75,18 @@ def _preflight_payload_error(classical_payload):
     return None
 
 
-def _run_backend_process(command):
+def _run_backend_process(command, *, timeout_seconds=None):
     completed = subprocess.run(
         command,
         check=True,
         capture_output=True,
         text=True,
+        timeout=timeout_seconds,
     )
     return completed.stdout, getattr(completed, "stderr", "") or ""
 
 
-def _run_backend_process_with_progress(command):
+def _run_backend_process_with_progress(command, *, timeout_seconds=None):
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -119,10 +120,15 @@ def _run_backend_process_with_progress(command):
     stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
     stdout_thread.start()
     stderr_thread.start()
-    stdout_thread.join()
-    stderr_thread.join()
-
-    returncode = process.wait()
+    try:
+        stdout_thread.join(timeout=timeout_seconds)
+        stderr_thread.join(timeout=timeout_seconds)
+        returncode = process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout_thread.join()
+        stderr_thread.join()
+        raise
     if stdout_errors:
         raise stdout_errors[0]
     if stderr_errors:
@@ -134,7 +140,7 @@ def _run_backend_process_with_progress(command):
     return stdout, stderr
 
 
-def run_sunny_sun_classical(payload, julia_cmd=None, stream_progress=False):
+def run_sunny_sun_classical(payload, julia_cmd=None, stream_progress=False, timeout_seconds=None):
     classical_payload = _extract_payload(payload)
     if classical_payload is None:
         return _error("missing-classical-payload", "Classical stage requires a `classical_payload` dictionary")
@@ -165,13 +171,20 @@ def run_sunny_sun_classical(payload, julia_cmd=None, stream_progress=False):
         resolved_julia_cmd = _resolve_julia_cmd(julia_cmd)
         command = [resolved_julia_cmd, str(SUNNY_CLASSICAL_SCRIPT), str(payload_path)]
         if stream_progress:
-            stdout, _stderr = _run_backend_process_with_progress(command)
+            stdout, _stderr = _run_backend_process_with_progress(command, timeout_seconds=timeout_seconds)
         else:
-            stdout, _stderr = _run_backend_process(command)
+            stdout, _stderr = _run_backend_process(command, timeout_seconds=timeout_seconds)
     except FileNotFoundError as exc:
         return _error(
             "missing-julia-command",
             str(exc),
+            payload_kind=payload_kind,
+            backend=backend,
+        )
+    except subprocess.TimeoutExpired:
+        return _error(
+            "backend-timeout",
+            f"Sunny classical backend exceeded timeout_seconds={float(timeout_seconds):.1f}",
             payload_kind=payload_kind,
             backend=backend,
         )

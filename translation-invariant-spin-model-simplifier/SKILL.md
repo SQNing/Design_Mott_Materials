@@ -75,6 +75,9 @@ This skill uses a semi-interactive, fidelity-aware simplification workflow. It f
     `classical_family = cpn`
     and whose local classical-state manifold is represented as `CP^(N-1)` local rays
 - For `many_body_hr` pseudospin-orbital inputs, the Sunny-backed classical option is `sunny-cpn-minimize`, and the Sunny thermodynamics options are `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`.
+- Treat `cpn-generalized-lt` as conditionally final rather than unconditionally final:
+  when `solver_role == "final"` it can be used as an ordinary final `CP^(N-1)` classical branch,
+  but when it remains `diagnostic-only` it should be treated only as a lower bound or seed for fallback constrained minimization.
 - For explicit retained-local-multiplet / `CP^(N-1)` payload JSON that is not sourced from
   `many_body_hr`,
   use

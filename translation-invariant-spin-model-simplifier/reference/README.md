@@ -20,6 +20,14 @@ The retained reference files are:
   Documents how the skill should behave when user choices are missing, a model
   cannot be mapped cleanly to spin operators, or a requested solver/dependency
   is unavailable.
+- `cpn-refinement-and-promotion-controls.md`
+  User-facing workflow note for the shared magnetic-supercell refinement knobs,
+  `sun-gswt-cpn` promotion scope, and GLT result interpretation.
+- `cpn-pair-model-schema.md`
+  User-facing schema note for the canonical `cpn_pair_model` payload contract.
+- `cpn-workflow-readiness-checklist.md`
+  User-facing smoke checklist for deciding whether a `CP^(N-1)` workflow result
+  is ready to trust or needs further validation.
 
 ## Important scope note
 
@@ -32,6 +40,5 @@ In other words:
 - the skill may instruct an agent to consult these files
 - the scripts do not currently parse or load them automatically
 
-Historical plans, status notes, and runtime entrypoint notes are outside the
-tracked skill-facing reference set and should not be treated as required
-reference material for this directory.
+Historical plans and runtime entrypoint notes outside the files listed above
+should not be treated as required reference material for this directory.

@@ -18,6 +18,7 @@ from classical.cpn_local_ray_solver import solve_cpn_local_ray_ground_state
 from classical.pseudospin_orbital_solver import solve_pseudospin_orbital_variational
 from classical.sun_gswt_classical_solver import (
     diagnose_sun_gswt_classical_state,
+    run_cpn_magnetic_supercell_refinement,
     solve_sun_gswt_classical_ground_state,
     solve_sun_gswt_single_q_ground_state,
 )
@@ -902,6 +903,8 @@ def _pseudospin_result_diagnostics(solver_result):
         "glt_preconditioner_diagnostic",
         "relaxed_lt",
         "projector_exactness",
+        "magnetic_supercell_refinement",
+        "supercell_promotion",
     ):
         value = solver_result.get(key)
         if isinstance(value, dict) and value:
@@ -924,7 +927,12 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
 
     diagnostics = _pseudospin_result_diagnostics(solver_result)
 
-    if classical_method in {"cpn-local-ray-minimize", "sunny-cpn-minimize"}:
+    if classical_method in {
+        "cpn-local-ray-minimize",
+        "sunny-cpn-minimize",
+        "sun-gswt-cpn",
+        "sun-gswt-single-q",
+    }:
         classical_state = resolve_cpn_classical_state_payload(
             solver_result,
             default_supercell_shape=default_supercell_shape,
@@ -946,6 +954,8 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
         energy = _pseudospin_result_energy(solver_result)
         if energy is not None:
             result["energy"] = energy
+        if solver_result.get("selected_classical_branch") is not None:
+            result["selected_classical_branch"] = solver_result.get("selected_classical_branch")
         return result
 
     if classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}:
@@ -1147,6 +1157,174 @@ def _build_selected_gswt_payload(
     raise ValueError(f"unsupported gswt_backend: {gswt_backend!r}")
 
 
+def _maybe_apply_cpn_magnetic_supercell_refinement(
+    classical_model,
+    solver_result,
+    *,
+    starts,
+    seed,
+    max_candidate_components=4,
+    max_denominator=16,
+    verify_with_sunny=False,
+):
+    if not isinstance(classical_model, dict) or not isinstance(solver_result, dict):
+        return classical_model, solver_result
+    classical_state = resolve_cpn_classical_state_payload(solver_result)
+    if not classical_state.get("local_rays"):
+        return classical_model, solver_result
+    if solver_result.get("energy") is None:
+        return classical_model, solver_result
+
+    refinement = run_cpn_magnetic_supercell_refinement(
+        classical_model,
+        classical_result=solver_result,
+        starts=starts,
+        seed=seed,
+        max_candidate_components=max_candidate_components,
+        max_denominator=max_denominator,
+        verify_with_sunny=verify_with_sunny,
+    )
+    diagnostics = deepcopy(refinement.get("magnetic_supercell_refinement", {}))
+    retained_result = deepcopy(solver_result)
+    retained_result["magnetic_supercell_refinement"] = diagnostics
+
+    decision = refinement.get("decision", {})
+    if not decision.get("accepted"):
+        return classical_model, retained_result
+
+    refined_result = deepcopy(refinement.get("refined_python_result", {}))
+    if decision.get("selected_backend") == "sunny":
+        sunny_result = refinement.get("refined_sunny_result", {})
+        sunny_state = decision.get("selected_classical_state")
+        if isinstance(sunny_result, dict) and sunny_result.get("energy") is not None:
+            refined_result["energy"] = sunny_result.get("energy")
+        if isinstance(sunny_result, dict):
+            if sunny_result.get("supercell_shape") is not None:
+                refined_result["supercell_shape"] = list(sunny_result.get("supercell_shape", []))
+            if sunny_result.get("local_rays") is not None:
+                refined_result["local_rays"] = list(sunny_result.get("local_rays", []))
+            if sunny_result.get("backend_stationarity") is not None:
+                refined_result["backend_stationarity"] = sunny_result.get("backend_stationarity")
+            if sunny_result.get("convergence") is not None:
+                refined_result["convergence"] = sunny_result.get("convergence")
+        if isinstance(sunny_state, dict):
+            refined_result["classical_state"] = sunny_state
+            if sunny_state.get("supercell_shape") is not None:
+                refined_result["supercell_shape"] = list(sunny_state.get("supercell_shape", []))
+            if sunny_state.get("local_rays") is not None:
+                refined_result["local_rays"] = list(sunny_state.get("local_rays", []))
+    refined_result["magnetic_supercell_refinement"] = diagnostics
+    refined_result["magnetic_supercell_refinement"]["accepted"] = True
+    refined_result["selected_classical_branch"] = "magnetic-supercell-refined"
+    return refinement.get("reshaped_model", classical_model), refined_result
+
+
+def _pseudospin_result_energy_density(classical_model, solver_result):
+    if not isinstance(classical_model, dict) or not isinstance(solver_result, dict):
+        return None
+    energy = _pseudospin_result_energy(solver_result)
+    if energy is None:
+        return None
+    site_count = max(1, int(len(classical_model.get("positions", [])) or classical_model.get("magnetic_site_count", 1)))
+    return float(energy) / float(site_count)
+
+
+def _solve_sun_gswt_cpn_with_optional_supercell_promotion(
+    classical_model,
+    *,
+    supercell_shape,
+    starts,
+    seed,
+    supercell_promotion_policy="auto",
+    supercell_promotion_shape=(4, 4, 4),
+    magnetic_supercell_max_candidate_components=4,
+    magnetic_supercell_max_denominator=16,
+    magnetic_supercell_verify_with_sunny=False,
+):
+    requested_shape = tuple(int(value) for value in supercell_shape)
+    promotion_policy = str(supercell_promotion_policy).strip().lower()
+    if promotion_policy not in {"auto", "none"}:
+        raise ValueError(f"unsupported supercell_promotion_policy: {supercell_promotion_policy!r}")
+    solver_result = solve_sun_gswt_classical_ground_state(
+        classical_model,
+        supercell_shape=requested_shape,
+        starts=starts,
+        seed=seed,
+    )
+    selected_model, selected_result = _maybe_apply_cpn_magnetic_supercell_refinement(
+        classical_model,
+        solver_result,
+        starts=starts,
+        seed=seed,
+        max_candidate_components=magnetic_supercell_max_candidate_components,
+        max_denominator=magnetic_supercell_max_denominator,
+        verify_with_sunny=magnetic_supercell_verify_with_sunny,
+    )
+
+    requested_density = _pseudospin_result_energy_density(selected_model, selected_result)
+    fallback_shape = tuple(int(value) for value in supercell_promotion_shape)
+
+    if requested_shape != (1, 1, 1):
+        return selected_model, selected_result
+
+    if promotion_policy == "none":
+        selected_result = deepcopy(selected_result)
+        selected_result["supercell_promotion"] = {
+            "policy": promotion_policy,
+            "attempted": False,
+            "requested_supercell_shape": [int(value) for value in requested_shape],
+            "promoted_supercell_shape": [int(value) for value in fallback_shape],
+            "requested_energy_density": requested_density,
+            "promoted_energy_density": None,
+            "selected_energy_density": requested_density,
+            "selected_classical_branch": selected_result.get("selected_classical_branch"),
+            "selected_supercell_shape": [
+                int(value) for value in selected_result.get("supercell_shape", requested_shape)
+            ],
+        }
+        return selected_model, selected_result
+
+    promoted_solver_result = solve_sun_gswt_classical_ground_state(
+        classical_model,
+        supercell_shape=fallback_shape,
+        starts=starts,
+        seed=seed,
+    )
+    promoted_model, promoted_result = _maybe_apply_cpn_magnetic_supercell_refinement(
+        classical_model,
+        promoted_solver_result,
+        starts=starts,
+        seed=seed,
+        max_candidate_components=magnetic_supercell_max_candidate_components,
+        max_denominator=magnetic_supercell_max_denominator,
+        verify_with_sunny=magnetic_supercell_verify_with_sunny,
+    )
+    promoted_density = _pseudospin_result_energy_density(promoted_model, promoted_result)
+
+    if promoted_density is not None and (requested_density is None or promoted_density < requested_density - 1e-12):
+        selected_model = promoted_model
+        selected_result = deepcopy(promoted_result)
+        selected_density = promoted_density
+    else:
+        selected_result = deepcopy(selected_result)
+        selected_density = requested_density
+
+    selected_result["supercell_promotion"] = {
+        "policy": promotion_policy,
+        "attempted": True,
+        "requested_supercell_shape": [int(value) for value in requested_shape],
+        "promoted_supercell_shape": [int(value) for value in fallback_shape],
+        "requested_energy_density": requested_density,
+        "promoted_energy_density": promoted_density,
+        "selected_energy_density": selected_density,
+        "selected_classical_branch": selected_result.get("selected_classical_branch"),
+        "selected_supercell_shape": [
+            int(value) for value in selected_result.get("supercell_shape", requested_shape)
+        ],
+    }
+    return selected_model, selected_result
+
+
 def _run_selected_gswt(gswt_payload, *, gswt_backend):
     if gswt_backend == "sunny":
         return run_sun_gswt(gswt_payload)
@@ -1168,6 +1346,11 @@ def _solve_from_parsed_payload_core(
     max_linear_size=5,
     convergence_repeats=2,
     max_sweeps=200,
+    supercell_promotion_policy="auto",
+    supercell_promotion_shape=(4, 4, 4),
+    magnetic_supercell_max_candidate_components=4,
+    magnetic_supercell_max_denominator=16,
+    magnetic_supercell_verify_with_sunny=False,
     run_gswt=True,
     gswt_backend="sunny",
     z_harmonic_reference_mode="input",
@@ -1307,10 +1490,16 @@ def _solve_from_parsed_payload_core(
         gswt_payload = None
     elif classical_method == "sun-gswt-cpn":
         classical_model = build_sun_gswt_classical_payload(parsed_payload)
-        solver_result = solve_sun_gswt_classical_ground_state(
+        classical_model, solver_result = _solve_sun_gswt_cpn_with_optional_supercell_promotion(
             classical_model,
+            supercell_shape=supercell_shape,
             starts=starts,
             seed=seed,
+            supercell_promotion_policy=supercell_promotion_policy,
+            supercell_promotion_shape=supercell_promotion_shape,
+            magnetic_supercell_max_candidate_components=magnetic_supercell_max_candidate_components,
+            magnetic_supercell_max_denominator=magnetic_supercell_max_denominator,
+            magnetic_supercell_verify_with_sunny=magnetic_supercell_verify_with_sunny,
         )
         gswt_payload = (
             _build_selected_gswt_payload(
@@ -1328,6 +1517,15 @@ def _solve_from_parsed_payload_core(
             classical_model,
             starts=starts,
             seed=seed,
+        )
+        classical_model, solver_result = _maybe_apply_cpn_magnetic_supercell_refinement(
+            classical_model,
+            solver_result,
+            starts=starts,
+            seed=seed,
+            max_candidate_components=magnetic_supercell_max_candidate_components,
+            max_denominator=magnetic_supercell_max_denominator,
+            verify_with_sunny=magnetic_supercell_verify_with_sunny,
         )
         gswt_payload = (
             _build_selected_gswt_payload(
@@ -1382,6 +1580,15 @@ def _solve_from_parsed_payload_core(
         )
         solver_result["glt_preconditioner"] = glt_preconditioner
         solver_result["glt_preconditioner_diagnostic"] = glt_preconditioner_result
+        classical_model, solver_result = _maybe_apply_cpn_magnetic_supercell_refinement(
+            classical_model,
+            solver_result,
+            starts=starts,
+            seed=seed,
+            max_candidate_components=magnetic_supercell_max_candidate_components,
+            max_denominator=magnetic_supercell_max_denominator,
+            verify_with_sunny=magnetic_supercell_verify_with_sunny,
+        )
         gswt_payload = (
             _build_selected_gswt_payload(
                 classical_model,
@@ -1454,6 +1661,15 @@ def _solve_from_parsed_payload_core(
                 "projector_diagnostics": diagnostics["projector_diagnostics"],
                 "stationarity": diagnostics["stationarity"],
             }
+        classical_model, solver_result = _maybe_apply_cpn_magnetic_supercell_refinement(
+            classical_model,
+            solver_result,
+            starts=starts,
+            seed=seed,
+            max_candidate_components=magnetic_supercell_max_candidate_components,
+            max_denominator=magnetic_supercell_max_denominator,
+            verify_with_sunny=magnetic_supercell_verify_with_sunny,
+        )
         gswt_payload = (
             _build_selected_gswt_payload(
                 classical_model,
@@ -1494,6 +1710,15 @@ def _solve_from_parsed_payload_core(
         and isinstance(standardized_classical_result, dict)
         and str(standardized_classical_result.get("role")) == "final"
     ):
+        classical_model, solver_result = _maybe_apply_cpn_magnetic_supercell_refinement(
+            classical_model,
+            solver_result,
+            starts=starts,
+            seed=seed,
+            max_candidate_components=magnetic_supercell_max_candidate_components,
+            max_denominator=magnetic_supercell_max_denominator,
+            verify_with_sunny=magnetic_supercell_verify_with_sunny,
+        )
         gswt_payload = _build_selected_gswt_payload(
             classical_model,
             solver_result,
@@ -1794,6 +2019,11 @@ def solve_from_parsed_payload(
     max_linear_size=5,
     convergence_repeats=2,
     max_sweeps=200,
+    supercell_promotion_policy="auto",
+    supercell_promotion_shape=(4, 4, 4),
+    magnetic_supercell_max_candidate_components=4,
+    magnetic_supercell_max_denominator=16,
+    magnetic_supercell_verify_with_sunny=False,
     run_gswt=True,
     gswt_backend="sunny",
     z_harmonic_reference_mode="input",
@@ -1832,6 +2062,11 @@ def solve_from_parsed_payload(
         max_linear_size=max_linear_size,
         convergence_repeats=convergence_repeats,
         max_sweeps=max_sweeps,
+        supercell_promotion_policy=supercell_promotion_policy,
+        supercell_promotion_shape=supercell_promotion_shape,
+        magnetic_supercell_max_candidate_components=magnetic_supercell_max_candidate_components,
+        magnetic_supercell_max_denominator=magnetic_supercell_max_denominator,
+        magnetic_supercell_verify_with_sunny=magnetic_supercell_verify_with_sunny,
         run_gswt=run_gswt,
         gswt_backend=gswt_backend,
         z_harmonic_reference_mode=z_harmonic_reference_mode,
@@ -1875,6 +2110,11 @@ def solve_from_files(
     max_linear_size=5,
     convergence_repeats=2,
     max_sweeps=200,
+    supercell_promotion_policy="auto",
+    supercell_promotion_shape=(4, 4, 4),
+    magnetic_supercell_max_candidate_components=4,
+    magnetic_supercell_max_denominator=16,
+    magnetic_supercell_verify_with_sunny=False,
     run_gswt=True,
     gswt_backend="sunny",
     z_harmonic_reference_mode="input",
@@ -1927,6 +2167,11 @@ def solve_from_files(
         max_linear_size=max_linear_size,
         convergence_repeats=convergence_repeats,
         max_sweeps=max_sweeps,
+        supercell_promotion_policy=supercell_promotion_policy,
+        supercell_promotion_shape=supercell_promotion_shape,
+        magnetic_supercell_max_candidate_components=magnetic_supercell_max_candidate_components,
+        magnetic_supercell_max_denominator=magnetic_supercell_max_denominator,
+        magnetic_supercell_verify_with_sunny=magnetic_supercell_verify_with_sunny,
         run_gswt=run_gswt,
         gswt_backend=gswt_backend,
         z_harmonic_reference_mode=z_harmonic_reference_mode,
@@ -1998,6 +2243,28 @@ def main():
     )
     parser.add_argument("--convergence-repeats", type=int, default=2)
     parser.add_argument("--max-sweeps", type=int, default=200)
+    parser.add_argument(
+        "--supercell-promotion-policy",
+        choices=["auto", "none"],
+        default="auto",
+    )
+    parser.add_argument(
+        "--supercell-promotion-shape",
+        type=int,
+        nargs=3,
+        metavar=("NX", "NY", "NZ"),
+        default=(4, 4, 4),
+    )
+    parser.add_argument(
+        "--magnetic-supercell-max-candidate-components",
+        type=int,
+        default=4,
+    )
+    parser.add_argument(
+        "--magnetic-supercell-max-denominator",
+        type=int,
+        default=16,
+    )
     parser.add_argument("--no-gswt", action="store_true")
     parser.add_argument("--gswt-backend", choices=["sunny", "python"], default="sunny")
     parser.add_argument(
@@ -2053,6 +2320,11 @@ def main():
         max_linear_size=int(args.max_linear_size),
         convergence_repeats=int(args.convergence_repeats),
         max_sweeps=int(args.max_sweeps),
+        supercell_promotion_policy=str(args.supercell_promotion_policy),
+        supercell_promotion_shape=tuple(int(value) for value in args.supercell_promotion_shape),
+        magnetic_supercell_max_candidate_components=int(args.magnetic_supercell_max_candidate_components),
+        magnetic_supercell_max_denominator=int(args.magnetic_supercell_max_denominator),
+        magnetic_supercell_verify_with_sunny=True,
         run_gswt=not args.no_gswt,
         gswt_backend=str(args.gswt_backend),
         z_harmonic_reference_mode=str(args.z_harmonic_reference_mode),
