@@ -44,6 +44,46 @@ Use the input class to choose the first shared backbone:
 If route selection remains physically ambiguous, stop at
 `interaction.status = needs_input` instead of guessing.
 
+## Broad-Text Escalation Checklist
+
+When the user starts from broad text rather than an intrinsic file-backed route,
+use this checklist before choosing between staying `spin-only`, escalating
+toward retained-local-multiplet handling, or stopping for clarification.
+
+### Evidence that usually supports staying `spin-only`
+
+- the request is phrased in ordinary spin-model language without an explicit
+  retained-local-space construction
+- the main content is exchange-like operator structure on a conventional spin
+  lattice
+- weak anisotropy, bond-dependent exchange, or low-weight symmetry-lowering
+  terms are present, but the text still reads as a spin Hamiltonian rather than
+  as an on-site multiplet reduction problem
+- there is no intrinsic `many_body_hr`-style file pair or explicit retained
+  local-space payload
+
+### Evidence that should trigger escalation
+
+- the input explicitly supplies `POSCAR + hr.dat` or another clear
+  `many_body_hr`-style retained-local-space route
+- the text centers on retained local multiplets, local-ray states, or a
+  pseudospin-orbital reduction rather than on a conventional spin model
+- the intended semantics depend on preserving a nontrivial local-space
+  interpretation such as `generic-multiplet` or an explicitly requested
+  `orbital-times-spin` route
+- the user is already asking for Sunny-backed retained-local-multiplet
+  classical or thermodynamic workflows
+
+### Evidence that should stop at `needs_input`
+
+- the text mixes ordinary spin-model notation with retained-local-multiplet or
+  pseudospin language strongly enough that the family choice would change the
+  executable route
+- the user-facing description leaves unresolved whether the intended object is a
+  conventional spin Hamiltonian or a retained-local-space effective model
+- the available evidence is suggestive but not sufficient to justify either
+  `spin-only` or `cpn` explicitly
+
 ## Agent-Assisted Landing
 
 Document and broad-text routes remain deterministic-first.
@@ -62,6 +102,36 @@ The main helper entrypoints for this family are:
 - `scripts/cli/run_document_reader_pipeline.py`
 - `scripts/cli/orchestrate_agent_document_normalization.py`
 - `scripts/cli/run_agent_document_normalization_demo.py`
+
+## Agent-Assisted Landing Audit
+
+Use this section to keep document assistance auditable.
+
+### What agent assistance may transform
+
+- rewrite broad document content into the constrained
+  `agent_normalized_document` schema expected by the repository
+- normalize notation, organize evidence spans, and align model candidates with
+  the shared intermediate-record structure
+- narrow non-critical missing fields when the deterministic-first route already
+  supports that inference safely
+
+### What agent assistance must preserve
+
+- the family status at the time assistance begins
+- the evidence-backed distinction between extracted content and inferred content
+- the source-side cues needed to explain how the normalized artifact was formed
+- the fact that `agent_normalization_request` is a bounded normalization step,
+  not a license to silently choose a different physical family
+
+### What still forces `needs_input`
+
+- unresolved `spin-only` versus `cpn` family choice when that choice changes
+  the executable route
+- competing model candidates or coordinate conventions that would materially
+  change the landed payload
+- any case where the current parser plus bounded agent help still cannot land a
+  trustworthy runnable payload without making a physical guess
 
 ## Classical Family Resolution
 

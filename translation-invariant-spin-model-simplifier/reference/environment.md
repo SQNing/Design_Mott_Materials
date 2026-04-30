@@ -161,6 +161,23 @@ If missing:
 - Any requested Sunny backend should be reported as unavailable, not silently
   downgraded unless the user agrees to an alternative.
 
+Example blocked Sunny-backed message:
+
+```text
+This request was routed through the retained-local-multiplet `many_body_hr`
+path with default `generic-multiplet` / `CP^(N-1)` semantics, and the requested Sunny-backed execution could not proceed because `Julia` and/or `Sunny.jl` is
+unavailable in the current environment.
+```
+
+Example opt-in alternative-backend message:
+
+```text
+The requested Sunny-backed execution is unavailable in the current environment.
+If you want to continue, I can switch to an available Python-side classical or
+simplification route instead, but that is an explicit alternative backend path
+rather than the same Sunny-backed workflow.
+```
+
 ### Optional: Python GSWT backend
 
 Required when the user asks for the Python-only GSWT path rather than Sunny.

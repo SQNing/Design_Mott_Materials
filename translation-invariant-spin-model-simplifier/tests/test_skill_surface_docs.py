@@ -6,6 +6,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 SKILL_FILE = SKILL_ROOT / "SKILL.md"
 ROUTING_FILE = SKILL_ROOT / "reference" / "agent-routing.md"
 REFERENCE_README = SKILL_ROOT / "reference" / "README.md"
+ENVIRONMENT_FILE = SKILL_ROOT / "reference" / "environment.md"
 
 
 def _read_text(path: Path) -> str:
@@ -43,6 +44,28 @@ class SkillSurfaceDocsTests(unittest.TestCase):
             "cpn-generalized-lt",
         ):
             self.assertIn(needle, content)
+
+    def test_routing_docs_capture_recent_auditability_improvements(self):
+        routing = _read_text(ROUTING_FILE)
+        environment = _read_text(ENVIRONMENT_FILE)
+
+        for needle in (
+            "Broad-Text Escalation Checklist",
+            "Agent-Assisted Landing Audit",
+            "Evidence that usually supports staying `spin-only`",
+            "Evidence that should trigger escalation",
+            "What agent assistance may transform",
+            "What agent assistance must preserve",
+            "What still forces `needs_input`",
+        ):
+            self.assertIn(needle, routing)
+
+        for needle in (
+            "Example blocked Sunny-backed message",
+            "Example opt-in alternative-backend message",
+            "requested Sunny-backed execution could not proceed",
+        ):
+            self.assertIn(needle, environment)
 
     def test_reference_readme_lists_agent_routing_reference(self):
         content = _read_text(REFERENCE_README)
