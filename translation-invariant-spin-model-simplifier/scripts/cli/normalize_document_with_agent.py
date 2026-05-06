@@ -8,6 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from input.normalize_input import normalize_freeform_text, normalize_input
+from cli.simplify_text_input import collect_agent_fallback_surface
 
 
 def _json_safe(value):
@@ -24,29 +25,33 @@ def _json_safe(value):
     return value
 
 
-def _classify_wrapper_result(normalized_model):
+def _classify_wrapper_result(normalized_model, *, awaiting_agent_normalization=False):
     interaction = (
         normalized_model.get("interaction", {})
         if isinstance(normalized_model.get("interaction"), dict)
         else {}
     )
-    request = normalized_model.get("agent_normalization_request")
-    if interaction.get("status") == "needs_input" and interaction.get("id") == "agent_document_normalization":
+    surface = collect_agent_fallback_surface(normalized_model)
+    if interaction.get("status") == "needs_input" and awaiting_agent_normalization and surface.get(
+        "agent_normalization_request"
+    ):
         return {
             "status": "needs_agent_normalization",
             "interaction": dict(interaction),
-            "agent_normalization_request": dict(request) if isinstance(request, dict) else None,
             "normalized_model": normalized_model,
+            **surface,
         }
     if interaction.get("status") == "needs_input":
         return {
             "status": "needs_input",
             "interaction": dict(interaction),
             "normalized_model": normalized_model,
+            **surface,
         }
     return {
         "status": "ok",
         "normalized_model": normalized_model,
+        **surface,
     }
 
 
@@ -93,7 +98,7 @@ def run_document_normalization_with_agent(
             selected_local_bond_family=selection_context["selected_local_bond_family"],
             selected_coordinate_convention=selection_context["selected_coordinate_convention"],
         )
-        return _classify_wrapper_result(normalized_model)
+        return _classify_wrapper_result(normalized_model, awaiting_agent_normalization=True)
 
     normalized_model = normalize_input(
         {
@@ -107,7 +112,7 @@ def run_document_normalization_with_agent(
             "agent_normalized_document": agent_normalized_document,
         }
     )
-    return _classify_wrapper_result(normalized_model)
+    return _classify_wrapper_result(normalized_model, awaiting_agent_normalization=False)
 
 
 def _load_agent_normalized_document(args):

@@ -27,7 +27,10 @@ from cli.orchestrate_agent_document_normalization import (
     run_agent_document_normalization_orchestrator,
 )
 from cli.render_simplified_model_report import render_simplified_model_report
-from cli.simplify_text_input import run_simplification_from_normalized_model
+from cli.simplify_text_input import (
+    collect_agent_fallback_surface,
+    run_simplification_from_normalized_model,
+)
 
 
 def _json_safe(value):
@@ -195,6 +198,7 @@ def run_document_reader_pipeline(
     artifacts = _base_artifacts(output_dir)
 
     if orchestration.get("status") != "ok":
+        surface = collect_agent_fallback_surface(orchestration.get("normalized_model"))
         result = {
             "status": orchestration.get("status"),
             "stage": "document_orchestration",
@@ -202,10 +206,10 @@ def run_document_reader_pipeline(
             "simplification_status": None,
             "normalized_model": orchestration.get("normalized_model"),
             "interaction": orchestration.get("interaction"),
-            "agent_normalization_request": orchestration.get("agent_normalization_request"),
             "agent_review": orchestration.get("agent_review"),
             "document_orchestration": orchestration,
             "artifacts": artifacts,
+            **surface,
         }
         _write_json(output_dir / "final_pipeline_result.json", result)
         return result

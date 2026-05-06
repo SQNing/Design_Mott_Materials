@@ -90,18 +90,81 @@ def _agent_inferred_materially_contributed(normalized_model):
     )
 
 
+def _build_next_step_guidance(normalized_model, public_agent_inferred):
+    if not isinstance(normalized_model, dict):
+        return None
+    interaction = (
+        normalized_model.get("interaction", {})
+        if isinstance(normalized_model.get("interaction"), dict)
+        else {}
+    )
+    request = normalized_model.get("agent_normalization_request")
+    landing_readiness = normalized_model.get("landing_readiness")
+    unresolved_items = list((public_agent_inferred or {}).get("unresolved_items", []))
+    user_explanation = (
+        (public_agent_inferred or {}).get("user_explanation", {})
+        if isinstance((public_agent_inferred or {}).get("user_explanation", {}), dict)
+        else {}
+    )
+    summary = user_explanation.get("summary") or interaction.get("question")
+    if not summary and landing_readiness is None and not isinstance(request, dict):
+        return None
+
+    if unresolved_items:
+        fields = ", ".join(
+            str(item.get("field", "ambiguity")).replace("_", " ")
+            for item in unresolved_items
+            if isinstance(item, dict)
+        )
+        recommended_action = f"Clarify {fields} and rerun normalization."
+    elif landing_readiness == "unsupported_even_with_agent":
+        recommended_action = "Remove or replace the unsupported features, then rerun normalization."
+    elif isinstance(request, dict):
+        recommended_action = (
+            "Run the agent normalization step, review the proposed normalized document, "
+            "then rerun the pipeline."
+        )
+    elif interaction.get("status") == "needs_input":
+        recommended_action = interaction.get("question") or "Provide the requested clarification and rerun the pipeline."
+    else:
+        recommended_action = None
+
+    return {
+        "summary": summary,
+        "recommended_action": recommended_action,
+        "unresolved_items": unresolved_items,
+    }
+
+
+def collect_agent_fallback_surface(normalized_model):
+    if not isinstance(normalized_model, dict):
+        return {}
+    result = {}
+    request = normalized_model.get("agent_normalization_request")
+    if isinstance(request, dict):
+        result["agent_normalization_request"] = dict(request)
+    landing_readiness = normalized_model.get("landing_readiness")
+    if landing_readiness is not None:
+        result["landing_readiness"] = landing_readiness
+    public_view = None
+    if _agent_inferred_materially_contributed(normalized_model):
+        public_view = _public_agent_inferred_view(normalized_model.get("agent_inferred"))
+        if public_view is not None:
+            result["agent_inferred"] = public_view
+    guidance = _build_next_step_guidance(normalized_model, public_view)
+    if guidance is not None:
+        result["next_step_guidance"] = guidance
+    return result
+
+
 def _finalize_pipeline_result(result):
     if not isinstance(result, dict):
         return result
     if result.get("status") not in {"ok", "needs_input"}:
         return result
     normalized_model = result.get("normalized_model", {})
-    if not _agent_inferred_materially_contributed(normalized_model):
-        result.pop("agent_inferred", None)
-        return result
-    public_view = _public_agent_inferred_view(normalized_model.get("agent_inferred"))
-    if public_view is not None:
-        result["agent_inferred"] = public_view
+    result.pop("agent_inferred", None)
+    result.update(collect_agent_fallback_surface(normalized_model))
     return result
 
 
