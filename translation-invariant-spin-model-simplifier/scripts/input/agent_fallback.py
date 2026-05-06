@@ -40,6 +40,7 @@ ROLE_LABELS = {
     "structure_path_hint": "structure file",
     "model_keyword": "model keyword",
     "hr_path_hint": "Hamiltonian file",
+    "operator_expression": "operator expression",
 }
 
 
@@ -98,6 +99,8 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
         extracted_evidence.append(
             {"text": model_candidates[0].get("name", "unknown"), "role": "model_keyword"}
         )
+    if _looks_like_spin_operator_expression(source_text):
+        extracted_evidence.append({"text": _summarize_operator_expression(source_text), "role": "operator_expression"})
 
     if structure_file and hamiltonian_file:
         inferred_fields["input_family"] = "many_body_hr"
@@ -325,7 +328,10 @@ def _build_user_summary(
         fields = ", ".join(item["field"] for item in unresolved_items)
         return f"The helper found a possible route, but it still needs: {fields}."
     if status == "rejected":
-        return f"The helper rejected the proposal because confidence is {confidence_level}."
+        if unresolved_items:
+            fields = ", ".join(item["field"] for item in unresolved_items)
+            return f"The helper recognized a spin operator expression, but it still needs: {fields}."
+        return "The helper recognized a spin operator expression, but it is not yet script-consumable."
     return "The helper found some evidence, but not enough to land safely yet."
 
 
@@ -347,3 +353,23 @@ def _blocking_unresolved_items(blocking_ambiguities):
 def _append_unique(items, value):
     if value and value not in items:
         items.append(value)
+
+
+def _looks_like_spin_operator_expression(text):
+    expression = (text or "").strip()
+    if not expression:
+        return False
+    return re.search(
+        r"(?:S[xyzpm]@\s*-?\d+|S_[A-Za-z]\^[xyz\+\-]|\\gamma_\{ij\}|gamma_\{ij\}|\\sum_|J_[^\\s=]+)",
+        expression,
+    ) is not None
+
+
+def _summarize_operator_expression(text):
+    expression = (text or "").strip()
+    if not expression:
+        return "operator expression"
+    compact = re.sub(r"\s+", " ", expression)
+    if len(compact) <= 120:
+        return compact
+    return compact[:117].rstrip() + "..."

@@ -644,6 +644,70 @@ def _natural_language_many_body_hr_needs_input_payload(
     return _finalize_normalized_payload(normalized)
 
 
+def _human_readable_agent_fallback_payload(
+    text,
+    *,
+    record,
+    landed,
+    local_dimension,
+    source_mode,
+    system_units="unspecified",
+):
+    proposal = _build_agent_fallback_proposal(
+        text,
+        record=record,
+        selected_coordinate_convention=(record or {}).get("selected_coordinate_convention"),
+        selected_local_bond_family=(record or {}).get("selected_local_bond_family"),
+    )
+    normalized = _natural_language_base_payload(
+        text,
+        local_dimension=local_dimension,
+        user_notes=text,
+        source_mode=source_mode,
+        system_units=system_units,
+    )
+    normalized["coordinate_convention"] = dict(
+        landed.get("coordinate_convention", _default_coordinate_convention())
+    )
+    normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
+    normalized["interaction"] = {
+        "status": "needs_input",
+        "id": "agent_fallback_review",
+        "question": (
+            "The input was recognized as human-readable but could not be landed safely "
+            "without agent assistance."
+        ),
+    }
+    normalized["document_intermediate"] = record
+    normalized["agent_normalization_request"] = {
+        "status": "recommended",
+        "id": "agent_document_normalization",
+        "stage": "document_ingestion",
+        "source_kind": "natural_language",
+        "reason": "The input was recognized as human-readable but not yet script-consumable.",
+        "target_schema": "agent_normalized_document",
+        "prompt_notes": "Translate the readable input into the repository's constrained structured intermediate form.",
+    }
+    _apply_agent_metadata(normalized, proposal=proposal, accepted=False)
+    return _finalize_normalized_payload(normalized)
+
+
+def _landed_human_readable_input_needs_agent(record, landed, description):
+    if not isinstance(landed, dict):
+        return False
+    if landed.get("interaction", {}).get("status") == "needs_input":
+        return True
+    if landed.get("agent_inferred") is not None:
+        return True
+    if _looks_like_spin_operator_expression(description):
+        representation = str(landed.get("representation", ""))
+        if representation == "operator":
+            expression = str(landed.get("expression", "") or "").strip()
+            if not expression:
+                return True
+    return False
+
+
 def _preserve_textual_path_spelling(text, path):
     candidate = str(path or "")
     if not candidate:
@@ -755,10 +819,7 @@ def _document_interaction_is_simple_user_selection(interaction):
     }
 
 
-def _should_request_agent_document_normalization(record, landed):
-    source_kind = ((record or {}).get("source_document") or {}).get("source_kind")
-    if source_kind != "tex_document":
-        return False
+def _should_request_agent_human_input(record, landed):
     interaction = (landed or {}).get("interaction")
     if isinstance(interaction, dict) and interaction.get("status") == "needs_input":
         return not _document_interaction_is_simple_user_selection(interaction)
@@ -783,6 +844,17 @@ def _should_request_agent_document_normalization(record, landed):
             if not _looks_like_spin_operator_expression((entry or {}).get("expression", "")):
                 return True
     return False
+
+
+def _should_request_agent_normalization(record, landed):
+    source_kind = ((record or {}).get("source_document") or {}).get("source_kind")
+    if source_kind != "tex_document":
+        return _should_request_agent_human_input(record, landed)
+    return _should_request_agent_human_input(record, landed)
+
+
+def _should_request_agent_document_normalization(record, landed):
+    return _should_request_agent_normalization(record, landed)
 
 
 def _build_agent_document_normalization_request(record, landed):
@@ -1024,6 +1096,14 @@ def normalize_freeform_text(
         _apply_agent_metadata(normalized, proposal=proposal, accepted=True)
         return normalized
     landed = land_intermediate_record(record)
+    if _landed_human_readable_input_needs_agent(record, landed, text):
+        return _human_readable_agent_fallback_payload(
+            text,
+            record=record,
+            landed=landed,
+            local_dimension=local_dimension,
+            source_mode="freeform",
+        )
     normalized = _natural_language_base_payload(
         text,
         local_dimension=local_dimension,
@@ -1158,8 +1238,48 @@ def normalize_input(payload):
                         if key not in {"representation", "description"}
                     },
                 )
+            if _looks_like_spin_operator_expression(description):
+                record = build_intermediate_record(
+                    source_text=description,
+                    source_path=source_path,
+                    selected_model_candidate=selected_model_candidate,
+                    selected_local_bond_family=selected_local_bond_family,
+                    selected_coordinate_convention=selected_coordinate_convention,
+                )
+                landed = land_intermediate_record(record)
+                return _human_readable_agent_fallback_payload(
+                    description,
+                    record=record,
+                    landed=landed,
+                    local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
+                    source_mode=payload.get("source_mode", representation),
+                )
             family_gate = resolve_input_acceptance_classical_family(payload=payload)
             if family_gate.get("status") == "needs_input":
+                record = build_intermediate_record(
+                    source_text=description,
+                    source_path=source_path,
+                    selected_model_candidate=selected_model_candidate,
+                    selected_local_bond_family=selected_local_bond_family,
+                    selected_coordinate_convention=selected_coordinate_convention,
+                )
+                landed = land_intermediate_record(record)
+                if _landed_human_readable_input_needs_agent(record, landed, description):
+                    return _human_readable_agent_fallback_payload(
+                        description,
+                        record=record,
+                        landed=landed,
+                        local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
+                        source_mode=payload.get("source_mode", representation),
+                    )
+                if _looks_like_spin_operator_expression(description):
+                    return _human_readable_agent_fallback_payload(
+                        description,
+                        record=record,
+                        landed=landed,
+                        local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
+                        source_mode=payload.get("source_mode", representation),
+                    )
                 normalized = _natural_language_base_payload(
                     description,
                     local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
@@ -1168,6 +1288,24 @@ def normalize_input(payload):
                 )
                 normalized["interaction"] = dict(family_gate["interaction"])
                 return _finalize_normalized_payload(normalized)
+            if _looks_like_spin_operator_expression(description):
+                record = build_intermediate_record(
+                    source_text=description,
+                    source_path=source_path,
+                    selected_model_candidate=selected_model_candidate,
+                    selected_local_bond_family=selected_local_bond_family,
+                    selected_coordinate_convention=selected_coordinate_convention,
+                )
+                landed = land_intermediate_record(record)
+                landed_expression = str(landed.get("expression", "") or "").strip()
+                if landed.get("representation") == "operator" and not landed_expression:
+                    return _human_readable_agent_fallback_payload(
+                        description,
+                        record=record,
+                        landed=landed,
+                        local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
+                        source_mode=payload.get("source_mode", representation),
+                    )
             record = build_intermediate_record(
                 source_text=description,
                 source_path=source_path,
