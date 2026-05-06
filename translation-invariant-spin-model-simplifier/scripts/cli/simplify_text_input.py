@@ -140,19 +140,22 @@ def collect_agent_fallback_surface(normalized_model):
     if not isinstance(normalized_model, dict):
         return {}
     result = {}
-    request = normalized_model.get("agent_normalization_request")
-    if isinstance(request, dict):
-        result["agent_normalization_request"] = dict(request)
     landing_readiness = normalized_model.get("landing_readiness")
+    has_material_agent_signal = False
     if landing_readiness is not None:
         result["landing_readiness"] = landing_readiness
+        has_material_agent_signal = True
     public_view = None
     if _agent_inferred_materially_contributed(normalized_model):
         public_view = _public_agent_inferred_view(normalized_model.get("agent_inferred"))
         if public_view is not None:
             result["agent_inferred"] = public_view
+            has_material_agent_signal = True
+    request = normalized_model.get("agent_normalization_request")
+    if isinstance(request, dict) and has_material_agent_signal:
+        result["agent_normalization_request"] = dict(request)
     guidance = _build_next_step_guidance(normalized_model, public_view)
-    if guidance is not None:
+    if guidance is not None and has_material_agent_signal:
         result["next_step_guidance"] = guidance
     return result
 
