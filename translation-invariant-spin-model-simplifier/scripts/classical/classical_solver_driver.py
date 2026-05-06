@@ -17,7 +17,10 @@ if __package__ in {None, ""}:
     from common.classical_solver_family_routing import resolve_classical_solver_method
     from common.classical_state_result import build_final_classical_state_result
     from common.rotating_frame_consistency import infer_single_q_from_supercell_site_phases
-    from common.spin_only_onsite_adapter import spin_only_onsite_matrices_by_site
+    from common.spin_only_onsite_adapter import (
+        spin_only_onsite_field_vectors_by_site,
+        spin_only_onsite_matrices_by_site,
+    )
 else:
     from .cpn_glt_reconstruction import minimal_commensurate_supercell, rationalize_q_vector
     from .generalized_lt_solver import find_generalized_lt_ground_state
@@ -27,7 +30,10 @@ else:
     from common.classical_solver_family_routing import resolve_classical_solver_method
     from common.classical_state_result import build_final_classical_state_result
     from common.rotating_frame_consistency import infer_single_q_from_supercell_site_phases
-    from common.spin_only_onsite_adapter import spin_only_onsite_matrices_by_site
+    from common.spin_only_onsite_adapter import (
+        spin_only_onsite_field_vectors_by_site,
+        spin_only_onsite_matrices_by_site,
+    )
 
 try:
     from scipy.optimize import Bounds, NonlinearConstraint, minimize
@@ -56,6 +62,8 @@ def classical_energy(model, spins):
         energy += float(s_i @ matrix @ s_j)
     for site, matrix in spin_only_onsite_matrices_by_site(model, site_count=len(spins)).items():
         energy += float(spins[site] @ matrix @ spins[site])
+    for site, vector in spin_only_onsite_field_vectors_by_site(model, site_count=len(spins)).items():
+        energy += float(spins[site] @ vector)
     return energy
 
 
@@ -473,6 +481,8 @@ def _supercell_energy_per_cell(model, state, shape):
             energy += float(state[cell + (source,)] @ matrix @ state[target_cell + (target,)])
         for site, matrix in spin_only_onsite_matrices_by_site(model, site_count=state.shape[3]).items():
             energy += float(state[cell + (site,)] @ matrix @ state[cell + (site,)])
+        for site, vector in spin_only_onsite_field_vectors_by_site(model, site_count=state.shape[3]).items():
+            energy += float(state[cell + (site,)] @ vector)
     return float(energy) / float(np.prod(shape))
 
 
@@ -493,6 +503,9 @@ def _effective_spin_field(model, state, shape, cell, site):
     if int(site) in onsite_matrices:
         onsite_matrix = onsite_matrices[int(site)]
         field += (onsite_matrix + onsite_matrix.T) @ state[cell + (site,)]
+    onsite_vectors = spin_only_onsite_field_vectors_by_site(model, site_count=state.shape[3])
+    if int(site) in onsite_vectors:
+        field += np.array(onsite_vectors[int(site)], dtype=float)
     return field
 
 
@@ -805,6 +818,10 @@ def _single_q_harmonic_characteristic_energy_scale(model):
         onsite = np.array(matrix, dtype=float)
         if onsite.size:
             scale += float(np.linalg.norm(onsite, ord=2))
+    for vector in spin_only_onsite_field_vectors_by_site(model, site_count=_site_count(model)).values():
+        onsite_field = np.array(vector, dtype=float)
+        if onsite_field.size:
+            scale += float(np.linalg.norm(onsite_field, ord=2))
     return max(1.0, float(scale))
 
 
@@ -2999,6 +3016,11 @@ def _variance_stderr(samples):
 
 
 def recommend_method(model):
+    if any(
+        isinstance(term, dict) and term.get("kind") == "linear_spin_cartesian"
+        for term in model.get("onsite_terms") or []
+    ):
+        return "variational"
     if model.get("bonds"):
         return "luttinger-tisza"
     effective_main = model.get("effective_model", {}).get("main", [])

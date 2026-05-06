@@ -3,6 +3,9 @@
 from pathlib import Path
 import re
 import sys
+import math
+
+import numpy as np
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -13,6 +16,7 @@ else:
 
 SUPPORTED_ONSITE_KINDS = {
     "quadratic_spin_cartesian",
+    "linear_spin_cartesian",
     "local_operator_matrix",
 }
 
@@ -66,6 +70,12 @@ def _normalize_real_matrix(matrix):
     return normalized
 
 
+def _normalize_real_vector(vector):
+    if not isinstance(vector, list) or len(vector) != 3:
+        raise ValueError("payload.vector must be a 3-element list")
+    return [float(value) for value in vector]
+
+
 def _validate_local_dimension(matrix, local_dimension):
     if local_dimension is None:
         return
@@ -83,21 +93,26 @@ def _canonicalize_single_onsite_term(term, *, local_dimension=None):
     payload = term.get("payload")
     if not isinstance(payload, dict):
         raise ValueError("onsite term payload must be a mapping")
-    matrix = _normalize_real_matrix(payload.get("matrix"))
 
     normalized = {
         "kind": kind,
         "site_scope": _normalize_site_scope(term.get("site_scope")),
         "operator_basis": _normalize_operator_basis(term.get("operator_basis")),
         "frame": _normalize_frame(term.get("frame"), kind=kind),
-        "payload": {"matrix": matrix},
         "provenance": dict(term.get("provenance", {})),
     }
 
-    if kind == "quadratic_spin_cartesian" and len(matrix) != 3:
-        raise ValueError("quadratic_spin_cartesian onsite terms require a 3x3 matrix")
-    if kind == "local_operator_matrix":
+    if kind == "quadratic_spin_cartesian":
+        matrix = _normalize_real_matrix(payload.get("matrix"))
+        if len(matrix) != 3:
+            raise ValueError("quadratic_spin_cartesian onsite terms require a 3x3 matrix")
+        normalized["payload"] = {"matrix": matrix}
+    elif kind == "linear_spin_cartesian":
+        normalized["payload"] = {"vector": _normalize_real_vector(payload.get("vector"))}
+    else:
+        matrix = _normalize_real_matrix(payload.get("matrix"))
         _validate_local_dimension(matrix, local_dimension)
+        normalized["payload"] = {"matrix": matrix}
 
     return normalized
 
@@ -124,6 +139,36 @@ def _frame_from_coordinate_convention(coordinate_convention):
     if not axes:
         axes = ["x", "y", "z"] if frame_kind != "global_crystallographic" else ["a", "b", "c"]
     return {"kind": frame_kind, "axes": [str(value) for value in axes]}
+
+
+def _spin_cartesian_operator_matrices(local_dimension):
+    local_dimension = int(local_dimension)
+    if local_dimension < 2:
+        raise ValueError("local_dimension must be at least 2")
+
+    spin = 0.5 * float(local_dimension - 1)
+    sz = np.zeros((local_dimension, local_dimension), dtype=complex)
+    sp = np.zeros((local_dimension, local_dimension), dtype=complex)
+    sm = np.zeros((local_dimension, local_dimension), dtype=complex)
+
+    for row in range(local_dimension):
+        m_row = spin - float(row)
+        sz[row, row] = m_row
+        if row + 1 < local_dimension:
+            m_col = m_row - 1.0
+            coefficient = math.sqrt(max(0.0, spin * (spin + 1.0) - m_col * (m_col + 1.0)))
+            sp[row, row + 1] = coefficient
+            sm[row + 1, row] = coefficient
+
+    sx = 0.5 * (sp + sm)
+    sy = -0.5j * (sp - sm)
+    return sx, sy, sz
+
+
+def linear_spin_cartesian_operator_matrix(vector, *, local_dimension):
+    coefficients = np.array(_normalize_real_vector(list(vector)), dtype=float)
+    sx, sy, sz = _spin_cartesian_operator_matrices(local_dimension)
+    return coefficients[0] * sx + coefficients[1] * sy + coefficients[2] * sz
 
 
 def _coerce_real_coefficient(value, *, tolerance=1.0e-9):

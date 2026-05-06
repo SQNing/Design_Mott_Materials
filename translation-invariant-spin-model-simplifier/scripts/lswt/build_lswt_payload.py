@@ -4,6 +4,8 @@ import math
 import sys
 from pathlib import Path
 
+import numpy as np
+
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -23,7 +25,7 @@ from common.lattice_geometry import (
 from common.quadratic_phase_dressing import resolve_quadratic_phase_dressing
 from common.rotating_frame_metadata import resolve_rotating_frame_transform
 from common.rotating_frame_realization import resolve_rotating_frame_realization
-from common.spin_only_onsite_adapter import spin_only_onsite_matrices_by_site
+from common.spin_only_onsite_adapter import spin_only_onsite_operator_matrices_by_site
 
 
 def _error(code, message):
@@ -175,6 +177,17 @@ def normalize_exchange_matrix(term):
     return normalized
 
 
+def _serialize_complex_value(value, *, tolerance=1.0e-12):
+    value = complex(value)
+    if abs(value.imag) <= tolerance:
+        return float(value.real)
+    return {"real": float(value.real), "imag": float(value.imag)}
+
+
+def _serialize_complex_matrix(matrix):
+    return [[_serialize_complex_value(value) for value in row] for row in np.array(matrix, dtype=complex).tolist()]
+
+
 def build_reference_frames(classical_state):
     frames = classical_state.get("site_frames", [])
     if not frames:
@@ -206,11 +219,23 @@ def _infer_local_dimension(model):
     return None
 
 
+def _resolve_local_dimension_for_onsite_terms(model, reference_frames):
+    local_dimension = _infer_local_dimension(model)
+    if local_dimension is not None:
+        return local_dimension
+    if reference_frames:
+        spin_length = float(reference_frames[0]["spin_length"])
+        inferred = int(round(2.0 * spin_length + 1.0))
+        if inferred >= 2:
+            return inferred
+    return None
+
+
 def _has_nontrivial_spin_only_onsite(onsite_matrices, *, tolerance=1.0e-12):
     for matrix in (onsite_matrices or {}).values():
         for row in matrix.tolist():
             for value in row:
-                if abs(float(value)) > tolerance:
+                if abs(complex(value)) > tolerance:
                     return True
     return False
 
@@ -683,7 +708,12 @@ def build_lswt_payload(model):
         ordering,
     )
     try:
-        onsite_matrices = spin_only_onsite_matrices_by_site(model, site_count=site_count)
+        local_dimension = _resolve_local_dimension_for_onsite_terms(model, reference_frames)
+        onsite_matrices = spin_only_onsite_operator_matrices_by_site(
+            model,
+            local_dimension=local_dimension,
+            site_count=site_count,
+        )
     except ValueError as exc:
         return _error("unsupported-spin-only-onsite-term", f"spin-only LSWT onsite lowering failed: {exc}")
 
@@ -730,7 +760,7 @@ def build_lswt_payload(model):
         payload["single_q_reference_state"] = single_q_reference_state
     if onsite_matrices:
         payload["onsite_terms"] = [
-            {"site": int(site), "matrix": matrix.astype(float).tolist()}
+            {"site": int(site), "matrix": _serialize_complex_matrix(matrix)}
             for site, matrix in sorted(onsite_matrices.items())
         ]
     if rotating_frame_transform is not None:
