@@ -206,6 +206,8 @@ def _copy_passthrough_fields(source, destination):
         "document_source_path",
         "selected_model_candidate",
         "selected_local_bond_family",
+        "bond_terms",
+        "explicit_bond_graph",
         "selected_coordinate_convention",
         "agent_normalization_request",
     ):

@@ -1108,6 +1108,67 @@ def _matrix_form_needs_coordinate_convention(local_bond_candidates: list[dict]) 
     return False
 
 
+def _candidate_to_bond_term(candidate: dict) -> dict:
+    bond_term = {
+        "bond_ref": candidate.get("bond_ref"),
+        "support_ref": deepcopy(candidate.get("support_ref", [])),
+        "explicit_edge_ref": candidate.get("explicit_edge_ref"),
+        "orbit_ref": candidate.get("orbit_ref"),
+        "expression": candidate.get("expression", ""),
+    }
+    if "family" in candidate:
+        bond_term["family"] = candidate.get("family")
+    if "matrix" in candidate:
+        bond_term["matrix"] = deepcopy(candidate.get("matrix"))
+    return bond_term
+
+
+def _explicit_bond_graph_from_bond_terms(bond_terms: list[dict]) -> dict:
+    graph = {
+        "nodes": [],
+        "edges": [],
+    }
+    for term in list(bond_terms or []):
+        edge = {
+            "bond_ref": term.get("bond_ref"),
+            "support_ref": deepcopy(term.get("support_ref", [])),
+            "explicit_edge_ref": term.get("explicit_edge_ref"),
+            "orbit_ref": term.get("orbit_ref"),
+        }
+        graph["edges"].append(edge)
+    return graph
+
+
+def _bond_terms_to_local_bond_candidates(bond_terms: list[dict]) -> list[dict]:
+    candidates = []
+    for term in list(bond_terms or []):
+        candidate = {
+            "family": term.get("family"),
+            "expression": term.get("expression", ""),
+        }
+        if "matrix" in term:
+            candidate["matrix"] = deepcopy(term.get("matrix"))
+        if "bond_ref" in term:
+            candidate["bond_ref"] = term.get("bond_ref")
+        if "support_ref" in term:
+            candidate["support_ref"] = deepcopy(term.get("support_ref", []))
+        if "explicit_edge_ref" in term:
+            candidate["explicit_edge_ref"] = term.get("explicit_edge_ref")
+        if "orbit_ref" in term:
+            candidate["orbit_ref"] = term.get("orbit_ref")
+        candidates.append(candidate)
+    return candidates
+
+
+def _bond_terms_to_operator_expression(bond_terms: list[dict]) -> str:
+    expressions = []
+    for term in list(bond_terms or []):
+        expression = str(term.get("expression") or "").strip()
+        if expression:
+            expressions.append(expression)
+    return " + ".join(expressions)
+
+
 def _family_subscript(family_label: str) -> str:
     if re.fullmatch(r"[A-Za-z0-9]+", family_label):
         return "_" + family_label
@@ -1552,7 +1613,12 @@ def _extract_hamiltonian_model(
         explicit_local_bond_candidates = _extract_explicit_local_bond_candidates(content, equation_blocks)
         matrix_candidates = _extract_matrix_exchange_candidates(equation_blocks)
         if matrix_candidates:
-            return {"local_bond_candidates": matrix_candidates, "matrix_form": True}
+            bond_terms = [_candidate_to_bond_term(candidate) for candidate in matrix_candidates]
+            return {
+                "bond_terms": bond_terms,
+                "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
+                "matrix_form": True,
+            }
         family_candidates = _extract_family_indexed_candidates(equation_blocks, parameter_registry)
         if selected_name == "effective":
             merged_candidates = explicit_local_bond_candidates + family_candidates
@@ -1564,15 +1630,31 @@ def _extract_hamiltonian_model(
             )
             if augmented_candidates:
                 augmented_candidates.sort(key=lambda entry: entry["family"])
-                return {"local_bond_candidates": augmented_candidates}
+                bond_terms = [_candidate_to_bond_term(candidate) for candidate in augmented_candidates]
+                return {
+                    "bond_terms": bond_terms,
+                    "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
+                }
         if explicit_local_bond_candidates and family_candidates:
             combined = explicit_local_bond_candidates + family_candidates
             combined.sort(key=lambda entry: entry["family"])
-            return {"local_bond_candidates": combined}
+            bond_terms = [_candidate_to_bond_term(candidate) for candidate in combined]
+            return {
+                "bond_terms": bond_terms,
+                "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
+            }
         if family_candidates:
-            return {"local_bond_candidates": family_candidates}
+            bond_terms = [_candidate_to_bond_term(candidate) for candidate in family_candidates]
+            return {
+                "bond_terms": bond_terms,
+                "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
+            }
         if explicit_local_bond_candidates:
-            return {"local_bond_candidates": explicit_local_bond_candidates}
+            bond_terms = [_candidate_to_bond_term(candidate) for candidate in explicit_local_bond_candidates]
+            return {
+                "bond_terms": bond_terms,
+                "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
+            }
         local_bond_expression = _select_local_bond_expression(content, equation_blocks)
         if local_bond_expression:
             return {"operator_expression": local_bond_expression}
@@ -1841,7 +1923,9 @@ def build_intermediate_record_from_agent_normalized(
     for key in ("operator_expression", "value", "matrix_form"):
         if key in agent_normalized_document and key not in hamiltonian_model:
             hamiltonian_model[key] = deepcopy(agent_normalized_document[key])
-    if "local_bond_candidates" in agent_normalized_document and "local_bond_candidates" not in hamiltonian_model:
+    if "bond_terms" in hamiltonian_model:
+        hamiltonian_model.pop("local_bond_candidates", None)
+    elif "local_bond_candidates" in agent_normalized_document and "local_bond_candidates" not in hamiltonian_model:
         hamiltonian_model["local_bond_candidates"] = _copy_sequence_of_mappings(
             agent_normalized_document.get("local_bond_candidates")
         )
@@ -1850,9 +1934,13 @@ def build_intermediate_record_from_agent_normalized(
             agent_normalized_document.get("matrix_form_candidates")
         )
 
-    if "matrix_form_candidates" in hamiltonian_model and "local_bond_candidates" not in hamiltonian_model:
+    if "matrix_form_candidates" in hamiltonian_model and "local_bond_candidates" not in hamiltonian_model and "bond_terms" not in hamiltonian_model:
         hamiltonian_model["local_bond_candidates"] = _copy_sequence_of_mappings(
             hamiltonian_model.get("matrix_form_candidates")
+        )
+    if "bond_terms" in hamiltonian_model and "explicit_bond_graph" not in hamiltonian_model:
+        hamiltonian_model["explicit_bond_graph"] = _explicit_bond_graph_from_bond_terms(
+            hamiltonian_model.get("bond_terms", [])
         )
 
     unresolved_items = _copy_sequence_of_mappings(agent_normalized_document.get("unresolved_items"))
@@ -1893,13 +1981,12 @@ def build_intermediate_record_from_agent_normalized(
         elif not hamiltonian_model.get("matrix_form_candidates"):
             hamiltonian_model["matrix_form_candidates"] = _copy_sequence_of_mappings(matrix_form_candidates)
 
-    return {
+    record = {
         "source_document": source_document,
         "source_text": source_text,
         "document_sections": _copy_mapping(agent_normalized_document.get("document_sections"), {}),
         "model_candidates": model_candidates,
         "selected_model_candidate": selected_name,
-        "selected_local_bond_family": selected_family,
         "selected_coordinate_convention": selected_frame,
         "system_context": system_context,
         "lattice_model": lattice_model,
@@ -1918,6 +2005,9 @@ def build_intermediate_record_from_agent_normalized(
         ),
         "unsupported_features": list(agent_normalized_document.get("unsupported_features", [])),
     }
+    if selected_family is not None:
+        record["selected_local_bond_family"] = selected_family
+    return record
 
 
 def build_intermediate_record(
@@ -2145,6 +2235,24 @@ def land_intermediate_record(record: dict) -> dict:
     hamiltonian_model = record.get("hamiltonian_model", {})
     coordinate_convention = dict(record.get("system_context", {}).get("coordinate_convention", {}))
     magnetic_order = dict(record.get("system_context", {}).get("magnetic_order", {}))
+    bond_terms = list(hamiltonian_model.get("bond_terms", []))
+    if bond_terms:
+        expression = _bond_terms_to_operator_expression(bond_terms)
+        inferred_support = _infer_support_from_operator_expression(expression)
+        if not inferred_support:
+            inferred_support = [0, 1]
+        return {
+            "representation": "operator",
+            "support": inferred_support,
+            "expression": _normalize_document_operator_notation(
+                _strip_operator_assignment_prefix(expression)
+            ),
+            "parameters": dict(record.get("parameter_registry", {})),
+            "coordinate_convention": coordinate_convention,
+            "magnetic_order": magnetic_order,
+            "user_notes": "Generated from document input protocol",
+            "unsupported_features": list(record.get("unsupported_features", [])),
+        }
     if (
         record.get("selected_model_candidate") == "matrix_form"
         and hamiltonian_model.get("matrix_form")
