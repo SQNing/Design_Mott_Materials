@@ -21,7 +21,7 @@ def _render_additional_guidance(prompt_notes):
 
 def _priority_corrections_from_findings(verification_findings):
     selected_model_corrections = []
-    selected_family_corrections = []
+    selected_attachment_corrections = []
     parameter_conflict_corrections = []
     evidence_corrections = []
     general_corrections = []
@@ -42,19 +42,15 @@ def _priority_corrections_from_findings(verification_findings):
                     f"Restore selected model candidate {candidate}.",
                 )
         elif finding_id == "selected_local_bond_family_missing_in_matrix_form":
-            family = str(finding.get("selected_local_bond_family") or "").strip()
-            if family:
-                add_correction(
-                    selected_family_corrections,
-                    f"Restore selected local bond family {family} in matrix_form."
-                )
+            add_correction(
+                selected_attachment_corrections,
+                "Restore the selected bond attachment in matrix_form.",
+            )
         elif finding_id == "selected_local_bond_family_missing_in_effective_candidate":
-            family = str(finding.get("selected_local_bond_family") or "").strip()
-            if family:
-                add_correction(
-                    selected_family_corrections,
-                    f"Restore selected local bond family {family} in the effective candidate."
-                )
+            add_correction(
+                selected_attachment_corrections,
+                "Restore the selected bond attachment in the effective candidate.",
+            )
         elif finding_id == "parameter_registry_selected_value_conflict":
             parameter = str(finding.get("parameter") or "").strip()
             if parameter:
@@ -121,15 +117,13 @@ def _priority_corrections_from_findings(verification_findings):
                 "Add explicit evidence_refs for the kept candidate model entries.",
             )
         elif finding_id == "candidate_models_gamma_family_missing_matrix_support":
-            family = str(finding.get("family") or "").strip()
-            if family:
-                add_correction(
-                    general_corrections,
-                    f"Remove unsupported gamma/bond-phase content for family {family} or add matching matrix_form support."
-                )
+            add_correction(
+                general_corrections,
+                "Remove unsupported gamma/bond-phase content or add matching matrix_form support for the selected bond attachment.",
+            )
     return (
         selected_model_corrections
-        + selected_family_corrections
+        + selected_attachment_corrections
         + parameter_conflict_corrections
         + evidence_corrections
         + general_corrections
@@ -166,6 +160,7 @@ def render_agent_document_prompt(source_text, request):
         "You are converting a physics paper fragment into a constrained JSON record.\n\n"
         "Return only valid JSON.\n"
         "Do not include markdown fences.\n"
+        "Prefer structure-first extraction and preserve attachment refs such as site_ref, bond_ref, orbit_ref, explicit_edge_ref, and support_ref when present.\n"
         "Do not invent physics that is not supported by the source.\n"
         "If something is ambiguous, keep it in unresolved_items instead of guessing.\n\n"
         "Use this request object as the contract:\n"
@@ -231,6 +226,7 @@ def render_agent_document_followup_prompt(
         "You are revising an existing agent_normalized_document after verification found conflicts.\n\n"
         "Return only valid JSON.\n"
         "Do not include markdown fences.\n"
+        "Prefer structure-first corrections and keep attachment refs intact when they are already supported by the source.\n"
         "Preserve any existing fields that are still supported by the source.\n"
         "Only change the parts needed to resolve the findings below.\n"
         "If a conflict cannot be resolved from the source, keep it in unresolved_items.\n\n"

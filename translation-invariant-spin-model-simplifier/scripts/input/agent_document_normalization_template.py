@@ -20,7 +20,10 @@ _TEMPLATE = {
             "extraction_method": "<equation_block|table|prose|matrix_bridge>",
             "local_bond_candidates": [
                 {
-                    "family": "<family-label>",
+                    "bond_ref": "<bond-ref>",
+                    "support_ref": ["<support-ref>"],
+                    "explicit_edge_ref": "<explicit-edge-ref>",
+                    "orbit_ref": "<orbit-ref>",
                     "expression": "<bond-local operator expression>",
                     "evidence_refs": ["<evidence-id>"],
                 },
@@ -28,7 +31,10 @@ _TEMPLATE = {
             "matrix_form": False,
             "matrix_form_candidates": [
                 {
-                    "family": "<family-label>",
+                    "bond_ref": "<bond-ref>",
+                    "support_ref": ["<support-ref>"],
+                    "explicit_edge_ref": "<explicit-edge-ref>",
+                    "orbit_ref": "<orbit-ref>",
                     "expression": "<matrix-derived operator expression>",
                     "evidence_refs": ["<evidence-id>"],
                     "matrix": [
@@ -98,7 +104,10 @@ _EXAMPLE_PAYLOAD = {
             "extraction_method": "equation_block",
             "local_bond_candidates": [
                 {
-                    "family": "1",
+                    "bond_ref": "bond-1",
+                    "support_ref": ["site-0", "site-1"],
+                    "explicit_edge_ref": "edge-1",
+                    "orbit_ref": "orbit-1",
                     "expression": "J_1^{zz} * Sz@0 Sz@1",
                     "evidence_refs": ["eq1"],
                 }
@@ -108,7 +117,10 @@ _EXAMPLE_PAYLOAD = {
             "matrix_form": True,
             "local_bond_candidates": [
                 {
-                    "family": "1",
+                    "bond_ref": "bond-1",
+                    "support_ref": ["site-0", "site-1"],
+                    "explicit_edge_ref": "edge-1",
+                    "orbit_ref": "orbit-1",
                     "expression": (
                         "J_1^{xx} * Sx@0 Sx@1 + J_1^{yy} * Sy@0 Sy@1 + "
                         "J_1^{zz} * Sz@0 Sz@1"
@@ -127,6 +139,7 @@ _EXAMPLE_PAYLOAD = {
             "evidence_refs": ["eq3"],
             "confidence": "high",
             "extraction_method": "equation_block",
+            "site_ref": "site-0",
         },
     },
     "parameter_registry": {
@@ -163,8 +176,9 @@ _EXAMPLE_PAYLOAD = {
 
 
 _PROMPT_NOTES = [
-    "Read the document as a physics paper, not as executable code.",
+    "Read the document as a physics paper, not as executable code, and keep the extraction structure-first.",
     "Do not invent Hamiltonian terms that are not supported by the source.",
+    "Preserve attachment refs such as site_ref, bond_ref, orbit_ref, explicit_edge_ref, and support_ref when the source provides them.",
     "Keep competing named models separate in candidate_models instead of merging them.",
     "Use operator expressions only when the paper gives a trustworthy local bond or onsite form.",
     "Use higher-power onsite operator_expression entries for trustworthy single-site terms such as D * (Sz@0)^2, C * (Sz@0)^3, or B_4^0 * (Sz@0)^4 instead of forcing them into local_bond_candidates.",

@@ -20,6 +20,7 @@ EXPECTED_REFERENCE_FILES = {
     "environment.md",
     "fallback-rules.md",
     "input-schema.md",
+    "lattice-structure-and-term-attachment.md",
     "natural-language-input-protocol.md",
 }
 
@@ -49,6 +50,29 @@ class SkillReferenceDocsTests(unittest.TestCase):
         listed = set(re.findall(r"`([A-Za-z0-9._-]+\.md)`", content))
 
         self.assertEqual(listed, EXPECTED_REFERENCE_FILES - {"README.md"})
+
+    def test_primary_reference_contract_centers_lattice_structure_and_legacy_family(self):
+        input_schema = (REFERENCE_DIR / "input-schema.md").read_text(encoding="utf-8")
+        term_attachment = (
+            REFERENCE_DIR / "lattice-structure-and-term-attachment.md"
+        ).read_text(encoding="utf-8")
+        routing = (REFERENCE_DIR / "agent-routing.md").read_text(encoding="utf-8")
+        natural_language = NATURAL_LANGUAGE_REFERENCE.read_text(encoding="utf-8")
+
+        self.assertIn("`lattice_structure`", input_schema)
+        self.assertIn("structure-first", input_schema)
+        self.assertIn("site_ref", input_schema)
+        self.assertIn("bond_ref", input_schema)
+        self.assertIn("orbit_ref", input_schema)
+        self.assertIn("explicit_edge_ref", input_schema)
+        self.assertIn("support_ref", input_schema)
+        self.assertIn("site terms", term_attachment)
+        self.assertIn("bond terms", term_attachment)
+        self.assertIn("higher-body terms", term_attachment)
+        self.assertIn("primary conceptual object", input_schema)
+        self.assertIn("legacy compatibility", input_schema)
+        self.assertIn("legacy compatibility", routing)
+        self.assertIn("legacy compatibility", natural_language)
 
     def test_environment_reference_tracks_sunny_version_line(self):
         content = ENVIRONMENT_REFERENCE.read_text(encoding="utf-8")

@@ -4,6 +4,11 @@ This document defines the skill-facing protocol for natural-language, LaTeX, and
 inputs before they are normalized into the runnable payload schema described in
 `reference/input-schema.md`.
 
+The target public contract is structure-first: it is centered on
+`lattice_structure` plus attached Hamiltonian terms. Any family-shaped metadata
+introduced during routing should be treated as legacy compatibility data rather
+than as the primary conceptual object.
+
 ## Scope
 
 Treat the following as first-class upstream inputs:
@@ -99,8 +104,10 @@ Interpretation notes:
 8. Build an intermediate extraction record.
    If an upstream agent has already produced a structured record, translate it into the same
    intermediate schema instead of reparsing the source text from scratch.
-9. Attempt landing into the currently supported payload families only after the intermediate record
-   is complete enough to support a unique interpretation.
+9. Attempt landing into the currently supported payload families only after the
+   intermediate record is complete enough to support a unique interpretation,
+   then express the landed result in terms of `lattice_structure` plus site,
+   bond, and higher-body term attachments.
 10. If the model cannot be landed faithfully, return `interaction.status = needs_input` with one
    focused blocking question.
 
@@ -250,6 +257,11 @@ Rules:
   consistent model interpretation.
 - Freeform text that explicitly supplies both a structure-file path and an `hr`-style hopping-file
   path should land directly as `many_body_hr`, even if the rest of the message is conversational.
+- Regardless of the route, the landed public contract should describe the
+  model through `lattice_structure` and attached site, bond, or higher-body
+  terms; attachment refs such as `site_ref`, `bond_ref`, `orbit_ref`,
+  `explicit_edge_ref`, and `support_ref` stay accepted when present, and any
+  `family`-style field that survives routing is legacy compatibility data only.
 - Freeform text may also supply a case-directory path; when that directory contains a compatible
   structure file plus an `hr`-style Hamiltonian file, the pair may be auto-discovered.
 - Explicit role phrases such as `structure file:` and `hr file:` may disambiguate otherwise generic

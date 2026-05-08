@@ -217,7 +217,7 @@ def _candidate_model_consistency_findings(candidate_models):
                 "severity": "warning",
                 "family": family,
                 "message": (
-                    f"Effective candidate contains family {family}, but matrix_form does not provide a matching family."
+                    f"Effective candidate contains a bond attachment for support {family}, but matrix_form does not provide a matching attachment."
                 ),
             }
         )
@@ -231,16 +231,16 @@ def _candidate_model_consistency_findings(candidate_models):
         family = str(family)
         if _has_gamma_phase_marker(entry.get("expression")) and family not in matrix_families:
             findings.append(
-                {
-                    "id": "candidate_models_gamma_family_missing_matrix_support",
-                    "severity": "warning",
-                    "family": family,
-                    "message": (
-                        f"Effective candidate family {family} uses gamma/bond-phase structure, "
-                        "but matrix_form does not provide matching support for matrix fallback."
-                    ),
-                }
-            )
+            {
+                "id": "candidate_models_gamma_family_missing_matrix_support",
+                "severity": "warning",
+                "family": family,
+                "message": (
+                    f"Effective candidate attachment support {family} uses gamma/bond-phase structure, "
+                    "but matrix_form does not provide matching support for matrix fallback."
+                ),
+            }
+        )
     return findings
 
 
@@ -272,7 +272,7 @@ def _selected_local_bond_family_findings(candidate_models, selected_local_bond_f
                 "severity": "warning",
                 "selected_local_bond_family": selected_family,
                 "message": (
-                    f"Selected local bond family {selected_family} is not present in the effective candidate."
+                    f"Selected bond attachment {selected_family} is not present in the effective candidate."
                 ),
             }
         )
@@ -284,7 +284,7 @@ def _selected_local_bond_family_findings(candidate_models, selected_local_bond_f
                 "severity": "warning",
                 "selected_local_bond_family": selected_family,
                 "message": (
-                    f"Selected local bond family {selected_family} is not present in matrix_form."
+                    f"Selected bond attachment {selected_family} is not present in matrix_form."
                 ),
             }
         )

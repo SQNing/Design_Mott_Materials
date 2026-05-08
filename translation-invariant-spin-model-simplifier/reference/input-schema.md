@@ -1,12 +1,15 @@
 # Input Schema
 
+The normalized payload is structure-first: `lattice_structure` is the primary
+conceptual object, and Hamiltonian data should attach to that structure as
+site, bond, or higher-body terms.
+
 The normalized payload must contain:
 
 - `system`
 - `local_hilbert`
-- `lattice`
-- `local_term`
-- `onsite_terms`
+- `lattice_structure`
+- `term_attachments`
 - `parameters`
 - `symmetry_hints`
 - `projection`
@@ -14,20 +17,37 @@ The normalized payload must contain:
 - `user_notes`
 - `provenance`
 
-`local_term.representation.kind` supports:
+`term_attachments.representation.kind` supports:
 
 - `operator`
 - `matrix`
 - `natural_language`
 - `many_body_hr`
 
-The canonical internal `CP^(N-1)` model family is:
+Each attachment record should identify whether the Hamiltonian contribution is
+expressed as:
+
+- a site term
+- a bond term
+- a higher-body term
+
+Attachment-facing refs such as `site_ref`, `bond_ref`, `orbit_ref`,
+`explicit_edge_ref`, and `support_ref` remain accepted when the source provides
+them.
+
+Legacy compatibility data may still include family-shaped fields such as
+`family`, `model_family`, `classical_family`, or adapter-family annotations,
+but those are not the primary conceptual object of the public contract.
+
+The canonical internal `CP^(N-1)` model family remains:
 
 - `model_family = cpn_pair_model`
 
-This is not a separate freeform top-level representation kind. Instead, current `many_body_hr`
-inputs normalize into a legacy-adapter description that targets the canonical `cpn_pair_model`
-payload family downstream.
+This remains legacy compatibility data for downstream adapters, not a separate
+freeform top-level representation kind and not the primary public organizing
+concept. Current `many_body_hr` inputs normalize into a legacy-adapter
+description that targets the canonical `cpn_pair_model` payload family
+downstream.
 
 Required content fields:
 
@@ -36,15 +56,22 @@ Required content fields:
 - `natural_language` -> `description`
 - `many_body_hr` -> `structure_file` and `hamiltonian_file`
 
-`onsite_terms` is optional when no local onsite contribution is present, but once onsite physics is
-landed it should be carried explicitly as canonical workflow data rather than left implicit in prose.
+`term_attachments` may be empty when no explicit Hamiltonian content has landed
+yet, but once physics is landed it should be carried explicitly as canonical
+workflow data rather than left implicit in prose.
 
-Phase-1 canonical onsite kinds support:
+Canonical attachment classes are:
+
+- `site_terms`
+- `bond_terms`
+- `higher_body_terms`
+
+Phase-1 canonical site-term kinds support:
 
 - `quadratic_spin_cartesian`
 - `local_operator_matrix`
 
-Each canonical onsite term must carry:
+Each canonical site term must carry:
 
 - `kind`
 - `site_scope`
@@ -52,23 +79,26 @@ Each canonical onsite term must carry:
 - `frame`
 - `payload`
 
-For `quadratic_spin_cartesian` payloads:
+For `quadratic_spin_cartesian` site-term payloads:
 
 - `payload.matrix` must be a real `3x3` matrix
 - anisotropic terms require explicit `frame` metadata
 
-For `local_operator_matrix` payloads:
+For `local_operator_matrix` site-term payloads:
 
 - `payload.matrix` must be a square matrix acting on the retained local Hilbert space
 - matrix shape must match `local_hilbert.dimension` when that dimension is already fixed
 
-`support` must be provided for `operator` and `matrix` payloads and must be an iterable of integers, not a string-like value.
+`support` must be provided for `operator` and `matrix` payloads and must be an
+iterable of integers, not a string-like value. For attached bond or
+higher-body terms, the support must match the tuple that the
+`lattice_structure` attachment refers to.
 
 For `many_body_hr` payloads:
 
 - `structure_file` must point to a crystal-structure file such as `POSCAR`
 - `hamiltonian_file` must point to a Wannier-style `hr.dat` file
-- normalization should treat this as a legacy adapter route into
+- normalization should treat this as a legacy compatibility adapter route into
   `model_family = cpn_pair_model`,
   not as the conceptual model family itself
 - runnable classical entrypoints must resolve an explicit
@@ -105,9 +135,9 @@ For `many_body_hr` payloads:
   route or select it explicitly instead of relying on dimension-based inference
 - current `many_body_hr` pseudospin payload builders land
   `classical_family = cpn`
-  explicitly; callers should treat this as the route-defining classical-manifold contract rather
-  than inferring the route indirectly from
-  `input_mode = many_body_hr`
+  explicitly; callers should treat this as legacy compatibility data for the
+  route-defining classical-manifold contract rather than inferring the route
+  indirectly from `input_mode = many_body_hr`
 - normalized metadata may also expose
   `adapter_family = many_body_hr`
   and
