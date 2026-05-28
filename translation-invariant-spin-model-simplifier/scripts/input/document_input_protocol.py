@@ -11,6 +11,7 @@ from .verify_agent_normalized_document import verify_agent_normalized_document
 from .unsupported_feature_catalog import unsupported_feature_details
 from common.bond_orbits import canonicalize_directed_bond, generate_noncull_directed_bond_orbit
 from common.lattice_geometry import enumerate_neighbor_shells, resolve_lattice_vectors
+from common.lattice_structure_builder import build_lattice_structure, build_symmetry_record
 
 
 AGENT_BLOCKING_UNSUPPORTED_FEATURES = frozenset(
@@ -2005,6 +2006,8 @@ def build_intermediate_record_from_agent_normalized(
         ),
         "unsupported_features": list(agent_normalized_document.get("unsupported_features", [])),
     }
+    record["lattice_structure"] = build_lattice_structure(record)
+    record["symmetry"] = build_symmetry_record(record)
     if selected_family is not None:
         record["selected_local_bond_family"] = selected_family
     return record
@@ -2044,7 +2047,7 @@ def build_intermediate_record(
         hamiltonian_model = _extract_hamiltonian_model(sections, candidates, selected_name, parameter_registry)
     lattice_model = _extract_lattice_model(source_text, sections, hamiltonian_model)
 
-    return {
+    record = {
         "source_document": {
             "source_kind": kind["source_kind"],
             "source_path": source_path,
@@ -2071,6 +2074,9 @@ def build_intermediate_record(
         "confidence_report": {},
         "unsupported_features": unsupported_features,
     }
+    record["lattice_structure"] = build_lattice_structure(record)
+    record["symmetry"] = build_symmetry_record(record)
+    return record
 
 
 def _agent_fallback_proposal(record: dict) -> dict:

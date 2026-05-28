@@ -15,6 +15,28 @@ from input.document_input_protocol import (
 
 
 class DocumentInputProtocolTests(unittest.TestCase):
+    def test_intermediate_record_exposes_canonical_lattice_structure_and_symmetry(self):
+        source_text = r"""
+        \section*{Effective Hamiltonian}
+        The bond label H_{ij}^{(1)} is used below.
+        \begin{equation}
+        H_{ij}^{(1)} = J_1 * Sx@0 Sx@1 + J_1 * Sy@0 Sy@1 + J_1 * Sz@0 Sz@1
+        \end{equation}
+        """
+
+        record = build_intermediate_record(source_text=source_text)
+
+        self.assertIn("lattice_structure", record)
+        self.assertIn("symmetry", record)
+        self.assertIn("bond_orbits", record["lattice_structure"])
+        self.assertIn("source_labels", record["lattice_structure"])
+        self.assertIn("operations", record["symmetry"])
+        self.assertIn("spin_space_rotations", record["symmetry"])
+        self.assertIn("local_frame_actions", record["symmetry"])
+        self.assertIn("unresolved", record["symmetry"])
+        self.assertIn("lattice_model", record)
+        self.assertIn("hamiltonian_model", record)
+
     def test_source_text_lands_through_bond_terms_and_explicit_bond_graph(self):
         source_text = r"""
         \section*{Effective Hamiltonian}
@@ -99,6 +121,21 @@ class DocumentInputProtocolTests(unittest.TestCase):
 
         self.assertIn("local_bond_candidates", record["hamiltonian_model"])
         self.assertNotIn("bond_terms", record["hamiltonian_model"])
+
+    def test_document_labels_remain_in_source_labels_not_structural_keys(self):
+        source_text = r"""
+        \section*{Effective Hamiltonian}
+        \begin{equation}
+        H_{ij}^{(1)} = J_1 * Sx@0 Sx@1
+        \end{equation}
+        """
+
+        record = build_intermediate_record(source_text=source_text)
+        lattice_structure = record["lattice_structure"]
+
+        self.assertIn("source_labels", lattice_structure)
+        self.assertNotIn("family", lattice_structure)
+        self.assertNotIn("1", lattice_structure)
 
 
 if __name__ == "__main__":
