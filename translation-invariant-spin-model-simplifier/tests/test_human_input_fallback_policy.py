@@ -29,7 +29,7 @@ class HumanInputFallbackPolicyTests(unittest.TestCase):
     def test_freeform_operator_like_human_input_triggers_agent_fallback(self):
         result = normalize_freeform_text(
             "H = J1*(Sz@0 Sz@1 + 0.5*(Sp@0 Sm@1 + Sm@0 Sp@1)) + hx*Sz@0",
-            selected_classical_family="spin-only",
+            selected_classical_bond_label="spin-only",
         )
 
         self.assertEqual(result.get("interaction", {}).get("id"), "agent_fallback_review")
@@ -41,7 +41,7 @@ class HumanInputFallbackPolicyTests(unittest.TestCase):
                 "representation": "operator",
                 "support": [0, 1],
                 "expression": "J1*Sz@0 Sz@1",
-                "classical_family": "spin-only",
+                "classical_bond_label": "spin-only",
                 "source_mode": "operator",
             }
         )

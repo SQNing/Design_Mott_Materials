@@ -29,12 +29,12 @@ class NaturalLanguageAgentFallbackTests(unittest.TestCase):
         ):
             self.assertIn(needle, example_text)
 
-    def test_priority_corrections_prefer_attachment_language_over_family_language(self):
+    def test_priority_corrections_prefer_attachment_language_over_bond_label_language(self):
         corrections = _priority_corrections_from_findings(
             [
                 {
-                    "id": "selected_local_bond_family_missing_in_matrix_form",
-                    "selected_local_bond_family": "1",
+                    "id": "selected_bond_orbit_missing_in_matrix_form",
+                    "selected_bond_orbit_ref": "bond_orbit:1",
                 }
             ]
         )
@@ -42,36 +42,38 @@ class NaturalLanguageAgentFallbackTests(unittest.TestCase):
         joined = " ".join(corrections).lower()
 
         self.assertIn("attachment", joined)
-        self.assertNotIn("family", joined)
+        self.assertNotIn("bond_label", joined)
 
-    def test_verifier_reports_attachment_mismatch_without_family_only_language(self):
+    def test_verifier_reports_attachment_mismatch_without_bond_label_only_language(self):
         report = verify_agent_normalized_document(
             {
                 "candidate_models": {
                     "effective": {
-                        "local_bond_candidates": [
-                            {"family": "1", "expression": "J1*Sz@0 Sz@1", "evidence_refs": ["eq1"]}
+                        "bond_terms": [
+                            {"orbit_ref": "bond_orbit:1", "expression": "J1*Sz@0 Sz@1", "evidence_refs": ["eq1"]}
                         ]
                     },
                     "matrix_form": {
-                        "local_bond_candidates": [
-                            {"family": "2", "expression": "J2*Sz@0 Sz@1", "evidence_refs": ["eq2"]}
+                        "bond_terms": [
+                            {"orbit_ref": "bond_orbit:2", "expression": "J2*Sz@0 Sz@1", "evidence_refs": ["eq2"]}
                         ]
                     },
                 }
             },
-            selected_local_bond_family="1",
+            selected_bond_orbit_ref="bond_orbit:1",
         )
 
-        family_mismatch_messages = [
+        mismatch_messages = [
             finding["message"]
             for finding in report["findings"]
-            if finding.get("id") == "selected_local_bond_family_missing_in_matrix_form"
+            if finding.get("id") == "selected_bond_orbit_missing_in_matrix_form"
         ]
 
-        self.assertTrue(family_mismatch_messages)
-        self.assertTrue(any("attachment" in message.lower() for message in family_mismatch_messages))
-        self.assertTrue(all("family" not in message.lower() for message in family_mismatch_messages))
+        finding_ids = [finding.get("id", "") for finding in report["findings"]]
+        self.assertTrue(mismatch_messages)
+        self.assertTrue(any("attachment" in message.lower() for message in mismatch_messages))
+        self.assertTrue(all("bond_label" not in message.lower() for message in mismatch_messages))
+        self.assertTrue(all("bond_label" not in finding_id.lower() for finding_id in finding_ids))
 
 
 if __name__ == "__main__":
