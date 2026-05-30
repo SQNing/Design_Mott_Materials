@@ -32,7 +32,7 @@ class SkillSurfaceDocsTests(unittest.TestCase):
             "Input Classes",
             "Routing By Input Class",
             "Agent-Assisted Landing",
-            "Classical Family Resolution",
+            "Classical Bond Label Resolution",
             "Backend And Solver Routing",
             "Current Semantic Conventions",
             "Recommended Entrypoints",

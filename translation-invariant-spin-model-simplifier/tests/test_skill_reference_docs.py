@@ -51,7 +51,7 @@ class SkillReferenceDocsTests(unittest.TestCase):
 
         self.assertEqual(listed, EXPECTED_REFERENCE_FILES - {"README.md"})
 
-    def test_primary_reference_contract_centers_lattice_structure_and_legacy_family(self):
+    def test_primary_reference_contract_centers_lattice_structure_and_legacy_bond_label(self):
         input_schema = (REFERENCE_DIR / "input-schema.md").read_text(encoding="utf-8")
         term_attachment = (
             REFERENCE_DIR / "lattice-structure-and-term-attachment.md"
