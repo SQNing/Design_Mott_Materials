@@ -40,29 +40,29 @@ def _canonical_label(label):
 
 def _multipole_metadata(operator):
     if operator in {"Sx", "Sy", "Sz"}:
-        return {"rank": 1, "family": "dipole"}
+        return {"rank": 1, "kind": "dipole"}
     match = re.fullmatch(r"T(?P<rank>\d+)_[A-Za-z0-9_]+", operator)
     if not match:
         return None
     rank = int(match.group("rank"))
     if rank == 0:
-        family = "identity"
+        kind = "identity"
     elif rank == 1:
-        family = "dipole"
+        kind = "dipole"
     elif rank == 2:
-        family = "quadrupole"
+        kind = "quadrupole"
     else:
-        family = "higher_multipole"
-    return {"rank": rank, "family": family}
+        kind = "higher_multipole"
+    return {"rank": rank, "kind": kind}
 
 
 def _label_multipole_metadata(canonical_label):
     if canonical_label == "identity":
         return {
             "multipole_ranks": [0],
-            "multipole_families": ["identity"],
+            "multipole_kinds": ["identity"],
             "multipole_rank": 0,
-            "multipole_family": "identity",
+            "multipole_kind": "identity",
         }
     factors = _parse_label_factors(canonical_label)
     metadata = [_multipole_metadata(operator) for _site, operator in factors]
@@ -71,17 +71,17 @@ def _label_multipole_metadata(canonical_label):
         return {}
 
     ranks = sorted({entry["rank"] for entry in metadata})
-    families = sorted({entry["family"] for entry in metadata})
+    kinds = sorted({entry["kind"] for entry in metadata})
     result = {
         "multipole_ranks": ranks,
-        "multipole_families": families,
+        "multipole_kinds": kinds,
     }
     if len(ranks) == 1:
         result["multipole_rank"] = ranks[0]
-    if len(families) == 1:
-        result["multipole_family"] = families[0]
+    if len(kinds) == 1:
+        result["multipole_kind"] = kinds[0]
     else:
-        result["multipole_family"] = "mixed"
+        result["multipole_kind"] = "mixed"
     return result
 
 
@@ -106,10 +106,10 @@ def canonicalize_terms(model):
 
     for term in _decomposition_terms(model):
         canonical_label = _canonical_label(term["label"])
-        family = term.get("family")
-        merge_key = (family, canonical_label)
+        block_kind = term.get("block_kind") or term.get("bond_label")
+        merge_key = (block_kind, canonical_label)
         merged[merge_key] += term["coefficient"]
-        metadata = {"family": family}
+        metadata = {"block_kind": block_kind}
         if isinstance(model.get("decomposition"), dict):
             source_backbone = model["decomposition"].get("source_backbone")
             if source_backbone is not None:
@@ -121,10 +121,10 @@ def canonicalize_terms(model):
 
     grouped_terms = defaultdict(list)
     for merge_key, coefficient in merged.items():
-        family, canonical_label = merge_key
+        block_kind, canonical_label = merge_key
         support = sorted({site for site, _operator in _parse_label_factors(canonical_label)})
         body_order = len(support)
-        family_key = BODY_ORDER_KEYS.get(body_order, "higher_body")
+        body_kind = BODY_ORDER_KEYS.get(body_order, "higher_body")
         entry = {
             "canonical_label": canonical_label,
             "coefficient": coefficient,
@@ -137,13 +137,13 @@ def canonicalize_terms(model):
         for key, value in term_metadata[merge_key].items():
             if value is not None:
                 entry[key] = value
-        grouped_terms[family_key].append(entry)
+        grouped_terms[body_kind].append(entry)
 
-    for family_key, terms in grouped_terms.items():
+    for body_kind, terms in grouped_terms.items():
         max_weight = max((term["absolute_weight"] for term in terms), default=0.0)
         for term in sorted(terms, key=lambda item: (-item["absolute_weight"], item["canonical_label"])):
             term["relative_weight"] = 0.0 if max_weight == 0 else term["absolute_weight"] / max_weight
-            grouped[family_key].append(term)
+            grouped[body_kind].append(term)
 
     return grouped
 

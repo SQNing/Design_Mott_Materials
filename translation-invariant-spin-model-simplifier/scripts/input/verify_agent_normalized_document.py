@@ -24,6 +24,9 @@ def _candidate_models_have_evidence(candidate_models):
     for _, model in candidate_models.items():
         if list(model.get("evidence_refs") or []):
             return True
+        for entry in list(model.get("bond_terms") or []):
+            if isinstance(entry, dict) and list(entry.get("evidence_refs") or []):
+                return True
         for entry in list(model.get("local_bond_candidates") or []):
             if isinstance(entry, dict) and list(entry.get("evidence_refs") or []):
                 return True
@@ -194,49 +197,70 @@ def _has_gamma_phase_marker(expression):
     return re.search(r"(?:\\gamma|gamma)_\{ij\}", str(expression or "")) is not None
 
 
+def _attachment_ref(entry):
+    if not isinstance(entry, dict):
+        return None
+    attach_to = entry.get("attach_to") if isinstance(entry.get("attach_to"), dict) else {}
+    value = (
+        attach_to.get("orbit_ref")
+        or entry.get("orbit_ref")
+        or entry.get("bond_orbit_ref")
+        or entry.get("source_label")
+        or entry.get("bond_label")
+    )
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _candidate_attachment_entries(model):
+    entries = []
+    for collection_name in ("bond_terms", "local_bond_candidates", "matrix_form_candidates"):
+        for entry in list((model or {}).get(collection_name) or []):
+            if isinstance(entry, dict):
+                entries.append(entry)
+    return entries
+
+
 def _candidate_model_consistency_findings(candidate_models):
     findings = []
     effective = candidate_models.get("effective", {}) if isinstance(candidate_models, dict) else {}
     matrix_form = candidate_models.get("matrix_form", {}) if isinstance(candidate_models, dict) else {}
-    effective_families = {
-        str(entry.get("family"))
-        for entry in list(effective.get("local_bond_candidates") or [])
-        if isinstance(entry, dict) and entry.get("family") is not None
+    effective_attachment_refs = {
+        ref for ref in (_attachment_ref(entry) for entry in _candidate_attachment_entries(effective)) if ref
     }
-    matrix_families = {
-        str(entry.get("family"))
-        for entry in list(matrix_form.get("local_bond_candidates") or [])
-        if isinstance(entry, dict) and entry.get("family") is not None
+    matrix_attachment_refs = {
+        ref for ref in (_attachment_ref(entry) for entry in _candidate_attachment_entries(matrix_form)) if ref
     }
 
-    missing_families = sorted(family for family in effective_families if family not in matrix_families)
-    for family in missing_families:
+    missing_refs = sorted(ref for ref in effective_attachment_refs if ref not in matrix_attachment_refs)
+    for attachment_ref in missing_refs:
         findings.append(
             {
-                "id": "candidate_models_family_missing_in_matrix_form",
+                "id": "candidate_model_attachment_missing_in_matrix_form",
                 "severity": "warning",
-                "family": family,
+                "bond_orbit_ref": attachment_ref,
                 "message": (
-                    f"Effective candidate contains a bond attachment for support {family}, but matrix_form does not provide a matching attachment."
+                    f"Effective candidate contains bond attachment {attachment_ref}, but matrix_form does not provide a matching attachment."
                 ),
             }
         )
 
-    for entry in list(effective.get("local_bond_candidates") or []):
+    for entry in _candidate_attachment_entries(effective):
         if not isinstance(entry, dict):
             continue
-        family = entry.get("family")
-        if family is None:
+        attachment_ref = _attachment_ref(entry)
+        if attachment_ref is None:
             continue
-        family = str(family)
-        if _has_gamma_phase_marker(entry.get("expression")) and family not in matrix_families:
+        if _has_gamma_phase_marker(entry.get("expression")) and attachment_ref not in matrix_attachment_refs:
             findings.append(
             {
-                "id": "candidate_models_gamma_family_missing_matrix_support",
+                "id": "candidate_gamma_attachment_missing_matrix_support",
                 "severity": "warning",
-                "family": family,
+                "bond_orbit_ref": attachment_ref,
                 "message": (
-                    f"Effective candidate attachment support {family} uses gamma/bond-phase structure, "
+                    f"Effective candidate attachment {attachment_ref} uses gamma/bond-phase structure, "
                     "but matrix_form does not provide matching support for matrix fallback."
                 ),
             }
@@ -244,47 +268,43 @@ def _candidate_model_consistency_findings(candidate_models):
     return findings
 
 
-def _selected_local_bond_family_findings(candidate_models, selected_local_bond_family):
+def _selected_bond_orbit_findings(candidate_models, selected_bond_orbit_ref):
     findings = []
-    selected_family = str(selected_local_bond_family or "").strip()
-    if not selected_family or not isinstance(candidate_models, dict):
+    selected_ref = str(selected_bond_orbit_ref or "").strip()
+    if not selected_ref or not isinstance(candidate_models, dict):
         return findings
-    if selected_family == "all":
+    if selected_ref == "all":
         return findings
 
     effective = candidate_models.get("effective", {})
     matrix_form = candidate_models.get("matrix_form", {})
-    effective_families = {
-        str(entry.get("family"))
-        for entry in list(effective.get("local_bond_candidates") or [])
-        if isinstance(entry, dict) and entry.get("family") is not None
+    effective_attachment_refs = {
+        ref for ref in (_attachment_ref(entry) for entry in _candidate_attachment_entries(effective)) if ref
     }
-    matrix_families = {
-        str(entry.get("family"))
-        for entry in list(matrix_form.get("local_bond_candidates") or [])
-        if isinstance(entry, dict) and entry.get("family") is not None
+    matrix_attachment_refs = {
+        ref for ref in (_attachment_ref(entry) for entry in _candidate_attachment_entries(matrix_form)) if ref
     }
 
-    if effective_families and selected_family not in effective_families:
+    if effective_attachment_refs and selected_ref not in effective_attachment_refs:
         findings.append(
             {
-                "id": "selected_local_bond_family_missing_in_effective_candidate",
+                "id": "selected_bond_orbit_missing_in_effective_candidate",
                 "severity": "warning",
-                "selected_local_bond_family": selected_family,
+                "selected_bond_orbit_ref": selected_ref,
                 "message": (
-                    f"Selected bond attachment {selected_family} is not present in the effective candidate."
+                    f"Selected bond attachment {selected_ref} is not present in the effective candidate."
                 ),
             }
         )
 
-    if matrix_families and selected_family not in matrix_families:
+    if matrix_attachment_refs and selected_ref not in matrix_attachment_refs:
         findings.append(
             {
-                "id": "selected_local_bond_family_missing_in_matrix_form",
+                "id": "selected_bond_orbit_missing_in_matrix_form",
                 "severity": "warning",
-                "selected_local_bond_family": selected_family,
+                "selected_bond_orbit_ref": selected_ref,
                 "message": (
-                    f"Selected bond attachment {selected_family} is not present in matrix_form."
+                    f"Selected bond attachment {selected_ref} is not present in matrix_form."
                 ),
             }
         )
@@ -328,23 +348,23 @@ def _candidate_model_entry_missing_evidence_findings(candidate_models):
                     "message": f"Candidate model {candidate_name} is missing explicit evidence_refs.",
                 }
             )
-        for collection_name in ("local_bond_candidates", "matrix_form_candidates"):
+        for collection_name in ("bond_terms", "local_bond_candidates", "matrix_form_candidates"):
             for entry in list(model.get(collection_name) or []):
                 if not isinstance(entry, dict):
                     continue
                 if list(entry.get("evidence_refs") or []):
                     continue
+                attachment_ref = _attachment_ref(entry)
                 finding = {
                     "id": "candidate_model_entry_missing_evidence",
                     "severity": "warning",
                     "candidate_model": candidate_name,
                     "message": f"Candidate model {candidate_name} has an entry without explicit evidence_refs.",
                 }
-                family = entry.get("family")
-                if family is not None:
-                    finding["family"] = str(family)
+                if attachment_ref is not None:
+                    finding["bond_orbit_ref"] = attachment_ref
                     finding["message"] = (
-                        f"Candidate model {candidate_name} family {family} is missing explicit evidence_refs."
+                        f"Candidate model {candidate_name} attachment {attachment_ref} is missing explicit evidence_refs."
                     )
                 findings.append(finding)
     return findings
@@ -374,7 +394,8 @@ def verify_agent_normalized_document(
     agent_normalized_document,
     *,
     selected_model_candidate=None,
-    selected_local_bond_family=None,
+    selected_bond_orbit_ref=None,
+    selected_local_bond_bond_label=None,
 ):
     document = agent_normalized_document or {}
     evidence_items = _copy_sequence_of_mappings(document.get("evidence_items"))
@@ -389,9 +410,9 @@ def verify_agent_normalized_document(
     findings.extend(_parameter_selected_value_conflict_findings(parameter_registry))
     findings.extend(_candidate_model_consistency_findings(candidate_models))
     findings.extend(
-        _selected_local_bond_family_findings(
+        _selected_bond_orbit_findings(
             candidate_models,
-            selected_local_bond_family,
+            selected_bond_orbit_ref or selected_local_bond_bond_label,
         )
     )
     findings.extend(_parameter_missing_evidence_findings(parameter_registry))

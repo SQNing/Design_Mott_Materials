@@ -98,7 +98,7 @@ def _derive_physical_parameter_view(block):
 
 def _shell_entry(block):
     entry = {
-        "family": block.get("family"),
+        "block_kind": block.get("block_kind") or block.get("bond_label"),
         "type": block.get("type"),
     }
     if block.get("type") == "xxz_exchange":
@@ -135,7 +135,7 @@ def _shell_entry(block):
         "resolved_longitudinal_axis",
         "resolved_matrix_axes",
         "resolved_matrix",
-        "multipole_family",
+        "multipole_class",
         "multipole_rank",
         "term_count",
         "dominant_component",
@@ -182,7 +182,7 @@ def _append_secondary_views(target, candidate_views, seen_view_kinds):
         seen_view_kinds.add(view_kind)
 
 
-def _merge_shell_family_entries(entries):
+def _merge_shell_block_kind_entries(entries):
     ordered_entries = list(entries)
     ordered_entries.sort(key=_shell_entry_priority)
     primary = dict(ordered_entries[0])
@@ -209,19 +209,19 @@ def _merge_shell_family_entries(entries):
 
 
 def _shell_resolved_exchange_block(blocks):
-    family_entries = defaultdict(list)
+    block_kind_entries = defaultdict(list)
     for block in blocks:
-        family = block.get("family")
-        if family is None:
+        block_kind = block.get("block_kind") or block.get("bond_label")
+        if block_kind is None:
             continue
         entry = _shell_entry(block)
         if entry is not None:
-            family_entries[family].append(entry)
+            block_kind_entries[block_kind].append(entry)
 
-    shell_entries = [_merge_shell_family_entries(entries) for entries in family_entries.values()]
+    shell_entries = [_merge_shell_block_kind_entries(entries) for entries in block_kind_entries.values()]
     if len(shell_entries) < 2:
         return None
-    shell_entries.sort(key=lambda item: _shell_sort_key(item["family"], item.get("shell_index")))
+    shell_entries.sort(key=lambda item: _shell_sort_key(item["block_kind"], item.get("shell_index")))
     return {
         "type": "shell_resolved_exchange",
         "shells": shell_entries,
@@ -232,17 +232,17 @@ def _shell_resolved_exchange_block(blocks):
 def _summarize_terms_by_multipole(terms):
     grouped = defaultdict(list)
     for term in terms:
-        family = term.get("multipole_family") or term.get("family") or "unspecified"
+        block_kind = term.get("multipole_kind") or term.get("block_kind") or term.get("bond_label") or "unspecified"
         rank = term.get("multipole_rank")
         body_order = term.get("body_order")
-        grouped[(family, rank, body_order)].append(term)
+        grouped[(block_kind, rank, body_order)].append(term)
 
     summary = []
-    for (family, rank, body_order), grouped_terms in grouped.items():
+    for (block_kind, rank, body_order), grouped_terms in grouped.items():
         max_abs = max(abs(term.get("coefficient", 0.0)) for term in grouped_terms)
         summary.append(
             {
-                "multipole_family": family,
+                "multipole_kind": block_kind,
                 "multipole_rank": rank,
                 "body_order": body_order,
                 "term_count": len(grouped_terms),
@@ -255,7 +255,7 @@ def _summarize_terms_by_multipole(terms):
             -entry.get("max_abs_coefficient", 0.0),
             -(entry.get("body_order") or 0),
             -(entry.get("multipole_rank") or 0),
-            str(entry.get("multipole_family") or ""),
+            str(entry.get("multipole_kind") or ""),
         )
     )
     return summary

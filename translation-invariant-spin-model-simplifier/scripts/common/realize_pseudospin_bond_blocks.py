@@ -16,30 +16,30 @@ def _expanded_structure_types(structure):
     return expanded
 
 
-def _resolve_family_representative_map(parsed_payload):
+def _resolve_bond_orbit_representative_map(parsed_payload):
     for container in (
         parsed_payload,
         parsed_payload.get("structure", {}),
         parsed_payload.get("lattice", {}),
     ):
         if isinstance(container, dict):
-            mapping = container.get("family_representative_map")
+            mapping = container.get("bond_orbit_representative_map")
             if isinstance(mapping, dict) and mapping:
                 return mapping
     return {}
 
 
-def _resolve_selected_family(parsed_payload):
-    family = str(parsed_payload.get("selected_local_bond_family") or "").strip()
-    return family or None
+def _resolve_selected_bond_label(parsed_payload):
+    bond_label = str(parsed_payload.get("selected_local_bond_bond_label") or "").strip()
+    return bond_label or None
 
 
-def _resolve_block_family(block, *, selected_family, single_block_mode):
-    family = str(block.get("family") or "").strip()
-    if family:
-        return family
-    if single_block_mode and selected_family:
-        return selected_family
+def _resolve_block_bond_label(block, *, selected_bond_label, single_block_mode):
+    bond_label = str(block.get("bond_label") or "").strip()
+    if bond_label:
+        return bond_label
+    if single_block_mode and selected_bond_label:
+        return selected_bond_label
     return None
 
 
@@ -89,7 +89,7 @@ def _canonical_bond_terms_to_blocks(bond_terms):
             "matrix_shape": list(term["matrix_shape"]),
             "pair_matrix": term["pair_matrix"],
         }
-        for optional_key in ("family", "orbit", "orbit_members", "diagnostics", "provenance", "entry_refs"):
+        for optional_key in ("bond_label", "orbit", "orbit_members", "diagnostics", "provenance", "entry_refs"):
             if optional_key in term:
                 block[optional_key] = term[optional_key]
         blocks.append(block)
@@ -99,24 +99,24 @@ def _canonical_bond_terms_to_blocks(bond_terms):
 def realize_pseudospin_bond_blocks(parsed_payload, bond_blocks=None):
     if bond_blocks is None:
         source_blocks = list(parsed_payload.get("bond_blocks", []))
-        if not source_blocks and parsed_payload.get("model_family") == "cpn_pair_model":
+        if not source_blocks and parsed_payload.get("model_bond_label") == "cpn_pair_model":
             source_blocks = _canonical_bond_terms_to_blocks(parsed_payload.get("bond_terms", []))
     else:
         source_blocks = list(bond_blocks)
     if any(block.get("orbit_members") for block in source_blocks):
         return _expand_canonical_orbit_blocks(source_blocks)
 
-    family_representative_map = _resolve_family_representative_map(parsed_payload)
-    if not family_representative_map:
+    bond_orbit_representative_map = _resolve_bond_orbit_representative_map(parsed_payload)
+    if not bond_orbit_representative_map:
         return source_blocks
 
-    selected_family = _resolve_selected_family(parsed_payload)
+    selected_bond_label = _resolve_selected_bond_label(parsed_payload)
     single_block_mode = len(source_blocks) == 1
-    family_counts = {}
+    bond_label_counts = {}
     for block in source_blocks:
-        family = _resolve_block_family(block, selected_family=selected_family, single_block_mode=single_block_mode)
-        if family is not None:
-            family_counts[family] = family_counts.get(family, 0) + 1
+        bond_label = _resolve_block_bond_label(block, selected_bond_label=selected_bond_label, single_block_mode=single_block_mode)
+        if bond_label is not None:
+            bond_label_counts[bond_label] = bond_label_counts.get(bond_label, 0) + 1
 
     structure = parsed_payload.get("structure", {})
     orbit_lattice = {
@@ -128,9 +128,9 @@ def realize_pseudospin_bond_blocks(parsed_payload, bond_blocks=None):
 
     realized_blocks = []
     for block in source_blocks:
-        family = _resolve_block_family(block, selected_family=selected_family, single_block_mode=single_block_mode)
-        representative = family_representative_map.get(family) if family is not None else None
-        if not isinstance(representative, dict) or family_counts.get(family, 0) != 1:
+        bond_label = _resolve_block_bond_label(block, selected_bond_label=selected_bond_label, single_block_mode=single_block_mode)
+        representative = bond_orbit_representative_map.get(bond_label) if bond_label is not None else None
+        if not isinstance(representative, dict) or bond_label_counts.get(bond_label, 0) != 1:
             realized_blocks.append(block)
             continue
 
@@ -140,6 +140,6 @@ def realize_pseudospin_bond_blocks(parsed_payload, bond_blocks=None):
             realized_block["R"] = list(member["translation"])
             realized_block["source"] = int(member["source"])
             realized_block["target"] = int(member["target"])
-            realized_block.setdefault("family", family)
+            realized_block.setdefault("bond_label", bond_label)
             realized_blocks.append(realized_block)
     return realized_blocks

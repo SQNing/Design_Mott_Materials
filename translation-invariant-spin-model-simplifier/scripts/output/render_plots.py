@@ -871,14 +871,14 @@ def _classical_summary_lines(payload, classical_state):
     classical_state_result = get_classical_state_result(payload) or {}
     chosen_method = _resolved_classical_method(payload, default="unknown")
     role = classical_state_result.get("role")
-    solver_family = classical_state_result.get("solver_family")
+    solver_bond_label = classical_state_result.get("solver_bond_label")
     render_mode = classical_state.get("render_mode", "structure")
     spatial_dimension = classical_state.get("spatial_dimension", "n/a")
     summary_fields = [f"method={chosen_method}"]
     if role is not None:
         summary_fields.append(f"role={role}")
-    if solver_family is not None:
-        summary_fields.append(f"solver_family={solver_family}")
+    if solver_bond_label is not None:
+        summary_fields.append(f"solver_bond_label={solver_bond_label}")
     downstream_compatibility = classical_state_result.get("downstream_compatibility", {})
     if isinstance(downstream_compatibility, dict) and downstream_compatibility:
         summary_fields.append(f"lswt={downstream_compatibility.get('lswt', {}).get('status', 'n/a')}")

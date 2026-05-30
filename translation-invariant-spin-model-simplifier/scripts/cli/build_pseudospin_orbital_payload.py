@@ -229,7 +229,7 @@ def _canonical_bond_terms_from_blocks(bond_blocks):
             "matrix_shape": list(block["matrix_shape"]),
             "pair_matrix": block["pair_matrix"],
         }
-        for optional_key in ("family", "orbit", "orbit_members", "diagnostics", "entry_refs", "coefficients"):
+        for optional_key in ("bond_label", "orbit", "orbit_members", "diagnostics", "entry_refs", "coefficients"):
             if optional_key in block:
                 term[optional_key] = block[optional_key]
         bond_terms.append(term)
@@ -332,9 +332,9 @@ def build_pseudospin_orbital_payload(
 
     payload = {
         "schema_version": 2,
-        "model_family": "cpn_pair_model",
+        "model_bond_label": "cpn_pair_model",
         "input_mode": "many_body_hr",
-        "classical_family": "cpn",
+        "classical_bond_label": "cpn",
         "local_dimension": int(local_space_spec["local_dimension"]),
         "identity_level": str(identity_level),
         "pair_identity_status": str(pair_identity_status),

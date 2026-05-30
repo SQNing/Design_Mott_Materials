@@ -77,6 +77,16 @@ function build_crystal(payload)
     return Sunny.Crystal(latvecs, positions, 1; types=types)
 end
 
+function build_q_path_crystal(payload)
+    if haskey(payload, :q_path_reference_lattice_vectors) && !isempty(payload.q_path_reference_lattice_vectors)
+        latvecs = to_float_matrix(payload.q_path_reference_lattice_vectors)
+        positions = [to_float_vector(position) for position in payload.positions]
+        types = ["site$(index)" for index in 1:length(positions)]
+        return Sunny.Crystal(latvecs, positions, 1; types=types)
+    end
+    return build_crystal(payload)
+end
+
 function build_system(payload)
     positions = haskey(payload, :positions) ? payload.positions : []
     if isempty(positions)
@@ -142,7 +152,7 @@ function select_q_points(payload)
     if haskey(payload, :q_path_sampling_count)
         sample_count = Int(payload.q_path_sampling_count)
         if sample_count > length(q_points) && length(q_points) >= 2
-            path = Sunny.q_space_path(build_crystal(payload), q_points, sample_count)
+            path = Sunny.q_space_path(build_q_path_crystal(payload), q_points, sample_count)
             return collect(getproperty(path, :qs))
         end
     end
@@ -185,9 +195,13 @@ end
 
 function build_spin_wave_theory(sys)
     try
-        return Sunny.SpinWaveTheory(sys; measure=nothing)
+        return Sunny.SpinWaveTheory(sys; measure=nothing, regularization=regularization)
     catch
-        return Sunny.SpinWaveTheory(sys)
+        try
+            return Sunny.SpinWaveTheory(sys; regularization=regularization)
+        catch
+            return Sunny.SpinWaveTheory(sys)
+        end
     end
 end
 
@@ -202,6 +216,8 @@ catch exc
     emit_payload(error_payload("invalid-input-json", sprint(showerror, exc)))
     exit(0)
 end
+
+regularization = haskey(payload, :regularization) ? Float64(payload.regularization) : 1.0e-8
 
 if !haskey(payload, :pair_couplings) || isempty(payload.pair_couplings)
     emit_payload(error_payload("invalid-gswt-payload", "SUN-GSWT payload must include pair couplings"))

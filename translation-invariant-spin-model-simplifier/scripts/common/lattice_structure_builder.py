@@ -98,11 +98,11 @@ def _symmetry_operations(lattice):
     return operations, list(basis_positions)
 
 
-def _representative_from_legacy_maps(lattice_model, family):
-    representative_map = lattice_model.get("family_representative_map")
+def _representative_from_legacy_maps(lattice_model, bond_label):
+    representative_map = lattice_model.get("bond_orbit_representative_map")
     if not isinstance(representative_map, dict):
         return None
-    metadata = representative_map.get(family)
+    metadata = representative_map.get(bond_label)
     if not isinstance(metadata, dict):
         return None
     source = metadata.get("source")
@@ -195,23 +195,23 @@ def build_bond_orbit_from_representative(
 
 def _bond_orbits_from_legacy_maps(source_model):
     lattice_model = _copy_dict(source_model.get("lattice_model"))
-    family_shell_map = _copy_dict(lattice_model.get("family_shell_map"))
-    family_representative_map = _copy_dict(lattice_model.get("family_representative_map"))
-    if not family_shell_map or not family_representative_map:
+    bond_orbit_shell_map = _copy_dict(lattice_model.get("bond_orbit_shell_map"))
+    bond_orbit_representative_map = _copy_dict(lattice_model.get("bond_orbit_representative_map"))
+    if not bond_orbit_shell_map or not bond_orbit_representative_map:
         return []
 
     grouped = []
-    for family, shell_metadata in sorted(family_shell_map.items()):
-        representative = _representative_from_legacy_maps(lattice_model, family)
+    for bond_label, shell_metadata in sorted(bond_orbit_shell_map.items()):
+        representative = _representative_from_legacy_maps(lattice_model, bond_label)
         if representative is None:
             continue
         grouped.append(
             build_bond_orbit_from_representative(
                 source_model,
-                source_labels=[family],
+                source_labels=[bond_label],
                 representative=representative,
                 shell=shell_metadata.get("shell_index"),
-                selection_aliases=[family],
+                selection_aliases=[bond_label],
             )
         )
     return grouped
@@ -220,7 +220,7 @@ def _bond_orbits_from_legacy_maps(source_model):
 def _extract_source_labels(source_model):
     source_labels = []
     lattice_model = _copy_dict(source_model.get("lattice_model"))
-    for mapping_name in ("family_shell_map", "family_representative_map"):
+    for mapping_name in ("bond_orbit_shell_map", "bond_orbit_representative_map"):
         mapping = lattice_model.get(mapping_name)
         if isinstance(mapping, dict):
             for label in mapping:
@@ -228,9 +228,9 @@ def _extract_source_labels(source_model):
                     source_labels.append(str(label))
     hamiltonian_model = _copy_dict(source_model.get("hamiltonian_model"))
     for entry in list(hamiltonian_model.get("local_bond_candidates") or []):
-        family = str(entry.get("family") or "").strip()
-        if family and family not in source_labels:
-            source_labels.append(family)
+        bond_label = str(entry.get("bond_label") or "").strip()
+        if bond_label and bond_label not in source_labels:
+            source_labels.append(bond_label)
     return source_labels
 
 
@@ -327,7 +327,7 @@ def build_symmetry_record(source_model):
         spin_term_refs.append(str(entry.get("bond_ref") or entry.get("orbit_ref") or "bond-term"))
     if not spin_term_refs:
         for entry in list(hamiltonian_model.get("local_bond_candidates") or []):
-            spin_term_refs.append(str(entry.get("family") or "bond-term"))
+            spin_term_refs.append(str(entry.get("bond_label") or "bond-term"))
     if not spin_term_refs:
         spin_term_refs = ["spin-term"]
 

@@ -10,13 +10,13 @@ Current classical-stage highlights:
 - `many_body_hr` pseudospin-orbital workflows can now expose `Sunny.jl` as a classical `CP^(N-1)`-manifold minimizer through `sunny-cpn-minimize`
 - `many_body_hr` pseudospin-orbital workflows can now expose Sunny finite-temperature backends through `sunny-local-sampler`, `sunny-parallel-tempering`, and `sunny-wang-landau`
 
-The current Sunny integrations therefore split into two separate families:
+The current Sunny integrations therefore split into two separate routes:
 
 - spin-only Sunny LSWT for explicit bilinear spin Hamiltonians with spin-frame classical references
 - pseudospin-orbital Sunny `:SUN` / GSWT / thermodynamics routes for `many_body_hr` models on the local `CP^(N-1)` variational manifold
 
 For the pseudospin-orbital route, the internal target contract is now the canonical
-`cpn_pair_model` family:
+`cpn_pair_model` contract:
 
 - `N` means the retained site-local energy-level count
 - onsite terms are first-class canonical data

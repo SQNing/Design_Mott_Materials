@@ -18,7 +18,7 @@ backends. It is not a novice-first guided tutorial.
 ## Core Guarantees
 
 - If any ambiguity would materially change the physical meaning, accepted model
-  family, or executable route, stop with `interaction.status = needs_input`.
+  bond_label, or executable route, stop with `interaction.status = needs_input`.
 - Do not silently guess physically important branches.
 - Preserve the readable decomposition as
   `H_main + H_low_weight + H_residual`.

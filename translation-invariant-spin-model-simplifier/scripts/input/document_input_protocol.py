@@ -42,7 +42,7 @@ def _default_coordinate_convention() -> dict:
         "resolved_frame": None,
         "resolved_axis_labels": [],
         "rotation_matrix": None,
-        "family_overrides": {},
+        "label_to_bond_orbit_overrides": {},
         "bond_overrides": {},
         "quantization_axis": None,
         "raw_description": "",
@@ -69,7 +69,7 @@ def _selected_coordinate_convention(selection: str) -> dict:
         "resolved_frame": None,
         "resolved_axis_labels": [],
         "rotation_matrix": None,
-        "family_overrides": {},
+        "label_to_bond_orbit_overrides": {},
         "bond_overrides": {},
         "quantization_axis": None,
         "raw_description": "",
@@ -411,14 +411,14 @@ def _unique_sorted(values: list[float], tolerance: float = 1e-6) -> list[float]:
     return unique
 
 
-def _leading_family_index(label: str) -> int | None:
+def _leading_bond_label_index(label: str) -> int | None:
     match = re.match(r"(?P<index>\d+)", str(label or ""))
     if not match:
         return None
     return int(match.group("index"))
 
 
-def _family_suffix_letter(label: str) -> str:
+def _bond_label_suffix_letter(label: str) -> str:
     match = re.match(r"\d+(?P<suffix>[A-Za-z]*)'?", str(label or ""))
     return (match.group("suffix") if match else "").lower()
 
@@ -439,7 +439,7 @@ def _bond_score(source: int, target: int, translation: tuple[int, int, int]) -> 
     return float(score)
 
 
-def _infer_family_shell_map(lattice_model: dict, families: list[str]) -> dict:
+def _infer_bond_orbit_shell_map(lattice_model: dict, families: list[str]) -> dict:
     positions = list(lattice_model.get("positions") or [])
     if len(positions) != 1:
         return {}
@@ -484,21 +484,21 @@ def _infer_family_shell_map(lattice_model: dict, families: list[str]) -> dict:
             distance = _translation_distance((ta, tb, 1), lattice_vectors)
             interlayer_distances_by_order.setdefault(inplane_order, []).append(distance)
 
-    family_shell_map = {}
-    for family in sorted({str(label) for label in families if str(label).strip()}):
-        if "'" not in family:
-            order = _leading_family_index(family)
+    bond_orbit_shell_map = {}
+    for bond_label in sorted({str(label) for label in families if str(label).strip()}):
+        if "'" not in bond_label:
+            order = _leading_bond_label_index(bond_label)
             if order is None or order <= 0 or order > len(inplane_shell_distances):
                 continue
             distance = inplane_shell_distances[order - 1]
         else:
-            order = _leading_family_index(family)
+            order = _leading_bond_label_index(bond_label)
             if order is None:
                 continue
             candidates = _unique_sorted(interlayer_distances_by_order.get(order, []))
             if not candidates:
                 continue
-            suffix = _family_suffix_letter(family)
+            suffix = _bond_label_suffix_letter(bond_label)
             branch_index = max(0, ord(suffix[0]) - ord("a")) if suffix else 0
             branch_index = min(branch_index, len(candidates) - 1)
             distance = candidates[branch_index]
@@ -506,16 +506,16 @@ def _infer_family_shell_map(lattice_model: dict, families: list[str]) -> dict:
         shell_index = _distance_to_shell_index(distance, overall_shell_distances)
         if shell_index is None:
             continue
-        family_shell_map[family] = {
+        bond_orbit_shell_map[bond_label] = {
             "shell_index": shell_index,
             "distance": float(distance),
         }
-    return family_shell_map
+    return bond_orbit_shell_map
 
 
-def _infer_family_representative_map(lattice_model: dict, families: list[str], family_shell_map: dict) -> dict:
+def _infer_bond_orbit_representative_map(lattice_model: dict, families: list[str], bond_orbit_shell_map: dict) -> dict:
     positions = list(lattice_model.get("positions") or [])
-    if len(positions) != 1 or not family_shell_map:
+    if len(positions) != 1 or not bond_orbit_shell_map:
         return {}
 
     cell_parameters = lattice_model.get("cell_parameters") or {}
@@ -526,7 +526,7 @@ def _infer_family_representative_map(lattice_model: dict, families: list[str], f
     shells = enumerate_neighbor_shells(
         lattice_vectors,
         positions,
-        shell_count=max(int(metadata.get("shell_index", 0)) for metadata in family_shell_map.values()),
+        shell_count=max(int(metadata.get("shell_index", 0)) for metadata in bond_orbit_shell_map.values()),
         max_translation=3,
     )
 
@@ -576,27 +576,27 @@ def _infer_family_representative_map(lattice_model: dict, families: list[str], f
         orbit_groups_by_shell[shell_index] = orbit_groups
 
     families_by_shell = {}
-    for family in sorted({str(label) for label in families if str(label).strip()}):
-        metadata = family_shell_map.get(family)
+    for bond_label in sorted({str(label) for label in families if str(label).strip()}):
+        metadata = bond_orbit_shell_map.get(bond_label)
         if not isinstance(metadata, dict):
             continue
         shell_index = int(metadata.get("shell_index") or 0)
         if shell_index <= 0:
             continue
-        families_by_shell.setdefault(shell_index, []).append(family)
+        families_by_shell.setdefault(shell_index, []).append(bond_label)
 
     representative_map = {}
     for shell_index, shell_families in families_by_shell.items():
         orbit_groups = orbit_groups_by_shell.get(shell_index, [])
         if not orbit_groups:
             continue
-        shell_families.sort(key=lambda label: (_leading_family_index(label) or 0, _family_suffix_letter(label), str(label)))
-        for family in shell_families:
-            suffix = _family_suffix_letter(family)
+        shell_families.sort(key=lambda label: (_leading_bond_label_index(label) or 0, _bond_label_suffix_letter(label), str(label)))
+        for bond_label in shell_families:
+            suffix = _bond_label_suffix_letter(bond_label)
             branch_index = max(0, ord(suffix[0]) - ord("a")) if suffix else 0
             branch_index = min(branch_index, len(orbit_groups) - 1)
             source, target, translation = orbit_groups[branch_index]["representative"]
-            representative_map[family] = {
+            representative_map[bond_label] = {
                 "source": int(source),
                 "target": int(target),
                 "translation": list(translation),
@@ -605,28 +605,28 @@ def _infer_family_representative_map(lattice_model: dict, families: list[str], f
     return representative_map
 
 
-def _extract_family_labels_for_shell_map(source_text: str, hamiltonian_model: dict) -> list[str]:
+def _extract_bond_label_labels_for_shell_map(source_text: str, hamiltonian_model: dict) -> list[str]:
     labels = []
     for entry in list(hamiltonian_model.get("local_bond_candidates", [])) if isinstance(hamiltonian_model, dict) else []:
-        family = str(entry.get("family") or "").strip()
-        if family and family not in labels:
-            labels.append(family)
+        bond_label = str(entry.get("bond_label") or "").strip()
+        if bond_label and bond_label not in labels:
+            labels.append(bond_label)
 
     for match in re.finditer(
         r"\\sum_\{\\langle\s*i,j\s*\\rangle_(?P<label>[^}]+)\}",
         source_text,
     ):
-        family = match.group("label").strip()
-        if family and family not in labels:
-            labels.append(family)
+        bond_label = match.group("label").strip()
+        if bond_label and bond_label not in labels:
+            labels.append(bond_label)
 
     for match in re.finditer(
         r"\\sum_\{[A-Za-z]+\s*\\in\s*\\\{(?P<families>[^}]*)\\\}\}",
         source_text,
     ):
-        for family in [item.strip() for item in match.group("families").split(",") if item.strip()]:
-            if family not in labels:
-                labels.append(family)
+        for bond_label in [item.strip() for item in match.group("families").split(",") if item.strip()]:
+            if bond_label not in labels:
+                labels.append(bond_label)
     return labels
 
 
@@ -662,13 +662,13 @@ def _extract_lattice_model(source_text: str, sections: dict, hamiltonian_model: 
     if {"a", "b", "c"}.issubset(cell_parameters):
         lattice_model["lattice_vectors"] = resolve_lattice_vectors({"cell_parameters": cell_parameters})
 
-    family_labels = _extract_family_labels_for_shell_map(source_text, hamiltonian_model)
-    family_shell_map = _infer_family_shell_map(lattice_model, family_labels)
-    if family_shell_map:
-        lattice_model["family_shell_map"] = family_shell_map
-        family_representative_map = _infer_family_representative_map(lattice_model, family_labels, family_shell_map)
-        if family_representative_map:
-            lattice_model["family_representative_map"] = family_representative_map
+    bond_label_labels = _extract_bond_label_labels_for_shell_map(source_text, hamiltonian_model)
+    bond_orbit_shell_map = _infer_bond_orbit_shell_map(lattice_model, bond_label_labels)
+    if bond_orbit_shell_map:
+        lattice_model["bond_orbit_shell_map"] = bond_orbit_shell_map
+        bond_orbit_representative_map = _infer_bond_orbit_representative_map(lattice_model, bond_label_labels, bond_orbit_shell_map)
+        if bond_orbit_representative_map:
+            lattice_model["bond_orbit_representative_map"] = bond_orbit_representative_map
     return lattice_model
 
 
@@ -756,34 +756,34 @@ def _extract_magnetic_order(sections: dict) -> dict:
     return order
 
 
-def _extract_coordinate_convention_from_text(text: str, *, allow_family_overrides: bool) -> dict:
+def _extract_coordinate_convention_from_text(text: str, *, allow_label_overrides: bool) -> dict:
     if not text.strip():
         return _default_coordinate_convention()
 
-    family_overrides = {}
+    label_to_bond_orbit_overrides = {}
     bond_overrides = {}
     residual_text = text
-    if allow_family_overrides:
-        family_matches = list(
+    if allow_label_overrides:
+        label_matches = list(
             re.finditer(
-                r"(?is)\bfor\s+(?:bond\s+)?family\s+(?P<label>[A-Za-z0-9']+)\s*,",
+                r"(?is)\bfor\s+(?:bond\s+)?bond_label\s+(?P<label>[A-Za-z0-9']+)\s*,",
                 text,
             )
         )
-        if family_matches:
+        if label_matches:
             residual_parts = []
             cursor = 0
-            for index, match in enumerate(family_matches):
+            for index, match in enumerate(label_matches):
                 residual_parts.append(text[cursor:match.start()])
                 body_start = match.end()
-                body_end = family_matches[index + 1].start() if index + 1 < len(family_matches) else len(text)
-                family_body = text[body_start:body_end].strip()
-                family_convention = _extract_coordinate_convention_from_text(
-                    family_body,
-                    allow_family_overrides=False,
+                body_end = label_matches[index + 1].start() if index + 1 < len(label_matches) else len(text)
+                label_body = text[body_start:body_end].strip()
+                label_convention = _extract_coordinate_convention_from_text(
+                    label_body,
+                    allow_label_overrides=False,
                 )
-                family_convention["raw_description"] = family_body
-                family_overrides[match.group("label")] = family_convention
+                label_convention["raw_description"] = label_body
+                label_to_bond_orbit_overrides[match.group("label")] = label_convention
                 cursor = body_end
             residual_parts.append(text[cursor:])
             residual_text = "".join(residual_parts).strip()
@@ -804,7 +804,7 @@ def _extract_coordinate_convention_from_text(text: str, *, allow_family_override
                 bond_body = residual_text[body_start:body_end].strip()
                 bond_convention = _extract_coordinate_convention_from_text(
                     bond_body,
-                    allow_family_overrides=False,
+                    allow_label_overrides=False,
                 )
                 bond_convention["raw_description"] = bond_body
                 bond_overrides[match.group("label")] = bond_convention
@@ -907,8 +907,8 @@ def _extract_coordinate_convention_from_text(text: str, *, allow_family_override
             convention["status"] = "explicit"
             convention["rotation_matrix"] = mapped_rotation
 
-    if family_overrides:
-        convention["family_overrides"] = family_overrides
+    if label_to_bond_orbit_overrides:
+        convention["label_to_bond_orbit_overrides"] = label_to_bond_orbit_overrides
     if bond_overrides:
         convention["bond_overrides"] = bond_overrides
 
@@ -931,7 +931,7 @@ def _extract_coordinate_convention(sections: dict) -> dict:
 
     return _extract_coordinate_convention_from_text(
         "\n\n".join(snippets),
-        allow_family_overrides=True,
+        allow_label_overrides=True,
     )
 
 
@@ -999,8 +999,8 @@ def _select_local_bond_expression(content: str, equation_blocks: list[str]) -> s
 def _extract_explicit_local_bond_candidates(content: str, equation_blocks: list[str]) -> list[dict]:
     candidates = []
     for entry in _extract_explicit_local_bond_blocks(equation_blocks):
-        family_match = re.search(r"\^\{\((?P<family>[^)]+)\)\}", entry["label"])
-        if not family_match:
+        bond_label_match = re.search(r"\^\{\((?P<bond_label>[^)]+)\)\}", entry["label"])
+        if not bond_label_match:
             continue
         referenced = content.count(entry["label"]) > 1
         if not referenced and not (
@@ -1011,7 +1011,7 @@ def _extract_explicit_local_bond_candidates(content: str, equation_blocks: list[
             continue
         candidates.append(
             {
-                "family": family_match.group("family").strip(),
+                "bond_label": bond_label_match.group("bond_label").strip(),
                 "expression": entry["expression"],
             }
         )
@@ -1021,7 +1021,7 @@ def _extract_explicit_local_bond_candidates(content: str, equation_blocks: list[
 def _extract_matrix_exchange_blocks(equation_blocks: list[str]) -> list[dict]:
     extracted = []
     label_pattern = re.compile(
-        r"\s*(?P<label>\\mathcal\s*J_\{ij\}\^\{\((?P<family>[^)]+)\)\})\s*=",
+        r"\s*(?P<label>\\mathcal\s*J_\{ij\}\^\{\((?P<bond_label>[^)]+)\)\})\s*=",
         flags=re.DOTALL,
     )
     for block in equation_blocks:
@@ -1038,7 +1038,7 @@ def _extract_matrix_exchange_blocks(equation_blocks: list[str]) -> list[dict]:
         extracted.append(
             {
                 "label": label_match.group("label").strip(),
-                "family": label_match.group("family").strip(),
+                "bond_label": label_match.group("bond_label").strip(),
                 "body": matrix_match.group("body").strip(),
             }
         )
@@ -1088,7 +1088,7 @@ def _extract_matrix_exchange_candidates(equation_blocks: list[str]) -> list[dict
                 if not cleaned:
                     continue
                 rows.append([cell.strip() for cell in cleaned.split("&")])
-            candidates.append({"family": matrix_block["family"], "expression": expression, "matrix": rows})
+            candidates.append({"bond_label": matrix_block["bond_label"], "expression": expression, "matrix": rows})
     return candidates
 
 
@@ -1117,8 +1117,8 @@ def _candidate_to_bond_term(candidate: dict) -> dict:
         "orbit_ref": candidate.get("orbit_ref"),
         "expression": candidate.get("expression", ""),
     }
-    if "family" in candidate:
-        bond_term["family"] = candidate.get("family")
+    if "bond_label" in candidate:
+        bond_term["bond_label"] = candidate.get("bond_label")
     if "matrix" in candidate:
         bond_term["matrix"] = deepcopy(candidate.get("matrix"))
     return bond_term
@@ -1144,7 +1144,7 @@ def _bond_terms_to_local_bond_candidates(bond_terms: list[dict]) -> list[dict]:
     candidates = []
     for term in list(bond_terms or []):
         candidate = {
-            "family": term.get("family"),
+            "bond_label": term.get("bond_label"),
             "expression": term.get("expression", ""),
         }
         if "matrix" in term:
@@ -1170,21 +1170,21 @@ def _bond_terms_to_operator_expression(bond_terms: list[dict]) -> str:
     return " + ".join(expressions)
 
 
-def _family_subscript(family_label: str) -> str:
-    if re.fullmatch(r"[A-Za-z0-9]+", family_label):
-        return "_" + family_label
-    return "_{" + family_label + "}"
+def _bond_label_subscript(bond_label_label: str) -> str:
+    if re.fullmatch(r"[A-Za-z0-9]+", bond_label_label):
+        return "_" + bond_label_label
+    return "_{" + bond_label_label + "}"
 
 
-def _replace_family_index(template: str, index_symbol: str, family_label: str) -> str:
+def _replace_bond_label_index(template: str, index_symbol: str, bond_label_label: str) -> str:
     replaced = re.sub(
         rf"_(?P<index>{re.escape(index_symbol)})(?=\W|$)",
-        _family_subscript(family_label),
+        _bond_label_subscript(bond_label_label),
         template,
     )
     replaced = re.sub(
         rf"\{{{re.escape(index_symbol)}\}}",
-        "{" + family_label + "}",
+        "{" + bond_label_label + "}",
         replaced,
     )
     return replaced
@@ -1233,13 +1233,13 @@ def expression_has_unresolved_parameters(expression: str, parameter_registry: di
     return any(not _is_resolved_token(token, parameter_registry) for token in tokens)
 
 
-def _expand_family_indexed_template(block: str, parameter_registry: dict) -> list[dict]:
-    family_match = re.search(
+def _expand_bond_label_indexed_template(block: str, parameter_registry: dict) -> list[dict]:
+    bond_label_match = re.search(
         r"\\sum_\{(?P<index>[A-Za-z])\\in\\\{(?P<families>[^}]*)\\\}\}",
         block,
         flags=re.DOTALL,
     )
-    if not family_match:
+    if not bond_label_match:
         return []
 
     body_match = re.search(r"\\left\[(?P<body>.*?)\\right\]", block, flags=re.DOTALL)
@@ -1248,19 +1248,19 @@ def _expand_family_indexed_template(block: str, parameter_registry: dict) -> lis
     if not body_match:
         return []
 
-    index_symbol = family_match.group("index").strip()
-    families = [item.strip() for item in family_match.group("families").split(",") if item.strip()]
+    index_symbol = bond_label_match.group("index").strip()
+    families = [item.strip() for item in bond_label_match.group("families").split(",") if item.strip()]
     body = body_match.group("body").strip()
     if not families or not body:
         return []
 
     candidates = []
-    for family in families:
-        expression = _replace_family_index(body, index_symbol, family)
+    for bond_label in families:
+        expression = _replace_bond_label_index(body, index_symbol, bond_label)
         tokens = _extract_coefficient_tokens(expression)
         candidates.append(
             {
-                "family": family,
+                "bond_label": bond_label,
                 "expression": expression,
                 "parameters_resolved": not tokens or all(_is_resolved_token(token, parameter_registry) for token in tokens),
             }
@@ -1268,22 +1268,22 @@ def _expand_family_indexed_template(block: str, parameter_registry: dict) -> lis
     return candidates
 
 
-def _extract_family_indexed_candidates(equation_blocks: list[str], parameter_registry: dict) -> list[dict]:
+def _extract_bond_label_indexed_candidates(equation_blocks: list[str], parameter_registry: dict) -> list[dict]:
     candidates = []
     for block in equation_blocks:
-        candidates.extend(_expand_family_indexed_template(block, parameter_registry))
+        candidates.extend(_expand_bond_label_indexed_template(block, parameter_registry))
     return candidates
 
 
 def _extract_effective_placeholder_families(content: str) -> list[str]:
     families = []
     for match in re.finditer(
-        r"(?:H|\\mathcal\{H\}|\\mathcalH)_\{ij\}\^\{\((?P<family>[^)]+)\)\}",
+        r"(?:H|\\mathcal\{H\}|\\mathcalH)_\{ij\}\^\{\((?P<bond_label>[^)]+)\)\}",
         str(content or ""),
     ):
-        family = match.group("family").strip()
-        if family and family not in families:
-            families.append(family)
+        bond_label = match.group("bond_label").strip()
+        if bond_label and bond_label not in families:
+            families.append(bond_label)
     return families
 
 
@@ -1302,16 +1302,16 @@ def _augment_effective_candidates_with_matrix_form(
 ) -> list[dict]:
     if existing_candidates is None:
         existing_candidates = []
-    by_family = {entry.get("family"): dict(entry) for entry in existing_candidates if entry.get("family")}
+    by_bond_label = {entry.get("bond_label"): dict(entry) for entry in existing_candidates if entry.get("bond_label")}
     placeholder_families = _extract_effective_placeholder_families(content)
     if not placeholder_families:
-        return list(by_family.values())
+        return list(by_bond_label.values())
 
     for entry in _matrix_form_candidates(sections, candidates):
-        family = entry.get("family")
-        if family in placeholder_families and family not in by_family:
-            by_family[family] = {"family": family, "expression": entry.get("expression", ""), "matrix": entry.get("matrix")}
-    return list(by_family.values())
+        bond_label = entry.get("bond_label")
+        if bond_label in placeholder_families and bond_label not in by_bond_label:
+            by_bond_label[bond_label] = {"bond_label": bond_label, "expression": entry.get("expression", ""), "matrix": entry.get("matrix")}
+    return list(by_bond_label.values())
 
 
 def _clean_latex_cell(cell: str) -> str:
@@ -1620,9 +1620,9 @@ def _extract_hamiltonian_model(
                 "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
                 "matrix_form": True,
             }
-        family_candidates = _extract_family_indexed_candidates(equation_blocks, parameter_registry)
+        bond_label_candidates = _extract_bond_label_indexed_candidates(equation_blocks, parameter_registry)
         if selected_name == "effective":
-            merged_candidates = explicit_local_bond_candidates + family_candidates
+            merged_candidates = explicit_local_bond_candidates + bond_label_candidates
             augmented_candidates = _augment_effective_candidates_with_matrix_form(
                 sections,
                 candidates,
@@ -1630,22 +1630,22 @@ def _extract_hamiltonian_model(
                 merged_candidates,
             )
             if augmented_candidates:
-                augmented_candidates.sort(key=lambda entry: entry["family"])
+                augmented_candidates.sort(key=lambda entry: entry["bond_label"])
                 bond_terms = [_candidate_to_bond_term(candidate) for candidate in augmented_candidates]
                 return {
                     "bond_terms": bond_terms,
                     "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
                 }
-        if explicit_local_bond_candidates and family_candidates:
-            combined = explicit_local_bond_candidates + family_candidates
-            combined.sort(key=lambda entry: entry["family"])
+        if explicit_local_bond_candidates and bond_label_candidates:
+            combined = explicit_local_bond_candidates + bond_label_candidates
+            combined.sort(key=lambda entry: entry["bond_label"])
             bond_terms = [_candidate_to_bond_term(candidate) for candidate in combined]
             return {
                 "bond_terms": bond_terms,
                 "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
             }
-        if family_candidates:
-            bond_terms = [_candidate_to_bond_term(candidate) for candidate in family_candidates]
+        if bond_label_candidates:
+            bond_terms = [_candidate_to_bond_term(candidate) for candidate in bond_label_candidates]
             return {
                 "bond_terms": bond_terms,
                 "explicit_bond_graph": _explicit_bond_graph_from_bond_terms(bond_terms),
@@ -1743,8 +1743,8 @@ def _has_local_gamma_phase_marker(expression: str) -> bool:
     return re.search(r"(?:\\gamma|gamma)_\{ij\}", text) is not None
 
 
-def _matrix_form_expression_for_family(record: dict, family: str | None) -> str | None:
-    if not family:
+def _matrix_form_expression_for_bond_label(record: dict, bond_label: str | None) -> str | None:
+    if not bond_label:
         return None
     direct_candidates = []
     hamiltonian_model = record.get("hamiltonian_model", {})
@@ -1752,7 +1752,7 @@ def _matrix_form_expression_for_family(record: dict, family: str | None) -> str 
         direct_candidates.extend(list(hamiltonian_model.get("matrix_form_candidates", [])))
     direct_candidates.extend(list(record.get("matrix_form_candidates", [])))
     for entry in direct_candidates:
-        if entry.get("family") == family:
+        if entry.get("bond_label") == bond_label:
             return entry.get("expression")
     matrix_model = _extract_hamiltonian_model(
         record.get("document_sections", {}),
@@ -1761,21 +1761,21 @@ def _matrix_form_expression_for_family(record: dict, family: str | None) -> str 
         record.get("parameter_registry", {}),
     )
     for entry in matrix_model.get("local_bond_candidates", []):
-        if entry.get("family") == family:
+        if entry.get("bond_label") == bond_label:
             return entry.get("expression")
     return None
 
 
-def _family_expression_with_effective_matrix_fallback(record: dict, family: str | None, expression: str) -> str:
+def _bond_label_expression_with_effective_matrix_fallback(record: dict, bond_label: str | None, expression: str) -> str:
     expression = str(expression or "")
-    if not family or record.get("selected_model_candidate") != "effective":
+    if not bond_label or record.get("selected_model_candidate") != "effective":
         return expression
     if (
         "bond_dependent_phase_gamma_terms" not in _raw_operator_expression_features(expression)
         and not _has_local_gamma_phase_marker(expression)
     ):
         return expression
-    matrix_expression = _matrix_form_expression_for_family(record, family)
+    matrix_expression = _matrix_form_expression_for_bond_label(record, bond_label)
     return matrix_expression or expression
 
 
@@ -1826,7 +1826,7 @@ def _agent_unresolved_items_to_ambiguities(
     unresolved_items: list[dict],
     *,
     selected_model_candidate: str | None,
-    selected_local_bond_family: str | None,
+    selected_local_bond_bond_label: str | None,
     selected_coordinate_convention: str | None,
 ) -> list[dict]:
     ambiguities = []
@@ -1834,13 +1834,13 @@ def _agent_unresolved_items_to_ambiguities(
         field = str(entry.get("field") or "").strip()
         if field == "model_candidate" and selected_model_candidate:
             continue
-        if field == "local_bond_family" and selected_local_bond_family:
+        if field == "local_bond_bond_label" and selected_local_bond_bond_label:
             continue
         if field == "coordinate_convention" and selected_coordinate_convention:
             continue
         ambiguity_id = {
             "model_candidate": "model_candidate_selection",
-            "local_bond_family": "local_bond_family_selection",
+            "local_bond_bond_label": "bond_orbit_selection",
             "coordinate_convention": "coordinate_convention_selection",
             "structure_file": "structure_file_selection",
             "hamiltonian_file": "hamiltonian_hr_file_selection",
@@ -1865,7 +1865,7 @@ def build_intermediate_record_from_agent_normalized(
     source_text: str = "",
     source_path: str | None = None,
     selected_model_candidate: str | None = None,
-    selected_local_bond_family: str | None = None,
+    selected_local_bond_bond_label: str | None = None,
     selected_coordinate_convention: str | None = None,
 ) -> dict:
     agent_normalized_document = agent_normalized_document or {}
@@ -1881,9 +1881,9 @@ def build_intermediate_record_from_agent_normalized(
         or str(agent_normalized_document.get("selected_model_candidate") or "").strip()
         or None
     )
-    selected_family = (
-        (selected_local_bond_family or "").strip()
-        or str(agent_normalized_document.get("selected_local_bond_family") or "").strip()
+    selected_bond_label = (
+        (selected_local_bond_bond_label or "").strip()
+        or str(agent_normalized_document.get("selected_local_bond_bond_label") or "").strip()
         or None
     )
     selected_frame = (
@@ -1948,7 +1948,7 @@ def build_intermediate_record_from_agent_normalized(
     ambiguities = _agent_unresolved_items_to_ambiguities(
         unresolved_items,
         selected_model_candidate=selected_name,
-        selected_local_bond_family=selected_family,
+        selected_local_bond_bond_label=selected_bond_label,
         selected_coordinate_convention=selected_frame,
     )
 
@@ -2002,14 +2002,14 @@ def build_intermediate_record_from_agent_normalized(
         "verification_report": verify_agent_normalized_document(
             agent_normalized_document,
             selected_model_candidate=selected_name,
-            selected_local_bond_family=selected_family,
+            selected_local_bond_bond_label=selected_bond_label,
         ),
         "unsupported_features": list(agent_normalized_document.get("unsupported_features", [])),
     }
     record["lattice_structure"] = build_lattice_structure(record)
     record["symmetry"] = build_symmetry_record(record)
-    if selected_family is not None:
-        record["selected_local_bond_family"] = selected_family
+    if selected_bond_label is not None:
+        record["selected_local_bond_bond_label"] = selected_bond_label
     return record
 
 
@@ -2017,7 +2017,7 @@ def build_intermediate_record(
     source_text: str,
     source_path: str | None = None,
     selected_model_candidate: str | None = None,
-    selected_local_bond_family: str | None = None,
+    selected_local_bond_bond_label: str | None = None,
     selected_coordinate_convention: str | None = None,
 ) -> dict:
     kind = detect_input_kind(source_text, source_path=source_path)
@@ -2056,7 +2056,7 @@ def build_intermediate_record(
         "document_sections": sections,
         "model_candidates": candidates,
         "selected_model_candidate": selected_name,
-        "selected_local_bond_family": (selected_local_bond_family or "").strip() or None,
+        "selected_local_bond_bond_label": (selected_local_bond_bond_label or "").strip() or None,
         "selected_coordinate_convention": (selected_coordinate_convention or "").strip() or None,
         "system_context": {
             "coordinate_convention": (
@@ -2085,7 +2085,7 @@ def _agent_fallback_proposal(record: dict) -> dict:
         intermediate_record=record,
         normalization_context={
             "selected_coordinate_convention": record.get("selected_coordinate_convention"),
-            "selected_local_bond_family": record.get("selected_local_bond_family"),
+            "selected_local_bond_bond_label": record.get("selected_local_bond_bond_label"),
         },
     )
     proposed = deepcopy(proposal)
@@ -2133,12 +2133,12 @@ def _agent_fallback_proposal(record: dict) -> dict:
     return proposed
 
 
-def _family_shell_metadata(record: dict, family: str | None) -> dict:
-    if family is None:
+def _bond_label_shell_metadata(record: dict, bond_label: str | None) -> dict:
+    if bond_label is None:
         return {}
     lattice_model = record.get("lattice_model", {}) if isinstance(record.get("lattice_model"), dict) else {}
-    family_shell_map = lattice_model.get("family_shell_map", {}) if isinstance(lattice_model.get("family_shell_map"), dict) else {}
-    metadata = family_shell_map.get(family, {})
+    bond_orbit_shell_map = lattice_model.get("bond_orbit_shell_map", {}) if isinstance(lattice_model.get("bond_orbit_shell_map"), dict) else {}
+    metadata = bond_orbit_shell_map.get(bond_label, {})
     return dict(metadata) if isinstance(metadata, dict) else {}
 
 
@@ -2282,21 +2282,21 @@ def land_intermediate_record(record: dict) -> dict:
 
     local_bond_candidates = list(hamiltonian_model.get("local_bond_candidates", []))
     if local_bond_candidates:
-        selected_family = record.get("selected_local_bond_family")
-        by_family = {entry["family"]: entry for entry in local_bond_candidates}
-        if selected_family == "all":
+        selected_bond_label = record.get("selected_local_bond_bond_label")
+        by_bond_label = {entry["bond_label"]: entry for entry in local_bond_candidates}
+        if selected_bond_label == "all":
             combined_unsupported = list(record.get("unsupported_features", []))
             expressions = []
             for entry in local_bond_candidates:
-                expression = _family_expression_with_effective_matrix_fallback(
+                expression = _bond_label_expression_with_effective_matrix_fallback(
                     record,
-                    entry.get("family"),
+                    entry.get("bond_label"),
                     entry.get("expression", ""),
                 )
-                metadata = _family_shell_metadata(record, entry["family"])
+                metadata = _bond_label_shell_metadata(record, entry["bond_label"])
                 expressions.append(
                     {
-                        "family": entry["family"],
+                        "bond_label": entry["bond_label"],
                         "expression": expression,
                         **metadata,
                     }
@@ -2305,7 +2305,7 @@ def land_intermediate_record(record: dict) -> dict:
                     if feature not in combined_unsupported:
                         combined_unsupported.append(feature)
             return {
-                "representation": "operator_family_collection",
+                "representation": "operator_channel_collection",
                 "support": [0, 1],
                 "expressions": expressions,
                 "parameters": dict(record.get("parameter_registry", {})),
@@ -2314,17 +2314,17 @@ def land_intermediate_record(record: dict) -> dict:
                 "user_notes": "Generated from document input protocol",
                 "unsupported_features": combined_unsupported,
             }
-        if selected_family and selected_family in by_family:
-            expression = by_family[selected_family]["expression"]
+        if selected_bond_label and selected_bond_label in by_bond_label:
+            expression = by_bond_label[selected_bond_label]["expression"]
         elif len(local_bond_candidates) == 1:
             expression = local_bond_candidates[0]["expression"]
         else:
             return {
                 "interaction": {
                     "status": "needs_input",
-                    "id": "local_bond_family_selection",
-                    "question": "Multiple local bond families were derived from the effective Hamiltonian. Which family should I use?",
-                    "options": [entry["family"] for entry in local_bond_candidates],
+                    "id": "bond_orbit_selection",
+                    "question": "Multiple bond attachments were derived from the effective Hamiltonian. Which bond orbit should I use?",
+                    "options": [entry["bond_label"] for entry in local_bond_candidates],
                 },
                 "magnetic_order": magnetic_order,
                 "unsupported_features": list(record.get("unsupported_features", [])),
@@ -2343,15 +2343,15 @@ def land_intermediate_record(record: dict) -> dict:
     expression_unsupported = _operator_expression_unsupported_features(expression, allow_local_gamma=allow_local_gamma)
     if (
         record.get("selected_model_candidate") == "effective"
-        and record.get("selected_local_bond_family")
+        and record.get("selected_local_bond_bond_label")
         and (
             "bond_dependent_phase_gamma_terms" in expression_unsupported
             or _has_local_gamma_phase_marker(expression)
         )
     ):
-        matrix_expression = _matrix_form_expression_for_family(
+        matrix_expression = _matrix_form_expression_for_bond_label(
             record,
-            record.get("selected_local_bond_family"),
+            record.get("selected_local_bond_bond_label"),
         )
         if matrix_expression:
             expression = matrix_expression

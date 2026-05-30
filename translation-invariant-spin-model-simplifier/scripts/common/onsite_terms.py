@@ -35,10 +35,10 @@ def _normalize_site_scope(site_scope):
 def _normalize_operator_basis(operator_basis):
     if not isinstance(operator_basis, dict):
         raise ValueError("operator_basis must be a mapping")
-    family = str(operator_basis.get("family", "")).strip()
-    if not family:
-        raise ValueError("operator_basis must include family")
-    normalized = {"family": family}
+    bond_label = str(operator_basis.get("bond_label", "")).strip()
+    if not bond_label:
+        raise ValueError("operator_basis must include bond_label")
+    normalized = {"bond_label": bond_label}
     if "components" in operator_basis:
         normalized["components"] = [str(value) for value in operator_basis["components"]]
     if "labels" in operator_basis:
@@ -216,7 +216,7 @@ def _quadratic_spin_cartesian_from_operator_expression(expression, *, parameters
     return {
         "kind": "quadratic_spin_cartesian",
         "site_scope": {"kind": "site", "site": int(site)},
-        "operator_basis": {"family": "spin_cartesian", "components": ["Sx", "Sy", "Sz"]},
+        "operator_basis": {"bond_label": "spin_cartesian", "components": ["Sx", "Sy", "Sz"]},
         "frame": _frame_from_coordinate_convention(coordinate_convention),
         "payload": {"matrix": matrix},
         "provenance": {"source_kind": "normalized_local_term", "source_representation": "operator"},
@@ -278,7 +278,7 @@ def _quadratic_spin_cartesian_from_document_source_text(
     return {
         "kind": "quadratic_spin_cartesian",
         "site_scope": {"kind": "site", "site": int(site)},
-        "operator_basis": {"family": "spin_cartesian", "components": ["Sx", "Sy", "Sz"]},
+        "operator_basis": {"bond_label": "spin_cartesian", "components": ["Sx", "Sy", "Sz"]},
         "frame": _frame_from_coordinate_convention(coordinate_convention),
         "payload": {"matrix": matrix},
         "provenance": {

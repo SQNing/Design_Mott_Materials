@@ -52,14 +52,14 @@ def lswt_stability_precheck(model):
                 signals.append(f"cross_axis_term={label}")
                 break
     if model.get("lt_result") or model.get("generalized_lt_result"):
-        signals.append("lt_family_reference_state")
+        signals.append("lt_bond_label_reference_state")
 
     if signals:
         return {
             "status": "warn",
             "summary": (
                 "LSWT will proceed from a classical reference that may be fragile because weak anisotropy or "
-                "LT-family reference-state assumptions are still visible in the current model."
+                "LT-bond_label reference-state assumptions are still visible in the current model."
             ),
             "signals": signals,
         }

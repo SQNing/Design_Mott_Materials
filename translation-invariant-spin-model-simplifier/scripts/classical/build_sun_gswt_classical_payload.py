@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import math
 
-from common.classical_family_resolution import resolve_classical_family
+from common.classical_bond_label_resolution import resolve_classical_bond_label
 from common.cpn_pair_model import validate_cpn_pair_model
 from common.pseudospin_orbital_onsite_adapter import lower_pseudospin_orbital_onsite_terms
 from common.pseudospin_orbital_conventions import resolve_pseudospin_orbital_conventions
@@ -52,14 +52,14 @@ def _pair_matrix_to_tensor(pair_matrix, local_dimension):
 
 
 def build_sun_gswt_classical_payload(parsed_payload):
-    if parsed_payload.get("model_family") == "cpn_pair_model":
+    if parsed_payload.get("model_bond_label") == "cpn_pair_model":
         validate_cpn_pair_model(parsed_payload)
 
-    family_resolution = resolve_classical_family(payload=parsed_payload)
-    if family_resolution["classical_family"] != "cpn":
+    bond_label_resolution = resolve_classical_bond_label(payload=parsed_payload)
+    if bond_label_resolution["classical_bond_label"] != "cpn":
         raise ValueError(
-            "incompatible-classical-family: "
-            f"sun-gswt classical payload requires cpn family, got {family_resolution['classical_family']}"
+            "incompatible-classical-bond_label: "
+            f"sun-gswt classical payload requires cpn bond_label, got {bond_label_resolution['classical_bond_label']}"
         )
     conventions = resolve_pseudospin_orbital_conventions(parsed_payload, require_local_space=True)
 
@@ -119,7 +119,7 @@ def build_sun_gswt_classical_payload(parsed_payload):
     payload = {
         "model_version": 2,
         "model_type": "sun_gswt_classical",
-        "classical_family": family_resolution["classical_family"],
+        "classical_bond_label": bond_label_resolution["classical_bond_label"],
         "input_mode": parsed_payload.get("input_mode"),
         "classical_manifold": "CP^(N-1)",
         "classical_variable": "local_ray",

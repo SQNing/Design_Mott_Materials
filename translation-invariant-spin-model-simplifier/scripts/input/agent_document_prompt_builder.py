@@ -41,12 +41,12 @@ def _priority_corrections_from_findings(verification_findings):
                     selected_model_corrections,
                     f"Restore selected model candidate {candidate}.",
                 )
-        elif finding_id == "selected_local_bond_family_missing_in_matrix_form":
+        elif finding_id == "selected_bond_orbit_missing_in_matrix_form":
             add_correction(
                 selected_attachment_corrections,
                 "Restore the selected bond attachment in matrix_form.",
             )
-        elif finding_id == "selected_local_bond_family_missing_in_effective_candidate":
+        elif finding_id == "selected_bond_orbit_missing_in_effective_candidate":
             add_correction(
                 selected_attachment_corrections,
                 "Restore the selected bond attachment in the effective candidate.",
@@ -93,11 +93,11 @@ def _priority_corrections_from_findings(verification_findings):
             )
         elif finding_id == "candidate_model_entry_missing_evidence":
             candidate = str(finding.get("candidate_model") or "").strip()
-            family = str(finding.get("family") or "").strip()
-            if candidate and family:
+            attachment_ref = str(finding.get("bond_orbit_ref") or finding.get("term_ref") or "").strip()
+            if candidate and attachment_ref:
                 add_correction(
                     evidence_corrections,
-                    f"Add explicit evidence_refs for {candidate} family {family}.",
+                    f"Add explicit evidence_refs for {candidate} attachment {attachment_ref}.",
                 )
             elif candidate:
                 add_correction(
@@ -116,7 +116,7 @@ def _priority_corrections_from_findings(verification_findings):
                 evidence_corrections,
                 "Add explicit evidence_refs for the kept candidate model entries.",
             )
-        elif finding_id == "candidate_models_gamma_family_missing_matrix_support":
+        elif finding_id == "candidate_gamma_attachment_missing_matrix_support":
             add_correction(
                 general_corrections,
                 "Remove unsupported gamma/bond-phase content or add matching matrix_form support for the selected bond attachment.",

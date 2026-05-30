@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--docs-dir", required=True)
     parser.add_argument("--no-pdf", action="store_true")
     parser.add_argument(
-        "--classical-family",
+        "--classical-bond_label",
         choices=["spin-only", "cpn"],
         default=None,
     )
@@ -66,7 +66,7 @@ def main():
         output_dir=Path(args.output_dir),
         docs_dir=Path(args.docs_dir),
         compile_pdf=not args.no_pdf,
-        classical_family=None if args.classical_family is None else str(args.classical_family),
+        classical_bond_label=None if args.classical_bond_label is None else str(args.classical_bond_label),
         classical_method=str(args.classical_method),
         supercell_shape=tuple(int(value) for value in args.supercell_shape),
         starts=int(args.starts),

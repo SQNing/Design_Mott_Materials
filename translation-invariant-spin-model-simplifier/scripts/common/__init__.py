@@ -1,1 +1,1 @@
-# Stage-layer package for shared geometry and k-path helpers.
+"""Common helpers for the translation-invariant spin model simplifier."""

@@ -17,7 +17,7 @@ def _format_value(value):
     return str(value)
 
 
-def _display_family_label(value):
+def _display_bond_label_label(value):
     text = str(value or "").strip()
     if not text or text == "all":
         return text
@@ -41,34 +41,34 @@ def _display_shell_label(shell):
         shell_index = shell.get("shell_index")
         if shell_index is not None:
             try:
-                return _display_family_label(str(int(shell_index)))
+                return _display_bond_label_label(str(int(shell_index)))
             except (TypeError, ValueError):
                 pass
         shell_label = str(shell.get("shell_label") or "").strip()
         if shell_label:
             return shell_label
-        return _display_family_label(shell.get("family", ""))
-    return _display_family_label(shell)
+        return _display_bond_label_label(shell.get("bond_label", ""))
+    return _display_bond_label_label(shell)
 
 
-def _display_selected_local_bond_family(normalized):
+def _display_selected_local_bond_bond_label(normalized):
     if not isinstance(normalized, dict):
         return ""
-    local_bond_family = normalized.get("selected_local_bond_family")
-    if not local_bond_family:
+    local_bond_bond_label = normalized.get("selected_local_bond_bond_label")
+    if not local_bond_bond_label:
         return ""
     lattice = normalized.get("lattice", {}) if isinstance(normalized.get("lattice"), dict) else {}
-    family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
-    metadata = family_shell_map.get(str(local_bond_family), {})
+    bond_orbit_shell_map = lattice.get("bond_orbit_shell_map", {}) if isinstance(lattice.get("bond_orbit_shell_map"), dict) else {}
+    metadata = bond_orbit_shell_map.get(str(local_bond_bond_label), {})
     if isinstance(metadata, dict) and metadata:
         return _display_shell_label(
             {
-                "family": local_bond_family,
+                "bond_label": local_bond_bond_label,
                 "shell_index": metadata.get("shell_index"),
                 "shell_label": metadata.get("shell_label"),
             }
         )
-    return _display_family_label(local_bond_family)
+    return _display_bond_label_label(local_bond_bond_label)
 
 
 def _summary_parts(summary):
@@ -93,14 +93,14 @@ def _context_lines(payload):
         return []
     lines = []
     model_candidate = normalized.get("selected_model_candidate")
-    local_bond_family = _display_selected_local_bond_family(normalized)
+    local_bond_bond_label = _display_selected_local_bond_bond_label(normalized)
     coordinate_convention = normalized.get("selected_coordinate_convention")
     provenance = normalized.get("provenance", {}) if isinstance(normalized.get("provenance"), dict) else {}
     source_mode = provenance.get("source_mode")
     if model_candidate:
         lines.append(f"- model candidate: `{model_candidate}`")
-    if local_bond_family:
-        lines.append(f"- local bond family: `{local_bond_family}`")
+    if local_bond_bond_label:
+        lines.append(f"- local bond bond_label: `{local_bond_bond_label}`")
     if coordinate_convention:
         lines.append(f"- coordinate convention: `{coordinate_convention}`")
     if source_mode:
@@ -161,11 +161,11 @@ def _residual_strategy_lines(payload):
     lines = []
     has_generic_onsite_one_body_multipole = any(
         term.get("body_order") == 1
-        and term.get("multipole_family") not in {"quadrupole", "identity"}
+        and term.get("multipole_class") not in {"quadrupole", "identity"}
         for term in residual_terms
     )
     has_onsite_quadrupole = any(
-        term.get("multipole_family") == "quadrupole"
+        term.get("multipole_class") == "quadrupole"
         and term.get("multipole_rank") == 2
         and term.get("body_order") == 1
         for term in residual_terms
@@ -173,7 +173,7 @@ def _residual_strategy_lines(payload):
     has_identity = any(
         term.get("canonical_label") == "identity"
         or (
-            term.get("multipole_family") == "identity"
+            term.get("multipole_class") == "identity"
             and term.get("multipole_rank") == 0
             and term.get("body_order") == 0
         )
@@ -255,12 +255,12 @@ def _residual_term_lines(terms):
     entries = list(terms or [])
     if not entries:
         return []
-    rows = [["Label", "Family", "Rank", "Body", "Coefficient"]]
+    rows = [["Label", "Bond Label", "Rank", "Body", "Coefficient"]]
     for entry in entries:
         rows.append(
             [
                 entry.get("canonical_label", ""),
-                entry.get("multipole_family", _display_family_label(entry.get("family", "unspecified"))),
+                entry.get("multipole_class", _display_bond_label_label(entry.get("bond_label", "unspecified"))),
                 entry.get("multipole_rank", ""),
                 entry.get("body_order", ""),
                 _format_value(entry.get("coefficient")),
@@ -270,11 +270,11 @@ def _residual_term_lines(terms):
 
 
 def _residual_summary_lines(entries):
-    rows = [["Family", "Rank", "Body", "Count", "Max abs(coeff)"]]
+    rows = [["Bond Label", "Rank", "Body", "Count", "Max abs(coeff)"]]
     for entry in list(entries or []):
         rows.append(
             [
-                entry.get("multipole_family", "unspecified"),
+                entry.get("multipole_class", "unspecified"),
                 entry.get("multipole_rank", ""),
                 entry.get("body_order", ""),
                 entry.get("term_count", ""),
@@ -322,7 +322,7 @@ def _shell_physical_summary_sections(main_blocks):
                 value_map = {entry.get("name"): _format_value(entry.get("value")) for entry in parameters}
                 grouped[view_kind]["rows"].append(
                     {
-                        "family": _display_shell_label(shell),
+                        "bond_label": _display_shell_label(shell),
                         "value_map": value_map,
                     }
                 )
@@ -330,10 +330,10 @@ def _shell_physical_summary_sections(main_blocks):
     sections = []
     for view_kind in order:
         group = grouped[view_kind]
-        rows = [["Family", *group["parameter_names"]]]
+        rows = [["Bond Label", *group["parameter_names"]]]
         for row in group["rows"]:
             rows.append(
-                [row["family"]] + [row["value_map"].get(name, "") for name in group["parameter_names"]]
+                [row["bond_label"]] + [row["value_map"].get(name, "") for name in group["parameter_names"]]
             )
         sections.append(
             {
@@ -453,7 +453,7 @@ def render_simplified_model_report(payload, title="Simplified Model Report"):
                 "",
                 "## Residual Summary",
                 "",
-                "- Grouped view of residual multipole content by family, rank, and body order.",
+                "- Grouped view of residual multipole content by bond_label, rank, and body order.",
                 *residual_summary_lines,
             ]
         )
@@ -477,7 +477,7 @@ def render_simplified_model_report(payload, title="Simplified Model Report"):
                 "",
                 "## Low-Weight Summary",
                 "",
-                "- Grouped view of low-weight multipole content by family, rank, and body order.",
+                "- Grouped view of low-weight multipole content by bond_label, rank, and body order.",
                 *low_weight_summary_lines,
             ]
         )

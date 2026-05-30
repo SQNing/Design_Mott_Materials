@@ -25,7 +25,7 @@ STRUCTURE_BASENAMES = ("poscar", "contcar", "geometry.in")
 HR_FILENAME_PATTERN = re.compile(r"\b[\w./-]*hr[\w.-]*\.dat\b", re.IGNORECASE)
 TOKEN_PATH_PATTERN = re.compile(r"\b[\w./-]+\b")
 
-AGENT_INFERRED_FIELDS = frozenset({"input_family", "structure_file", "hamiltonian_file"})
+AGENT_INFERRED_FIELDS = frozenset({"input_payload_kind", "structure_file", "hamiltonian_file"})
 PIPELINE_PATCH_FIELDS = frozenset({"representation", "structure_file", "hamiltonian_file"})
 HARD_GATE_FIELDS = frozenset({"coordinate_convention"})
 UNSUPPORTED_EVEN_WITH_AGENT = frozenset(
@@ -76,7 +76,7 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
         if (entry or {}).get("blocks_landing")
     ]
     selected_coordinate_convention = normalization_context.get("selected_coordinate_convention")
-    selected_local_bond_family = normalization_context.get("selected_local_bond_family")
+    selected_local_bond_bond_label = normalization_context.get("selected_local_bond_bond_label")
     pair_identity_mode = normalization_context.get("pair_identity_mode")
     local_level_to_site_mapping_file = normalization_context.get("local_level_to_site_mapping_file")
 
@@ -103,7 +103,7 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
         extracted_evidence.append({"text": _summarize_operator_expression(source_text), "role": "operator_expression"})
 
     if structure_file and hamiltonian_file:
-        inferred_fields["input_family"] = "many_body_hr"
+        inferred_fields["input_payload_kind"] = "many_body_hr"
 
     unresolved_items.extend(_blocking_unresolved_items(blocking_ambiguities))
 
@@ -142,12 +142,12 @@ def build_agent_inferred(source_text, intermediate_record, normalization_context
         unresolved_items=unresolved_items,
     )
 
-    if selected_local_bond_family and not selected_coordinate_convention:
+    if selected_local_bond_bond_label and not selected_coordinate_convention:
         unresolved_items.append(
             {
                 "field": "coordinate_convention",
                 "reason": (
-                    "A selected local bond family requires an explicit coordinate "
+                    "A selected local bond bond_label requires an explicit coordinate "
                     "convention before landing."
                 ),
                 "policy": "hard_gate",
@@ -224,7 +224,7 @@ def apply_agent_inferred_patch(normalized_payload, proposal):
     inferred_fields = ((proposal or {}).get("agent_inferred") or {}).get("inferred_fields", {})
     landing_readiness = (proposal or {}).get("landing_readiness")
 
-    if landing_readiness == "agent_proposed_ok" and inferred_fields.get("input_family") == "many_body_hr":
+    if landing_readiness == "agent_proposed_ok" and inferred_fields.get("input_payload_kind") == "many_body_hr":
         patched["representation"] = "many_body_hr"
     for field in ("structure_file", "hamiltonian_file"):
         if field in inferred_fields:
@@ -282,7 +282,7 @@ def _classify_landing_readiness(
         return "agent_proposed_needs_input"
     if unresolved_items:
         return "agent_proposed_needs_input"
-    if inferred_fields.get("input_family") == "many_body_hr":
+    if inferred_fields.get("input_payload_kind") == "many_body_hr":
         return "agent_proposed_ok"
     return "agent_proposed_needs_input"
 
@@ -322,7 +322,7 @@ def _build_user_summary(
     if landing_readiness == "agent_proposed_ok":
         return (
             "The helper found a safe structure/hr file pair and can propose a "
-            f"{inferred_fields.get('input_family', 'supported')} landing."
+            f"{inferred_fields.get('input_payload_kind', 'supported')} landing."
         )
     if unresolved_items:
         fields = ", ".join(item["field"] for item in unresolved_items)

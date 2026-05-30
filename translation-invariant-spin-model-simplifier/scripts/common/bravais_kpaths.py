@@ -29,7 +29,7 @@ def _angle_degrees(left, right):
     return math.degrees(math.acos(cosine))
 
 
-def infer_bravais_family(lattice, spatial_dimension):
+def infer_bravais_lattice_class(lattice, spatial_dimension):
     kind = str(lattice.get("kind", "")).lower()
     vectors = resolve_lattice_vectors(lattice)
     lengths = [_vector_norm(vector) for vector in vectors]
@@ -91,7 +91,7 @@ def _user_lengths_and_angles(lattice):
 
 
 def canonical_direct_basis(lattice, spatial_dimension):
-    family = infer_bravais_family(lattice, spatial_dimension)
+    bravais_lattice_class = infer_bravais_lattice_class(lattice, spatial_dimension)
     _vectors, lengths, alpha, beta, gamma = _user_lengths_and_angles(lattice)
 
     if spatial_dimension <= 1:
@@ -99,51 +99,51 @@ def canonical_direct_basis(lattice, spatial_dimension):
         b = lengths[1] if len(lengths) > 1 and lengths[1] > 1e-12 else 1.0
         c = lengths[2] if len(lengths) > 2 and lengths[2] > 1e-12 else 1.0
         basis = [[a, 0.0, 0.0], [0.0, b, 0.0], [0.0, 0.0, c]]
-        return family, basis
+        return bravais_lattice_class, basis
 
     if spatial_dimension == 2:
         c = lengths[2] if len(lengths) > 2 and lengths[2] > 1e-12 else 1.0
-        if family == "hexagonal":
+        if bravais_lattice_class == "hexagonal":
             a = 0.5 * (lengths[0] + lengths[1])
             basis = [[a, 0.0, 0.0], [-0.5 * a, math.sqrt(3.0) * 0.5 * a, 0.0], [0.0, 0.0, c]]
-            return family, basis
-        if family == "square":
+            return bravais_lattice_class, basis
+        if bravais_lattice_class == "square":
             a = 0.5 * (lengths[0] + lengths[1])
             basis = [[a, 0.0, 0.0], [0.0, a, 0.0], [0.0, 0.0, c]]
-            return family, basis
+            return bravais_lattice_class, basis
         a = lengths[0] if lengths[0] > 1e-12 else 1.0
         b = lengths[1] if lengths[1] > 1e-12 else 1.0
         basis = [[a, 0.0, 0.0], [0.0, b, 0.0], [0.0, 0.0, c]]
-        return family, basis
+        return bravais_lattice_class, basis
 
-    if family == "cubic":
+    if bravais_lattice_class == "cubic":
         a = sum(lengths[:3]) / 3.0
         basis = [[a, 0.0, 0.0], [0.0, a, 0.0], [0.0, 0.0, a]]
-        return family, basis
+        return bravais_lattice_class, basis
 
-    if family == "tetragonal":
+    if bravais_lattice_class == "tetragonal":
         sorted_lengths = sorted(lengths[:3])
         c = max(sorted_lengths)
         a = 0.5 * (sorted_lengths[0] + sorted_lengths[1])
         basis = [[a, 0.0, 0.0], [0.0, a, 0.0], [0.0, 0.0, c]]
-        return family, basis
+        return bravais_lattice_class, basis
 
-    if family == "hexagonal":
+    if bravais_lattice_class == "hexagonal":
         c = max(lengths[:3])
         in_plane = sorted(lengths[:3])[:2]
         a = 0.5 * (in_plane[0] + in_plane[1])
         basis = [[a, 0.0, 0.0], [-0.5 * a, math.sqrt(3.0) * 0.5 * a, 0.0], [0.0, 0.0, c]]
-        return family, basis
+        return bravais_lattice_class, basis
 
     a = lengths[0] if lengths[0] > 1e-12 else 1.0
     b = lengths[1] if lengths[1] > 1e-12 else 1.0
     c = lengths[2] if lengths[2] > 1e-12 else 1.0
     basis = [[a, 0.0, 0.0], [0.0, b, 0.0], [0.0, 0.0, c]]
-    return family, basis
+    return bravais_lattice_class, basis
 
 
 def transform_kpoints_to_user_convention(points, lattice, spatial_dimension):
-    _family, canonical_basis = canonical_direct_basis(lattice, spatial_dimension)
+    _bond_label, canonical_basis = canonical_direct_basis(lattice, spatial_dimension)
     user_basis = resolve_lattice_vectors(lattice)
     canonical_cols = np.array(canonical_basis, dtype=float).T
     user_cols = np.array(user_basis, dtype=float).T
@@ -156,7 +156,7 @@ def transform_kpoints_to_user_convention(points, lattice, spatial_dimension):
 
 
 def default_high_symmetry_path(lattice, spatial_dimension):
-    family, _canonical_basis = canonical_direct_basis(lattice, spatial_dimension)
+    bravais_lattice_class, _canonical_basis = canonical_direct_basis(lattice, spatial_dimension)
 
     lookup = {
         "chain": {
@@ -216,8 +216,8 @@ def default_high_symmetry_path(lattice, spatial_dimension):
         },
     }
 
-    nodes = lookup.get(family, lookup["orthorhombic" if spatial_dimension >= 3 else "rectangular"])
-    return family, {
+    nodes = lookup.get(bravais_lattice_class, lookup["orthorhombic" if spatial_dimension >= 3 else "rectangular"])
+    return bravais_lattice_class, {
         "labels": list(nodes["labels"]),
         "points": transform_kpoints_to_user_convention(nodes["points"], lattice, spatial_dimension),
     }

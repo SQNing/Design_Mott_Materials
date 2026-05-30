@@ -24,7 +24,7 @@ def get_classical_state_result(payload):
     if (
         isinstance(mapping.get("downstream_compatibility"), dict)
         and mapping.get("status") is not None
-        and mapping.get("role") is not None
+        and (mapping.get("roles") is not None or mapping.get("result_contract") is not None)
     ):
         return mapping
 

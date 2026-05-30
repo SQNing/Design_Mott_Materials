@@ -137,7 +137,7 @@ def _resolve_q_path(model, lattice, bonds):
     spatial_dimension = infer_spatial_dimension(lattice, bonds)
     q_samples = int(model.get("q_samples", 32))
     explicit_q_path = model.get("q_path", [])
-    lattice_family, nodes = default_high_symmetry_path(lattice, spatial_dimension)
+    q_path_lattice_class, nodes = default_high_symmetry_path(lattice, spatial_dimension)
     if explicit_q_path:
         if len(explicit_q_path) <= 10:
             q_path, node_indices = _interpolate_q_path(explicit_q_path, samples_per_segment=q_samples)
@@ -159,7 +159,7 @@ def _resolve_q_path(model, lattice, bonds):
 
     return {
         "spatial_dimension": spatial_dimension,
-        "lattice_family": lattice_family,
+        "q_path_lattice_class": q_path_lattice_class,
         "q_path": q_path,
         "path": {"labels": labels, "node_indices": node_indices},
     }
@@ -272,15 +272,25 @@ def _padded_q_vector(ordering):
     return padded
 
 
+def _q_vector_is_effectively_zero(q_vector, *, tolerance=1.0e-12):
+    if not isinstance(q_vector, list):
+        return False
+    return all(abs(float(value)) <= tolerance for value in q_vector[:3])
+
+
 def _resolve_lswt_supercell_shape(model, ordering):
+    q_vector = _padded_q_vector(ordering)
+    if q_vector is None:
+        explicit_shape = get_classical_supercell_shape(model, prefer_nested_legacy=True)
+        normalized_explicit = _normalize_supercell_shape(explicit_shape)
+        if normalized_explicit is not None:
+            return normalized_explicit
+        return [1, 1, 1]
+
     explicit_shape = get_classical_supercell_shape(model, prefer_nested_legacy=True)
     normalized_explicit = _normalize_supercell_shape(explicit_shape)
     if normalized_explicit is not None:
         return normalized_explicit
-
-    q_vector = _padded_q_vector(ordering)
-    if q_vector is None:
-        return [1, 1, 1]
 
     rational_q = rationalize_q_vector(q_vector)
     if rational_q is None:
@@ -373,6 +383,21 @@ def _single_q_reference_state_contract(reference_frames, rotating_frame_realizat
             for frame in reference_frames
         ],
     }
+
+
+def _single_q_reference_state_allowed(classical_state):
+    if not isinstance(classical_state, dict):
+        return True
+    constraint_recovery = classical_state.get("constraint_recovery")
+    if not isinstance(constraint_recovery, dict):
+        return True
+    ordering_reconstruction = constraint_recovery.get("ordering_reconstruction")
+    if not isinstance(ordering_reconstruction, dict):
+        return True
+    status = str(ordering_reconstruction.get("status") or "").strip().lower()
+    if not status:
+        return True
+    return status == "single-q-reducible"
 
 
 def _rotate_direction(direction, axis_vector, phase):
@@ -701,12 +726,14 @@ def build_lswt_payload(model):
             "Supported cases are Phase 1 commensurate 0/pi collinear supercells or "
             "Phase 2 commensurate single-q rotating-frame realizations with complete phase coverage.",
         )
-    single_q_reference_state = _single_q_reference_state_contract(
-        reference_frames,
-        rotating_frame_realization,
-        lattice_vectors,
-        ordering,
-    )
+    single_q_reference_state = None
+    if _single_q_reference_state_allowed(classical_state):
+        single_q_reference_state = _single_q_reference_state_contract(
+            reference_frames,
+            rotating_frame_realization,
+            lattice_vectors,
+            ordering,
+        )
     try:
         local_dimension = _resolve_local_dimension_for_onsite_terms(model, reference_frames)
         onsite_matrices = spin_only_onsite_operator_matrices_by_site(
@@ -751,6 +778,7 @@ def build_lswt_payload(model):
         "q_grid": model.get("q_grid", []),
         "q_samples": int(model.get("q_samples", 64)),
         "spatial_dimension": q_path_summary["spatial_dimension"],
+        "q_path_lattice_class": q_path_summary["q_path_lattice_class"],
         "path": q_path_summary["path"],
         "shell_map": shell_map,
     }

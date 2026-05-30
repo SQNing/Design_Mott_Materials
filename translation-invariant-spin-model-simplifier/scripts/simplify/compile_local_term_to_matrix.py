@@ -79,7 +79,7 @@ def compile_local_term_to_matrix(normalized):
 
         record = build_local_matrix_record(
             support=support,
-            family=normalized.get("selected_local_bond_family") if len(support) == 2 else None,
+            bond_label=normalized.get("selected_local_bond_bond_label") if len(support) == 2 else None,
             geometry_class="bond" if len(support) == 2 else "onsite",
             coordinate_frame=coordinate_frame,
             local_basis_order=_local_basis_order(local_dimension),

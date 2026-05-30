@@ -128,6 +128,16 @@ def build_final_classical_state_result(
     result = {
         "status": "ok",
         "role": "final",
+        "roles": ["final"],
+        "result_contract": {
+            "kind": (
+                "classical_state.local_rays"
+                if semantics_payload.get("state_kind") == "local_rays"
+                else "classical_state.spin_frame"
+                if semantics_payload.get("state_kind") == "spin_frames"
+                else "classical_state.unknown"
+            )
+        },
         "classical_state": classical_state,
         "classical_state_semantics": semantics_payload,
         "downstream_compatibility": downstream_compatibility,
@@ -150,6 +160,8 @@ def build_diagnostic_classical_result(
     result = {
         "status": "ok",
         "role": "diagnostic",
+        "roles": ["diagnostic"],
+        "result_contract": {"kind": "classical_state.diagnostic"},
         "reason": reason_text,
         "downstream_compatibility": build_downstream_compatibility(
             role="diagnostic",

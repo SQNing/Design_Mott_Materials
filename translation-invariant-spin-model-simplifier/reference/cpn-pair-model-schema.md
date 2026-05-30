@@ -7,13 +7,13 @@ The canonical `cpn_pair_model` payload describes a site-local `CP^(N-1)` model d
 - `N` means the retained site-local energy-level count.
 - onsite operators are `N x N`
 - bond operators are `N^2 x N^2` on `C^N \otimes C^N`
-- `many_body_hr` is a legacy import/export format, not the conceptual model family
+- `many_body_hr` is a legacy import/export format, not the conceptual model bond_label
 
 ## Required Top-Level Fields
 
 - `schema_version`
-- `model_family = "cpn_pair_model"`
-- `classical_family = "cpn"`
+- `model_bond_label = "cpn_pair_model"`
+- `classical_bond_label = "cpn"`
 - `local_dimension`
 - `structure`
 - `pair_operator_convention`
@@ -33,8 +33,8 @@ Current canonical convention:
 ```json
 {
   "schema_version": 1,
-  "model_family": "cpn_pair_model",
-  "classical_family": "cpn",
+  "model_bond_label": "cpn_pair_model",
+  "classical_bond_label": "cpn",
   "local_dimension": 3,
   "structure": {
     "lattice_vectors": [[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]],
@@ -73,7 +73,7 @@ A legacy `VR_hr.dat` import may still report:
 But those are compatibility/provenance views layered around the canonical contract. The normalized
 payload should still expose:
 
-- `model_family = "cpn_pair_model"`
+- `model_bond_label = "cpn_pair_model"`
 - `local_dimension = N`
 - canonical `bond_terms`
 - canonical `pair_operator_convention`

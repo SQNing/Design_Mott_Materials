@@ -9,17 +9,17 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
-    from common.classical_family_resolution import (
-        resolve_classical_family,
-        resolve_input_acceptance_classical_family,
+    from common.classical_bond_label_resolution import (
+        resolve_classical_bond_label,
+        resolve_input_acceptance_classical_bond_label,
     )
     from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 else:
     from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
     from classical.classical_solver_driver import run_classical_solver
-    from common.classical_family_resolution import (
-        resolve_classical_family,
-        resolve_input_acceptance_classical_family,
+    from common.classical_bond_label_resolution import (
+        resolve_classical_bond_label,
+        resolve_input_acceptance_classical_bond_label,
     )
     from common.document_reader_downstream_orchestration import orchestrate_document_reader_downstream
 
@@ -116,43 +116,36 @@ def _write_downstream_artifacts(output_dir, downstream_result):
     _write_json(output_dir / "downstream_summary.json", downstream_result.get("downstream_summary", {}))
 
 
-def _resolve_document_reader_classical_family(
+def _resolve_document_reader_classical_bond_label(
     normalized_model,
     *,
-    selected_classical_family=None,
+    selected_classical_bond_label=None,
     emit_spin_only_solver_payload=False,
     run_spin_only_classical_solver=False,
 ):
-    requested_family = selected_classical_family
-    if requested_family is None and (emit_spin_only_solver_payload or run_spin_only_classical_solver):
-        requested_family = "spin-only"
+    requested_bond_label = selected_classical_bond_label
+    if requested_bond_label is None and (emit_spin_only_solver_payload or run_spin_only_classical_solver):
+        requested_bond_label = "spin-only"
 
     representation = (
         ((normalized_model or {}).get("hamiltonian_description") or {}).get("representation") or {}
     ).get("kind", "natural_language")
-    family_gate = resolve_input_acceptance_classical_family(
+    bond_label_gate = resolve_input_acceptance_classical_bond_label(
         payload={
             **(normalized_model or {}),
             "representation": representation,
         },
-        requested_family=requested_family,
+        requested_bond_label=requested_bond_label,
     )
-    if family_gate.get("status") != "resolved":
-        return family_gate
+    if bond_label_gate.get("status") != "resolved":
+        return bond_label_gate
 
     resolved_model = deepcopy(normalized_model or {})
-    resolved_model["classical_family"] = family_gate["classical_family"]
-    resolved_model["classical_family_metadata"] = {
-        "family": family_gate["classical_family"],
-        "solver_family": family_gate["solver_family"],
-        "sources": list(family_gate.get("sources", [])),
-        "intrinsic": bool(family_gate.get("intrinsic", False)),
-    }
+    resolved_model["classical_bond_label"] = bond_label_gate["classical_bond_label"]
     return {
         "status": "resolved",
         "normalized_model": resolved_model,
-        "classical_family": family_gate["classical_family"],
-        "classical_family_metadata": dict(resolved_model["classical_family_metadata"]),
+        "classical_bond_label": bond_label_gate["classical_bond_label"],
     }
 
 
@@ -160,9 +153,9 @@ def run_document_reader_pipeline(
     text,
     *,
     source_path=None,
-    selected_classical_family=None,
+    selected_classical_bond_label=None,
     selected_model_candidate=None,
-    selected_local_bond_family=None,
+    selected_local_bond_bond_label=None,
     selected_coordinate_convention=None,
     output_dir,
     agent_normalized_document=None,
@@ -186,7 +179,7 @@ def run_document_reader_pipeline(
         text,
         source_path=source_path,
         selected_model_candidate=selected_model_candidate,
-        selected_local_bond_family=selected_local_bond_family,
+        selected_local_bond_bond_label=selected_local_bond_bond_label,
         selected_coordinate_convention=selected_coordinate_convention,
         output_dir=document_output_dir,
         agent_normalized_document=agent_normalized_document,
@@ -215,27 +208,27 @@ def run_document_reader_pipeline(
         return result
 
     normalized_model = orchestration.get("normalized_model", {})
-    family_resolution = _resolve_document_reader_classical_family(
+    bond_label_resolution = _resolve_document_reader_classical_bond_label(
         normalized_model,
-        selected_classical_family=selected_classical_family,
+        selected_classical_bond_label=selected_classical_bond_label,
         emit_spin_only_solver_payload=emit_spin_only_solver_payload,
         run_spin_only_classical_solver=run_spin_only_classical_solver,
     )
-    if family_resolution.get("status") != "resolved":
+    if bond_label_resolution.get("status") != "resolved":
         result = {
             "status": "needs_input",
-            "stage": "classical_family_selection",
+            "stage": "classical_bond_label_selection",
             "document_orchestration_status": orchestration.get("status"),
             "simplification_status": None,
             "normalized_model": normalized_model,
-            "interaction": family_resolution.get("interaction"),
+            "interaction": bond_label_resolution.get("interaction"),
             "document_orchestration": orchestration,
             "artifacts": artifacts,
         }
         _write_json(output_dir / "final_pipeline_result.json", result)
         return result
 
-    normalized_model = family_resolution["normalized_model"]
+    normalized_model = bond_label_resolution["normalized_model"]
     simplification = run_simplification_from_normalized_model(normalized_model)
     _write_simplification_artifacts(simplification_output_dir, simplification)
     result = {
@@ -248,10 +241,9 @@ def run_document_reader_pipeline(
 
     if emit_spin_only_solver_payload or run_spin_only_classical_solver:
         try:
-            family_resolution = resolve_classical_family(requested_family="spin-only", payload=result)
+            bond_label_resolution = resolve_classical_bond_label(requested_bond_label="spin-only", payload=result)
             bridge_input = deepcopy(result)
-            bridge_input["classical_family"] = family_resolution["classical_family"]
-            bridge_input["classical_family_metadata"] = family_resolution
+            bridge_input["classical_bond_label"] = bond_label_resolution["classical_bond_label"]
             bridge_result = build_spin_only_solver_payload(bridge_input)
             bridge_payload = bridge_result.get("payload", {})
             solver_result = None
@@ -293,9 +285,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--freeform", required=True)
     parser.add_argument("--source-path", default=None)
-    parser.add_argument("--selected-classical-family", default=None)
+    parser.add_argument("--selected-classical-bond_label", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
-    parser.add_argument("--selected-local-bond-family", default=None)
+    parser.add_argument("--selected-local-bond-bond_label", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--agent-normalized-document-json", default=None)
@@ -312,9 +304,9 @@ def main():
     result = run_document_reader_pipeline(
         args.freeform,
         source_path=args.source_path,
-        selected_classical_family=args.selected_classical_family,
+        selected_classical_bond_label=args.selected_classical_bond_label,
         selected_model_candidate=args.selected_model_candidate,
-        selected_local_bond_family=args.selected_local_bond_family,
+        selected_local_bond_bond_label=args.selected_local_bond_bond_label,
         selected_coordinate_convention=args.selected_coordinate_convention,
         output_dir=args.output_dir,
         agent_normalized_document=_load_agent_normalized_document(args),

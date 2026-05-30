@@ -140,8 +140,12 @@ def resolve_downstream_stage_route(payload, stage_name):
             "reason": stage_compatibility.get("reason"),
             "recommended_backend": _stable_backend_hint(stage_name, stage_compatibility.get("recommended_backend"), payload),
             "method": classical_state_result.get("method"),
-            "role": classical_state_result.get("role"),
-            "solver_family": classical_state_result.get("solver_family"),
+            "roles": list(classical_state_result.get("roles") or []),
+            "result_contract_kind": (
+                classical_state_result.get("result_contract", {}).get("kind")
+                if isinstance(classical_state_result.get("result_contract"), dict)
+                else None
+            ),
         }
         return route
 

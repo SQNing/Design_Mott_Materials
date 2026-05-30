@@ -2,8 +2,13 @@
 
 This document is the repository-specific routing companion for the top-level
 skill. It tells an expert-capable agent how to choose among the currently
-supported input, landing, family, backend, and reporting paths without turning
+supported input, landing, bond_label, backend, and reporting paths without turning
 the top-level `SKILL.md` into a monolithic runbook.
+
+For the public reference contract, treat `lattice_structure` as the primary
+conceptual object. `bond_label`, `model_bond_label`, and related route labels remain
+legacy compatibility data for adapters and validation, not the main organizing
+object of the normalized model.
 
 ## Input Classes
 
@@ -29,7 +34,8 @@ Use the input class to choose the first shared backbone:
   simplification.
 - structured lattice or model inputs
   Route directly into normalization plus lattice interpretation, then continue
-  through the shared simplification/report backbone.
+  through the shared simplification/report backbone with Hamiltonian content
+  attached as site, bond, or higher-body terms on `lattice_structure`.
 - natural-language or document-style inputs
   Start with deterministic extraction and consult
   `reference/natural-language-input-protocol.md` before attempting broader
@@ -39,7 +45,7 @@ Use the input class to choose the first shared backbone:
   than a generic spin-only text-input path.
 - already landed payloads
   Preserve the landed contract and choose the downstream solver/report path that
-  matches the existing payload family.
+  matches the existing payload bond_label.
 
 If route selection remains physically ambiguous, stop at
 `interaction.status = needs_input` instead of guessing.
@@ -78,7 +84,7 @@ toward retained-local-multiplet handling, or stopping for clarification.
 
 - missing detail alone is not evidence that retained-local-multiplet handling is required
 - the text mixes ordinary spin-model notation with retained-local-multiplet or
-  pseudospin language strongly enough that the family choice would change the
+  pseudospin language strongly enough that the bond_label choice would change the
   executable route
 - the user-facing description leaves unresolved whether the intended object is a
   conventional spin Hamiltonian or a retained-local-space effective model
@@ -97,7 +103,7 @@ Document and broad-text routes remain deterministic-first.
 - Use the agent to narrow or explain missing information, but keep material
   ambiguity at `needs_input`.
 
-The main helper entrypoints for this family are:
+The main helper entrypoints for this bond_label are:
 
 - `scripts/cli/normalize_document_with_agent.py`
 - `scripts/cli/run_document_reader_pipeline.py`
@@ -119,22 +125,22 @@ Use this section to keep document assistance auditable.
 
 ### What agent assistance must preserve
 
-- the family status at the time assistance begins
+- the bond_label status at the time assistance begins
 - the evidence-backed distinction between extracted content and inferred content
 - the source-side cues needed to explain how the normalized artifact was formed
 - the fact that `agent_normalization_request` is a bounded normalization step,
-  not a license to silently choose a different physical family
+  not a license to silently choose a different physical bond_label
 
 ### What still forces `needs_input`
 
-- unresolved `spin-only` versus `cpn` family choice when that choice changes
+- unresolved `spin-only` versus `cpn` bond_label choice when that choice changes
   the executable route
 - competing model candidates or coordinate conventions that would materially
   change the landed payload
 - any case where the current parser plus bounded agent help still cannot land a
   trustworthy runnable payload without making a physical guess
 
-## Classical Family Resolution
+## Classical Bond Label Resolution
 
 The current public classical families are:
 
@@ -145,14 +151,16 @@ Routing rules:
 
 - broad text, operator, matrix, and document entrypoints must not silently pick
   between `spin-only` and `cpn`
-- family-intrinsic routes may resolve immediately
-- family-explicit payloads or flags should be preserved and validated
-- unresolved family choice must remain a `needs_input` interaction
+- bond_label-intrinsic routes may resolve immediately
+- bond_label-explicit payloads or flags should be preserved and validated
+- unresolved bond_label choice must remain a `needs_input` interaction
+- once routing is resolved, preserve any resulting bond_label labels only as legacy
+  compatibility data alongside the primary `lattice_structure`-based contract
 
 ## Backend And Solver Routing
 
-After landing and family resolution, choose the solver path that matches both
-the family and the available environment.
+After landing and bond_label resolution, choose the solver path that matches both
+the bond_label and the available environment.
 
 - generic classical workflows use the shared classical solver drivers
 - explicit spin-bilinear Sunny LSWT remains separate from retained-local-space

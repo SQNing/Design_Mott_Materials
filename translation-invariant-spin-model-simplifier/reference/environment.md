@@ -114,7 +114,7 @@ Required tools:
 
 Shared launcher baseline:
 
-- All checked-in Sunny-family launchers in this repository now share the same
+- All checked-in Sunny-bond_label launchers in this repository now share the same
   repo-local `.julia-env-v09` project and `scripts/.julia-depot` depot.
 - This includes the spin-only LSWT launcher plus the Sunny pseudospin-orbital
   classical, thermodynamics, and SUN-GSWT launchers.
@@ -273,7 +273,7 @@ Before execution, the skill should ask the user for a quick environment status:
 ## Recommended Julia launcher
 
 Use the repo wrapper at `translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh`
-as the default Julia entry point for all Sunny-family drivers on this machine.
+as the default Julia entry point for all Sunny-bond_label drivers on this machine.
 
 It pins the checked-in Julia baseline and disables the precompile / pkgimage path
 that currently fails in this environment during `REPL`-related precompilation

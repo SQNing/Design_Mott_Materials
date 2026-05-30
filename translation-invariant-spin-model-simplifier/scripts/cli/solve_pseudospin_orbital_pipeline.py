@@ -27,9 +27,9 @@ from classical.sunny_sun_thermodynamics_driver import run_sunny_sun_thermodynami
 from cli.build_pseudospin_orbital_payload import build_pseudospin_orbital_payload
 from cli.write_results_bundle import write_results_bundle
 from common.classical_contract_resolution import get_classical_state_result, get_standardized_classical_state
-from common.classical_family_resolution import resolve_classical_family
+from common.classical_bond_label_resolution import resolve_classical_bond_label
 from common.classical_output_compatibility import build_classical_output_compatibility_payload
-from common.classical_solver_family_routing import resolve_classical_solver_method, resolve_dynamic_classical_solver_method
+from common.classical_solver_bond_label_routing import resolve_classical_solver_method, resolve_dynamic_classical_solver_method
 from common.downstream_stage_routing import resolve_downstream_stage_route
 from common.classical_state_result import (
     build_diagnostic_classical_result,
@@ -525,14 +525,14 @@ def _solver_phase_summary(
     )
     inferred = parsed_payload.get("inferred", {})
     realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
-    model_family = str(parsed_payload.get("model_family") or "unknown")
+    model_bond_label = str(parsed_payload.get("model_bond_label") or "unknown")
     lines = [
         "# Pseudospin-Orbital Solver Phase",
         "",
         "## Conventions",
         "",
         "- local space: pseudospin_orbital",
-        f"- model family: {model_family}",
+        f"- model bond_label: {model_bond_label}",
         f"- basis order: {parsed_payload.get('basis_order')}",
         f"- local_dimension: {inferred['local_dimension']}",
         f"- classical_method: {classical_method}",
@@ -945,7 +945,7 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
             thermodynamics_supported=True,
             diagnostics=diagnostics,
         )
-        result["solver_family"] = method_metadata["solver_family"]
+        result["solver_bond_label"] = method_metadata["solver_bond_label"]
         result["method"] = method_metadata["standardized_method"]
         result["ordering"] = classical_state.get("ordering")
         result["supercell_shape"] = [
@@ -970,7 +970,7 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
                     thermodynamics_supported=True,
                     diagnostics=diagnostics,
                 )
-                result["solver_family"] = method_metadata["solver_family"]
+                result["solver_bond_label"] = method_metadata["solver_bond_label"]
                 result["method"] = method_metadata["standardized_method"]
                 result["ordering"] = classical_state.get("ordering")
                 result["supercell_shape"] = [
@@ -987,7 +987,7 @@ def _build_pseudospin_classical_state_result(solver_result, *, classical_method,
             reason="diagnostic-seed-method",
             diagnostics=diagnostics,
         )
-        result["solver_family"] = method_metadata["solver_family"]
+        result["solver_bond_label"] = method_metadata["solver_bond_label"]
         result["method"] = method_metadata["standardized_method"]
         if solver_result.get("promotion_reason") is not None:
             result["promotion_reason"] = solver_result.get("promotion_reason")
@@ -1095,7 +1095,7 @@ def _build_result_payload(
         "effective_model": effective_model,
         "fidelity": score_fidelity(effective_model),
         "projection": {
-            "status": str(parsed_payload.get("model_family") or "cpn_pair_model"),
+            "status": str(parsed_payload.get("model_bond_label") or "cpn_pair_model"),
         },
         "lattice": _bundle_lattice_payload(parsed_payload),
         "bonds": [],
@@ -1374,26 +1374,25 @@ def _solve_from_parsed_payload_core(
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
     compatibility_export_mode="canonical",
-    classical_family=None,
+    classical_bond_label=None,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     classical_checkpoint_path = output_dir / "classical_checkpoint.json"
     resolved_classical_method = str(classical_method)
 
-    family_resolution = resolve_classical_family(
-        requested_family=classical_family,
+    bond_label_resolution = resolve_classical_bond_label(
+        requested_bond_label=classical_bond_label,
         payload=parsed_payload,
     )
-    if family_resolution["classical_family"] != "cpn":
+    if bond_label_resolution["classical_bond_label"] != "cpn":
         raise ValueError(
-            "incompatible-classical-family: "
-            f"pseudospin orbital pipeline requires cpn family, got {family_resolution['classical_family']}"
+            "incompatible-classical-bond_label: "
+            f"pseudospin orbital pipeline requires cpn bond_label, got {bond_label_resolution['classical_bond_label']}"
         )
     parsed_payload = {
         **parsed_payload,
-        "classical_family": family_resolution["classical_family"],
-        "classical_family_metadata": family_resolution,
+        "classical_bond_label": bond_label_resolution["classical_bond_label"],
     }
     simplified_payload = simplify_pseudospin_orbital_payload(parsed_payload)
     grouped_payload = group_pseudospin_orbital_terms(parsed_payload)
@@ -2047,7 +2046,7 @@ def solve_from_parsed_payload(
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
     compatibility_export_mode="canonical",
-    classical_family=None,
+    classical_bond_label=None,
 ):
     _progress("Loaded parsed CPN payload")
     return _solve_from_parsed_payload_core(
@@ -2090,7 +2089,7 @@ def solve_from_parsed_payload(
         thermo_wl_sweeps=thermo_wl_sweeps,
         glt_certification_mode=glt_certification_mode,
         compatibility_export_mode=compatibility_export_mode,
-        classical_family=classical_family,
+        classical_bond_label=classical_bond_label,
     )
 
 
@@ -2138,7 +2137,7 @@ def solve_from_files(
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
     compatibility_export_mode="canonical",
-    classical_family=None,
+    classical_bond_label=None,
     local_level_to_site_mapping_path=None,
 ):
     resolved_local_space_mode = (
@@ -2195,7 +2194,7 @@ def solve_from_files(
         thermo_wl_sweeps=thermo_wl_sweeps,
         glt_certification_mode=glt_certification_mode,
         compatibility_export_mode=compatibility_export_mode,
-        classical_family=classical_family,
+        classical_bond_label=classical_bond_label,
     )
 
 
@@ -2214,7 +2213,7 @@ def main():
         default=None,
     )
     parser.add_argument(
-        "--classical-family",
+        "--classical-bond_label",
         choices=["spin-only", "cpn"],
         default=None,
     )
@@ -2348,7 +2347,7 @@ def main():
         thermo_wl_sweeps=int(args.thermo_wl_sweeps),
         glt_certification_mode=str(args.glt_certification_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
-        classical_family=None if args.classical_family is None else str(args.classical_family),
+        classical_bond_label=None if args.classical_bond_label is None else str(args.classical_bond_label),
         local_level_to_site_mapping_path=Path(args.local_level_to_site_mapping)
         if args.local_level_to_site_mapping is not None
         else None,

@@ -10,47 +10,47 @@ import spglib
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from common.bond_orbits import generate_noncull_directed_bond_orbit
-    from common.classical_family_resolution import resolve_classical_family
+    from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
 else:
     from common.bond_orbits import generate_noncull_directed_bond_orbit
-    from common.classical_family_resolution import resolve_classical_family
+    from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
 
 
-def _selected_family(simplification_payload):
+def _selected_bond_label(simplification_payload):
     normalized_model = simplification_payload.get("normalized_model", {})
-    family = str(normalized_model.get("selected_local_bond_family") or "").strip()
-    if not family:
-        raise ValueError("selected_local_bond_family must be provided")
-    return family
+    bond_label = str(normalized_model.get("selected_local_bond_bond_label") or "").strip()
+    if not bond_label:
+        raise ValueError("selected_local_bond_bond_label must be provided")
+    return bond_label
 
 
-def _family_shell_metadata(normalized_model, family):
+def _bond_label_shell_metadata(normalized_model, bond_label):
     lattice = normalized_model.get("lattice", {})
-    family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
-    metadata = family_shell_map.get(family)
+    bond_label_shell_map = lattice.get("bond_label_shell_map", {}) if isinstance(lattice.get("bond_label_shell_map"), dict) else {}
+    metadata = bond_label_shell_map.get(bond_label)
     if not isinstance(metadata, dict):
-        raise ValueError(f"missing family_shell_map metadata for family {family!r}")
+        raise ValueError(f"missing bond_label_shell_map metadata for bond_label {bond_label!r}")
     shell_index = int(metadata.get("shell_index") or 0)
     if shell_index <= 0:
-        raise ValueError(f"invalid shell_index for family {family!r}")
+        raise ValueError(f"invalid shell_index for bond_label {bond_label!r}")
     return lattice, metadata, shell_index
 
 
-def _family_representative_metadata(normalized_model, family):
+def _bond_label_representative_metadata(normalized_model, bond_label):
     lattice = normalized_model.get("lattice", {})
     representative_map = (
-        lattice.get("family_representative_map", {})
-        if isinstance(lattice.get("family_representative_map"), dict)
+        lattice.get("bond_label_representative_map", {})
+        if isinstance(lattice.get("bond_label_representative_map"), dict)
         else {}
     )
-    metadata = representative_map.get(family)
+    metadata = representative_map.get(bond_label)
     if not isinstance(metadata, dict):
         return lattice, None
     required_fields = {"source", "target", "translation"}
     if not required_fields.issubset(metadata):
-        raise ValueError(f"incomplete representative bond metadata for family {family!r}")
+        raise ValueError(f"incomplete representative bond metadata for bond_label {bond_label!r}")
     return lattice, metadata
 
 
@@ -63,89 +63,89 @@ def _supported_block_type(block):
     }
 
 
-def _family_blocks_and_shell_summary(simplification_payload):
+def _bond_label_blocks_and_shell_summary(simplification_payload):
     effective_model = simplification_payload.get("effective_model", {})
     main_blocks = list(effective_model.get("main") or []) if isinstance(effective_model, dict) else []
-    family_blocks = {}
+    bond_label_blocks = {}
     shell_summary = {}
     for block in main_blocks:
         block_type = str(block.get("type") or "")
-        family = str(block.get("family") or "").strip()
+        bond_label = str(block.get("bond_label") or "").strip()
         if block_type == "shell_resolved_exchange":
             for shell in list(block.get("shells") or []):
-                shell_family = str(shell.get("family") or "").strip()
-                if shell_family:
-                    shell_summary[shell_family] = dict(shell)
+                shell_bond_label = str(shell.get("bond_label") or "").strip()
+                if shell_bond_label:
+                    shell_summary[shell_bond_label] = dict(shell)
             continue
-        if family:
-            family_blocks[family] = block
-    return family_blocks, shell_summary
+        if bond_label:
+            bond_label_blocks[bond_label] = block
+    return bond_label_blocks, shell_summary
 
 
-def _validate_shell_summary_against_family_blocks(family_blocks, shell_summary):
-    for family, summary_entry in shell_summary.items():
-        block = family_blocks.get(family)
+def _validate_shell_summary_against_bond_label_blocks(bond_label_blocks, shell_summary):
+    for bond_label, summary_entry in shell_summary.items():
+        block = bond_label_blocks.get(bond_label)
         if block is None:
             continue
         summary_type = str(summary_entry.get("type") or "")
         block_type = str(block.get("type") or "")
         if summary_type and block_type and summary_type != block_type:
-            raise ValueError(f"inconsistent shell summary for family {family!r}")
+            raise ValueError(f"inconsistent shell summary for bond_label {bond_label!r}")
 
 
-def _family_sort_key(normalized_model, family, shell_summary):
-    _lattice, representative_metadata = _family_representative_metadata(normalized_model, family)
+def _bond_label_sort_key(normalized_model, bond_label, shell_summary):
+    _lattice, representative_metadata = _bond_label_representative_metadata(normalized_model, bond_label)
     if representative_metadata is not None:
         translation = tuple(int(component) for component in representative_metadata["translation"])
-        return (0, translation, str(family))
+        return (0, translation, str(bond_label))
 
-    _lattice, metadata, shell_index = _family_shell_metadata(normalized_model, family)
-    summary_index = shell_summary.get(family, {}).get("shell_index")
+    _lattice, metadata, shell_index = _bond_label_shell_metadata(normalized_model, bond_label)
+    summary_index = shell_summary.get(bond_label, {}).get("shell_index")
     if summary_index is not None and int(summary_index) != int(shell_index):
-        raise ValueError(f"inconsistent shell summary ordering for family {family!r}")
-    return (1, int(shell_index), str(family))
+        raise ValueError(f"inconsistent shell summary ordering for bond_label {bond_label!r}")
+    return (1, int(shell_index), str(bond_label))
 
 
-def _collect_bridgeable_family_blocks(simplification_payload):
+def _collect_bridgeable_bond_label_blocks(simplification_payload):
     normalized_model = simplification_payload.get("normalized_model", {})
-    family_blocks, shell_summary = _family_blocks_and_shell_summary(simplification_payload)
-    _validate_shell_summary_against_family_blocks(family_blocks, shell_summary)
+    bond_label_blocks, shell_summary = _bond_label_blocks_and_shell_summary(simplification_payload)
+    _validate_shell_summary_against_bond_label_blocks(bond_label_blocks, shell_summary)
 
     unsupported_families = sorted(
-        family for family, block in family_blocks.items() if not _supported_block_type(block)
+        bond_label for bond_label, block in bond_label_blocks.items() if not _supported_block_type(block)
     )
     if unsupported_families:
         raise ValueError(f"unsupported families in all mode: {unsupported_families}")
 
-    families = sorted(family_blocks.keys(), key=lambda family: _family_sort_key(normalized_model, family, shell_summary))
+    families = sorted(bond_label_blocks.keys(), key=lambda bond_label: _bond_label_sort_key(normalized_model, bond_label, shell_summary))
     if not families:
-        fallback_families = sorted(shell_summary.keys(), key=lambda family: _family_sort_key(normalized_model, family, shell_summary))
+        fallback_families = sorted(shell_summary.keys(), key=lambda bond_label: _bond_label_sort_key(normalized_model, bond_label, shell_summary))
         if fallback_families:
             families = fallback_families
-            for family in fallback_families:
-                family_blocks[family] = dict(shell_summary[family])
+            for bond_label in fallback_families:
+                bond_label_blocks[bond_label] = dict(shell_summary[bond_label])
 
     if not families:
         raise ValueError("no bridgeable families found for all mode")
 
     return {
         "families": families,
-        "family_blocks": family_blocks,
+        "bond_label_blocks": bond_label_blocks,
         "shell_summary": shell_summary,
-        "input_precedence": "family_blocks_over_shell_summary" if family_blocks else "shell_summary_fallback",
+        "input_precedence": "bond_label_blocks_over_shell_summary" if bond_label_blocks else "shell_summary_fallback",
     }
 
 
-def _matching_readable_blocks(simplification_payload, family):
+def _matching_readable_blocks(simplification_payload, bond_label):
     effective_model = simplification_payload.get("effective_model", {})
     main_blocks = list(effective_model.get("main") or []) if isinstance(effective_model, dict) else []
-    matches = [block for block in main_blocks if str(block.get("family") or "").strip() == family]
-    if not matches and len(main_blocks) == 1 and not str(main_blocks[0].get("family") or "").strip():
+    matches = [block for block in main_blocks if str(block.get("bond_label") or "").strip() == bond_label]
+    if not matches and len(main_blocks) == 1 and not str(main_blocks[0].get("bond_label") or "").strip():
         matches = [main_blocks[0]]
     if not matches:
-        raise ValueError(f"no readable effective-model block found for family {family!r}")
+        raise ValueError(f"no readable effective-model block found for bond_label {bond_label!r}")
     if len(matches) != 1:
-        raise ValueError(f"multiple readable effective-model blocks found for family {family!r}")
+        raise ValueError(f"multiple readable effective-model blocks found for bond_label {bond_label!r}")
     return matches[0]
 
 
@@ -298,7 +298,7 @@ def _rotation_about_z(angle_radians):
     )
 
 
-def _threefold_triangular_family_matrices(canonical_pairs, matrix):
+def _threefold_triangular_bond_label_matrices(canonical_pairs, matrix):
     sources = {pair[0] for pair in canonical_pairs}
     targets = {pair[1] for pair in canonical_pairs}
     translations = {pair[2] for pair in canonical_pairs}
@@ -343,7 +343,7 @@ def _symmetry_rotated_matrices_for_pairs(lattice, canonical_pairs, representativ
     return rotated
 
 
-def _expanded_pair_matrices(lattice, canonical_pairs, matrix, family, block_type, selected_coordinate_convention):
+def _expanded_pair_matrices(lattice, canonical_pairs, matrix, bond_label, block_type, selected_coordinate_convention):
     if (
         str(selected_coordinate_convention or "") != "global_crystallographic"
         or str(block_type or "") not in {"symmetric_exchange_matrix", "exchange_tensor"}
@@ -351,7 +351,7 @@ def _expanded_pair_matrices(lattice, canonical_pairs, matrix, family, block_type
     ):
         return {pair: deepcopy(matrix) for pair in canonical_pairs}
 
-    threefold_matrices = _threefold_triangular_family_matrices(canonical_pairs, matrix)
+    threefold_matrices = _threefold_triangular_bond_label_matrices(canonical_pairs, matrix)
     if threefold_matrices is not None:
         return threefold_matrices
 
@@ -361,15 +361,15 @@ def _expanded_pair_matrices(lattice, canonical_pairs, matrix, family, block_type
         return {pair: deepcopy(matrix) for pair in canonical_pairs}
     missing = [pair for pair in canonical_pairs if pair not in rotated]
     if missing:
-        raise ValueError(f"missing symmetry-transformed matrices for family {family!r}: {missing!r}")
+        raise ValueError(f"missing symmetry-transformed matrices for bond_label {bond_label!r}: {missing!r}")
     return rotated
 
 
-def _expand_family_representative_bonds(
+def _expand_bond_label_representative_bonds(
     lattice,
     representative_metadata,
     matrix,
-    family,
+    bond_label,
     *,
     block_type="",
     selected_coordinate_convention="",
@@ -392,7 +392,7 @@ def _expand_family_representative_bonds(
         lattice,
         canonical_pairs,
         matrix,
-        family,
+        bond_label,
         block_type,
         selected_coordinate_convention,
     )
@@ -405,14 +405,14 @@ def _expand_family_representative_bonds(
                 "vector": list(translation),
                 "distance": float(distance) if distance is not None else _bond_distance(lattice, source, target, translation),
                 "shell_index": int(shell_index) if shell_index is not None else None,
-                "family": family,
+                "bond_label": bond_label,
                 "matrix": deepcopy(matrices_by_pair[(source, target, translation)]),
             }
         )
     return bonds
 
 
-def _expand_family_shell_bonds(lattice, shell_index, distance, matrix, family, *, block_type="", selected_coordinate_convention=""):
+def _expand_bond_label_shell_bonds(lattice, shell_index, distance, matrix, bond_label, *, block_type="", selected_coordinate_convention=""):
     lattice_vectors = resolve_lattice_vectors(lattice)
     positions = lattice.get("positions") or [[0.0, 0.0, 0.0]]
     shells = enumerate_neighbor_shells(
@@ -437,7 +437,7 @@ def _expand_family_shell_bonds(lattice, shell_index, distance, matrix, family, *
         lattice,
         canonical_pairs,
         matrix,
-        family,
+        bond_label,
         block_type,
         selected_coordinate_convention,
     )
@@ -450,79 +450,253 @@ def _expand_family_shell_bonds(lattice, shell_index, distance, matrix, family, *
                 "vector": list(translation),
                 "distance": float(target_distance),
                 "shell_index": int(shell_index),
-                "family": family,
+                "bond_label": bond_label,
                 "matrix": deepcopy(matrices_by_pair[(source, target, translation)]),
             }
         )
     return bonds
 
 
+def _is_lattice_term_payload(payload):
+    return isinstance(payload, dict) and payload.get("schema_version") == "lattice-term-contract/v1"
+
+
+def _canonical_classical_space_kinds(payload):
+    local_hilbert = payload.get("local_hilbert", {}) if isinstance(payload, dict) else {}
+    classical_spaces = local_hilbert.get("classical_spaces", {}) if isinstance(local_hilbert, dict) else {}
+    return {
+        str(record.get("kind"))
+        for record in classical_spaces.values()
+        if isinstance(record, dict) and record.get("kind") is not None
+    }
+
+
+def _canonical_local_dimension(payload):
+    local_hilbert = payload.get("local_hilbert", {}) if isinstance(payload, dict) else {}
+    basis_registry = local_hilbert.get("basis_registry", {}) if isinstance(local_hilbert, dict) else {}
+    for basis in basis_registry.values():
+        if not isinstance(basis, dict):
+            continue
+        try:
+            dimension = int(basis.get("dimension"))
+        except (TypeError, ValueError):
+            continue
+        if dimension > 0:
+            return dimension
+    return None
+
+
+def _canonical_bond_orbits_by_ref(payload):
+    lattice_structure = payload.get("lattice_structure", {}) if isinstance(payload, dict) else {}
+    return {
+        str(orbit.get("orbit_ref")): orbit
+        for orbit in list(lattice_structure.get("bond_orbits") or [])
+        if isinstance(orbit, dict) and orbit.get("orbit_ref") is not None
+    }
+
+
+def _canonical_selected_term_refs(payload):
+    solver_request = payload.get("solver_request", {}) if isinstance(payload, dict) else {}
+    term_attachments = payload.get("term_attachments", {}) if isinstance(payload, dict) else {}
+    selected_term_refs = {str(ref) for ref in list(solver_request.get("selected_term_refs") or [])}
+    selected_orbit_refs = {str(ref) for ref in list(solver_request.get("selected_bond_orbit_refs") or [])}
+    selected_term_set_ref = solver_request.get("selected_term_set_ref")
+    if selected_term_set_ref:
+        for term_set in list(term_attachments.get("term_sets") or []):
+            if not isinstance(term_set, dict) or str(term_set.get("term_set_ref")) != str(selected_term_set_ref):
+                continue
+            selected_term_refs.update(str(ref) for ref in list(term_set.get("term_refs") or []))
+            selected_orbit_refs.update(str(ref) for ref in list(term_set.get("bond_orbit_refs") or []))
+            break
+    return selected_term_refs, selected_orbit_refs
+
+
+def _canonical_scalar_to_float(value, parameters):
+    if isinstance(value, dict):
+        kind = value.get("kind")
+        if kind == "real":
+            return float(value.get("value", 0.0))
+        if kind == "complex":
+            imaginary = float(value.get("im", 0.0))
+            if abs(imaginary) > 1.0e-12:
+                raise ValueError("spin-only exchange matrices must be real")
+            return float(value.get("re", 0.0))
+        if kind == "parameter_ref":
+            ref = str(value.get("parameter_ref") or "")
+            key = ref.split("param:", 1)[1] if ref.startswith("param:") else ref
+            if ref in parameters:
+                return float(parameters[ref])
+            if key in parameters:
+                return float(parameters[key])
+            raise ValueError(f"unbound parameter reference in exchange matrix: {ref}")
+    return float(value)
+
+
+def _canonical_matrix_to_float_rows(matrix, parameters):
+    rows = matrix.get("data") if isinstance(matrix, dict) else None
+    if rows is None and isinstance(matrix, dict):
+        rows = matrix.get("entries")
+    if rows is None:
+        rows = matrix
+    rows = list(rows or [])
+    if len(rows) != 3 or any(len(row) != 3 for row in rows):
+        raise ValueError("spin-only exchange matrix must have shape 3x3")
+    return [[_canonical_scalar_to_float(value, parameters) for value in row] for row in rows]
+
+
+def _canonical_selected_bond_terms(payload):
+    term_attachments = payload.get("term_attachments", {}) if isinstance(payload, dict) else {}
+    bond_terms = [term for term in list(term_attachments.get("bond_terms") or []) if isinstance(term, dict)]
+    selected_term_refs, selected_orbit_refs = _canonical_selected_term_refs(payload)
+    if not selected_term_refs and not selected_orbit_refs:
+        return bond_terms
+    selected = []
+    for term in bond_terms:
+        attach_to = term.get("attach_to", {}) if isinstance(term.get("attach_to"), dict) else {}
+        term_ref = str(term.get("term_ref") or "")
+        orbit_ref = str(attach_to.get("orbit_ref") or "")
+        if term_ref in selected_term_refs or orbit_ref in selected_orbit_refs:
+            selected.append(term)
+    return selected
+
+
+def _canonical_spin_only_solver_payload(payload):
+    if "unit_vector_sphere" not in _canonical_classical_space_kinds(payload):
+        raise ValueError("unsupported-classical-space: spin-only builder requires unit_vector_sphere")
+
+    parameters = payload.get("parameters", {}) if isinstance(payload.get("parameters"), dict) else {}
+    orbit_by_ref = _canonical_bond_orbits_by_ref(payload)
+    selected_terms = _canonical_selected_bond_terms(payload)
+    if not selected_terms:
+        raise ValueError("no canonical spin bond terms selected")
+
+    bonds = []
+    term_summaries = []
+    for term in selected_terms:
+        term_payload = term.get("payload", {}) if isinstance(term.get("payload"), dict) else {}
+        if term_payload.get("kind") != "bilinear_exchange_matrix":
+            raise ValueError(f"unsupported-term-payload: {term_payload.get('kind')}")
+        matrix = _canonical_matrix_to_float_rows(term_payload.get("matrix", {}), parameters)
+        attach_to = term.get("attach_to", {}) if isinstance(term.get("attach_to"), dict) else {}
+        orbit_ref = str(attach_to.get("orbit_ref") or "")
+        orbit = orbit_by_ref.get(orbit_ref)
+        if not isinstance(orbit, dict):
+            raise ValueError(f"unknown-bond-orbit-ref: {orbit_ref}")
+        members = list(orbit.get("members") or [])
+        if not members and isinstance(orbit.get("representative"), dict):
+            members = [orbit["representative"]]
+        for member in members:
+            if not isinstance(member, dict):
+                continue
+            bonds.append(
+                {
+                    "source": int(member.get("source", 0)),
+                    "target": int(member.get("target", 0)),
+                    "vector": [int(component) for component in list(member.get("translation") or [0, 0, 0])],
+                    "distance": float(member.get("distance", orbit.get("distance", 0.0)) or 0.0),
+                    "shell_index": int(orbit.get("shell")) if orbit.get("shell") is not None else None,
+                    "term_ref": str(term.get("term_ref") or ""),
+                    "bond_orbit_ref": orbit_ref,
+                    "matrix": deepcopy(matrix),
+                }
+            )
+        term_summaries.append(
+            {
+                "term_ref": str(term.get("term_ref") or ""),
+                "bond_orbit_ref": orbit_ref,
+                "member_count": len(members),
+            }
+        )
+
+    return {
+        "status": "ok",
+        "payload": {
+            "schema_version": payload.get("schema_version"),
+            "lattice_structure": deepcopy(payload.get("lattice_structure") or {}),
+            "local_hilbert": deepcopy(payload.get("local_hilbert") or {}),
+            "local_dim": _canonical_local_dimension(payload),
+            "normalized_model": deepcopy(payload),
+            "simplified_model": {"template": "generic"},
+            "bonds": bonds,
+            "classical": {"method": "auto"},
+            "bridge_metadata": {
+                "bridge_kind": "canonical_lattice_term_spin_only",
+                "selection_policy": (payload.get("solver_request") or {}).get("selection_policy"),
+                "term_summaries": term_summaries,
+            },
+        },
+    }
+
+
 def build_spin_only_solver_payload(simplification_payload):
-    family_resolution = resolve_classical_family(payload=simplification_payload)
-    if family_resolution["classical_family"] != "spin-only":
+    if _is_lattice_term_payload(simplification_payload):
+        return _canonical_spin_only_solver_payload(simplification_payload)
+
+    bond_label_resolution = resolve_classical_bond_label(payload=simplification_payload)
+    if bond_label_resolution["classical_bond_label"] != "spin-only":
         raise ValueError(
-            "incompatible-classical-family: "
-            f"spin-only bridge builder requires spin-only family, got {family_resolution['classical_family']}"
+            "incompatible-classical-bond_label: "
+            f"spin-only bridge builder requires spin-only bond_label, got {bond_label_resolution['classical_bond_label']}"
         )
     normalized_model = deepcopy(simplification_payload.get("normalized_model") or {})
-    requested_family = _selected_family(simplification_payload)
+    requested_bond_label = _selected_bond_label(simplification_payload)
     selected_coordinate_convention = normalized_model.get("selected_coordinate_convention")
     onsite_terms = deepcopy(
         normalized_model.get("onsite_terms")
         or (simplification_payload.get("effective_model") or {}).get("onsite_terms")
         or []
     )
-    if requested_family == "all":
-        collected = _collect_bridgeable_family_blocks(simplification_payload)
+    if requested_bond_label == "all":
+        collected = _collect_bridgeable_bond_label_blocks(simplification_payload)
         families = collected["families"]
         all_bonds = []
-        family_summaries = []
+        bond_label_summaries = []
         first_template = None
         template_consistent = True
-        for family in families:
-            lattice, representative_metadata = _family_representative_metadata(normalized_model, family)
+        for bond_label in families:
+            lattice, representative_metadata = _bond_label_representative_metadata(normalized_model, bond_label)
             shell_metadata = None
             shell_index = None
             if representative_metadata is None:
-                lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
+                lattice, shell_metadata, shell_index = _bond_label_shell_metadata(normalized_model, bond_label)
             else:
-                family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
-                shell_metadata = family_shell_map.get(family, {})
+                bond_label_shell_map = lattice.get("bond_label_shell_map", {}) if isinstance(lattice.get("bond_label_shell_map"), dict) else {}
+                shell_metadata = bond_label_shell_map.get(bond_label, {})
                 shell_index = shell_metadata.get("shell_index")
-            block = dict(collected["family_blocks"][family])
-            block.setdefault("family", family)
+            block = dict(collected["bond_label_blocks"][bond_label])
+            block.setdefault("bond_label", bond_label)
             matrix = _exchange_matrix_from_block(block)
             if representative_metadata is not None:
-                expanded_bonds = _expand_family_representative_bonds(
+                expanded_bonds = _expand_bond_label_representative_bonds(
                     lattice,
                     representative_metadata=representative_metadata,
                     matrix=matrix,
-                    family=family,
+                    bond_label=bond_label,
                     block_type=str(block.get("type") or ""),
                     selected_coordinate_convention=selected_coordinate_convention,
                     shell_index=shell_index,
                     distance=shell_metadata.get("distance") if isinstance(shell_metadata, dict) else None,
                 )
-                family_expansion_mode = "representative_orbit"
+                bond_label_expansion_mode = "representative_orbit"
             else:
-                expanded_bonds = _expand_family_shell_bonds(
+                expanded_bonds = _expand_bond_label_shell_bonds(
                     lattice,
                     shell_index=shell_index,
                     distance=float(shell_metadata.get("distance")),
                     matrix=matrix,
-                    family=family,
+                    bond_label=bond_label,
                     block_type=str(block.get("type") or ""),
                     selected_coordinate_convention=selected_coordinate_convention,
                 )
-                family_expansion_mode = "full_shell"
+                bond_label_expansion_mode = "full_shell"
             all_bonds.extend(expanded_bonds)
-            family_summaries.append(
+            bond_label_summaries.append(
                 {
-                    "family": family,
+                    "bond_label": bond_label,
                     "shell_index": int(shell_index) if shell_index is not None else None,
                     "block_type": str(block.get("type") or ""),
                     "pair_count": len(expanded_bonds),
-                    "expansion_mode": family_expansion_mode,
+                    "expansion_mode": bond_label_expansion_mode,
                 }
             )
             template = _simplified_template_for_block(block)
@@ -532,7 +706,7 @@ def build_spin_only_solver_payload(simplification_payload):
                 template_consistent = False
 
         payload = {
-            "classical_family": family_resolution["classical_family"],
+            "classical_bond_label": bond_label_resolution["classical_bond_label"],
             "lattice": deepcopy(normalized_model.get("lattice") or {}),
             "local_dim": normalized_model.get("local_hilbert", {}).get("dimension"),
             "normalized_model": normalized_model,
@@ -543,11 +717,11 @@ def build_spin_only_solver_payload(simplification_payload):
             "bonds": all_bonds,
             "classical": {"method": "auto"},
             "bridge_metadata": {
-                "bridge_kind": "document_reader_spin_only_all_family_assembled",
+                "bridge_kind": "document_reader_spin_only_all_bond_label_assembled",
                 "expansion_mode": "all_families",
                 "selected_families": list(families),
-                "family_order": list(families),
-                "family_summaries": family_summaries,
+                "bond_label_order": list(families),
+                "bond_label_summaries": bond_label_summaries,
                 "input_precedence": collected["input_precedence"],
             },
         }
@@ -555,24 +729,24 @@ def build_spin_only_solver_payload(simplification_payload):
             payload["onsite_terms"] = onsite_terms
         return {"status": "ok", "payload": payload}
 
-    family = requested_family
-    lattice, representative_metadata = _family_representative_metadata(normalized_model, family)
+    bond_label = requested_bond_label
+    lattice, representative_metadata = _bond_label_representative_metadata(normalized_model, bond_label)
     shell_metadata = None
     shell_index = None
     if representative_metadata is None:
-        lattice, shell_metadata, shell_index = _family_shell_metadata(normalized_model, family)
+        lattice, shell_metadata, shell_index = _bond_label_shell_metadata(normalized_model, bond_label)
     else:
-        family_shell_map = lattice.get("family_shell_map", {}) if isinstance(lattice.get("family_shell_map"), dict) else {}
-        shell_metadata = family_shell_map.get(family, {})
+        bond_label_shell_map = lattice.get("bond_label_shell_map", {}) if isinstance(lattice.get("bond_label_shell_map"), dict) else {}
+        shell_metadata = bond_label_shell_map.get(bond_label, {})
         shell_index = shell_metadata.get("shell_index")
-    block = _matching_readable_blocks(simplification_payload, family)
+    block = _matching_readable_blocks(simplification_payload, bond_label)
     matrix = _exchange_matrix_from_block(block)
     if representative_metadata is not None:
-        bonds = _expand_family_representative_bonds(
+        bonds = _expand_bond_label_representative_bonds(
             lattice,
             representative_metadata=representative_metadata,
             matrix=matrix,
-            family=family,
+            bond_label=bond_label,
             block_type=str(block.get("type") or ""),
             selected_coordinate_convention=selected_coordinate_convention,
             shell_index=shell_index,
@@ -580,19 +754,19 @@ def build_spin_only_solver_payload(simplification_payload):
         )
         expansion_mode = "representative_orbit"
     else:
-        bonds = _expand_family_shell_bonds(
+        bonds = _expand_bond_label_shell_bonds(
             lattice,
             shell_index=shell_index,
             distance=float(shell_metadata.get("distance")),
             matrix=matrix,
-            family=family,
+            bond_label=bond_label,
             block_type=str(block.get("type") or ""),
             selected_coordinate_convention=selected_coordinate_convention,
         )
         expansion_mode = "full_shell"
 
     payload = {
-        "classical_family": family_resolution["classical_family"],
+        "classical_bond_label": bond_label_resolution["classical_bond_label"],
         "lattice": deepcopy(lattice),
         "local_dim": normalized_model.get("local_hilbert", {}).get("dimension"),
         "normalized_model": normalized_model,
@@ -605,7 +779,7 @@ def build_spin_only_solver_payload(simplification_payload):
         "bridge_metadata": {
             "bridge_kind": "document_reader_spin_only_shell_expanded",
             "expansion_mode": expansion_mode,
-            "selected_family": family,
+            "selected_bond_label": bond_label,
             "block_type": str(block.get("type") or ""),
             "shell_index": int(shell_index) if shell_index is not None else None,
             "pair_count": len(bonds),

@@ -260,10 +260,10 @@ def _decompose_operator_expression(expression, parameters, tolerance):
     }
 
 
-def _decompose_operator_family_collection(collection, parameters, tolerance):
+def _decompose_operator_block_collection(collection, parameters, tolerance):
     combined_terms = []
     for entry in collection:
-        family = entry.get("family")
+        block_kind = entry.get("block_kind") or entry.get("bond_label")
         shell_index = entry.get("shell_index")
         distance = entry.get("distance")
         shell_label = entry.get("shell_label")
@@ -273,8 +273,8 @@ def _decompose_operator_family_collection(collection, parameters, tolerance):
             raw_terms = []
             for term in decomposition.get("terms", []):
                 raw_term = dict(term)
-                if family is not None:
-                    raw_term["family"] = family
+                if block_kind is not None:
+                    raw_term["block_kind"] = block_kind
                 if shell_index is not None:
                     raw_term["shell_index"] = shell_index
                 if distance is not None:
@@ -285,8 +285,8 @@ def _decompose_operator_family_collection(collection, parameters, tolerance):
             return {"mode": decomposition.get("mode", "operator"), "terms": raw_terms}
         for term in decomposition.get("terms", []):
             annotated = dict(term)
-            if family is not None:
-                annotated["family"] = family
+            if block_kind is not None:
+                annotated["block_kind"] = block_kind
             if shell_index is not None:
                 annotated["shell_index"] = shell_index
             if distance is not None:
@@ -380,8 +380,8 @@ def decompose_local_term(normalized, tolerance=1e-9):
             normalized.get("parameters", {}),
             tolerance,
         )
-    if representation["kind"] == "operator_family_collection":
-        return _decompose_operator_family_collection(
+    if representation["kind"] in {"operator_channel_collection", "operator_block_collection"}:
+        return _decompose_operator_block_collection(
             representation["value"],
             normalized.get("parameters", {}),
             tolerance,

@@ -13,7 +13,7 @@ def _ensure_required(name, value):
 def build_local_matrix_record(
     *,
     support,
-    family=None,
+    bond_label=None,
     body_order=None,
     geometry_class=None,
     coordinate_frame=None,
@@ -40,7 +40,7 @@ def build_local_matrix_record(
     return {
         "support": support_list,
         "body_order": resolved_body_order,
-        "family": family,
+        "bond_label": bond_label,
         "geometry_class": str(geometry_class),
         "coordinate_frame": str(coordinate_frame),
         "local_basis_order": list(local_basis_order),

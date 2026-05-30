@@ -116,21 +116,21 @@ function build_system(crystal, payload)
     return sys
 end
 
-function build_spin_wave_theory(sys, payload)
+function build_spin_wave_theory(sys, payload; regularization=1.0e-8)
     if haskey(payload, :single_q_reference_state)
         single_q = payload.single_q_reference_state
         q_vector = to_float_vector(single_q.q_vector)
         rotation_axis = to_float_vector(single_q.rotation_axis)
         try
-            return Sunny.SpinWaveTheorySpiral(sys; k=q_vector, axis=rotation_axis, measure=nothing)
+            return Sunny.SpinWaveTheorySpiral(sys; k=q_vector, axis=rotation_axis, measure=nothing, regularization=regularization)
         catch
-            return Sunny.SpinWaveTheorySpiral(sys; k=q_vector, axis=rotation_axis)
+            return Sunny.SpinWaveTheorySpiral(sys; k=q_vector, axis=rotation_axis, regularization=regularization)
         end
     end
     try
-        return Sunny.SpinWaveTheory(sys; measure=nothing)
+        return Sunny.SpinWaveTheory(sys; measure=nothing, regularization=regularization)
     catch
-        return Sunny.SpinWaveTheory(sys)
+        return Sunny.SpinWaveTheory(sys; regularization=regularization)
     end
 end
 
@@ -198,6 +198,8 @@ catch exc
     exit(0)
 end
 
+regularization = haskey(payload, :regularization) ? Float64(payload.regularization) : 1.0e-8
+
 try
     @eval using Sunny
 catch
@@ -215,7 +217,7 @@ end
 try
     crystal = build_crystal(payload)
     sys = build_system(crystal, payload)
-    swt = build_spin_wave_theory(sys, payload)
+    swt = build_spin_wave_theory(sys, payload; regularization=regularization)
     q_points = select_q_points(payload)
     bands = Sunny.dispersion(swt, q_points)
     emit_payload(

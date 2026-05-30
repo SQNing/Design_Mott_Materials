@@ -1,6 +1,12 @@
 [deps]
+Automa = "67c07d97-cdcb-5c2c-af73-a7f9c32a568b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+FilePaths = "8fc22ac5-c921-52a6-82fd-178b2807b824"
+FilePathsBase = "48062228-2e41-5def-b9a4-89aafe57970f"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+MathTeXEngine = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
 Sunny = "2b4a2ac8-8f8b-43e8-abf4-3cb0c45e8736"
+TranscodingStreams = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 
 [compat]
 JSON3 = "1"

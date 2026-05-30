@@ -182,8 +182,12 @@ def _stage_summary(
             "chosen_method": bundle_classical.get("chosen_method", original_classical.get("chosen_method")),
             "requested_method": bundle_classical.get("requested_method", original_classical.get("requested_method")),
             "method": classical_state_result.get("method"),
-            "role": classical_state_result.get("role"),
-            "solver_family": classical_state_result.get("solver_family"),
+            "roles": list(classical_state_result.get("roles") or []),
+            "result_contract_kind": (
+                classical_state_result.get("result_contract", {}).get("kind")
+                if isinstance(classical_state_result.get("result_contract"), dict)
+                else None
+            ),
             "selected_classical_branch": classical_state_result.get("selected_classical_branch"),
             "downstream_compatibility": classical_state_result.get("downstream_compatibility"),
             "magnetic_supercell_refinement": refinement_summary,

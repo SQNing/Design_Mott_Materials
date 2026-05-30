@@ -5,7 +5,7 @@ inputs before they are normalized into the runnable payload schema described in
 `reference/input-schema.md`.
 
 The target public contract is structure-first: it is centered on
-`lattice_structure` plus attached Hamiltonian terms. Any family-shaped metadata
+`lattice_structure` plus attached Hamiltonian terms. Any bond_label-shaped metadata
 introduced during routing should be treated as legacy compatibility data rather
 than as the primary conceptual object.
 
@@ -72,23 +72,23 @@ Interpretation notes:
    inputs, and file-reference-heavy natural-language requests as conceptual routing cases within
    those concrete `source_kind` values rather than as separate emitted detector tags.
 3. Before broad ambiguous text/model input is accepted into semantic normalization, resolve the
-   classical family:
+   classical bond_label:
    - `spin-only`
    - `cpn`
-   If the family is not already intrinsic to the route and the caller did not provide it
+   If the bond_label is not already intrinsic to the route and the caller did not provide it
    explicitly, stop with
    `interaction.status = needs_input`
    and
-   `interaction.id = classical_family_selection`.
+   `interaction.id = classical_bond_label_selection`.
    Current broad ambiguous upstreams include direct `natural_language`, `operator`, and `matrix`
    inputs, plus document-style orchestration flows that have not yet committed to an intrinsic
-   bridge family.
+   bridge bond_label.
 4. If the text contains both:
    - a structure path such as `POSCAR`, `CONTCAR`, `*.cif`, `*.cell`, `*.gen`, `*.stru`, `*.res`,
      `*.pdb`, `*.xyz`, `*.vasp`, or `*.xsf`, and
    - a hopping/integral path whose filename or explicit role indicates an `hr`-style file such as
      `VR_hr.dat`, `wannier90_hr.dat`, `H_R.dat`, or `*_hr*.dat`,
-   route it to the `many_body_hr` payload family instead of forcing document-style text parsing.
+   route it to the `many_body_hr` payload bond_label instead of forcing document-style text parsing.
    If the text instead supplies a directory path, the implementation may inspect that directory for
    a compatible structure file plus an `hr`-style Hamiltonian file and route the pair
    automatically.
@@ -118,7 +118,7 @@ For document-style sources specifically:
   a paper/LaTeX source but deterministic landing still does not yield a trustworthy runnable
   operator-level payload,
 - do not escalate to agent normalization merely because the user still needs to choose among
-  legitimate physical options such as model candidate, bond family, or coordinate convention.
+  legitimate physical options such as model candidate, bond bond_label, or coordinate convention.
 - a thin orchestration layer may implement this as a two-pass workflow:
   first run deterministic normalization on the raw document, then if an
   `agent_normalization_request`
@@ -129,8 +129,8 @@ For document-style sources specifically:
   which runs document orchestration first and then continues from the landed
   `normalized_model`
   into the shared simplification pipeline without re-reading the raw document as freeform text.
-- broad document-reader and agent-wrapper entrypoints should pass the family choice explicitly with
-  `--selected-classical-family spin-only|cpn`
+- broad document-reader and agent-wrapper entrypoints should pass the bond_label choice explicitly with
+  `--selected-classical-bond_label spin-only|cpn`
   whenever the route is not already intrinsic.
 - if document verification reports
   `verification_report.status = needs_review`,
@@ -138,9 +138,9 @@ For document-style sources specifically:
   but it may still continue into simplification; this is currently a warning/review condition, not
   a hard blocker by itself.
 
-## Family-Selection Examples
+## Bond Label-Selection Examples
 
-Broad text entrypoints now require an explicit family choice unless the route itself is already
+Broad text entrypoints now require an explicit bond_label choice unless the route itself is already
 intrinsic.
 
 Examples:
@@ -148,16 +148,16 @@ Examples:
 ```bash
 python scripts/cli/simplify_text_input.py \
   --freeform "Spin-1 nearest-neighbor XXZ model on a triangular lattice" \
-  --selected-classical-family spin-only
+  --selected-classical-bond_label spin-only
 ```
 
 ```bash
 python scripts/cli/run_document_reader_pipeline.py \
   --freeform "$(cat /path/to/fei2_document_input.tex)" \
   --source-path /path/to/fei2_document_input.tex \
-  --selected-classical-family spin-only \
+  --selected-classical-bond_label spin-only \
   --selected-model-candidate effective \
-  --selected-local-bond-family 1 \
+  --selected-local-bond-bond_label 1 \
   --output-dir /path/to/output/document-reader-fei2
 ```
 
@@ -165,7 +165,7 @@ python scripts/cli/run_document_reader_pipeline.py \
 python scripts/cli/normalize_document_with_agent.py \
   --freeform "$(cat /path/to/prose_only_effective.tex)" \
   --source-path /path/to/prose_only_effective.tex \
-  --selected-classical-family spin-only
+  --selected-classical-bond_label spin-only
 ```
 
 ## Intermediate Extraction Schema
@@ -220,7 +220,7 @@ prefer storing them in
 `candidate_models`
 under separate keys and letting the shared landing logic apply
 `selected_model_candidate`
-and family-level matrix fallback later.
+and bond_label-level matrix fallback later.
 
 When fallback inference materially contributes during normalization, the normalized result may also
 surface these compatibility fields alongside the landed payload or `interaction` block:
@@ -261,7 +261,7 @@ Rules:
   model through `lattice_structure` and attached site, bond, or higher-body
   terms; attachment refs such as `site_ref`, `bond_ref`, `orbit_ref`,
   `explicit_edge_ref`, and `support_ref` stay accepted when present, and any
-  `family`-style field that survives routing is legacy compatibility data only.
+  `bond_label`-style field that survives routing is legacy compatibility data only.
 - Freeform text may also supply a case-directory path; when that directory contains a compatible
   structure file plus an `hr`-style Hamiltonian file, the pair may be auto-discovered.
 - Explicit role phrases such as `structure file:` and `hr file:` may disambiguate otherwise generic
@@ -288,7 +288,7 @@ route safely without fabricating missing physics.
 The contract is:
 
 - `agent_inferred` may narrow missing information only within the approved compatibility boundary.
-  Current safe narrowing is limited to helper-recognized fields such as `input_family`,
+  Current safe narrowing is limited to helper-recognized fields such as `input_bond_label`,
   `structure_file`, and `hamiltonian_file`; downstream stages decide whether to accept and commit
   those fields.
 - A stronger upstream path is also allowed:
@@ -358,7 +358,7 @@ unsupported content that still requires manual resolution.
 
 ## Unified Entry Contract
 
-Document-style text inputs are not a separate public ingestion family. They enter through the same
+Document-style text inputs are not a separate public ingestion bond_label. They enter through the same
 `natural_language` normalization path as ordinary freeform text.
 
 The contract is:
@@ -401,7 +401,7 @@ the protocol should:
 4. stop with `interaction.status = needs_input` if the user has not selected between competing
    physical models,
 5. bind the selected candidate's parameters into `parameter_registry`,
-6. land into the nearest supported payload family while carrying unmatched metadata in
+6. land into the nearest supported payload bond_label while carrying unmatched metadata in
    `unsupported_features`.
 
 ### Optional Spin-Only Classical Bridge
@@ -414,13 +414,13 @@ Current V2a scope:
 - supports readable spin-only bilinear blocks that map directly to a `3x3` exchange matrix:
   `isotropic_exchange`, `xxz_exchange`, `symmetric_exchange_matrix`, and `exchange_tensor`
 - lands
-  `classical_family = spin-only`
+  `classical_bond_label = spin-only`
   explicitly before bridge builder and solver selection; the document-reader bridge should not
-  silently default to another classical manifold family
-- if one family is selected, expands that family into the full shell-resolved canonical bond set
-- if `selected_local_bond_family = all`, assembles one aggregated payload from all supported
-  family-resolved readable blocks
-- treats per-family readable blocks as the authoritative bridge input when present
+  silently default to another classical manifold bond_label
+- if one bond_label is selected, expands that bond_label into the full shell-resolved canonical bond set
+- if `selected_local_bond_bond_label = all`, assembles one aggregated payload from all supported
+  bond_label-resolved readable blocks
+- treats per-bond_label readable blocks as the authoritative bridge input when present
 - uses `shell_resolved_exchange` summaries only for ordering and validation
 - preserves enough `effective_model` / `simplified_model` metadata for the current classical solver
   routing layer
@@ -433,7 +433,7 @@ Current V2a non-goals:
 - residual-term promotion into the spin-only bridge payload
 - multipolar bridge contracts
 - mixed spin-orbital bridge contracts
-- silent dropping of unsupported families from `selected_local_bond_family = all`
+- silent dropping of unsupported families from `selected_local_bond_bond_label = all`
 
 Current V2b scope:
 

@@ -14,7 +14,7 @@ if __package__ in {None, ""}:
     from classical.lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
     from classical.lt_tensor_constraint_completion import complete_lt_constraints
     from classical.lt_solver import find_lt_ground_state
-    from common.classical_solver_family_routing import resolve_classical_solver_method
+    from common.classical_solver_bond_label_routing import resolve_classical_solver_method
     from common.classical_state_result import build_final_classical_state_result
     from common.rotating_frame_consistency import infer_single_q_from_supercell_site_phases
     from common.spin_only_onsite_adapter import (
@@ -27,7 +27,7 @@ else:
     from .lt_constraint_recovery import recover_classical_state_from_lt, strong_constraint_residual
     from .lt_tensor_constraint_completion import complete_lt_constraints
     from .lt_solver import find_lt_ground_state
-    from common.classical_solver_family_routing import resolve_classical_solver_method
+    from common.classical_solver_bond_label_routing import resolve_classical_solver_method
     from common.classical_state_result import build_final_classical_state_result
     from common.rotating_frame_consistency import infer_single_q_from_supercell_site_phases
     from common.spin_only_onsite_adapter import (
@@ -264,6 +264,24 @@ def _resolve_variational_settings(classical_config, model):
             classical_config.get("variational_q_gradient_tolerance", 1.0e-6),
         )
     )
+    optimizer_gtol = float(
+        variational_config.get(
+            "optimizer_gtol",
+            classical_config.get("variational_optimizer_gtol", 1.0e-8),
+        )
+    )
+    optimizer_xtol = float(
+        variational_config.get(
+            "optimizer_xtol",
+            classical_config.get("variational_optimizer_xtol", 1.0e-10),
+        )
+    )
+    optimizer_barrier_tol = float(
+        variational_config.get(
+            "optimizer_barrier_tol",
+            classical_config.get("variational_optimizer_barrier_tol", 1.0e-10),
+        )
+    )
     cg_beta_max = variational_config.get(
         "cg_beta_max",
         classical_config.get("variational_cg_beta_max", 5.0),
@@ -285,8 +303,21 @@ def _resolve_variational_settings(classical_config, model):
         "lt_seed_enabled": bool(lt_seed_enabled),
         "spin_gradient_tolerance": max(0.0, spin_gradient_tolerance),
         "q_gradient_tolerance": max(0.0, q_gradient_tolerance),
+        "optimizer_gtol": max(0.0, optimizer_gtol),
+        "optimizer_xtol": max(0.0, optimizer_xtol),
+        "optimizer_barrier_tol": max(0.0, optimizer_barrier_tol),
         "cg_beta_max": cg_beta_max,
         "guided_q_vectors": list(guided_q_vectors or []),
+    }
+
+
+def _variational_trust_constr_options(settings):
+    return {
+        "maxiter": int(settings.get("maxiter", 200)),
+        "gtol": float(settings.get("optimizer_gtol", 1.0e-8)),
+        "xtol": float(settings.get("optimizer_xtol", 1.0e-10)),
+        "barrier_tol": float(settings.get("optimizer_barrier_tol", 1.0e-10)),
+        "verbose": 0,
     }
 
 
@@ -524,15 +555,29 @@ def _spin_supercell_sweep(model, state, shape):
     return state, float(max_change)
 
 
-def _refine_spin_supercell_state(model, initial_state, shape, *, max_sweeps, sweep_tolerance):
+def _spin_supercell_stationarity_norm(model, state, shape):
+    max_residual = 0.0
+    site_count = state.shape[3]
+    for cell in np.ndindex(tuple(shape)):
+        for site in range(site_count):
+            spin = np.array(state[cell + (site,)], dtype=float)
+            field = _effective_spin_field(model, state, shape, cell, site)
+            tangent = field - float(np.dot(field, spin)) * spin
+            max_residual = max(max_residual, float(np.linalg.norm(tangent)))
+    return float(max_residual)
+
+
+def _refine_spin_supercell_state(model, initial_state, shape, *, max_sweeps, sweep_tolerance, gradient_tolerance):
     state = np.array(initial_state, dtype=float, copy=True)
     last_change = None
+    last_residual = None
     for _ in range(int(max_sweeps)):
         state, change = _spin_supercell_sweep(model, state, shape)
         last_change = float(change)
-        if change <= float(sweep_tolerance):
+        last_residual = _spin_supercell_stationarity_norm(model, state, shape)
+        if change <= float(sweep_tolerance) and last_residual <= float(gradient_tolerance):
             break
-    return state, float(last_change if last_change is not None else 0.0)
+    return state, float(last_change if last_change is not None else 0.0), float(last_residual if last_residual is not None else 0.0)
 
 
 def _spin_structure_factor_peak(state, shape, site_count):
@@ -1726,13 +1771,7 @@ def _lt_single_q_cosine_variational(model, *, starts, seed, settings):
                     jac=True,
                     bounds=Bounds(lower_bounds, upper_bounds),
                     constraints=[constraint],
-                    options={
-                        "maxiter": int(settings.get("maxiter", 200)),
-                        "gtol": 1e-8,
-                        "xtol": 1e-10,
-                        "barrier_tol": 1e-10,
-                        "verbose": 0,
-                    },
+                    options=_variational_trust_constr_options(settings),
                 )
                 value = float(result.fun)
                 vector = np.array(result.x, dtype=float)
@@ -2455,6 +2494,7 @@ def _supercell_variational(model, *, starts, seed, settings):
     lt_seed = _resolve_variational_lt_seed(model, settings)
     lt_seed_applied = False
     lt_seed_source = lt_seed.get("source")
+    stationarity_tolerance = float(settings.get("spin_gradient_tolerance", 1.0e-6))
 
     best_state = None
     previous = None
@@ -2481,17 +2521,19 @@ def _supercell_variational(model, *, starts, seed, settings):
 
         current_best = None
         for candidate in candidates[: max(1, int(starts))]:
-            refined, last_change = _refine_spin_supercell_state(
+            refined, last_change, stationarity_norm = _refine_spin_supercell_state(
                 model,
                 candidate,
                 shape,
                 max_sweeps=settings["max_sweeps"],
                 sweep_tolerance=settings["sweep_tolerance"],
+                gradient_tolerance=stationarity_tolerance,
             )
             candidate_result = {
                 "state": refined,
                 "energy": _supercell_energy_per_cell(model, refined, shape),
                 "last_change": float(last_change),
+                "stationarity_norm": float(stationarity_norm),
                 "structure_factor": _spin_structure_factor_peak(refined, shape, site_count),
             }
             if current_best is None or candidate_result["energy"] < current_best["energy"]:
@@ -2503,6 +2545,7 @@ def _supercell_variational(model, *, starts, seed, settings):
                 "shape": [int(value) for value in shape],
                 "energy": float(current_best["energy"]),
                 "last_sweep_change": float(current_best["last_change"]),
+                "stationarity_norm": float(current_best["stationarity_norm"]),
                 "structure_factor": dict(current_best["structure_factor"]),
             }
         )
@@ -2512,7 +2555,8 @@ def _supercell_variational(model, *, starts, seed, settings):
                 settings["energy_tolerance"]
             )
             peak_converged = _peak_is_stable(previous["structure_factor"], current_best["structure_factor"], previous["shape"], shape)
-            if energy_converged and peak_converged:
+            stationarity_converged = float(current_best["stationarity_norm"]) <= stationarity_tolerance
+            if energy_converged and peak_converged and stationarity_converged:
                 stable_count += 1
             else:
                 stable_count = 0
@@ -2520,10 +2564,11 @@ def _supercell_variational(model, *, starts, seed, settings):
             "energy": float(current_best["energy"]),
             "shape": tuple(int(value) for value in shape),
             "last_change": float(current_best["last_change"]),
+            "stationarity_norm": float(current_best["stationarity_norm"]),
             "structure_factor": dict(current_best["structure_factor"]),
         }
         if stable_count >= int(settings["convergence_repeats"]):
-            stopped_reason = "stable_repeats_reached"
+            stopped_reason = "stationarity_repeats_reached"
             break
 
     fit = _spin_supercell_phase_fit(best_state, positions)
@@ -2543,13 +2588,15 @@ def _supercell_variational(model, *, starts, seed, settings):
         history[-2]["shape"],
         history[-1]["shape"],
     )
+    final_stationarity_converged = float(history[-1].get("stationarity_norm", float("inf"))) <= stationarity_tolerance
     if (
-        stopped_reason != "stable_repeats_reached"
+        stopped_reason != "stationarity_repeats_reached"
         and len(history) > 1
         and final_energy_converged
         and final_structure_factor_converged
+        and final_stationarity_converged
     ):
-        stopped_reason = "stable_repeats_reached"
+        stopped_reason = "stationarity_repeats_reached"
 
     lt_seed_status = str(lt_seed.get("status", "unavailable"))
     if lt_seed_status == "ready":
@@ -2564,10 +2611,12 @@ def _supercell_variational(model, *, starts, seed, settings):
         "phase_fit": fit,
         "rotating_frame_realization": realization,
         "convergence": {
-            "energy_converged": bool(final_energy_converged),
+            "energy_converged": bool(final_energy_converged and final_structure_factor_converged and final_stationarity_converged),
             "structure_factor_converged": bool(final_structure_factor_converged),
+            "stationarity_converged": bool(final_stationarity_converged),
             "history": history,
             "energy_tolerance": float(settings["energy_tolerance"]),
+            "stationarity_tolerance": float(stationarity_tolerance),
             "repeats_required": int(settings["convergence_repeats"]),
             "stopped_reason": str(stopped_reason),
             "search_limit_hit": bool(stopped_reason == "max_linear_size_reached"),
@@ -2603,6 +2652,8 @@ def _supercell_variational(model, *, starts, seed, settings):
             "search_limit_hit": bool(stopped_reason == "max_linear_size_reached"),
             "lt_seed_status": str(lt_seed_status),
             "lt_seed_q_vector": list(lt_seed.get("q_vector") or [0.0, 0.0, 0.0]),
+            "stationarity_norm": float(history[-1].get("stationarity_norm", 0.0)),
+            "stationarity_tolerance": float(stationarity_tolerance),
         },
         "starts": int(starts),
         "seed": int(seed),
@@ -2860,7 +2911,7 @@ def _classical_state_supercell_shape(classical_state):
 
 def _build_spin_only_classical_state_result(payload, chosen_method, classical_state):
     method_metadata = resolve_classical_solver_method(chosen_method)
-    if method_metadata["solver_family"] != "spin_only_explicit":
+    if method_metadata["solver_bond_label"] != "spin_only_explicit":
         raise ValueError(f"unsupported classical solver method: {chosen_method}")
     if not isinstance(classical_state, dict) or not classical_state:
         return None
@@ -2871,7 +2922,11 @@ def _build_spin_only_classical_state_result(payload, chosen_method, classical_st
         diagnostics["constraint_recovery"] = constraint_recovery
 
     result = build_final_classical_state_result(classical_state, diagnostics=diagnostics)
-    result["solver_family"] = method_metadata["solver_family"]
+    result["roles"] = list(method_metadata.get("roles") or [method_metadata.get("role", "final")])
+    if isinstance(method_metadata.get("result_contract"), dict):
+        result["result_contract"] = dict(method_metadata["result_contract"])
+    if isinstance(method_metadata.get("downstream_compatibility"), dict):
+        result["downstream_compatibility"] = dict(method_metadata["downstream_compatibility"])
     result["method"] = method_metadata["standardized_method"]
     result["ordering"] = classical_state.get("ordering")
     result["supercell_shape"] = _classical_state_supercell_shape(classical_state)

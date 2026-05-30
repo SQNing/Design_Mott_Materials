@@ -132,9 +132,13 @@ def _resolve_default_q_path(model):
         for bond in model.get("bond_tensors", [])
     ]
     spatial_dimension = infer_spatial_dimension(lattice, bonds)
-    _family, nodes = default_high_symmetry_path(lattice, spatial_dimension)
+    q_path_lattice_class, nodes = default_high_symmetry_path(lattice, spatial_dimension)
     q_path, node_indices = _interpolate_q_path(nodes["points"], samples_per_segment=32)
-    return {"q_path": q_path, "path": {"labels": nodes["labels"], "node_indices": node_indices}}
+    return {
+        "q_path_lattice_class": q_path_lattice_class,
+        "q_path": q_path,
+        "path": {"labels": nodes["labels"], "node_indices": node_indices},
+    }
 
 
 def _resolve_classical_reference_payload(classical_state):
@@ -231,6 +235,7 @@ def build_sun_gswt_payload(model, classical_state=None):
             }
         },
         "q_path": q_path_summary["q_path"],
+        "q_path_lattice_class": q_path_summary["q_path_lattice_class"],
         "path": q_path_summary["path"],
         "capabilities": {
             "spin_wave": "prototype",

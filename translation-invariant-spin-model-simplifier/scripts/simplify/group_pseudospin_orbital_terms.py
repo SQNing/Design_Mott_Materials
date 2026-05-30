@@ -126,7 +126,7 @@ def _local_factor_info(local_label, site_index, orbital_count):
     }
 
 
-def _family_name(left_kind, right_kind):
+def _attachment_kind_name(left_kind, right_kind):
     pair = (left_kind, right_kind)
     if pair == ("I", "I"):
         return "constant"
@@ -204,28 +204,28 @@ def _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_
     if orbital_count != 2:
         return
 
-    family = entry["family"]
-    if family == "constant":
+    attachment_kind = entry["attachment_kind"]
+    if attachment_kind == "constant":
         bucket["constant"] += coefficient
         return
 
-    if family == "one_body_spin":
+    if attachment_kind == "one_body_spin":
         target = "left" if left_info["local_kind"] == "S" else "right"
         axis = left_info["spin_axis"] if left_info["local_kind"] == "S" else right_info["spin_axis"]
         _accumulate(bucket["spin_fields"][target], axis, coefficient)
         return
 
-    if family == "one_body_orbital":
+    if attachment_kind == "one_body_orbital":
         target = "left" if left_info["local_kind"] == "T" else "right"
         axis = left_info["orbital_axis"] if left_info["local_kind"] == "T" else right_info["orbital_axis"]
         _accumulate(bucket["orbital_fields"][target], axis, coefficient)
         return
 
-    if family == "two_body_spin_spin":
+    if attachment_kind == "two_body_spin_spin":
         _accumulate_nested(bucket["spin_exchange"], [left_info["spin_axis"], right_info["spin_axis"]], coefficient)
         return
 
-    if family == "two_body_orbital_orbital":
+    if attachment_kind == "two_body_orbital_orbital":
         _accumulate_nested(
             bucket["orbital_exchange"],
             [left_info["orbital_axis"], right_info["orbital_axis"]],
@@ -233,7 +233,7 @@ def _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_
         )
         return
 
-    if family == "four_body_spin_orbital_mixed":
+    if attachment_kind == "four_body_spin_orbital_mixed":
         _accumulate_nested(
             bucket["quartic_exchange"],
             [
@@ -246,7 +246,7 @@ def _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_
         )
         return
 
-    if family == "one_body_spin_orbital":
+    if attachment_kind == "one_body_spin_orbital":
         bucket["additional_channels"]["one_body_spin_orbital"].append(
             {
                 "site": "left" if left_info["local_kind"] == "ST" else "right",
@@ -258,7 +258,7 @@ def _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_
         )
         return
 
-    if family == "two_body_spin_orbital":
+    if attachment_kind == "two_body_spin_orbital":
         bucket["additional_channels"]["crossed_spin_orbital"].append(
             {
                 "left_kind": left_info["local_kind"],
@@ -269,7 +269,7 @@ def _populate_kugel_khomskii(entry, left_info, right_info, coefficient, orbital_
         )
         return
 
-    if family == "three_body":
+    if attachment_kind == "three_body":
         bucket["additional_channels"]["three_body"].append(
             {
                 "left_kind": left_info["local_kind"],
@@ -309,16 +309,17 @@ def _group_single_bond(block, lattice_vectors, orbital_count, significant_thresh
         left_info = _local_factor_info(item["left_label"], 0, orbital_count)
         right_info = _local_factor_info(item["right_label"], 1, orbital_count)
         coefficient = _complex_from_serialized(item["coefficient"])
-        family = _family_name(left_info["local_kind"], right_info["local_kind"])
+        attachment_kind = _attachment_kind_name(left_info["local_kind"], right_info["local_kind"])
         body_order = left_info["body_count"] + right_info["body_count"]
         latex_label = f"{left_info['latex']} {right_info['latex']}".strip()
         left_orbital_label = left_info.get("orbital_label") or ""
         right_orbital_label = right_info.get("orbital_label") or ""
         if left_orbital_label.startswith("orbital_DIAG_") or right_orbital_label.startswith("orbital_DIAG_"):
-            family = "residual"
+            attachment_kind = "residual"
 
         entry = {
-            "family": family,
+            "attachment_kind": attachment_kind,
+            "bond_label": attachment_kind,
             "body_order": body_order,
             "left_label": item["left_label"],
             "right_label": item["right_label"],
@@ -327,7 +328,7 @@ def _group_single_bond(block, lattice_vectors, orbital_count, significant_thresh
             "magnitude": float(abs(coefficient)),
         }
 
-        if family == "residual" or abs(coefficient) < significant_threshold:
+        if attachment_kind == "residual" or abs(coefficient) < significant_threshold:
             entry["residual_reason"] = _residual_reason(left_info, right_info, abs(coefficient), significant_threshold)
             residual_terms.append(entry)
             continue

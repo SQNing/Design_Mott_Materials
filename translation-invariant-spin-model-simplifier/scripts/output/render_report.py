@@ -341,8 +341,8 @@ def render_text(payload):
     lines.append(f"Chosen classical method: {chosen_method}")
     if classical_state_result.get("role") is not None:
         lines.append(f"Classical solver role: {classical_state_result.get('role')}")
-    if classical_state_result.get("solver_family") is not None:
-        lines.append(f"Classical solver family: {classical_state_result.get('solver_family')}")
+    if classical_state_result.get("solver_bond_label") is not None:
+        lines.append(f"Classical solver bond_label: {classical_state_result.get('solver_bond_label')}")
     if classical_state_result.get("selected_classical_branch") is not None:
         lines.append(f"Selected classical branch: {classical_state_result.get('selected_classical_branch')}")
     downstream_compatibility = classical_state_result.get("downstream_compatibility", {})

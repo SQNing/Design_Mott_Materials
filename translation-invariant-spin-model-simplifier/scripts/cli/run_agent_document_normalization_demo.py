@@ -85,7 +85,7 @@ def _followup_selection_context_from_final_result(final_result):
     document_intermediate = dict(normalized_model.get("document_intermediate") or {})
     return {
         "selected_model_candidate": document_intermediate.get("selected_model_candidate"),
-        "selected_local_bond_family": document_intermediate.get("selected_local_bond_family"),
+        "selected_local_bond_bond_label": document_intermediate.get("selected_local_bond_bond_label"),
         "selected_coordinate_convention": document_intermediate.get("selected_coordinate_convention"),
     }
 
@@ -213,9 +213,9 @@ def run_agent_document_normalization_demo(
     text,
     *,
     source_path=None,
-    selected_classical_family=None,
+    selected_classical_bond_label=None,
     selected_model_candidate=None,
-    selected_local_bond_family=None,
+    selected_local_bond_bond_label=None,
     selected_coordinate_convention=None,
     output_dir,
     agent_normalized_document=None,
@@ -226,9 +226,9 @@ def run_agent_document_normalization_demo(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     selection_context = _resolved_selection_context(
-        selected_classical_family=selected_classical_family,
+        selected_classical_bond_label=selected_classical_bond_label,
         selected_model_candidate=selected_model_candidate,
-        selected_local_bond_family=selected_local_bond_family,
+        selected_local_bond_bond_label=selected_local_bond_bond_label,
         selected_coordinate_convention=selected_coordinate_convention,
         agent_normalized_document=agent_normalized_document,
     )
@@ -236,9 +236,9 @@ def run_agent_document_normalization_demo(
     step1 = run_document_normalization_with_agent(
         text,
         source_path=source_path,
-        selected_classical_family=selection_context["selected_classical_family"],
+        selected_classical_bond_label=selection_context["selected_classical_bond_label"],
         selected_model_candidate=selection_context["selected_model_candidate"],
-        selected_local_bond_family=selection_context["selected_local_bond_family"],
+        selected_local_bond_bond_label=selection_context["selected_local_bond_bond_label"],
         selected_coordinate_convention=selection_context["selected_coordinate_convention"],
         agent_normalized_document=None,
     )
@@ -278,9 +278,9 @@ def run_agent_document_normalization_demo(
         final_result = run_document_normalization_with_agent(
             text,
             source_path=source_path,
-            selected_classical_family=selection_context["selected_classical_family"],
+            selected_classical_bond_label=selection_context["selected_classical_bond_label"],
             selected_model_candidate=selection_context["selected_model_candidate"],
-            selected_local_bond_family=selection_context["selected_local_bond_family"],
+            selected_local_bond_bond_label=selection_context["selected_local_bond_bond_label"],
             selected_coordinate_convention=selection_context["selected_coordinate_convention"],
             agent_normalized_document=current_payload,
         )
@@ -337,9 +337,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--freeform", required=True)
     parser.add_argument("--source-path", default=None)
-    parser.add_argument("--selected-classical-family", default=None)
+    parser.add_argument("--selected-classical-bond_label", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
-    parser.add_argument("--selected-local-bond-family", default=None)
+    parser.add_argument("--selected-local-bond-bond_label", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--agent-normalized-document-json", default=None)
@@ -352,9 +352,9 @@ def main():
     result = run_agent_document_normalization_demo(
         args.freeform,
         source_path=args.source_path,
-        selected_classical_family=args.selected_classical_family,
+        selected_classical_bond_label=args.selected_classical_bond_label,
         selected_model_candidate=args.selected_model_candidate,
-        selected_local_bond_family=args.selected_local_bond_family,
+        selected_local_bond_bond_label=args.selected_local_bond_bond_label,
         selected_coordinate_convention=args.selected_coordinate_convention,
         output_dir=args.output_dir,
         agent_normalized_document=_load_agent_normalized_document(args),

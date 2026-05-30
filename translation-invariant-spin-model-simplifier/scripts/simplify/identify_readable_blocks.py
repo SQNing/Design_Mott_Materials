@@ -274,8 +274,8 @@ def _quadrupole_component_label(term):
     return f"{factors[0][1]}:{factors[1][1]}"
 
 
-def _physical_multipole_label(rank, family):
-    if family == "quadrupole" or rank == 2:
+def _physical_multipole_label(rank, block_kind):
+    if block_kind == "quadrupole" or rank == 2:
         return "quadrupolar"
     if rank == 3:
         return "octupolar"
@@ -288,8 +288,8 @@ def _physical_multipole_label(rank, family):
     return f"rank-{rank} multipolar"
 
 
-def _physical_multipole_label_aliases(rank, family):
-    if family == "quadrupole" or rank == 2:
+def _physical_multipole_label_aliases(rank, block_kind):
+    if block_kind == "quadrupole" or rank == 2:
         return []
     if rank == 3:
         return []
@@ -360,7 +360,7 @@ def _match_quadrupole_coupling(two_body_terms):
     matched_terms = [
         term
         for term in two_body_terms
-        if term.get("multipole_family") == "quadrupole"
+        if term.get("multipole_class") == "quadrupole"
         and term.get("multipole_rank") == 2
         and term.get("body_order") == 2
     ]
@@ -381,7 +381,7 @@ def _match_quadrupole_coupling(two_body_terms):
     return {
         "type": "quadrupole_coupling",
         "source_terms": matched_terms,
-        "multipole_family": "quadrupole",
+        "multipole_class": "quadrupole",
         "multipole_rank": 2,
         "body_order": 2,
         "term_count": len(matched_terms),
@@ -395,7 +395,7 @@ def _match_higher_multipole_coupling(two_body_terms):
     matched_terms = [
         term
         for term in two_body_terms
-        if term.get("multipole_family") == "higher_multipole"
+        if term.get("multipole_class") == "higher_multipole"
         and term.get("body_order") == 2
         and isinstance(term.get("multipole_rank"), int)
         and term.get("multipole_rank", 0) >= 3
@@ -430,7 +430,7 @@ def _match_higher_multipole_coupling(two_body_terms):
             {
                 "type": "higher_multipole_coupling",
                 "source_terms": rank_terms,
-                "multipole_family": "higher_multipole",
+                "multipole_class": "higher_multipole",
                 "multipole_rank": rank,
                 "body_order": 2,
                 "term_count": len(rank_terms),
@@ -454,11 +454,11 @@ def _match_scalar_chirality(three_body_terms):
     return None
 
 
-def _group_terms_by_family(terms):
+def _group_terms_by_block_kind(terms):
     grouped = {}
     for term in terms:
-        family = term.get("family")
-        grouped.setdefault(family, []).append(term)
+        block_kind = term.get("block_kind") or term.get("bond_label")
+        grouped.setdefault(block_kind, []).append(term)
     return grouped
 
 
@@ -728,7 +728,7 @@ def _derive_higher_multipole_physical_parameter_view(block):
     return {
         "view_kind": f"higher_multipole_coupling_rank_{rank}_components",
         "parameters": parameter_entries,
-        "physical_label": f"{_physical_multipole_label(rank, block.get('multipole_family'))} coupling components",
+        "physical_label": f"{_physical_multipole_label(rank, block.get('multipole_class'))} coupling components",
     }
 
 
@@ -739,13 +739,13 @@ def _annotate_block_for_humans(block):
         components = list(block.get("components") or [])
         dominant_component = block.get("dominant_component") or "unspecified"
         dominant_value = block.get("dominant_coefficient")
-        physical_label = _physical_multipole_label(block.get("multipole_rank"), block.get("multipole_family"))
+        physical_label = _physical_multipole_label(block.get("multipole_rank"), block.get("multipole_class"))
         physical_tendency = _quadrupolar_tendency(dominant_component, dominant_value)
         dominant_channel_label = _quadrupolar_channel_label(dominant_component)
         annotated["physical_label"] = physical_label
         annotated["physical_label_aliases"] = _physical_multipole_label_aliases(
             block.get("multipole_rank"),
-            block.get("multipole_family"),
+            block.get("multipole_class"),
         )
         annotated["dominant_channel_label"] = dominant_channel_label
         if physical_tendency is not None:
@@ -780,11 +780,11 @@ def _annotate_block_for_humans(block):
         dominant_component = block.get("dominant_component") or "unspecified"
         dominant_value = block.get("dominant_coefficient")
         rank = block.get("multipole_rank")
-        physical_label = _physical_multipole_label(rank, block.get("multipole_family"))
+        physical_label = _physical_multipole_label(rank, block.get("multipole_class"))
         annotated["physical_label"] = physical_label
         annotated["physical_label_aliases"] = _physical_multipole_label_aliases(
             rank,
-            block.get("multipole_family"),
+            block.get("multipole_class"),
         )
         summary = (
             f"{physical_label.capitalize()} two-body coupling with {block.get('term_count', len(components))} retained components. "
@@ -1047,18 +1047,18 @@ def _annotate_block_for_humans(block):
     return annotated
 
 
-def _coordinate_convention_for_family(coordinate_convention, family):
+def _coordinate_convention_for_block_kind(coordinate_convention, block_kind):
     convention = dict(coordinate_convention or {})
-    if family is None:
+    if block_kind is None:
         return convention
-    overrides = dict(convention.get("family_overrides") or {})
+    overrides = dict(convention.get("bond_label_overrides") or {})
     bond_overrides = dict(convention.get("bond_overrides") or {})
     merged = dict(convention)
-    if family in bond_overrides:
-        merged.update(dict(bond_overrides[family] or {}))
-    if family in overrides:
-        merged.update(dict(overrides[family] or {}))
-    merged.pop("family_overrides", None)
+    if block_kind in bond_overrides:
+        merged.update(dict(bond_overrides[block_kind] or {}))
+    if block_kind in overrides:
+        merged.update(dict(overrides[block_kind] or {}))
+    merged.pop("bond_label_overrides", None)
     merged.pop("bond_overrides", None)
     return merged
 
@@ -1126,19 +1126,20 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
     blocks = []
     used = set()
 
-    two_body_by_family = _group_terms_by_family(two_body_terms)
-    three_body_by_family = _group_terms_by_family(three_body_terms)
-    for family, family_two_body_terms in two_body_by_family.items():
-        higher_blocks = _match_higher_multipole_coupling(family_two_body_terms)
+    two_body_by_block_kind = _group_terms_by_block_kind(two_body_terms)
+    three_body_by_block_kind = _group_terms_by_block_kind(three_body_terms)
+    for block_kind, block_kind_two_body_terms in two_body_by_block_kind.items():
+        higher_blocks = _match_higher_multipole_coupling(block_kind_two_body_terms)
         for block in higher_blocks:
-            if family is not None:
-                block["family"] = family
+            if block_kind is not None:
+                block["block_kind"] = block_kind
+                block["bond_label"] = block_kind
             _copy_shared_shell_metadata(block, block.get("source_terms", []))
             blocks.append(
                 _annotate_block_for_humans(
                     _annotate_block_with_coordinate_convention(
                         block,
-                        _coordinate_convention_for_family(coordinate_convention, family),
+                        _coordinate_convention_for_block_kind(coordinate_convention, block_kind),
                     )
                 )
             )
@@ -1154,40 +1155,42 @@ def identify_readable_blocks(canonical_model, coordinate_convention=None):
             _match_dm_like,
             _match_exchange_tensor,
         ):
-            block = matcher(family_two_body_terms)
+            block = matcher(block_kind_two_body_terms)
             if block is not None:
-                if family is not None:
-                    block["family"] = family
+                if block_kind is not None:
+                    block["block_kind"] = block_kind
+                    block["bond_label"] = block_kind
                 _copy_shared_shell_metadata(block, block.get("source_terms", []))
                 blocks.append(
                     _annotate_block_for_humans(
                         _annotate_block_with_coordinate_convention(
                             block,
-                            _coordinate_convention_for_family(coordinate_convention, family),
+                            _coordinate_convention_for_block_kind(coordinate_convention, block_kind),
                         )
                     )
                 )
                 used.update(id(term) for term in block["source_terms"])
 
-    for family, family_three_body_terms in three_body_by_family.items():
-        chirality_block = _match_scalar_chirality(family_three_body_terms)
+    for block_kind, block_kind_three_body_terms in three_body_by_block_kind.items():
+        chirality_block = _match_scalar_chirality(block_kind_three_body_terms)
         if chirality_block is not None:
-            if family is not None:
-                chirality_block["family"] = family
+            if block_kind is not None:
+                chirality_block["block_kind"] = block_kind
+                chirality_block["bond_label"] = block_kind
             _copy_shared_shell_metadata(chirality_block, chirality_block.get("source_terms", []))
             blocks.append(
                 _annotate_block_for_humans(
                     _annotate_block_with_coordinate_convention(
                         chirality_block,
-                        _coordinate_convention_for_family(coordinate_convention, family),
+                        _coordinate_convention_for_block_kind(coordinate_convention, block_kind),
                     )
                 )
             )
             used.update(id(term) for term in chirality_block["source_terms"])
 
     residual_terms = []
-    for family_key in ("one_body", "two_body", "three_body", "four_body", "higher_body"):
-        for term in canonical_model.get(family_key, []):
+    for bond_label_key in ("one_body", "two_body", "three_body", "four_body", "higher_body"):
+        for term in canonical_model.get(bond_label_key, []):
             if id(term) not in used:
                 residual_terms.append(term)
 

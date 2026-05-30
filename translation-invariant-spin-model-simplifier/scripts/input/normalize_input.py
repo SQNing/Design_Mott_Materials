@@ -5,7 +5,7 @@ import json
 import re
 import sys
 from datetime import datetime, timezone
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 if __package__ in {None, ""}:
@@ -19,9 +19,11 @@ if __package__ in {None, ""}:
         expression_has_unresolved_parameters,
         land_intermediate_record,
     )
-    from common.classical_family_resolution import resolve_input_acceptance_classical_family
+    from common.classical_bond_label_resolution import resolve_input_acceptance_classical_bond_label
+    from common.lattice_structure_builder import build_lattice_structure, build_symmetry_record
     from common.onsite_terms import derive_canonical_onsite_terms_from_normalized_payload
     from common.rotating_frame_realization import resolve_rotating_frame_realization
+    from common.term_attachment_builder import build_term_attachments
 else:
     from .agent_fallback import apply_agent_inferred_patch, build_agent_inferred
     from .agent_document_normalization_template import build_agent_document_normalization_template
@@ -32,9 +34,11 @@ else:
         expression_has_unresolved_parameters,
         land_intermediate_record,
     )
-    from common.classical_family_resolution import resolve_input_acceptance_classical_family
+    from common.classical_bond_label_resolution import resolve_input_acceptance_classical_bond_label
+    from common.lattice_structure_builder import build_lattice_structure, build_symmetry_record
     from common.onsite_terms import derive_canonical_onsite_terms_from_normalized_payload
     from common.rotating_frame_realization import resolve_rotating_frame_realization
+    from common.term_attachment_builder import build_term_attachments
 
 
 DEFAULT_TIMEOUTS = {
@@ -43,7 +47,22 @@ DEFAULT_TIMEOUTS = {
     "classical_solver_seconds": 600,
 }
 
-SUPPORTED_REPRESENTATIONS = {"operator", "operator_family_collection", "matrix", "natural_language", "many_body_hr"}
+SUPPORTED_REPRESENTATIONS = {"operator", "operator_channel_collection", "matrix", "natural_language", "many_body_hr"}
+CANONICAL_SCHEMA_VERSION = "lattice-term-contract/v1"
+LEGACY_CONTRACT_KEYS = {
+    "bond_label",
+    "classical_bond_label",
+    "model_bond_label",
+    "solver_bond_label",
+    "selected_local_bond_bond_label",
+    "bond_orbit_shell_map",
+    "bond_orbit_representative_map",
+    "multipole_class",
+    "multipole_classes",
+    "q_path_lattice_class",
+    "adapter_bond_label",
+    "input_bond_label",
+}
 
 
 def _default_lattice():
@@ -59,7 +78,7 @@ def _default_coordinate_convention():
         "resolved_frame": None,
         "resolved_axis_labels": [],
         "rotation_matrix": None,
-        "family_overrides": {},
+        "label_to_bond_orbit_overrides": {},
         "bond_overrides": {},
         "quantization_axis": None,
         "raw_description": "",
@@ -167,6 +186,333 @@ def _compile_rotating_frame(normalized):
     return rotating_frame, rotating_frame_transform, None
 
 
+def _as_mapping(value):
+    return value if isinstance(value, Mapping) else {}
+
+
+def _scrub_legacy_contract_keys(value):
+    if isinstance(value, Mapping):
+        return {
+            key: _scrub_legacy_contract_keys(child)
+            for key, child in value.items()
+            if str(key) not in LEGACY_CONTRACT_KEYS
+        }
+    if isinstance(value, list):
+        return [_scrub_legacy_contract_keys(item) for item in value]
+    return value
+
+
+def _basis_order_for_dimension(dimension):
+    if int(dimension) == 2:
+        return ["up", "down"]
+    return [f"state:{index}" for index in range(int(dimension))]
+
+
+def _local_dimension_from_payload(payload):
+    local_hilbert = _as_mapping(payload.get("local_hilbert"))
+    for key in ("dimension", "local_dimension", "local_dim"):
+        value = local_hilbert.get(key) if key in local_hilbert else payload.get(key)
+        if value is None:
+            continue
+        try:
+            dimension = int(value)
+        except (TypeError, ValueError):
+            continue
+        if dimension > 0:
+            return dimension
+    return 2
+
+
+def _site_refs_from_support_ref(support_ref):
+    if isinstance(support_ref, (str, bytes)) or not isinstance(support_ref, Iterable):
+        return []
+    refs = []
+    for item in support_ref:
+        text = str(item).strip()
+        if text and text not in refs:
+            refs.append(text)
+    return refs
+
+
+def _site_refs_from_numeric_support(support):
+    if isinstance(support, (str, bytes)) or not isinstance(support, Iterable):
+        return []
+    refs = []
+    for item in support:
+        if isinstance(item, bool):
+            continue
+        try:
+            index = int(item)
+        except (TypeError, ValueError):
+            continue
+        ref = f"site:{index}"
+        if ref not in refs:
+            refs.append(ref)
+    return refs
+
+
+def _append_unique(target, values):
+    for value in values:
+        text = str(value).strip()
+        if text and text not in target:
+            target.append(text)
+    return target
+
+
+def _document_record_from_payload(payload):
+    record = payload.get("document_intermediate")
+    return record if isinstance(record, Mapping) else {}
+
+
+def _source_model_for_contract(payload):
+    document_record = _document_record_from_payload(payload)
+    if document_record:
+        return deepcopy(document_record)
+
+    hamiltonian_model = {}
+    if isinstance(payload.get("bond_terms"), list):
+        hamiltonian_model["bond_terms"] = deepcopy(payload.get("bond_terms"))
+    elif isinstance(payload.get("hamiltonian_description"), Mapping):
+        hamiltonian_model["operator_expression"] = payload["hamiltonian_description"].get("representation", {}).get("value", "")
+
+    return {
+        "source_document": {
+            "source_kind": payload.get("provenance", {}).get("source_mode"),
+            "source_path": payload.get("document_source_path"),
+        },
+        "lattice_model": deepcopy(payload.get("lattice")) if isinstance(payload.get("lattice"), Mapping) else {},
+        "hamiltonian_model": hamiltonian_model,
+        "parameter_registry": deepcopy(payload.get("parameters")) if isinstance(payload.get("parameters"), Mapping) else {},
+    }
+
+
+def _collect_site_refs(payload, source_model, lattice_structure):
+    refs = []
+    local_hilbert = _as_mapping(payload.get("local_hilbert"))
+    for site in list(local_hilbert.get("sites") or []):
+        if isinstance(site, Mapping):
+            _append_unique(refs, [site.get("site_ref")])
+
+    hamiltonian_model = _as_mapping(source_model.get("hamiltonian_model"))
+    for term in list(hamiltonian_model.get("bond_terms") or []):
+        if not isinstance(term, Mapping):
+            continue
+        _append_unique(refs, _site_refs_from_support_ref(term.get("support_ref")))
+        if not term.get("support_ref"):
+            source = term.get("source")
+            target = term.get("target")
+            if source is not None and target is not None:
+                _append_unique(refs, _site_refs_from_numeric_support([source, target]))
+
+    for key in ("local_term", "hamiltonian_description"):
+        record = _as_mapping(payload.get(key))
+        _append_unique(refs, _site_refs_from_numeric_support(record.get("support")))
+
+    for site in list(_as_mapping(lattice_structure).get("basis_sites") or []):
+        if isinstance(site, Mapping):
+            _append_unique(refs, [site.get("site_ref")])
+
+    for orbit in list(_as_mapping(lattice_structure).get("bond_orbits") or []):
+        if not isinstance(orbit, Mapping):
+            continue
+        representative = _as_mapping(orbit.get("representative"))
+        source = representative.get("source")
+        target = representative.get("target")
+        if source is not None and target is not None:
+            _append_unique(refs, _site_refs_from_numeric_support([source, target]))
+
+    if not refs:
+        refs.append("site:0")
+    return refs
+
+
+def _canonical_local_hilbert(payload, source_model, lattice_structure):
+    local_hilbert = _as_mapping(payload.get("local_hilbert"))
+    if local_hilbert.get("sites") and local_hilbert.get("basis_registry"):
+        return deepcopy(local_hilbert)
+
+    dimension = _local_dimension_from_payload(payload)
+    basis_ref = "basis:spin_s_half" if dimension == 2 else f"basis:local_dim_{dimension}"
+    space_ref = "space:spin_s_half" if dimension == 2 else f"space:local_dim_{dimension}"
+    operator_basis_ref = "op_basis:spin_cartesian" if dimension == 2 else f"op_basis:local_matrix_dim_{dimension}"
+    classical_space_ref = "classical_space:spin_unit_vector" if dimension == 2 else f"classical_space:cp{dimension - 1}"
+    site_refs = _collect_site_refs(payload, source_model, lattice_structure)
+
+    basis_kind = "spin_multiplet" if dimension == 2 else "retained_local_basis"
+    classical_space = (
+        {"kind": "unit_vector_sphere", "dimension": 3}
+        if dimension == 2
+        else {"kind": "complex_projective_space", "dimension": dimension}
+    )
+    operator_basis = (
+        {"kind": "spin_cartesian", "basis_order": ["Sx", "Sy", "Sz"]}
+        if dimension == 2
+        else {"kind": "dense_local_matrix_units", "dimension": dimension}
+    )
+
+    return {
+        "sites": [
+            {
+                "site_ref": site_ref,
+                "space_ref": space_ref,
+                "basis_ref": basis_ref,
+                "classical_space_ref": classical_space_ref,
+                "operator_basis_refs": [operator_basis_ref],
+            }
+            for site_ref in site_refs
+        ],
+        "basis_registry": {
+            basis_ref: {
+                "kind": basis_kind,
+                "dimension": dimension,
+                "basis_order": _basis_order_for_dimension(dimension),
+            }
+        },
+        "operator_bases": {
+            operator_basis_ref: operator_basis,
+        },
+        "classical_spaces": {
+            classical_space_ref: classical_space,
+        },
+    }
+
+
+def _orbit_ref_from_term(term):
+    attach_to = _as_mapping(term.get("attach_to")) if isinstance(term, Mapping) else {}
+    return (
+        attach_to.get("orbit_ref")
+        or term.get("orbit_ref")
+        or term.get("bond_orbit_ref")
+        if isinstance(term, Mapping)
+        else None
+    )
+
+
+def _augment_lattice_structure_with_term_orbits(lattice_structure, source_model):
+    lattice_structure = deepcopy(lattice_structure) if isinstance(lattice_structure, Mapping) else {}
+    bond_orbits = list(lattice_structure.get("bond_orbits") or [])
+    known_refs = {str(orbit.get("orbit_ref") or orbit.get("bond_orbit_ref")) for orbit in bond_orbits if isinstance(orbit, Mapping)}
+    hamiltonian_model = _as_mapping(source_model.get("hamiltonian_model"))
+    for term in list(hamiltonian_model.get("bond_terms") or []):
+        if not isinstance(term, Mapping):
+            continue
+        orbit_ref = _orbit_ref_from_term(term)
+        if not orbit_ref or str(orbit_ref) in known_refs:
+            continue
+        source = term.get("source", 0)
+        target = term.get("target", 1)
+        translation = list(term.get("translation") or [0, 0, 0])
+        bond_orbits.append(
+            {
+                "orbit_ref": str(orbit_ref),
+                "kind": "pair",
+                "directed": True,
+                "orientation_convention": "source_to_target",
+                "source_labels": [str(term.get("source_label") or term.get("document_label") or term.get("bond_ref") or orbit_ref)],
+                "shell": term.get("shell"),
+                "representative": {
+                    "source": int(source),
+                    "target": int(target),
+                    "translation": [int(component) for component in translation],
+                },
+                "members": [
+                    {
+                        "source": int(source),
+                        "target": int(target),
+                        "translation": [int(component) for component in translation],
+                        "generated_by_operation_ref": "symmetry-operation:identity",
+                    }
+                ],
+                "reverse_orientation": {
+                    "kind": "transpose_and_swap",
+                    "source_target_swap": True,
+                    "transpose": True,
+                    "translation": [-int(component) for component in translation],
+                },
+                "selection_aliases": [str(orbit_ref)],
+            }
+        )
+        known_refs.add(str(orbit_ref))
+    lattice_structure["bond_orbits"] = bond_orbits
+    return lattice_structure
+
+
+def _canonical_parameters(payload, source_model):
+    parameters = payload.get("parameters")
+    if isinstance(parameters, Mapping):
+        return deepcopy(parameters)
+    registry = source_model.get("parameter_registry")
+    if isinstance(registry, Mapping):
+        return deepcopy(registry)
+    return {}
+
+
+def _canonical_provenance(payload, source_model):
+    provenance = deepcopy(payload.get("provenance")) if isinstance(payload.get("provenance"), Mapping) else {}
+    sources = list(provenance.get("sources") or [])
+    source_document = _as_mapping(source_model.get("source_document"))
+    source_kind = source_document.get("source_kind") or provenance.get("source_mode")
+    source_path = source_document.get("source_path") or payload.get("document_source_path")
+    if source_kind or source_path:
+        sources.append(
+            {
+                "source_kind": source_kind,
+                "source_path": source_path,
+            }
+        )
+    if sources:
+        provenance["sources"] = sources
+    if "parsed_at" not in provenance:
+        provenance["parsed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return provenance
+
+
+def _canonical_solver_request(term_attachments, payload, lattice_structure):
+    term_sets = list(_as_mapping(term_attachments).get("term_sets") or [])
+    selected_term_set_ref = term_sets[0].get("term_set_ref") if term_sets else None
+    selected_bond_orbit_refs = []
+    for term_set in term_sets[:1]:
+        _append_unique(selected_bond_orbit_refs, term_set.get("bond_orbit_refs") or [])
+
+    return {
+        "task": payload.get("solver_task") or "classical_ground_state",
+        "preferred_methods": list(payload.get("preferred_solver_methods") or ["auto"]),
+        "outputs": list(payload.get("requested_outputs") or ["classical_state"]),
+        "selected_term_set_ref": selected_term_set_ref,
+        "selected_term_refs": [],
+        "selected_bond_orbit_refs": selected_bond_orbit_refs,
+        "selection_policy": "term_set_then_explicit_refs",
+    }
+
+
+def _canonical_contract_overlay(payload):
+    source_model = _source_model_for_contract(payload)
+    lattice_structure = (
+        deepcopy(source_model.get("lattice_structure"))
+        if isinstance(source_model.get("lattice_structure"), Mapping)
+        else build_lattice_structure(source_model)
+    )
+    lattice_structure = _augment_lattice_structure_with_term_orbits(lattice_structure, source_model)
+    symmetry = (
+        deepcopy(source_model.get("symmetry"))
+        if isinstance(source_model.get("symmetry"), Mapping)
+        else build_symmetry_record(source_model)
+    )
+    local_hilbert = _canonical_local_hilbert(payload, source_model, lattice_structure)
+    term_attachments = build_term_attachments(source_model, lattice_structure, local_hilbert)
+
+    return {
+        "schema_version": CANONICAL_SCHEMA_VERSION,
+        "local_hilbert": local_hilbert,
+        "lattice_structure": lattice_structure,
+        "symmetry": symmetry,
+        "term_attachments": term_attachments,
+        "solver_request": _canonical_solver_request(term_attachments, payload, lattice_structure),
+        "parameters": _canonical_parameters(payload, source_model),
+        "provenance": _canonical_provenance(payload, source_model),
+    }
+
+
 def _finalize_normalized_payload(normalized):
     finalized = dict(normalized)
     onsite_terms = derive_canonical_onsite_terms_from_normalized_payload(finalized)
@@ -183,13 +529,13 @@ def _finalize_normalized_payload(normalized):
         isinstance(existing_interaction, dict) and existing_interaction.get("status") == "needs_input"
     ):
         finalized["interaction"] = interaction
-    return finalized
+    finalized.update(_canonical_contract_overlay(finalized))
+    return _scrub_legacy_contract_keys(finalized)
 
 
 def _copy_passthrough_fields(source, destination):
     for key in (
-        "classical_family",
-        "classical_family_metadata",
+        "classical_bond_label",
         "supercell_shape",
         "positions",
         "lattice_vectors",
@@ -205,7 +551,7 @@ def _copy_passthrough_fields(source, destination):
         "document_source_text",
         "document_source_path",
         "selected_model_candidate",
-        "selected_local_bond_family",
+        "selected_local_bond_bond_label",
         "bond_terms",
         "explicit_bond_graph",
         "selected_coordinate_convention",
@@ -216,16 +562,10 @@ def _copy_passthrough_fields(source, destination):
     return destination
 
 
-def _attach_classical_family_resolution(payload, family_gate):
-    if not isinstance(family_gate, dict) or family_gate.get("status") != "resolved":
+def _attach_classical_bond_label_resolution(payload, bond_label_gate):
+    if not isinstance(bond_label_gate, dict) or bond_label_gate.get("status") != "resolved":
         return payload
-    payload["classical_family"] = family_gate["classical_family"]
-    payload["classical_family_metadata"] = {
-        "family": family_gate["classical_family"],
-        "solver_family": family_gate["solver_family"],
-        "sources": list(family_gate.get("sources", [])),
-        "intrinsic": bool(family_gate.get("intrinsic", False)),
-    }
+    payload["classical_bond_label"] = bond_label_gate["classical_bond_label"]
     return payload
 
 
@@ -257,7 +597,7 @@ def _normalize_support(support):
 def _require_representation_value(payload, representation):
     field_map = {
         "operator": "expression",
-        "operator_family_collection": "expressions",
+        "operator_channel_collection": "expressions",
         "matrix": "matrix",
         "natural_language": "description",
     }
@@ -297,8 +637,8 @@ def _normalize_many_body_hr_representation(payload):
     if local_level_to_site_mapping_file is not None:
         representation["local_level_to_site_mapping_file"] = str(local_level_to_site_mapping_file)
     return {
-        "model_family": "cpn_pair_model",
-        "adapter_family": "many_body_hr",
+        "model_bond_label": "cpn_pair_model",
+        "adapter_bond_label": "many_body_hr",
         "adapter_role": "legacy_storage_input",
         "support": [],
         "representation": representation,
@@ -659,7 +999,7 @@ def _human_readable_agent_fallback_payload(
         text,
         record=record,
         selected_coordinate_convention=(record or {}).get("selected_coordinate_convention"),
-        selected_local_bond_family=(record or {}).get("selected_local_bond_family"),
+        selected_local_bond_bond_label=(record or {}).get("selected_local_bond_bond_label"),
     )
     normalized = _natural_language_base_payload(
         text,
@@ -759,14 +1099,14 @@ def _build_agent_fallback_proposal(
     *,
     record,
     selected_coordinate_convention=None,
-    selected_local_bond_family=None,
+    selected_local_bond_bond_label=None,
 ):
     return build_agent_inferred(
         source_text=text,
         intermediate_record=record,
         normalization_context={
             "selected_coordinate_convention": selected_coordinate_convention,
-            "selected_local_bond_family": selected_local_bond_family,
+            "selected_local_bond_bond_label": selected_local_bond_bond_label,
         },
     )
 
@@ -814,7 +1154,7 @@ def _document_interaction_is_simple_user_selection(interaction):
         return False
     return interaction.get("id") in {
         "model_candidate_selection",
-        "local_bond_family_selection",
+        "bond_orbit_selection",
         "coordinate_convention_selection",
         "wavevector_selection",
         "wavevector_units_selection",
@@ -833,7 +1173,7 @@ def _should_request_agent_human_input(record, landed):
         ):
             return True
         return not _looks_like_spin_operator_expression((landed or {}).get("expression", ""))
-    if representation == "operator_family_collection":
+    if representation == "operator_channel_collection":
         expressions = list((landed or {}).get("expressions", []))
         if not expressions:
             return True
@@ -898,7 +1238,7 @@ def _build_agent_document_normalization_request(record, landed):
         ],
         "selection_context": {
             "selected_model_candidate": (record or {}).get("selected_model_candidate"),
-            "selected_local_bond_family": (record or {}).get("selected_local_bond_family"),
+            "selected_local_bond_bond_label": (record or {}).get("selected_local_bond_bond_label"),
             "selected_coordinate_convention": (record or {}).get("selected_coordinate_convention"),
         },
         "deterministic_hints": {
@@ -914,7 +1254,7 @@ def _normalize_document_style_natural_language(
     *,
     source_path=None,
     selected_model_candidate=None,
-    selected_local_bond_family=None,
+    selected_local_bond_bond_label=None,
     selected_coordinate_convention=None,
     local_dimension,
     source_mode,
@@ -930,7 +1270,7 @@ def _normalize_document_style_natural_language(
         source_text=text,
         source_path=source_path,
         selected_model_candidate=selected_model_candidate,
-        selected_local_bond_family=selected_local_bond_family,
+        selected_local_bond_bond_label=selected_local_bond_bond_label,
         selected_coordinate_convention=selected_coordinate_convention,
     )
     lattice_text = _document_lattice_text(record, text)
@@ -998,11 +1338,11 @@ def _normalize_document_style_natural_language(
             "document_source_text": text,
             "document_source_path": source_path,
             "selected_model_candidate": selected_model_candidate,
-            "selected_local_bond_family": selected_local_bond_family,
+            "selected_local_bond_bond_label": selected_local_bond_bond_label,
             "selected_coordinate_convention": selected_coordinate_convention,
             "units": _document_system_units(record),
             }
-            if landed["representation"] != "operator_family_collection"
+            if landed["representation"] != "operator_channel_collection"
             else {
                 "representation": landed["representation"],
                 "local_dim": int(local_dimension),
@@ -1020,7 +1360,7 @@ def _normalize_document_style_natural_language(
                 "document_source_text": text,
                 "document_source_path": source_path,
                 "selected_model_candidate": selected_model_candidate,
-                "selected_local_bond_family": selected_local_bond_family,
+                "selected_local_bond_bond_label": selected_local_bond_bond_label,
                 "selected_coordinate_convention": selected_coordinate_convention,
                 "units": _document_system_units(record),
             }
@@ -1030,9 +1370,9 @@ def normalize_freeform_text(
     text,
     *,
     source_path=None,
-    selected_classical_family=None,
+    selected_classical_bond_label=None,
     selected_model_candidate=None,
-    selected_local_bond_family=None,
+    selected_local_bond_bond_label=None,
     selected_coordinate_convention=None,
 ):
     text = (text or "").strip()
@@ -1045,7 +1385,7 @@ def normalize_freeform_text(
             text,
             source_path=source_path,
             selected_model_candidate=selected_model_candidate,
-            selected_local_bond_family=selected_local_bond_family,
+            selected_local_bond_bond_label=selected_local_bond_bond_label,
             selected_coordinate_convention=selected_coordinate_convention,
             local_dimension=local_dimension,
             source_mode="freeform",
@@ -1070,14 +1410,14 @@ def normalize_freeform_text(
         source_text=text,
         source_path=source_path,
         selected_model_candidate=selected_model_candidate,
-        selected_local_bond_family=selected_local_bond_family,
+        selected_local_bond_bond_label=selected_local_bond_bond_label,
         selected_coordinate_convention=selected_coordinate_convention,
     )
     proposal = _build_agent_fallback_proposal(
         text,
         record=record,
         selected_coordinate_convention=selected_coordinate_convention,
-        selected_local_bond_family=selected_local_bond_family,
+        selected_local_bond_bond_label=selected_local_bond_bond_label,
     )
     if _can_accept_helper_many_body_route(record, proposal):
         patched_payload = apply_agent_inferred_patch(
@@ -1085,9 +1425,9 @@ def normalize_freeform_text(
                 "representation": "natural_language",
                 "description": text,
                 "source_path": source_path,
-                "classical_family": selected_classical_family,
+                "classical_bond_label": selected_classical_bond_label,
                 "selected_model_candidate": selected_model_candidate,
-                "selected_local_bond_family": selected_local_bond_family,
+                "selected_local_bond_bond_label": selected_local_bond_bond_label,
                 "selected_coordinate_convention": selected_coordinate_convention,
                 "user_notes": text,
                 "source_mode": "freeform",
@@ -1112,14 +1452,14 @@ def normalize_freeform_text(
         user_notes=text,
         source_mode="freeform",
     )
-    family_gate = resolve_input_acceptance_classical_family(
+    bond_label_gate = resolve_input_acceptance_classical_bond_label(
         payload={
             "representation": "natural_language",
-            "classical_family": selected_classical_family,
+            "classical_bond_label": selected_classical_bond_label,
         }
     )
     if landed.get("interaction", {}).get("status") == "needs_input" or landed.get("agent_inferred") is not None:
-        _attach_classical_family_resolution(normalized, family_gate)
+        _attach_classical_bond_label_resolution(normalized, bond_label_gate)
         normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
         normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
         if landed.get("interaction") is not None:
@@ -1127,10 +1467,10 @@ def normalize_freeform_text(
         normalized["document_intermediate"] = record
         _apply_agent_metadata(normalized, landed=landed)
         return _finalize_normalized_payload(normalized)
-    if family_gate.get("status") == "needs_input":
-        normalized["interaction"] = dict(family_gate["interaction"])
+    if bond_label_gate.get("status") == "needs_input":
+        normalized["interaction"] = dict(bond_label_gate["interaction"])
         return _finalize_normalized_payload(normalized)
-    _attach_classical_family_resolution(normalized, family_gate)
+    _attach_classical_bond_label_resolution(normalized, bond_label_gate)
     return _finalize_normalized_payload(normalized)
 
 
@@ -1147,16 +1487,16 @@ def normalize_input(payload):
                     source_text=str(payload.get("description", "") or ""),
                     source_path=payload.get("source_path"),
                     selected_model_candidate=payload.get("selected_model_candidate"),
-                    selected_local_bond_family=payload.get("selected_local_bond_family"),
+                    selected_local_bond_bond_label=payload.get("selected_local_bond_bond_label"),
                     selected_coordinate_convention=payload.get("selected_coordinate_convention"),
                 ),
             }
         description = _require_representation_value(payload, representation)
         source_path = payload.get("source_path")
         selected_model_candidate = payload.get("selected_model_candidate")
-        selected_local_bond_family = payload.get("selected_local_bond_family")
+        selected_local_bond_bond_label = payload.get("selected_local_bond_bond_label")
         selected_coordinate_convention = payload.get("selected_coordinate_convention")
-        selected_classical_family = payload.get("classical_family")
+        selected_classical_bond_label = payload.get("classical_bond_label")
         route_hint = _inspect_many_body_hr_text(description)
         if payload.get("document_intermediate") is not None:
             document_record = payload["document_intermediate"]
@@ -1165,9 +1505,9 @@ def normalize_input(payload):
                 normalized = normalize_freeform_text(
                     description,
                     source_path=source_path,
-                    selected_classical_family=selected_classical_family,
+                    selected_classical_bond_label=selected_classical_bond_label,
                     selected_model_candidate=selected_model_candidate,
-                    selected_local_bond_family=selected_local_bond_family,
+                    selected_local_bond_bond_label=selected_local_bond_bond_label,
                     selected_coordinate_convention=selected_coordinate_convention,
                 )
                 normalized["coordinate_convention"] = dict(
@@ -1214,7 +1554,7 @@ def normalize_input(payload):
                     description,
                     source_path=source_path,
                     selected_model_candidate=selected_model_candidate,
-                    selected_local_bond_family=selected_local_bond_family,
+                    selected_local_bond_bond_label=selected_local_bond_bond_label,
                     selected_coordinate_convention=selected_coordinate_convention,
                     local_dimension=inferred_local_dimension,
                     source_mode=payload.get("source_mode", representation),
@@ -1245,7 +1585,7 @@ def normalize_input(payload):
                     source_text=description,
                     source_path=source_path,
                     selected_model_candidate=selected_model_candidate,
-                    selected_local_bond_family=selected_local_bond_family,
+                    selected_local_bond_bond_label=selected_local_bond_bond_label,
                     selected_coordinate_convention=selected_coordinate_convention,
                 )
                 landed = land_intermediate_record(record)
@@ -1256,13 +1596,13 @@ def normalize_input(payload):
                     local_dimension=_infer_local_dimension_from_text(description, int(payload.get("local_dim", 2))),
                     source_mode=payload.get("source_mode", representation),
                 )
-            family_gate = resolve_input_acceptance_classical_family(payload=payload)
-            if family_gate.get("status") == "needs_input":
+            bond_label_gate = resolve_input_acceptance_classical_bond_label(payload=payload)
+            if bond_label_gate.get("status") == "needs_input":
                 record = build_intermediate_record(
                     source_text=description,
                     source_path=source_path,
                     selected_model_candidate=selected_model_candidate,
-                    selected_local_bond_family=selected_local_bond_family,
+                    selected_local_bond_bond_label=selected_local_bond_bond_label,
                     selected_coordinate_convention=selected_coordinate_convention,
                 )
                 landed = land_intermediate_record(record)
@@ -1288,14 +1628,14 @@ def normalize_input(payload):
                     user_notes=payload.get("user_notes", "") or description,
                     source_mode=payload.get("source_mode", representation),
                 )
-                normalized["interaction"] = dict(family_gate["interaction"])
+                normalized["interaction"] = dict(bond_label_gate["interaction"])
                 return _finalize_normalized_payload(normalized)
             if _looks_like_spin_operator_expression(description):
                 record = build_intermediate_record(
                     source_text=description,
                     source_path=source_path,
                     selected_model_candidate=selected_model_candidate,
-                    selected_local_bond_family=selected_local_bond_family,
+                    selected_local_bond_bond_label=selected_local_bond_bond_label,
                     selected_coordinate_convention=selected_coordinate_convention,
                 )
                 landed = land_intermediate_record(record)
@@ -1312,14 +1652,14 @@ def normalize_input(payload):
                 source_text=description,
                 source_path=source_path,
                 selected_model_candidate=selected_model_candidate,
-                selected_local_bond_family=selected_local_bond_family,
+                selected_local_bond_bond_label=selected_local_bond_bond_label,
                 selected_coordinate_convention=selected_coordinate_convention,
             )
             proposal = _build_agent_fallback_proposal(
                 description,
                 record=record,
                 selected_coordinate_convention=selected_coordinate_convention,
-                selected_local_bond_family=selected_local_bond_family,
+                selected_local_bond_bond_label=selected_local_bond_bond_label,
             )
             if _can_accept_helper_many_body_route(record, proposal):
                 patched_payload = apply_agent_inferred_patch(payload, proposal)
@@ -1330,7 +1670,7 @@ def normalize_input(payload):
                 source_text=description,
                 source_path=source_path,
                 selected_model_candidate=selected_model_candidate,
-                selected_local_bond_family=selected_local_bond_family,
+                selected_local_bond_bond_label=selected_local_bond_bond_label,
                 selected_coordinate_convention=selected_coordinate_convention,
             )
             landed = land_intermediate_record(record)
@@ -1341,7 +1681,7 @@ def normalize_input(payload):
                     user_notes=payload.get("user_notes", "") or description,
                     source_mode=payload.get("source_mode", representation),
                 )
-                _attach_classical_family_resolution(normalized, family_gate)
+                _attach_classical_bond_label_resolution(normalized, bond_label_gate)
                 normalized["coordinate_convention"] = dict(landed.get("coordinate_convention", _default_coordinate_convention()))
                 normalized["magnetic_order"] = dict(landed.get("magnetic_order", _default_magnetic_order()))
                 if landed.get("interaction") is not None:
@@ -1350,14 +1690,14 @@ def normalize_input(payload):
                 _apply_agent_metadata(normalized, landed=landed)
                 return _finalize_normalized_payload(normalized)
     if representation == "many_body_hr":
-        family_gate = resolve_input_acceptance_classical_family(payload=payload)
+        bond_label_gate = resolve_input_acceptance_classical_bond_label(payload=payload)
         legacy_lattice = payload.get("lattice", _default_lattice())
         lattice_description = _normalize_lattice_description(payload, legacy_lattice)
         hamiltonian_description = _normalize_many_body_hr_representation(payload)
         user_notes = payload.get("user_notes", "")
         return {
             **_finalize_normalized_payload(
-                _attach_classical_family_resolution(
+                _attach_classical_bond_label_resolution(
                     _copy_passthrough_fields(
                         payload,
                         {
@@ -1385,21 +1725,21 @@ def normalize_input(payload):
             "interaction": payload.get("interaction"),
                         },
                     ),
-                    family_gate,
+                    bond_label_gate,
                 )
             )
         }
     should_gate_direct_structured_input = (
-        representation in {"operator", "operator_family_collection", "matrix"}
+        representation in {"operator", "operator_channel_collection", "matrix"}
         and payload.get("document_intermediate") is None
         and payload.get("source_mode", representation) == representation
     )
-    family_gate = (
-        resolve_input_acceptance_classical_family(payload=payload)
+    bond_label_gate = (
+        resolve_input_acceptance_classical_bond_label(payload=payload)
         if should_gate_direct_structured_input
         else {"status": "unresolved", "interaction": None}
     )
-    if family_gate.get("status") == "needs_input":
+    if bond_label_gate.get("status") == "needs_input":
         value = _require_representation_value(payload, representation)
         return _finalize_normalized_payload({
             "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
@@ -1428,7 +1768,7 @@ def normalize_input(payload):
                 "source_mode": payload.get("source_mode", representation),
                 "parsed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
-            "interaction": dict(family_gate["interaction"]),
+            "interaction": dict(bond_label_gate["interaction"]),
         })
     support = payload.get("support", [])
     support = _normalize_support(support)
@@ -1453,7 +1793,7 @@ def normalize_input(payload):
     coordinate_convention = dict(payload.get("coordinate_convention", _default_coordinate_convention()))
     magnetic_order = dict(payload.get("magnetic_order", _default_magnetic_order()))
     return _finalize_normalized_payload(
-        _attach_classical_family_resolution(
+        _attach_classical_bond_label_resolution(
             _copy_passthrough_fields(payload, {
                 "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
                 "local_hilbert": {"dimension": local_dimension, "uniform": True},
@@ -1477,7 +1817,7 @@ def normalize_input(payload):
                 },
                 "interaction": payload.get("interaction"),
             }),
-            family_gate,
+            bond_label_gate,
         )
     )
 
@@ -1492,9 +1832,9 @@ def main():
     parser.add_argument("input", nargs="?")
     parser.add_argument("--freeform", default=None)
     parser.add_argument("--source-path", default=None)
-    parser.add_argument("--selected-classical-family", default=None)
+    parser.add_argument("--selected-classical-bond_label", default=None)
     parser.add_argument("--selected-model-candidate", default=None)
-    parser.add_argument("--selected-local-bond-family", default=None)
+    parser.add_argument("--selected-local-bond-bond_label", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
     args = parser.parse_args()
     if args.freeform is not None:
@@ -1503,9 +1843,9 @@ def main():
                 normalize_freeform_text(
                     args.freeform,
                     source_path=args.source_path,
-                    selected_classical_family=args.selected_classical_family,
+                    selected_classical_bond_label=args.selected_classical_bond_label,
                     selected_model_candidate=args.selected_model_candidate,
-                    selected_local_bond_family=args.selected_local_bond_family,
+                    selected_local_bond_bond_label=args.selected_local_bond_bond_label,
                     selected_coordinate_convention=args.selected_coordinate_convention,
                 ),
                 indent=2,

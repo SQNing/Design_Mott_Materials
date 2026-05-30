@@ -20,14 +20,14 @@ from simplify.simplify_pseudospin_orbital_payload import simplify_pseudospin_orb
 def _phase_summary(parsed_payload, simplified_payload, grouped_payload):
     inferred = parsed_payload.get("inferred", {})
     realized_bond_blocks = realize_pseudospin_bond_blocks(parsed_payload)
-    model_family = str(parsed_payload.get("model_family") or "unknown")
+    model_bond_label = str(parsed_payload.get("model_bond_label") or "unknown")
     lines = [
         "# Pseudospin-Orbital Report Phase",
         "",
         "## Conventions",
         "",
         "- local space: pseudospin_orbital",
-        f"- model family: {model_family}",
+        f"- model bond_label: {model_bond_label}",
         f"- basis order: {parsed_payload.get('basis_order')}",
         f"- local_dimension: {inferred['local_dimension']}",
         "",

@@ -82,11 +82,11 @@ def _resolve_default_q_path(model, supercell_shape):
     }
     bonds = [{"vector": list(coupling.get("R", [0, 0, 0]))} for coupling in _resolve_pair_couplings(model)]
     spatial_dimension = infer_spatial_dimension(lattice, bonds)
-    lattice_family, nodes = default_high_symmetry_path(lattice, spatial_dimension)
+    q_path_lattice_class, nodes = default_high_symmetry_path(lattice, spatial_dimension)
     q_path, node_indices = _interpolate_q_path(nodes["points"], samples_per_segment=int(model.get("q_samples", 32)))
     return {
         "spatial_dimension": spatial_dimension,
-        "lattice_family": lattice_family,
+        "q_path_lattice_class": q_path_lattice_class,
         "magnetic_supercell_shape": [int(value) for value in supercell_shape],
         "q_path": q_path,
         "path": {"labels": list(nodes["labels"]), "node_indices": node_indices},
@@ -119,7 +119,7 @@ def _resolve_q_path(model, supercell_shape):
             spatial_dimension = infer_spatial_dimension(lattice, bonds)
         return {
             "spatial_dimension": spatial_dimension,
-            "lattice_family": str(model.get("lattice_kind", "generic")),
+            "q_path_lattice_class": str(model.get("lattice_kind", "generic")),
             "magnetic_supercell_shape": [int(value) for value in supercell_shape],
             "q_path": q_path,
             "path": {"labels": labels, "node_indices": node_indices},
@@ -200,6 +200,7 @@ def build_python_glswt_payload(model, classical_state=None):
                 },
                 "ordering": ordering,
                 "spatial_dimension": int(q_path_summary["spatial_dimension"]),
+                "q_path_lattice_class": str(q_path_summary["q_path_lattice_class"]),
                 "q_path_coordinates": "crystallographic_reciprocal_basis",
                 "q_path_reference_lattice_vectors": list(model.get("lattice_vectors", [])),
                 "q_path": q_path_summary["q_path"],
@@ -251,6 +252,7 @@ def build_python_glswt_payload(model, classical_state=None):
         },
         "ordering": dict(resolved_state.get("ordering", {})),
         "spatial_dimension": int(q_path_summary["spatial_dimension"]),
+        "q_path_lattice_class": str(q_path_summary["q_path_lattice_class"]),
         "q_path_coordinates": "magnetic_supercell_reciprocal_basis",
         "q_path": q_path_summary["q_path"],
         "path": q_path_summary["path"],

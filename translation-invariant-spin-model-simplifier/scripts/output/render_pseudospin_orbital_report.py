@@ -160,7 +160,7 @@ def render_pseudospin_orbital_human_text(grouped_payload):
                 lines.append("- grouped terms:")
                 for item in bond.get("grouped_terms", []):
                     lines.append(
-                        f"  - family={item['family']} body_order={item['body_order']} "
+                        f"  - bond_label={item['bond_label']} body_order={item['body_order']} "
                         f"coeff={item['coefficient']} label={item['latex_label']}"
                     )
                 lines.append("- Residual terms")
@@ -281,7 +281,7 @@ def render_pseudospin_orbital_human_tex(grouped_payload):
                 lines.append(r"\begin{itemize}")
                 for item in bond.get("grouped_terms", []):
                     lines.append(
-                        rf"\item {_latex_escape_text(item['family'])} (body order {item['body_order']}): "
+                        rf"\item {_latex_escape_text(item['bond_label'])} (body order {item['body_order']}): "
                         rf"${item['latex_label']}$, coefficient = ${_format_real_or_complex(item['coefficient'])}$"
                     )
                 lines.append(r"\end{itemize}")

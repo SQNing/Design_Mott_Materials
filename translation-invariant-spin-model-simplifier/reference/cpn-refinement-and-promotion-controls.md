@@ -76,7 +76,7 @@ python scripts/cli/solve_pseudospin_orbital_pipeline.py \
   --hr /path/to/VR_hr.dat \
   --output-dir /path/to/output \
   --docs-dir /path/to/output/docs \
-  --classical-family cpn \
+  --classical-bond_label cpn \
   --classical-method sun-gswt-cpn \
   --supercell-shape 1 1 1 \
   --supercell-promotion-policy auto \

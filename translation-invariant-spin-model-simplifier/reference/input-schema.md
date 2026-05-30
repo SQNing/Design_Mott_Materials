@@ -35,18 +35,18 @@ Attachment-facing refs such as `site_ref`, `bond_ref`, `orbit_ref`,
 `explicit_edge_ref`, and `support_ref` remain accepted when the source provides
 them.
 
-Legacy compatibility data may still include family-shaped fields such as
-`family`, `model_family`, `classical_family`, or adapter-family annotations,
+Legacy compatibility data may still include bond_label-shaped fields such as
+`bond_label`, `model_bond_label`, `classical_bond_label`, or adapter-bond_label annotations,
 but those are not the primary conceptual object of the public contract.
 
-The canonical internal `CP^(N-1)` model family remains:
+The canonical internal `CP^(N-1)` model bond_label remains:
 
-- `model_family = cpn_pair_model`
+- `model_bond_label = cpn_pair_model`
 
 This remains legacy compatibility data for downstream adapters, not a separate
 freeform top-level representation kind and not the primary public organizing
 concept. Current `many_body_hr` inputs normalize into a legacy-adapter
-description that targets the canonical `cpn_pair_model` payload family
+description that targets the canonical `cpn_pair_model` payload bond_label
 downstream.
 
 Required content fields:
@@ -99,10 +99,10 @@ For `many_body_hr` payloads:
 - `structure_file` must point to a crystal-structure file such as `POSCAR`
 - `hamiltonian_file` must point to a Wannier-style `hr.dat` file
 - normalization should treat this as a legacy compatibility adapter route into
-  `model_family = cpn_pair_model`,
-  not as the conceptual model family itself
+  `model_bond_label = cpn_pair_model`,
+  not as the conceptual model bond_label itself
 - runnable classical entrypoints must resolve an explicit
-  `classical_family`
+  `classical_bond_label`
   before selecting builders or solvers;
   current public values are
   `spin-only`
@@ -134,17 +134,17 @@ For `many_body_hr` payloads:
   `generic-multiplet`
   route or select it explicitly instead of relying on dimension-based inference
 - current `many_body_hr` pseudospin payload builders land
-  `classical_family = cpn`
+  `classical_bond_label = cpn`
   explicitly; callers should treat this as legacy compatibility data for the
   route-defining classical-manifold contract rather than inferring the route
   indirectly from `input_mode = many_body_hr`
 - normalized metadata may also expose
-  `adapter_family = many_body_hr`
+  `adapter_bond_label = many_body_hr`
   and
   `adapter_role = legacy_storage_input`
   to make the boundary explicit
 - explicit retained-local-multiplet payload JSON may also land
-  `classical_family = cpn`
+  `classical_bond_label = cpn`
   without
   `input_mode = many_body_hr`;
   these payloads can be executed through
@@ -161,7 +161,7 @@ Document-style text inputs such as LaTeX notes and `.tex` sources still enter th
 
 For broad upstream payloads that can describe either a spin-only model or a retained-local-multiplet
 `CP^(N-1)` model, input acceptance now requires an explicit
-`classical_family`
+`classical_bond_label`
 decision before normalization or simplification proceeds.
 
 Current broad ambiguous upstreams include:
@@ -178,16 +178,16 @@ Current public values are:
 - `cpn`
 
 If a broad ambiguous payload omits
-`classical_family`,
+`classical_bond_label`,
 normalization returns
 `interaction.status = needs_input`
 with
-`interaction.id = classical_family_selection`
+`interaction.id = classical_bond_label_selection`
 instead of continuing by default.
 
 Current CLI wrappers expose this decision with:
 
-- `--selected-classical-family spin-only|cpn`
+- `--selected-classical-bond_label spin-only|cpn`
   for broad document/text entrypoints such as
   `scripts/cli/normalize_document_with_agent.py`,
   `scripts/cli/run_agent_document_normalization_demo.py`,
@@ -195,8 +195,8 @@ Current CLI wrappers expose this decision with:
   `scripts/cli/simplify_text_input.py`,
   and
   `scripts/cli/run_document_reader_pipeline.py`
-- `--classical-family spin-only|cpn`
-  for family-validating classical solver entrypoints such as
+- `--classical-bond_label spin-only|cpn`
+  for bond_label-validating classical solver entrypoints such as
   `scripts/cli/solve_pseudospin_orbital_pipeline.py`
   and
   `scripts/cli/solve_cpn_payload_pipeline.py`
