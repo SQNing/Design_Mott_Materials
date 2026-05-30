@@ -15,21 +15,21 @@ from common.lattice_structure_builder import (
 
 
 class LatticeStructureBuilderTests(unittest.TestCase):
-    def test_build_lattice_structure_turns_legacy_family_maps_into_canonical_bond_orbits(self):
+    def test_build_lattice_structure_turns_legacy_bond_label_maps_into_canonical_bond_orbits(self):
         source_model = {
             "lattice_model": {
                 "positions": [[0.0, 0.0, 0.0]],
-                "family_shell_map": {
+                "bond_orbit_shell_map": {
                     "1": {"shell_index": 2, "distance": 1.0},
                 },
-                "family_representative_map": {
+                "bond_orbit_representative_map": {
                     "1": {"source": 0, "target": 0, "translation": [1, 0, 0]},
                 },
             },
             "hamiltonian_model": {
                 "local_bond_candidates": [
                     {
-                        "family": "1",
+                        "bond_label": "1",
                         "expression": "J_1 * Sx@0 Sx@1",
                     }
                 ]

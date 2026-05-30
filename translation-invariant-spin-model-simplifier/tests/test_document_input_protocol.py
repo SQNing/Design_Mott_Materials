@@ -12,6 +12,7 @@ from input.document_input_protocol import (
     build_intermediate_record_from_agent_normalized,
     land_intermediate_record,
 )
+from common.term_attachment_builder import build_term_attachments
 
 
 class DocumentInputProtocolTests(unittest.TestCase):
@@ -36,6 +37,42 @@ class DocumentInputProtocolTests(unittest.TestCase):
         self.assertIn("unresolved", record["symmetry"])
         self.assertIn("lattice_model", record)
         self.assertIn("hamiltonian_model", record)
+        attachments = build_term_attachments(
+            record,
+            lattice_structure=record["lattice_structure"],
+            local_hilbert={
+                "sites": [
+                    {
+                        "site_ref": "site:0",
+                        "space_ref": "space:spin_s_half",
+                        "basis_ref": "basis:spin_s_half",
+                        "classical_space_ref": "classical_space:spin_unit_vector",
+                        "operator_basis_refs": ["op_basis:spin_cartesian"],
+                    }
+                ],
+                "basis_registry": {
+                    "basis:spin_s_half": {
+                        "kind": "spin_multiplet",
+                        "dimension": 2,
+                        "basis_order": ["m=+1/2", "m=-1/2"],
+                    }
+                },
+                "operator_bases": {
+                    "op_basis:spin_cartesian": {
+                        "kind": "spin_cartesian",
+                        "basis_order": ["Sx", "Sy", "Sz"],
+                    }
+                },
+                "classical_spaces": {
+                    "classical_space:spin_unit_vector": {
+                        "kind": "unit_vector_sphere",
+                        "dimension": 3,
+                    }
+                },
+            },
+        )
+        self.assertIn("bond_terms", attachments)
+        self.assertIn("term_sets", attachments)
 
     def test_source_text_lands_through_bond_terms_and_explicit_bond_graph(self):
         source_text = r"""
@@ -77,7 +114,7 @@ class DocumentInputProtocolTests(unittest.TestCase):
                     ],
                     "local_bond_candidates": [
                         {
-                            "family": "1",
+                            "source_label": "1",
                             "expression": "legacy-expression",
                         }
                     ],
@@ -94,7 +131,7 @@ class DocumentInputProtocolTests(unittest.TestCase):
 
         self.assertIn("bond_terms", record["hamiltonian_model"])
         self.assertNotIn("local_bond_candidates", record["hamiltonian_model"])
-        self.assertNotIn("selected_local_bond_family", record["hamiltonian_model"])
+        self.assertNotIn("selected_local_bond_bond_label", record["hamiltonian_model"])
 
     def test_agent_normalized_record_falls_back_to_local_bond_candidates_without_bond_terms(self):
         agent_normalized_document = {
@@ -104,7 +141,7 @@ class DocumentInputProtocolTests(unittest.TestCase):
                 "effective": {
                     "local_bond_candidates": [
                         {
-                            "family": "1",
+                            "source_label": "1",
                             "expression": "J_1 * Sz@0 Sz@1",
                         }
                     ]
@@ -134,7 +171,7 @@ class DocumentInputProtocolTests(unittest.TestCase):
         lattice_structure = record["lattice_structure"]
 
         self.assertIn("source_labels", lattice_structure)
-        self.assertNotIn("family", lattice_structure)
+        self.assertNotIn("bond_label", lattice_structure)
         self.assertNotIn("1", lattice_structure)
 
 
