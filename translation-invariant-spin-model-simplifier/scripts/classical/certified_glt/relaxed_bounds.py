@@ -696,6 +696,7 @@ def evaluate_relaxed_box(model, box, *, heuristic_seed=None):
     lower_bound = min(float(uniform_lower), float(nonzero_lower), float(best_upper))
     if heuristic_seed is not None:
         best_upper = min(float(best_upper), float(heuristic_seed.get("energy_upper_bound", best_upper)))
+        lower_bound = min(float(lower_bound), float(best_upper))
     if branch_kinds == {"uniform"}:
         branch_kind = "uniform"
     elif branch_kinds == {"nonzero-q"}:
@@ -728,7 +729,7 @@ def evaluate_relaxed_box(model, box, *, heuristic_seed=None):
     }
 
 
-def refine_candidate_upper_bound(model, seed):
+def refine_candidate_upper_bound(model, seed, *, weight_bound=1.0):
     blocks_payload = _lt_blocks(model)
     active_axes = list(_active_axes(model))
     initial_q = [float(seed.get("q_vector", [0.0, 0.0, 0.0])[axis]) for axis in active_axes]
@@ -738,7 +739,7 @@ def refine_candidate_upper_bound(model, seed):
     if free_count:
         initial_logs = [math.log(max(1.0e-12, float(value))) for value in initial_weights[:free_count]]
     initial = np.array(initial_q + initial_logs, dtype=float)
-    bounds = [(0.0, 1.0)] * len(initial_q) + [(-1.0, 1.0)] * len(initial_logs)
+    bounds = [(0.0, 1.0)] * len(initial_q) + [(-float(weight_bound), float(weight_bound))] * len(initial_logs)
 
     def objective(vector):
         q_vector = [0.0, 0.0, 0.0]
@@ -747,21 +748,72 @@ def refine_candidate_upper_bound(model, seed):
         p_weights = _point_to_weights(model, vector)
         return float(_energy_for_point(model, blocks_payload, q_vector, p_weights)["energy"])
 
-    best_energy = float(seed.get("energy_upper_bound", 0.0))
+    initial_energy = float(objective(initial))
+    best_energy = initial_energy
     best_vector = np.array(initial, copy=True)
+    status = "seed-retained"
+    optimizer = {
+        "success": None,
+        "message": None,
+        "fun": float(initial_energy),
+        "starts": 0,
+        "runs": [],
+    }
     if initial.size:
-        result = minimize(objective, initial, method="L-BFGS-B", bounds=bounds)
-        if result.success and float(result.fun) <= best_energy + 1.0e-12:
-            best_energy = float(result.fun)
-            best_vector = np.array(result.x, dtype=float)
-            status = "refined"
-        else:
-            status = "seed-retained"
-    else:
-        candidate_energy = objective(initial)
-        if candidate_energy <= best_energy + 1.0e-12:
-            best_energy = float(candidate_energy)
-        status = "seed-retained"
+        starts = [np.array(initial, dtype=float)]
+        active_count = len(initial_q)
+        if active_count:
+            for anchor in (0.25, 0.5, 0.75):
+                start = np.array(initial, dtype=float)
+                start[:active_count] = float(anchor)
+                starts.append(start)
+            for axis in range(active_count):
+                for delta in (-0.05, 0.05):
+                    start = np.array(initial, dtype=float)
+                    start[axis] = float((start[axis] + delta) % 1.0)
+                    starts.append(start)
+
+        deduped_starts = []
+        seen = set()
+        for start in starts:
+            clipped = np.array(start, dtype=float)
+            for index, (lower, upper) in enumerate(bounds):
+                clipped[index] = min(float(upper), max(float(lower), float(clipped[index])))
+            key = tuple(round(float(value), 12) for value in clipped)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped_starts.append(clipped)
+
+        runs = []
+        best_run = None
+        for start in deduped_starts:
+            result = minimize(objective, start, method="L-BFGS-B", bounds=bounds)
+            result_fun = float(result.fun)
+            run = {
+                "success": bool(result.success),
+                "message": str(getattr(result, "message", "")),
+                "fun": float(result_fun),
+                "nit": int(getattr(result, "nit", 0)),
+                "start": [float(value) for value in start],
+                "x": [float(value) for value in np.array(result.x, dtype=float)],
+            }
+            runs.append(run)
+            if result_fun <= best_energy + 1.0e-12:
+                best_energy = float(result_fun)
+                best_vector = np.array(result.x, dtype=float)
+                status = "refined" if result.success else "refined-with-warning"
+                best_run = dict(run)
+        optimizer = {
+            "success": bool(best_run["success"]) if best_run is not None else None,
+            "message": str(best_run["message"]) if best_run is not None else "",
+            "fun": float(best_energy),
+            "nit": int(sum(int(run.get("nit", 0)) for run in runs)),
+            "starts": int(len(deduped_starts)),
+            "best_start": list(best_run["start"]) if best_run is not None else None,
+            "best_x": list(best_run["x"]) if best_run is not None and "x" in best_run else None,
+            "runs": list(runs),
+        }
 
     q_vector = [0.0, 0.0, 0.0]
     for offset, axis in enumerate(active_axes):
@@ -772,4 +824,5 @@ def refine_candidate_upper_bound(model, seed):
         "energy_upper_bound": float(best_energy),
         "q_vector": list(q_vector),
         "p_weights": [float(value) for value in p_weights],
+        "optimizer": optimizer,
     }

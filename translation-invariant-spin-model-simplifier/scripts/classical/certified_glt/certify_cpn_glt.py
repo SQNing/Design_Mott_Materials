@@ -7,6 +7,7 @@ from .heuristic_bridge import build_heuristic_seed
 from .lift_certificate import classify_lift_result
 from .progress import ProgressReporter
 from .projector_certificate import certify_projector_collection
+from .quantum_relaxation import certify_quantum_relaxation_lower_bound
 from .relaxed_bounds import build_search_box, evaluate_relaxed_box, refine_candidate_upper_bound
 from .shell_certificate import build_shell_certificate
 
@@ -423,11 +424,12 @@ def certify_cpn_generalized_lt(
         seed=seed,
         starts=starts,
     )
-    heuristic_seed["refinement"] = refine_candidate_upper_bound(model, heuristic_seed)
-    heuristic_seed["energy_upper_bound"] = min(
-        float(heuristic_seed["energy_upper_bound"]),
-        float(heuristic_seed["refinement"]["energy_upper_bound"]),
+    heuristic_seed["refinement"] = refine_candidate_upper_bound(
+        model,
+        heuristic_seed,
+        weight_bound=weight_bound,
     )
+    heuristic_seed["energy_upper_bound"] = float(heuristic_seed["refinement"]["energy_upper_bound"])
     heuristic_seed["q_vector"] = list(heuristic_seed["refinement"]["q_vector"])
     heuristic_seed["p_weights"] = list(heuristic_seed["refinement"]["p_weights"])
 
@@ -448,6 +450,17 @@ def certify_cpn_generalized_lt(
         "statistics": dict(search_result["statistics"]),
         "best_box": dict(search_result["best_box"]),
     }
+    reporter.emit(stage="quantum-relaxation-certificate", processed=0, queued=0, reason="start")
+    quantum_relaxation_certificate = certify_quantum_relaxation_lower_bound(
+        model,
+        supercell_shape=(max(1, int(supercell_cutoff)), 1, 1),
+    )
+    if quantum_relaxation_certificate.get("status") == "certified":
+        quantum_lower = float(quantum_relaxation_certificate["lower_bound"])
+        relaxed_certificate["quantum_relaxation_lower_bound"] = float(quantum_lower)
+        relaxed_certificate["quantum_relaxation_note"] = (
+            "finite-supercell exact diagonalization is retained as auxiliary guidance, not promoted as a thermodynamic lower bound"
+        )
 
     reporter.emit(
         stage="shell-certificate",
@@ -524,6 +537,7 @@ def certify_cpn_generalized_lt(
         "lowest_shell_certificate": shell_certificate,
         "commensurate_lift_certificate": lift_certificate,
         "projector_exactness_certificate": projector_certificate,
+        "quantum_relaxation_certificate": quantum_relaxation_certificate,
         "promotion_summary": promotion_summary,
         "search_summary": _summarize_search(search_result),
         "next_best_action": next_best_action,

@@ -815,8 +815,15 @@ def _solve_direct_pseudospin_glt(
     classical_method,
     seed,
     glt_certification_mode,
+    glt_solver_mode="fast",
 ):
-    if str(glt_certification_mode) == "required":
+    solver_mode = str(glt_solver_mode)
+    if solver_mode not in {"fast", "certified"}:
+        raise ValueError(
+            f"unsupported glt_solver_mode: {glt_solver_mode!r}; supported modes: fast, certified"
+        )
+
+    if solver_mode == "certified" or str(glt_certification_mode) == "required":
         certified_result = certify_cpn_generalized_lt(
             classical_model,
             seed=seed,
@@ -1373,6 +1380,7 @@ def _solve_from_parsed_payload_core(
     thermo_wl_ln_f=1.0,
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
+    glt_solver_mode="fast",
     compatibility_export_mode="canonical",
     classical_bond_label=None,
 ):
@@ -1414,6 +1422,7 @@ def _solve_from_parsed_payload_core(
             classical_method="cpn-generalized-lt",
             seed=seed,
             glt_certification_mode=glt_certification_mode,
+            glt_solver_mode=glt_solver_mode,
         )
         gswt_payload = None
         if str(glt_solver_result.get("solver_role")) == "final":
@@ -1687,6 +1696,7 @@ def _solve_from_parsed_payload_core(
             classical_method=classical_method,
             seed=seed,
             glt_certification_mode=glt_certification_mode,
+            glt_solver_mode=glt_solver_mode,
         )
         gswt_payload = None
     else:
@@ -1705,7 +1715,7 @@ def _solve_from_parsed_payload_core(
     if (
         gswt_payload is None
         and run_gswt
-        and classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}
+        and resolved_classical_method in {"cpn-generalized-lt", "cpn-luttinger-tisza"}
         and isinstance(standardized_classical_result, dict)
         and str(standardized_classical_result.get("role")) == "final"
     ):
@@ -2045,6 +2055,7 @@ def solve_from_parsed_payload(
     thermo_wl_ln_f=1.0,
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
+    glt_solver_mode="fast",
     compatibility_export_mode="canonical",
     classical_bond_label=None,
 ):
@@ -2088,6 +2099,7 @@ def solve_from_parsed_payload(
         thermo_wl_ln_f=thermo_wl_ln_f,
         thermo_wl_sweeps=thermo_wl_sweeps,
         glt_certification_mode=glt_certification_mode,
+        glt_solver_mode=glt_solver_mode,
         compatibility_export_mode=compatibility_export_mode,
         classical_bond_label=classical_bond_label,
     )
@@ -2136,6 +2148,7 @@ def solve_from_files(
     thermo_wl_ln_f=1.0,
     thermo_wl_sweeps=100,
     glt_certification_mode="off",
+    glt_solver_mode="fast",
     compatibility_export_mode="canonical",
     classical_bond_label=None,
     local_level_to_site_mapping_path=None,
@@ -2193,6 +2206,7 @@ def solve_from_files(
         thermo_wl_ln_f=thermo_wl_ln_f,
         thermo_wl_sweeps=thermo_wl_sweeps,
         glt_certification_mode=glt_certification_mode,
+        glt_solver_mode=glt_solver_mode,
         compatibility_export_mode=compatibility_export_mode,
         classical_bond_label=classical_bond_label,
     )
@@ -2298,6 +2312,11 @@ def main():
         default="off",
     )
     parser.add_argument(
+        "--glt-solver-mode",
+        choices=["fast", "certified"],
+        default="fast",
+    )
+    parser.add_argument(
         "--classical-output-compatibility",
         choices=["canonical", "legacy"],
         default="canonical",
@@ -2346,6 +2365,7 @@ def main():
         thermo_wl_ln_f=float(args.thermo_wl_ln_f),
         thermo_wl_sweeps=int(args.thermo_wl_sweeps),
         glt_certification_mode=str(args.glt_certification_mode),
+        glt_solver_mode=str(args.glt_solver_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
         classical_bond_label=None if args.classical_bond_label is None else str(args.classical_bond_label),
         local_level_to_site_mapping_path=Path(args.local_level_to_site_mapping)

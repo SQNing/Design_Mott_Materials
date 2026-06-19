@@ -2,6 +2,11 @@
 import math
 
 import numpy as np
+try:
+    from scipy.optimize import differential_evolution, minimize
+except ImportError:  # pragma: no cover - scipy is expected in the solver environment
+    differential_evolution = None
+    minimize = None
 
 if __package__ in {None, ""}:
     import sys
@@ -122,6 +127,14 @@ def _active_axes(model):
         if any(int(bond["R"][axis]) != 0 for bond in model.get("bond_tensors", [])):
             active.append(axis)
     return active or [0]
+
+
+def _q_phase_active_axes(model):
+    active = []
+    for axis in range(3):
+        if any(int(bond["R"][axis]) != 0 for bond in model.get("bond_tensors", [])):
+            active.append(axis)
+    return active
 
 
 def _magnetic_site_count(model):
@@ -344,7 +357,10 @@ def _trust_region_on_sphere(kernel, field, radius_sq, *, tolerance=1.0e-12):
     radius = math.sqrt(max(0.0, float(radius_sq)))
     if dimension == 0 or radius <= tolerance:
         vector = np.zeros((dimension,), dtype=float)
-        energy = float(vector @ kernel @ vector + 2.0 * np.dot(field, vector))
+        field_vector = np.array(field, dtype=float)
+        if field_vector.size != dimension:
+            field_vector = np.zeros((dimension,), dtype=float)
+        energy = float(vector @ kernel @ vector + 2.0 * np.dot(field_vector, vector))
         return vector, energy, {"mode": "trivial", "lagrange_multiplier": None}
 
     eigenvalues, eigenvectors = _stable_hermitian_eigh(kernel)
@@ -696,7 +712,7 @@ def _search_weights(blocks_payload, *, q_mesh, local_dimension, magnetic_site_co
                     p_weights=p_trial,
                 )
                 evaluations += 1
-                if candidate["energy"] > local_best["energy"] + 1.0e-12:
+                if candidate["energy"] < local_best["energy"] - 1.0e-12:
                     candidate["weight_search"] = {
                         "search_strategy": "coordinate",
                         "evaluated_candidates": 0,
@@ -708,13 +724,735 @@ def _search_weights(blocks_payload, *, q_mesh, local_dimension, magnetic_site_co
                     }
                     local_best = candidate
                     local_coordinates = trial
-            if local_best["energy"] > best["energy"] + 1.0e-12:
+            if local_best["energy"] < best["energy"] - 1.0e-12:
                 best = local_best
                 free_coordinates = local_coordinates
                 improved = True
 
     best["weight_search"]["evaluated_candidates"] = int(evaluations)
     return best
+
+
+def _active_q_coordinates(q_vector, active_axes):
+    return np.array([float(q_vector[int(axis)]) for axis in active_axes], dtype=float)
+
+
+def _q_vector_from_active_coordinates(active_axes, coordinates):
+    q_vector = [0.0, 0.0, 0.0]
+    for offset, axis in enumerate(active_axes):
+        q_vector[int(axis)] = _normalize_fractional_component(float(coordinates[offset]))
+    return q_vector
+
+
+def _continuous_q_start_points(seed_coordinates, *, active_dimension):
+    seed = np.array(seed_coordinates, dtype=float)
+    starts = [np.clip(seed, 0.0, 1.0)]
+    if int(active_dimension) <= 0:
+        return starts
+
+    anchors = [0.25, 0.5, 0.75]
+    for anchor in anchors:
+        starts.append(np.full((int(active_dimension),), float(anchor), dtype=float))
+
+    for axis in range(int(active_dimension)):
+        for delta in (-0.05, 0.05):
+            shifted = np.array(seed, copy=True)
+            shifted[axis] = float((shifted[axis] + delta) % 1.0)
+            starts.append(np.clip(shifted, 0.0, 1.0))
+
+    deduped = []
+    seen = set()
+    for start in starts:
+        key = tuple(round(float(value), 12) for value in start)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(start)
+    return deduped
+
+
+def _active_coordinates_from_q_and_weights(q_vector, p_weights, active_axes):
+    q_coordinates = [float(q_vector[int(axis)]) for axis in active_axes]
+    weights = list(p_weights or [1.0])
+    free_count = max(0, len(weights) - 1)
+    log_coordinates = [
+        math.log(max(1.0e-12, float(value)))
+        for value in weights[:free_count]
+    ]
+    return np.array(q_coordinates + log_coordinates, dtype=float)
+
+
+def _q_and_weights_from_active_coordinates(model, active_axes, coordinates):
+    coordinates = np.array(coordinates, dtype=float)
+    q_vector = _q_vector_from_active_coordinates(
+        active_axes,
+        coordinates[: len(active_axes)],
+    )
+    p_weights = _point_to_weights_for_site_count(
+        max(1, int(_magnetic_site_count(model))),
+        coordinates,
+        q_coordinate_count=len(active_axes),
+    )
+    return q_vector, p_weights
+
+
+def _point_to_weights_for_site_count(site_count, point, *, q_coordinate_count):
+    free_count = max(0, int(site_count) - 1)
+    if free_count == 0:
+        return [1.0]
+    coordinates = np.array(point, dtype=float)[int(q_coordinate_count) : int(q_coordinate_count) + free_count]
+    p_weights, _, _ = _weights_from_log_coordinates(coordinates)
+    return [float(value) for value in p_weights]
+
+
+def _continuous_search_start_points(seed_vector, bounds, *, active_q_count):
+    starts = [np.array(seed_vector, dtype=float)]
+    if int(active_q_count) > 0:
+        for anchor in (0.125, 0.25, 0.5, 0.75, 0.875):
+            start = np.array(seed_vector, dtype=float)
+            start[: int(active_q_count)] = float(anchor)
+            starts.append(start)
+        for axis in range(int(active_q_count)):
+            for delta in (-0.1, -0.03, 0.03, 0.1):
+                start = np.array(seed_vector, dtype=float)
+                start[axis] = float((start[axis] + delta) % 1.0)
+                starts.append(start)
+
+    clipped_starts = []
+    seen = set()
+    for start in starts:
+        clipped = np.array(start, dtype=float)
+        for index, (lower, upper) in enumerate(bounds):
+            clipped[index] = min(float(upper), max(float(lower), float(clipped[index])))
+        key = tuple(round(float(value), 12) for value in clipped)
+        if key in seen:
+            continue
+        seen.add(key)
+        clipped_starts.append(clipped)
+    return clipped_starts
+
+
+def _mesh_probe_metadata(weighted, *, mesh_shape, sample_count):
+    best_q = [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])]
+    best_energy = float(weighted.get("energy", 0.0))
+    return {
+        "role": "seed_generator",
+        "mesh_shape": [int(value) for value in mesh_shape],
+        "sample_count": int(sample_count),
+        "best_sampled_q": list(best_q),
+        "best_sampled_energy": float(best_energy),
+        "best_q_vector": list(best_q),
+        "best_lower_bound": float(best_energy),
+        "best_sampled_mode_kind": weighted.get("mode_kind"),
+        "best_q_mesh_lower_bound": float(weighted.get("best_q_mesh_lower_bound", weighted.get("energy", 0.0))),
+    }
+
+
+def _sector_distance(left_q, right_q):
+    distances = []
+    for left, right in zip(left_q, right_q):
+        delta = abs(float(left) - float(right)) % 1.0
+        distances.append(min(delta, 1.0 - delta))
+    return float(np.linalg.norm(np.array(distances, dtype=float)))
+
+
+def _sector_distance_under_inversion(left_q, right_q):
+    inverted_right = _normalized_q_vector([-float(component) for component in right_q])
+    return min(
+        _sector_distance(left_q, right_q),
+        _sector_distance(left_q, inverted_right),
+    )
+
+
+def _sector_spread_dimension(sectors, *, tolerance=1.0e-4):
+    q_vectors = [
+        _canonicalize_q_vector_under_inversion(sector.get("q_vector", [0.0, 0.0, 0.0]))
+        for sector in sectors
+    ]
+    if len(q_vectors) <= 1:
+        return 0
+    array = np.array(q_vectors, dtype=float)
+    spread_dimension = 0
+    for axis in range(array.shape[1]):
+        components = array[:, axis]
+        circular_span = float(np.max(components) - np.min(components))
+        wrapped_span = 1.0 - circular_span
+        if min(circular_span, wrapped_span) > max(float(tolerance), 1.0e-2):
+            spread_dimension += 1
+    return int(spread_dimension)
+
+
+def _cluster_continuous_low_energy_sectors(
+    candidates,
+    *,
+    energy_window=1.0e-4,
+    q_tolerance=1.0e-4,
+    basin_tolerance=2.0e-3,
+    inversion_energy_tolerance=1.0e-8,
+):
+    valid = [
+        dict(candidate)
+        for candidate in candidates
+        if candidate.get("energy") is not None and np.isfinite(float(candidate["energy"]))
+    ]
+    if not valid:
+        return []
+    best_energy = min(float(candidate["energy"]) for candidate in valid)
+    sectors = []
+    for candidate in sorted(valid, key=lambda item: float(item["energy"])):
+        energy = float(candidate["energy"])
+        if energy > best_energy + float(energy_window):
+            continue
+        raw_q_vector = list(_normalized_q_vector([float(value) for value in candidate.get("q_vector", [0.0, 0.0, 0.0])]))
+        q_vector = _canonicalize_q_vector_under_inversion(raw_q_vector)
+        matched = None
+        for sector in sectors:
+            sector_raw_vectors = list(sector.get("raw_q_vectors", [sector["q_vector"]]))
+            inversion_equivalent = any(
+                _sector_distance_under_inversion(raw_q_vector, raw_q) <= float(q_tolerance)
+                and _sector_distance(raw_q_vector, raw_q) > float(q_tolerance)
+                for raw_q in sector_raw_vectors
+            )
+            if inversion_equivalent:
+                if abs(energy - float(sector["energy"])) <= float(inversion_energy_tolerance):
+                    matched = sector
+                    break
+                continue
+            if any(_sector_distance(raw_q_vector, raw_q) <= float(basin_tolerance) for raw_q in sector_raw_vectors):
+                matched = sector
+                break
+        if matched is None:
+            sectors.append(
+                {
+                    "q_vector": list(raw_q_vector),
+                    "canonical_q_vector": list(q_vector),
+                    "energy": float(energy),
+                    "delta_energy": float(energy - best_energy),
+                    "basin_count": 1,
+                    "source": str(candidate.get("source", "continuous")),
+                    "raw_q_vectors": [list(raw_q_vector)],
+                    "raw_sources": [str(candidate.get("source", "continuous"))],
+                    "inversion_merged": False,
+                }
+            )
+        else:
+            matched["basin_count"] = int(matched.get("basin_count", 1)) + 1
+            raw_vectors = list(matched.get("raw_q_vectors", []))
+            normalized_raw = list(raw_q_vector)
+            if not any(_sector_distance(normalized_raw, existing) <= float(q_tolerance) for existing in raw_vectors):
+                raw_vectors.append(normalized_raw)
+            matched["raw_q_vectors"] = raw_vectors
+            raw_sources = list(matched.get("raw_sources", []))
+            source = str(candidate.get("source", "continuous"))
+            if source not in raw_sources:
+                raw_sources.append(source)
+            matched["raw_sources"] = raw_sources
+            if energy < float(matched["energy"]):
+                matched["q_vector"] = list(raw_q_vector)
+                matched["canonical_q_vector"] = list(q_vector)
+                matched["energy"] = float(energy)
+                matched["delta_energy"] = float(energy - best_energy)
+
+    flat_valley = len(sectors) >= 3 and _sector_spread_dimension(sectors, tolerance=q_tolerance) >= 2
+    for sector in sectors:
+        raw_vectors = list(sector.get("raw_q_vectors", []))
+        sector["inversion_merged"] = bool(
+            any(
+                _sector_distance_under_inversion(sector["q_vector"], raw_q) <= float(q_tolerance)
+                and _sector_distance(sector["q_vector"], raw_q) > float(q_tolerance)
+                for raw_q in raw_vectors
+            )
+        )
+        if flat_valley:
+            sector["classification"] = "flat_valley"
+            sector["status"] = "unresolved"
+        elif len(sectors) > 1 and float(sector["delta_energy"]) <= float(energy_window):
+            sector["classification"] = "quasi_degenerate"
+            sector["status"] = "unresolved"
+        else:
+            sector["classification"] = "isolated_minimum"
+            sector["status"] = "resolved"
+    return sectors
+
+
+def _continuous_sector_summary(sectors):
+    sector_list = list(sectors or [])
+    classifications = {str(sector.get("classification")) for sector in sector_list if sector.get("classification") is not None}
+    statuses = {str(sector.get("status")) for sector in sector_list if sector.get("status") is not None}
+    if any(label in classifications for label in {"ring_like", "flat_valley"}):
+        classification = "ring_like" if "ring_like" in classifications else "flat_valley"
+    elif "quasi_degenerate" in classifications or len(sector_list) > 1:
+        classification = "quasi_degenerate"
+    elif sector_list:
+        classification = str(sector_list[0].get("classification", "isolated_minimum"))
+    else:
+        classification = None
+
+    if "unresolved" in statuses or classification in {"quasi_degenerate", "ring_like", "flat_valley"}:
+        status = "unresolved"
+    elif sector_list:
+        status = "resolved"
+    else:
+        status = None
+    return {
+        "classification": classification,
+        "status": status,
+        "sector_count": int(len(sector_list)),
+    }
+
+
+def _continuous_refine_joint_relaxed_candidate(
+    model,
+    blocks_payload,
+    weighted,
+    *,
+    local_dimension,
+    weight_bound=1.0,
+    sector_energy_window=1.0e-4,
+):
+    refinement = {
+        "status": "unavailable",
+        "method": "continuous-q-and-weight-global-search",
+        "backend": "differential-evolution-plus-multistart-lbfgsb",
+        "seed_q_vector": [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])],
+        "seed_p_weights": [float(value) for value in weighted.get("p_weights", [1.0])],
+        "seed_energy": float(weighted.get("energy", 0.0)),
+        "refined_q_vector": [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])],
+        "refined_p_weights": [float(value) for value in weighted.get("p_weights", [1.0])],
+        "refined_energy": float(weighted.get("energy", 0.0)),
+        "improvement": 0.0,
+        "optimizer": [],
+        "global_optimizer": {"success": None, "message": "not_run"},
+    }
+    active_axes = list(_q_phase_active_axes(model))
+    if minimize is None or not active_axes or not blocks_payload.get("blocks"):
+        updated = dict(weighted)
+        updated["continuous_global_search"] = dict(refinement)
+        return updated
+
+    site_count = max(1, int(blocks_payload.get("magnetic_site_count", _magnetic_site_count(model))))
+    seed_vector = _active_coordinates_from_q_and_weights(
+        weighted.get("q_vector", [0.0, 0.0, 0.0]),
+        weighted.get("p_weights", [1.0] * site_count),
+        active_axes,
+    )
+    free_count = max(0, site_count - 1)
+    bounds = [(0.0, 1.0)] * len(active_axes) + [(-float(weight_bound), float(weight_bound))] * free_count
+    if len(bounds) == 0:
+        updated = dict(weighted)
+        updated["continuous_global_search"] = dict(refinement)
+        return updated
+
+    candidates = [
+        {
+            "source": "continuous_eigenvalue_refinement"
+            if weighted.get("continuous_eigenvalue_refinement", {}).get("status") == "refined"
+            else "input-seed",
+            "q_vector": [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])],
+            "p_weights": [float(value) for value in weighted.get("p_weights", [1.0])],
+            "energy": float(weighted.get("energy", 0.0)),
+            "x": [float(value) for value in seed_vector],
+        }
+    ]
+    best_energy = float(weighted.get("energy", 0.0))
+    best_vector = np.array(seed_vector, dtype=float)
+
+    def objective(vector):
+        q_vector, p_weights = _q_and_weights_from_active_coordinates(model, active_axes, vector)
+        candidate = _evaluate_weighted_candidate(
+            blocks_payload,
+            q_mesh=[q_vector],
+            local_dimension=local_dimension,
+            p_weights=p_weights,
+        )
+        return float(candidate["energy"])
+
+    global_optimizer = {"success": None, "message": "not_available"}
+    if differential_evolution is not None:
+        try:
+            global_result = differential_evolution(
+                objective,
+                bounds=bounds,
+                polish=True,
+                seed=int(model.get("continuous_search_seed", 0)),
+                tol=1.0e-9,
+                updating="immediate",
+                workers=1,
+                maxiter=int(model.get("continuous_search_maxiter", 100)),
+            )
+            global_energy = float(global_result.fun)
+            global_q, global_weights = _q_and_weights_from_active_coordinates(model, active_axes, global_result.x)
+            global_optimizer = {
+                "success": bool(global_result.success),
+                "message": str(getattr(global_result, "message", "")),
+                "fun": float(global_energy),
+                "nit": int(getattr(global_result, "nit", 0)),
+                "x": [float(value) for value in np.array(global_result.x, dtype=float)],
+            }
+            candidates.append(
+                {
+                    "source": "differential_evolution",
+                    "q_vector": list(global_q),
+                    "p_weights": list(global_weights),
+                    "energy": float(global_energy),
+                    "x": [float(value) for value in np.array(global_result.x, dtype=float)],
+                }
+            )
+            if global_energy < best_energy - 1.0e-12:
+                best_energy = global_energy
+                best_vector = np.array(global_result.x, dtype=float)
+        except Exception as exc:
+            global_optimizer = {"success": False, "message": str(exc), "fun": None, "nit": 0}
+
+    runs = []
+    for start in _continuous_search_start_points(seed_vector, bounds, active_q_count=len(active_axes)):
+        try:
+            result = minimize(
+                objective,
+                start,
+                method="L-BFGS-B",
+                bounds=bounds,
+                options={"maxiter": 250, "ftol": 1.0e-12},
+            )
+        except Exception as exc:
+            runs.append({"success": False, "message": str(exc), "fun": None, "start": [float(value) for value in start]})
+            continue
+        energy = float(result.fun)
+        q_vector, p_weights = _q_and_weights_from_active_coordinates(model, active_axes, result.x)
+        run = {
+            "success": bool(result.success),
+            "message": str(getattr(result, "message", "")),
+            "fun": float(energy),
+            "nit": int(getattr(result, "nit", 0)),
+            "start": [float(value) for value in start],
+            "x": [float(value) for value in np.array(result.x, dtype=float)],
+            "q_vector": list(q_vector),
+            "p_weights": list(p_weights),
+        }
+        runs.append(run)
+        candidates.append(
+            {
+                "source": "lbfgsb",
+                "q_vector": list(q_vector),
+                "p_weights": list(p_weights),
+                "energy": float(energy),
+                "x": list(run["x"]),
+            }
+        )
+        if energy < best_energy - 1.0e-12:
+            best_energy = energy
+            best_vector = np.array(result.x, dtype=float)
+
+    refined_q_vector, refined_p_weights = _q_and_weights_from_active_coordinates(model, active_axes, best_vector)
+    sectors = _cluster_continuous_low_energy_sectors(candidates, energy_window=sector_energy_window)
+    sector_summary = _continuous_sector_summary(sectors)
+    refinement.update(
+        {
+            "status": "refined" if best_energy < float(weighted.get("energy", 0.0)) - 1.0e-12 else "seed-retained",
+            "refined_q_vector": list(refined_q_vector),
+            "refined_p_weights": list(refined_p_weights),
+            "refined_energy": float(best_energy),
+            "improvement": float(float(weighted.get("energy", 0.0)) - best_energy),
+            "global_optimizer": dict(global_optimizer),
+            "optimizer": list(runs),
+            "sector_energy_window": float(sector_energy_window),
+            "low_energy_sectors": list(sectors),
+            "sector_summary": dict(sector_summary),
+        }
+    )
+
+    refined = _evaluate_weighted_candidate(
+        blocks_payload,
+        q_mesh=[refined_q_vector],
+        local_dimension=local_dimension,
+        p_weights=refined_p_weights,
+    )
+    updated = dict(refined if best_energy <= float(weighted.get("energy", 0.0)) + 1.0e-12 else weighted)
+    for key in (
+        "continuous_eigenvalue_refinement",
+        "mesh_probe",
+    ):
+        if key in weighted and key not in updated:
+            updated[key] = weighted[key]
+    updated["continuous_global_search"] = dict(refinement)
+    updated["continuous_low_energy_sectors"] = list(sectors)
+    updated["continuous_search_classification"] = sector_summary["classification"]
+    updated["continuous_search_status"] = sector_summary["status"]
+    weight_search = dict(weighted.get("weight_search", {}))
+    weight_search["continuous_global_search"] = dict(refinement)
+    updated["weight_search"] = weight_search
+    if "best_q_mesh_lower_bound" in weighted:
+        updated["best_q_mesh_lower_bound"] = float(weighted["best_q_mesh_lower_bound"])
+    return updated
+
+
+def _continuous_refine_relaxed_eigenvalue_candidate(model, blocks_payload, weighted, *, q_mesh, local_dimension):
+    refinement = {
+        "status": "unavailable",
+        "method": "global-continuous-eigenvalue-refinement",
+        "backend": "differential-evolution-polish",
+        "seed_q_vector": [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])],
+        "refined_q_vector": [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])],
+        "seed_lower_bound": float(weighted.get("energy", 0.0)),
+        "refined_lower_bound": float(weighted.get("energy", 0.0)),
+        "improvement": 0.0,
+        "starts": 0,
+        "global_optimizer": {"success": None, "message": "not_run"},
+        "optimizer": [],
+    }
+
+    active_axes = list(_q_phase_active_axes(model))
+    if minimize is None or not active_axes or not blocks_payload.get("blocks"):
+        updated = dict(weighted)
+        weight_search = dict(updated.get("weight_search", {}))
+        weight_search["continuous_eigenvalue_refinement"] = dict(refinement)
+        updated["weight_search"] = weight_search
+        updated["continuous_eigenvalue_refinement"] = dict(refinement)
+        return updated
+
+    seed_q_vector = [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])]
+    p_weights = [float(value) for value in weighted.get("p_weights", [1.0])]
+    seed_coordinates = _active_q_coordinates(seed_q_vector, active_axes)
+    bounds = [(0.0, 1.0)] * len(active_axes)
+
+    best_energy = float(weighted.get("energy", 0.0))
+    best_coordinates = np.array(seed_coordinates, copy=True)
+    optimizer_runs = []
+
+    def objective(coordinates):
+        q_vector = _q_vector_from_active_coordinates(active_axes, coordinates)
+        candidate = _evaluate_weighted_candidate(
+            blocks_payload,
+            q_mesh=[q_vector],
+            local_dimension=local_dimension,
+            p_weights=p_weights,
+        )
+        return float(candidate["energy"])
+
+    global_optimizer = {"success": None, "message": "not_available"}
+    if differential_evolution is not None and bounds:
+        try:
+            global_result = differential_evolution(
+                objective,
+                bounds=bounds,
+                polish=True,
+                seed=0,
+                tol=1.0e-9,
+                updating="immediate",
+                workers=1,
+                maxiter=80,
+            )
+            global_energy = float(global_result.fun)
+            global_optimizer = {
+                "success": bool(global_result.success),
+                "message": str(getattr(global_result, "message", "")),
+                "fun": float(global_energy),
+                "nit": int(getattr(global_result, "nit", 0)),
+                "x": [float(value) for value in np.array(global_result.x, dtype=float)],
+            }
+            if global_energy < best_energy - 1.0e-12:
+                best_energy = global_energy
+                best_coordinates = np.array(global_result.x, dtype=float)
+        except Exception as exc:
+            global_optimizer = {
+                "success": False,
+                "message": str(exc),
+                "fun": None,
+                "nit": 0,
+            }
+
+    starts = _continuous_q_start_points(seed_coordinates, active_dimension=len(active_axes))
+    for start in starts:
+        try:
+            result = minimize(
+                objective,
+                np.array(start, dtype=float),
+                method="L-BFGS-B",
+                bounds=bounds,
+                options={"maxiter": 200, "ftol": 1.0e-12},
+            )
+        except Exception as exc:
+            optimizer_runs.append(
+                {
+                    "success": False,
+                    "message": str(exc),
+                    "fun": None,
+                    "nit": 0,
+                    "start": [float(value) for value in start],
+                }
+            )
+            continue
+
+        result_energy = float(result.fun)
+        optimizer_runs.append(
+            {
+                "success": bool(result.success),
+                "message": str(getattr(result, "message", "")),
+                "fun": result_energy,
+                "nit": int(getattr(result, "nit", 0)),
+                "start": [float(value) for value in start],
+                "x": [float(value) for value in np.array(result.x, dtype=float)],
+            }
+        )
+        if result_energy < best_energy - 1.0e-12:
+            best_energy = result_energy
+            best_coordinates = np.array(result.x, dtype=float)
+
+    refined_q_vector = _q_vector_from_active_coordinates(active_axes, best_coordinates)
+    refinement.update(
+        {
+            "status": "refined" if best_energy < float(weighted.get("energy", 0.0)) - 1.0e-12 else "seed-retained",
+            "refined_q_vector": list(refined_q_vector),
+            "refined_lower_bound": float(best_energy),
+            "improvement": float(float(weighted.get("energy", 0.0)) - best_energy),
+            "starts": int(len(starts)),
+            "global_optimizer": dict(global_optimizer),
+            "optimizer": optimizer_runs,
+        }
+    )
+
+    if refinement["status"] != "refined":
+        updated = dict(weighted)
+        weight_search = dict(updated.get("weight_search", {}))
+        weight_search["continuous_eigenvalue_refinement"] = dict(refinement)
+        updated["weight_search"] = weight_search
+        updated["continuous_eigenvalue_refinement"] = dict(refinement)
+        return updated
+
+    refined = _evaluate_weighted_candidate(
+        blocks_payload,
+        q_mesh=[refined_q_vector],
+        local_dimension=local_dimension,
+        p_weights=p_weights,
+    )
+    refined["weight_search"] = dict(weighted.get("weight_search", {}))
+    refined["weight_search"]["continuous_eigenvalue_refinement"] = dict(refinement)
+    refined["continuous_eigenvalue_refinement"] = dict(refinement)
+
+    for key in (
+        "best_q_mesh_lower_bound",
+    ):
+        if key in weighted:
+            refined[key] = weighted[key]
+    if "lowest_shell_sectors" in refined:
+        refinement["refined_lowest_shell_q_vectors"] = [
+            list(sector.get("q_vector", [0.0, 0.0, 0.0]))
+            for sector in refined.get("lowest_shell_sectors", [])
+        ]
+        refined["continuous_eigenvalue_refinement"] = dict(refinement)
+        refined["weight_search"]["continuous_eigenvalue_refinement"] = dict(refinement)
+
+    return refined
+
+
+def _continuous_refine_weighted_candidate(model, blocks_payload, weighted):
+    seed_q_vector = [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])]
+    seed_p_weights = [float(value) for value in weighted.get("p_weights", [1.0])]
+    refinement = {
+        "status": "unavailable",
+        "accepted": False,
+        "converged": False,
+        "seed_q_vector": list(seed_q_vector),
+        "seed_p_weights": list(seed_p_weights),
+        "refined_q_vector": list(seed_q_vector),
+        "refined_p_weights": list(seed_p_weights),
+        "energy_upper_bound": float(weighted.get("energy", 0.0)),
+    }
+
+    try:
+        if __package__ in {None, ""}:
+            from classical.certified_glt.relaxed_bounds import refine_candidate_upper_bound
+        else:
+            from .certified_glt.relaxed_bounds import refine_candidate_upper_bound
+    except ImportError:
+        refine_candidate_upper_bound = None
+
+    if refine_candidate_upper_bound is None:
+        return dict(weighted, continuous_refinement=refinement)
+
+    refined_seed = {
+        "q_vector": list(seed_q_vector),
+        "p_weights": list(seed_p_weights),
+    }
+    try:
+        refined = refine_candidate_upper_bound(model, refined_seed)
+    except Exception as exc:
+        refinement.update(
+            {
+                "status": "failed",
+                "error": {
+                    "type": type(exc).__name__,
+                    "message": str(exc),
+                },
+            }
+        )
+        updated = dict(weighted)
+        weight_search = dict(updated.get("weight_search", {}))
+        weight_search["continuous_refinement"] = dict(refinement)
+        updated["weight_search"] = weight_search
+        updated["continuous_refinement"] = dict(refinement)
+        return updated
+    refinement.update(
+        {
+            "status": str(refined.get("status", "seed-retained")),
+            "refined_q_vector": [float(value) for value in refined.get("q_vector", seed_q_vector)],
+            "refined_p_weights": [float(value) for value in refined.get("p_weights", seed_p_weights)],
+            "energy_upper_bound": float(refined.get("energy_upper_bound", weighted.get("energy", 0.0))),
+        }
+    )
+    refinement["accepted"] = bool(refinement["status"] not in {"failed", "unavailable"})
+    refinement["converged"] = bool(refinement["status"] in {"refined", "seed-retained", "refined-with-warning"})
+
+    if refinement["status"] != "refined":
+        updated = dict(weighted)
+        weight_search = dict(updated.get("weight_search", {}))
+        weight_search["continuous_refinement"] = dict(refinement)
+        updated["weight_search"] = weight_search
+        updated["continuous_refinement"] = dict(refinement)
+        return updated
+
+    updated = dict(weighted)
+    weight_search = dict(updated.get("weight_search", {}))
+    weight_search["continuous_refinement"] = dict(refinement)
+    updated["weight_search"] = weight_search
+    updated["continuous_refinement"] = dict(refinement)
+    return updated
+
+
+def _relaxed_seed_candidate_metadata(weighted):
+    q_vector = [float(value) for value in weighted.get("q_vector", [0.0, 0.0, 0.0])]
+    p_weights = [float(value) for value in weighted.get("p_weights", [1.0])]
+    return {
+        "kind": "relaxed-lt-seed",
+        "source": "cpn-generalized-lt",
+        "q_vector": list(q_vector),
+        "p_weights": list(p_weights),
+        "lower_bound": float(weighted.get("energy", 0.0)),
+        "mode_kind": weighted.get("mode_kind"),
+    }
+
+
+def _promotion_path_metadata(weighted, *, completion_backend):
+    continuous_eigenvalue_refinement = dict(weighted.get("continuous_eigenvalue_refinement", {}))
+    continuous_refinement = dict(weighted.get("continuous_refinement", {}))
+    seed_candidate = _relaxed_seed_candidate_metadata(weighted)
+    accepted = bool(
+        continuous_refinement.get("accepted", False)
+        or continuous_eigenvalue_refinement.get("accepted", False)
+    )
+    converged = bool(
+        continuous_refinement.get("converged", False)
+        or continuous_eigenvalue_refinement.get("converged", False)
+    )
+    return {
+        "status": "available",
+        "backend": str(completion_backend),
+        "seed_candidate": dict(seed_candidate),
+        "continuous_eigenvalue_refinement": continuous_eigenvalue_refinement,
+        "continuous_refinement": continuous_refinement,
+        "accepted": accepted,
+        "converged": converged,
+    }
 
 
 def _classical_state_from_ray(ray, conventions):
@@ -805,6 +1543,26 @@ def solve_cpn_generalized_lt_ground_state(
         local_dimension=local_dimension,
         magnetic_site_count=magnetic_site_count,
     )
+    mesh_probe = _mesh_probe_metadata(
+        weighted,
+        mesh_shape=resolved_mesh_shape,
+        sample_count=len(q_mesh),
+    )
+    weighted["mesh_probe"] = dict(mesh_probe)
+    weighted = _continuous_refine_relaxed_eigenvalue_candidate(
+        model,
+        blocks_payload,
+        weighted,
+        q_mesh=q_mesh,
+        local_dimension=local_dimension,
+    )
+    weighted = _continuous_refine_joint_relaxed_candidate(
+        model,
+        blocks_payload,
+        weighted,
+        local_dimension=local_dimension,
+    )
+    weighted = _continuous_refine_weighted_candidate(model, blocks_payload, weighted)
 
     winning_q = list(weighted["q_vector"])
     winning_energy = float(weighted["energy"])
@@ -815,6 +1573,16 @@ def solve_cpn_generalized_lt_ground_state(
     p_weights = np.array(weighted["p_weights"], dtype=float)
     lowest_shell_basis = np.array(weighted.get("lowest_shell_basis", np.zeros((0, 0), dtype=float)), dtype=float)
     lowest_shell_sectors = list(weighted.get("lowest_shell_sectors", []))
+    continuous_low_energy_sectors = list(weighted.get("continuous_low_energy_sectors", []))
+    continuous_summary = _continuous_sector_summary(continuous_low_energy_sectors)
+    continuous_classification = weighted.get(
+        "continuous_search_classification",
+        continuous_summary["classification"],
+    )
+    continuous_status = weighted.get(
+        "continuous_search_status",
+        continuous_summary["status"],
+    )
 
     basis = blocks_payload["basis"]
     traceless_dim = _traceless_dim(local_dimension)
@@ -854,6 +1622,7 @@ def solve_cpn_generalized_lt_ground_state(
         "relaxed_lt": {
             "q_seed": list(winning_q),
             "lower_bound": float(winning_energy),
+            "seed_candidate": _relaxed_seed_candidate_metadata(weighted),
             "mesh_shape": [int(value) for value in resolved_mesh_shape],
             "sample_count": int(len(q_mesh)),
             "mode_kind": winning_mode_kind,
@@ -867,6 +1636,13 @@ def solve_cpn_generalized_lt_ground_state(
             "uniform_optimizer": optimizer_metadata,
             "q_zero_affine_optimizer": dict(weighted["q_zero_affine_optimizer"]),
             "weight_search": dict(weighted["weight_search"]),
+            "mesh_probe": dict(weighted.get("mesh_probe", mesh_probe)),
+            "continuous_eigenvalue_refinement": dict(weighted.get("continuous_eigenvalue_refinement", {})),
+            "continuous_global_search": dict(weighted.get("continuous_global_search", {})),
+            "continuous_low_energy_sectors": list(continuous_low_energy_sectors),
+            "continuous_search_classification": continuous_classification,
+            "continuous_search_status": continuous_status,
+            "promotion_path": _promotion_path_metadata(weighted, completion_backend=completion_backend),
             "lowest_shell_dimension": int(weighted.get("lowest_shell_dimension", 0)),
             "lowest_shell_sector_count": int(weighted.get("lowest_shell_sector_count", 0)),
             "lowest_shell_q_vectors": [list(sector.get("q_vector", [0.0, 0.0, 0.0])) for sector in lowest_shell_sectors],
@@ -881,7 +1657,15 @@ def solve_cpn_generalized_lt_ground_state(
         },
         "starts": int(starts),
         "seed": int(seed),
+        "mesh_probe": dict(weighted.get("mesh_probe", mesh_probe)),
+        "continuous_global_search": dict(weighted.get("continuous_global_search", {})),
+        "continuous_low_energy_sectors": list(continuous_low_energy_sectors),
+        "continuous_search_classification": continuous_classification,
+        "continuous_search_status": continuous_status,
+        "promotion_path": _promotion_path_metadata(weighted, completion_backend=completion_backend),
     }
+    if isinstance(weighted.get("continuous_refinement"), dict):
+        result["continuous_refinement"] = dict(weighted["continuous_refinement"])
     if "trace" in result["projector_exactness"]:
         result["projector_exactness"]["trace"] = dict(result["projector_exactness"]["trace"])
 

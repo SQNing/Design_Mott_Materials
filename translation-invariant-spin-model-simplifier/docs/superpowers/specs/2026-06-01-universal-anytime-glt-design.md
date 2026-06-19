@@ -137,72 +137,202 @@ Proof Engine 只输出：
 4. 如果在预算内达到阈值，则升级为 `final`。
 5. 如果预算不够，则返回 `partial`，但所有结果都要标明来源。
 
-## 4. 结果契约
+## 4. 接口契约
 
-统一结果对象建议分成四块：
+### 4.1 请求 schema
 
-### 4.1 `candidate`
+顶层请求对象必须包含以下字段：
 
-保存启发式可行解：
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `model` | object | yes | - | 待编译的原始模型 payload |
+| `mode` | enum: `fast`, `certified`, `anytime` | yes | - | 选择快路径、证书路径或双轨路径 |
+| `seed` | integer | no | `0` | 随机种子 |
+| `budget` | object | yes | - | 资源上限 |
+| `thresholds` | object | yes | - | 停止阈值 |
+| `routing` | object | no | `{}` | 后端与路径偏好 |
 
-- `energy`
-- `state`
-- `witness`
-- `refinement_history`
-- `source`
+`budget` 的最小子字段：
 
-`candidate` 的最小空值规则：
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `wall_time_sec` | number or null | no | null | 最大墙钟时间 |
+| `box_budget` | integer or null | no | null | 最大 branch-and-bound 盒子数 |
+| `candidate_starts` | integer or null | no | null | 快路径随机起点数 |
+| `fast_iterations` | integer or null | no | null | 快路径局部迭代上限 |
 
-- 没有可行候选时，`candidate` 取 `null`
-- 有候选但没有完整 witness 时，`witness` 可为 `null`
-- `energy` 必须是 candidate 自身的能量，不得被证书下界覆盖
+`thresholds` 的最小子字段：
 
-### 4.2 `certificate`
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `gap_tolerance` | number | yes | - | 可接受的证书 gap 上限 |
+| `stationarity_tolerance` | number | yes | - | 可接受的流形/驻点残差 |
+| `energy_tolerance` | number | yes | - | 可接受的候选能量稳定阈值 |
 
-保存证书信息：
+`routing` 的最小子字段：
 
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `fast_backend` | string or null | no | null | 首选快路径后端 |
+| `proof_backend` | string or null | no | null | 首选证书后端 |
+| `proof_strategy` | enum: `proof_only`, `candidate_assisted`, `auto` | mode-dependent | `auto` | 证书路径是否允许/优先使用候选 incumbent |
+
+规则：
+
+- `routing.proof_strategy` 在 `mode = certified` 时必须显式给出，不能省略。
+- `routing.proof_strategy = auto` 只在 `mode = anytime` 时生效。
+- `routing.proof_strategy` 在 `mode = fast` 时忽略。
+- `budget` 中至少有一个限额字段必须非 `null`，否则实现无法做 any-time 调度。
+- `routing.fast_backend` 和 `routing.proof_backend` 的优先级高于 `solver_hints.preferred_fast_backend` 和 `solver_hints.preferred_proof_backend`。
+- 如果 `routing.*_backend` 为空，则使用 `solver_hints.preferred_*`；如果两者都为空，则由协调器根据 `capabilities` 和默认策略选择。
+
+### 4.2 响应 schema
+
+顶层响应对象必须包含以下字段：
+
+| Field | Type | Required | Nullability | Meaning |
+|------|------|----------|-------------|---------|
+| `status` | enum: `ok`, `error` | yes | - | 顶层返回状态 |
+| `completion` | object | yes | never null | 运行结论与停止原因 |
+| `candidate` | object or null | yes | nullable | 启发式可行解；在 `status = error` 时可保留已序列化的诊断快照 |
+| `certificate` | object or null | yes | nullable | 下界证书或 bound summary；在 `status = ok` 时必须为对象；在 `status = error` 时可为 `null` 或诊断快照 |
+| `provenance` | object | yes | never null | 求解来源与执行路径 |
+| `errors` | array or null | no | nullable | 错误列表 |
+| `warnings` | array or null | no | nullable | 警告列表 |
+
+`completion` 的最小子字段：
+
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `status` | enum: `final`, `partial`, `failed` | yes | - | 结果是否完成闭合 |
+| `reason` | string or null | yes | null | 停止或退化原因 |
+| `stopping_condition` | string or null | yes | null | 具体停止条件 |
+| `budget_used` | object | yes | - | 已消耗预算 |
+| `budget_remaining` | object or null | yes | null | 剩余预算 |
+| `execution_path` | enum: `not_started`, `fast_only`, `proof_only`, `candidate_assisted` | yes | - | 实际执行路径 |
+
+`budget_used` 的最小子字段：
+
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `wall_time_sec` | number or null | yes | null | 已消耗墙钟时间上限或分配值 |
+| `elapsed_wall_time_sec` | number or null | yes | null | 实际已消耗墙钟时间 |
+| `box_budget` | integer or null | yes | null | 已消耗或分配的 box 预算 |
+| `candidate_starts` | integer or null | yes | null | 已消耗或分配的候选起点数 |
+| `fast_iterations` | integer or null | yes | null | 已消耗或分配的 fast 迭代数 |
+
+`budget_remaining` 的最小子字段：
+
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `wall_time_sec` | number or null | yes | null | 剩余墙钟时间 |
+| `box_budget` | integer or null | yes | null | 剩余 box 预算 |
+| `candidate_starts` | integer or null | yes | null | 剩余候选起点数 |
+| `fast_iterations` | integer or null | yes | null | 剩余 fast 迭代数 |
+
+`candidate` 的最小子字段：
+
+| Field | Type | Required | Nullability | Meaning |
+|------|------|----------|-------------|---------|
+| `energy` | number | yes when non-null | never null inside candidate | 候选解能量 |
+| `state` | object | yes when non-null | never null inside candidate | 候选态 / classical state |
+| `witness` | object or null | no | nullable | 可行性或最优性证据 |
+| `refinement_history` | array or null | no | nullable | 快路径 / 流形 refinement 轨迹 |
+| `source` | string | yes when non-null | never null inside candidate | 候选来源 |
+
+`certificate` 的最小子字段：
+
+| Field | Type | Required | Nullability | Meaning |
+|------|------|----------|-------------|---------|
+| `status` | enum: `certified`, `partial`, `upper_bound_only`, `lower_bound_only`, `failed` | yes | - | 证书状态 |
+| `lower_bound` | number or null | yes | nullable | 全局下界 |
+| `upper_bound` | number or null | yes | nullable | 最优已知可行上界 |
+| `gap` | number or null | yes | nullable | `upper_bound - lower_bound` |
+| `coverage` | object | yes | never null | 证书覆盖范围与搜索摘要 |
+| `proof_trace` | object or null | no | nullable | 详细证明轨迹 |
+
+`coverage` 的最小子字段：
+
+| Field | Type | Required | Nullability | Meaning |
+|------|------|----------|-------------|---------|
+| `processed_boxes` | integer | yes | never null | 已处理盒子数 |
+| `pruned_boxes` | integer | yes | never null | 已剪枝盒子数 |
+| `retained_boxes` | integer | yes | never null | 已保留盒子数 |
+| `split_boxes` | integer | yes | never null | 已分裂盒子数 |
+| `max_queue_size` | integer | yes | never null | 队列峰值 |
+| `frontier_size` | integer | yes | never null | 当前前沿大小 |
+| `frontier` | array | yes | never null | 当前未闭合盒子的精确盒子列表 |
+| `global_lower_bound` | number or null | yes | nullable | 证书路径累计下界 |
+| `global_upper_bound` | number or null | yes | nullable | 证书路径累计上界 |
+
+`frontier` 的每个条目必须是一个 object，且至少包含：
+
+- `box`
 - `lower_bound`
 - `upper_bound`
-- `gap`
+- `depth`
 - `status`
-- `coverage`
-- `proof_trace`
 
-`certificate` 的最小空值规则：
+`proof_trace` 的最小子字段：
 
-- 没有证书时，`certificate` 取 `null`
-- 证书仍在进行中时，`status = partial`
-- `lower_bound` 和 `upper_bound` 都必须是证书语义，不得混入候选能量
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `status` | enum: `not_run`, `partial`, `complete`, `failed` | yes | - | 证书轨迹状态 |
+| `reason` | string or null | yes | null | 停止或失败原因 |
+| `steps` | array or null | yes | null | 证书步骤记录 |
 
-### 4.3 `completion`
+`provenance` 的最小子字段：
 
-保存运行状态：
+| Field | Type | Required | Default | Meaning |
+|------|------|----------|---------|---------|
+| `requested_mode` | enum | yes | - | 请求中的模式 |
+| `requested_proof_strategy` | enum or null | yes | null | 请求中的证书策略 |
+| `execution_path` | enum | yes | - | 实际执行路径 |
+| `fast_backend` | string or null | yes | null | 实际使用的快路径后端 |
+| `proof_backend` | string or null | yes | null | 实际使用的证书后端 |
+| `compiler_version` | string | yes | - | 编译器版本或标识 |
+| `seed` | integer | yes | - | 实际使用的随机种子 |
+| `capabilities` | object | yes | - | 编译器产出的能力标签 |
+| `budget` | object | yes | - | 实际使用的预算配置 |
 
-- `status` 取值建议为 `final`、`partial`、`failed`
-- `reason`
-- `budget_used`
-- `budget_remaining`
-- `stopping_condition`
+`provenance.execution_path` 使用与 `completion.execution_path` 相同的枚举集合。
 
-`completion` 的最小空值规则：
+响应规则：
 
-- 所有返回都应带 `completion`
-- 即使只有 candidate，没有 certificate，也必须说明为什么证书缺失
-- `budget_remaining` 在非预算驱动场景下可为 `null`
+- `status = ok` 表示返回了一个可解释、可序列化的结果对象，不要求一定闭合 gap。
+- `status = error` 表示编译、执行或序列化阶段发生了致命错误，导致正常结果合同无法闭合。
+- 在 `status = ok` 的返回中，`certificate` 必须是对象，不能为 `null`。
+- 在 `status = error` 的返回中，`candidate` 和 `certificate` 允许保留已序列化的诊断快照，但这些快照只作调试用途，不得被当作正式的 final / certified 结果消费。
+- 在 `status = error` 的返回中，`completion.status` 必须是 `failed`，`completion.reason` 必须指向 fatal error，`completion.stopping_condition` 必须写成 `fatal_error` 或等价细分值。
+- 在 `status = error` 的返回中，`errors` 必须是非空数组；`warnings` 可为 `null` 或数组。
+- 在 `status = error` 的返回中，`provenance` 仍然必须存在，并且必须记录最后已知的执行路径、种子、预算和能力标签；如果错误发生在路由选择之前，则 `provenance.execution_path = not_started`。
 
-### 4.4 `provenance`
+### 4.3 结果语义
 
-保存求解来源：
+统一结果对象按以下规则解释：
 
-- `compiler_version`
-- `fast_backend`
-- `proof_backend`
-- `selected_mode`
-- `capabilities`
-- `seed`
-- `budget`
-
-`provenance` 在所有非错误返回中都必须存在。
+- `status = ok` 表示返回了一个可解释的结果对象，不要求一定闭合 gap。
+- `status = error` 表示编译 / 执行 / 序列化阶段发生了致命错误，导致正常结果合同无法闭合。
+- 在 `status = ok` 的返回中，`certificate` 必须是对象，不能为 `null`。
+- 在 `status = error` 的返回中，`candidate` 和 `certificate` 可以保留诊断快照，但这些快照不应被当作正式结果消费。
+- 如果证明路径已经启动并形成了可序列化的失败摘要，则不要使用 `status = error`；应使用 `status = ok`，并根据是否还保留有用结果，把 `completion.status` 置为 `partial` 或 `failed`。
+- `candidate = null` 表示没有发现可行解。
+- `certificate = null` 表示没有形成任何可用证书对象。
+- 当 `certificate.status = upper_bound_only` 时，说明只形成了可行上界，`certificate.lower_bound` 和 `certificate.gap` 取 `null`，`certificate.upper_bound` 必须等于 `candidate.energy`。
+- 当 `certificate.status = lower_bound_only` 时，说明只形成了下界，`certificate.upper_bound` 和 `certificate.gap` 取 `null`。
+- 当 `certificate.status = partial` 时，说明上下界都存在但 gap 尚未闭合，`lower_bound` 和 `upper_bound` 都必须是数值，`gap` 必须等于 `upper_bound - lower_bound`。
+- 当 `certificate.status = certified` 时，说明 `candidate` 与 `certificate` 的 gap 已在 `thresholds.gap_tolerance` 内闭合，`gap` 必须是数值且满足阈值。
+- 当 `certificate.status = failed` 时，说明没有形成任何可用 bound。若 proof path 从未进入，则 `lower_bound`、`upper_bound` 和 `gap` 都取 `null`，`coverage.frontier` 为空数组，`proof_trace = null`。若 proof path 已进入但在形成第一个可用 bound 之前停止，则 `coverage.frontier` 必须保留停止时的 live frontier 精确快照，`proof_trace.status = partial`，`proof_trace.steps` 必须是非空数组，`completion.status = partial`，且 `coverage.frontier_size = len(coverage.frontier)`。
+- `completion.status = final` 只在 `certificate.status = certified` 时允许。
+- `completion.status = partial` 用于任何有用但未闭合的输出，包括仅有 candidate、仅有 lower bound、或 proof / candidate 已产生可序列化过程但尚未形成可用 bound 的情况。
+- `completion.status = failed` 仅在没有产生可用 candidate、没有产生任何可用 bound、也没有产生任何可序列化的 proof frontier / proof trace 时使用。
+- `proof_engine.global_upper_bound` 必须被归一化到 `certificate.upper_bound`；`proof_engine.frontier` 必须被归一化到 `certificate.coverage.frontier`。
+- `certificate.coverage.frontier_size` 必须等于 `len(certificate.coverage.frontier)`。
+- `certificate.coverage.frontier` 是 live queue / stack 的精确快照，不是进度摘要；条目顺序必须与 solver 停止时的处理优先级一致。
+- `certificate.coverage.frontier` 的每个条目必须至少包含 `box`, `lower_bound`, `upper_bound`, `depth`, `status` 五个字段，其中 `status` 只能取 `open`、`queued`、`stalled`。
+- `proof_trace.steps` 必须是按实际执行顺序序列化的对象数组；每个 step 至少要能表示 `kind`、`decision`、`reason`，并在适用时附带 `box`、`lower_bound`、`upper_bound`。
+- `proof_trace.status` 为 `partial` 或 `complete` 时，`steps` 必须是非空数组；`not_run` 时 `steps` 取 `null` 或空数组；`failed` 时 `steps` 可以为空，也可以保留失败前的部分轨迹。
+- `certificate.status = failed` 不是空对象的同义词；它表示证明路径返回了结构化失败摘要，但没有形成任何可用 bound。
 
 ## 5. 模式与路由
 
@@ -221,14 +351,37 @@ Proof Engine 只输出：
 - 需要尽快拿到一个很好的候选解
 - 不要求证书
 
+输出约束：
+
+- `completion.execution_path = fast_only`
+- `candidate` 应尽量返回；如果快路径没有找到可行解，则 `candidate = null`
+- `certificate` 只允许是 `upper_bound_only`、`lower_bound_only`、`partial`、`failed`，或在 fast 自身给出 exactness 证据时为 `certified`
+- 快模式不会在 fast 失败后自动启动 Proof Engine
+- 若只有 candidate，则 `certificate.status = upper_bound_only`
+- 若只有 lower bound，则 `certificate.status = lower_bound_only`
+- 若 candidate 和 lower bound 都有但未闭合 gap，则 `certificate.status = partial`
+- 若 candidate 和 certificate 都没有，则 `certificate.status = failed`
+- `completion.status = partial` 表示有 candidate、只有 lower bound、candidate 和 lower bound 未闭合，或有其他可复用但未闭合的证据
+- `completion.status = failed` 仅表示既没有 candidate 也没有任何 bound
+- `completion.status = final` 仅当 Fast Engine 自身直接给出 exactness 证据时允许
+
 ### 5.2 `certified`
 
-只跑 Proof Engine，或先跑最小化的候选生成再进入证明流程。
+Proof Engine 为主，候选生成是否参与由 `routing.proof_strategy` 明确指定。
 
 适用场景：
 
 - 需要尽可能强的下界证书
 - 接受更慢的运行时间
+
+执行约束：
+
+- 当 `routing.proof_strategy = proof_only` 时，Proof Engine 不依赖 Fast Engine 的 incumbent。
+- 当 `routing.proof_strategy = candidate_assisted` 时，协调器先尝试 Fast Engine，再把得到的 incumbent 喂给 Proof Engine；如果 Fast Engine 没产出 candidate，则自动降级为 proof-only 路径，但必须在 `provenance.execution_path` 中记录真实执行路径。
+- 当 `routing.proof_strategy = candidate_assisted` 但 Fast Engine 没产出 candidate 时，仍然可以继续 proof-only 求证，不算错误。
+- `completion.status = final` 只在证书闭合 gap 时允许。
+- `completion.status = partial` 用于只有 lower bound、只有 candidate、proof 未闭合但仍产出有用结果、或 proof 只留下可序列化 frontier / trace 但尚未形成 bound 的情况。
+- `completion.status = failed` 仅在 candidate、lower bound、frontier、trace 都不存在，或者底层 fatal error 已经把正常合同打断时使用。
 
 ### 5.3 `anytime`
 
@@ -236,19 +389,40 @@ Proof Engine 只输出：
 
 规则：
 
-- 先快后证
+- `anytime` 有两类 routing family：
+  - `auto` / `candidate_assisted` 是 fast-first family，默认先跑 Fast Engine，再尽力补证。
+  - `proof_only` 是 proof-first family，直接进入 Proof Engine，不先跑 Fast Engine。
 - 任一侧都可以先结束
 - 返回结果中必须清晰区分启发式和证书部分
 
+执行约束：
+
+- `routing.proof_strategy = auto` 时，协调器先尝试 Fast Engine；若得到 candidate，则使用 candidate-assisted proof；若没有 candidate，则自动退化为 proof-only。
+- `routing.proof_strategy = proof_only` 时，协调器跳过 Fast Engine，直接进入 Proof Engine。
+- `completion.execution_path` 必须记录真实执行路径，而不是请求中的偏好。
+- `completion.status` 的判定规则与 `certified` 相同，但 `anytime` 优先保留 candidate，再尽力补证。
+
 ### 5.4 模式矩阵
 
-| 模式 | 是否必须先跑 Fast Engine | 是否允许只跑 Proof Engine | 失败时的返回 |
-|------|--------------------------|-----------------------------|--------------|
-| `fast` | 是 | 否 | 返回 `candidate`，`certificate = null` |
-| `certified` | 否 | 是 | 若能直接证明则返回 `certificate`；若需要候选但失败，则返回 `failed` 或 `partial`，并说明原因 |
-| `anytime` | 是 | 否 | 返回当前最好 `candidate` 与当前最好 `certificate`，任一侧中断都保留已完成部分 |
+| 模式 | `routing.proof_strategy` | Fast Engine | Proof Engine | `provenance.execution_path` | `completion.status` when exact | `completion.status` when only candidate | `completion.status` when only lower bound | `completion.status` when nothing found |
+|------|--------------------------|-------------|--------------|------------------------------|-------------------------------|-----------------------------------------|-------------------------------------------|------------------------------------------|
+| `fast` | ignored | required | forbidden | `fast_only` | `final` only if fast itself proves exactness | `partial` | `partial` | `failed` |
+| `certified` | `proof_only` | forbidden | required | `proof_only` | `final` | `partial` | `partial` | `failed` |
+| `certified` | `candidate_assisted` | required if available | required | `candidate_assisted` or `proof_only` if fallback occurs | `final` | `partial` | `partial` | `failed` |
+| `anytime` | `auto` | required if capabilities/budget permit | required or fallback | `candidate_assisted`, `proof_only`, or `fast_only` | `final` | `partial` | `partial` | `failed` |
+| `anytime` | `proof_only` | forbidden | required | `proof_only` | `final` | `partial` | `partial` | `failed` |
+| `anytime` | `candidate_assisted` | required if available | required | `candidate_assisted` or `proof_only` if fallback occurs | `final` | `partial` | `partial` | `failed` |
 
-`certified` 不是强制先生成候选的模式；它可以证明优先，也可以在需要时使用最小候选作为剪枝辅助，但这两条路径必须在实现中显式区分。
+规则：
+
+- `routing.proof_strategy` must be explicit for `mode = certified`.
+- `routing.proof_strategy = auto` is only valid for `mode = anytime`.
+- `routing.proof_strategy = proof_only` or `candidate_assisted` is valid for `mode = anytime`.
+- `provenance.execution_path` must record the actual path taken, not the requested preference.
+- If a requested `candidate_assisted` path has no candidate, the actual execution path is `proof_only`.
+- `fast` mode never falls back to Proof Engine after a fast failure.
+- `mode = anytime` 里的 `proof_only` 行是 proof-first family，不是和 fast-first family 冲突；它表示用户主动选择 proof-first 路径。
+- 表中的 `nothing found` 仅指 candidate、lower bound、frontier、proof trace 都不存在；若 proof 已进入并保留了 frontier / trace，但没有 bound，则该行不适用，应按 `partial` 解释。
 
 ## 6. 与现有代码的对应关系
 
@@ -275,17 +449,26 @@ Proof Engine 只输出：
 
 如果 fast path 失败：
 
-- 仍然允许 proof path 独立运行
-- 返回 `candidate = null`
-- 只要证书能跑，就返回 `certificate`
+- 在 `fast` 模式下，不允许自动启动 Proof Engine 作为失败回退
+- 如果快路径没有产出 candidate，则 `candidate = null`
+- 如果快路径没有产出任何 bound，则 `certificate.status = failed`
+- 如果快路径只产出 candidate，则 `certificate.status = upper_bound_only`
+- 如果快路径只产出 lower bound，则 `certificate.status = lower_bound_only`
+- 如果快路径同时产出 candidate 和 lower bound 但 gap 未闭合，则 `certificate.status = partial`
+- 只有 `certified(candidate_assisted)` 或 `anytime` 的可选路径才允许在快路径失败后继续进入 Proof Engine
+- 在 `fast` 模式下，fast 失败后不应继续尝试证书路径，即使有预算剩余
 
 ### 7.2 证书路径失败
 
 如果 proof path 失败：
 
-- 保留 fast path 的 incumbent
-- 将结果标记为 `partial`
-- 明确说明证书为什么中断
+- 如果至少已有 candidate，则保留 candidate，并令 `certificate.status` 为 `upper_bound_only`、`lower_bound_only` 或 `partial`，取决于证书路径已经形成的 bound
+- 如果没有 candidate 但已有下界，则保留下界，并令 `certificate.status = lower_bound_only`
+- 如果没有 candidate 也没有下界：
+  - 若 proof path 从未进入，则 `certificate.status = failed`，`proof_trace = null`，`coverage.frontier = []`
+  - 若 proof path 已进入但未形成任何可用 bound，则 `certificate.status = failed`，但必须保留 `proof_trace` 的部分步骤与 `coverage.frontier` 的精确快照
+- `proof_trace` 应保留到失败点的部分轨迹；如果未进入 proof path，则为 `null`
+- `coverage.frontier` 必须保留当前 frontier 的精确内容，不能写成摘要占位
 
 ### 7.3 预算耗尽
 
@@ -295,6 +478,8 @@ Proof Engine 只输出：
 - 保留已确认的 lower bound
 - 暴露 `gap`
 - 暴露已经覆盖的搜索区域
+- `completion.status` 应为 `partial`
+- `completion.reason` 应明确写为预算耗尽或时间耗尽
 
 ### 7.4 不支持的模型结构
 
@@ -317,6 +502,7 @@ Proof Engine 只输出：
    - `lower_bound` 不能被候选能量覆盖
    - `candidate.energy` 不能冒充证书下界
    - `partial` 结果必须携带 provenance
+   - `certificate.coverage.frontier_size` 必须等于 `len(certificate.coverage.frontier)`
 
 3. 退化语义
    - 预算不足时返回部分结果
@@ -328,7 +514,155 @@ Proof Engine 只输出：
    - 关键字段格式稳定
    - capability tags 不随无关代码变动漂移
 
-## 9. 分阶段实现建议
+## 9. 最小示例
+
+### 9.1 请求示例
+
+```json
+{
+  "model": {
+    "model_kind": "cpn_translation_invariant",
+    "local_dimension": 2,
+    "bond_tensors": []
+  },
+  "mode": "anytime",
+  "seed": 0,
+  "budget": {
+    "wall_time_sec": 300,
+    "box_budget": 64,
+    "candidate_starts": 16,
+    "fast_iterations": 200
+  },
+  "thresholds": {
+    "gap_tolerance": 0.001,
+    "stationarity_tolerance": 1e-06,
+    "energy_tolerance": 1e-06
+  },
+  "routing": {
+    "fast_backend": "cpn-generalized-lt",
+    "proof_backend": "interval-branch-and-bound",
+    "proof_strategy": "auto"
+  }
+}
+```
+
+### 9.2 部分结果示例
+
+```json
+{
+  "status": "ok",
+  "completion": {
+    "status": "partial",
+    "reason": "budget_exhausted",
+    "stopping_condition": "box_budget_reached",
+    "budget_used": {
+      "wall_time_sec": 300,
+      "elapsed_wall_time_sec": 300,
+      "box_budget": 64,
+      "candidate_starts": 16,
+      "fast_iterations": 200
+    },
+    "budget_remaining": null,
+    "execution_path": "candidate_assisted"
+  },
+  "candidate": {
+    "energy": -1.234,
+    "state": { "kind": "classical_state" },
+    "witness": null,
+    "refinement_history": [],
+    "source": "cpn-generalized-lt"
+  },
+  "certificate": {
+    "status": "partial",
+    "lower_bound": -1.5,
+    "upper_bound": -1.234,
+    "gap": 0.2660000000000001,
+    "coverage": {
+      "processed_boxes": 64,
+      "pruned_boxes": 12,
+      "retained_boxes": 18,
+      "split_boxes": 34,
+      "max_queue_size": 17,
+      "frontier_size": 1,
+      "frontier": [
+        {
+          "box": {
+            "names": ["q0"],
+            "lower": [0.0],
+            "upper": [0.5],
+            "depth": 3
+          },
+          "lower_bound": -1.5,
+          "upper_bound": null,
+          "depth": 3,
+          "status": "queued"
+        }
+      ],
+      "global_lower_bound": -1.5,
+      "global_upper_bound": -1.234
+    },
+    "proof_trace": {
+      "status": "partial",
+      "reason": "budget_exhausted",
+      "steps": [
+        {
+          "kind": "split",
+          "decision": "continue",
+          "reason": "box_pending",
+          "box": {
+            "names": ["q0"],
+            "lower": [0.0],
+            "upper": [0.5],
+            "depth": 3
+          },
+          "lower_bound": -1.5,
+          "upper_bound": -1.234
+        },
+        {
+          "kind": "terminate",
+          "decision": "stop",
+          "reason": "budget_exhausted",
+          "box": {
+            "names": ["q0"],
+            "lower": [0.0],
+            "upper": [0.5],
+            "depth": 3
+          },
+          "lower_bound": -1.5,
+          "upper_bound": -1.234
+        }
+      ]
+    }
+  },
+  "provenance": {
+    "requested_mode": "anytime",
+    "requested_proof_strategy": "auto",
+    "execution_path": "candidate_assisted",
+    "fast_backend": "cpn-generalized-lt",
+    "proof_backend": "interval-branch-and-bound",
+    "compiler_version": "v1",
+    "seed": 0,
+    "capabilities": {
+      "supports_q_optimization": true,
+      "supports_cp_manifold": true,
+      "supports_interval_bounds": true,
+      "supports_sos_bounds": false,
+      "has_translation_symmetry": true,
+      "is_local_tensor_payload": true
+    },
+    "budget": {
+      "wall_time_sec": 300,
+      "box_budget": 64,
+      "candidate_starts": 16,
+      "fast_iterations": 200
+    }
+  },
+  "warnings": null,
+  "errors": null
+}
+```
+
+## 10. 分阶段实现建议
 
 建议按三步做：
 
@@ -338,7 +672,7 @@ Proof Engine 只输出：
 
 这样可以保证系统在每个阶段都能返回“有用结果”，不会因为证书还没做完就卡死。
 
-## 10. 结论
+## 11. 结论
 
 这个设计的本质是把 GLT 从“一个方法”升级成“一个 anytime 计算框架”：
 

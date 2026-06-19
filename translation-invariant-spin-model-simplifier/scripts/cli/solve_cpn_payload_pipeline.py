@@ -54,6 +54,11 @@ def main():
         default="off",
     )
     parser.add_argument(
+        "--glt-solver-mode",
+        choices=["fast", "certified"],
+        default="fast",
+    )
+    parser.add_argument(
         "--classical-output-compatibility",
         choices=["canonical", "legacy"],
         default="canonical",
@@ -78,6 +83,7 @@ def main():
         gswt_backend=str(args.gswt_backend),
         z_harmonic_reference_mode=str(args.z_harmonic_reference_mode),
         glt_certification_mode=str(args.glt_certification_mode),
+        glt_solver_mode=str(args.glt_solver_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))

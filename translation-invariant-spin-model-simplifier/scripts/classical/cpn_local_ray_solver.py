@@ -13,6 +13,7 @@ from classical.cpn_local_ray_energy import (
     stationarity_summary,
     sweep_local_ray_state,
     tiled_state_array,
+    unit_norm_ray,
 )
 
 
@@ -75,6 +76,94 @@ def _refine_state(model, initial_state, *, max_sweeps, sweep_tolerance):
     }
 
 
+def _riemannian_gradient(model, state):
+    from classical.cpn_local_ray_energy import effective_local_matrix
+
+    gradient = np.zeros_like(state, dtype=complex)
+    for cell_index in np.ndindex(state.shape[:3]):
+        for site_index in range(state.shape[3]):
+            vector = state[cell_index + (site_index,)]
+            matrix = effective_local_matrix(model, state, cell_index, site_index)
+            euclidean = matrix @ vector
+            gradient[cell_index + (site_index,)] = euclidean - vector * complex(np.vdot(vector, euclidean))
+    return gradient
+
+
+def _retract_state(state, tangent, step_size):
+    updated = np.array(state, dtype=complex, copy=True)
+    for cell_index in np.ndindex(state.shape[:3]):
+        for site_index in range(state.shape[3]):
+            updated[cell_index + (site_index,)] = unit_norm_ray(
+                state[cell_index + (site_index,)] + float(step_size) * tangent[cell_index + (site_index,)]
+            )
+    return updated
+
+
+def _riemannian_refine_state(
+    model,
+    initial_state,
+    *,
+    max_iterations=200,
+    gradient_tolerance=1.0e-8,
+    initial_step=0.25,
+):
+    state = np.array(initial_state, dtype=complex, copy=True)
+    energy = float(evaluate_cpn_local_ray_energy(model, state))
+    status = "max_iterations_reached"
+    iterations = 0
+    gradient_norm = float("inf")
+    history = []
+
+    for iteration in range(int(max_iterations)):
+        gradient = _riemannian_gradient(model, state)
+        gradient_norm = float(np.linalg.norm(gradient))
+        history.append({"iteration": int(iteration), "energy": float(energy), "gradient_norm": float(gradient_norm)})
+        if gradient_norm <= float(gradient_tolerance):
+            status = "converged"
+            iterations = int(iteration)
+            break
+
+        descent = -gradient
+        step = float(initial_step)
+        accepted = False
+        for _ in range(24):
+            trial = _retract_state(state, descent, step)
+            trial_energy = float(evaluate_cpn_local_ray_energy(model, trial))
+            if trial_energy <= energy - 1.0e-12 or trial_energy <= energy + 1.0e-14:
+                state = trial
+                energy = trial_energy
+                accepted = True
+                break
+            step *= 0.5
+        iterations = int(iteration + 1)
+        if not accepted:
+            status = "line_search_stalled"
+            break
+    else:
+        gradient = _riemannian_gradient(model, state)
+        gradient_norm = float(np.linalg.norm(gradient))
+        if gradient_norm <= float(gradient_tolerance):
+            status = "converged"
+
+    diagnostics = {
+        "projector_diagnostics": projector_fourier_diagnostics(state),
+        "stationarity": stationarity_summary(model, state),
+    }
+    stationarity = float(diagnostics["stationarity"].get("max_residual_norm", gradient_norm))
+    if stationarity <= max(float(gradient_tolerance), 1.0e-6):
+        status = "converged"
+
+    return {
+        "state": state,
+        "energy": float(energy),
+        "status": str(status),
+        "iterations": int(iterations),
+        "gradient_norm": float(gradient_norm),
+        "history": history,
+        "diagnostics": diagnostics,
+    }
+
+
 def _snapshot_result(
     model,
     state_array,
@@ -128,6 +217,9 @@ def solve_cpn_local_ray_ground_state(
     max_sweeps=200,
     sweep_tolerance=1.0e-10,
     energy_tolerance=1.0e-6,
+    riemannian_refinement=False,
+    riemannian_max_iterations=200,
+    riemannian_gradient_tolerance=1.0e-8,
     progress_callback=None,
 ):
     if model.get("classical_manifold") != "CP^(N-1)":
@@ -241,13 +333,28 @@ def solve_cpn_local_ray_ground_state(
             break
 
     final_diagnostics = previous["diagnostics"]
+    final_energy = float(previous["energy"])
+    if bool(riemannian_refinement):
+        refined = _riemannian_refine_state(
+            model,
+            best_state,
+            max_iterations=int(riemannian_max_iterations),
+            gradient_tolerance=float(riemannian_gradient_tolerance),
+        )
+        if float(refined["energy"]) <= final_energy + 1.0e-12:
+            best_state = np.array(refined["state"], copy=True)
+            final_energy = float(refined["energy"])
+            final_diagnostics = refined["diagnostics"]
+            previous["energy"] = float(final_energy)
+            previous["diagnostics"] = final_diagnostics
+
     converged = bool(stable_count >= repeats_required)
     final_result = _snapshot_result(
         model,
         best_state,
         final_diagnostics,
         history,
-        energy=previous["energy"],
+        energy=final_energy,
         shape=previous["shape"],
         starts=starts,
         seed=seed,
@@ -258,6 +365,15 @@ def solve_cpn_local_ray_ground_state(
         energy_tolerance=energy_tolerance,
         stopped_reason="converged" if converged else "max_linear_size_reached",
     )
+    if bool(riemannian_refinement):
+        final_result["riemannian_refinement"] = {
+            "status": str(refined["status"]),
+            "energy": float(refined["energy"]),
+            "iterations": int(refined["iterations"]),
+            "gradient_norm": float(refined["gradient_norm"]),
+            "max_iterations": int(riemannian_max_iterations),
+            "gradient_tolerance": float(riemannian_gradient_tolerance),
+        }
     if progress_callback is not None:
         progress_callback(
             {

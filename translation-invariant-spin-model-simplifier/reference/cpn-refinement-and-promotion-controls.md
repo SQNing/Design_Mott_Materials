@@ -109,6 +109,43 @@ branch categories:
 - an accepted commensurate magnetic-supercell refinement path,
 - and an `auto` routing path where diagnostic-only GLT falls back to `cpn-local-ray-minimize`.
 
+## GLT Solver Mode Routing
+
+The `cpn-generalized-lt` route has two user-facing solver-mode controls:
+
+- `--glt-solver-mode`
+- `--glt-certification-mode`
+
+`--glt-solver-mode` has two choices: `fast` and `certified`.
+
+Use `--glt-solver-mode fast` as the default route. It runs the direct
+generalized-LT solver first and treats the result according to its reported
+`solver_role`. This is the right choice when the user wants a quick lower bound,
+seed candidate, or ordinary pipeline run and has not explicitly asked for proof
+work.
+
+Use `--glt-solver-mode certified` when the user explicitly asks for the
+certified GLT path, proof-style GLT output, or a route that should skip the
+direct fast solver and go straight to certification. In this mode, the workflow
+directly runs the certified GLT path and then converts the certification summary
+back into the standard solver result shape.
+
+Interpret `--glt-certification-mode` only after the solver mode is clear:
+
+- `--glt-certification-mode off` keeps `fast` mode on the direct solver only.
+- `--glt-certification-mode auto` first runs the fast solver. If the fast result
+  already reports `solver_role == "final"`, do not run the certifier. If it
+  remains diagnostic-only, try certification with the fast result as the
+  heuristic seed.
+- `--glt-certification-mode required` means certification is mandatory and should
+  enter the same certificate route as `--glt-solver-mode certified`.
+
+In all modes, finality still comes from the result payload, not the flag name:
+`solver_role == "final"` means the GLT route can be consumed as the final
+classical branch. If `solver_role` remains `diagnostic-only`, report the GLT
+result as a lower bound or seed and continue only through an explicit fallback or
+completion route.
+
 ## How To Interpret GLT Results
 
 For `cpn-generalized-lt`, do not decide from the method name alone whether the result is workflow-final.

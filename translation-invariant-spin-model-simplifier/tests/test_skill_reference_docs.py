@@ -91,6 +91,21 @@ class SkillReferenceDocsTests(unittest.TestCase):
             self.assertNotIn("tests/data/", content)
             self.assertNotIn("tests/fixtures/", content)
 
+    def test_cpn_controls_reference_covers_glt_solver_mode_routing(self):
+        content = CPN_CONTROLS_REFERENCE.read_text(encoding="utf-8")
+
+        for needle in (
+            "`--glt-solver-mode`",
+            "`fast`",
+            "`certified`",
+            "`--glt-certification-mode auto`",
+            "`--glt-certification-mode required`",
+            "`solver_role == \"final\"`",
+            "`solver_role` remains `diagnostic-only`",
+            "directly runs the certified GLT path",
+        ):
+            self.assertIn(needle, content)
+
 
 if __name__ == "__main__":
     unittest.main()
