@@ -56,6 +56,39 @@ def _cp1_harmonic_model(harmonics):
     }
 
 
+def _cp1_isotropic_heisenberg_chain_model(j1, j2):
+    bonds = []
+    for period, coefficient in ((1, j1), (2, j2)):
+        coupling = np.zeros((4, 4), dtype=float)
+        coupling[1, 1] = float(coefficient)
+        coupling[2, 2] = float(coefficient)
+        coupling[3, 3] = float(coefficient)
+        bonds.append(
+            {
+                "source": 0,
+                "target": 0,
+                "R": [int(period), 0, 0],
+                "tensor": _serialized_tensor_from_coupling(coupling),
+            }
+        )
+    return {
+        "classical_manifold": "CP^(N-1)",
+        "local_dimension": 2,
+        "magnetic_site_count": 1,
+        "bond_tensors": bonds,
+    }
+
+
+def _literature_j1_j2_spiral_q(j1, j2):
+    # Sirker et al., PRB 84, 144403: classical FM-AFM J1-J2 chain pitch.
+    ratio = -float(j1) / (4.0 * float(j2))
+    if ratio >= 1.0:
+        return 0.0
+    if ratio <= -1.0:
+        return 0.5
+    return math.acos(ratio) / (2.0 * math.pi)
+
+
 def _near_degenerate_two_minima_model(q_left, q_right, *, split=1.0e-4):
     left = math.cos(2.0 * math.pi * q_left)
     right = math.cos(2.0 * math.pi * q_right)
@@ -138,7 +171,10 @@ def _identity_finalize(_model, result, **_kwargs):
 
 
 def _nearest_mesh_distance(q_value, mesh_count):
-    mesh_points = [index / float(mesh_count) for index in range(int(mesh_count))]
+    if int(mesh_count) <= 1:
+        mesh_points = [0.0]
+    else:
+        mesh_points = [index / float(int(mesh_count) - 1) for index in range(int(mesh_count))]
     return min(abs(float(q_value) - point) for point in mesh_points)
 
 
@@ -203,6 +239,47 @@ def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypat
         for source in sector.get("raw_sources", [])
     }
     assert "mesh-seed" not in raw_sources
+
+
+@pytest.mark.parametrize(
+    "j1,j2,mesh_count",
+    [
+        (-1.0, 1.0, 5),
+        (-math.sqrt(2.0), 1.0, 7),
+        (-4.0 * math.cos(2.0 * math.pi * (0.225 + math.sqrt(2.0) * 1.0e-6)), 1.0, 6),
+    ],
+)
+def test_literature_j1_j2_heisenberg_chain_pitch_matches_continuous_glt(monkeypatch, j1, j2, mesh_count):
+    q_literature = _literature_j1_j2_spiral_q(j1, j2)
+    model = _cp1_isotropic_heisenberg_chain_model(j1, j2)
+
+    monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
+
+    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(mesh_count, 1, 1))
+    mesh_probe_q = result["mesh_probe"]["best_q_vector"][0]
+
+    assert 0.0 < q_literature < 0.5
+    assert _nearest_mesh_distance(q_literature, mesh_count) > 2.0e-2
+    assert result["q_vector"][0] == pytest.approx(q_literature, abs=1.5e-3)
+    assert abs(result["q_vector"][0] - mesh_probe_q) > 2.0e-2
+    assert result["energy"] < result["mesh_probe"]["best_lower_bound"] - 1.0e-2
+    assert result["continuous_search_classification"] == "isolated_minimum"
+    assert result["continuous_search_status"] == "resolved"
+
+
+def test_literature_j1_j2_heisenberg_chain_ferromagnetic_side_stays_at_gamma(monkeypatch):
+    model = _cp1_isotropic_heisenberg_chain_model(j1=-4.5, j2=1.0)
+
+    monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
+
+    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(5, 1, 1))
+
+    assert _literature_j1_j2_spiral_q(-4.5, 1.0) == pytest.approx(0.0)
+    assert result["q_vector"] == pytest.approx([0.0, 0.0, 0.0])
+    assert result["continuous_low_energy_sectors"][0]["q_vector"] == pytest.approx([0.0, 0.0, 0.0])
+    assert len(result["continuous_low_energy_sectors"]) == 1
+    assert result["continuous_search_classification"] != "quasi_degenerate"
+    assert result["continuous_search_status"] != "unresolved"
 
 
 def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_unresolved(monkeypatch):

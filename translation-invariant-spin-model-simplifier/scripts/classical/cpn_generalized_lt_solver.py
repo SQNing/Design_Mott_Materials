@@ -1082,6 +1082,12 @@ def _continuous_refine_joint_relaxed_candidate(
             )
             global_energy = float(global_result.fun)
             global_q, global_weights = _q_and_weights_from_active_coordinates(model, active_axes, global_result.x)
+            global_candidate = _evaluate_weighted_candidate(
+                blocks_payload,
+                q_mesh=[global_q],
+                local_dimension=local_dimension,
+                p_weights=global_weights,
+            )
             global_optimizer = {
                 "success": bool(global_result.success),
                 "message": str(getattr(global_result, "message", "")),
@@ -1092,9 +1098,9 @@ def _continuous_refine_joint_relaxed_candidate(
             candidates.append(
                 {
                     "source": "differential_evolution",
-                    "q_vector": list(global_q),
+                    "q_vector": list(global_candidate.get("q_vector", global_q)),
                     "p_weights": list(global_weights),
-                    "energy": float(global_energy),
+                    "energy": float(global_candidate.get("energy", global_energy)),
                     "x": [float(value) for value in np.array(global_result.x, dtype=float)],
                 }
             )
@@ -1119,6 +1125,12 @@ def _continuous_refine_joint_relaxed_candidate(
             continue
         energy = float(result.fun)
         q_vector, p_weights = _q_and_weights_from_active_coordinates(model, active_axes, result.x)
+        evaluated = _evaluate_weighted_candidate(
+            blocks_payload,
+            q_mesh=[q_vector],
+            local_dimension=local_dimension,
+            p_weights=p_weights,
+        )
         run = {
             "success": bool(result.success),
             "message": str(getattr(result, "message", "")),
@@ -1133,9 +1145,9 @@ def _continuous_refine_joint_relaxed_candidate(
         candidates.append(
             {
                 "source": "lbfgsb",
-                "q_vector": list(q_vector),
+                "q_vector": list(evaluated.get("q_vector", q_vector)),
                 "p_weights": list(p_weights),
-                "energy": float(energy),
+                "energy": float(evaluated.get("energy", energy)),
                 "x": list(run["x"]),
             }
         )
