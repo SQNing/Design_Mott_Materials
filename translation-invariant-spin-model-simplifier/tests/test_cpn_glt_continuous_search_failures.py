@@ -104,6 +104,25 @@ def _square_lattice_j1_j2_model(j1, j2):
     )
 
 
+def _square_lattice_j1_j3_model(j1, j3):
+    return _cp1_isotropic_heisenberg_model_from_bonds(
+        [
+            ((1, 0, 0), j1),
+            ((0, 1, 0), j1),
+            ((2, 0, 0), j3),
+            ((0, 2, 0), j3),
+        ]
+    )
+
+
+def _literature_square_j1_j3_spiral_component(j1, j3):
+    ratio = float(j1) / (4.0 * float(j3))
+    if ratio >= 1.0:
+        return 0.5
+    q_shift = math.acos(ratio) / (2.0 * math.pi)
+    return 0.5 - q_shift
+
+
 def _triangular_lattice_nearest_neighbor_model(j1):
     return _cp1_isotropic_heisenberg_model_from_bonds(
         [
@@ -283,6 +302,7 @@ def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypat
         (-1.0, 1.0, 5),
         (-math.sqrt(2.0), 1.0, 7),
         (-4.0 * math.cos(2.0 * math.pi * (0.225 + math.sqrt(2.0) * 1.0e-6)), 1.0, 6),
+        (1.0, 1.0, 5),
     ],
 )
 def test_literature_j1_j2_heisenberg_chain_pitch_matches_continuous_glt(monkeypatch, j1, j2, mesh_count):
@@ -337,6 +357,30 @@ def test_literature_square_lattice_j1_j2_limits_select_neel_or_stripe_wavevector
 
     for q_vector in competing_q:
         assert expected_energy < _single_q_glt_energy(model, q_vector) - 1.0e-6
+
+
+def test_literature_square_lattice_j1_j3_lifshitz_spiral_matches_formula():
+    # Recent J1-J3 square-lattice analyses quote the classical Lifshitz point J3=J1/4
+    # and spiral condition cos(Q)=J1/(4J3).
+    model = _square_lattice_j1_j3_model(j1=1.0, j3=1.0)
+    q_component = _literature_square_j1_j3_spiral_component(j1=1.0, j3=1.0)
+    expected_q = [q_component, q_component, 0.0]
+    symmetry_related_q = [1.0 - q_component, q_component, 0.0]
+    expected_energy = _single_q_glt_energy(model, expected_q)
+
+    assert q_component == pytest.approx(0.2902153116, abs=1.0e-9)
+    assert expected_energy == pytest.approx(_single_q_glt_energy(model, symmetry_related_q), abs=1.0e-12)
+    assert expected_energy < _single_q_glt_energy(model, [0.5, 0.5, 0.0]) - 1.0e-1
+    assert expected_energy < _single_q_glt_energy(model, [0.5, 0.0, 0.0]) - 1.0e-1
+
+
+def test_literature_square_lattice_j1_j3_neel_side_of_lifshitz_point():
+    model = _square_lattice_j1_j3_model(j1=1.0, j3=0.2)
+    neel_energy = _single_q_glt_energy(model, [0.5, 0.5, 0.0])
+
+    assert _literature_square_j1_j3_spiral_component(j1=1.0, j3=0.2) == pytest.approx(0.5)
+    assert neel_energy < _single_q_glt_energy(model, [0.25, 0.25, 0.0]) - 1.0e-1
+    assert neel_energy < _single_q_glt_energy(model, [0.5, 0.0, 0.0]) - 1.0e-1
 
 
 def test_literature_triangular_lattice_nearest_neighbor_afm_selects_k_point_120_degree_order():
