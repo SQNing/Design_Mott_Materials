@@ -133,6 +133,22 @@ def _triangular_lattice_nearest_neighbor_model(j1):
     )
 
 
+def _simple_cubic_j1_j2_model(j1, j2):
+    return _cp1_isotropic_heisenberg_model_from_bonds(
+        [
+            ((1, 0, 0), j1),
+            ((0, 1, 0), j1),
+            ((0, 0, 1), j1),
+            ((1, 1, 0), j2),
+            ((1, -1, 0), j2),
+            ((1, 0, 1), j2),
+            ((1, 0, -1), j2),
+            ((0, 1, 1), j2),
+            ((0, 1, -1), j2),
+        ]
+    )
+
+
 def _single_q_glt_energy(model, q_vector):
     blocks_payload = glt._lt_blocks(model)
     candidate = glt._evaluate_weighted_candidate(
@@ -391,6 +407,27 @@ def test_literature_triangular_lattice_nearest_neighbor_afm_selects_k_point_120_
     assert k_energy == pytest.approx(_single_q_glt_energy(model, [2.0 / 3.0, 1.0 / 3.0, 0.0]), abs=1.0e-12)
     assert k_energy < _single_q_glt_energy(model, [0.5, 0.5, 0.0]) - 1.0e-1
     assert k_energy < _single_q_glt_energy(model, [0.0, 0.0, 0.0]) - 1.0
+
+
+@pytest.mark.parametrize(
+    "j2,expected_q,competing_q",
+    [
+        (0.1, [0.5, 0.5, 0.5], [[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]]),
+        (0.4, [0.0, 0.5, 0.5], [[0.5, 0.5, 0.5], [0.0, 0.0, 0.0]]),
+        (0.4, [0.5, 0.0, 0.5], [[0.5, 0.5, 0.5], [0.0, 0.0, 0.0]]),
+        (0.4, [0.5, 0.5, 0.0], [[0.5, 0.5, 0.5], [0.0, 0.0, 0.0]]),
+    ],
+)
+def test_literature_simple_cubic_j1_j2_selects_neel_or_collinear_wavevectors(
+    j2, expected_q, competing_q
+):
+    # Simple-cubic J1-J2 studies describe competition between (pi,pi,pi)
+    # and collinear (0,pi,pi)-type orders; the classical crossing is J2/J1=1/4.
+    model = _simple_cubic_j1_j2_model(j1=1.0, j2=j2)
+    expected_energy = _single_q_glt_energy(model, expected_q)
+
+    for q_vector in competing_q:
+        assert expected_energy < _single_q_glt_energy(model, q_vector) - 1.0e-6
 
 
 def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_unresolved(monkeypatch):
