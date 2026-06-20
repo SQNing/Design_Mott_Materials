@@ -4,9 +4,11 @@ import math
 import numpy as np
 try:
     from scipy.optimize import differential_evolution, minimize
+    from scipy.linalg import eigh as scipy_hermitian_eigh
 except ImportError:  # pragma: no cover - scipy is expected in the solver environment
     differential_evolution = None
     minimize = None
+    scipy_hermitian_eigh = None
 
 if __package__ in {None, ""}:
     import sys
@@ -117,8 +119,18 @@ def _jacobi_real_symmetric_eigh(matrix, *, tolerance=1.0e-12, max_iterations=Non
 def _stable_hermitian_eigh(matrix):
     array = np.array(matrix, copy=True)
     hermitian = 0.5 * (array + array.conjugate().T)
-    real_symmetric = np.array(np.real(np.real_if_close(hermitian, tol=1000.0)), dtype=float)
-    return _jacobi_real_symmetric_eigh(real_symmetric)
+    near_real = np.real_if_close(hermitian, tol=1000.0)
+    if not np.iscomplexobj(near_real):
+        real_symmetric = np.array(np.real(near_real), dtype=float)
+        return _jacobi_real_symmetric_eigh(real_symmetric)
+    try:
+        eigenvalues, eigenvectors = np.linalg.eigh(np.array(hermitian, dtype=complex))
+    except np.linalg.LinAlgError:
+        if scipy_hermitian_eigh is None:
+            raise
+        eigenvalues, eigenvectors = scipy_hermitian_eigh(np.array(hermitian, dtype=complex))
+    order = np.argsort(np.real(eigenvalues))
+    return np.array(np.real(eigenvalues[order]), dtype=float), np.array(eigenvectors[:, order], dtype=complex)
 
 
 def _active_axes(model):
@@ -297,24 +309,33 @@ def _kernel_at_q(blocks, q_vector, *, p_weights=None, magnetic_site_count=1):
             np.exp(1.0j * phase) * reduced
         )
     kernel = 0.5 * (kernel + kernel.conjugate().T)
-    return np.array(np.real(_realify_matrix(kernel)), dtype=float)
+    realified = _realify_matrix(kernel)
+    if np.iscomplexobj(realified):
+        return np.array(realified, dtype=complex)
+    return np.array(np.real(realified), dtype=float)
 
 
 def _physicalize_site_mode_vector(mode_vector, p_weights, traceless_dim):
-    vector = np.array(mode_vector, dtype=float, copy=True)
+    vector = np.array(mode_vector, dtype=complex, copy=True)
     weights = np.array(p_weights, dtype=float)
     for site_index, weight in enumerate(weights):
         vector[_traceless_slice(site_index, traceless_dim)] *= float(weight)
+    vector = np.real_if_close(vector, tol=1000.0)
+    if np.iscomplexobj(vector):
+        return np.array(vector, dtype=complex)
     return vector
 
 
 def _physicalize_shell_basis(shell_basis, p_weights, traceless_dim):
-    basis = np.array(shell_basis, dtype=float, copy=True)
+    basis = np.array(shell_basis, dtype=complex, copy=True)
     if basis.ndim == 1:
         basis = basis[:, np.newaxis]
     weights = np.array(p_weights, dtype=float)
     for site_index, weight in enumerate(weights):
         basis[_traceless_slice(site_index, traceless_dim), :] *= float(weight)
+    basis = np.real_if_close(basis, tol=1000.0)
+    if np.iscomplexobj(basis):
+        return np.array(basis, dtype=complex)
     return basis
 
 
@@ -504,6 +525,51 @@ def _weights_from_log_coordinates(log_coordinates):
     return p_weights, alpha_weights, full
 
 
+def _rounded_matrix_fingerprint(matrix, *, digits=12):
+    array = np.array(matrix, dtype=float)
+    if array.size == 0:
+        return ()
+    return tuple(
+        round(float(abs(value)), int(digits))
+        for value in sorted(array.reshape(-1), key=lambda item: abs(float(item)))
+    )
+
+
+def _site_coupling_fingerprint(blocks, site_index):
+    entries = []
+    for block in blocks:
+        source = int(block.get("source", 0))
+        target = int(block.get("target", 0))
+        if source != int(site_index) and target != int(site_index):
+            continue
+        matrix = np.array(block.get("traceless", []), dtype=float)
+        entries.append(
+            (
+                "self" if source == target else "cross",
+                round(float(np.linalg.norm(matrix)), 12),
+                _rounded_matrix_fingerprint(matrix),
+            )
+        )
+    return tuple(sorted(entries))
+
+
+def _site_weight_search_is_physical(blocks_payload, *, tolerance=1.0e-12):
+    site_count = int(blocks_payload.get("magnetic_site_count", 1))
+    if site_count <= 1:
+        return False
+    blocks = list(blocks_payload.get("blocks", []))
+    if not blocks:
+        return False
+    fingerprints = [_site_coupling_fingerprint(blocks, site_index) for site_index in range(site_count)]
+    if len(set(fingerprints)) <= 1:
+        return False
+    norms = [
+        sum(entry[1] for entry in fingerprint if float(entry[1]) > float(tolerance))
+        for fingerprint in fingerprints
+    ]
+    return max(norms) - min(norms) > float(tolerance)
+
+
 def _evaluate_weighted_candidate(blocks_payload, *, q_mesh, local_dimension, p_weights):
     site_count = int(blocks_payload["magnetic_site_count"])
     blocks = blocks_payload["blocks"]
@@ -554,16 +620,16 @@ def _evaluate_weighted_candidate(blocks_payload, *, q_mesh, local_dimension, p_w
             eigenvalues, eigenvectors = _stable_hermitian_eigh(kernel)
             degenerate = np.isclose(eigenvalues, eigenvalues[0], atol=1.0e-9)
             eigenvalue = float(eigenvalues[0])
-            eigenvector = np.array(np.real_if_close(eigenvectors[:, 0], tol=1000.0), dtype=float)
-            eigenspace = np.array(np.real_if_close(eigenvectors[:, degenerate], tol=1000.0), dtype=float)
+            eigenvector = np.array(np.real_if_close(eigenvectors[:, 0], tol=1000.0))
+            eigenspace = np.array(np.real_if_close(eigenvectors[:, degenerate], tol=1000.0))
         energy = float(constant_term + radius_sq * eigenvalue)
         q_sector_candidates.append(
             {
                 "q_vector": list(normalized_q),
                 "energy": float(energy),
-                "mode_vector": np.array(eigenvector, dtype=float),
+                "mode_vector": np.array(eigenvector),
                 "kernel": kernel,
-                "shell_basis": np.array(eigenspace, dtype=float),
+                "shell_basis": np.array(eigenspace),
                 "shell_dimension": int(eigenspace.shape[1]) if eigenspace.ndim == 2 else 0,
             }
         )
@@ -607,12 +673,12 @@ def _evaluate_weighted_candidate(blocks_payload, *, q_mesh, local_dimension, p_w
     winning_q = list(best_q_vector or zero_q)
     winning_energy = float(best_q_energy if best_q_energy is not None else uniform_energy)
     winning_mode_kind = "nonzero-q-relaxed-mode"
-    winning_scaled_vector = np.array(best_q_mode if best_q_mode is not None else np.zeros_like(field), dtype=float)
+    winning_scaled_vector = np.array(best_q_mode if best_q_mode is not None else np.zeros_like(field))
     winning_kernel = best_q_kernel
-    winning_basis = np.array(best_q_basis, dtype=float) if best_q_basis is not None else np.zeros((field.size, 0), dtype=float)
+    winning_basis = np.array(best_q_basis) if best_q_basis is not None else np.zeros((field.size, 0), dtype=float)
     winning_shell_dimension = int(
         sum(
-            np.array(sector.get("shell_basis", np.zeros((0, 0), dtype=float)), dtype=float).shape[1]
+            np.array(sector.get("shell_basis", np.zeros((0, 0), dtype=float))).shape[1]
             for sector in lowest_shell_sectors
         )
         if lowest_shell_sectors
@@ -622,7 +688,7 @@ def _evaluate_weighted_candidate(blocks_payload, *, q_mesh, local_dimension, p_w
         "mode": "lowest-eigenmode-on-q-mesh",
         "lagrange_multiplier": None,
     }
-    if best_q_energy is None or uniform_energy <= winning_energy + 1.0e-12:
+    if best_q_energy is None or uniform_energy < winning_energy - 1.0e-12:
         winning_q = list(zero_q)
         winning_energy = float(uniform_energy)
         winning_mode_kind = "uniform-trust-region"
@@ -632,12 +698,21 @@ def _evaluate_weighted_candidate(blocks_payload, *, q_mesh, local_dimension, p_w
         winning_shell_dimension = 1 if uniform_vector.size else 0
         optimizer_metadata = dict(uniform_optimizer)
         lowest_shell_sectors = []
+    elif uniform_energy <= winning_energy + 1.0e-12:
+        winning_q = list(zero_q)
+        winning_energy = float(uniform_energy)
+        winning_mode_kind = "uniform-trust-region"
+        winning_scaled_vector = np.array(uniform_vector, dtype=float)
+        winning_kernel = uniform_kernel
+        winning_basis = np.array(uniform_vector, dtype=float)[:, np.newaxis]
+        winning_shell_dimension = 1 if uniform_vector.size else winning_shell_dimension
+        optimizer_metadata = dict(uniform_optimizer)
 
     return {
         "energy": float(winning_energy),
         "q_vector": list(winning_q),
         "mode_kind": str(winning_mode_kind),
-        "scaled_vector": np.array(winning_scaled_vector, dtype=float),
+        "scaled_vector": np.array(winning_scaled_vector),
         "kernel": winning_kernel,
         "constant_term": float(constant_term),
         "radius_sq": float(radius_sq),
@@ -655,23 +730,63 @@ def _evaluate_weighted_candidate(blocks_payload, *, q_mesh, local_dimension, p_w
     }
 
 
+def _evaluate_fixed_nonzero_q_branch(blocks_payload, *, q_vector, local_dimension, p_weights):
+    site_count = int(blocks_payload["magnetic_site_count"])
+    blocks = blocks_payload["blocks"]
+    normalized_q = _normalized_q_vector(q_vector)
+    alpha_weights = [float(value) ** -2 for value in p_weights]
+    radius_sq = max(0.0, (1.0 - 1.0 / float(local_dimension)) * float(sum(alpha_weights)))
+    _, constant_term = _uniform_field_vector(
+        blocks,
+        local_dimension,
+        p_weights=p_weights,
+        magnetic_site_count=site_count,
+    )
+    kernel = _kernel_at_q(
+        blocks,
+        normalized_q,
+        p_weights=p_weights,
+        magnetic_site_count=site_count,
+    )
+    if kernel.size == 0:
+        eigenvalue = 0.0
+        eigenvector = np.zeros((0,), dtype=float)
+        eigenspace = np.zeros((0, 0), dtype=float)
+    else:
+        eigenvalues, eigenvectors = _stable_hermitian_eigh(kernel)
+        degenerate = np.isclose(eigenvalues, eigenvalues[0], atol=1.0e-9)
+        eigenvalue = float(eigenvalues[0])
+        eigenvector = np.array(np.real_if_close(eigenvectors[:, 0], tol=1000.0))
+        eigenspace = np.array(np.real_if_close(eigenvectors[:, degenerate], tol=1000.0))
+    return {
+        "q_vector": list(normalized_q),
+        "energy": float(constant_term + radius_sq * eigenvalue),
+        "mode_vector": np.array(eigenvector),
+        "kernel": kernel,
+        "shell_basis": np.array(eigenspace),
+        "shell_dimension": int(eigenspace.shape[1]) if eigenspace.ndim == 2 else 0,
+        "constant_term": float(constant_term),
+        "radius_sq": float(radius_sq),
+    }
+
+
 def _search_weights(blocks_payload, *, q_mesh, local_dimension, magnetic_site_count, weight_bound=1.0, weight_points=9):
     site_count = max(1, int(magnetic_site_count))
-    if site_count <= 1:
+    if site_count <= 1 or not _site_weight_search_is_physical(blocks_payload):
         candidate = _evaluate_weighted_candidate(
             blocks_payload,
             q_mesh=q_mesh,
             local_dimension=local_dimension,
-            p_weights=[1.0],
+            p_weights=[1.0] * site_count,
         )
         candidate["weight_search"] = {
-            "search_strategy": "identity",
+            "search_strategy": "identity" if site_count <= 1 else "identity-equivalent-sites",
             "evaluated_candidates": 1,
             "weight_bound": float(weight_bound),
             "weight_points": int(weight_points),
-            "best_p_weights": [1.0],
-            "best_alpha_weights": [1.0],
-            "best_log_weights": [0.0],
+            "best_p_weights": [1.0] * site_count,
+            "best_alpha_weights": [1.0] * site_count,
+            "best_log_weights": [0.0] * site_count,
         }
         return candidate
 
@@ -1036,7 +1151,8 @@ def _continuous_refine_joint_relaxed_candidate(
         weighted.get("p_weights", [1.0] * site_count),
         active_axes,
     )
-    free_count = max(0, site_count - 1)
+    allow_weight_refinement = _site_weight_search_is_physical(blocks_payload)
+    free_count = max(0, site_count - 1) if allow_weight_refinement else 0
     bounds = [(0.0, 1.0)] * len(active_axes) + [(-float(weight_bound), float(weight_bound))] * free_count
     if len(bounds) == 0:
         updated = dict(weighted)
@@ -1054,6 +1170,29 @@ def _continuous_refine_joint_relaxed_candidate(
             "x": [float(value) for value in seed_vector],
         }
     ]
+    for q_sector in weighted.get("lowest_shell_sectors", []):
+        q_sector_vector = list(q_sector.get("q_vector", [0.0, 0.0, 0.0]))
+        if _is_zero_q_vector(q_sector_vector):
+            continue
+        q_branch = _evaluate_fixed_nonzero_q_branch(
+            blocks_payload,
+            q_vector=q_sector_vector,
+            local_dimension=local_dimension,
+            p_weights=weighted.get("p_weights", [1.0] * site_count),
+        )
+        candidates.append(
+            {
+                "source": "mesh-lowest-shell",
+                "q_vector": list(q_branch["q_vector"]),
+                "p_weights": [float(value) for value in weighted.get("p_weights", [1.0] * site_count)],
+                "energy": float(q_branch["energy"]),
+                "x": [float(value) for value in _active_coordinates_from_q_and_weights(
+                    q_branch["q_vector"],
+                    weighted.get("p_weights", [1.0] * site_count),
+                    active_axes,
+                )],
+            }
+        )
     best_energy = float(weighted.get("energy", 0.0))
     best_vector = np.array(seed_vector, dtype=float)
 
@@ -1088,6 +1227,14 @@ def _continuous_refine_joint_relaxed_candidate(
                 local_dimension=local_dimension,
                 p_weights=global_weights,
             )
+            global_q_branch = None
+            if not _is_zero_q_vector(global_q):
+                global_q_branch = _evaluate_fixed_nonzero_q_branch(
+                    blocks_payload,
+                    q_vector=global_q,
+                    local_dimension=local_dimension,
+                    p_weights=global_weights,
+                )
             global_optimizer = {
                 "success": bool(global_result.success),
                 "message": str(getattr(global_result, "message", "")),
@@ -1098,9 +1245,17 @@ def _continuous_refine_joint_relaxed_candidate(
             candidates.append(
                 {
                     "source": "differential_evolution",
-                    "q_vector": list(global_candidate.get("q_vector", global_q)),
+                    "q_vector": list(
+                        global_q_branch.get("q_vector", global_q)
+                        if global_q_branch is not None
+                        else global_candidate.get("q_vector", global_q)
+                    ),
                     "p_weights": list(global_weights),
-                    "energy": float(global_candidate.get("energy", global_energy)),
+                    "energy": float(
+                        global_q_branch.get("energy", global_energy)
+                        if global_q_branch is not None
+                        else global_candidate.get("energy", global_energy)
+                    ),
                     "x": [float(value) for value in np.array(global_result.x, dtype=float)],
                 }
             )
@@ -1131,6 +1286,14 @@ def _continuous_refine_joint_relaxed_candidate(
             local_dimension=local_dimension,
             p_weights=p_weights,
         )
+        q_branch = None
+        if not _is_zero_q_vector(q_vector):
+            q_branch = _evaluate_fixed_nonzero_q_branch(
+                blocks_payload,
+                q_vector=q_vector,
+                local_dimension=local_dimension,
+                p_weights=p_weights,
+            )
         run = {
             "success": bool(result.success),
             "message": str(getattr(result, "message", "")),
@@ -1145,9 +1308,17 @@ def _continuous_refine_joint_relaxed_candidate(
         candidates.append(
             {
                 "source": "lbfgsb",
-                "q_vector": list(evaluated.get("q_vector", q_vector)),
+                "q_vector": list(
+                    q_branch.get("q_vector", q_vector)
+                    if q_branch is not None
+                    else evaluated.get("q_vector", q_vector)
+                ),
                 "p_weights": list(p_weights),
-                "energy": float(evaluated.get("energy", energy)),
+                "energy": float(
+                    q_branch.get("energy", energy)
+                    if q_branch is not None
+                    else evaluated.get("energy", energy)
+                ),
                 "x": list(run["x"]),
             }
         )
@@ -1579,11 +1750,13 @@ def solve_cpn_generalized_lt_ground_state(
     winning_q = list(weighted["q_vector"])
     winning_energy = float(weighted["energy"])
     winning_mode_kind = str(weighted["mode_kind"])
-    winning_scaled_vector = np.array(weighted["scaled_vector"], dtype=float)
+    winning_scaled_vector = np.array(np.real_if_close(weighted["scaled_vector"], tol=1000.0))
     winning_kernel = weighted["kernel"]
     optimizer_metadata = dict(weighted["uniform_optimizer"])
     p_weights = np.array(weighted["p_weights"], dtype=float)
-    lowest_shell_basis = np.array(weighted.get("lowest_shell_basis", np.zeros((0, 0), dtype=float)), dtype=float)
+    lowest_shell_basis = np.array(
+        np.real_if_close(weighted.get("lowest_shell_basis", np.zeros((0, 0), dtype=float)), tol=1000.0)
+    )
     lowest_shell_sectors = list(weighted.get("lowest_shell_sectors", []))
     continuous_low_energy_sectors = list(weighted.get("continuous_low_energy_sectors", []))
     continuous_summary = _continuous_sector_summary(continuous_low_energy_sectors)
@@ -1602,7 +1775,9 @@ def solve_cpn_generalized_lt_ground_state(
     dominant_rays = []
     exactness_by_site = []
     for site_index in range(magnetic_site_count):
-        physical_mode = float(p_weights[site_index]) * winning_scaled_vector[_traceless_slice(site_index, traceless_dim)]
+        physical_mode = float(p_weights[site_index]) * np.real(
+            winning_scaled_vector[_traceless_slice(site_index, traceless_dim)]
+        )
         projector = np.array(basis[0], dtype=complex) / math.sqrt(float(local_dimension))
         if basis.shape[0] > 1:
             projector = projector + np.einsum("m,mab->ab", physical_mode, basis[1:], optimize=True)

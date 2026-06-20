@@ -83,6 +83,30 @@ def _cp1_isotropic_heisenberg_model_from_bonds(bondspec):
     }
 
 
+def _cp1_isotropic_heisenberg_multisite_model(magnetic_site_count, bondspec):
+    bonds = []
+    for source, target, vector, coefficient in bondspec:
+        coupling = np.zeros((4, 4), dtype=float)
+        coupling[1, 1] = float(coefficient)
+        coupling[2, 2] = float(coefficient)
+        coupling[3, 3] = float(coefficient)
+        bonds.append(
+            {
+                "source": int(source),
+                "target": int(target),
+                "R": [int(value) for value in vector],
+                "tensor": _serialized_tensor_from_coupling(coupling),
+            }
+        )
+    return {
+        "classical_manifold": "CP^(N-1)",
+        "local_dimension": 2,
+        "magnetic_site_count": int(magnetic_site_count),
+        "magnetic_sites": [{"label": f"site-{index}"} for index in range(int(magnetic_site_count))],
+        "bond_tensors": bonds,
+    }
+
+
 def _literature_j1_j2_spiral_q(j1, j2):
     # Sirker et al., PRB 84, 144403: classical FM-AFM J1-J2 chain pitch.
     ratio = -float(j1) / (4.0 * float(j2))
@@ -149,6 +173,84 @@ def _simple_cubic_j1_j2_model(j1, j2):
     )
 
 
+def _honeycomb_j1_j2_model(j1, j2):
+    bonds = [
+        (0, 1, (0, 0, 0), j1),
+        (0, 1, (-1, 0, 0), j1),
+        (0, 1, (0, -1, 0), j1),
+    ]
+    for site in (0, 1):
+        bonds.extend(
+            [
+                (site, site, (1, 0, 0), j2),
+                (site, site, (0, 1, 0), j2),
+                (site, site, (1, -1, 0), j2),
+            ]
+        )
+    return _cp1_isotropic_heisenberg_multisite_model(2, bonds)
+
+
+def _honeycomb_spiral_ring_component_along_10(j1, j2):
+    target_abs_f = abs(float(j1)) / (2.0 * abs(float(j2)))
+    cos_argument = (target_abs_f * target_abs_f - 5.0) / 4.0
+    return math.acos(cos_argument) / (2.0 * math.pi)
+
+
+def _honeycomb_spiral_ring_x_value(j1, j2):
+    target_abs_f = abs(float(j1)) / (2.0 * abs(float(j2)))
+    return 0.5 * (target_abs_f * target_abs_f - 3.0)
+
+
+def _kagome_nearest_neighbor_model(j1):
+    return _cp1_isotropic_heisenberg_multisite_model(
+        3,
+        [
+            (0, 1, (0, 0, 0), j1),
+            (0, 1, (-1, 0, 0), j1),
+            (0, 2, (0, 0, 0), j1),
+            (0, 2, (0, -1, 0), j1),
+            (1, 2, (0, 0, 0), j1),
+            (1, 2, (1, -1, 0), j1),
+        ],
+    )
+
+
+def _diamond_j1_j2_model(j1, j2):
+    bonds = [
+        (0, 1, (0, 0, 0), j1),
+        (0, 1, (-1, 0, 0), j1),
+        (0, 1, (0, -1, 0), j1),
+        (0, 1, (0, 0, -1), j1),
+    ]
+    for site in (0, 1):
+        bonds.extend(
+            [
+                (site, site, (1, 0, 0), j2),
+                (site, site, (0, 1, 0), j2),
+                (site, site, (0, 0, 1), j2),
+                (site, site, (1, -1, 0), j2),
+                (site, site, (1, 0, -1), j2),
+                (site, site, (0, 1, -1), j2),
+            ]
+        )
+    return _cp1_isotropic_heisenberg_multisite_model(2, bonds)
+
+
+def _diamond_spiral_surface_q_110(j1, j2):
+    target_abs_f = abs(float(j1)) / (2.0 * abs(float(j2)))
+    return math.acos(target_abs_f / 4.0) / math.pi
+
+
+def _diamond_spiral_surface_q_1_minus_10(j1, j2):
+    target_abs_f = abs(float(j1)) / (2.0 * abs(float(j2)))
+    return math.acos(math.sqrt(target_abs_f / 4.0)) / math.pi
+
+
+def _diamond_spiral_surface_x_value(j1, j2):
+    target_abs_f = abs(float(j1)) / (2.0 * abs(float(j2)))
+    return 0.5 * (target_abs_f * target_abs_f - 4.0)
+
+
 def _single_q_glt_energy(model, q_vector):
     blocks_payload = glt._lt_blocks(model)
     candidate = glt._evaluate_weighted_candidate(
@@ -158,6 +260,21 @@ def _single_q_glt_energy(model, q_vector):
         p_weights=[1.0] * int(model.get("magnetic_site_count", 1)),
     )
     return float(candidate["energy"])
+
+
+def _kernel_eigensystem(model, q_vector):
+    blocks_payload = glt._lt_blocks(model)
+    kernel = glt._kernel_at_q(
+        blocks_payload["blocks"],
+        q_vector,
+        magnetic_site_count=int(blocks_payload["magnetic_site_count"]),
+    )
+    return glt._stable_hermitian_eigh(kernel)
+
+
+def _lowest_kernel_eigenvalue(model, q_vector):
+    eigenvalues, _ = _kernel_eigensystem(model, q_vector)
+    return float(eigenvalues[0])
 
 
 def _near_degenerate_two_minima_model(q_left, q_right, *, split=1.0e-4):
@@ -174,7 +291,7 @@ def _near_degenerate_two_minima_model(q_left, q_right, *, split=1.0e-4):
     )
     sample_x = np.linspace(0.0, 2.0 * math.pi, 64, endpoint=False)
     design = np.column_stack([np.ones(sample_x.size)] + [np.cos(period * sample_x) for period in range(1, 5)])
-    base_coefficients = np.linalg.lstsq(design, polynomial(np.cos(sample_x)), rcond=None)[0]
+    base_coefficients = np.linalg.lstsq(design, np.polyval(polynomial.coefficients, np.cos(sample_x)), rcond=None)[0]
 
     def value_row(q_value):
         x_value = 2.0 * math.pi * q_value
@@ -428,6 +545,105 @@ def test_literature_simple_cubic_j1_j2_selects_neel_or_collinear_wavevectors(
 
     for q_vector in competing_q:
         assert expected_energy < _single_q_glt_energy(model, q_vector) - 1.0e-6
+
+
+def test_literature_honeycomb_nearest_neighbor_afm_selects_gamma_staggered_sublattice_mode():
+    # The honeycomb NN antiferromagnet is bipartite: the LT minimum is the
+    # Gamma-point staggered sublattice mode.
+    model = _honeycomb_j1_j2_model(j1=1.0, j2=0.0)
+    gamma_energy = _single_q_glt_energy(model, [0.0, 0.0, 0.0])
+    eigenvalues, eigenvectors = _kernel_eigensystem(model, [0.0, 0.0, 0.0])
+    mode = eigenvectors[:, 0]
+
+    assert gamma_energy == pytest.approx(-1.5, abs=1.0e-12)
+    assert _lowest_kernel_eigenvalue(model, [0.0, 0.0, 0.0]) < _lowest_kernel_eigenvalue(
+        model,
+        [1.0 / 3.0, 2.0 / 3.0, 0.0],
+    ) - 1.0
+    assert _lowest_kernel_eigenvalue(model, [0.0, 0.0, 0.0]) < _lowest_kernel_eigenvalue(
+        model,
+        [0.5, 0.0, 0.0],
+    ) - 0.5
+    assert eigenvalues[0] == pytest.approx(-1.5, abs=1.0e-12)
+    assert mode[0] * mode[3] < 0.0
+
+
+def test_literature_honeycomb_j1_j2_spiral_ring_matches_bergman_condition():
+    # Bergman et al. report a classical honeycomb spiral ring for J2/J1 > 1/6
+    # satisfying |1 + exp(i q1) + exp(i q2)| = |J1| / (2 J2).
+    model = _honeycomb_j1_j2_model(j1=1.0, j2=0.25)
+    q_axis = _honeycomb_spiral_ring_component_along_10(j1=1.0, j2=0.25)
+    spiral_energy = _single_q_glt_energy(model, [q_axis, 0.0, 0.0])
+    gamma_energy = _single_q_glt_energy(model, [0.0, 0.0, 0.0])
+    k_energy = _single_q_glt_energy(model, [1.0 / 3.0, 2.0 / 3.0, 0.0])
+
+    assert q_axis == pytest.approx(0.2902153116, abs=1.0e-10)
+    assert _honeycomb_spiral_ring_x_value(j1=1.0, j2=0.25) == pytest.approx(0.5)
+    assert spiral_energy < k_energy - 0.1
+    assert spiral_energy < gamma_energy - 1.0e-1
+
+
+@pytest.mark.parametrize(
+    "q_vector",
+    [
+        [0.0, 0.5, 0.0],
+        [0.5, 0.0, 0.0],
+        [0.5, 0.5, 0.0],
+        [0.125, 0.375, 0.0],
+    ],
+)
+def test_literature_kagome_nearest_neighbor_afm_has_luttinger_tisza_flat_band(q_vector):
+    # The kagome nearest-neighbor antiferromagnet has a flat lowest LT band.
+    model = _kagome_nearest_neighbor_model(j1=1.0)
+
+    assert _lowest_kernel_eigenvalue(model, q_vector) == pytest.approx(-1.0, abs=1.0e-12)
+
+
+def test_literature_kagome_flat_band_is_reported_as_unresolved_flat_valley(monkeypatch):
+    model = _kagome_nearest_neighbor_model(j1=1.0)
+
+    monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
+
+    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(4, 4, 1))
+
+    assert result["continuous_search_classification"] == "flat_valley"
+    assert result["continuous_search_status"] == "unresolved"
+    assert len(result["continuous_low_energy_sectors"]) >= 3
+    assert all(sector["delta_energy"] <= 1.0e-4 for sector in result["continuous_low_energy_sectors"])
+
+
+@pytest.mark.parametrize("j2", [0.05, 0.10])
+def test_literature_diamond_j1_j2_below_one_eighth_stays_neel(j2):
+    # Bergman et al. give a diamond-lattice Lifshitz point at J2/J1 = 1/8.
+    model = _diamond_j1_j2_model(j1=1.0, j2=j2)
+    gamma_energy = _single_q_glt_energy(model, [0.0, 0.0, 0.0])
+
+    assert gamma_energy == pytest.approx(_lowest_kernel_eigenvalue(model, [0.0, 0.0, 0.0]))
+    assert _lowest_kernel_eigenvalue(model, [0.0, 0.0, 0.0]) < _lowest_kernel_eigenvalue(
+        model,
+        [0.25, 0.25, 0.0],
+    ) - 1.0e-2
+    assert _lowest_kernel_eigenvalue(model, [0.0, 0.0, 0.0]) < _lowest_kernel_eigenvalue(
+        model,
+        [0.5, 0.0, 0.0],
+    ) - 1.0e-2
+
+
+def test_literature_diamond_j1_j2_spiral_surface_matches_bergman_condition():
+    # On the diamond lattice, the spiral surface obeys
+    # |1 + exp(iq1) + exp(iq2) + exp(iq3)| = |J1| / (2 J2).
+    model = _diamond_j1_j2_model(j1=1.0, j2=0.25)
+    q_110 = _diamond_spiral_surface_q_110(j1=1.0, j2=0.25)
+    q_1_minus_10 = _diamond_spiral_surface_q_1_minus_10(j1=1.0, j2=0.25)
+    spiral_energy = _lowest_kernel_eigenvalue(model, [q_110, q_110, 0.0])
+    alternate_spiral_energy = _lowest_kernel_eigenvalue(model, [q_1_minus_10, 1.0 - q_1_minus_10, 0.0])
+
+    assert _diamond_spiral_surface_x_value(j1=1.0, j2=0.25) == pytest.approx(0.0)
+    assert q_110 == pytest.approx(1.0 / 3.0, abs=1.0e-12)
+    assert q_1_minus_10 == pytest.approx(0.25, abs=1.0e-12)
+    assert spiral_energy == pytest.approx(alternate_spiral_energy, abs=1.0e-12)
+    assert spiral_energy < _lowest_kernel_eigenvalue(model, [0.0, 0.0, 0.0]) - 1.0e-1
+    assert spiral_energy == pytest.approx(_lowest_kernel_eigenvalue(model, [0.5, 0.0, 0.0]), abs=1.0e-12)
 
 
 def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_unresolved(monkeypatch):

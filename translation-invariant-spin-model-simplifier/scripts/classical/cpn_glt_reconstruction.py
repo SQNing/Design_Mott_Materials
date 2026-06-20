@@ -42,6 +42,10 @@ def _normalized_real_vector(vector):
     return candidate / norm
 
 
+def _real_space_mode_from_bloch(mode_vector, phase):
+    return np.real(np.exp(1.0j * float(phase)) * np.array(mode_vector, dtype=complex))
+
+
 def _projector_exactness(projector, *, tolerance):
     hermitian_part = 0.5 * (projector + projector.conjugate().T)
     eigenvalues, eigenvectors = np.linalg.eigh(hermitian_part)
@@ -210,18 +214,18 @@ def _build_texture_candidate(
     mixing_strategy,
     mixing_coefficients,
 ):
-    radius_mode = np.array(mode_vector, dtype=float)
+    radius_mode = np.array(mode_vector, dtype=complex)
     local_rays = []
     cell_exactness = []
 
     traceless_dim = max(0, int(local_dimension) * int(local_dimension) - 1)
     for cell in _magnetic_cells(supercell_shape):
         phase = 2.0 * math.pi * sum(float(q_values[axis]) * float(cell[axis]) for axis in range(3)) + float(theta)
-        modulation = math.cos(phase)
         for site_index in range(magnetic_site_count):
-            site_mode = modulation * radius_mode[
-                site_index * traceless_dim : (site_index + 1) * traceless_dim
-            ]
+            site_mode = _real_space_mode_from_bloch(
+                radius_mode[site_index * traceless_dim : (site_index + 1) * traceless_dim],
+                phase,
+            )
             projector = np.array(basis[0], dtype=complex) / math.sqrt(float(local_dimension))
             if basis.shape[0] > 1:
                 projector = projector + np.einsum("m,mab->ab", site_mode, basis[1:], optimize=True)
@@ -309,7 +313,7 @@ def reconstruct_commensurate_relaxed_shell(
                     "reason": "commensurate supercell could not be inferred for all q-sectors",
                 },
             }
-        shell_basis = np.array(sector.get("shell_basis", []), dtype=float)
+        shell_basis = np.array(sector.get("shell_basis", []), dtype=complex)
         if shell_basis.ndim == 1:
             shell_basis = shell_basis[:, np.newaxis]
         rational_qs.append(rational_q)
@@ -367,7 +371,7 @@ def reconstruct_commensurate_relaxed_shell(
         for sector in normalized_sectors:
             shell_dim = int(sector["shell_dimension"])
             sector_coeffs = coefficients[offset : offset + shell_dim]
-            mode_by_sector.append(np.array(sector["shell_basis"] @ sector_coeffs, dtype=float))
+            mode_by_sector.append(np.array(sector["shell_basis"] @ sector_coeffs, dtype=complex))
             offset += shell_dim
 
         local_rays = []
@@ -378,7 +382,7 @@ def reconstruct_commensurate_relaxed_shell(
                 phase = 2.0 * math.pi * sum(
                     float(sector["q_values"][axis]) * float(cell[axis]) for axis in range(3)
                 ) + float(phases[sector_index])
-                total_mode += radius * math.cos(phase) * mode_by_sector[sector_index]
+                total_mode += radius * _real_space_mode_from_bloch(mode_by_sector[sector_index], phase)
 
             for site_index in range(magnetic_site_count):
                 site_mode = total_mode[site_index * traceless_dim : (site_index + 1) * traceless_dim]
@@ -492,7 +496,7 @@ def reconstruct_commensurate_single_q_texture(
     return reconstruct_commensurate_relaxed_shell(
         basis=basis,
         local_dimension=local_dimension,
-        sectors=[{"q_vector": list(q_vector), "shell_basis": np.array(shell_basis, dtype=float)}],
+        sectors=[{"q_vector": list(q_vector), "shell_basis": np.array(shell_basis, dtype=complex)}],
         radius_sq=radius_sq,
         basis_order=basis_order,
         pair_basis_order=pair_basis_order,
