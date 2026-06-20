@@ -142,9 +142,28 @@ def _nearest_mesh_distance(q_value, mesh_count):
     return min(abs(float(q_value) - point) for point in mesh_points)
 
 
+def _nearest_low_denominator_distance(q_value, *, max_denominator):
+    q_value = float(q_value) % 1.0
+    best_distance = 1.0
+    for denominator in range(1, int(max_denominator) + 1):
+        for numerator in range(denominator + 1):
+            delta = abs(q_value - numerator / float(denominator)) % 1.0
+            best_distance = min(best_distance, delta, 1.0 - delta)
+    return best_distance
+
+
+STRONGLY_INCOMMENSURATE_Q_TARGETS = [
+    (math.sqrt(5.0) - 1.0) / 4.0,
+    1.0 / math.sqrt(19.0),
+    0.225 + math.sqrt(2.0) * 1.0e-6,
+]
+
+
+@pytest.mark.parametrize("q_star", STRONGLY_INCOMMENSURATE_Q_TARGETS)
 @pytest.mark.parametrize("mesh_count", [4, 5, 6, 7])
-def test_real_tensor_strongly_incommensurate_minimum_refines_off_multiple_coarse_meshes(monkeypatch, mesh_count):
-    q_star = (math.sqrt(5.0) - 1.0) / 4.0
+def test_real_tensor_strongly_incommensurate_minimum_refines_off_multiple_coarse_meshes(
+    monkeypatch, mesh_count, q_star
+):
     coefficient_r2 = 1.0
     coefficient_r1 = -4.0 * math.cos(2.0 * math.pi * q_star)
     model = _cp1_harmonic_model([(1, coefficient_r1), (2, coefficient_r2)])
@@ -156,13 +175,14 @@ def test_real_tensor_strongly_incommensurate_minimum_refines_off_multiple_coarse
     refined_q = result["q_vector"][0]
     mesh_probe_q = result["mesh_probe"]["best_q_vector"][0]
 
+    assert _nearest_low_denominator_distance(q_star, max_denominator=8) > 2.0e-2
     assert _nearest_mesh_distance(q_star, mesh_count) > 2.0e-2
     assert refined_q == pytest.approx(q_star, abs=1.5e-3)
     assert abs(refined_q - mesh_probe_q) > 2.0e-2
 
 
 def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypatch):
-    q_star = (math.sqrt(3.0) - 1.0) / 2.0
+    q_star = 0.225 + math.sqrt(2.0) * 1.0e-6
     model = _cp1_harmonic_model([(1, -4.0 * math.cos(2.0 * math.pi * q_star)), (2, 1.0)])
 
     monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
@@ -170,6 +190,7 @@ def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypat
     result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(6, 1, 1))
     mesh_probe = result["mesh_probe"]
 
+    assert _nearest_low_denominator_distance(q_star, max_denominator=8) > 2.0e-2
     assert _nearest_mesh_distance(q_star, 6) > 2.0e-2
     assert result["q_vector"][0] == pytest.approx(q_star, abs=1.5e-3)
     assert abs(result["q_vector"][0] - mesh_probe["best_q_vector"][0]) > 2.0e-2
@@ -186,7 +207,7 @@ def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypat
 
 def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_unresolved(monkeypatch):
     q_left = (math.sqrt(5.0) - 1.0) / 4.0
-    q_right = (math.sqrt(3.0) - 1.0) / 2.0
+    q_right = 1.0 / math.sqrt(19.0)
     model = _near_degenerate_two_minima_model(q_left, q_right, split=1.0e-4)
 
     monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
@@ -196,10 +217,12 @@ def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_
     reported_q = sorted(sector.get("canonical_q_vector", sector["q_vector"])[0] for sector in reported)
     positive_deltas = sorted(sector["delta_energy"] for sector in reported if sector["delta_energy"] > 1.0e-8)
 
+    assert _nearest_low_denominator_distance(q_left, max_denominator=8) > 2.0e-2
+    assert _nearest_low_denominator_distance(q_right, max_denominator=8) > 2.0e-2
     assert _nearest_mesh_distance(q_left, 6) > 2.0e-2
     assert _nearest_mesh_distance(q_right, 6) > 2.0e-2
     assert len(reported) == 2
-    assert reported_q == pytest.approx([q_left, q_right], abs=2.0e-3)
+    assert reported_q == pytest.approx(sorted([q_left, q_right]), abs=2.0e-3)
     assert all(sector["raw_q_vectors"] for sector in reported)
     assert positive_deltas[0] == pytest.approx(5.0e-5, abs=1.5e-5)
     assert result["continuous_search_classification"] == "quasi_degenerate"
