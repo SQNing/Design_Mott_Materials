@@ -137,35 +137,43 @@ def _identity_finalize(_model, result, **_kwargs):
     return result
 
 
-def test_real_tensor_incommensurate_minimum_refines_off_coarse_mesh(monkeypatch):
-    q_star = 0.137
+def _nearest_mesh_distance(q_value, mesh_count):
+    mesh_points = [index / float(mesh_count) for index in range(int(mesh_count))]
+    return min(abs(float(q_value) - point) for point in mesh_points)
+
+
+@pytest.mark.parametrize("mesh_count", [4, 5, 6, 7])
+def test_real_tensor_strongly_incommensurate_minimum_refines_off_multiple_coarse_meshes(monkeypatch, mesh_count):
+    q_star = (math.sqrt(5.0) - 1.0) / 4.0
     coefficient_r2 = 1.0
     coefficient_r1 = -4.0 * math.cos(2.0 * math.pi * q_star)
     model = _cp1_harmonic_model([(1, coefficient_r1), (2, coefficient_r2)])
 
     monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
 
-    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(5, 1, 1))
+    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(mesh_count, 1, 1))
 
-    mesh_points = [0.0, 0.2, 0.4, 0.6, 0.8]
-    nearest_mesh_q = min(mesh_points, key=lambda value: abs(value - q_star))
     refined_q = result["q_vector"][0]
+    mesh_probe_q = result["mesh_probe"]["best_q_vector"][0]
 
-    assert refined_q == pytest.approx(q_star, abs=2.0e-3)
-    assert abs(refined_q - nearest_mesh_q) > 2.0e-2
+    assert _nearest_mesh_distance(q_star, mesh_count) > 2.0e-2
+    assert refined_q == pytest.approx(q_star, abs=1.5e-3)
+    assert abs(refined_q - mesh_probe_q) > 2.0e-2
 
 
 def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypatch):
-    q_star = 0.137
+    q_star = (math.sqrt(3.0) - 1.0) / 2.0
     model = _cp1_harmonic_model([(1, -4.0 * math.cos(2.0 * math.pi * q_star)), (2, 1.0)])
 
     monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
 
-    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(5, 1, 1))
+    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(6, 1, 1))
     mesh_probe = result["mesh_probe"]
 
-    assert result["q_vector"][0] == pytest.approx(q_star, abs=2.0e-3)
+    assert _nearest_mesh_distance(q_star, 6) > 2.0e-2
+    assert result["q_vector"][0] == pytest.approx(q_star, abs=1.5e-3)
     assert abs(result["q_vector"][0] - mesh_probe["best_q_vector"][0]) > 2.0e-2
+    assert result["energy"] < mesh_probe["best_lower_bound"] - 1.0e-2
     assert result["continuous_search_classification"] == "isolated_minimum"
     assert result["continuous_search_status"] == "resolved"
     raw_sources = {
@@ -177,17 +185,19 @@ def test_frustrated_exchange_continuous_q_is_not_the_coarse_mesh_probe(monkeypat
 
 
 def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_unresolved(monkeypatch):
-    q_left = 0.137
-    q_right = 0.413
+    q_left = (math.sqrt(5.0) - 1.0) / 4.0
+    q_right = (math.sqrt(3.0) - 1.0) / 2.0
     model = _near_degenerate_two_minima_model(q_left, q_right, split=1.0e-4)
 
     monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
 
-    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(5, 1, 1))
+    result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(6, 1, 1))
     reported = result["continuous_low_energy_sectors"]
     reported_q = sorted(sector.get("canonical_q_vector", sector["q_vector"])[0] for sector in reported)
     positive_deltas = sorted(sector["delta_energy"] for sector in reported if sector["delta_energy"] > 1.0e-8)
 
+    assert _nearest_mesh_distance(q_left, 6) > 2.0e-2
+    assert _nearest_mesh_distance(q_right, 6) > 2.0e-2
     assert len(reported) == 2
     assert reported_q == pytest.approx([q_left, q_right], abs=2.0e-3)
     assert all(sector["raw_q_vectors"] for sector in reported)
@@ -208,6 +218,8 @@ def test_ring_or_flat_valley_is_not_reported_as_single_unqualified_q(monkeypatch
     assert result["continuous_search_classification"] == "flat_valley"
     assert result["continuous_search_status"] == "unresolved"
     assert len(reported) >= 3
+    assert all(sector["classification"] == "flat_valley" for sector in reported)
+    assert all(sector["delta_energy"] <= 1.0e-4 for sector in reported)
     assert np.count_nonzero(np.ptp(q_array[:, :2], axis=0) > 1.0e-2) >= 2
 
 
@@ -273,18 +285,18 @@ def test_close_optimizer_endpoints_from_same_basin_are_clustered():
 
 
 def test_anisotropy_perturbation_refines_tiny_shift_from_symmetric_q(monkeypatch):
-    q_star = 0.251
+    q_star = 0.25 + math.sqrt(2.0) * 1.0e-3
     coefficient_r2 = 1.0
     coefficient_r1 = -4.0 * math.cos(2.0 * math.pi * q_star)
-    assert abs(coefficient_r1) < 3.0e-2
+    assert abs(coefficient_r1) < 4.0e-2
     model = _cp1_harmonic_model([(1, coefficient_r1), (2, coefficient_r2)])
 
     monkeypatch.setattr(glt, "finalize_cpn_glt_result", _identity_finalize)
 
     result = glt.solve_cpn_generalized_lt_ground_state(model, mesh_shape=(4, 1, 1))
 
-    assert result["q_vector"][0] == pytest.approx(q_star, abs=5.0e-4)
-    assert abs(result["q_vector"][0] - 0.25) > 5.0e-4
+    assert result["q_vector"][0] == pytest.approx(q_star, abs=3.0e-4)
+    assert abs(result["q_vector"][0] - 0.25) > 1.0e-3
 
 
 def test_search_weights_selects_lower_energy_weight_candidate_from_real_two_sublattice_tensor():
@@ -305,8 +317,19 @@ def test_search_weights_selects_lower_energy_weight_candidate_from_real_two_subl
         local_dimension=2,
         p_weights=[1.0, 1.0],
     )
+    axis_energies = []
+    for log_weight in (-1.0, 0.0, 1.0):
+        p_weights, _, _ = glt._weights_from_log_coordinates(np.array([log_weight], dtype=float))
+        candidate = glt._evaluate_weighted_candidate(
+            blocks_payload,
+            q_mesh=[[0.0, 0.0, 0.0]],
+            local_dimension=2,
+            p_weights=p_weights,
+        )
+        axis_energies.append(float(candidate["energy"]))
 
     assert result["energy"] < uniform["energy"] - 1.0
+    assert result["energy"] == pytest.approx(min(axis_energies))
     assert result["p_weights"][0] > result["p_weights"][1]
 
 
