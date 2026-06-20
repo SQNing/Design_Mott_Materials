@@ -57,8 +57,12 @@ def _cp1_harmonic_model(harmonics):
 
 
 def _cp1_isotropic_heisenberg_chain_model(j1, j2):
+    return _cp1_isotropic_heisenberg_model_from_bonds([((1, 0, 0), j1), ((2, 0, 0), j2)])
+
+
+def _cp1_isotropic_heisenberg_model_from_bonds(bondspec):
     bonds = []
-    for period, coefficient in ((1, j1), (2, j2)):
+    for vector, coefficient in bondspec:
         coupling = np.zeros((4, 4), dtype=float)
         coupling[1, 1] = float(coefficient)
         coupling[2, 2] = float(coefficient)
@@ -67,7 +71,7 @@ def _cp1_isotropic_heisenberg_chain_model(j1, j2):
             {
                 "source": 0,
                 "target": 0,
-                "R": [int(period), 0, 0],
+                "R": [int(value) for value in vector],
                 "tensor": _serialized_tensor_from_coupling(coupling),
             }
         )
@@ -87,6 +91,38 @@ def _literature_j1_j2_spiral_q(j1, j2):
     if ratio <= -1.0:
         return 0.5
     return math.acos(ratio) / (2.0 * math.pi)
+
+
+def _square_lattice_j1_j2_model(j1, j2):
+    return _cp1_isotropic_heisenberg_model_from_bonds(
+        [
+            ((1, 0, 0), j1),
+            ((0, 1, 0), j1),
+            ((1, 1, 0), j2),
+            ((1, -1, 0), j2),
+        ]
+    )
+
+
+def _triangular_lattice_nearest_neighbor_model(j1):
+    return _cp1_isotropic_heisenberg_model_from_bonds(
+        [
+            ((1, 0, 0), j1),
+            ((0, 1, 0), j1),
+            ((1, -1, 0), j1),
+        ]
+    )
+
+
+def _single_q_glt_energy(model, q_vector):
+    blocks_payload = glt._lt_blocks(model)
+    candidate = glt._evaluate_weighted_candidate(
+        blocks_payload,
+        q_mesh=[q_vector],
+        local_dimension=int(model["local_dimension"]),
+        p_weights=[1.0] * int(model.get("magnetic_site_count", 1)),
+    )
+    return float(candidate["energy"])
 
 
 def _near_degenerate_two_minima_model(q_left, q_right, *, split=1.0e-4):
@@ -280,6 +316,37 @@ def test_literature_j1_j2_heisenberg_chain_ferromagnetic_side_stays_at_gamma(mon
     assert len(result["continuous_low_energy_sectors"]) == 1
     assert result["continuous_search_classification"] != "quasi_degenerate"
     assert result["continuous_search_status"] != "unresolved"
+
+
+@pytest.mark.parametrize(
+    "j2,expected_q,competing_q",
+    [
+        (0.2, [0.5, 0.5, 0.0], [[0.5, 0.0, 0.0], [0.0, 0.5, 0.0]]),
+        (0.8, [0.5, 0.0, 0.0], [[0.5, 0.5, 0.0], [0.0, 0.0, 0.0]]),
+        (0.8, [0.0, 0.5, 0.0], [[0.5, 0.5, 0.0], [0.0, 0.0, 0.0]]),
+    ],
+)
+def test_literature_square_lattice_j1_j2_limits_select_neel_or_stripe_wavevectors(
+    j2, expected_q, competing_q
+):
+    # Richter et al., arXiv:1409.0193: square J1-J2 has Neel order at small J2/J1
+    # and collinear striped order at large J2/J1.
+    model = _square_lattice_j1_j2_model(j1=1.0, j2=j2)
+
+    expected_energy = _single_q_glt_energy(model, expected_q)
+
+    for q_vector in competing_q:
+        assert expected_energy < _single_q_glt_energy(model, q_vector) - 1.0e-6
+
+
+def test_literature_triangular_lattice_nearest_neighbor_afm_selects_k_point_120_degree_order():
+    # The triangular-lattice Heisenberg antiferromagnet has 120-degree order at K.
+    model = _triangular_lattice_nearest_neighbor_model(j1=1.0)
+    k_energy = _single_q_glt_energy(model, [1.0 / 3.0, 2.0 / 3.0, 0.0])
+
+    assert k_energy == pytest.approx(_single_q_glt_energy(model, [2.0 / 3.0, 1.0 / 3.0, 0.0]), abs=1.0e-12)
+    assert k_energy < _single_q_glt_energy(model, [0.5, 0.5, 0.0]) - 1.0e-1
+    assert k_energy < _single_q_glt_energy(model, [0.0, 0.0, 0.0]) - 1.0
 
 
 def test_near_degenerate_continuous_sectors_are_reported_as_quasi_degenerate_or_unresolved(monkeypatch):
