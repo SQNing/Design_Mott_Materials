@@ -416,6 +416,44 @@ STRONGLY_INCOMMENSURATE_Q_TARGETS = [
 ]
 
 
+LITERATURE_BENCHMARK_MODELS = [
+    ("1d_j1_j2_chain_spiral_fm_afm", "Sirker_PRB_2011", "q=acos(-J1/4J2)"),
+    ("1d_j1_j2_chain_spiral_irrational", "Sirker_PRB_2011", "off-mesh incommensurate q"),
+    ("1d_j1_j2_chain_spiral_afm_afm", "Sirker_PRB_2011", "q=acos(-J1/4J2)"),
+    ("1d_j1_j2_chain_ferromagnetic_side", "Sirker_PRB_2011", "q=Gamma for J1/J2<-4"),
+    ("square_j1_j2_neel", "Richter_arXiv_1409_0193", "Neel for small J2/J1"),
+    ("square_j1_j2_stripe_x", "Richter_arXiv_1409_0193", "stripe for large J2/J1"),
+    ("square_j1_j2_stripe_y", "Richter_arXiv_1409_0193", "symmetry-related stripe"),
+    ("square_j1_j3_spiral", "square_J1J3_classical_Lifshitz", "cos(Q)=J1/(4J3)"),
+    ("square_j1_j3_neel_side", "square_J1J3_classical_Lifshitz", "Neel for J3<J1/4"),
+    ("triangular_nn_120_degree", "triangular_classical_Heisenberg", "K-point 120-degree order"),
+    ("triangular_j1_j2_120_side", "triangular_J1J2_classical", "120-degree for J2/J1<1/8"),
+    ("triangular_j1_j2_stripe_1", "triangular_J1J2_classical", "stripe for J2/J1>1/8"),
+    ("triangular_j1_j2_stripe_2", "triangular_J1J2_classical", "symmetry-related stripe"),
+    ("triangular_j1_j2_stripe_3", "triangular_J1J2_classical", "symmetry-related stripe"),
+    ("simple_cubic_j1_j2_neel", "Pinettes_Diep_JAP_1998", "(pi,pi,pi) for J2/J1<1/4"),
+    ("simple_cubic_j1_j2_collinear_x", "Pinettes_Diep_JAP_1998", "(0,pi,pi)-type for J2/J1>1/4"),
+    ("simple_cubic_j1_j2_collinear_y", "Pinettes_Diep_JAP_1998", "symmetry-related collinear"),
+    ("simple_cubic_j1_j2_collinear_z", "Pinettes_Diep_JAP_1998", "symmetry-related collinear"),
+    ("honeycomb_nn_bipartite_afm", "Bergman_NatPhys_2007", "Gamma staggered sublattice mode"),
+    ("honeycomb_j1_j2_spiral_ring", "Bergman_NatPhys_2007", "|f(q)|=|J1|/(2J2)"),
+    ("kagome_nn_flat_band", "kagome_classical_Heisenberg", "lowest LT flat band"),
+    ("kagome_nn_flat_valley_report", "kagome_classical_Heisenberg", "flat_valley unresolved sectors"),
+    ("pyrochlore_nn_flat_band", "pyrochlore_classical_Heisenberg", "lowest LT flat band"),
+    ("diamond_j1_j2_neel_low_j2", "Bergman_NatPhys_2007", "Neel for J2/J1<1/8"),
+    ("diamond_j1_j2_neel_near_lifshitz", "Bergman_NatPhys_2007", "Neel side below 1/8"),
+    ("diamond_j1_j2_spiral_surface", "Bergman_NatPhys_2007", "|f(q)|=|J1|/(2J2)"),
+]
+
+
+def test_literature_benchmark_registry_tracks_at_least_twenty_models():
+    names = [entry[0] for entry in LITERATURE_BENCHMARK_MODELS]
+
+    assert len(LITERATURE_BENCHMARK_MODELS) >= 20
+    assert len(names) == len(set(names))
+    assert all(citation and expected for _name, citation, expected in LITERATURE_BENCHMARK_MODELS)
+
+
 @pytest.mark.parametrize("q_star", STRONGLY_INCOMMENSURATE_Q_TARGETS)
 @pytest.mark.parametrize("mesh_count", [4, 5, 6, 7])
 def test_real_tensor_strongly_incommensurate_minimum_refines_off_multiple_coarse_meshes(
