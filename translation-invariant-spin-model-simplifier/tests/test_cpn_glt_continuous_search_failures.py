@@ -157,6 +157,19 @@ def _triangular_lattice_nearest_neighbor_model(j1):
     )
 
 
+def _triangular_lattice_j1_j2_model(j1, j2):
+    return _cp1_isotropic_heisenberg_model_from_bonds(
+        [
+            ((1, 0, 0), j1),
+            ((0, 1, 0), j1),
+            ((1, -1, 0), j1),
+            ((1, 1, 0), j2),
+            ((2, -1, 0), j2),
+            ((1, -2, 0), j2),
+        ]
+    )
+
+
 def _simple_cubic_j1_j2_model(j1, j2):
     return _cp1_isotropic_heisenberg_model_from_bonds(
         [
@@ -211,6 +224,26 @@ def _kagome_nearest_neighbor_model(j1):
             (0, 2, (0, -1, 0), j1),
             (1, 2, (0, 0, 0), j1),
             (1, 2, (1, -1, 0), j1),
+        ],
+    )
+
+
+def _pyrochlore_nearest_neighbor_model(j1):
+    return _cp1_isotropic_heisenberg_multisite_model(
+        4,
+        [
+            (0, 1, (0, 0, 0), j1),
+            (0, 1, (-1, 0, 0), j1),
+            (0, 2, (0, 0, 0), j1),
+            (0, 2, (0, -1, 0), j1),
+            (0, 3, (0, 0, 0), j1),
+            (0, 3, (0, 0, -1), j1),
+            (1, 2, (0, 0, 0), j1),
+            (1, 2, (1, -1, 0), j1),
+            (1, 3, (0, 0, 0), j1),
+            (1, 3, (1, 0, -1), j1),
+            (2, 3, (0, 0, 0), j1),
+            (2, 3, (0, 1, -1), j1),
         ],
     )
 
@@ -529,6 +562,31 @@ def test_literature_triangular_lattice_nearest_neighbor_afm_selects_k_point_120_
 @pytest.mark.parametrize(
     "j2,expected_q,competing_q",
     [
+        (0.05, [1.0 / 3.0, 2.0 / 3.0, 0.0], [[0.5, 0.0, 0.0], [0.0, 0.5, 0.0]]),
+        (0.20, [0.5, 0.0, 0.0], [[1.0 / 3.0, 2.0 / 3.0, 0.0], [0.0, 0.0, 0.0]]),
+        (0.20, [0.0, 0.5, 0.0], [[1.0 / 3.0, 2.0 / 3.0, 0.0], [0.0, 0.0, 0.0]]),
+        (0.20, [0.5, 0.5, 0.0], [[1.0 / 3.0, 2.0 / 3.0, 0.0], [0.0, 0.0, 0.0]]),
+    ],
+)
+def test_literature_triangular_lattice_j1_j2_crosses_from_120_degree_to_stripe_order(
+    j2, expected_q, competing_q
+):
+    # Classical triangular J1-J2 studies place the 120-degree/stripe crossing at J2/J1=1/8.
+    model = _triangular_lattice_j1_j2_model(j1=1.0, j2=j2)
+    expected_energy = _single_q_glt_energy(model, expected_q)
+
+    crossing_model = _triangular_lattice_j1_j2_model(j1=1.0, j2=0.125)
+    assert _single_q_glt_energy(crossing_model, [1.0 / 3.0, 2.0 / 3.0, 0.0]) == pytest.approx(
+        _single_q_glt_energy(crossing_model, [0.5, 0.0, 0.0]),
+        abs=1.0e-12,
+    )
+    for q_vector in competing_q:
+        assert expected_energy < _single_q_glt_energy(model, q_vector) - 1.0e-3
+
+
+@pytest.mark.parametrize(
+    "j2,expected_q,competing_q",
+    [
         (0.1, [0.5, 0.5, 0.5], [[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]]),
         (0.4, [0.0, 0.5, 0.5], [[0.5, 0.5, 0.5], [0.0, 0.0, 0.0]]),
         (0.4, [0.5, 0.0, 0.5], [[0.5, 0.5, 0.5], [0.0, 0.0, 0.0]]),
@@ -610,6 +668,24 @@ def test_literature_kagome_flat_band_is_reported_as_unresolved_flat_valley(monke
     assert result["continuous_search_status"] == "unresolved"
     assert len(result["continuous_low_energy_sectors"]) >= 3
     assert all(sector["delta_energy"] <= 1.0e-4 for sector in result["continuous_low_energy_sectors"])
+
+
+@pytest.mark.parametrize(
+    "q_vector",
+    [
+        [0.0, 0.0, 0.0],
+        [0.5, 0.0, 0.0],
+        [0.0, 0.5, 0.0],
+        [0.5, 0.5, 0.0],
+        [0.25, 0.25, 0.25],
+        [1.0 / 3.0, 0.2, 0.1],
+    ],
+)
+def test_literature_pyrochlore_nearest_neighbor_afm_has_luttinger_tisza_flat_band(q_vector):
+    # The pyrochlore nearest-neighbor antiferromagnet has a flat lowest LT band.
+    model = _pyrochlore_nearest_neighbor_model(j1=1.0)
+
+    assert _lowest_kernel_eigenvalue(model, q_vector) == pytest.approx(-1.0, abs=1.0e-12)
 
 
 @pytest.mark.parametrize("j2", [0.05, 0.10])
