@@ -417,41 +417,201 @@ STRONGLY_INCOMMENSURATE_Q_TARGETS = [
 
 
 LITERATURE_BENCHMARK_MODELS = [
-    ("1d_j1_j2_chain_spiral_fm_afm", "Sirker_PRB_2011", "q=acos(-J1/4J2)"),
-    ("1d_j1_j2_chain_spiral_irrational", "Sirker_PRB_2011", "off-mesh incommensurate q"),
-    ("1d_j1_j2_chain_spiral_afm_afm", "Sirker_PRB_2011", "q=acos(-J1/4J2)"),
-    ("1d_j1_j2_chain_ferromagnetic_side", "Sirker_PRB_2011", "q=Gamma for J1/J2<-4"),
-    ("square_j1_j2_neel", "Richter_arXiv_1409_0193", "Neel for small J2/J1"),
-    ("square_j1_j2_stripe_x", "Richter_arXiv_1409_0193", "stripe for large J2/J1"),
-    ("square_j1_j2_stripe_y", "Richter_arXiv_1409_0193", "symmetry-related stripe"),
-    ("square_j1_j3_spiral", "square_J1J3_classical_Lifshitz", "cos(Q)=J1/(4J3)"),
-    ("square_j1_j3_neel_side", "square_J1J3_classical_Lifshitz", "Neel for J3<J1/4"),
-    ("triangular_nn_120_degree", "triangular_classical_Heisenberg", "K-point 120-degree order"),
-    ("triangular_j1_j2_120_side", "triangular_J1J2_classical", "120-degree for J2/J1<1/8"),
-    ("triangular_j1_j2_stripe_1", "triangular_J1J2_classical", "stripe for J2/J1>1/8"),
-    ("triangular_j1_j2_stripe_2", "triangular_J1J2_classical", "symmetry-related stripe"),
-    ("triangular_j1_j2_stripe_3", "triangular_J1J2_classical", "symmetry-related stripe"),
-    ("simple_cubic_j1_j2_neel", "Pinettes_Diep_JAP_1998", "(pi,pi,pi) for J2/J1<1/4"),
-    ("simple_cubic_j1_j2_collinear_x", "Pinettes_Diep_JAP_1998", "(0,pi,pi)-type for J2/J1>1/4"),
-    ("simple_cubic_j1_j2_collinear_y", "Pinettes_Diep_JAP_1998", "symmetry-related collinear"),
-    ("simple_cubic_j1_j2_collinear_z", "Pinettes_Diep_JAP_1998", "symmetry-related collinear"),
-    ("honeycomb_nn_bipartite_afm", "Bergman_NatPhys_2007", "Gamma staggered sublattice mode"),
-    ("honeycomb_j1_j2_spiral_ring", "Bergman_NatPhys_2007", "|f(q)|=|J1|/(2J2)"),
-    ("kagome_nn_flat_band", "kagome_classical_Heisenberg", "lowest LT flat band"),
-    ("kagome_nn_flat_valley_report", "kagome_classical_Heisenberg", "flat_valley unresolved sectors"),
-    ("pyrochlore_nn_flat_band", "pyrochlore_classical_Heisenberg", "lowest LT flat band"),
-    ("diamond_j1_j2_neel_low_j2", "Bergman_NatPhys_2007", "Neel for J2/J1<1/8"),
-    ("diamond_j1_j2_neel_near_lifshitz", "Bergman_NatPhys_2007", "Neel side below 1/8"),
-    ("diamond_j1_j2_spiral_surface", "Bergman_NatPhys_2007", "|f(q)|=|J1|/(2J2)"),
+    {
+        "name": "1d_j1_j2_chain_spiral_fm_afm",
+        "source": "Sirker_PRB_2011",
+        "source_url": "https://arxiv.org/abs/1106.1008",
+        "expected": "q=acos(-J1/4J2)",
+        "checked_by": "test_literature_j1_j2_heisenberg_chain_pitch_matches_continuous_glt",
+    },
+    {
+        "name": "1d_j1_j2_chain_spiral_irrational",
+        "source": "Sirker_PRB_2011",
+        "source_url": "https://arxiv.org/abs/1106.1008",
+        "expected": "off-mesh incommensurate q",
+        "checked_by": "test_literature_j1_j2_heisenberg_chain_pitch_matches_continuous_glt",
+    },
+    {
+        "name": "1d_j1_j2_chain_spiral_afm_afm",
+        "source": "Sirker_PRB_2011",
+        "source_url": "https://arxiv.org/abs/1106.1008",
+        "expected": "q=acos(-J1/4J2)",
+        "checked_by": "test_literature_j1_j2_heisenberg_chain_pitch_matches_continuous_glt",
+    },
+    {
+        "name": "1d_j1_j2_chain_ferromagnetic_side",
+        "source": "Sirker_PRB_2011",
+        "source_url": "https://arxiv.org/abs/1106.1008",
+        "expected": "q=Gamma for J1/J2<-4",
+        "checked_by": "test_literature_j1_j2_heisenberg_chain_ferromagnetic_side_stays_at_gamma",
+    },
+    {
+        "name": "square_j1_j2_neel",
+        "source": "Richter_arXiv_1409_0193",
+        "source_url": "https://arxiv.org/abs/1409.0193",
+        "expected": "Neel for small J2/J1",
+        "checked_by": "test_literature_square_lattice_j1_j2_limits_select_neel_or_stripe_wavevectors",
+    },
+    {
+        "name": "square_j1_j2_stripe_x",
+        "source": "Richter_arXiv_1409_0193",
+        "source_url": "https://arxiv.org/abs/1409.0193",
+        "expected": "stripe for large J2/J1",
+        "checked_by": "test_literature_square_lattice_j1_j2_limits_select_neel_or_stripe_wavevectors",
+    },
+    {
+        "name": "square_j1_j2_stripe_y",
+        "source": "Richter_arXiv_1409_0193",
+        "source_url": "https://arxiv.org/abs/1409.0193",
+        "expected": "symmetry-related stripe",
+        "checked_by": "test_literature_square_lattice_j1_j2_limits_select_neel_or_stripe_wavevectors",
+    },
+    {
+        "name": "square_j1_j3_spiral",
+        "source": "square_J1J3_classical_Lifshitz",
+        "source_url": "https://arxiv.org/abs/1804.04308",
+        "expected": "cos(Q)=J1/(4J3)",
+        "checked_by": "test_literature_square_lattice_j1_j3_lifshitz_spiral_matches_formula",
+    },
+    {
+        "name": "square_j1_j3_neel_side",
+        "source": "square_J1J3_classical_Lifshitz",
+        "source_url": "https://arxiv.org/abs/1804.04308",
+        "expected": "Neel for J3<J1/4",
+        "checked_by": "test_literature_square_lattice_j1_j3_neel_side_of_lifshitz_point",
+    },
+    {
+        "name": "triangular_nn_120_degree",
+        "source": "triangular_classical_Heisenberg",
+        "source_url": "https://przyrbwn.icm.edu.pl/APP/PDF/127/a127z2p051.pdf",
+        "expected": "K-point 120-degree order",
+        "checked_by": "test_literature_triangular_lattice_nearest_neighbor_afm_selects_k_point_120_degree_order",
+    },
+    {
+        "name": "triangular_j1_j2_120_side",
+        "source": "triangular_J1J2_classical",
+        "source_url": "https://przyrbwn.icm.edu.pl/APP/PDF/127/a127z2p051.pdf",
+        "expected": "120-degree for J2/J1<1/8",
+        "checked_by": "test_literature_triangular_lattice_j1_j2_crosses_from_120_degree_to_stripe_order",
+    },
+    {
+        "name": "triangular_j1_j2_stripe_1",
+        "source": "triangular_J1J2_classical",
+        "source_url": "https://przyrbwn.icm.edu.pl/APP/PDF/127/a127z2p051.pdf",
+        "expected": "stripe for J2/J1>1/8",
+        "checked_by": "test_literature_triangular_lattice_j1_j2_crosses_from_120_degree_to_stripe_order",
+    },
+    {
+        "name": "triangular_j1_j2_stripe_2",
+        "source": "triangular_J1J2_classical",
+        "source_url": "https://przyrbwn.icm.edu.pl/APP/PDF/127/a127z2p051.pdf",
+        "expected": "symmetry-related stripe",
+        "checked_by": "test_literature_triangular_lattice_j1_j2_crosses_from_120_degree_to_stripe_order",
+    },
+    {
+        "name": "triangular_j1_j2_stripe_3",
+        "source": "triangular_J1J2_classical",
+        "source_url": "https://przyrbwn.icm.edu.pl/APP/PDF/127/a127z2p051.pdf",
+        "expected": "symmetry-related stripe",
+        "checked_by": "test_literature_triangular_lattice_j1_j2_crosses_from_120_degree_to_stripe_order",
+    },
+    {
+        "name": "simple_cubic_j1_j2_neel",
+        "source": "Pinettes_Diep_JAP_1998",
+        "source_url": "https://pubs.aip.org/aip/jap/article/83/11/6317/492023/Phase-transition-and-phase-diagram-of-the-J1-J2",
+        "expected": "(pi,pi,pi) for J2/J1<1/4",
+        "checked_by": "test_literature_simple_cubic_j1_j2_selects_neel_or_collinear_wavevectors",
+    },
+    {
+        "name": "simple_cubic_j1_j2_collinear_x",
+        "source": "Pinettes_Diep_JAP_1998",
+        "source_url": "https://pubs.aip.org/aip/jap/article/83/11/6317/492023/Phase-transition-and-phase-diagram-of-the-J1-J2",
+        "expected": "(0,pi,pi)-type for J2/J1>1/4",
+        "checked_by": "test_literature_simple_cubic_j1_j2_selects_neel_or_collinear_wavevectors",
+    },
+    {
+        "name": "simple_cubic_j1_j2_collinear_y",
+        "source": "Pinettes_Diep_JAP_1998",
+        "source_url": "https://pubs.aip.org/aip/jap/article/83/11/6317/492023/Phase-transition-and-phase-diagram-of-the-J1-J2",
+        "expected": "symmetry-related collinear",
+        "checked_by": "test_literature_simple_cubic_j1_j2_selects_neel_or_collinear_wavevectors",
+    },
+    {
+        "name": "simple_cubic_j1_j2_collinear_z",
+        "source": "Pinettes_Diep_JAP_1998",
+        "source_url": "https://pubs.aip.org/aip/jap/article/83/11/6317/492023/Phase-transition-and-phase-diagram-of-the-J1-J2",
+        "expected": "symmetry-related collinear",
+        "checked_by": "test_literature_simple_cubic_j1_j2_selects_neel_or_collinear_wavevectors",
+    },
+    {
+        "name": "honeycomb_nn_bipartite_afm",
+        "source": "Bergman_NatPhys_2007_and_honeycomb_SSL",
+        "source_url": "https://www.osti.gov/pages/servlets/purl/1874654",
+        "expected": "Gamma staggered sublattice mode",
+        "checked_by": "test_literature_honeycomb_nearest_neighbor_afm_selects_gamma_staggered_sublattice_mode",
+    },
+    {
+        "name": "honeycomb_j1_j2_spiral_ring",
+        "source": "Bergman_NatPhys_2007_and_honeycomb_SSL",
+        "source_url": "https://www.osti.gov/pages/servlets/purl/1874654",
+        "expected": "|f(q)|=|J1|/(2J2)",
+        "checked_by": "test_literature_honeycomb_j1_j2_spiral_ring_matches_bergman_condition",
+    },
+    {
+        "name": "kagome_nn_flat_band",
+        "source": "kagome_classical_Heisenberg",
+        "source_url": "https://link.aps.org/doi/10.1103/PhysRevB.91.184407",
+        "expected": "lowest LT flat band",
+        "checked_by": "test_literature_kagome_nearest_neighbor_afm_has_luttinger_tisza_flat_band",
+    },
+    {
+        "name": "kagome_nn_flat_valley_report",
+        "source": "kagome_classical_Heisenberg",
+        "source_url": "https://link.aps.org/doi/10.1103/PhysRevB.91.184407",
+        "expected": "flat_valley unresolved sectors",
+        "checked_by": "test_literature_kagome_flat_band_is_reported_as_unresolved_flat_valley",
+    },
+    {
+        "name": "pyrochlore_nn_flat_band",
+        "source": "Moessner_Chalker_PRL_1998",
+        "source_url": "https://link.aps.org/doi/10.1103/PhysRevLett.80.2929",
+        "expected": "lowest LT flat band",
+        "checked_by": "test_literature_pyrochlore_nearest_neighbor_afm_has_luttinger_tisza_flat_band",
+    },
+    {
+        "name": "diamond_j1_j2_neel_low_j2",
+        "source": "Bergman_NatPhys_2007",
+        "source_url": "https://arxiv.org/abs/cond-mat/0612001",
+        "expected": "Neel for J2/J1<1/8",
+        "checked_by": "test_literature_diamond_j1_j2_below_one_eighth_stays_neel",
+    },
+    {
+        "name": "diamond_j1_j2_neel_near_lifshitz",
+        "source": "Bergman_NatPhys_2007",
+        "source_url": "https://arxiv.org/abs/cond-mat/0612001",
+        "expected": "Neel side below 1/8",
+        "checked_by": "test_literature_diamond_j1_j2_below_one_eighth_stays_neel",
+    },
+    {
+        "name": "diamond_j1_j2_spiral_surface",
+        "source": "Bergman_NatPhys_2007",
+        "source_url": "https://arxiv.org/abs/cond-mat/0612001",
+        "expected": "|f(q)|=|J1|/(2J2)",
+        "checked_by": "test_literature_diamond_j1_j2_spiral_surface_matches_bergman_condition",
+    },
 ]
 
 
 def test_literature_benchmark_registry_tracks_at_least_twenty_models():
-    names = [entry[0] for entry in LITERATURE_BENCHMARK_MODELS]
+    names = [entry["name"] for entry in LITERATURE_BENCHMARK_MODELS]
 
     assert len(LITERATURE_BENCHMARK_MODELS) >= 20
     assert len(names) == len(set(names))
-    assert all(citation and expected for _name, citation, expected in LITERATURE_BENCHMARK_MODELS)
+    for entry in LITERATURE_BENCHMARK_MODELS:
+        assert entry["source"]
+        assert entry["source_url"].startswith("http")
+        assert entry["expected"]
+        assert entry["checked_by"].startswith("test_literature_")
 
 
 @pytest.mark.parametrize("q_star", STRONGLY_INCOMMENSURATE_Q_TARGETS)
