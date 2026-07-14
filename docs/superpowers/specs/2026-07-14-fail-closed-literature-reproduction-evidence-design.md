@@ -119,19 +119,15 @@ Each of the 155 benchmarks has one record with these required fields:
   "source_id": "...",
   "source_sha256": "...",
   "registry_selector": {"path": ["energy_per_site"]},
-  "observable_contract": {
-    "subject": "...",
-    "system": "...",
-    "hamiltonian": "...",
-    "parameter_regime": "...",
-    "size_or_limit": "...",
-    "observable": "...",
-    "units": "...",
-    "conditions": "..."
-  },
+  "canonical_observable_id": "...",
   "target_locator": {"kind": "equation", "value": "Eq. (3)"},
   "target_parser": "module:function",
-  "normalization": {"description": "..."},
+  "normalization": {
+    "kind": "typed_claim_map",
+    "field_rules": {},
+    "negation_rule": "...",
+    "qualifier_rules": []
+  },
   "adapter": "module:function",
   "adapter_parameters": {},
   "convergence": {},
@@ -145,6 +141,14 @@ raw extracted value, normalized literature target, and byte/page/table
 coordinates are derived at runtime from the hashed payload and written only to
 the run result.
 
+The canonical observable identity is not declared by the evidence record. It
+lives in an independently maintained benchmark specification associated with
+the registry entry and contains subject, system/material, Hamiltonian,
+parameter regime, size or thermodynamic limit, observable definition, units,
+and conditions. The evidence record may only reference its immutable identifier.
+The auditor compares the record reference, parsed literature claim, registry
+value, and adapter output against that canonical specification field by field.
+
 `evidence_mode` is one of:
 
 - `local_recompute`: parse a literature target, execute an independent local
@@ -154,13 +158,16 @@ the run result.
 - `projection_only`: preserve a useful smaller-model calculation without
   granting strict status.
 
-Categorical and experimental observables use a typed claim schema containing
+Categorical and experimental observables use a machine-readable typed claim
+schema containing
 subject, observable, experimental or model conditions, scope, polarity,
-uncertainty, and an explicit normalization map. Boolean values are accepted only
-when exact source spans directly entail the normalized claim. The auditor
-rejects absence-of-mention, model-to-material inference, review paraphrases when
-primary evidence is claimed, and source conditions that do not match the
-registry contract.
+uncertainty, and an executable normalization map. Every mapped component is
+extracted at runtime from exact source spans. Executable rules handle negation,
+qualifiers, scope, and uncertainty. Boolean values are accepted only when exact
+source spans directly entail the normalized claim. The auditor rejects
+absence-of-mention, model-to-material inference, review paraphrases when primary
+evidence is claimed, and source conditions that do not match the registry
+contract.
 
 ## Runtime Architecture
 
@@ -190,13 +197,27 @@ may not contain expected outputs. Model parameters used for recomputation are
 independently parsed from the literature source or declared as universal test
 inputs distinct from the target observable.
 
-The run manifest hashes adapter source code and its transitive project
-dependencies. Counterfactual parameter and property tests require the adapter
-to respond correctly away from the registered benchmark point, preventing a
-constant expected answer hidden in the adapter or a helper from passing.
+The adapter runs in a restricted fresh process whose readable inputs are limited
+to declared model parameters and approved backend resources. Registry, evidence,
+source, previous-output, and report artifacts are not mounted or readable in
+that process. The run manifest records an auditable dependency closure and
+hashes adapter source code and all transitive project helpers. Static inspection
+rejects embedded benchmark outputs and benchmark-specific lookup tables in that
+closure; runtime information-flow checks reject undeclared file, environment,
+network, or import access.
+
+At audit time, the runner generates unpredictable counterfactual model inputs
+after the adapter code hash is fixed. Results are checked by an independent
+oracle or mathematical invariant that is not in the adapter dependency closure.
+This supplements ordinary fixed regression cases and prevents a constant or
+finite benchmark lookup table hidden in an adapter or helper from establishing
+independence. If a backend cannot provide this independence proof, the entry
+does not receive strict recomputation status and must use a direct source-parse
+route instead.
 
 Before comparing values, the auditor verifies that adapter output has the same
-machine-readable observable identity as the registry contract: subject,
+machine-readable observable identity as the independent canonical benchmark
+specification: subject,
 system/material, Hamiltonian, parameter regime, size or thermodynamic limit,
 observable definition, units, and conditions. A smaller cluster, clean limit,
 representative parameter point, or different material cannot pass solely
@@ -219,15 +240,20 @@ run is not strict evidence.
 
 For every registered entry, the auditor performs the following in order:
 
-1. require exactly one evidence record;
-2. verify source identity and snapshot hash;
-3. extract the literature target from source content;
-4. resolve and verify the machine-readable observable contract;
-5. verify the target agrees with the registry representation;
-6. for `local_recompute`, execute the independent adapter in a fresh process;
-7. verify convergence and observable-identity equality;
-8. compare the local result with the literature target;
-9. emit a structured pass/fail result, extraction trace, execution trace, and
+1. perform a pre-run set-equality check between canonical registry names and
+   evidence-record names;
+2. require exactly one evidence record;
+3. verify source identity and snapshot hash;
+4. extract the literature target from source content;
+5. resolve the independent canonical observable specification and verify the
+   parsed claim field by field;
+6. independently select the registry operand using `registry_selector` and
+   compare it with the runtime-parsed source operand;
+7. for `local_recompute`, execute the independent adapter in a restricted fresh
+   process;
+8. verify independence, convergence, and observable-identity equality;
+9. compare the local result with the independently parsed literature target;
+10. emit a structured pass/fail result, extraction trace, execution trace, and
    all provenance fields.
 
 Any exception, unavailable backend, missing source, missing adapter, stale
@@ -235,9 +261,11 @@ hash, unsupported comparator, target mismatch, or projection-only route yields
 `strict_literature_match=no` with a concrete reason. There is no strict-kind
 promotion whitelist. Cached verdicts and precomputed pass labels are ignored.
 
-Before running entries, the auditor requires set equality among canonical
-registry names, evidence-record names, outcome names, and report-row names.
-Duplicates, missing records, and orphaned records fail the entire audit.
+After running entries and generating reports, the auditor performs a separate
+post-run set-equality check among canonical registry names, outcome names, and
+every report's row names. Either the pre-run or post-run bijection check failing
+invalidates the entire audit. Duplicates, missing records, and orphaned records
+are never reduced to a warning.
 
 ## Migration Strategy
 
@@ -286,9 +314,15 @@ Required negative tests cover:
 - source text no longer contains the target;
 - source target is replaced with another valid value but the parser does not
   return the replacement;
+- categorical source mutations change polarity, subject, scope, conditions,
+  qualifiers, or uncertainty but the parser/normalizer does not reflect or
+  reject the change;
 - declared excerpt differs from bytes selected from the hashed parent artifact;
 - manually authored or non-authoritative source payload;
 - adapter reads the registry or literature target as its result;
+- restricted adapter process can read registry, evidence, source, output, or
+  report artifacts, use undeclared network/environment inputs, or load an
+  undeclared dependency;
 - expected output is smuggled through adapter parameters or a transitive helper;
 - adapter fails counterfactual parameter/property tests;
 - local projection presented for a paper-level/material observable;
@@ -318,8 +352,15 @@ The goal is complete only when a fresh run proves all of the following:
 - every record consumes a verified local source snapshot containing the target
   observable;
 - every `local_recompute` adapter executes without reading its expected answer;
-- every local result or direct source parse matches its literature target under
-  an explicit comparator;
+- every `local_recompute` result matches the independently parsed literature
+  target under an explicit comparator;
+- every `local_source_parse` result records two independently obtained operands,
+  the runtime-parsed source value and the canonical-registry-selected value,
+  and compares them without either operand being populated from the other or
+  from the evidence record;
+- every strict recomputation includes a complete dependency closure,
+  information-flow isolation result, static embedded-output scan, unpredictable
+  counterfactual trace, and independent-oracle/invariant result;
 - the run manifest contains 155 distinct `strict_literature_match=yes`
   outcomes and zero failures, skips, duplicates, or orphans;
 - no entry is `projection_only`, `source_unavailable`, `backend_unavailable`, or
