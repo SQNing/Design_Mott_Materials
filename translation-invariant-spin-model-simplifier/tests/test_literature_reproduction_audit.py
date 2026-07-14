@@ -1,6 +1,6 @@
 import ast
-import inspect
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 
@@ -8,27 +8,47 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from validation.literature_reproduction_audit import (
-    STRICT_LOCAL_KINDS,
-    WEAK_LOCAL_MARKERS,
-    build_literature_reproduction_audit,
+from validation import literature_spin_model_benchmarks
+from validation.literature_reproduction_audit import build_literature_reproduction_audit
+
+
+TEST_WEAK_EVIDENCE_MARKERS = (
+    "candidate",
+    "checked only",
+    "material context",
+    "not recomputed",
+    " label",
 )
-from validation.literature_spin_model_benchmarks import (
-    triangular_j1_j2_zhu_white_phase_sequence_status,
-)
+
+
+def _runtime_evidence_gaps(row, *, required_trace):
+    gaps = []
+    expected_mode = {
+        "execution_trace": "local_recompute",
+        "extraction_trace": "local_source_parse",
+    }[required_trace]
+    runtime_record = row.get("runtime_evidence_record") or row.get("evidence_record")
+    if not isinstance(runtime_record, Mapping):
+        gaps.append("mapping-like runtime evidence record")
+    elif runtime_record.get("benchmark_name") != row["name"]:
+        gaps.append("runtime evidence record benchmark identity")
+    elif runtime_record.get("evidence_mode") != expected_mode:
+        gaps.append(f"runtime evidence record mode {expected_mode!r}")
+
+    trace = row.get(required_trace)
+    if not isinstance(trace, Mapping):
+        gaps.append(f"mapping-like {required_trace.replace('_', ' ')}")
+    elif trace.get("benchmark_name") != row["name"]:
+        gaps.append(f"{required_trace.replace('_', ' ')} benchmark identity")
+    return gaps
 
 
 def _assert_strict_yes_has_runtime_evidence(row, *, required_trace):
-    runtime_record = row.get("runtime_evidence_record") or row.get("evidence_record")
-    missing = []
-    if not runtime_record:
-        missing.append("runtime evidence record")
-    if not row.get(required_trace):
-        missing.append(required_trace.replace("_", " "))
+    gaps = _runtime_evidence_gaps(row, required_trace=required_trace)
 
-    assert row["strict_literature_match_label"] != "yes" or not missing, (
+    assert row["strict_literature_match_label"] != "yes" or not gaps, (
         f"{row['name']} was promoted to strict yes by local_check_kind="
-        f"{row['local_check_kind']!r} without {', '.join(missing)}"
+        f"{row['local_check_kind']!r} without {', '.join(gaps)}"
     )
 
 
@@ -53,12 +73,17 @@ def test_checked_only_evidence_cannot_yield_strict_yes_without_runtime_execution
     _assert_strict_yes_has_runtime_evidence(row, required_trace="execution_trace")
 
 
-def test_hard_coded_parse_helper_cannot_yield_strict_yes_without_runtime_extraction_evidence():
-    parameters = inspect.signature(
-        triangular_j1_j2_zhu_white_phase_sequence_status
-    ).parameters
-    assert parameters["spin_liquid_lower_boundary"].default == 0.06
-    assert parameters["spin_liquid_upper_boundary"].default == 0.17
+def test_hard_coded_parse_helper_cannot_yield_strict_yes_without_runtime_extraction_evidence(
+    monkeypatch,
+):
+    def fail_if_parser_is_called(*args, **kwargs):
+        raise AssertionError("published-result parser must execute on the audit path")
+
+    monkeypatch.setattr(
+        literature_spin_model_benchmarks,
+        "triangular_j1_j2_zhu_white_phase_sequence_status",
+        fail_if_parser_is_called,
+    )
 
     audit = build_literature_reproduction_audit()
     row = {row["name"]: row for row in audit["rows"]}[
@@ -69,13 +94,14 @@ def test_hard_coded_parse_helper_cannot_yield_strict_yes_without_runtime_extract
     _assert_strict_yes_has_runtime_evidence(row, required_trace="extraction_trace")
 
 
-def test_prose_only_diagnostic_exposes_unsupported_strict_promotions():
+def test_literature_audit_diagnostic_exposes_unsupported_strict_promotions():
     rows = build_literature_reproduction_audit()["rows"]
 
     def lacks_runtime_evidence(row):
-        runtime_record = row.get("runtime_evidence_record") or row.get("evidence_record")
-        runtime_trace = row.get("extraction_trace") or row.get("execution_trace")
-        return not runtime_record or not runtime_trace
+        return bool(
+            _runtime_evidence_gaps(row, required_trace="extraction_trace")
+            and _runtime_evidence_gaps(row, required_trace="execution_trace")
+        )
 
     strict_yes_rows = [
         row
@@ -86,7 +112,7 @@ def test_prose_only_diagnostic_exposes_unsupported_strict_promotions():
         "whitelist_only_promotions": sorted(
             row["name"]
             for row in strict_yes_rows
-            if row["local_check_kind"] in STRICT_LOCAL_KINDS
+            if row["strict_audit_category"] == "strict_local_recomputed"
         ),
         "zero_task_rows": sorted(
             row["name"]
@@ -99,7 +125,7 @@ def test_prose_only_diagnostic_exposes_unsupported_strict_promotions():
             if any(
                 marker
                 in f"{row['local_check_kind']} {row['local_check_evidence']}".lower()
-                for marker in WEAK_LOCAL_MARKERS
+                for marker in TEST_WEAK_EVIDENCE_MARKERS
             )
         ),
     }
