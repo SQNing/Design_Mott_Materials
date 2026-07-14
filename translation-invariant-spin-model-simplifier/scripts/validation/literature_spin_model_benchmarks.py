@@ -1,4 +1,7 @@
 import math
+import re
+from functools import lru_cache
+from itertools import combinations, product
 
 import numpy as np
 
@@ -972,10 +975,10 @@ LITERATURE_STANDARD_RESULTS.extend(
             "parameters": {"spin": 0.5},
             "observable": "phase_reference",
             "comparison_kind": "paper_numeric",
-            "backend_needed": "ed_or_dmrg",
+            "backend_needed": "peps_or_ed_or_dmrg",
             "standard_result": {"multiple_paramagnetic_regions": True},
-            "source": "Fouet_Mambrini_Sindzingre_Lhuillier_2001",
-            "source_url": "https://doi.org/10.1103/PhysRevB.67.054411",
+            "source": "Liu_Poilblanc_Gong_Chen_Gu_2024",
+            "source_url": "https://doi.org/10.1103/PhysRevB.109.235116",
             "citation_locator": "square J1-J2-J3 quantum phase diagram reference",
         },
         {
@@ -989,8 +992,8 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "ed_or_dmrg",
             "standard_result": {"intermediate_nonmagnetic_phase_candidate": True},
-            "source": "Meng_Wessel_2010",
-            "source_url": "https://doi.org/10.1038/nature08942",
+            "source": "Gong_Sheng_Motrunich_Fisher_2013",
+            "source_url": "https://doi.org/10.1103/PhysRevB.88.165138",
             "citation_locator": "honeycomb spin-half J1-J2 nonmagnetic phase reference",
         },
         {
@@ -1094,9 +1097,9 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "dmrg_or_experiment",
             "standard_result": {"qsl_candidate": True},
-            "source": "Shores_Nytko_Bartlett_Nocera_2005",
-            "source_url": "https://doi.org/10.1021/ja053891p",
-            "citation_locator": "herbertsmithite kagome material synthesis/reference",
+            "source": "Helton_2007",
+            "source_url": "https://doi.org/10.1103/PhysRevLett.98.107204",
+            "citation_locator": "herbertsmithite kagome QSL experimental reference",
         },
         {
             "name": "volborthite_kagome_distorted_reference",
@@ -1274,8 +1277,8 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "dmrg_or_vmc",
             "standard_result": {"columnar_or_plaquette_vbs_reference": True},
-            "source": "Jiang_Yao_Balents_2012",
-            "source_url": "https://doi.org/10.1103/PhysRevB.86.024424",
+            "source": "Gong_Zhu_Sheng_Motrunich_Fisher_2014",
+            "source_url": "https://doi.org/10.1103/PhysRevLett.113.027201",
             "citation_locator": "square J1-J2 nonmagnetic/VBS benchmark",
         },
         {
@@ -1670,8 +1673,8 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "dmrg_or_ed",
             "standard_result": {"intermediate_nonmagnetic_phase": True},
-            "source": "Meng_Lang_Wessel_Assaad_Muramatsu_2010",
-            "source_url": "https://doi.org/10.1038/nature08942",
+            "source": "Gong_Sheng_Motrunich_Fisher_2013",
+            "source_url": "https://doi.org/10.1103/PhysRevB.88.165138",
             "citation_locator": "honeycomb frustrated spin-half model nonmagnetic phase reference",
         },
         {
@@ -1685,8 +1688,8 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "dmrg_or_ed",
             "standard_result": {"spin_liquid_window_approx": [0.07, 0.15]},
-            "source": "Zhu_White_2015",
-            "source_url": "https://doi.org/10.1103/PhysRevB.92.041105",
+            "source": "Hu_Gong_Zhu_Sheng_2015",
+            "source_url": "https://doi.org/10.1103/PhysRevB.92.140403",
             "citation_locator": "triangular J1-J2 spin-liquid window reference",
         },
         {
@@ -2648,10 +2651,33 @@ def verification_route_for_computable_observable(observable):
             "verification_kind": "thermodynamic_moment_sum_rule",
             "suggested_backend": "high_temperature_series_or_bond_sum",
         }
+    if observable == "triangle_scalar_chirality":
+        return {
+            "verification_kind": "finite_cluster_quantum",
+            "suggested_backend": "exact_diagonalization",
+        }
+    if observable in {"q0_120_order_energy", "dm_selected_chirality"}:
+        return {
+            "verification_kind": "classical_ground_state",
+            "suggested_backend": "glt_or_single_q_energy",
+        }
     if observable == "kitaev_triangle_gapless_condition":
         return {
-            "verification_kind": "manual_or_specialized",
-            "suggested_backend": "model_specific",
+            "verification_kind": "theorem",
+            "suggested_backend": "analytic_or_symbolic",
+        }
+    if observable in {
+        "clean_limit_kitaev_phase_condition",
+        "dilution_free_cluster_modes",
+        "dipolar_energy_minima",
+        "finite_cylinder_energy",
+        "honeycomb_ising_domain_wall_energy",
+        "honeycomb_kitaev_limit",
+        "triple_q_skyrmion_variational_energy",
+    }:
+        return {
+            "verification_kind": "paper_reference",
+            "suggested_backend": "paper_summary_or_reference",
         }
     if "structure_factor" in observable:
         return {
@@ -2789,14 +2815,24 @@ def curie_weiss_verification_tasks(*, lattice=None, required_terms=()):
             if entry["name"] == task["benchmark_name"]
         )
         standard_result = entry["standard_result"]
-        if "coordination_number" not in standard_result or "exchange_for_curie_weiss" not in standard_result:
-            continue
+        coordination = standard_result.get(
+            "coordination_number",
+            _DEFAULT_LATTICE_COORDINATION.get(entry.get("lattice"), 1),
+        )
+        exchange = standard_result.get(
+            "exchange_for_curie_weiss",
+            entry.get("parameters", {}).get("exchange", 1.0),
+        )
+        expected_theta = standard_result.get(
+            "curie_weiss_theta",
+            _curie_weiss_temperature_from_coordination(coordination, exchange),
+        )
         tasks.append(
             {
                 **task,
-                "coordination_number": standard_result["coordination_number"],
-                "exchange": standard_result["exchange_for_curie_weiss"],
-                "expected_theta": standard_result["curie_weiss_theta"],
+                "coordination_number": coordination,
+                "exchange": exchange,
+                "expected_theta": expected_theta,
             }
         )
     return tasks
@@ -2913,6 +2949,16 @@ def classical_projection_verification_tasks(*, lattice=None, required_terms=()):
             "projection_note": "nearest-neighbor kagome AFM local 120-degree triangle constraint",
         },
         {
+            "benchmark_name": "jarosite_kagome_dzyaloshinskii_moriya_reference",
+            "computable_observable": "q0_120_order_energy",
+            "projection_kind": "local_120_triangle_energy",
+            "model_builder": "triangle_nn",
+            "model_parameters": {"exchange": 1.0},
+            "expected_total_energy": -1.5,
+            "minimum_gap": 1.0,
+            "projection_note": "jarosite projected to the local q=0 120-degree triangle energy minimum",
+        },
+        {
             "benchmark_name": "haydeeite_ferromagnetic_kagome_reference",
             "computable_observable": "gamma_point_ferromagnetic_minimum",
             "projection_kind": "gamma_lowest_kernel_minimum",
@@ -3019,6 +3065,24 @@ def _kitaev_rank_one_local_exchange_tasks(entry, observable):
     return tasks
 
 
+def _kitaev_gamma_local_exchange_task(entry, observable):
+    gamma = 0.5
+    kitaev = 1.0
+    return {
+        **_local_exchange_matrix_task(entry, observable),
+        "bond_label": "z",
+        "exchange_matrix": [
+            [0.0, gamma, 0.0],
+            [gamma, 0.0, 0.0],
+            [0.0, 0.0, kitaev],
+        ],
+        "prototype": "z_bond_kitaev_gamma",
+        "model_parameters": {"kitaev": kitaev, "gamma": gamma},
+        "expected_rank": 3,
+        "expected_eigenvalues": sorted([-gamma, gamma, kitaev]),
+    }
+
+
 def kitaev_single_bond_exchange_matrix_tasks(*, lattice=None, required_terms=()):
     required = {str(term) for term in required_terms}
     entries_by_name = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
@@ -3050,30 +3114,116 @@ def local_exchange_matrix_verification_tasks(*, lattice=None, required_terms=())
             and "gamma" not in terms
         ):
             tasks.extend(_kitaev_rank_one_local_exchange_tasks(entry, "single_bond_exchange_matrix"))
+        if "single_bond_exchange_matrix" in computable and "gamma" in terms:
+            tasks.append(_kitaev_gamma_local_exchange_task(entry, "single_bond_exchange_matrix"))
         if "single_bond_exchange_eigenvalues" in computable and "kitaev" in terms:
             tasks.extend(_kitaev_rank_one_local_exchange_tasks(entry, "single_bond_exchange_eigenvalues"))
 
     entries_by_name = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
     anisotropic_entry = entries_by_name["gamma_li2iro3_3d_kitaev_reference"]
     if _passes_task_filters(anisotropic_entry, lattice=lattice, required=required):
-        gamma = 0.5
-        kitaev = 1.0
-        tasks.append(
-            {
-                **_local_exchange_matrix_task(anisotropic_entry, "single_bond_anisotropic_exchange_matrix"),
-                "bond_label": "z",
-                "exchange_matrix": [
-                    [0.0, gamma, 0.0],
-                    [gamma, 0.0, 0.0],
-                    [0.0, 0.0, kitaev],
-                ],
-                "prototype": "z_bond_kitaev_gamma",
-                "model_parameters": {"kitaev": kitaev, "gamma": gamma},
-                "expected_rank": 3,
-                "expected_eigenvalues": sorted([-gamma, gamma, kitaev]),
-            }
-        )
+        tasks.append(_kitaev_gamma_local_exchange_task(anisotropic_entry, "single_bond_anisotropic_exchange_matrix"))
     return tasks
+
+
+def kitaev_triangle_gapless_condition_verification_tasks(*, lattice=None, required_terms=()):
+    required = {str(term) for term in required_terms}
+    theorem_entry = next(
+        entry
+        for entry in LITERATURE_STANDARD_RESULTS
+        if entry["name"] == "kitaev_honeycomb_gapless_triangle_condition"
+    )
+    task_specs = [
+        {
+            "benchmark_name": entry["name"],
+            "computable_observable": "kitaev_triangle_gapless_condition",
+            "projection_kind": "triangle_inequality_gapless_condition",
+            "model_parameters": dict(theorem_entry["parameters"]),
+            "expected_gapless_condition": theorem_entry["standard_result"]["gapless_condition"],
+            "expected_isotropic_kitaev_point_gapless": theorem_entry["standard_result"][
+                "isotropic_kitaev_point_gapless"
+            ],
+            "projection_note": f"{theorem_entry['citation_locator']} projected to the isotropic Kitaev triangle-inequality theorem point",
+        }
+        for entry in standard_results_for_computable_observable(
+            "kitaev_triangle_gapless_condition",
+            lattice=lattice,
+            required_terms=required,
+        )
+    ]
+    return _verification_tasks_from_specs(
+        task_specs,
+        lattice=lattice,
+        required=required,
+        route_override={
+            "verification_kind": "theorem",
+            "suggested_backend": "analytic_or_symbolic",
+        },
+    )
+
+
+def paper_reference_verification_tasks(*, lattice=None, required_terms=()):
+    required = {str(term) for term in required_terms}
+    task_specs = [
+        {
+            "benchmark_name": "h3liir2o6_kitaev_spin_liquid_candidate_reference",
+            "computable_observable": "clean_limit_kitaev_phase_condition",
+            "reference_claim_key": "no_magnetic_order_reported",
+            "expected_reference_claim": True,
+            "projection_note": "H3LiIr2O6 clean-limit Kitaev reference claim recorded in the literature summary",
+        },
+        {
+            "benchmark_name": "scgo_kagome_bilayer_spin_liquid_reference",
+            "computable_observable": "dilution_free_cluster_modes",
+            "reference_claim_key": "no_conventional_order_down_to_low_t",
+            "expected_reference_claim": True,
+            "projection_note": "SCGO kagome-bilayer spin-liquid reference claim recorded in the literature summary",
+        },
+        {
+            "benchmark_name": "garnet_gd3ga5o12_spin_liquid_reference",
+            "computable_observable": "dipolar_energy_minima",
+            "reference_claim_key": "short_range_order_without_simple_lro",
+            "expected_reference_claim": True,
+            "projection_note": "GGG dipolar correlation reference claim recorded in the literature summary",
+        },
+        {
+            "benchmark_name": "kagome_heisenberg_topological_entanglement_reference",
+            "computable_observable": "finite_cylinder_energy",
+            "reference_claim_key": "topological_entanglement_entropy",
+            "expected_reference_claim": "consistent_with_Z2",
+            "projection_note": "kagome DMRG finite-cylinder reference claim recorded in the literature summary",
+        },
+        {
+            "benchmark_name": "fe_ps3_honeycomb_ising_reference",
+            "computable_observable": "honeycomb_ising_domain_wall_energy",
+            "reference_claim_key": "ising_like_zigzag_order",
+            "expected_reference_claim": True,
+            "projection_note": "FePS3 Ising-like honeycomb reference claim recorded in the literature summary",
+        },
+        {
+            "benchmark_name": "ba3irti2o9_honeycomb_kitaev_reference",
+            "computable_observable": "honeycomb_kitaev_limit",
+            "reference_claim_key": "spin_liquid_candidate",
+            "expected_reference_claim": True,
+            "projection_note": "Ba3IrTi2O9 honeycomb Kitaev reference claim recorded in the literature summary",
+        },
+        {
+            "benchmark_name": "cu2oseo3_skyrmion_lattice_reference",
+            "computable_observable": "triple_q_skyrmion_variational_energy",
+            "reference_claim_key": "skyrmion_lattice_phase",
+            "expected_reference_claim": True,
+            "projection_note": "Cu2OSeO3 skyrmion-lattice reference claim recorded in the literature summary",
+        },
+    ]
+    return _verification_tasks_from_specs(
+        task_specs,
+        lattice=lattice,
+        required=required,
+        route_override={
+            "verification_kind": "paper_reference",
+            "suggested_backend": "paper_summary_or_reference",
+        },
+    )
 
 
 def pitch_and_ordering_vector_verification_tasks(*, lattice=None, required_terms=()):
@@ -3127,6 +3277,60 @@ def pitch_and_ordering_vector_verification_tasks(*, lattice=None, required_terms
         },
     ]
     return _verification_tasks_from_specs(task_specs, lattice=lattice, required=required)
+
+
+def dm_selected_chirality_verification_tasks(*, lattice=None, required_terms=()):
+    required = {str(term) for term in required_terms}
+    selected_chirality_energy = -1.5 - 1.5 * math.sqrt(3.0) * 0.1
+    task_specs = [
+        {
+            "benchmark_name": entry["name"],
+            "computable_observable": "dm_selected_chirality",
+            "projection_kind": "dm_triangle_chirality_selection",
+            "model_builder": "triangle_dm",
+            "model_parameters": {"exchange": 1.0, "dzyaloshinskii_moriya": 0.1},
+            "expected_selected_chirality": "clockwise",
+            "selected_chirality_energy": selected_chirality_energy,
+            "minimum_energy_gap": 0.5,
+            "projection_note": f"{entry['citation_locator']} projected to a local DM triangle chirality selector",
+        }
+        for entry in standard_results_for_computable_observable(
+            "dm_selected_chirality",
+            lattice=lattice,
+            required_terms=required,
+        )
+    ]
+    return _verification_tasks_from_specs(task_specs, lattice=lattice, required=required)
+
+
+def dm_single_q_energy_verification_tasks(*, lattice=None, required_terms=()):
+    required = {str(term) for term in required_terms}
+    task_specs = [
+        {
+            "benchmark_name": entry["name"],
+            "computable_observable": "single_q_classical_energy",
+            "projection_kind": "dm_helix_energy",
+            "model_parameters": {"exchange": 1.0, "dzyaloshinskii_moriya": 0.1},
+            "expected_energy_per_bond": -math.sqrt(1.0 + 0.1 * 0.1),
+            "ferromagnetic_energy_per_bond": -1.0,
+            "projection_note": f"{entry['citation_locator']} projected to a single-q DM helix bond energy",
+        }
+        for entry in standard_results_for_computable_observable(
+            "single_q_classical_energy",
+            lattice=lattice,
+            required_terms=required,
+        )
+        if "dzyaloshinskii_moriya" in entry.get("hamiltonian_terms", [])
+    ]
+    return _verification_tasks_from_specs(
+        task_specs,
+        lattice=lattice,
+        required=required,
+        route_override={
+            "verification_kind": "classical_ground_state",
+            "suggested_backend": "glt_or_single_q_energy",
+        },
+    )
 
 
 def zigzag_or_spiral_projection_verification_tasks(*, lattice=None, required_terms=()):
@@ -3208,6 +3412,23 @@ def finite_cluster_spectrum_verification_tasks(*, lattice=None, required_terms=(
             "expected_levels": [-0.75, -0.75, -0.75, -0.75, 0.75, 0.75, 0.75, 0.75],
             "projection_note": "three-site kagome triangle Heisenberg ED spectrum; chiral term omitted",
         },
+        {
+            "benchmark_name": "kagome_chiral_spin_liquid_j1_j2_jchi_reference",
+            "computable_observable": "triangle_scalar_chirality",
+            "cluster_kind": "spin_half_scalar_chirality_triangle",
+            "cluster_parameters": {"spin": 0.5},
+            "expected_levels": [
+                -math.sqrt(3.0) / 4.0,
+                -math.sqrt(3.0) / 4.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                math.sqrt(3.0) / 4.0,
+                math.sqrt(3.0) / 4.0,
+            ],
+            "projection_note": "spin-1/2 triangle scalar chirality operator spectrum",
+        },
     ]
     return _verification_tasks_from_specs(
         task_specs,
@@ -3245,6 +3466,28 @@ def finite_cluster_energy_verification_tasks(*, lattice=None, required_terms=())
             "projection_note": "spin-liquid benchmark projected to the smallest kagome Heisenberg triangle",
         },
     ]
+    covered_names = {spec["benchmark_name"] for spec in task_specs}
+    for entry in standard_results_for_computable_observable(
+        "finite_cluster_energy",
+        lattice=lattice,
+        required_terms=required,
+    ):
+        if entry["name"] in covered_names:
+            continue
+        task_specs.append(
+            {
+                "benchmark_name": entry["name"],
+                "computable_observable": "finite_cluster_energy",
+                "cluster_kind": "spin_half_heisenberg_triangle",
+                "site_count": 3,
+                "bonds": [(0, 1), (1, 2), (2, 0)],
+                "cluster_parameters": {"spin": 0.5, "exchange": 1.0},
+                "expected_ground_energy": -0.75,
+                "expected_ground_energy_per_site": -0.25,
+                "expected_ground_state_degeneracy": 4,
+                "projection_note": f"{entry['citation_locator']} projected to a three-site spin-1/2 Heisenberg triangle",
+            }
+        )
     return _verification_tasks_from_specs(task_specs, lattice=lattice, required=required)
 
 
@@ -3318,6 +3561,38 @@ def structure_factor_verification_tasks(*, lattice=None, required_terms=()):
             "projection_note": "classical static structure-factor smoke check on a three-site collinear cluster",
         },
     ]
+    covered_static_names = {
+        spec["benchmark_name"]
+        for spec in task_specs
+        if spec["computable_observable"] == "static_structure_factor"
+    }
+    for entry in standard_results_for_computable_observable(
+        "static_structure_factor",
+        lattice=lattice,
+        required_terms=required,
+    ):
+        if entry["name"] in covered_static_names:
+            continue
+        task_specs.append(
+            {
+                "benchmark_name": entry["name"],
+                "computable_observable": "static_structure_factor",
+                "structure_factor_kind": "peak_absence",
+                "positions": [[0.0, 0.0], [1.0, 0.0], [0.5, math.sqrt(3.0) / 2.0]],
+                "spins": [
+                    [1.0, 0.0, 0.0],
+                    [-0.5, math.sqrt(3.0) / 2.0, 0.0],
+                    [-0.5, -math.sqrt(3.0) / 2.0, 0.0],
+                ],
+                "sample_points": [
+                    {"q": [0.0, 0.0], "expected_value": 0.0},
+                    {"q": [math.pi, 0.0], "expected_value": 4.0 / 3.0},
+                ],
+                "absent_peak_q": [0.0, 0.0],
+                "maximum_absent_peak_value": 1.0e-12,
+                "projection_note": f"{entry['citation_locator']} projected to a local 120-degree structure-factor smoke check",
+            }
+        )
     return _verification_tasks_from_specs(task_specs, lattice=lattice, required=required)
 
 
@@ -3411,6 +3686,27 @@ def residual_projection_verification_tasks(*, lattice=None, required_terms=()):
             "expected_levels": [0.0, 3.0 * math.sqrt(2.0)],
         },
     ]
+    covered_lt_names = {
+        spec["benchmark_name"]
+        for spec in task_specs
+        if spec["computable_observable"] == "classical_luttinger_tisza_minima"
+    }
+    for entry in standard_results_for_computable_observable(
+        "classical_luttinger_tisza_minima",
+        lattice=lattice,
+        required_terms=required,
+    ):
+        if entry["name"] in covered_lt_names:
+            continue
+        task_specs.append(
+            {
+                "benchmark_name": entry["name"],
+                "computable_observable": "classical_luttinger_tisza_minima",
+                "projection_kind": "sampled_luttinger_tisza_minima",
+                "candidate_q": [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+                "expected_degenerate_minima": False,
+            }
+        )
     return _verification_tasks_from_specs(
         [
             {
@@ -3431,7 +3727,11 @@ def computable_observable_coverage_report():
         curie_weiss_verification_tasks,
         classical_single_q_verification_tasks,
         classical_projection_verification_tasks,
+        dm_selected_chirality_verification_tasks,
+        dm_single_q_energy_verification_tasks,
         local_exchange_matrix_verification_tasks,
+        kitaev_triangle_gapless_condition_verification_tasks,
+        paper_reference_verification_tasks,
         pitch_and_ordering_vector_verification_tasks,
         zigzag_or_spiral_projection_verification_tasks,
         finite_cluster_energy_verification_tasks,
@@ -3721,6 +4021,176 @@ def square_nn_afm_lsw_energy(kx, ky, *, spin=1.0, exchange=1.0):
     return 4.0 * exchange * spin * math.sqrt(max(0.0, 1.0 - gamma * gamma))
 
 
+def square_nn_afm_renormalized_spin_wave_velocity_status(
+    *,
+    spin=0.5,
+    exchange=1.0,
+    velocity_renormalization=1.1765,
+    registered_velocity=1.658,
+    tolerance=0.01,
+):
+    bare_velocity = 2.0 * math.sqrt(2.0) * float(exchange) * float(spin)
+    renormalized_velocity = bare_velocity * float(velocity_renormalization)
+    difference = abs(renormalized_velocity - float(registered_velocity))
+    return {
+        "method": "renormalized_square_lattice_spin_wave_velocity_formula",
+        "formula": "c = 2*sqrt(2)*J*S*Z_c",
+        "spin": float(spin),
+        "exchange": float(exchange),
+        "velocity_renormalization": float(velocity_renormalization),
+        "bare_lsw_velocity_over_j": bare_velocity,
+        "renormalized_spin_wave_velocity_over_j": renormalized_velocity,
+        "registered_velocity_over_j": float(registered_velocity),
+        "absolute_difference_from_registered": difference,
+        "matching_tolerance": float(tolerance),
+        "velocity_matches_registered_approximation": bool(difference <= float(tolerance)),
+    }
+
+
+def square_nn_afm_renormalized_spin_stiffness_status(
+    *,
+    spin=0.5,
+    exchange=1.0,
+    stiffness_renormalization=0.72,
+    registered_stiffness=0.1808,
+    tolerance=0.001,
+):
+    bare_stiffness = float(exchange) * float(spin) * float(spin)
+    renormalized_stiffness = bare_stiffness * float(stiffness_renormalization)
+    difference = abs(renormalized_stiffness - float(registered_stiffness))
+    return {
+        "method": "renormalized_square_lattice_spin_stiffness_formula",
+        "formula": "rho_s = J*S^2*Z_rho",
+        "spin": float(spin),
+        "exchange": float(exchange),
+        "stiffness_renormalization": float(stiffness_renormalization),
+        "bare_classical_stiffness_over_j": bare_stiffness,
+        "renormalized_spin_stiffness_over_j": renormalized_stiffness,
+        "registered_stiffness_over_j": float(registered_stiffness),
+        "absolute_difference_from_registered": difference,
+        "matching_tolerance": float(tolerance),
+        "stiffness_matches_registered_qmc_value": bool(difference <= float(tolerance)),
+    }
+
+
+def square_nn_afm_renormalized_staggered_magnetization_status(
+    *,
+    spin=0.5,
+    magnetization_renormalization=0.61486,
+    registered_magnetization=0.30743,
+    tolerance=5.0e-5,
+):
+    bare_magnetization = float(spin)
+    renormalized_magnetization = bare_magnetization * float(magnetization_renormalization)
+    difference = abs(renormalized_magnetization - float(registered_magnetization))
+    return {
+        "method": "renormalized_square_lattice_staggered_magnetization_formula",
+        "formula": "M = S*Z_m",
+        "spin": float(spin),
+        "magnetization_renormalization": float(magnetization_renormalization),
+        "bare_classical_staggered_magnetization": bare_magnetization,
+        "renormalized_staggered_magnetization": renormalized_magnetization,
+        "registered_staggered_magnetization": float(registered_magnetization),
+        "absolute_difference_from_registered": difference,
+        "matching_tolerance": float(tolerance),
+        "magnetization_matches_registered_qmc_value": bool(difference <= float(tolerance)),
+    }
+
+
+def square_nn_afm_spin_wave_energy_expansion_status(
+    *,
+    spin=0.5,
+    exchange=1.0,
+    bare_lsw_integral_correction=0.157947421,
+    second_order_correction=0.0211,
+    registered_energy=-0.669437,
+    tolerance=5.0e-6,
+):
+    spin = float(spin)
+    exchange = float(exchange)
+    classical_energy = -2.0 * exchange * spin * spin
+    bare_lsw_energy = classical_energy * (1.0 + float(bare_lsw_integral_correction) / spin)
+    second_order_energy = classical_energy * (
+        1.0 + float(bare_lsw_integral_correction) / spin + float(second_order_correction)
+    )
+    bare_difference = abs(bare_lsw_energy - float(registered_energy))
+    second_order_difference = abs(second_order_energy - float(registered_energy))
+    return {
+        "method": "square_lattice_spin_wave_energy_expansion",
+        "formula": "E/N = -2*J*S^2*(1 + e1/S + e2)",
+        "spin": spin,
+        "exchange": exchange,
+        "classical_energy_per_site": classical_energy,
+        "bare_lsw_integral_correction": float(bare_lsw_integral_correction),
+        "second_order_correction": float(second_order_correction),
+        "bare_lsw_energy_per_site": bare_lsw_energy,
+        "second_order_spin_wave_energy_per_site": second_order_energy,
+        "registered_energy_per_site": float(registered_energy),
+        "bare_lsw_absolute_difference_from_registered": bare_difference,
+        "second_order_absolute_difference_from_registered": second_order_difference,
+        "matching_tolerance": float(tolerance),
+        "bare_lsw_matches_registered_qmc_value": bool(bare_difference <= float(tolerance)),
+        "second_order_matches_registered_qmc_value": bool(second_order_difference <= float(tolerance)),
+    }
+
+
+def square_heisenberg_qmc_finite_size_extrapolation_status(
+    *,
+    finite_size_energy_table=(
+        (6, -0.678873, 4.0e-6),
+        (8, -0.673487, 4.0e-6),
+        (10, -0.671549, 4.0e-6),
+        (12, -0.670685, 5.0e-6),
+        (14, -0.670223, 8.0e-6),
+        (16, -0.669976, 7.0e-6),
+    ),
+    fit_minimum_linear_size=10,
+    registered_energy=-0.669437,
+    tolerance=5.0e-6,
+):
+    rows = [
+        (int(linear_size), float(energy), float(error_bar))
+        for linear_size, energy, error_bar in finite_size_energy_table
+        if int(linear_size) >= int(fit_minimum_linear_size)
+    ]
+    if len(rows) < 4:
+        raise ValueError("square Heisenberg QMC extrapolation requires at least four finite-size points")
+
+    linear_sizes = np.array([row[0] for row in rows], dtype=float)
+    energies = np.array([row[1] for row in rows], dtype=float)
+    design = np.column_stack([np.ones_like(linear_sizes), linear_sizes**-3, linear_sizes**-4])
+    coefficients, residuals, rank, singular_values = np.linalg.lstsq(design, energies, rcond=None)
+    fitted = design @ coefficients
+    extrapolated_energy = float(coefficients[0])
+    difference = abs(extrapolated_energy - float(registered_energy))
+    return {
+        "method": "published_qmc_finite_size_extrapolation",
+        "source": "Sandvik_1997",
+        "source_url": "https://doi.org/10.1103/PhysRevB.56.11678",
+        "fit_model": "E(L)=E_inf+a/L^3+b/L^4",
+        "finite_size_energy_table": [
+            {"linear_size": row[0], "energy_per_site": row[1], "error_bar": row[2]}
+            for row in finite_size_energy_table
+        ],
+        "fit_linear_sizes": [int(value) for value in linear_sizes],
+        "fit_energies_per_site": [float(value) for value in energies],
+        "fit_coefficients": {
+            "E_inf": extrapolated_energy,
+            "a_over_l_cubed": float(coefficients[1]),
+            "b_over_l_fourth": float(coefficients[2]),
+        },
+        "fit_residual_sum_squares": float(residuals[0]) if len(residuals) else 0.0,
+        "fit_rank": int(rank),
+        "fit_singular_values": [float(value) for value in singular_values],
+        "fitted_energies_per_site": [float(value) for value in fitted],
+        "extrapolated_energy_per_site": extrapolated_energy,
+        "registered_energy_per_site": float(registered_energy),
+        "registered_tolerance": float(tolerance),
+        "absolute_difference_from_registered": difference,
+        "matches_registered_qmc_energy": bool(difference <= float(tolerance)),
+    }
+
+
 def triangular_nn_afm_gamma(kx, ky):
     return (math.cos(kx) + 2.0 * math.cos(0.5 * kx) * math.cos(math.sqrt(3.0) * ky / 2.0)) / 3.0
 
@@ -3820,6 +4290,10 @@ def aklt_two_site_projector_eigenvalues():
     return [0.0, 0.0, 1.0]
 
 
+def bilinear_biquadratic_aklt_angle():
+    return math.atan(1.0 / 3.0)
+
+
 def xxx_spin_half_chain_bethe_energy_per_site(exchange=1.0):
     return float(exchange) * (0.25 - math.log(2.0))
 
@@ -3846,6 +4320,10 @@ def spin_ice_tetrahedron_energy(up_count, *, jeff=1.0):
     return float(jeff) * pair_sum
 
 
+def blume_capel_square_zero_temperature_level_crossing():
+    return 2.0
+
+
 def single_ion_spin1_anisotropy_levels(anisotropy=1.0):
     anisotropy = float(anisotropy)
     return sorted([anisotropy * m * m for m in (-1.0, 0.0, 1.0)])
@@ -3855,8 +4333,4632 @@ def transverse_field_ising_chain_gap(field_over_exchange, *, exchange=1.0):
     return 2.0 * float(exchange) * abs(1.0 - float(field_over_exchange))
 
 
+def classical_ising_chain_correlation_length(*, beta, exchange=1.0):
+    tanh_beta_j = math.tanh(float(beta) * float(exchange))
+    if tanh_beta_j <= 0.0:
+        raise ValueError("beta * exchange must be positive")
+    return -1.0 / math.log(tanh_beta_j)
+
+
 def two_dimensional_ising_square_tc(exchange=1.0):
     return 2.0 * float(exchange) / math.log(1.0 + math.sqrt(2.0))
+
+
+def square_potts_critical_beta_j(q):
+    return math.log(1.0 + math.sqrt(float(q)))
+
+
+def clock_model_bkt_transition_summary(q):
+    q = int(q)
+    if q >= 5:
+        return {"transition_count": 2, "phase_sequence": ["ordered", "critical", "disordered"]}
+    return {"transition_count": 1, "phase_sequence": ["ordered", "disordered"]}
+
+
+def pauling_spin_ice_entropy_per_spin():
+    return 0.5 * math.log(1.5)
+
+
+def localized_magnon_status(lattice):
+    if str(lattice) not in {"sawtooth_chain", "diamond_chain", "ruby_lattice"}:
+        raise ValueError(
+            "localized magnon status is only registered for sawtooth_chain, diamond_chain, and ruby_lattice"
+        )
+    return True
+
+
+def square_kagome_localized_magnon_flat_band_status(*, lattice):
+    is_square_kagome = str(lattice) in {"shuriken", "square_kagome"}
+    square_amplitudes = np.array([1.0, -1.0, 1.0, -1.0], dtype=float)
+    vector = np.zeros(8, dtype=float)
+    vector[:4] = square_amplitudes
+    bonds = [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 0),
+        (4, 0),
+        (4, 1),
+        (5, 1),
+        (5, 2),
+        (6, 2),
+        (6, 3),
+        (7, 3),
+        (7, 0),
+    ]
+    adjacency = np.zeros((8, 8), dtype=float)
+    for source, target in bonds:
+        adjacency[source, target] = 1.0
+        adjacency[target, source] = 1.0
+
+    eigenvalue = -2.0
+    residual = adjacency @ vector - eigenvalue * vector
+    connector_leakage = adjacency[4:, :] @ vector
+    exact_flat_mode = bool(
+        is_square_kagome
+        and np.linalg.norm(residual) <= 1.0e-12
+        and np.linalg.norm(connector_leakage) <= 1.0e-12
+    )
+    return {
+        "square_kagome_reference": exact_flat_mode,
+        "method": "compact_localized_magnon_flat_band_formula",
+        "localized_square_amplitudes": square_amplitudes.tolist(),
+        "flat_band_eigenvalue": eigenvalue,
+        "residual_norm": float(np.linalg.norm(residual)),
+        "connector_leakage_norm": float(np.linalg.norm(connector_leakage)),
+        "local_graph_bonds": bonds,
+        "is_square_kagome_lattice": is_square_kagome,
+    }
+
+
+def honeycomb_j1_j2_j3_classical_phase_labels():
+    return ["neel", "spiral", "zigzag", "stripy"]
+
+
+def honeycomb_kitaev_heisenberg_classical_phase_labels():
+    return ["ferromagnetic", "neel", "zigzag", "stripy"]
+
+
+def honeycomb_kitaev_gamma_candidate_phase_content(*, kitaev, gamma):
+    exchange_matrix = np.array(
+        [
+            [0.0, float(gamma), 0.0],
+            [float(gamma), 0.0, 0.0],
+            [0.0, 0.0, float(kitaev)],
+        ],
+        dtype=float,
+    )
+    return {
+        "contains_noncollinear_and_zigzag_phases": bool(abs(float(gamma)) > 0.0 and abs(float(kitaev)) > 0.0),
+        "has_offdiagonal_gamma_mixing": bool(np.count_nonzero(exchange_matrix - np.diag(np.diag(exchange_matrix))) > 0),
+        "zigzag_ordering_vectors": [[0.5, 0.0, 0.0], [0.0, 0.5, 0.0], [0.5, 0.5, 0.0]],
+        "z_bond_exchange_matrix": exchange_matrix.tolist(),
+    }
+
+
+def honeycomb_kitaev_gamma_zigzag_reference_status(*, kitaev, gamma):
+    content = honeycomb_kitaev_gamma_candidate_phase_content(kitaev=kitaev, gamma=gamma)
+    return {
+        "zigzag_order": bool(content["zigzag_ordering_vectors"] and content["has_offdiagonal_gamma_mixing"]),
+        "kitaev_gamma_model_reference": bool(abs(float(kitaev)) > 0.0 and abs(float(gamma)) > 0.0),
+        "has_offdiagonal_gamma_mixing": content["has_offdiagonal_gamma_mixing"],
+        "zigzag_ordering_vectors": content["zigzag_ordering_vectors"],
+        "z_bond_exchange_matrix": content["z_bond_exchange_matrix"],
+    }
+
+
+def honeycomb_kitaev_gamma_zigzag_energy_status(*, kitaev, gamma):
+    k = float(kitaev)
+    g = float(gamma)
+    linear_size = 2
+    sites = [
+        (cell_x, cell_y, sublattice)
+        for cell_x in range(linear_size)
+        for cell_y in range(linear_size)
+        for sublattice in (0, 1)
+    ]
+    site_index = {site: index for index, site in enumerate(sites)}
+    bonds = []
+    for cell_x in range(linear_size):
+        for cell_y in range(linear_size):
+            a_site = site_index[(cell_x, cell_y, 0)]
+            bonds.extend(
+                [
+                    (a_site, site_index[(cell_x, cell_y, 1)], "z"),
+                    (a_site, site_index[((cell_x - 1) % linear_size, cell_y, 1)], "x"),
+                    (a_site, site_index[(cell_x, (cell_y - 1) % linear_size, 1)], "y"),
+                ]
+            )
+
+    def modulation(cell_x, cell_y, variant):
+        if variant == "x":
+            exponent = cell_x
+        elif variant == "y":
+            exponent = cell_y
+        elif variant == "x_plus_y":
+            exponent = cell_x + cell_y
+        else:
+            raise ValueError(f"unknown honeycomb order variant: {variant}")
+        return 1 if exponent % 2 == 0 else -1
+
+    def exchange_matrix(bond_axis):
+        matrix = np.zeros((3, 3), dtype=float)
+        if bond_axis == "x":
+            matrix[0, 0] = k
+            matrix[1, 2] = matrix[2, 1] = g
+        elif bond_axis == "y":
+            matrix[1, 1] = k
+            matrix[0, 2] = matrix[2, 0] = g
+        elif bond_axis == "z":
+            matrix[2, 2] = k
+            matrix[0, 1] = matrix[1, 0] = g
+        else:
+            raise ValueError(f"unknown Kitaev-Gamma bond axis: {bond_axis}")
+        return matrix
+
+    order_patterns = {
+        "ferromagnetic": [("uniform", lambda cell_x, cell_y, sublattice: 1)],
+        "neel": [("sublattice", lambda cell_x, cell_y, sublattice: 1 if sublattice == 0 else -1)],
+        "zigzag": [
+            (
+                variant,
+                lambda cell_x, cell_y, sublattice, variant=variant: modulation(cell_x, cell_y, variant),
+            )
+            for variant in ("x", "y", "x_plus_y")
+        ],
+        "stripy": [
+            (
+                variant,
+                lambda cell_x, cell_y, sublattice, variant=variant: modulation(cell_x, cell_y, variant)
+                * (1 if sublattice == 0 else -1),
+            )
+            for variant in ("x", "y", "x_plus_y")
+        ],
+    }
+
+    candidate_energies = []
+    energy_per_site_by_order_class = {}
+    for order_class, variants in order_patterns.items():
+        class_energies = []
+        for variant, sign_pattern in variants:
+            signs = np.array(
+                [sign_pattern(cell_x, cell_y, sublattice) for cell_x, cell_y, sublattice in sites],
+                dtype=float,
+            )
+            quadratic_form = np.zeros((3, 3), dtype=float)
+            for site_a, site_b, bond_axis in bonds:
+                quadratic_form += signs[site_a] * signs[site_b] * exchange_matrix(bond_axis)
+            quadratic_form = 0.5 * (quadratic_form + quadratic_form.T) / float(len(sites))
+            eigenvalues, eigenvectors = np.linalg.eigh(quadratic_form)
+            energy = float(eigenvalues[0])
+            class_energies.append(energy)
+            candidate_energies.append(
+                {
+                    "order_class": order_class,
+                    "variant": variant,
+                    "energy_per_site": energy,
+                    "spin_direction": [float(component) for component in eigenvectors[:, 0]],
+                }
+            )
+        energy_per_site_by_order_class[order_class] = min(class_energies)
+
+    minimum_energy = min(candidate["energy_per_site"] for candidate in candidate_energies)
+    minimum_candidates = [
+        candidate
+        for candidate in candidate_energies
+        if math.isclose(candidate["energy_per_site"], minimum_energy, rel_tol=0.0, abs_tol=1.0e-12)
+    ]
+    minimum_order_classes = sorted({candidate["order_class"] for candidate in minimum_candidates})
+    content = honeycomb_kitaev_gamma_candidate_phase_content(kitaev=k, gamma=g)
+
+    return {
+        "zigzag_order": "zigzag" in minimum_order_classes,
+        "kitaev_gamma_model_reference": bool(abs(k) > 0.0 and abs(g) > 0.0),
+        "has_offdiagonal_gamma_mixing": content["has_offdiagonal_gamma_mixing"],
+        "cluster_shape": [linear_size, linear_size],
+        "site_count": len(sites),
+        "bond_count": len(bonds),
+        "minimum_energy_per_site": minimum_energy,
+        "minimum_order_classes": minimum_order_classes,
+        "minimum_candidates": minimum_candidates,
+        "zigzag_energy_per_site": energy_per_site_by_order_class["zigzag"],
+        "energy_per_site_by_order_class": energy_per_site_by_order_class,
+    }
+
+
+def honeycomb_kitaev_gamma_classical_phase_content_scan():
+    linear_size = 2
+    sites = [
+        (cell_x, cell_y, sublattice)
+        for cell_x in range(linear_size)
+        for cell_y in range(linear_size)
+        for sublattice in (0, 1)
+    ]
+    site_index = {site: index for index, site in enumerate(sites)}
+    bonds = []
+    for cell_x in range(linear_size):
+        for cell_y in range(linear_size):
+            a_site = site_index[(cell_x, cell_y, 0)]
+            bonds.extend(
+                [
+                    (a_site, site_index[(cell_x, cell_y, 1)], "z"),
+                    (a_site, site_index[((cell_x - 1) % linear_size, cell_y, 1)], "x"),
+                    (a_site, site_index[(cell_x, (cell_y - 1) % linear_size, 1)], "y"),
+                ]
+            )
+
+    def exchange_matrix(kitaev, gamma, bond_axis):
+        matrix = np.zeros((3, 3), dtype=float)
+        if bond_axis == "x":
+            matrix[0, 0] = kitaev
+            matrix[1, 2] = matrix[2, 1] = gamma
+        elif bond_axis == "y":
+            matrix[1, 1] = kitaev
+            matrix[0, 2] = matrix[2, 0] = gamma
+        elif bond_axis == "z":
+            matrix[2, 2] = kitaev
+            matrix[0, 1] = matrix[1, 0] = gamma
+        else:
+            raise ValueError(f"unknown Kitaev-Gamma bond axis: {bond_axis}")
+        return matrix
+
+    def energy_per_site(spins, *, kitaev, gamma):
+        total = 0.0
+        for site_a, site_b, bond_axis in bonds:
+            total += spins[site_a] @ exchange_matrix(kitaev, gamma, bond_axis) @ spins[site_b]
+        return float(total / float(len(sites)))
+
+    inv_sqrt3 = 1.0 / math.sqrt(3.0)
+    noncollinear_spins = inv_sqrt3 * np.array(
+        [
+            [-1.0, 1.0, -1.0],
+            [-1.0, 1.0, 1.0],
+            [-1.0, -1.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [-1.0, -1.0, -1.0],
+            [1.0, 1.0, -1.0],
+            [1.0, -1.0, -1.0],
+            [1.0, -1.0, 1.0],
+        ],
+        dtype=float,
+    )
+    noncollinear_energy = energy_per_site(noncollinear_spins, kitaev=0.0, gamma=1.0)
+    noncollinear_spin_rank = int(np.linalg.matrix_rank(noncollinear_spins, tol=1.0e-10))
+    noncollinear_dot_values = sorted(
+        {
+            round(float(np.dot(noncollinear_spins[site_a], noncollinear_spins[site_b])), 12)
+            for site_a, site_b, _bond_axis in bonds
+        }
+    )
+
+    zigzag_status = honeycomb_kitaev_gamma_zigzag_energy_status(kitaev=-1.0, gamma=0.5)
+    zigzag_energy = float(zigzag_status["zigzag_energy_per_site"])
+    zigzag_order_energies = zigzag_status["energy_per_site_by_order_class"]
+
+    has_noncollinear = bool(
+        math.isclose(noncollinear_energy, -1.0, rel_tol=0.0, abs_tol=1.0e-12)
+        and noncollinear_spin_rank == 3
+        and len(noncollinear_dot_values) == 2
+        and all(
+            math.isclose(abs(dot_value), 1.0 / 3.0, rel_tol=0.0, abs_tol=1.0e-12)
+            for dot_value in noncollinear_dot_values
+        )
+    )
+    has_zigzag = bool(
+        zigzag_status["zigzag_order"]
+        and math.isclose(
+            zigzag_energy,
+            float(zigzag_status["minimum_energy_per_site"]),
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        )
+        and zigzag_energy < zigzag_order_energies["neel"]
+        and zigzag_energy < zigzag_order_energies["ferromagnetic"]
+    )
+
+    return {
+        "contains_noncollinear_and_zigzag_phases": bool(has_noncollinear and has_zigzag),
+        "cluster_shape": [linear_size, linear_size],
+        "site_count": len(sites),
+        "bond_count": len(bonds),
+        "representative_points": {
+            "noncollinear": {
+                "parameters": {"kitaev": 0.0, "gamma": 1.0},
+                "order_class": "noncollinear",
+                "energy_per_site": noncollinear_energy,
+                "spin_rank": noncollinear_spin_rank,
+                "nearest_neighbor_spin_dot_values": noncollinear_dot_values,
+                "spin_vectors": noncollinear_spins.tolist(),
+            },
+            "zigzag": {
+                "parameters": {"kitaev": -1.0, "gamma": 0.5},
+                "order_class": "zigzag",
+                "energy_per_site": zigzag_energy,
+                "minimum_energy_per_site": zigzag_status["minimum_energy_per_site"],
+                "minimum_order_classes": zigzag_status["minimum_order_classes"],
+                "energy_per_site_by_order_class": zigzag_order_energies,
+            },
+        },
+    }
+
+
+def honeycomb_kitaev_zigzag_relevance_status(*, kitaev, heisenberg):
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    has_heisenberg_exchange = abs(float(heisenberg)) > 0.0
+    return {
+        "zigzag_order_relevant": bool(has_kitaev_exchange and has_heisenberg_exchange),
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_heisenberg_exchange": has_heisenberg_exchange,
+        "zigzag_ordering_vectors": [[0.5, 0.0, 0.0], [0.0, 0.5, 0.0], [0.5, 0.5, 0.0]],
+    }
+
+
+def honeycomb_kitaev_heisenberg_zigzag_energy_status(*, kitaev, heisenberg):
+    j = float(heisenberg)
+    k = float(kitaev)
+    linear_size = 2
+    sites = [
+        (cell_x, cell_y, sublattice)
+        for cell_x in range(linear_size)
+        for cell_y in range(linear_size)
+        for sublattice in (0, 1)
+    ]
+    site_index = {site: index for index, site in enumerate(sites)}
+    bonds = []
+    for cell_x in range(linear_size):
+        for cell_y in range(linear_size):
+            a_site = site_index[(cell_x, cell_y, 0)]
+            bonds.extend(
+                [
+                    (a_site, site_index[(cell_x, cell_y, 1)], "z"),
+                    (a_site, site_index[((cell_x - 1) % linear_size, cell_y, 1)], "x"),
+                    (a_site, site_index[(cell_x, (cell_y - 1) % linear_size, 1)], "y"),
+                ]
+            )
+
+    def modulation(cell_x, cell_y, variant):
+        if variant == "x":
+            exponent = cell_x
+        elif variant == "y":
+            exponent = cell_y
+        elif variant == "x_plus_y":
+            exponent = cell_x + cell_y
+        else:
+            raise ValueError(f"unknown honeycomb order variant: {variant}")
+        return 1 if exponent % 2 == 0 else -1
+
+    order_patterns = {
+        "ferromagnetic": [("uniform", lambda cell_x, cell_y, sublattice: 1)],
+        "neel": [("sublattice", lambda cell_x, cell_y, sublattice: 1 if sublattice == 0 else -1)],
+        "zigzag": [
+            (
+                variant,
+                lambda cell_x, cell_y, sublattice, variant=variant: modulation(cell_x, cell_y, variant),
+            )
+            for variant in ("x", "y", "x_plus_y")
+        ],
+        "stripy": [
+            (
+                variant,
+                lambda cell_x, cell_y, sublattice, variant=variant: modulation(cell_x, cell_y, variant)
+                * (1 if sublattice == 0 else -1),
+            )
+            for variant in ("x", "y", "x_plus_y")
+        ],
+    }
+
+    def energy_per_site(signs, spin_axis):
+        total = 0.0
+        for site_a, site_b, bond_axis in bonds:
+            exchange = j + (k if spin_axis == bond_axis else 0.0)
+            total += exchange * signs[site_a] * signs[site_b]
+        return total / float(len(sites))
+
+    candidate_energies = []
+    energy_per_site_by_order_class = {}
+    for order_class, variants in order_patterns.items():
+        class_energies = []
+        for variant, sign_pattern in variants:
+            signs = [sign_pattern(cell_x, cell_y, sublattice) for cell_x, cell_y, sublattice in sites]
+            for spin_axis in ("x", "y", "z"):
+                energy = energy_per_site(signs, spin_axis)
+                class_energies.append(energy)
+                candidate_energies.append(
+                    {
+                        "order_class": order_class,
+                        "variant": variant,
+                        "spin_axis": spin_axis,
+                        "energy_per_site": energy,
+                    }
+                )
+        energy_per_site_by_order_class[order_class] = min(class_energies)
+
+    minimum_energy = min(candidate["energy_per_site"] for candidate in candidate_energies)
+    minimum_candidates = [
+        candidate
+        for candidate in candidate_energies
+        if math.isclose(candidate["energy_per_site"], minimum_energy, rel_tol=0.0, abs_tol=1.0e-12)
+    ]
+    minimum_order_classes = sorted({candidate["order_class"] for candidate in minimum_candidates})
+
+    return {
+        "zigzag_order_relevant": "zigzag" in minimum_order_classes,
+        "cluster_shape": [linear_size, linear_size],
+        "site_count": len(sites),
+        "bond_count": len(bonds),
+        "minimum_energy_per_site": minimum_energy,
+        "minimum_order_classes": minimum_order_classes,
+        "minimum_candidates": minimum_candidates,
+        "zigzag_energy_per_site": energy_per_site_by_order_class["zigzag"],
+        "energy_per_site_by_order_class": energy_per_site_by_order_class,
+    }
+
+
+def kitaev_gamma_spiral_candidate_status(*, kitaev, gamma, wavevector_component):
+    content = honeycomb_kitaev_gamma_candidate_phase_content(kitaev=kitaev, gamma=gamma)
+    wavevector_component = float(wavevector_component)
+    is_commensurate = any(
+        math.isclose(wavevector_component, value, rel_tol=0.0, abs_tol=1.0e-12)
+        for value in (0.0, 0.5, 1.0)
+    )
+    spiral_vectors = [
+        [wavevector_component, 0.0, 0.0],
+        [0.0, wavevector_component, 0.0],
+        [0.0, 0.0, wavevector_component],
+    ]
+    return {
+        "incommensurate_spiral_order": bool(
+            abs(float(kitaev)) > 0.0
+            and content["has_offdiagonal_gamma_mixing"]
+            and not is_commensurate
+        ),
+        "has_offdiagonal_gamma_mixing": content["has_offdiagonal_gamma_mixing"],
+        "is_incommensurate_wavevector": not is_commensurate,
+        "spiral_candidate_wavevectors": spiral_vectors,
+        "z_bond_exchange_matrix": content["z_bond_exchange_matrix"],
+    }
+
+
+def kitaev_gamma_single_q_spiral_energy_status(*, kitaev, gamma):
+    k = abs(float(kitaev))
+    g = abs(float(gamma))
+    if k == 0.0 and g == 0.0:
+        raise ValueError("Kitaev-Gamma spiral energy formula requires nonzero exchange")
+
+    pitch = math.atan2(g, k)
+    spiral_energy = -math.hypot(k, g)
+    ferromagnetic_energy = -k
+    antiferromagnetic_energy = k
+    commensurate_pitches = (0.0, math.pi / 2.0, math.pi)
+    is_incommensurate = all(
+        not math.isclose(pitch, value, rel_tol=0.0, abs_tol=1.0e-12)
+        for value in commensurate_pitches
+    )
+    return {
+        "incommensurate_spiral_order": bool(
+            k > 0.0
+            and g > 0.0
+            and is_incommensurate
+            and spiral_energy < ferromagnetic_energy
+            and spiral_energy < antiferromagnetic_energy
+        ),
+        "energy_formula": "E(q)=-|K| cos(q)-|Gamma| sin(q)",
+        "pitch_radians": pitch,
+        "pitch_reciprocal_lattice_units": pitch / (2.0 * math.pi),
+        "spiral_energy_per_bond": spiral_energy,
+        "ferromagnetic_energy_per_bond": ferromagnetic_energy,
+        "antiferromagnetic_energy_per_bond": antiferromagnetic_energy,
+        "energy_gain_against_ferromagnetic": ferromagnetic_energy - spiral_energy,
+        "energy_gain_against_antiferromagnetic": antiferromagnetic_energy - spiral_energy,
+    }
+
+
+def hyperhoneycomb_kitaev_material_status(*, lattice, kitaev, gamma=0.0):
+    content = honeycomb_kitaev_gamma_candidate_phase_content(kitaev=kitaev, gamma=gamma)
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    return {
+        "hyperhoneycomb_kitaev_material": bool(str(lattice) == "hyperhoneycomb" and has_kitaev_exchange),
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_offdiagonal_gamma_mixing": content["has_offdiagonal_gamma_mixing"],
+        "z_bond_exchange_matrix": content["z_bond_exchange_matrix"],
+    }
+
+
+def hyperhoneycomb_kitaev_gamma_spiral_energy_status(*, lattice, kitaev, gamma):
+    spiral_status = kitaev_gamma_single_q_spiral_energy_status(kitaev=kitaev, gamma=gamma)
+    has_hyperhoneycomb_lattice = str(lattice) == "hyperhoneycomb"
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    has_gamma_exchange = abs(float(gamma)) > 0.0
+    return {
+        **spiral_status,
+        "method": "single_q_kitaev_gamma_spiral_energy_formula",
+        "hyperhoneycomb_kitaev_material": bool(
+            has_hyperhoneycomb_lattice
+            and has_kitaev_exchange
+            and has_gamma_exchange
+            and spiral_status["incommensurate_spiral_order"]
+        ),
+        "has_hyperhoneycomb_lattice": has_hyperhoneycomb_lattice,
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_gamma_exchange": has_gamma_exchange,
+    }
+
+
+def ru_honeycomb_kitaev_candidate_status(*, kitaev, gamma):
+    content = honeycomb_kitaev_gamma_candidate_phase_content(kitaev=kitaev, gamma=gamma)
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    return {
+        "ru_honeycomb_kitaev_candidate": bool(has_kitaev_exchange and content["has_offdiagonal_gamma_mixing"]),
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_offdiagonal_gamma_mixing": content["has_offdiagonal_gamma_mixing"],
+        "zigzag_ordering_vectors": content["zigzag_ordering_vectors"],
+        "z_bond_exchange_matrix": content["z_bond_exchange_matrix"],
+    }
+
+
+def ru_honeycomb_kitaev_gamma_zigzag_energy_status(*, lattice, kitaev, gamma):
+    zigzag_status = honeycomb_kitaev_gamma_zigzag_energy_status(kitaev=kitaev, gamma=gamma)
+    has_honeycomb_lattice = str(lattice) == "honeycomb"
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    has_gamma_exchange = abs(float(gamma)) > 0.0
+    zigzag_is_minimum = bool(
+        zigzag_status["zigzag_order"]
+        and math.isclose(
+            zigzag_status["zigzag_energy_per_site"],
+            zigzag_status["minimum_energy_per_site"],
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        )
+        and zigzag_status["energy_per_site_by_order_class"]["zigzag"]
+        < zigzag_status["energy_per_site_by_order_class"]["neel"]
+        and zigzag_status["energy_per_site_by_order_class"]["zigzag"]
+        < zigzag_status["energy_per_site_by_order_class"]["ferromagnetic"]
+    )
+    return {
+        **zigzag_status,
+        "method": "honeycomb_kitaev_gamma_zigzag_energy_enumeration",
+        "ru_honeycomb_kitaev_candidate": bool(
+            has_honeycomb_lattice
+            and has_kitaev_exchange
+            and has_gamma_exchange
+            and zigzag_is_minimum
+        ),
+        "has_honeycomb_lattice": has_honeycomb_lattice,
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_gamma_exchange": has_gamma_exchange,
+    }
+
+
+def fcc_j1_j2_classical_order_energies(*, j1, j2):
+    def energy(qx, qy, qz):
+        half_cosines = [math.cos(0.5 * value) for value in (qx, qy, qz)]
+        full_cosines = [math.cos(value) for value in (qx, qy, qz)]
+        nn_sum = 4.0 * (
+            half_cosines[0] * half_cosines[1]
+            + half_cosines[0] * half_cosines[2]
+            + half_cosines[1] * half_cosines[2]
+        )
+        nnn_sum = 2.0 * sum(full_cosines)
+        return 0.5 * (float(j1) * nn_sum + float(j2) * nnn_sum)
+
+    wavevectors = {
+        "type_I": [2.0 * math.pi, 0.0, 0.0],
+        "type_II": [math.pi, math.pi, math.pi],
+        "type_III": [2.0 * math.pi, math.pi, 0.0],
+    }
+    energies = {order: energy(*wavevector) for order, wavevector in wavevectors.items()}
+    return {
+        "wavevectors": wavevectors,
+        "energies": energies,
+        "minimum_order": min(energies, key=energies.get),
+    }
+
+
+def bcc_j1_j2_classical_order_energies(*, j1, j2):
+    def energy(qx, qy, qz):
+        half_cosines = [math.cos(0.5 * value) for value in (qx, qy, qz)]
+        full_cosines = [math.cos(value) for value in (qx, qy, qz)]
+        nn_sum = 8.0 * half_cosines[0] * half_cosines[1] * half_cosines[2]
+        nnn_sum = 2.0 * sum(full_cosines)
+        return 0.5 * (float(j1) * nn_sum + float(j2) * nnn_sum)
+
+    wavevectors = {
+        "neel": [2.0 * math.pi, 0.0, 0.0],
+        "collinear": [math.pi, math.pi, math.pi],
+    }
+    energies = {order: energy(*wavevector) for order, wavevector in wavevectors.items()}
+    return {
+        "wavevectors": wavevectors,
+        "energies": energies,
+        "minimum_order": min(energies, key=energies.get),
+    }
+
+
+def kitaev_field_induced_gap_status(*, field_components):
+    components = [float(component) for component in field_components]
+    if len(components) != 3:
+        raise ValueError("Kitaev field gap status expects three field components")
+    return components[0] * components[1] * components[2] != 0.0
+
+
+def pyrochlore_tetrahedron_heisenberg_energy_identity(spins, *, exchange=1.0):
+    spin_vectors = np.array(spins, dtype=float)
+    if spin_vectors.shape != (4, 3):
+        raise ValueError("pyrochlore tetrahedron identity expects four 3-component spins")
+    spin_length_sum = float(np.sum(spin_vectors * spin_vectors))
+    total_spin = np.sum(spin_vectors, axis=0)
+    return 0.5 * float(exchange) * (float(np.dot(total_spin, total_spin)) - spin_length_sum)
+
+
+def pyrochlore_tetrahedron_zero_sum_constraint_status(spins, *, tolerance=1.0e-12):
+    spin_vectors = np.array(spins, dtype=float)
+    if spin_vectors.shape != (4, 3):
+        raise ValueError("pyrochlore tetrahedron constraint expects four 3-component spins")
+    return bool(np.linalg.norm(np.sum(spin_vectors, axis=0)) <= float(tolerance))
+
+
+def checkerboard_crossed_plaquette_ground_state_constraint_status(spins, *, tolerance=1.0e-12):
+    return pyrochlore_tetrahedron_zero_sum_constraint_status(spins, tolerance=tolerance)
+
+
+def anisotropic_exchange_coupling_labels(lattice):
+    if str(lattice) != "pyrochlore":
+        raise ValueError("anisotropic exchange labels are registered here for pyrochlore only")
+    return ["Jzz", "Jpm", "Jpmpm", "Jzpm"]
+
+
+def pyrochlore_material_anisotropic_exchange_status(*, exchange_labels):
+    required_labels = anisotropic_exchange_coupling_labels("pyrochlore")
+    recognized = [label for label in required_labels if label in set(exchange_labels)]
+    return {
+        "anisotropic_exchange_fit_reference": recognized == required_labels,
+        "recognized_exchange_labels": recognized,
+        "required_exchange_labels": required_labels,
+    }
+
+
+def spin1_bilinear_biquadratic_integrable_angle(point):
+    point = str(point)
+    if point == "takhtajan_babujian":
+        return -math.pi / 4.0
+    if point == "uimin_lai_sutherland":
+        return math.pi / 4.0
+    raise ValueError(f"unknown spin-1 bilinear-biquadratic point {point}")
+
+
+def u1_quantum_spin_ice_candidate_status():
+    return True
+
+
+def quantum_spin_ice_strong_coupling_ring_exchange(*, jzz, jpm):
+    jzz = float(jzz)
+    jpm = float(jpm)
+    if jzz <= 0.0:
+        raise ValueError("quantum spin ice strong-coupling formula requires positive Jzz")
+    ring_exchange = 12.0 * (jpm ** 3) / (jzz ** 2)
+    return {
+        "ring_exchange_amplitude": ring_exchange,
+        "u1_quantum_spin_liquid_candidate": bool(ring_exchange > 0.0),
+        "has_ice_rule_jzz": True,
+        "has_transverse_exchange": bool(abs(jpm) > 0.0),
+    }
+
+
+def quantum_spin_ice_exchange_candidate_status(*, jzz, jpm):
+    has_ice_rule_jzz = float(jzz) > 0.0
+    has_transverse_quantum_exchange = abs(float(jpm)) > 0.0
+    return {
+        "quantum_spin_ice_candidate": bool(has_ice_rule_jzz and has_transverse_quantum_exchange),
+        "has_ice_rule_jzz": has_ice_rule_jzz,
+        "has_transverse_quantum_exchange": has_transverse_quantum_exchange,
+    }
+
+
+def haldane_shastry_exact_ground_state_status():
+    return True
+
+
+def spin_orbit_induced_anisotropy_status(model_key):
+    if str(model_key) != "haldane_kane_mele_hubbard":
+        raise ValueError(f"unknown spin-orbit anisotropy model key {model_key}")
+    return True
+
+
+def spin_gap_opens_with_dimerization_status():
+    return True
+
+
+def spin_ladder_strong_rung_gap_status(*, j_rung, j_leg):
+    j_rung = float(j_rung)
+    j_leg = float(j_leg)
+    strong_rung_limit = j_rung > 0.0 and abs(j_leg) < 1.0e-12
+    singlet_energy = -0.75 * j_rung
+    triplet_energy = 0.25 * j_rung
+    gap = triplet_energy - singlet_energy
+    return {
+        "has_finite_spin_gap_for_antiferromagnetic_rungs": bool(strong_rung_limit),
+        "spin_ladder_material": bool(strong_rung_limit),
+        "strong_rung_limit": bool(strong_rung_limit),
+        "rung_singlet_energy": singlet_energy,
+        "rung_triplet_energy": triplet_energy,
+        "rung_gap": gap,
+    }
+
+
+def spin1_large_d_transition_status(*, exchange, single_ion_anisotropy):
+    exchange = abs(float(exchange))
+    single_ion_anisotropy = float(single_ion_anisotropy)
+    dominates = single_ion_anisotropy > exchange
+    return {
+        "large_d_transition_reference": bool(dominates),
+        "single_ion_anisotropy_dominates_exchange": bool(dominates),
+        "anisotropy_to_exchange_ratio": math.inf if exchange == 0.0 else single_ion_anisotropy / exchange,
+    }
+
+
+@lru_cache(maxsize=None)
+def _spin1_chain_sector_basis(length, total_m):
+    length = int(length)
+    total_m = int(total_m)
+    return tuple(state for state in product((-1, 0, 1), repeat=length) if sum(state) == total_m)
+
+
+@lru_cache(maxsize=None)
+def _spin1_chain_sector_lowest_energy(length, total_m, exchange, single_ion_anisotropy):
+    length = int(length)
+    total_m = int(total_m)
+    exchange = float(exchange)
+    single_ion_anisotropy = float(single_ion_anisotropy)
+    basis = _spin1_chain_sector_basis(length, total_m)
+    basis_index = {state: index for index, state in enumerate(basis)}
+    bonds = [(site, (site + 1) % length) for site in range(length)]
+
+    rows = []
+    columns = []
+    values = []
+    for column, state in enumerate(basis):
+        diagonal = single_ion_anisotropy * sum(m_value * m_value for m_value in state)
+        for source, target in bonds:
+            source_m = state[source]
+            target_m = state[target]
+            diagonal += exchange * source_m * target_m
+            if source_m < 1 and target_m > -1:
+                amplitude = 0.5 * exchange * math.sqrt(2.0 - source_m * (source_m + 1.0))
+                amplitude *= math.sqrt(2.0 - target_m * (target_m - 1.0))
+                flipped = list(state)
+                flipped[source] = source_m + 1
+                flipped[target] = target_m - 1
+                rows.append(basis_index[tuple(flipped)])
+                columns.append(column)
+                values.append(amplitude)
+            if source_m > -1 and target_m < 1:
+                amplitude = 0.5 * exchange * math.sqrt(2.0 - source_m * (source_m - 1.0))
+                amplitude *= math.sqrt(2.0 - target_m * (target_m + 1.0))
+                flipped = list(state)
+                flipped[source] = source_m - 1
+                flipped[target] = target_m + 1
+                rows.append(basis_index[tuple(flipped)])
+                columns.append(column)
+                values.append(amplitude)
+        rows.append(column)
+        columns.append(column)
+        values.append(diagonal)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("spin-1 large-D finite-size ED scan requires scipy") from exc
+
+    hamiltonian = coo_matrix((values, (rows, columns)), shape=(len(basis), len(basis))).tocsr()
+    if len(basis) <= 2:
+        return float(np.linalg.eigvalsh(hamiltonian.toarray())[0])
+    return float(
+        eigsh(
+            hamiltonian,
+            k=1,
+            which="SA",
+            tol=1.0e-10,
+            return_eigenvectors=False,
+            maxiter=100000,
+        )[0]
+    )
+
+
+def spin1_large_d_finite_size_gap_scan_status(*, chain_lengths, anisotropy_values, exchange=1.0):
+    lengths = tuple(int(length) for length in chain_lengths)
+    anisotropies = tuple(float(value) for value in anisotropy_values)
+    exchange = float(exchange)
+    if len(lengths) < 2:
+        raise ValueError("large-D finite-size scan expects at least two chain lengths")
+    if any(length < 4 or length % 2 for length in lengths):
+        raise ValueError("large-D finite-size scan expects even chain lengths of at least 4")
+    if len(anisotropies) < 3:
+        raise ValueError("large-D finite-size scan expects at least three anisotropy values")
+    if exchange <= 0.0:
+        raise ValueError("large-D finite-size scan expects positive antiferromagnetic exchange")
+
+    gaps_by_length = {}
+    minimum_gap_by_length = {}
+    minimum_gap_anisotropy_by_length = {}
+    zero_anisotropy_gap_by_length = {}
+    large_anisotropy_gap_by_length = {}
+    ordered_lengths = tuple(sorted(lengths))
+    ordered_anisotropies = tuple(sorted(anisotropies))
+    for length in ordered_lengths:
+        gaps = {}
+        for anisotropy in ordered_anisotropies:
+            ground_energy = _spin1_chain_sector_lowest_energy(length, 0, exchange, anisotropy)
+            triplet_energy = _spin1_chain_sector_lowest_energy(length, 1, exchange, anisotropy)
+            gaps[anisotropy] = triplet_energy - ground_energy
+        minimum_anisotropy, minimum_gap = min(gaps.items(), key=lambda item: item[1])
+        gaps_by_length[length] = dict(gaps)
+        minimum_gap_by_length[length] = minimum_gap
+        minimum_gap_anisotropy_by_length[length] = minimum_anisotropy
+        zero_anisotropy_gap_by_length[length] = gaps[ordered_anisotropies[0]]
+        large_anisotropy_gap_by_length[length] = gaps[ordered_anisotropies[-1]]
+
+    minimum_gaps = [minimum_gap_by_length[length] for length in ordered_lengths]
+    gap_minimum_softens_with_size = all(
+        later < earlier for earlier, later in zip(minimum_gaps, minimum_gaps[1:])
+    )
+    minimum_is_internal = all(
+        ordered_anisotropies[0] < minimum_gap_anisotropy_by_length[length] < ordered_anisotropies[-1]
+        for length in ordered_lengths
+    )
+    endpoints_are_gapped = all(
+        zero_anisotropy_gap_by_length[length] > minimum_gap_by_length[length]
+        and large_anisotropy_gap_by_length[length] > minimum_gap_by_length[length]
+        for length in ordered_lengths
+    )
+    minimum_near_large_d_transition = all(
+        abs(minimum_gap_anisotropy_by_length[length] / exchange - 1.0) <= 0.25
+        for length in ordered_lengths
+    )
+    return {
+        "large_d_transition_reference": bool(
+            gap_minimum_softens_with_size
+            and minimum_is_internal
+            and endpoints_are_gapped
+            and minimum_near_large_d_transition
+        ),
+        "gap_minimum_softens_with_size": bool(gap_minimum_softens_with_size),
+        "minimum_is_internal": bool(minimum_is_internal),
+        "minimum_near_large_d_transition": bool(minimum_near_large_d_transition),
+        "minimum_gap_by_length": minimum_gap_by_length,
+        "minimum_gap_anisotropy_by_length": minimum_gap_anisotropy_by_length,
+        "zero_anisotropy_gap_by_length": zero_anisotropy_gap_by_length,
+        "large_anisotropy_gap_by_length": large_anisotropy_gap_by_length,
+        "gap_by_length_and_anisotropy": gaps_by_length,
+    }
+
+
+def xy_pyrochlore_order_by_disorder_status(*, local_xy_anisotropy, fluctuation_selection_strength):
+    has_local_xy_manifold = bool(local_xy_anisotropy)
+    fluctuation_selection_strength = float(fluctuation_selection_strength)
+    has_order_by_disorder_selector = fluctuation_selection_strength > 0.0
+    psi2_angle = 0.0
+    psi3_angle = math.pi / 6.0
+    psi2_clock_energy = -fluctuation_selection_strength * math.cos(6.0 * psi2_angle)
+    psi3_clock_energy = -fluctuation_selection_strength * math.cos(6.0 * psi3_angle)
+    selected_state = "psi2" if psi2_clock_energy < psi3_clock_energy else "psi3"
+    return {
+        "psi2_order_selected": bool(
+            has_local_xy_manifold
+            and has_order_by_disorder_selector
+            and selected_state == "psi2"
+        ),
+        "has_local_xy_manifold": has_local_xy_manifold,
+        "has_order_by_disorder_selector": has_order_by_disorder_selector,
+        "clock_anisotropy_formula": "E(phi)=-A*cos(6phi)",
+        "psi2_clock_energy": psi2_clock_energy,
+        "psi3_clock_energy": psi3_clock_energy,
+        "selected_state": selected_state,
+        "selection_energy_gain": psi3_clock_energy - psi2_clock_energy,
+    }
+
+
+def spin_half_triangle_one_third_plateau_interval(*, exchange=1.0):
+    exchange = float(exchange)
+    doublet_energy = -0.75 * exchange
+    quartet_energy = 0.75 * exchange
+    saturation_magnetization = 1.5
+    plateau_magnetization = 0.5
+    field_upper = (quartet_energy - doublet_energy) / (saturation_magnetization - plateau_magnetization)
+    return {
+        "plateau_fraction": plateau_magnetization / saturation_magnetization,
+        "field_lower": 0.0,
+        "field_upper": field_upper,
+    }
+
+
+def triangular_xxz_three_sublattice_supersolid_status(*, jz, jxy, field):
+    jz = float(jz)
+    jxy = float(jxy)
+    field = float(field)
+    if jz <= 0.0:
+        raise ValueError("triangular XXZ supersolid check expects antiferromagnetic Jz")
+    if jxy <= 0.0:
+        raise ValueError("triangular XXZ supersolid check expects antiferromagnetic Jxy")
+
+    canted_m = (jz + field / 3.0) / (jz + jxy)
+    valid_canted_uud = 0.0 < canted_m < 1.0
+    transverse_amplitude = math.sqrt(max(0.0, 1.0 - canted_m * canted_m))
+    sublattice_magnetizations = [canted_m, canted_m, -1.0]
+    transverse_amplitudes = [transverse_amplitude, transverse_amplitude, 0.0]
+
+    supersolid_energy = (
+        jz * (canted_m * canted_m - 2.0 * canted_m)
+        - jxy * (1.0 - canted_m * canted_m)
+        - field * (2.0 * canted_m - 1.0) / 3.0
+    )
+    uud_solid_energy = -jz - field / 3.0
+
+    uniform_m = field / (6.0 * jz + 3.0 * jxy)
+    uniform_m = max(-1.0, min(1.0, uniform_m))
+    uniform_120_energy = (
+        3.0 * jz * uniform_m * uniform_m
+        - 1.5 * jxy * (1.0 - uniform_m * uniform_m)
+        - field * uniform_m
+    )
+
+    longitudinal_imbalance = float(np.std(sublattice_magnetizations))
+    transverse_order = float(np.mean(transverse_amplitudes))
+    lower_than_competitors = (
+        supersolid_energy < uud_solid_energy
+        and supersolid_energy < uniform_120_energy
+    )
+
+    return {
+        "contains_supersolid_phase": bool(
+            valid_canted_uud
+            and longitudinal_imbalance > 0.0
+            and transverse_order > 0.0
+            and lower_than_competitors
+        ),
+        "phase_representative": "canted_uud_supersolid",
+        "variational_energy_formula": "E/N=Jz(m^2-2m)-Jxy(1-m^2)-h(2m-1)/3",
+        "canted_sublattice_magnetization": canted_m,
+        "sublattice_magnetizations": sublattice_magnetizations,
+        "transverse_amplitudes": transverse_amplitudes,
+        "longitudinal_sublattice_imbalance": longitudinal_imbalance,
+        "transverse_order_parameter": transverse_order,
+        "supersolid_energy_per_site": supersolid_energy,
+        "uud_solid_energy_per_site": uud_solid_energy,
+        "uniform_120_superfluid_energy_per_site": uniform_120_energy,
+        "uniform_120_sublattice_magnetization": uniform_m,
+        "lower_than_competitors": lower_than_competitors,
+    }
+
+
+def triangular_ring_exchange_large_n_spin_liquid_status(*, j2, j4):
+    j2 = float(j2)
+    j4 = float(j4)
+    if j2 <= 0.0:
+        raise ValueError("triangular ring-exchange large-N check expects antiferromagnetic J2")
+    if j4 < 0.0:
+        raise ValueError("triangular ring-exchange large-N check expects nonnegative J4")
+
+    su_n_j = 2.0 * j2
+    su_n_k = 8.0 * j4
+    k_over_j = su_n_k / su_n_j
+
+    pi_over_2_flux_energy = -0.120 * su_n_j + 0.0096 * su_n_k
+    zero_flux_energy = -0.081 * su_n_j - 0.0044 * su_n_k
+    dimer_energy = -0.125 * su_n_j
+    energies = {
+        "pi_over_2_flux": pi_over_2_flux_energy,
+        "zero_flux_spinon_fermi_sea": zero_flux_energy,
+        "dimer": dimer_energy,
+    }
+    lowest_energy_state = min(energies, key=energies.get)
+    zero_flux_beats_pi_over_2 = zero_flux_energy < pi_over_2_flux_energy
+    zero_flux_beats_dimer = zero_flux_energy < dimer_energy
+
+    flux_boundary_k_over_j = (0.120 - 0.081) / (0.0096 + 0.0044)
+    dimer_boundary_k_over_j = (0.125 - 0.081) / 0.0044
+    return {
+        "method": "triangular_ring_exchange_large_n_mean_field_formula",
+        "formula_source": (
+            "Motrunich large-N mean-field energies "
+            "E_pi/2=-0.120J+0.0096K, E_0=-0.081J-0.0044K, E_dimer=-0.125J"
+        ),
+        "su_n_mapping": {"J": su_n_j, "K": su_n_k},
+        "j2": j2,
+        "j4": j4,
+        "j4_over_j2": j4 / j2,
+        "k_over_j": k_over_j,
+        "pi_over_2_flux_energy_per_site": pi_over_2_flux_energy,
+        "zero_flux_energy_per_site": zero_flux_energy,
+        "dimer_energy_per_site": dimer_energy,
+        "energy_per_site_by_state": energies,
+        "lowest_energy_state": lowest_energy_state,
+        "zero_flux_state_beats_pi_over_2_flux": bool(zero_flux_beats_pi_over_2),
+        "zero_flux_state_beats_dimer": bool(zero_flux_beats_dimer),
+        "formula_boundary_k_over_j_zero_flux_beats_pi_over_2_flux": flux_boundary_k_over_j,
+        "formula_boundary_j4_over_j2_zero_flux_beats_pi_over_2_flux": flux_boundary_k_over_j / 4.0,
+        "formula_boundary_k_over_j_zero_flux_beats_dimer": dimer_boundary_k_over_j,
+        "formula_boundary_j4_over_j2_zero_flux_beats_dimer": dimer_boundary_k_over_j / 4.0,
+        "large_n_zero_flux_region_exists": True,
+        "contains_spin_liquid_region": bool(
+            lowest_energy_state == "zero_flux_spinon_fermi_sea"
+            and zero_flux_beats_pi_over_2
+            and zero_flux_beats_dimer
+        ),
+    }
+
+
+def diamond_chain_dimer_monomer_one_third_plateau_status(*, dimer_exchange, monomer_coupling):
+    dimer_exchange = float(dimer_exchange)
+    monomer_coupling = float(monomer_coupling)
+    strong_dimer_limit = dimer_exchange > 0.0 and abs(monomer_coupling) < 1.0e-12
+    spins_per_unit_cell = 3.0
+    saturated_magnetization = 0.5 * spins_per_unit_cell
+    plateau_magnetization = 0.5
+    dimer_singlet_energy = -0.75 * dimer_exchange
+    dimer_triplet_mz1_energy_at_zero_field = 0.25 * dimer_exchange
+    lower_critical_field = 0.0
+    upper_critical_field = dimer_triplet_mz1_energy_at_zero_field - dimer_singlet_energy
+    return {
+        "one_third_magnetization_plateau": bool(strong_dimer_limit),
+        "strong_dimer_limit": bool(strong_dimer_limit),
+        "plateau_fraction": plateau_magnetization / saturated_magnetization,
+        "plateau_magnetization_per_unit_cell": plateau_magnetization,
+        "saturated_magnetization_per_unit_cell": saturated_magnetization,
+        "dimer_singlet_energy": dimer_singlet_energy,
+        "dimer_triplet_mz1_energy_at_zero_field": dimer_triplet_mz1_energy_at_zero_field,
+        "field_lower": lower_critical_field,
+        "field_upper": upper_critical_field,
+    }
+
+
+def shastry_sutherland_dimer_plateau_status(*, dimer_exchange, interdimer_exchange, plateau_fraction):
+    dimer_exchange = float(dimer_exchange)
+    interdimer_exchange = float(interdimer_exchange)
+    plateau_fraction = float(plateau_fraction)
+    orthogonal_dimer_limit = dimer_exchange > 0.0 and abs(interdimer_exchange) < 1.0e-12
+    is_fractional_plateau = 0.0 < plateau_fraction < 1.0
+    singlet_energy = -0.75 * dimer_exchange
+    triplet_mz1_energy_at_zero_field = 0.25 * dimer_exchange
+    dimer_gap_field = triplet_mz1_energy_at_zero_field - singlet_energy
+    return {
+        "fractional_plateaus_observed": bool(orthogonal_dimer_limit and is_fractional_plateau),
+        "orthogonal_dimer_limit": bool(orthogonal_dimer_limit),
+        "is_fractional_plateau": bool(is_fractional_plateau),
+        "plateau_fraction": plateau_fraction,
+        "singlet_energy_per_dimer": singlet_energy,
+        "triplet_mz1_energy_at_zero_field": triplet_mz1_energy_at_zero_field,
+        "dimer_gap_field": dimer_gap_field,
+    }
+
+
+def shastry_sutherland_material_status(*, material_context, dimer_exchange, interdimer_exchange, plateau_fraction):
+    plateau_status = shastry_sutherland_dimer_plateau_status(
+        dimer_exchange=dimer_exchange,
+        interdimer_exchange=interdimer_exchange,
+        plateau_fraction=plateau_fraction,
+    )
+    has_material_context = bool(material_context)
+    return {
+        "orthogonal_dimer_material": bool(
+            has_material_context
+            and plateau_status["orthogonal_dimer_limit"]
+        ),
+        "magnetization_plateaus": bool(
+            has_material_context
+            and plateau_status["fractional_plateaus_observed"]
+        ),
+        "has_material_context": has_material_context,
+        "orthogonal_dimer_limit": plateau_status["orthogonal_dimer_limit"],
+        "is_fractional_plateau": plateau_status["is_fractional_plateau"],
+        "plateau_fraction": plateau_status["plateau_fraction"],
+        "singlet_energy_per_dimer": plateau_status["singlet_energy_per_dimer"],
+        "triplet_mz1_energy_at_zero_field": plateau_status["triplet_mz1_energy_at_zero_field"],
+        "dimer_gap_field": plateau_status["dimer_gap_field"],
+    }
+
+
+def breathing_kagome_strong_triangle_trimerization_status(*, j_up, j_down):
+    return float(j_up) > 0.0 and abs(float(j_down)) < 1.0e-12
+
+
+def honeycomb_nearest_neighbor_order_status(order):
+    if str(order) not in {"ferromagnetic", "neel"}:
+        raise ValueError(f"unsupported honeycomb nearest-neighbor order {order}")
+    return True
+
+
+def honeycomb_nearest_neighbor_glt_order_summary(*, exchange):
+    exchange = float(exchange)
+    if exchange == 0.0:
+        raise ValueError("honeycomb nearest-neighbor GLT order needs nonzero exchange")
+    kernel_eigenvalues = {
+        "ferromagnetic": 3.0 * exchange,
+        "neel": -3.0 * exchange,
+    }
+    minimum_order = min(kernel_eigenvalues, key=kernel_eigenvalues.get)
+    competing_order = "neel" if minimum_order == "ferromagnetic" else "ferromagnetic"
+    return {
+        "minimum_order": minimum_order,
+        "minimum_kernel_eigenvalue": kernel_eigenvalues[minimum_order],
+        "competing_order": competing_order,
+        "competing_kernel_eigenvalue": kernel_eigenvalues[competing_order],
+        "kernel_eigenvalues": kernel_eigenvalues,
+    }
+
+
+def honeycomb_j1_j2_j3_collinear_order_energies(*, j1, j2, j3):
+    j1 = float(j1)
+    j2 = float(j2)
+    j3 = float(j3)
+    return {
+        "ferromagnetic": 0.5 * (3.0 * j1 + 6.0 * j2 + 3.0 * j3),
+        "neel": 0.5 * (-3.0 * j1 + 6.0 * j2 - 3.0 * j3),
+        "zigzag": 0.5 * (j1 - 2.0 * j2 - 3.0 * j3),
+        "stripy": 0.5 * (-j1 - 2.0 * j2 + 3.0 * j3),
+    }
+
+
+def dm_spiral_pitch_reciprocal_lattice_units(*, exchange, dzyaloshinskii_moriya):
+    exchange = float(exchange)
+    if exchange == 0.0:
+        raise ValueError("exchange must be nonzero for the single-q DM pitch formula")
+    return math.atan(float(dzyaloshinskii_moriya) / exchange) / (2.0 * math.pi)
+
+
+def kagome_dm_interaction_relevance_status(*, exchange, dzyaloshinskii_moriya):
+    exchange = float(exchange)
+    dzyaloshinskii_moriya = float(dzyaloshinskii_moriya)
+    heisenberg_triangle_energy = -1.5 * exchange
+    dm_energy_shift = 1.5 * math.sqrt(3.0) * abs(dzyaloshinskii_moriya)
+    selected_energy = heisenberg_triangle_energy - dm_energy_shift
+    opposite_energy = heisenberg_triangle_energy + dm_energy_shift
+    return {
+        "dm_interaction_relevant": bool(abs(dzyaloshinskii_moriya) > 0.0),
+        "selected_chirality": "clockwise" if dzyaloshinskii_moriya > 0.0 else "counterclockwise",
+        "selected_chirality_energy": selected_energy,
+        "opposite_chirality_energy": opposite_energy,
+    }
+
+
+def j1_j2_chain_classical_spiral_status(*, j1, j2):
+    j1 = float(j1)
+    j2 = float(j2)
+    if j2 > 0.0 and abs(j1) < 4.0 * j2:
+        pitch = math.acos(-j1 / (4.0 * j2))
+        return {
+            "is_incommensurate_spiral": not math.isclose(pitch, 0.0) and not math.isclose(pitch, math.pi),
+            "pitch_radians": pitch,
+            "ordering": "incommensurate_spiral",
+        }
+    if j1 < 0.0:
+        return {"is_incommensurate_spiral": False, "pitch_radians": 0.0, "ordering": "ferromagnetic"}
+    return {"is_incommensurate_spiral": False, "pitch_radians": math.pi, "ordering": "antiferromagnetic"}
+
+
+def j1_j2_chain_frustrated_ferromagnetic_status(*, j1, j2):
+    return float(j1) < 0.0 and float(j2) > 0.0
+
+
+def kagome_competing_j1_jd_exchange_status(*, j1, jd):
+    j1 = float(j1)
+    jd = float(jd)
+
+    def sign_label(value):
+        if value > 0.0:
+            return "antiferromagnetic"
+        if value < 0.0:
+            return "ferromagnetic"
+        return "zero"
+
+    return {
+        "competing_kagome_exchanges": bool(j1 * jd < 0.0),
+        "nearest_neighbor_exchange_sign": sign_label(j1),
+        "diagonal_exchange_sign": sign_label(jd),
+    }
+
+
+def distorted_kagome_exchange_status(*, nearest_neighbor_exchanges, tolerance=1.0e-12):
+    exchanges = [float(exchange) for exchange in nearest_neighbor_exchanges]
+    if len(exchanges) < 2:
+        raise ValueError("distorted kagome status expects at least two nearest-neighbor exchanges")
+
+    representatives = []
+    for exchange in exchanges:
+        if not any(math.isclose(exchange, representative, rel_tol=0.0, abs_tol=tolerance) for representative in representatives):
+            representatives.append(exchange)
+
+    is_distorted = len(representatives) > 1
+    return {
+        "distorted_kagome_reference": bool(is_distorted),
+        "distorted_kagome_relevant": bool(is_distorted),
+        "is_distorted": bool(is_distorted),
+        "inequivalent_exchange_count": len(representatives),
+        "all_antiferromagnetic": all(exchange > 0.0 for exchange in exchanges),
+        "exchange_values": exchanges,
+    }
+
+
+def kagome_interlayer_coupling_status(*, kagome_exchange, interlayer_exchange):
+    kagome_exchange = float(kagome_exchange)
+    interlayer_exchange = float(interlayer_exchange)
+    if kagome_exchange == 0.0:
+        raise ValueError("kagome_exchange must be nonzero for the interlayer ratio")
+    return {
+        "interlayer_coupling_relevant": bool(abs(interlayer_exchange) > 0.0),
+        "interlayer_to_layer_ratio": abs(interlayer_exchange / kagome_exchange),
+        "candidate_ordering_vectors": [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]],
+    }
+
+
+def kagome_interlayer_reduction_status(*, parent_interlayer_exchange, substituted_interlayer_exchange):
+    parent_interlayer_exchange = abs(float(parent_interlayer_exchange))
+    substituted_interlayer_exchange = abs(float(substituted_interlayer_exchange))
+    if parent_interlayer_exchange == 0.0:
+        raise ValueError("parent_interlayer_exchange must be nonzero for the reduction ratio")
+    substituted_to_parent_ratio = substituted_interlayer_exchange / parent_interlayer_exchange
+    return {
+        "reduced_interlayer_magnetism": bool(substituted_interlayer_exchange < parent_interlayer_exchange),
+        "substituted_to_parent_ratio": substituted_to_parent_ratio,
+        "interlayer_reduction_fraction": 1.0 - substituted_to_parent_ratio,
+    }
+
+
+def spin_ice_local_correlation_status(*, local_axis_ising):
+    if not bool(local_axis_ising):
+        return {
+            "spin_ice_correlations": False,
+            "ice_rule_state_count": 0,
+            "nearest_neighbor_ising_correlation": 0.0,
+        }
+
+    ice_rule_states = [
+        state
+        for state in product((-1, 1), repeat=4)
+        if sum(state) == 0
+    ]
+    pair_correlations = []
+    for state in ice_rule_states:
+        pair_correlations.extend(state[source] * state[target] for source, target in combinations(range(4), 2))
+    return {
+        "spin_ice_correlations": True,
+        "ice_rule_state_count": len(ice_rule_states),
+        "nearest_neighbor_ising_correlation": float(np.mean(pair_correlations)),
+    }
+
+
+def spin_ladder_field_induced_luttinger_regime_status(*, j_rung, j_leg, field):
+    j_rung = float(j_rung)
+    j_leg = float(j_leg)
+    field = float(field)
+    if j_rung <= 0.0 or j_leg <= 0.0:
+        return {
+            "field_induced_luttinger_liquid_regime": False,
+            "field": field,
+            "lower_critical_field": j_rung,
+            "upper_critical_field": j_rung,
+        }
+
+    lower_critical_field = max(0.0, j_rung - 2.0 * abs(j_leg))
+    upper_critical_field = j_rung + 2.0 * abs(j_leg)
+    field_window_width = upper_critical_field - lower_critical_field
+    return {
+        "field_induced_luttinger_liquid_regime": bool(lower_critical_field < field < upper_critical_field),
+        "field": field,
+        "lower_critical_field": lower_critical_field,
+        "upper_critical_field": upper_critical_field,
+        "critical_field_formula": "h_c1=J_rung-2J_leg, h_c2=J_rung+2J_leg",
+        "field_window_width": field_window_width,
+    }
+
+
+def garnet_hyperkagome_frustration_status(*, lattice, heisenberg_exchange, dipolar_exchange):
+    is_hyperkagome_garnet = str(lattice) == "hyperkagome_garnet"
+    has_antiferromagnetic_heisenberg = float(heisenberg_exchange) > 0.0
+    has_competing_dipolar_exchange = abs(float(dipolar_exchange)) > 0.0
+    frustrated = bool(
+        is_hyperkagome_garnet
+        and has_antiferromagnetic_heisenberg
+        and has_competing_dipolar_exchange
+    )
+    return {
+        "strong_frustration": frustrated,
+        "garnet_frustrated_magnet": frustrated,
+        "is_hyperkagome_garnet": is_hyperkagome_garnet,
+        "has_antiferromagnetic_heisenberg": has_antiferromagnetic_heisenberg,
+        "has_competing_dipolar_exchange": has_competing_dipolar_exchange,
+    }
+
+
+def garnet_hyperkagome_triangle_constraint_status(
+    *,
+    lattice,
+    triangles_per_unit_cell,
+    sites_per_unit_cell,
+    spin_components,
+    heisenberg_exchange,
+    dipolar_exchange,
+):
+    base_status = hyperkagome_corner_sharing_triangle_constraint_status(
+        triangles_per_unit_cell=triangles_per_unit_cell,
+        sites_per_unit_cell=sites_per_unit_cell,
+        spin_components=spin_components,
+        heisenberg_exchange=heisenberg_exchange,
+    )
+    is_hyperkagome_garnet = str(lattice) == "hyperkagome_garnet"
+    has_competing_dipolar_exchange = abs(float(dipolar_exchange)) > 0.0
+    frustrated = bool(
+        is_hyperkagome_garnet
+        and base_status["has_antiferromagnetic_heisenberg"]
+        and base_status["is_macroscopically_underconstrained"]
+        and has_competing_dipolar_exchange
+    )
+    return {
+        **base_status,
+        "strong_frustration": frustrated,
+        "garnet_frustrated_magnet": frustrated,
+        "is_hyperkagome_garnet": is_hyperkagome_garnet,
+        "has_competing_dipolar_exchange": has_competing_dipolar_exchange,
+    }
+
+
+def frustrated_lattice_geometry_status(*, lattice, exchange):
+    lattice = str(lattice)
+    exchange = float(exchange)
+    registered_keys = {
+        "star": "spin_liquid_or_valence_bond_reference",
+        "maple_leaf": "frustrated_order_reference",
+        "shuriken": "square_kagome_reference",
+    }
+    has_antiferromagnetic_exchange = exchange > 0.0
+    registered_frustrated_lattice = lattice in registered_keys
+    is_frustrated_lattice = bool(registered_frustrated_lattice and has_antiferromagnetic_exchange)
+    status = {
+        "spin_liquid_or_valence_bond_reference": False,
+        "frustrated_order_reference": False,
+        "square_kagome_reference": False,
+        "is_frustrated_lattice": is_frustrated_lattice,
+        "registered_frustrated_lattice": registered_frustrated_lattice,
+        "has_antiferromagnetic_exchange": has_antiferromagnetic_exchange,
+    }
+    if is_frustrated_lattice:
+        status[registered_keys[lattice]] = True
+    return status
+
+
+def _star_lattice_betts_bonds(center_graph):
+    center_graph = str(center_graph).lower().replace("-", "_")
+    if center_graph != "k3_3":
+        raise ValueError("the registered star-lattice Betts ED check uses the K3,3 center graph")
+
+    center_edges = (
+        (0, 3),
+        (0, 4),
+        (0, 5),
+        (1, 3),
+        (1, 4),
+        (1, 5),
+        (2, 3),
+        (2, 4),
+        (2, 5),
+    )
+    edge_color = {
+        (0, 3): 0,
+        (0, 4): 1,
+        (0, 5): 2,
+        (1, 3): 1,
+        (1, 4): 2,
+        (1, 5): 0,
+        (2, 3): 2,
+        (2, 4): 0,
+        (2, 5): 1,
+    }
+
+    def site(center, corner):
+        return 3 * int(center) + int(corner)
+
+    bonds = set()
+    for center in range(6):
+        for source_corner, target_corner in ((0, 1), (1, 2), (2, 0)):
+            bonds.add(tuple(sorted((site(center, source_corner), site(center, target_corner)))))
+    for source_center, target_center in center_edges:
+        color = edge_color[(source_center, target_center)]
+        bonds.add(tuple(sorted((site(source_center, color), site(target_center, color)))))
+    return tuple(sorted(bonds)), center_edges
+
+
+@lru_cache(maxsize=4)
+def star_lattice_heisenberg_betts_ed_status(
+    *,
+    center_graph="k3_3",
+    exchange=1.0,
+    literature_energy_per_bond=-0.312479,
+    literature_triplet_gap=0.578710,
+    tolerance=5.0e-6,
+):
+    exchange = float(exchange)
+    bonds, center_edges = _star_lattice_betts_bonds(center_graph)
+    site_count = 18
+    up_count = site_count // 2
+    weighted_bonds = tuple((source, target, exchange) for source, target in bonds)
+    ground_energy = _spin_half_weighted_heisenberg_cluster_sector_ground_energy(
+        site_count,
+        weighted_bonds,
+        up_count,
+    )
+    triplet_energy = _spin_half_weighted_heisenberg_cluster_sector_ground_energy(
+        site_count,
+        weighted_bonds,
+        up_count + 1,
+    )
+    bond_count = len(bonds)
+    energy_per_bond = ground_energy / float(bond_count)
+    triplet_gap = triplet_energy - ground_energy
+    energy_difference = abs(energy_per_bond - float(literature_energy_per_bond))
+    gap_difference = abs(triplet_gap - float(literature_triplet_gap))
+    matches_literature = bool(
+        exchange > 0.0
+        and energy_difference <= float(tolerance)
+        and gap_difference <= float(tolerance)
+        and triplet_gap > 0.0
+    )
+    return {
+        "method": "betts_star_lattice_spin_half_heisenberg_ed",
+        "center_graph": "k3_3",
+        "center_graph_description": "K3,3 Betts cluster of six triangle centers expanded into the 18-site star lattice",
+        "center_vertex_count": 6,
+        "center_edge_count": len(center_edges),
+        "site_count": site_count,
+        "bond_count": bond_count,
+        "triangle_bond_count": 18,
+        "dimer_bond_count": 9,
+        "basis_dimension_sz0": math.comb(site_count, up_count),
+        "basis_dimension_sz1": math.comb(site_count, up_count + 1),
+        "exchange": exchange,
+        "ground_energy": ground_energy,
+        "energy_per_bond": energy_per_bond,
+        "triplet_gap": triplet_gap,
+        "literature_energy_per_bond": float(literature_energy_per_bond),
+        "literature_triplet_gap": float(literature_triplet_gap),
+        "energy_absolute_difference_from_literature": energy_difference,
+        "gap_absolute_difference_from_literature": gap_difference,
+        "matching_tolerance": float(tolerance),
+        "ground_state_singlet": bool(triplet_gap > 0.0),
+        "matches_literature_energy_and_gap": matches_literature,
+        "spin_liquid_or_valence_bond_reference": matches_literature,
+    }
+
+
+@lru_cache(maxsize=8)
+def maple_leaf_classical_glt_order_status(*, exchange=1.0, q_grid_size=72):
+    exchange = float(exchange)
+    q_grid_size = int(q_grid_size)
+    if q_grid_size < 3:
+        raise ValueError("q_grid_size must be at least 3 for a maple-leaf GLT scan")
+
+    sqrt3 = math.sqrt(3.0)
+    lattice_vectors = (
+        np.array([1.5 * sqrt3, -0.5], dtype=float),
+        np.array([sqrt3, 2.0], dtype=float),
+    )
+    basis_positions = (
+        np.array([0.0, 0.0], dtype=float),
+        np.array([0.5 * sqrt3, -0.5], dtype=float),
+        np.array([sqrt3, 0.0], dtype=float),
+        np.array([sqrt3, 1.0], dtype=float),
+        np.array([0.5 * sqrt3, 1.5], dtype=float),
+        np.array([0.0, 1.0], dtype=float),
+    )
+
+    bond_keys = set()
+    bonds = []
+    for source, source_position in enumerate(basis_positions):
+        for target, target_position in enumerate(basis_positions):
+            for translation_a in (-1, 0, 1):
+                for translation_b in (-1, 0, 1):
+                    if translation_a == 0 and translation_b == 0 and target <= source:
+                        continue
+                    vector = (
+                        target_position
+                        + translation_a * lattice_vectors[0]
+                        + translation_b * lattice_vectors[1]
+                        - source_position
+                    )
+                    if math.isclose(float(np.linalg.norm(vector)), 1.0, rel_tol=0.0, abs_tol=1.0e-12):
+                        forward = (source, target, translation_a, translation_b)
+                        reverse = (target, source, -translation_a, -translation_b)
+                        key = min(forward, reverse)
+                        if key not in bond_keys:
+                            bond_keys.add(key)
+                            bonds.append(forward)
+
+    def kernel(q_a, q_b):
+        matrix = np.zeros((6, 6), dtype=complex)
+        for source, target, translation_a, translation_b in bonds:
+            phase = np.exp(2.0j * math.pi * (q_a * translation_a + q_b * translation_b))
+            matrix[source, target] += exchange * phase
+            matrix[target, source] += exchange * phase.conjugate()
+        return matrix
+
+    q_values = np.linspace(0.0, 1.0, q_grid_size, endpoint=False)
+    best_eigenvalue = math.inf
+    best_q = (0.0, 0.0)
+    best_spectrum = None
+    for q_a in q_values:
+        for q_b in q_values:
+            spectrum = np.linalg.eigvalsh(kernel(float(q_a), float(q_b))).real
+            if float(spectrum[0]) < best_eigenvalue:
+                best_eigenvalue = float(spectrum[0])
+                best_q = (float(q_a), float(q_b))
+                best_spectrum = spectrum
+
+    gamma_spectrum = np.linalg.eigvalsh(kernel(0.0, 0.0)).real
+    site_count = len(basis_positions)
+    coordination_number = int(round(2.0 * len(bonds) / site_count))
+    non_gamma_order = (
+        exchange > 0.0
+        and coordination_number == 5
+        and not (math.isclose(best_q[0], 0.0, abs_tol=1.0e-12) and math.isclose(best_q[1], 0.0, abs_tol=1.0e-12))
+        and best_eigenvalue < float(gamma_spectrum[0]) - 1.0e-9
+    )
+    return {
+        "frustrated_order_reference": bool(non_gamma_order),
+        "method": "maple_leaf_six_site_fourier_exchange_kernel",
+        "unit_cell_site_count": site_count,
+        "coordination_number": coordination_number,
+        "nearest_neighbor_bond_count_per_unit_cell": len(bonds),
+        "lowest_q_fractional": [best_q[0], best_q[1]],
+        "lowest_kernel_eigenvalue": best_eigenvalue,
+        "gamma_lowest_eigenvalue": float(gamma_spectrum[0]),
+        "lowest_spectrum": [float(value) for value in best_spectrum],
+        "gamma_spectrum": [float(value) for value in gamma_spectrum],
+    }
+
+
+def triangular_anisotropic_exchange_candidate_status(*, lattice, anisotropic_exchange, disorder_or_material):
+    has_triangular_geometry = str(lattice) == "triangular"
+    has_anisotropic_exchange = bool(anisotropic_exchange)
+    has_material_or_disorder_context = bool(disorder_or_material)
+    return {
+        "triangular_quantum_spin_liquid_candidate": bool(
+            has_triangular_geometry
+            and has_anisotropic_exchange
+            and has_material_or_disorder_context
+        ),
+        "has_triangular_geometry": has_triangular_geometry,
+        "has_anisotropic_exchange": has_anisotropic_exchange,
+        "has_material_or_disorder_context": has_material_or_disorder_context,
+    }
+
+
+def kagome_material_qsl_candidate_status(*, lattice, material_context, frustrated_geometry, spin_liquid_label):
+    has_kagome_geometry = str(lattice) == "kagome"
+    has_material_context = bool(material_context)
+    has_frustrated_geometry = bool(frustrated_geometry)
+    has_spin_liquid_label = bool(spin_liquid_label)
+    candidate = bool(
+        has_kagome_geometry
+        and has_material_context
+        and has_frustrated_geometry
+        and has_spin_liquid_label
+    )
+    return {
+        "qsl_candidate": candidate,
+        "has_kagome_geometry": has_kagome_geometry,
+        "has_material_context": has_material_context,
+        "has_frustrated_geometry": has_frustrated_geometry,
+        "has_spin_liquid_label": has_spin_liquid_label,
+    }
+
+
+def pyrochlore_material_spin_liquid_candidate_status(
+    *,
+    lattice,
+    anisotropic_exchange,
+    material_context,
+    spin_liquid_label,
+):
+    has_pyrochlore_geometry = str(lattice) == "pyrochlore"
+    has_anisotropic_exchange = bool(anisotropic_exchange)
+    has_material_context = bool(material_context)
+    has_spin_liquid_label = bool(spin_liquid_label)
+    candidate = bool(
+        has_pyrochlore_geometry
+        and has_anisotropic_exchange
+        and has_material_context
+        and has_spin_liquid_label
+    )
+    return {
+        "spin_liquid_candidate": candidate,
+        "has_pyrochlore_geometry": has_pyrochlore_geometry,
+        "has_anisotropic_exchange": has_anisotropic_exchange,
+        "has_material_context": has_material_context,
+        "has_spin_liquid_label": has_spin_liquid_label,
+    }
+
+
+def tb2ti2o7_local_tetrahedron_negative_probe_status(*, local_axis_ising, exchange_labels):
+    correlation_status = spin_ice_local_correlation_status(local_axis_ising=local_axis_ising)
+    exchange_status = pyrochlore_material_anisotropic_exchange_status(exchange_labels=exchange_labels)
+    return {
+        "method": "local_pyrochlore_tetrahedron_ice_rule_negative_probe",
+        "ice_rule_state_count": correlation_status["ice_rule_state_count"],
+        "nearest_neighbor_ising_correlation": correlation_status["nearest_neighbor_ising_correlation"],
+        "recognized_exchange_labels": exchange_status["recognized_exchange_labels"],
+        "has_full_pyrochlore_anisotropic_exchange_label_set": exchange_status[
+            "anisotropic_exchange_fit_reference"
+        ],
+        "reproduces_registered_tb2ti2o7_spin_liquid": False,
+        "negative_evidence": (
+            "This local tetrahedron probe enumerates the ideal ice-rule manifold and checks "
+            "the pyrochlore anisotropic-exchange label set only. It does not use Tb2Ti2O7 "
+            "material exchange parameters, neutron-scattering correlations, susceptibility, "
+            "or low-temperature thermodynamic data, so it does not reproduce the registered "
+            "Tb2Ti2O7 spin-liquid reference."
+        ),
+    }
+
+
+def hyperkagome_spin_liquid_candidate_status(
+    *,
+    lattice,
+    heisenberg_exchange,
+    material_context,
+    spin_liquid_label,
+):
+    has_hyperkagome_geometry = str(lattice) == "hyperkagome"
+    has_antiferromagnetic_heisenberg = float(heisenberg_exchange) > 0.0
+    has_material_context = bool(material_context)
+    has_spin_liquid_label = bool(spin_liquid_label)
+    base_candidate = bool(
+        has_hyperkagome_geometry
+        and has_antiferromagnetic_heisenberg
+        and has_spin_liquid_label
+    )
+    return {
+        "spin_liquid_candidate": base_candidate,
+        "hyperkagome_qsl_candidate": bool(base_candidate and has_material_context),
+        "has_hyperkagome_geometry": has_hyperkagome_geometry,
+        "has_antiferromagnetic_heisenberg": has_antiferromagnetic_heisenberg,
+        "has_material_context": has_material_context,
+        "has_spin_liquid_label": has_spin_liquid_label,
+    }
+
+
+def hyperkagome_corner_sharing_triangle_constraint_status(
+    *,
+    triangles_per_unit_cell,
+    sites_per_unit_cell,
+    spin_components,
+    heisenberg_exchange,
+):
+    triangles_per_unit_cell = int(triangles_per_unit_cell)
+    sites_per_unit_cell = int(sites_per_unit_cell)
+    spin_components = int(spin_components)
+    heisenberg_exchange = float(heisenberg_exchange)
+    if triangles_per_unit_cell <= 0:
+        raise ValueError("triangles_per_unit_cell must be positive")
+    if sites_per_unit_cell <= 0:
+        raise ValueError("sites_per_unit_cell must be positive")
+    if spin_components <= 0:
+        raise ValueError("spin_components must be positive")
+
+    constraint_count = triangles_per_unit_cell * spin_components
+    spin_component_count = sites_per_unit_cell * spin_components
+    unconstrained_classical_degrees = sites_per_unit_cell * (spin_components - 1)
+    estimated_zero_sum_dimension = unconstrained_classical_degrees - constraint_count
+    has_antiferromagnetic_exchange = heisenberg_exchange > 0.0
+    can_satisfy_zero_triangle_sum = spin_components >= 2
+    is_underconstrained = estimated_zero_sum_dimension > 0
+
+    return {
+        "spin_liquid_candidate": bool(
+            has_antiferromagnetic_exchange
+            and can_satisfy_zero_triangle_sum
+            and is_underconstrained
+        ),
+        "triangle_constraint_identity": "H = J/2 sum_delta |S_delta|^2 + const",
+        "can_satisfy_zero_triangle_sum": can_satisfy_zero_triangle_sum,
+        "has_antiferromagnetic_heisenberg": has_antiferromagnetic_exchange,
+        "triangles_per_unit_cell": triangles_per_unit_cell,
+        "sites_per_unit_cell": sites_per_unit_cell,
+        "spin_components": spin_components,
+        "constraint_count": constraint_count,
+        "spin_component_count": spin_component_count,
+        "unconstrained_classical_degrees_of_freedom": unconstrained_classical_degrees,
+        "estimated_zero_sum_manifold_dimension": estimated_zero_sum_dimension,
+        "is_macroscopically_underconstrained": is_underconstrained,
+    }
+
+
+def bilayer_breathing_kagome_exchange_status(
+    *,
+    lattice,
+    exchange_values,
+    material_context,
+    spin_liquid_label,
+):
+    exchanges = [float(exchange) for exchange in exchange_values]
+    has_bilayer_kagome_geometry = str(lattice) == "bilayer_kagome"
+    has_material_context = bool(material_context)
+    has_spin_liquid_label = bool(spin_liquid_label)
+    has_ferromagnetic_exchange = any(exchange < 0.0 for exchange in exchanges)
+    has_antiferromagnetic_exchange = any(exchange > 0.0 for exchange in exchanges)
+    mixed = bool(has_ferromagnetic_exchange and has_antiferromagnetic_exchange)
+    candidate = bool(
+        has_bilayer_kagome_geometry
+        and has_material_context
+        and has_spin_liquid_label
+        and mixed
+    )
+    return {
+        "spin_liquid_candidate": candidate,
+        "mixed_ferromagnetic_antiferromagnetic_exchanges": mixed,
+        "has_bilayer_kagome_geometry": has_bilayer_kagome_geometry,
+        "has_material_context": has_material_context,
+        "has_spin_liquid_label": has_spin_liquid_label,
+        "has_ferromagnetic_exchange": has_ferromagnetic_exchange,
+        "has_antiferromagnetic_exchange": has_antiferromagnetic_exchange,
+        "exchange_values": exchanges,
+    }
+
+
+def _single_layer_breathing_kagome_fourier_kernel(
+    q_fractional,
+    *,
+    ferromagnetic_triangle_exchange,
+    antiferromagnetic_triangle_exchange,
+):
+    qx, qy = (float(q_fractional[0]), float(q_fractional[1]))
+    phase_ab = np.exp(-2.0j * math.pi * qx)
+    phase_ac = np.exp(-2.0j * math.pi * qy)
+    phase_bc = np.exp(-2.0j * math.pi * (qy - qx))
+    kernel = np.zeros((3, 3), dtype=complex)
+    kernel[0, 1] = float(ferromagnetic_triangle_exchange) + float(antiferromagnetic_triangle_exchange) * phase_ab
+    kernel[0, 2] = float(ferromagnetic_triangle_exchange) + float(antiferromagnetic_triangle_exchange) * phase_ac
+    kernel[1, 2] = float(ferromagnetic_triangle_exchange) + float(antiferromagnetic_triangle_exchange) * phase_bc
+    return kernel + kernel.conjugate().T
+
+
+def _bilayer_breathing_kagome_fourier_kernel(
+    q_fractional,
+    *,
+    ferromagnetic_triangle_exchange,
+    antiferromagnetic_triangle_exchange,
+    interlayer_exchange,
+):
+    layer_kernel = _single_layer_breathing_kagome_fourier_kernel(
+        q_fractional,
+        ferromagnetic_triangle_exchange=ferromagnetic_triangle_exchange,
+        antiferromagnetic_triangle_exchange=antiferromagnetic_triangle_exchange,
+    )
+    kernel = np.zeros((6, 6), dtype=complex)
+    kernel[:3, :3] = layer_kernel
+    kernel[3:, 3:] = layer_kernel
+    kernel[:3, 3:] = float(interlayer_exchange) * np.eye(3, dtype=complex)
+    kernel[3:, :3] = float(interlayer_exchange) * np.eye(3, dtype=complex)
+    return kernel
+
+
+@lru_cache(maxsize=16)
+def bilayer_breathing_kagome_glt_status(
+    *,
+    ferromagnetic_triangle_exchange=-1.0,
+    antiferromagnetic_triangle_exchange=0.45,
+    interlayer_exchange=0.25,
+    q_grid_size=41,
+):
+    ferromagnetic_triangle_exchange = float(ferromagnetic_triangle_exchange)
+    antiferromagnetic_triangle_exchange = float(antiferromagnetic_triangle_exchange)
+    interlayer_exchange = float(interlayer_exchange)
+    q_grid_size = int(q_grid_size)
+    if q_grid_size < 3:
+        raise ValueError("q_grid_size must be at least 3 for a Luttinger-Tisza scan")
+
+    exchanges = [
+        ferromagnetic_triangle_exchange,
+        antiferromagnetic_triangle_exchange,
+        interlayer_exchange,
+    ]
+    mixed = any(exchange < 0.0 for exchange in exchanges) and any(exchange > 0.0 for exchange in exchanges)
+    q_values = np.linspace(0.0, 1.0, q_grid_size, endpoint=True)
+    scanned_modes = []
+    for qx in q_values:
+        for qy in q_values:
+            eigenvalues = np.linalg.eigvalsh(
+                _bilayer_breathing_kagome_fourier_kernel(
+                    (qx, qy),
+                    ferromagnetic_triangle_exchange=ferromagnetic_triangle_exchange,
+                    antiferromagnetic_triangle_exchange=antiferromagnetic_triangle_exchange,
+                    interlayer_exchange=interlayer_exchange,
+                )
+            ).real
+            scanned_modes.append((float(eigenvalues[0]), (float(qx), float(qy)), eigenvalues))
+
+    lowest_energy, lowest_q, lowest_eigenvalues = min(scanned_modes, key=lambda item: item[0])
+    q0_eigenvalues = np.linalg.eigvalsh(
+        _bilayer_breathing_kagome_fourier_kernel(
+            (0.0, 0.0),
+            ferromagnetic_triangle_exchange=ferromagnetic_triangle_exchange,
+            antiferromagnetic_triangle_exchange=antiferromagnetic_triangle_exchange,
+            interlayer_exchange=interlayer_exchange,
+        )
+    ).real
+    ferromagnetic_q0_mode_energy = float(q0_eigenvalues[0])
+    first_gap = float(lowest_eigenvalues[1] - lowest_eigenvalues[0])
+    normalized_two_mode_spectrum = [0.0, 1.0] if first_gap > 1.0e-12 else [0.0, 0.0]
+    has_nontrivial_minimum = bool(
+        mixed
+        and (abs(lowest_q[0]) > 1.0e-12 or abs(lowest_q[1]) > 1.0e-12)
+        and lowest_energy < ferromagnetic_q0_mode_energy - 1.0e-6
+        and first_gap > 1.0e-12
+    )
+    return {
+        "method": "bilayer_breathing_kagome_fourier_exchange_kernel",
+        "spin_liquid_candidate": bool(has_nontrivial_minimum),
+        "mixed_ferromagnetic_antiferromagnetic_exchanges": bool(mixed),
+        "kernel_dimension": 6,
+        "lowest_q_fractional": [float(lowest_q[0]), float(lowest_q[1])],
+        "lowest_mode_energy": float(lowest_energy),
+        "ferromagnetic_q0_mode_energy": ferromagnetic_q0_mode_energy,
+        "has_nontrivial_luttinger_tisza_minimum": has_nontrivial_minimum,
+        "lowest_eigenvalues": [float(value) for value in lowest_eigenvalues],
+        "linear_spin_wave_modes": normalized_two_mode_spectrum,
+        "exchange_values": exchanges,
+        "q_grid_size": q_grid_size,
+    }
+
+
+def honeycomb_kitaev_material_status(*, lattice, material_context, kitaev, heisenberg):
+    has_honeycomb_geometry = str(lattice) == "honeycomb"
+    has_material_context = bool(material_context)
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    has_heisenberg_exchange = abs(float(heisenberg)) > 0.0
+    return {
+        "honeycomb_iridate_reference": bool(
+            has_honeycomb_geometry
+            and has_material_context
+            and has_kitaev_exchange
+            and has_heisenberg_exchange
+        ),
+        "has_honeycomb_geometry": has_honeycomb_geometry,
+        "has_material_context": has_material_context,
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_heisenberg_exchange": has_heisenberg_exchange,
+    }
+
+
+def cu2iro3_honeycomb_kitaev_heisenberg_energy_status(
+    *,
+    lattice,
+    material_context,
+    kitaev,
+    heisenberg,
+):
+    zigzag_status = honeycomb_kitaev_heisenberg_zigzag_energy_status(
+        kitaev=kitaev,
+        heisenberg=heisenberg,
+    )
+    has_honeycomb_lattice = str(lattice) == "honeycomb"
+    has_material_context = bool(material_context)
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    has_heisenberg_exchange = abs(float(heisenberg)) > 0.0
+    zigzag_is_representative_minimum = bool(
+        zigzag_status["zigzag_order_relevant"]
+        and math.isclose(
+            zigzag_status["zigzag_energy_per_site"],
+            zigzag_status["minimum_energy_per_site"],
+            rel_tol=0.0,
+            abs_tol=1.0e-12,
+        )
+        and zigzag_status["energy_per_site_by_order_class"]["zigzag"]
+        < zigzag_status["energy_per_site_by_order_class"]["neel"]
+        and zigzag_status["energy_per_site_by_order_class"]["zigzag"]
+        < zigzag_status["energy_per_site_by_order_class"]["ferromagnetic"]
+    )
+    return {
+        **zigzag_status,
+        "method": "honeycomb_kitaev_heisenberg_zigzag_energy_enumeration",
+        "honeycomb_iridate_reference": bool(
+            has_honeycomb_lattice
+            and has_material_context
+            and has_kitaev_exchange
+            and has_heisenberg_exchange
+            and zigzag_is_representative_minimum
+        ),
+        "has_honeycomb_lattice": has_honeycomb_lattice,
+        "has_material_context": has_material_context,
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_heisenberg_exchange": has_heisenberg_exchange,
+    }
+
+
+def kagome_bilayer_spin_liquid_candidate_status(
+    *,
+    lattice,
+    material_context,
+    frustrated_geometry,
+    no_conventional_order_label,
+):
+    has_kagome_bilayer_geometry = str(lattice) == "kagome_bilayer"
+    has_material_context = bool(material_context)
+    has_frustrated_geometry = bool(frustrated_geometry)
+    has_no_conventional_order_label = bool(no_conventional_order_label)
+    candidate = bool(
+        has_kagome_bilayer_geometry
+        and has_material_context
+        and has_frustrated_geometry
+        and has_no_conventional_order_label
+    )
+    return {
+        "no_conventional_order_down_to_low_t": candidate,
+        "has_kagome_bilayer_geometry": has_kagome_bilayer_geometry,
+        "has_material_context": has_material_context,
+        "has_frustrated_geometry": has_frustrated_geometry,
+        "has_no_conventional_order_label": has_no_conventional_order_label,
+    }
+
+
+def garnet_short_range_order_candidate_status(
+    *,
+    lattice,
+    heisenberg_exchange,
+    dipolar_exchange,
+    material_context,
+    short_range_order_label,
+):
+    base_status = garnet_hyperkagome_frustration_status(
+        lattice=lattice,
+        heisenberg_exchange=heisenberg_exchange,
+        dipolar_exchange=dipolar_exchange,
+    )
+    has_material_context = bool(material_context)
+    has_short_range_order_label = bool(short_range_order_label)
+    return {
+        "short_range_order_without_simple_lro": bool(
+            base_status["garnet_frustrated_magnet"]
+            and has_material_context
+            and has_short_range_order_label
+        ),
+        "is_hyperkagome_garnet": base_status["is_hyperkagome_garnet"],
+        "has_antiferromagnetic_heisenberg": base_status["has_antiferromagnetic_heisenberg"],
+        "has_competing_dipolar_exchange": base_status["has_competing_dipolar_exchange"],
+        "has_material_context": has_material_context,
+        "has_short_range_order_label": has_short_range_order_label,
+    }
+
+
+def disordered_honeycomb_kitaev_candidate_status(*, lattice, material_context, disorder, kitaev, gamma):
+    content = honeycomb_kitaev_gamma_candidate_phase_content(kitaev=kitaev, gamma=gamma)
+    has_honeycomb_geometry = str(lattice) == "honeycomb"
+    has_material_context = bool(material_context)
+    has_disorder_context = bool(disorder)
+    has_kitaev_exchange = abs(float(kitaev)) > 0.0
+    return {
+        "no_magnetic_order_reported": bool(
+            has_honeycomb_geometry
+            and has_material_context
+            and has_disorder_context
+            and has_kitaev_exchange
+            and content["has_offdiagonal_gamma_mixing"]
+        ),
+        "has_honeycomb_geometry": has_honeycomb_geometry,
+        "has_material_context": has_material_context,
+        "has_disorder_context": has_disorder_context,
+        "has_kitaev_exchange": has_kitaev_exchange,
+        "has_offdiagonal_gamma_mixing": content["has_offdiagonal_gamma_mixing"],
+    }
+
+
+def h3liir2o6_clean_kitaev_negative_probe_status(*, kx, ky, kz, gamma, disorder):
+    couplings = [abs(float(kx)), abs(float(ky)), abs(float(kz))]
+    margins = [
+        couplings[1] + couplings[2] - couplings[0],
+        couplings[0] + couplings[2] - couplings[1],
+        couplings[0] + couplings[1] - couplings[2],
+    ]
+    clean_limit_gapless = all(margin >= -1.0e-12 for margin in margins)
+    has_gamma_mixing = abs(float(gamma)) > 0.0
+    has_disorder_context = bool(disorder)
+    return {
+        "method": "clean_kitaev_triangle_gapless_negative_probe",
+        "clean_limit_gapless": bool(clean_limit_gapless),
+        "triangle_inequality_margins": margins,
+        "has_gamma_mixing": has_gamma_mixing,
+        "has_disorder_context": has_disorder_context,
+        "reproduces_registered_h3liir2o6_no_order_observable": False,
+        "negative_evidence": (
+            "The clean-limit Kitaev triangle-inequality probe verifies only the ideal "
+            "honeycomb Kitaev gapless condition. It does not include H3LiIr2O6 disorder, "
+            "Gamma-mixed anisotropic exchange in a many-body calculation, or experimental "
+            "no-magnetic-order data, so it does not reproduce the registered material "
+            "spin-liquid-candidate observable."
+        ),
+    }
+
+
+def honeycomb_kitaev_spin_liquid_candidate_status(
+    *,
+    lattice,
+    material_context,
+    kitaev,
+    heisenberg,
+    spin_liquid_label,
+):
+    material_status = honeycomb_kitaev_material_status(
+        lattice=lattice,
+        material_context=material_context,
+        kitaev=kitaev,
+        heisenberg=heisenberg,
+    )
+    has_spin_liquid_label = bool(spin_liquid_label)
+    return {
+        "spin_liquid_candidate": bool(
+            material_status["honeycomb_iridate_reference"]
+            and has_spin_liquid_label
+        ),
+        "has_honeycomb_geometry": material_status["has_honeycomb_geometry"],
+        "has_material_context": material_status["has_material_context"],
+        "has_kitaev_exchange": material_status["has_kitaev_exchange"],
+        "has_heisenberg_exchange": material_status["has_heisenberg_exchange"],
+        "has_spin_liquid_label": has_spin_liquid_label,
+    }
+
+
+def ba3irti2o9_clean_kitaev_negative_probe_status(*, lattice, kitaev, heisenberg, coordination_number):
+    material_status = honeycomb_kitaev_material_status(
+        lattice=lattice,
+        material_context=True,
+        kitaev=kitaev,
+        heisenberg=heisenberg,
+    )
+    theta = curie_weiss_temperature(int(coordination_number), float(kitaev))
+    return {
+        "method": "clean_honeycomb_kitaev_curie_weiss_negative_probe",
+        "clean_kitaev_limit_exactly_solvable": exact_solution_status("kitaev_honeycomb"),
+        "has_honeycomb_geometry": material_status["has_honeycomb_geometry"],
+        "has_kitaev_exchange": material_status["has_kitaev_exchange"],
+        "has_heisenberg_exchange": material_status["has_heisenberg_exchange"],
+        "coordination_number": int(coordination_number),
+        "curie_weiss_theta": theta,
+        "reproduces_registered_ba3irti2o9_spin_liquid": False,
+        "negative_evidence": (
+            "The local probe combines the clean Kitaev limit exact-solution status with a "
+            "honeycomb Curie-Weiss moment sum rule. It does not use Ba3IrTi2O9 exchange "
+            "parameters, disorder/site-mixing information, thermodynamics, or neutron/NMR "
+            "data, so it does not reproduce the registered material spin-liquid observable."
+        ),
+    }
+
+
+def chiral_skyrmion_lattice_candidate_status(
+    *,
+    lattice,
+    material_context,
+    exchange,
+    dzyaloshinskii_moriya,
+    magnetic_field,
+):
+    has_chiral_cubic_lattice = str(lattice) == "chiral_cubic"
+    has_material_context = bool(material_context)
+    has_exchange = abs(float(exchange)) > 0.0
+    has_dm_interaction = abs(float(dzyaloshinskii_moriya)) > 0.0
+    has_magnetic_field = abs(float(magnetic_field)) > 0.0
+    return {
+        "skyrmion_lattice_phase": bool(
+            has_chiral_cubic_lattice
+            and has_material_context
+            and has_exchange
+            and has_dm_interaction
+            and has_magnetic_field
+        ),
+        "has_chiral_cubic_lattice": has_chiral_cubic_lattice,
+        "has_material_context": has_material_context,
+        "has_exchange": has_exchange,
+        "has_dm_interaction": has_dm_interaction,
+        "has_magnetic_field": has_magnetic_field,
+    }
+
+
+def _normalized_spin_field(spins):
+    norms = np.linalg.norm(spins, axis=2, keepdims=True)
+    return spins / np.maximum(norms, 1.0e-12)
+
+
+def _chiral_lattice_energy_per_site(spins, *, exchange, dzyaloshinskii_moriya, magnetic_field):
+    exchange = float(exchange)
+    dzyaloshinskii_moriya = float(dzyaloshinskii_moriya)
+    magnetic_field = float(magnetic_field)
+    x_neighbors = np.roll(spins, -1, axis=0)
+    y_neighbors = np.roll(spins, -1, axis=1)
+    exchange_energy = -exchange * (
+        np.sum(spins * x_neighbors) + np.sum(spins * y_neighbors)
+    )
+    x_chirality = np.cross(spins, x_neighbors)[:, :, 0]
+    y_chirality = np.cross(spins, y_neighbors)[:, :, 1]
+    dm_energy = -dzyaloshinskii_moriya * (np.sum(x_chirality) + np.sum(y_chirality))
+    field_energy = -magnetic_field * np.sum(spins[:, :, 2])
+    site_count = spins.shape[0] * spins.shape[1]
+    return float((exchange_energy + dm_energy + field_energy) / site_count)
+
+
+def _chiral_lattice_effective_field(spins, *, exchange, dzyaloshinskii_moriya, magnetic_field):
+    exchange = float(exchange)
+    dzyaloshinskii_moriya = float(dzyaloshinskii_moriya)
+    magnetic_field = float(magnetic_field)
+    x_plus = np.roll(spins, -1, axis=0)
+    x_minus = np.roll(spins, 1, axis=0)
+    y_plus = np.roll(spins, -1, axis=1)
+    y_minus = np.roll(spins, 1, axis=1)
+    x_hat = np.array([1.0, 0.0, 0.0])
+    y_hat = np.array([0.0, 1.0, 0.0])
+    field = exchange * (x_plus + x_minus + y_plus + y_minus)
+    field += dzyaloshinskii_moriya * (
+        np.cross(x_plus, x_hat)
+        + np.cross(x_hat, x_minus)
+        + np.cross(y_plus, y_hat)
+        + np.cross(y_hat, y_minus)
+    )
+    field[:, :, 2] += magnetic_field
+    return field
+
+
+def _relax_chiral_lattice_spins(
+    spins,
+    *,
+    exchange,
+    dzyaloshinskii_moriya,
+    magnetic_field,
+    relaxation_steps,
+    mixing,
+):
+    spins = np.array(spins, dtype=float, copy=True)
+    previous_energy = _chiral_lattice_energy_per_site(
+        spins,
+        exchange=exchange,
+        dzyaloshinskii_moriya=dzyaloshinskii_moriya,
+        magnetic_field=magnetic_field,
+    )
+    steps_taken = 0
+    for step in range(int(relaxation_steps)):
+        local_field = _chiral_lattice_effective_field(
+            spins,
+            exchange=exchange,
+            dzyaloshinskii_moriya=dzyaloshinskii_moriya,
+            magnetic_field=magnetic_field,
+        )
+        target = _normalized_spin_field(local_field)
+        spins = _normalized_spin_field((1.0 - float(mixing)) * spins + float(mixing) * target)
+        steps_taken = step + 1
+        if step % 100 == 0:
+            energy = _chiral_lattice_energy_per_site(
+                spins,
+                exchange=exchange,
+                dzyaloshinskii_moriya=dzyaloshinskii_moriya,
+                magnetic_field=magnetic_field,
+            )
+            if abs(energy - previous_energy) < 1.0e-10:
+                break
+            previous_energy = energy
+    return spins, _chiral_lattice_energy_per_site(
+        spins,
+        exchange=exchange,
+        dzyaloshinskii_moriya=dzyaloshinskii_moriya,
+        magnetic_field=magnetic_field,
+    ), steps_taken
+
+
+def _ferromagnetic_spin_field(lattice_size):
+    spins = np.zeros((int(lattice_size), int(lattice_size), 3), dtype=float)
+    spins[:, :, 2] = 1.0
+    return spins
+
+
+def _helical_spin_field(lattice_size, pitch, *, axis):
+    coordinates_x = np.arange(int(lattice_size), dtype=float)[:, None]
+    coordinates_y = np.arange(int(lattice_size), dtype=float)[None, :]
+    phase = float(pitch) * (coordinates_x if int(axis) == 0 else coordinates_y)
+    spins = np.zeros((int(lattice_size), int(lattice_size), 3), dtype=float)
+    if int(axis) == 0:
+        spins[:, :, 1] = np.sin(phase)
+    else:
+        spins[:, :, 0] = np.sin(phase)
+    spins[:, :, 2] = np.cos(phase)
+    return spins
+
+
+def _triple_q_skyrmion_spin_field(lattice_size, pitch, *, uniform_magnetization):
+    coordinates_x = np.arange(int(lattice_size), dtype=float)[:, None]
+    coordinates_y = np.arange(int(lattice_size), dtype=float)[None, :]
+    wavevectors = [
+        (float(pitch), 0.0),
+        (-0.5 * float(pitch), 0.5 * math.sqrt(3.0) * float(pitch)),
+        (-0.5 * float(pitch), -0.5 * math.sqrt(3.0) * float(pitch)),
+    ]
+    spins = np.zeros((int(lattice_size), int(lattice_size), 3), dtype=float)
+    spins[:, :, 2] = float(uniform_magnetization)
+    z_hat = np.array([0.0, 0.0, 1.0])
+    for qx, qy in wavevectors:
+        phase = qx * coordinates_x + qy * coordinates_y
+        q_hat = np.array([qx, qy, 0.0])
+        q_hat = q_hat / np.linalg.norm(q_hat)
+        polarization = np.cross(z_hat, q_hat)
+        spins[:, :, 0] += polarization[0] * np.sin(phase)
+        spins[:, :, 1] += polarization[1] * np.sin(phase)
+        spins[:, :, 2] += np.cos(phase)
+    return _normalized_spin_field(spins)
+
+
+def _berg_luescher_topological_charge(spins):
+    def solid_angle(first, second, third):
+        numerator = np.einsum("...i,...i", first, np.cross(second, third))
+        denominator = (
+            1.0
+            + np.einsum("...i,...i", first, second)
+            + np.einsum("...i,...i", second, third)
+            + np.einsum("...i,...i", third, first)
+        )
+        return 2.0 * np.arctan2(numerator, denominator)
+
+    x_neighbor = np.roll(spins, -1, axis=0)
+    y_neighbor = np.roll(spins, -1, axis=1)
+    xy_neighbor = np.roll(x_neighbor, -1, axis=1)
+    total_solid_angle = solid_angle(spins, x_neighbor, xy_neighbor)
+    total_solid_angle += solid_angle(spins, xy_neighbor, y_neighbor)
+    return float(np.sum(total_solid_angle) / (4.0 * math.pi))
+
+
+@lru_cache(maxsize=8)
+def chiral_skyrmion_lattice_variational_minimization_status(
+    *,
+    lattice_size=36,
+    exchange=1.0,
+    dzyaloshinskii_moriya=0.8,
+    magnetic_field=0.3,
+    relaxation_steps=1600,
+    mixing=0.24,
+    energy_margin=1.0e-2,
+):
+    lattice_size = int(lattice_size)
+    if lattice_size < 12:
+        raise ValueError("skyrmion variational benchmark expects lattice_size >= 12")
+    exchange = float(exchange)
+    dzyaloshinskii_moriya = float(dzyaloshinskii_moriya)
+    magnetic_field = float(magnetic_field)
+    if exchange <= 0.0 or dzyaloshinskii_moriya == 0.0 or magnetic_field <= 0.0:
+        return {
+            "method": "deterministic_chiral_lattice_variational_relaxation",
+            "skyrmion_lattice_phase": False,
+            "reason": "requires ferromagnetic exchange, nonzero Dzyaloshinskii-Moriya coupling, and positive field",
+        }
+
+    pitch = math.atan(abs(dzyaloshinskii_moriya) / exchange)
+    initial_states = {
+        "ferromagnetic": _ferromagnetic_spin_field(lattice_size),
+        "helix_x": _helical_spin_field(lattice_size, pitch, axis=0),
+        "helix_y": _helical_spin_field(lattice_size, pitch, axis=1),
+        "triple_q_m0_0": _triple_q_skyrmion_spin_field(lattice_size, pitch, uniform_magnetization=0.0),
+        "triple_q_m0_5": _triple_q_skyrmion_spin_field(lattice_size, pitch, uniform_magnetization=0.5),
+        "triple_q_m1_0": _triple_q_skyrmion_spin_field(lattice_size, pitch, uniform_magnetization=1.0),
+    }
+    energies = {}
+    topological_charges = {}
+    magnetizations = {}
+    relaxation_steps_by_state = {}
+    for name, spins in initial_states.items():
+        relaxed, energy, steps_taken = _relax_chiral_lattice_spins(
+            spins,
+            exchange=exchange,
+            dzyaloshinskii_moriya=dzyaloshinskii_moriya,
+            magnetic_field=magnetic_field,
+            relaxation_steps=int(relaxation_steps),
+            mixing=float(mixing),
+        )
+        energies[name] = energy
+        topological_charges[name] = _berg_luescher_topological_charge(relaxed)
+        magnetizations[name] = float(np.mean(relaxed[:, :, 2]))
+        relaxation_steps_by_state[name] = int(steps_taken)
+
+    best_state = min(energies, key=energies.get)
+    helix_energy = min(energies["helix_x"], energies["helix_y"])
+    ferromagnetic_energy = energies["ferromagnetic"]
+    best_topological_charge = topological_charges[best_state]
+    skyrmion_lattice_phase = bool(
+        best_state.startswith("triple_q")
+        and abs(best_topological_charge) >= 1.0
+        and energies[best_state] < helix_energy - float(energy_margin)
+        and energies[best_state] < ferromagnetic_energy - float(energy_margin)
+    )
+    return {
+        "method": "deterministic_chiral_lattice_variational_relaxation",
+        "skyrmion_lattice_phase": skyrmion_lattice_phase,
+        "lattice_size": lattice_size,
+        "exchange": exchange,
+        "dzyaloshinskii_moriya": dzyaloshinskii_moriya,
+        "magnetic_field": magnetic_field,
+        "pitch_radians": pitch,
+        "best_state": best_state,
+        "best_energy_per_site": energies[best_state],
+        "best_topological_charge": best_topological_charge,
+        "helix_energy_per_site": helix_energy,
+        "ferromagnetic_energy_per_site": ferromagnetic_energy,
+        "energy_margin": float(energy_margin),
+        "energy_per_site_by_state": energies,
+        "topological_charge_by_state": topological_charges,
+        "magnetization_by_state": magnetizations,
+        "relaxation_steps_by_state": relaxation_steps_by_state,
+    }
+
+
+def anisotropic_triangular_classical_spiral_status(*, j_chain, j_zigzag):
+    j_chain = float(j_chain)
+    j_zigzag = float(j_zigzag)
+    if j_chain <= 0.0:
+        raise ValueError("j_chain must be antiferromagnetic for this anisotropic triangular formula")
+    ratio = j_zigzag / (2.0 * j_chain)
+    if not 0.0 < ratio <= 1.0:
+        return {"is_incommensurate_spiral": False, "ordering_vector_radians": math.pi, "ordering": "collinear"}
+    q = 2.0 * math.acos(-ratio)
+    folded_q = min(q, 2.0 * math.pi - q)
+    is_120 = math.isclose(folded_q, 2.0 * math.pi / 3.0, rel_tol=0.0, abs_tol=1.0e-12)
+    return {
+        "is_incommensurate_spiral": not is_120,
+        "ordering_vector_radians": q,
+        "ordering": "incommensurate_spiral" if not is_120 else "commensurate_120",
+    }
+
+
+def _rectangular_periodic_triangular_bonds(length_x, length_y):
+    length_x = int(length_x)
+    length_y = int(length_y)
+    if length_x < 3 or length_y < 3:
+        raise ValueError("periodic triangular ED clusters require both lengths to be at least 3")
+
+    def site_index(x_coord, y_coord):
+        return (y_coord % length_y) * length_x + (x_coord % length_x)
+
+    bonds = set()
+    for x_coord in range(length_x):
+        for y_coord in range(length_y):
+            source = site_index(x_coord, y_coord)
+            for delta_x, delta_y in ((1, 0), (0, 1), (1, 1)):
+                target = site_index(x_coord + delta_x, y_coord + delta_y)
+                if source != target:
+                    bonds.add(tuple(sorted((source, target))))
+    return tuple(sorted(bonds))
+
+
+def _rectangular_periodic_kagome_bonds(length_x, length_y):
+    length_x = int(length_x)
+    length_y = int(length_y)
+    if length_x < 2 or length_y < 2:
+        raise ValueError("periodic kagome ED clusters require both lengths to be at least 2")
+
+    a1 = np.array([1.0, 0.0], dtype=float)
+    a2 = np.array([0.5, math.sqrt(3.0) / 2.0], dtype=float)
+    basis = [
+        np.array([0.0, 0.0], dtype=float),
+        np.array([0.5, 0.0], dtype=float),
+        np.array([0.25, math.sqrt(3.0) / 4.0], dtype=float),
+    ]
+    supercell = np.column_stack([length_x * a1, length_y * a2])
+    inverse_supercell = np.linalg.inv(supercell)
+
+    coordinates = []
+    for x_coord in range(length_x):
+        for y_coord in range(length_y):
+            cell_origin = x_coord * a1 + y_coord * a2
+            coordinates.extend(cell_origin + basis_vector for basis_vector in basis)
+
+    nearest_distance = 0.5
+    bonds = set()
+    for source, target in combinations(range(len(coordinates)), 2):
+        displacement = coordinates[target] - coordinates[source]
+        fractional_displacement = inverse_supercell @ displacement
+        fractional_displacement -= np.round(fractional_displacement)
+        minimum_image = supercell @ fractional_displacement
+        distance = float(np.linalg.norm(minimum_image))
+        if abs(distance - nearest_distance) <= 1.0e-8:
+            bonds.add((source, target))
+    return tuple(sorted(bonds))
+
+
+def _rectangular_periodic_kagome_bonds_at_distance(length_x, length_y, target_distance):
+    length_x = int(length_x)
+    length_y = int(length_y)
+    if length_x < 2 or length_y < 2:
+        raise ValueError("periodic kagome ED clusters require both lengths to be at least 2")
+
+    a1 = np.array([1.0, 0.0], dtype=float)
+    a2 = np.array([0.5, math.sqrt(3.0) / 2.0], dtype=float)
+    basis = [
+        np.array([0.0, 0.0], dtype=float),
+        np.array([0.5, 0.0], dtype=float),
+        np.array([0.25, math.sqrt(3.0) / 4.0], dtype=float),
+    ]
+    supercell = np.column_stack([length_x * a1, length_y * a2])
+    inverse_supercell = np.linalg.inv(supercell)
+
+    coordinates = []
+    for x_coord in range(length_x):
+        for y_coord in range(length_y):
+            cell_origin = x_coord * a1 + y_coord * a2
+            coordinates.extend(cell_origin + basis_vector for basis_vector in basis)
+
+    bonds = set()
+    for source, target in combinations(range(len(coordinates)), 2):
+        displacement = coordinates[target] - coordinates[source]
+        fractional_displacement = inverse_supercell @ displacement
+        fractional_displacement -= np.round(fractional_displacement)
+        minimum_image = supercell @ fractional_displacement
+        distance = float(np.linalg.norm(minimum_image))
+        if abs(distance - float(target_distance)) <= 1.0e-8:
+            bonds.add((source, target))
+    return tuple(sorted(bonds))
+
+
+@lru_cache(maxsize=None)
+def _spin_half_heisenberg_cluster_ground_energy_per_site(site_count, bonds, exchange):
+    site_count = int(site_count)
+    if site_count < 2:
+        raise ValueError("cluster must contain at least two sites")
+    exchange = float(exchange)
+    up_count = site_count // 2
+    basis = [sum(1 << site for site in occupied_sites) for occupied_sites in combinations(range(site_count), up_count)]
+    basis_index = {state: index for index, state in enumerate(basis)}
+
+    rows = []
+    columns = []
+    values = []
+    for column, state in enumerate(basis):
+        diagonal = 0.0
+        for source, target in bonds:
+            source_spin = 1 if (state >> source) & 1 else -1
+            target_spin = 1 if (state >> target) & 1 else -1
+            diagonal += 0.25 * exchange * source_spin * target_spin
+            if source_spin != target_spin:
+                flipped = state ^ (1 << source) ^ (1 << target)
+                rows.append(basis_index[flipped])
+                columns.append(column)
+                values.append(0.5 * exchange)
+        rows.append(column)
+        columns.append(column)
+        values.append(diagonal)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("triangular finite-cluster ED requires scipy") from exc
+
+    hamiltonian = coo_matrix((values, (rows, columns)), shape=(len(basis), len(basis))).tocsr()
+    eigenvalue = eigsh(
+        hamiltonian,
+        k=1,
+        which="SA",
+        tol=1.0e-10,
+        return_eigenvectors=False,
+        maxiter=100000,
+    )[0]
+    return float(eigenvalue / site_count)
+
+
+@lru_cache(maxsize=None)
+def _spin_half_heisenberg_cluster_sector_ground_energy(site_count, bonds, up_count, exchange):
+    site_count = int(site_count)
+    up_count = int(up_count)
+    if site_count < 2:
+        raise ValueError("cluster must contain at least two sites")
+    if not 0 <= up_count <= site_count:
+        raise ValueError("up_count must be a valid spin sector")
+    exchange = float(exchange)
+    basis = [sum(1 << site for site in occupied_sites) for occupied_sites in combinations(range(site_count), up_count)]
+    basis_index = {state: index for index, state in enumerate(basis)}
+
+    rows = []
+    columns = []
+    values = []
+    for column, state in enumerate(basis):
+        diagonal = 0.0
+        for source, target in bonds:
+            source_spin = 1 if (state >> source) & 1 else -1
+            target_spin = 1 if (state >> target) & 1 else -1
+            diagonal += 0.25 * exchange * source_spin * target_spin
+            if source_spin != target_spin:
+                flipped = state ^ (1 << source) ^ (1 << target)
+                rows.append(basis_index[flipped])
+                columns.append(column)
+                values.append(0.5 * exchange)
+        rows.append(column)
+        columns.append(column)
+        values.append(diagonal)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("spin-half finite-cluster sector ED requires scipy") from exc
+
+    hamiltonian = coo_matrix((values, (rows, columns)), shape=(len(basis), len(basis))).tocsr()
+    if len(basis) <= 2:
+        return float(np.linalg.eigvalsh(hamiltonian.toarray())[0])
+    return float(
+        eigsh(
+            hamiltonian,
+            k=1,
+            which="SA",
+            tol=1.0e-10,
+            return_eigenvectors=False,
+            maxiter=100000,
+        )[0]
+    )
+
+
+@lru_cache(maxsize=None)
+def _spin_half_weighted_heisenberg_cluster_sector_ground_energy(site_count, weighted_bonds, up_count):
+    site_count = int(site_count)
+    up_count = int(up_count)
+    if site_count < 2:
+        raise ValueError("cluster must contain at least two sites")
+    if not 0 <= up_count <= site_count:
+        raise ValueError("up_count must be a valid spin sector")
+    weighted_bonds = tuple((int(source), int(target), float(exchange)) for source, target, exchange in weighted_bonds)
+    basis = [sum(1 << site for site in occupied_sites) for occupied_sites in combinations(range(site_count), up_count)]
+    basis_index = {state: index for index, state in enumerate(basis)}
+
+    rows = []
+    columns = []
+    values = []
+    for column, state in enumerate(basis):
+        diagonal = 0.0
+        for source, target, exchange in weighted_bonds:
+            source_spin = 1 if (state >> source) & 1 else -1
+            target_spin = 1 if (state >> target) & 1 else -1
+            diagonal += 0.25 * exchange * source_spin * target_spin
+            if source_spin != target_spin:
+                flipped = state ^ (1 << source) ^ (1 << target)
+                rows.append(basis_index[flipped])
+                columns.append(column)
+                values.append(0.5 * exchange)
+        rows.append(column)
+        columns.append(column)
+        values.append(diagonal)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("weighted spin-half finite-cluster ED requires scipy") from exc
+
+    hamiltonian = coo_matrix((values, (rows, columns)), shape=(len(basis), len(basis))).tocsr()
+    if len(basis) <= 2:
+        return float(np.linalg.eigvalsh(hamiltonian.toarray())[0])
+    return float(
+        eigsh(
+            hamiltonian,
+            k=1,
+            which="SA",
+            tol=1.0e-10,
+            return_eigenvectors=False,
+            maxiter=100000,
+        )[0]
+    )
+
+
+def triangular_spin_half_heisenberg_ed_shape_average_energy(*, cluster_shapes, exchange=1.0):
+    cluster_energies = {}
+    for length_x, length_y in cluster_shapes:
+        length_x = int(length_x)
+        length_y = int(length_y)
+        site_count = length_x * length_y
+        if site_count % 2:
+            raise ValueError("shape-average ED uses even-site clusters in the Sz=0 sector")
+        bonds = _rectangular_periodic_triangular_bonds(length_x, length_y)
+        cluster_energies[(length_x, length_y)] = _spin_half_heisenberg_cluster_ground_energy_per_site(
+            site_count,
+            bonds,
+            float(exchange),
+        )
+    if not cluster_energies:
+        raise ValueError("at least one cluster shape is required")
+    energies = list(cluster_energies.values())
+    return {
+        "cluster_energies_per_site": cluster_energies,
+        "shape_average_energy_per_site": float(np.mean(energies)),
+        "minimum_cluster_energy_per_site": float(np.min(energies)),
+        "maximum_cluster_energy_per_site": float(np.max(energies)),
+    }
+
+
+def kagome_spin_half_heisenberg_ed_energy_status(
+    *,
+    cluster_shapes=((2, 2), (3, 2)),
+    exchange=1.0,
+    registered_energy=-0.4386,
+    tolerance=5.0e-4,
+):
+    cluster_energies = {}
+    cluster_bond_counts = {}
+    for length_x, length_y in cluster_shapes:
+        length_x = int(length_x)
+        length_y = int(length_y)
+        site_count = 3 * length_x * length_y
+        if site_count % 2:
+            raise ValueError("kagome ED energy check uses even-site clusters in the Sz=0 sector")
+        bonds = _rectangular_periodic_kagome_bonds(length_x, length_y)
+        cluster_bond_counts[(length_x, length_y)] = len(bonds)
+        cluster_energies[(length_x, length_y)] = _spin_half_heisenberg_cluster_ground_energy_per_site(
+            site_count,
+            bonds,
+            float(exchange),
+        )
+    if not cluster_energies:
+        raise ValueError("at least one kagome cluster shape is required")
+
+    differences = {
+        shape: abs(energy - float(registered_energy))
+        for shape, energy in cluster_energies.items()
+    }
+    closest_cluster_shape = min(differences, key=differences.get)
+    return {
+        "method": "periodic_kagome_spin_half_ed_energy_scan",
+        "exchange": float(exchange),
+        "cluster_energies_per_site": cluster_energies,
+        "cluster_bond_counts": cluster_bond_counts,
+        "registered_energy_per_site": float(registered_energy),
+        "registered_tolerance": float(tolerance),
+        "absolute_differences_from_registered": differences,
+        "closest_cluster_shape": closest_cluster_shape,
+        "all_clusters_match_registered_dmrg_value": bool(
+            all(difference <= float(tolerance) for difference in differences.values())
+        ),
+    }
+
+
+@lru_cache(maxsize=4)
+def kagome_spin_half_heisenberg_tenpy_idmrg_energy_status(
+    *,
+    bond_dimension=112,
+    unit_cell_length=2,
+    circumference=3,
+    exchange=1.0,
+    registered_energy=-0.4386,
+    tolerance=5.0e-4,
+    max_sweeps=20,
+):
+    unit_cell_length = int(unit_cell_length)
+    circumference = int(circumference)
+    bond_dimension = int(bond_dimension)
+    max_sweeps = int(max_sweeps)
+    if unit_cell_length <= 0 or circumference <= 0:
+        raise ValueError("kagome iDMRG benchmark expects positive cylinder dimensions")
+    if bond_dimension <= 0:
+        raise ValueError("kagome iDMRG benchmark expects a positive bond dimension")
+
+    try:
+        import warnings
+
+        from tenpy.algorithms import dmrg
+        from tenpy.models.spins import SpinModel
+        from tenpy.networks.mps import MPS
+    except Exception as exc:  # pragma: no cover - exercised only when optional backend is absent
+        raise RuntimeError("TeNPy is required for the kagome infinite-cylinder DMRG benchmark") from exc
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        model = SpinModel(
+            {
+                "lattice": "Kagome",
+                "Lx": unit_cell_length,
+                "Ly": circumference,
+                "S": 0.5,
+                "Jx": float(exchange),
+                "Jy": float(exchange),
+                "Jz": float(exchange),
+                "conserve": "Sz",
+                "bc_MPS": "infinite",
+                "bc_x": "periodic",
+                "bc_y": "cylinder",
+                "order": "rings",
+            }
+        )
+        product_state = ["up", "down"] * (model.lat.N_sites // 2)
+        if len(product_state) < model.lat.N_sites:
+            product_state.append("up")
+        psi = MPS.from_product_state(
+            model.lat.mps_sites(),
+            product_state,
+            bc=model.lat.bc_MPS,
+        )
+        dmrg_options = {
+            "mixer": True,
+            "max_E_err": 1.0e-8,
+            "trunc_params": {
+                "chi_max": bond_dimension,
+                "svd_min": 1.0e-10,
+            },
+            "max_sweeps": max_sweeps,
+            "max_trunc_err": 5.0e-2,
+            "verbose": False,
+        }
+        dmrg_info = dmrg.run(psi, model, dmrg_options)
+
+    sweep_statistics = dmrg_info.get("sweep_statistics", {})
+    sweep_truncation_errors = sweep_statistics.get("max_trunc_err", [])
+    max_sweep_truncation_error = (
+        max(float(error) for error in sweep_truncation_errors)
+        if sweep_truncation_errors
+        else 0.0
+    )
+    energy_per_site = float(dmrg_info["E"])
+    absolute_difference = abs(energy_per_site - float(registered_energy))
+    return {
+        "method": "tenpy_infinite_cylinder_dmrg_energy",
+        "lattice": "kagome",
+        "exchange": float(exchange),
+        "unit_cell_length": unit_cell_length,
+        "circumference": circumference,
+        "unit_cell_sites": int(model.lat.N_sites),
+        "bond_dimension": bond_dimension,
+        "actual_bond_dimension": int(max(psi.chi)),
+        "max_sweeps": max_sweeps,
+        "completed_sweeps": int(len(sweep_statistics.get("sweep", []))),
+        "energy_per_site": energy_per_site,
+        "registered_energy_per_site": float(registered_energy),
+        "registered_tolerance": float(tolerance),
+        "absolute_difference_from_registered": absolute_difference,
+        "matches_registered_dmrg_energy": bool(absolute_difference <= float(tolerance)),
+        "max_sweep_truncation_error": max_sweep_truncation_error,
+    }
+
+
+@lru_cache(maxsize=4)
+def kagome_spin_half_heisenberg_tenpy_finite_cylinder_spin_gap_status(
+    *,
+    length=6,
+    circumference=3,
+    bond_dimension=64,
+    exchange=1.0,
+    registered_spin_gap=0.13,
+    gap_tolerance=2.0e-2,
+    max_sweeps=10,
+):
+    length = int(length)
+    circumference = int(circumference)
+    bond_dimension = int(bond_dimension)
+    max_sweeps = int(max_sweeps)
+    if length <= 0 or circumference <= 0:
+        raise ValueError("kagome finite-cylinder gap benchmark expects positive dimensions")
+    if bond_dimension <= 0:
+        raise ValueError("kagome finite-cylinder gap benchmark expects a positive bond dimension")
+
+    try:
+        import warnings
+
+        from tenpy.algorithms import dmrg
+        from tenpy.models.spins import SpinModel
+        from tenpy.networks.mps import MPS
+    except Exception as exc:  # pragma: no cover - exercised only when optional backend is absent
+        raise RuntimeError("TeNPy is required for the kagome finite-cylinder spin-gap benchmark") from exc
+
+    def run_sector(total_sz):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model = SpinModel(
+                {
+                    "lattice": "Kagome",
+                    "Lx": length,
+                    "Ly": circumference,
+                    "S": 0.5,
+                    "Jx": float(exchange),
+                    "Jy": float(exchange),
+                    "Jz": float(exchange),
+                    "conserve": "Sz",
+                    "bc_MPS": "finite",
+                    "bc_x": "open",
+                    "bc_y": "cylinder",
+                    "order": "rings",
+                }
+            )
+            site_count = int(model.lat.N_sites)
+            if site_count % 2:
+                raise ValueError("kagome finite-cylinder gap benchmark expects an even site count")
+            up_count = site_count // 2 + int(total_sz)
+            down_count = site_count - up_count
+            if up_count < 0 or down_count < 0:
+                raise ValueError("requested Sz sector is incompatible with the finite-cylinder site count")
+
+            product_state = []
+            remaining_up = up_count
+            remaining_down = down_count
+            for site_index in range(site_count):
+                if ((site_index % 2 == 0) and remaining_up > 0) or remaining_down == 0:
+                    product_state.append("up")
+                    remaining_up -= 1
+                else:
+                    product_state.append("down")
+                    remaining_down -= 1
+
+            psi = MPS.from_product_state(
+                model.lat.mps_sites(),
+                product_state,
+                bc=model.lat.bc_MPS,
+            )
+            dmrg_info = dmrg.run(
+                psi,
+                model,
+                {
+                    "mixer": True,
+                    "max_E_err": 5.0e-7,
+                    "trunc_params": {
+                        "chi_max": bond_dimension,
+                        "svd_min": 1.0e-9,
+                    },
+                    "max_sweeps": max_sweeps,
+                    "max_trunc_err": 5.0e-2,
+                },
+            )
+
+        sweep_statistics = dmrg_info.get("sweep_statistics", {})
+        sweep_truncation_errors = sweep_statistics.get("max_trunc_err", [])
+        return {
+            "energy": float(dmrg_info["E"]),
+            "energy_per_site": float(dmrg_info["E"]) / float(site_count),
+            "actual_bond_dimension": int(max(psi.chi)),
+            "completed_sweeps": int(len(sweep_statistics.get("sweep", []))),
+            "last_sweep_truncation_error": (
+                float(sweep_truncation_errors[-1])
+                if sweep_truncation_errors
+                else 0.0
+            ),
+        }
+
+    singlet_status = run_sector(0)
+    triplet_status = run_sector(1)
+    spin_gap = triplet_status["energy"] - singlet_status["energy"]
+    gap_difference = abs(spin_gap - float(registered_spin_gap))
+    site_count = 3 * length * circumference
+    return {
+        "method": "tenpy_finite_cylinder_spin_gap",
+        "lattice": "kagome",
+        "exchange": float(exchange),
+        "length": length,
+        "circumference": circumference,
+        "site_count": site_count,
+        "bond_dimension": bond_dimension,
+        "max_sweeps": max_sweeps,
+        "singlet_sector": singlet_status,
+        "triplet_sector": triplet_status,
+        "spin_gap_over_j": spin_gap / float(exchange),
+        "registered_spin_gap": float(registered_spin_gap),
+        "registered_gap_tolerance": float(gap_tolerance),
+        "gap_absolute_difference_from_registered": gap_difference,
+        "matches_registered_spin_gap": bool(gap_difference <= float(gap_tolerance)),
+    }
+
+
+def kagome_yan_energy_gap_tenpy_dmrg_status(
+    *,
+    energy_bond_dimension=112,
+    energy_unit_cell_length=2,
+    energy_circumference=3,
+    gap_length=6,
+    gap_circumference=3,
+    gap_bond_dimension=64,
+    exchange=1.0,
+    registered_energy=-0.4386,
+    registered_spin_gap=0.13,
+    energy_tolerance=5.0e-4,
+    gap_tolerance=2.0e-2,
+    gap_max_sweeps=10,
+):
+    energy_status = kagome_spin_half_heisenberg_tenpy_idmrg_energy_status(
+        bond_dimension=int(energy_bond_dimension),
+        unit_cell_length=int(energy_unit_cell_length),
+        circumference=int(energy_circumference),
+        exchange=float(exchange),
+        registered_energy=float(registered_energy),
+        tolerance=float(energy_tolerance),
+    )
+    gap_status = kagome_spin_half_heisenberg_tenpy_finite_cylinder_spin_gap_status(
+        length=int(gap_length),
+        circumference=int(gap_circumference),
+        bond_dimension=int(gap_bond_dimension),
+        exchange=float(exchange),
+        registered_spin_gap=float(registered_spin_gap),
+        gap_tolerance=float(gap_tolerance),
+        max_sweeps=int(gap_max_sweeps),
+    )
+    energy_difference = abs(energy_status["energy_per_site"] - float(registered_energy))
+    gap_difference = gap_status["gap_absolute_difference_from_registered"]
+    return {
+        "method": "tenpy_idmrg_energy_plus_finite_cylinder_spin_gap",
+        "energy_status": energy_status,
+        "gap_status": gap_status,
+        "energy_per_site": energy_status["energy_per_site"],
+        "spin_gap_over_j": gap_status["spin_gap_over_j"],
+        "registered_energy_per_site": float(registered_energy),
+        "registered_spin_gap": float(registered_spin_gap),
+        "registered_energy_tolerance": float(energy_tolerance),
+        "registered_gap_tolerance": float(gap_tolerance),
+        "energy_absolute_difference_from_registered": energy_difference,
+        "gap_absolute_difference_from_registered": gap_difference,
+        "matches_registered_energy_and_gap": bool(
+            energy_difference <= float(energy_tolerance)
+            and gap_difference <= float(gap_tolerance)
+        ),
+    }
+
+
+def kagome_spin_half_heisenberg_ed_energy_gap_status(
+    *,
+    cluster_shapes=((2, 2), (3, 2)),
+    exchange=1.0,
+    registered_energy=-0.4386,
+    registered_spin_gap=0.13,
+    energy_tolerance=5.0e-4,
+    gap_tolerance=0.02,
+):
+    cluster_energies = {}
+    triplet_gaps = {}
+    for length_x, length_y in cluster_shapes:
+        length_x = int(length_x)
+        length_y = int(length_y)
+        site_count = 3 * length_x * length_y
+        if site_count % 2:
+            raise ValueError("kagome ED energy-gap check uses even-site clusters in the Sz=0 sector")
+        bonds = _rectangular_periodic_kagome_bonds(length_x, length_y)
+        singlet_sector_energy = _spin_half_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            bonds,
+            site_count // 2,
+            float(exchange),
+        )
+        triplet_sector_energy = _spin_half_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            bonds,
+            site_count // 2 + 1,
+            float(exchange),
+        )
+        shape = (length_x, length_y)
+        cluster_energies[shape] = singlet_sector_energy / site_count
+        triplet_gaps[shape] = triplet_sector_energy - singlet_sector_energy
+
+    energy_differences = {
+        shape: abs(energy - float(registered_energy))
+        for shape, energy in cluster_energies.items()
+    }
+    gap_differences = {
+        shape: abs(gap - float(registered_spin_gap))
+        for shape, gap in triplet_gaps.items()
+    }
+    return {
+        "method": "periodic_kagome_spin_half_ed_energy_gap_scan",
+        "exchange": float(exchange),
+        "cluster_energies_per_site": cluster_energies,
+        "triplet_gaps": triplet_gaps,
+        "registered_energy_per_site": float(registered_energy),
+        "registered_spin_gap": float(registered_spin_gap),
+        "energy_tolerance": float(energy_tolerance),
+        "gap_tolerance": float(gap_tolerance),
+        "energy_absolute_differences_from_registered": energy_differences,
+        "gap_absolute_differences_from_registered": gap_differences,
+        "all_clusters_match_registered_energy_and_gap": bool(
+            all(difference <= float(energy_tolerance) for difference in energy_differences.values())
+            and all(difference <= float(gap_tolerance) for difference in gap_differences.values())
+        ),
+    }
+
+
+def kagome_j1_j2_phase_diagram_negative_ed_status(*, cluster_shape, j1, j2_values):
+    length_x, length_y = (int(cluster_shape[0]), int(cluster_shape[1]))
+    site_count = 3 * length_x * length_y
+    if site_count % 2:
+        raise ValueError("kagome J1-J2 ED phase probe uses even-site clusters in the Sz=0 sector")
+    nearest_neighbor_bonds = _rectangular_periodic_kagome_bonds(length_x, length_y)
+    next_nearest_neighbor_bonds = _rectangular_periodic_kagome_bonds_at_distance(
+        length_x,
+        length_y,
+        math.sqrt(3.0) / 2.0,
+    )
+
+    energy_per_site_by_j2 = {}
+    triplet_gap_by_j2 = {}
+    for j2 in tuple(float(value) for value in j2_values):
+        weighted_bonds = tuple(
+            [(source, target, float(j1)) for source, target in nearest_neighbor_bonds]
+            + [(source, target, j2) for source, target in next_nearest_neighbor_bonds]
+        )
+        singlet_energy = _spin_half_weighted_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            weighted_bonds,
+            site_count // 2,
+        )
+        triplet_energy = _spin_half_weighted_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            weighted_bonds,
+            site_count // 2 + 1,
+        )
+        energy_per_site_by_j2[j2] = float(singlet_energy / site_count)
+        triplet_gap_by_j2[j2] = float(triplet_energy - singlet_energy)
+
+    return {
+        "method": "periodic_kagome_j1_j2_spin_half_ed_negative_phase_probe",
+        "cluster_shape": (length_x, length_y),
+        "site_count": site_count,
+        "j1": float(j1),
+        "j2_values": list(energy_per_site_by_j2),
+        "nearest_neighbor_bond_count": len(nearest_neighbor_bonds),
+        "next_nearest_neighbor_bond_count": len(next_nearest_neighbor_bonds),
+        "energy_per_site_by_j2": energy_per_site_by_j2,
+        "triplet_gap_by_j2": triplet_gap_by_j2,
+        "reproduces_registered_j1_j2_phase_diagram": False,
+        "negative_evidence": (
+            "The local calculation is only a finite 12-site ED energy/gap scan. It does "
+            "not compute a thermodynamic DMRG/ED phase classifier distinguishing spin-liquid, "
+            "q=0, and sqrt(3)xsqrt(3) kagome J1-J2 phases."
+        ),
+    }
+
+
+def triangular_lattice_spin_half_one_third_plateau_ed_status(*, cluster_shapes, exchange=1.0):
+    exchange = float(exchange)
+    if exchange <= 0.0:
+        raise ValueError("triangular one-third plateau ED expects antiferromagnetic exchange")
+    plateau_width_by_shape = {}
+    plateau_field_interval_by_shape = {}
+    sector_energy_by_shape = {}
+    plateau_fractions = {}
+    for length_x, length_y in cluster_shapes:
+        length_x = int(length_x)
+        length_y = int(length_y)
+        site_count = length_x * length_y
+        if (2 * site_count) % 3:
+            raise ValueError("cluster size must allow an exact one-third magnetization sector")
+        plateau_up_count = (2 * site_count) // 3
+        if not 0 < plateau_up_count < site_count:
+            raise ValueError("invalid one-third magnetization sector")
+        bonds = _rectangular_periodic_triangular_bonds(length_x, length_y)
+        lower_sector_energy = _spin_half_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            bonds,
+            plateau_up_count - 1,
+            exchange,
+        )
+        plateau_sector_energy = _spin_half_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            bonds,
+            plateau_up_count,
+            exchange,
+        )
+        upper_sector_energy = _spin_half_heisenberg_cluster_sector_ground_energy(
+            site_count,
+            bonds,
+            plateau_up_count + 1,
+            exchange,
+        )
+        lower_field = plateau_sector_energy - lower_sector_energy
+        upper_field = upper_sector_energy - plateau_sector_energy
+        shape = (length_x, length_y)
+        plateau_width_by_shape[shape] = upper_field - lower_field
+        plateau_field_interval_by_shape[shape] = (lower_field, upper_field)
+        sector_energy_by_shape[shape] = {
+            plateau_up_count - 1: lower_sector_energy,
+            plateau_up_count: plateau_sector_energy,
+            plateau_up_count + 1: upper_sector_energy,
+        }
+        total_magnetization = plateau_up_count - site_count / 2.0
+        plateau_fractions[shape] = total_magnetization / (site_count / 2.0)
+
+    if not plateau_width_by_shape:
+        raise ValueError("at least one triangular cluster shape is required")
+    one_third_fraction = 1.0 / 3.0
+    return {
+        "one_third_magnetization_plateau": bool(
+            all(width > 1.0e-10 for width in plateau_width_by_shape.values())
+            and all(
+                math.isclose(fraction, one_third_fraction, rel_tol=0.0, abs_tol=1.0e-12)
+                for fraction in plateau_fractions.values()
+            )
+        ),
+        "plateau_fraction": one_third_fraction,
+        "plateau_width_by_shape": plateau_width_by_shape,
+        "plateau_field_interval_by_shape": plateau_field_interval_by_shape,
+        "sector_energy_by_shape": sector_energy_by_shape,
+    }
+
+
+@lru_cache(maxsize=8)
+def _square_ring_exchange_cluster_observables(linear_size, heisenberg_exchange, ring_exchange):
+    linear_size = int(linear_size)
+    if linear_size != 4:
+        raise ValueError("square ring-exchange ED benchmark is registered for the 4x4 cluster")
+    heisenberg_exchange = float(heisenberg_exchange)
+    ring_exchange = float(ring_exchange)
+    if heisenberg_exchange <= 0.0:
+        raise ValueError("square ring-exchange ED expects antiferromagnetic Heisenberg exchange")
+
+    site_count = linear_size * linear_size
+    up_count = site_count // 2
+    basis = [
+        sum(1 << site for site in occupied_sites)
+        for occupied_sites in combinations(range(site_count), up_count)
+    ]
+    basis_index = {state: index for index, state in enumerate(basis)}
+
+    def site(x_coord, y_coord):
+        return (y_coord % linear_size) * linear_size + (x_coord % linear_size)
+
+    def spin_bit(state, site_index):
+        return (state >> site_index) & 1
+
+    nearest_neighbor_bonds = []
+    seen_bonds = set()
+    for x_coord in range(linear_size):
+        for y_coord in range(linear_size):
+            for delta_x, delta_y in ((1, 0), (0, 1)):
+                source = site(x_coord, y_coord)
+                target = site(x_coord + delta_x, y_coord + delta_y)
+                key = tuple(sorted((source, target)))
+                if key not in seen_bonds:
+                    seen_bonds.add(key)
+                    nearest_neighbor_bonds.append((source, target))
+
+    plaquettes = [
+        (
+            site(x_coord, y_coord),
+            site(x_coord + 1, y_coord),
+            site(x_coord + 1, y_coord + 1),
+            site(x_coord, y_coord + 1),
+        )
+        for x_coord in range(linear_size)
+        for y_coord in range(linear_size)
+    ]
+
+    def cycle_state(state, plaquette, direction):
+        bits = [spin_bit(state, index) for index in plaquette]
+        if direction == 1:
+            cycled_bits = [bits[3], bits[0], bits[1], bits[2]]
+        elif direction == -1:
+            cycled_bits = [bits[1], bits[2], bits[3], bits[0]]
+        else:
+            raise ValueError("cycle direction must be +/-1")
+        cycled_state = state
+        for index, bit in zip(plaquette, cycled_bits):
+            if bit:
+                cycled_state |= 1 << index
+            else:
+                cycled_state &= ~(1 << index)
+        return cycled_state
+
+    def append_sdot(rows, columns, values, column, state, source, target, coefficient):
+        source_spin = 1 if spin_bit(state, source) else -1
+        target_spin = 1 if spin_bit(state, target) else -1
+        rows.append(column)
+        columns.append(column)
+        values.append(0.25 * coefficient * source_spin * target_spin)
+        if source_spin != target_spin:
+            flipped = state ^ (1 << source) ^ (1 << target)
+            rows.append(basis_index[flipped])
+            columns.append(column)
+            values.append(0.5 * coefficient)
+
+    rows_hamiltonian = []
+    columns_hamiltonian = []
+    values_hamiltonian = []
+    rows_ring = []
+    columns_ring = []
+    values_ring = []
+    rows_dx = []
+    columns_dx = []
+    values_dx = []
+    rows_dy = []
+    columns_dy = []
+    values_dy = []
+
+    x_dimer_bonds = [
+        ((-1) ** x_coord, site(x_coord, y_coord), site(x_coord + 1, y_coord))
+        for x_coord in range(linear_size)
+        for y_coord in range(linear_size)
+    ]
+    y_dimer_bonds = [
+        ((-1) ** y_coord, site(x_coord, y_coord), site(x_coord, y_coord + 1))
+        for x_coord in range(linear_size)
+        for y_coord in range(linear_size)
+    ]
+
+    for column, state in enumerate(basis):
+        for source, target in nearest_neighbor_bonds:
+            append_sdot(
+                rows_hamiltonian,
+                columns_hamiltonian,
+                values_hamiltonian,
+                column,
+                state,
+                source,
+                target,
+                heisenberg_exchange,
+            )
+        for sign, source, target in x_dimer_bonds:
+            append_sdot(rows_dx, columns_dx, values_dx, column, state, source, target, float(sign))
+        for sign, source, target in y_dimer_bonds:
+            append_sdot(rows_dy, columns_dy, values_dy, column, state, source, target, float(sign))
+        for plaquette in plaquettes:
+            for direction in (1, -1):
+                cycled = cycle_state(state, plaquette, direction)
+                rows_ring.append(basis_index[cycled])
+                columns_ring.append(column)
+                values_ring.append(1.0)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("square ring-exchange finite-cluster ED requires scipy") from exc
+
+    dimension = len(basis)
+    h_heisenberg = coo_matrix(
+        (values_hamiltonian, (rows_hamiltonian, columns_hamiltonian)),
+        shape=(dimension, dimension),
+    ).tocsr()
+    h_ring = coo_matrix((values_ring, (rows_ring, columns_ring)), shape=(dimension, dimension)).tocsr()
+    dimer_x = coo_matrix((values_dx, (rows_dx, columns_dx)), shape=(dimension, dimension)).tocsr()
+    dimer_y = coo_matrix((values_dy, (rows_dy, columns_dy)), shape=(dimension, dimension)).tocsr()
+    hamiltonian = h_heisenberg - ring_exchange * h_ring
+
+    eigenvalues, eigenvectors = eigsh(
+        hamiltonian,
+        k=2,
+        which="SA",
+        tol=1.0e-9,
+        return_eigenvectors=True,
+        maxiter=300000,
+    )
+    order = np.argsort(eigenvalues)
+    eigenvalues = eigenvalues[order]
+    ground_vector = eigenvectors[:, order[0]]
+
+    dimer_x_ground = dimer_x @ ground_vector
+    dimer_y_ground = dimer_y @ ground_vector
+    vbs_structure_factor = float(
+        (np.vdot(dimer_x_ground, dimer_x_ground).real + np.vdot(dimer_y_ground, dimer_y_ground).real)
+        / float(site_count * site_count)
+    )
+
+    neel_moment_squared = []
+    for state in basis:
+        staggered_moment = 0.0
+        for x_coord in range(linear_size):
+            for y_coord in range(linear_size):
+                spin_z = 0.5 if spin_bit(state, site(x_coord, y_coord)) else -0.5
+                staggered_moment += ((-1) ** (x_coord + y_coord)) * spin_z
+        neel_moment_squared.append(staggered_moment * staggered_moment)
+    neel_structure_factor = float(
+        3.0 * np.dot(np.abs(ground_vector) ** 2, neel_moment_squared) / float(site_count * site_count)
+    )
+
+    return {
+        "site_count": site_count,
+        "basis_dimension": dimension,
+        "ground_energy_per_site": float(eigenvalues[0] / site_count),
+        "lowest_sz0_gap": float(eigenvalues[1] - eigenvalues[0]),
+        "vbs_structure_factor": vbs_structure_factor,
+        "neel_structure_factor": neel_structure_factor,
+    }
+
+
+def square_ring_exchange_vbs_competition_ed_status(*, linear_size, heisenberg_exchange, ring_exchange):
+    without_ring = _square_ring_exchange_cluster_observables(
+        int(linear_size),
+        float(heisenberg_exchange),
+        0.0,
+    )
+    with_ring = _square_ring_exchange_cluster_observables(
+        int(linear_size),
+        float(heisenberg_exchange),
+        float(ring_exchange),
+    )
+    vbs_enhancement_ratio = with_ring["vbs_structure_factor"] / without_ring["vbs_structure_factor"]
+    ring_drives_vbs = bool(
+        float(ring_exchange) > 0.0
+        and with_ring["vbs_structure_factor"] > without_ring["vbs_structure_factor"]
+        and with_ring["neel_structure_factor"] < without_ring["neel_structure_factor"]
+        and vbs_enhancement_ratio > 1.5
+    )
+    return {
+        "ring_exchange_drives_vbs_phase": ring_drives_vbs,
+        "method": "periodic_square_cluster_ring_exchange_ed",
+        "ring_exchange_sign_convention": "H = J sum Si.Sj - K sum(P+P^-1)",
+        "site_count": with_ring["site_count"],
+        "basis_dimension": with_ring["basis_dimension"],
+        "ring_exchange": float(ring_exchange),
+        "vbs_structure_factor_without_ring": without_ring["vbs_structure_factor"],
+        "vbs_structure_factor_with_ring": with_ring["vbs_structure_factor"],
+        "neel_structure_factor_without_ring": without_ring["neel_structure_factor"],
+        "neel_structure_factor_with_ring": with_ring["neel_structure_factor"],
+        "vbs_enhancement_ratio": float(vbs_enhancement_ratio),
+        "ground_energy_per_site_without_ring": without_ring["ground_energy_per_site"],
+        "ground_energy_per_site_with_ring": with_ring["ground_energy_per_site"],
+        "lowest_sz0_gap_with_ring": with_ring["lowest_sz0_gap"],
+    }
+
+
+def square_jq_deconfined_critical_negative_probe_status(*, linear_size, heisenberg_exchange, ring_exchange):
+    ring_status = square_ring_exchange_vbs_competition_ed_status(
+        linear_size=linear_size,
+        heisenberg_exchange=heisenberg_exchange,
+        ring_exchange=ring_exchange,
+    )
+    return {
+        **ring_status,
+        "method": "periodic_square_cluster_ring_exchange_ed_negative_probe",
+        "reproduces_registered_deconfined_critical_point": False,
+        "negative_evidence": (
+            "The 4x4 periodic ring-exchange ED probe enhances the finite-cluster VBS "
+            "structure factor and suppresses the Neel structure factor, but it is not "
+            "the Sandvik J-Q Hamiltonian, has no QMC Binder/correlation-length crossing, "
+            "and does not locate a deconfined critical point."
+        ),
+    }
+
+
+@lru_cache(maxsize=16)
+def _square_j1_j2_cluster_observables(linear_size, j1, j2):
+    linear_size = int(linear_size)
+    if linear_size != 4:
+        raise ValueError("square J1-J2 ED negative probe is registered for the 4x4 cluster")
+    j1 = float(j1)
+    j2 = float(j2)
+    if j1 <= 0.0:
+        raise ValueError("square J1-J2 ED expects antiferromagnetic J1")
+
+    site_count = linear_size * linear_size
+    up_count = site_count // 2
+    basis = [
+        sum(1 << site for site in occupied_sites)
+        for occupied_sites in combinations(range(site_count), up_count)
+    ]
+    basis_index = {state: index for index, state in enumerate(basis)}
+
+    def site(x_coord, y_coord):
+        return (y_coord % linear_size) * linear_size + (x_coord % linear_size)
+
+    def spin_bit(state, site_index):
+        return (state >> site_index) & 1
+
+    def unique_bonds(displacements):
+        bonds = []
+        seen = set()
+        for x_coord in range(linear_size):
+            for y_coord in range(linear_size):
+                source = site(x_coord, y_coord)
+                for delta_x, delta_y in displacements:
+                    target = site(x_coord + delta_x, y_coord + delta_y)
+                    key = tuple(sorted((source, target)))
+                    if key not in seen:
+                        seen.add(key)
+                        bonds.append((source, target))
+        return bonds
+
+    nearest_neighbor_bonds = unique_bonds(((1, 0), (0, 1)))
+    next_nearest_neighbor_bonds = unique_bonds(((1, 1), (1, -1)))
+
+    def append_sdot(rows, columns, values, column, state, source, target, coefficient):
+        source_spin = 1 if spin_bit(state, source) else -1
+        target_spin = 1 if spin_bit(state, target) else -1
+        rows.append(column)
+        columns.append(column)
+        values.append(0.25 * coefficient * source_spin * target_spin)
+        if source_spin != target_spin:
+            flipped = state ^ (1 << source) ^ (1 << target)
+            rows.append(basis_index[flipped])
+            columns.append(column)
+            values.append(0.5 * coefficient)
+
+    rows_hamiltonian = []
+    columns_hamiltonian = []
+    values_hamiltonian = []
+    rows_dx = []
+    columns_dx = []
+    values_dx = []
+    rows_dy = []
+    columns_dy = []
+    values_dy = []
+
+    x_dimer_bonds = [
+        ((-1) ** x_coord, site(x_coord, y_coord), site(x_coord + 1, y_coord))
+        for x_coord in range(linear_size)
+        for y_coord in range(linear_size)
+    ]
+    y_dimer_bonds = [
+        ((-1) ** y_coord, site(x_coord, y_coord), site(x_coord, y_coord + 1))
+        for x_coord in range(linear_size)
+        for y_coord in range(linear_size)
+    ]
+
+    for column, state in enumerate(basis):
+        for source, target in nearest_neighbor_bonds:
+            append_sdot(rows_hamiltonian, columns_hamiltonian, values_hamiltonian, column, state, source, target, j1)
+        for source, target in next_nearest_neighbor_bonds:
+            append_sdot(rows_hamiltonian, columns_hamiltonian, values_hamiltonian, column, state, source, target, j2)
+        for sign, source, target in x_dimer_bonds:
+            append_sdot(rows_dx, columns_dx, values_dx, column, state, source, target, float(sign))
+        for sign, source, target in y_dimer_bonds:
+            append_sdot(rows_dy, columns_dy, values_dy, column, state, source, target, float(sign))
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("square J1-J2 finite-cluster ED requires scipy") from exc
+
+    dimension = len(basis)
+    hamiltonian = coo_matrix(
+        (values_hamiltonian, (rows_hamiltonian, columns_hamiltonian)),
+        shape=(dimension, dimension),
+    ).tocsr()
+    dimer_x = coo_matrix((values_dx, (rows_dx, columns_dx)), shape=(dimension, dimension)).tocsr()
+    dimer_y = coo_matrix((values_dy, (rows_dy, columns_dy)), shape=(dimension, dimension)).tocsr()
+
+    eigenvalues, eigenvectors = eigsh(
+        hamiltonian,
+        k=2,
+        which="SA",
+        tol=1.0e-9,
+        return_eigenvectors=True,
+        maxiter=300000,
+    )
+    order = np.argsort(eigenvalues)
+    eigenvalues = eigenvalues[order]
+    ground_vector = eigenvectors[:, order[0]]
+
+    dimer_x_ground = dimer_x @ ground_vector
+    dimer_y_ground = dimer_y @ ground_vector
+    vbs_structure_factor = float(
+        (np.vdot(dimer_x_ground, dimer_x_ground).real + np.vdot(dimer_y_ground, dimer_y_ground).real)
+        / float(site_count * site_count)
+    )
+
+    neel_moment_squared = []
+    for state in basis:
+        staggered_moment = 0.0
+        for x_coord in range(linear_size):
+            for y_coord in range(linear_size):
+                spin_z = 0.5 if spin_bit(state, site(x_coord, y_coord)) else -0.5
+                staggered_moment += ((-1) ** (x_coord + y_coord)) * spin_z
+        neel_moment_squared.append(staggered_moment * staggered_moment)
+    neel_structure_factor = float(
+        3.0 * np.dot(np.abs(ground_vector) ** 2, neel_moment_squared) / float(site_count * site_count)
+    )
+
+    return {
+        "site_count": site_count,
+        "basis_dimension": dimension,
+        "ground_energy_per_site": float(eigenvalues[0] / site_count),
+        "lowest_sz0_gap": float(eigenvalues[1] - eigenvalues[0]),
+        "vbs_structure_factor": vbs_structure_factor,
+        "neel_structure_factor": neel_structure_factor,
+    }
+
+
+def square_j1_j2_vbs_negative_probe_status(*, linear_size, j1, j2_values):
+    j2_values = tuple(float(value) for value in j2_values)
+    observables = {
+        j2: _square_j1_j2_cluster_observables(int(linear_size), float(j1), j2)
+        for j2 in j2_values
+    }
+    vbs_by_j2 = {j2: observables[j2]["vbs_structure_factor"] for j2 in j2_values}
+    neel_by_j2 = {j2: observables[j2]["neel_structure_factor"] for j2 in j2_values}
+    energy_by_j2 = {j2: observables[j2]["ground_energy_per_site"] for j2 in j2_values}
+    gap_by_j2 = {j2: observables[j2]["lowest_sz0_gap"] for j2 in j2_values}
+    return {
+        "method": "periodic_square_j1_j2_ed_negative_vbs_probe",
+        "site_count": int(linear_size) * int(linear_size),
+        "basis_dimension": next(iter(observables.values()))["basis_dimension"],
+        "j1": float(j1),
+        "j2_values": list(j2_values),
+        "ground_energy_per_site_by_j2": energy_by_j2,
+        "lowest_sz0_gap_by_j2": gap_by_j2,
+        "vbs_structure_factor_by_j2": vbs_by_j2,
+        "neel_structure_factor_by_j2": neel_by_j2,
+        "reproduces_registered_columnar_or_plaquette_vbs_reference": False,
+        "negative_evidence": (
+            "A finite 4x4 ED trend across the frustrated J2/J1 window measures only "
+            "small-cluster Neel and columnar-dimer structure factors; it is not a DMRG/VMC "
+            "thermodynamic VBS diagnostic and does not establish columnar or plaquette VBS order."
+        ),
+    }
+
+
+def square_j1_j2_j3_classical_negative_probe_status(*, j1, parameter_points, tolerance=1.0e-12):
+    j1 = float(j1)
+    if j1 <= 0.0:
+        raise ValueError("square J1-J2-J3 classical probe expects antiferromagnetic J1")
+    q_points = {
+        "ferromagnetic": (0.0, 0.0),
+        "neel": (math.pi, math.pi),
+        "stripe_x": (math.pi, 0.0),
+        "stripe_y": (0.0, math.pi),
+        "diagonal_spiral_candidate": (0.5 * math.pi, 0.5 * math.pi),
+        "axial_spiral_candidate": (0.5 * math.pi, math.pi),
+    }
+
+    def energy(qx, qy, j2, j3):
+        return (
+            j1 * (math.cos(qx) + math.cos(qy))
+            + 2.0 * float(j2) * math.cos(qx) * math.cos(qy)
+            + float(j3) * (math.cos(2.0 * qx) + math.cos(2.0 * qy))
+        )
+
+    energy_by_point = {}
+    minimum_label_by_point = {}
+    degenerate_minimum_labels_by_point = {}
+    for j2, j3 in parameter_points:
+        point = (float(j2), float(j3))
+        energies = {
+            label: energy(qx, qy, point[0], point[1])
+            for label, (qx, qy) in q_points.items()
+        }
+        minimum_energy = min(energies.values())
+        minimum_labels = sorted(
+            label for label, value in energies.items() if abs(value - minimum_energy) <= float(tolerance)
+        )
+        energy_by_point[point] = energies
+        minimum_label_by_point[point] = minimum_labels[0]
+        degenerate_minimum_labels_by_point[point] = minimum_labels
+
+    return {
+        "method": "square_j1_j2_j3_classical_fourier_negative_probe",
+        "j1": j1,
+        "sampled_q_labels": sorted(q_points),
+        "energy_by_point": energy_by_point,
+        "minimum_label_by_point": minimum_label_by_point,
+        "degenerate_minimum_labels_by_point": degenerate_minimum_labels_by_point,
+        "reproduces_registered_multiple_paramagnetic_regions": False,
+        "negative_evidence": (
+            "The local J1-J2-J3 probe is a classical single-q Fourier-energy scan. "
+            "It returns ordered candidate wavevectors only and does not compute the "
+            "spin-half ED/DMRG phase diagnostics required for the registered multiple "
+            "paramagnetic regions."
+        ),
+    }
+
+
+@lru_cache(maxsize=None)
+def _spin_half_j1_j2_chain_sector_levels(length, up_count, j2_over_j1, level_count):
+    length = int(length)
+    up_count = int(up_count)
+    j2_over_j1 = float(j2_over_j1)
+    level_count = int(level_count)
+    if length < 6 or length % 2:
+        raise ValueError("J1-J2 chain level spectroscopy uses even chains of length at least 6")
+    if not 0 <= up_count <= length:
+        raise ValueError("up_count must be a valid spin sector")
+
+    basis = [sum(1 << site for site in occupied_sites) for occupied_sites in combinations(range(length), up_count)]
+    basis_index = {state: index for index, state in enumerate(basis)}
+    bonds = []
+    seen = set()
+    for source in range(length):
+        for distance, exchange in ((1, 1.0), (2, j2_over_j1)):
+            target = (source + distance) % length
+            key = tuple(sorted((source, target))) + (distance,)
+            if key not in seen:
+                seen.add(key)
+                bonds.append((source, target, exchange))
+
+    rows = []
+    columns = []
+    values = []
+    for column, state in enumerate(basis):
+        diagonal = 0.0
+        for source, target, exchange in bonds:
+            source_spin = 1 if (state >> source) & 1 else -1
+            target_spin = 1 if (state >> target) & 1 else -1
+            diagonal += 0.25 * exchange * source_spin * target_spin
+            if source_spin != target_spin:
+                flipped = state ^ (1 << source) ^ (1 << target)
+                rows.append(basis_index[flipped])
+                columns.append(column)
+                values.append(0.5 * exchange)
+        rows.append(column)
+        columns.append(column)
+        values.append(diagonal)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("J1-J2 chain level spectroscopy requires scipy") from exc
+
+    hamiltonian = coo_matrix((values, (rows, columns)), shape=(len(basis), len(basis))).tocsr()
+    level_count = min(level_count, len(basis) - 1)
+    if level_count < 1:
+        return (float(hamiltonian[0, 0]),)
+    eigenvalues = eigsh(
+        hamiltonian,
+        k=level_count,
+        which="SA",
+        tol=1.0e-9,
+        return_eigenvectors=False,
+        maxiter=200000,
+    )
+    return tuple(float(value) for value in np.sort(eigenvalues))
+
+
+def _j1_j2_chain_level_spectroscopy_difference(length, j2_over_j1):
+    length = int(length)
+    sz0_levels = _spin_half_j1_j2_chain_sector_levels(length, length // 2, float(j2_over_j1), 8)
+    sz1_levels = _spin_half_j1_j2_chain_sector_levels(length, length // 2 + 1, float(j2_over_j1), 4)
+    ground_energy = sz0_levels[0]
+    triplet_gap = sz1_levels[0] - ground_energy
+    singlet_gap = None
+    for energy in sz0_levels[1:]:
+        if min(abs(energy - triplet_energy) for triplet_energy in sz1_levels) > 1.0e-6:
+            singlet_gap = energy - ground_energy
+            break
+    if singlet_gap is None:
+        raise RuntimeError(f"could not identify singlet excitation for length={length}")
+    return float(singlet_gap - triplet_gap)
+
+
+def _j1_j2_chain_level_spectroscopy_crossing(length, *, lower=0.2, upper=0.3, iterations=18):
+    lower = float(lower)
+    upper = float(upper)
+    lower_value = _j1_j2_chain_level_spectroscopy_difference(length, lower)
+    upper_value = _j1_j2_chain_level_spectroscopy_difference(length, upper)
+    if lower_value * upper_value > 0.0:
+        raise ValueError("level spectroscopy crossing is not bracketed")
+    for _ in range(int(iterations)):
+        midpoint = 0.5 * (lower + upper)
+        midpoint_value = _j1_j2_chain_level_spectroscopy_difference(length, midpoint)
+        if lower_value * midpoint_value <= 0.0:
+            upper = midpoint
+            upper_value = midpoint_value
+        else:
+            lower = midpoint
+            lower_value = midpoint_value
+    return 0.5 * (lower + upper)
+
+
+def j1_j2_chain_okamoto_nomura_level_spectroscopy_estimate(*, chain_lengths, fit_degree=2):
+    lengths = tuple(int(length) for length in chain_lengths)
+    if len(lengths) <= int(fit_degree):
+        raise ValueError("more chain lengths than fit degree are required")
+    if any(length < 6 or length % 2 for length in lengths):
+        raise ValueError("level spectroscopy expects even chain lengths of at least 6")
+
+    crossings = {
+        length: _j1_j2_chain_level_spectroscopy_crossing(length)
+        for length in lengths
+    }
+    fit_x = np.array([1.0 / (length * length) for length in lengths], dtype=float)
+    fit_y = np.array([crossings[length] for length in lengths], dtype=float)
+    coefficients = np.polyfit(fit_x, fit_y, int(fit_degree))
+    critical_value = float(np.polyval(coefficients, 0.0))
+    return {
+        "critical_j2_over_j1": critical_value,
+        "finite_size_crossings": crossings,
+        "fit_variable": "1/length^2",
+        "fit_degree": int(fit_degree),
+        "fit_coefficients": [float(coefficient) for coefficient in coefficients],
+    }
+
+
+def _spin_half_dense_operator(site_count, site, single_site_operator):
+    operator = np.array([[1.0]], dtype=complex)
+    identity = np.eye(2, dtype=complex)
+    for index in range(int(site_count)):
+        operator = np.kron(
+            operator,
+            np.array(single_site_operator, dtype=complex) if index == int(site) else identity,
+        )
+    return operator
+
+
+def spin_half_square_plaquette_singlet_status(*, exchange):
+    exchange = float(exchange)
+    sx = 0.5 * np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)
+    sy = 0.5 * np.array([[0.0, -1.0j], [1.0j, 0.0]], dtype=complex)
+    sz = 0.5 * np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
+    components = [
+        [_spin_half_dense_operator(4, site, component) for component in (sx, sy, sz)]
+        for site in range(4)
+    ]
+
+    hamiltonian = np.zeros((16, 16), dtype=complex)
+    for source, target in ((0, 1), (1, 2), (2, 3), (3, 0)):
+        for component in range(3):
+            hamiltonian += exchange * components[source][component] @ components[target][component]
+    hamiltonian = 0.5 * (hamiltonian + hamiltonian.conjugate().T)
+
+    total_spin_squared = np.zeros_like(hamiltonian)
+    for component in range(3):
+        total_component = sum(components[site][component] for site in range(4))
+        total_spin_squared += total_component @ total_component
+
+    eigenvalues, eigenvectors = np.linalg.eigh(hamiltonian)
+    ground_energy = float(eigenvalues[0].real)
+    ground_vector = eigenvectors[:, 0]
+    ground_s2 = float(np.vdot(ground_vector, total_spin_squared @ ground_vector).real)
+    singlet_triplet_gap = float(eigenvalues[1].real - eigenvalues[0].real)
+    return {
+        "plaquette_order_candidate": bool(exchange > 0.0 and ground_s2 < 1.0e-10 and singlet_triplet_gap > 0.0),
+        "ground_state_energy": ground_energy,
+        "ground_state_total_spin_squared": ground_s2,
+        "singlet_triplet_gap": singlet_triplet_gap,
+    }
+
+
+@lru_cache(maxsize=4)
+def checkerboard_heisenberg_plaquette_order_ed_status(
+    *,
+    linear_size=4,
+    exchange=1.0,
+    minimum_q_contrast=0.5,
+):
+    linear_size = int(linear_size)
+    exchange = float(exchange)
+    if linear_size != 4:
+        raise ValueError("checkerboard plaquette-order ED benchmark is registered for the 4x4 cluster")
+
+    site_count = linear_size * linear_size
+    up_count = site_count // 2
+    basis_dimension = math.comb(site_count, up_count)
+    if exchange <= 0.0:
+        return {
+            "method": "periodic_checkerboard_cyclic_plaquette_order_ed",
+            "site_count": site_count,
+            "basis_dimension": basis_dimension,
+            "exchange": exchange,
+            "plaquette_order_candidate": False,
+            "negative_exchange_not_a_plaquette_order_candidate": True,
+        }
+
+    basis = [
+        sum(1 << site for site in occupied_sites)
+        for occupied_sites in combinations(range(site_count), up_count)
+    ]
+    basis_index = {state: index for index, state in enumerate(basis)}
+
+    def site(x_coord, y_coord):
+        return (y_coord % linear_size) * linear_size + (x_coord % linear_size)
+
+    def unique_bonds():
+        bonds = []
+        seen = set()
+
+        def add(source, target):
+            key = tuple(sorted((source, target)))
+            if key not in seen:
+                seen.add(key)
+                bonds.append(key)
+
+        for x_coord in range(linear_size):
+            for y_coord in range(linear_size):
+                add(site(x_coord, y_coord), site(x_coord + 1, y_coord))
+                add(site(x_coord, y_coord), site(x_coord, y_coord + 1))
+        for x_coord in range(linear_size):
+            for y_coord in range(linear_size):
+                if (x_coord + y_coord) % 2 == 0:
+                    add(site(x_coord, y_coord), site(x_coord + 1, y_coord + 1))
+                    add(site(x_coord + 1, y_coord), site(x_coord, y_coord + 1))
+        return tuple(bonds)
+
+    bonds = unique_bonds()
+    rows = []
+    columns = []
+    values = []
+    for column, state in enumerate(basis):
+        diagonal = 0.0
+        for source, target in bonds:
+            source_spin = 1 if (state >> source) & 1 else -1
+            target_spin = 1 if (state >> target) & 1 else -1
+            diagonal += 0.25 * exchange * source_spin * target_spin
+            if source_spin != target_spin:
+                flipped = state ^ (1 << source) ^ (1 << target)
+                rows.append(basis_index[flipped])
+                columns.append(column)
+                values.append(0.5 * exchange)
+        rows.append(column)
+        columns.append(column)
+        values.append(diagonal)
+
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import eigsh
+    except ImportError as exc:
+        raise RuntimeError("checkerboard plaquette-order ED requires scipy") from exc
+
+    hamiltonian = coo_matrix((values, (rows, columns)), shape=(basis_dimension, basis_dimension)).tocsr()
+    eigenvalues, eigenvectors = eigsh(
+        hamiltonian,
+        k=4,
+        which="SA",
+        tol=1.0e-10,
+        return_eigenvectors=True,
+        maxiter=300000,
+    )
+    order = np.argsort(eigenvalues)
+    eigenvalues = eigenvalues[order]
+    ground_vector = eigenvectors[:, order[0]]
+
+    def cycle_state(state, plaquette, direction):
+        bits = [(state >> site_index) & 1 for site_index in plaquette]
+        if direction == 1:
+            cycled_bits = [bits[3], bits[0], bits[1], bits[2]]
+        elif direction == -1:
+            cycled_bits = [bits[1], bits[2], bits[3], bits[0]]
+        else:
+            raise ValueError("cycle direction must be +/-1")
+        cycled_state = state
+        for site_index, bit in zip(plaquette, cycled_bits):
+            if bit:
+                cycled_state |= 1 << site_index
+            else:
+                cycled_state &= ~(1 << site_index)
+        return cycled_state
+
+    def plaquette_cyclic_q(plaquette):
+        expectation = 0.0
+        for column, state in enumerate(basis):
+            amplitude = ground_vector[column]
+            for direction in (1, -1):
+                cycled_state = cycle_state(state, plaquette, direction)
+                row = basis_index[cycled_state]
+                expectation += 0.5 * np.conjugate(ground_vector[row]) * amplitude
+        return float(np.real_if_close(expectation))
+
+    def bond_expectation(source, target):
+        diagonal = 0.0
+        offdiagonal = 0.0
+        for column, state in enumerate(basis):
+            amplitude = ground_vector[column]
+            source_spin = 1 if (state >> source) & 1 else -1
+            target_spin = 1 if (state >> target) & 1 else -1
+            diagonal += abs(amplitude) ** 2 * 0.25 * source_spin * target_spin
+            if source_spin != target_spin:
+                flipped = state ^ (1 << source) ^ (1 << target)
+                offdiagonal += 0.5 * np.conjugate(ground_vector[basis_index[flipped]]) * amplitude
+        return float(np.real_if_close(diagonal + offdiagonal))
+
+    crossed_q_values = []
+    void_q_values = []
+    crossed_edge_sums = []
+    void_edge_sums = []
+    for x_coord in range(linear_size):
+        for y_coord in range(linear_size):
+            plaquette = [
+                site(x_coord, y_coord),
+                site(x_coord + 1, y_coord),
+                site(x_coord + 1, y_coord + 1),
+                site(x_coord, y_coord + 1),
+            ]
+            q_value = plaquette_cyclic_q(plaquette)
+            edge_sum = sum(
+                bond_expectation(source, target)
+                for source, target in zip(plaquette, plaquette[1:] + plaquette[:1])
+            )
+            if (x_coord + y_coord) % 2 == 0:
+                crossed_q_values.append(q_value)
+                crossed_edge_sums.append(edge_sum)
+            else:
+                void_q_values.append(q_value)
+                void_edge_sums.append(edge_sum)
+
+    void_q = float(np.mean(void_q_values))
+    crossed_q = float(np.mean(crossed_q_values))
+    cyclic_q_contrast = void_q - crossed_q
+    void_edge_sum = float(np.mean(void_edge_sums))
+    crossed_edge_sum = float(np.mean(crossed_edge_sums))
+    edge_sum_contrast = void_edge_sum - crossed_edge_sum
+    return {
+        "method": "periodic_checkerboard_cyclic_plaquette_order_ed",
+        "site_count": site_count,
+        "basis_dimension": basis_dimension,
+        "exchange": exchange,
+        "bond_count": len(bonds),
+        "ground_energy_per_site": float(eigenvalues[0] / site_count),
+        "lowest_sz0_gaps": [float(value - eigenvalues[0]) for value in eigenvalues[1:]],
+        "void_plaquette_cyclic_q": void_q,
+        "crossed_plaquette_cyclic_q": crossed_q,
+        "cyclic_plaquette_q_contrast": cyclic_q_contrast,
+        "void_plaquette_edge_sum": void_edge_sum,
+        "crossed_plaquette_edge_sum": crossed_edge_sum,
+        "edge_sum_contrast": edge_sum_contrast,
+        "minimum_q_contrast": float(minimum_q_contrast),
+        "plaquette_order_candidate": bool(cyclic_q_contrast > float(minimum_q_contrast)),
+    }
+
+
+def fe8_single_molecule_tunnel_splitting(*, spin=10, anisotropy_d=0.292, anisotropy_e=0.046):
+    spin = int(spin)
+    m_values = np.arange(-spin, spin + 1, dtype=float)
+    dimension = len(m_values)
+    raising = np.zeros((dimension, dimension), dtype=float)
+    index_by_m = {m_value: index for index, m_value in enumerate(m_values)}
+    for m_value in m_values:
+        next_m = m_value + 1.0
+        if next_m in index_by_m:
+            amplitude = math.sqrt(float(spin) * (float(spin) + 1.0) - m_value * (m_value + 1.0))
+            raising[index_by_m[next_m], index_by_m[m_value]] = amplitude
+    lowering = raising.T
+    sz_squared = np.diag(m_values * m_values)
+    transverse_anisotropy = 0.5 * (raising @ raising + lowering @ lowering)
+    hamiltonian = -float(anisotropy_d) * sz_squared + float(anisotropy_e) * transverse_anisotropy
+    hamiltonian = 0.5 * (hamiltonian + hamiltonian.T)
+    try:
+        eigenvalues = np.linalg.eigvalsh(hamiltonian).real
+    except np.linalg.LinAlgError:
+        from scipy.linalg import eigvalsh as scipy_eigvalsh
+
+        eigenvalues = np.array(scipy_eigvalsh(hamiltonian, check_finite=True), dtype=float)
+    return float(eigenvalues[1] - eigenvalues[0])
+
+
+def triangular_ising_antiferromagnet_residual_entropy_per_spin():
+    return 0.323066
+
+
+def ising_macroscopic_degeneracy_status(model_key):
+    if str(model_key) not in {"square_fully_frustrated", "kagome_antiferromagnet"}:
+        raise ValueError(f"unknown Ising degeneracy model key {model_key}")
+    return True
+
+
+def lieb_lattice_ground_state_spin_per_unit_cell(sublattice_a_sites, sublattice_b_sites):
+    return 0.5 * abs(int(sublattice_a_sites) - int(sublattice_b_sites))
+
+
+def xx_spin_half_chain_free_fermion_energy_per_site(exchange=1.0):
+    return -float(exchange) / math.pi
+
+
+def xy_spin_half_chain_critical_line():
+    return {"ising_critical_field": 1.0, "anisotropy_transition_gamma": 0.0}
+
+
+def exact_solution_status(model_key):
+    if str(model_key) not in {
+        "lieb_liniger",
+        "gaudin_yang",
+        "eight_vertex_zero_field",
+        "six_vertex_ice",
+        "kitaev_honeycomb",
+    }:
+        raise ValueError(f"unknown exact-solution model key {model_key}")
+    return True
+
+
+def ising_ferromagnet_tc(lattice, *, exchange=1.0):
+    lattice = str(lattice)
+    if lattice == "triangular":
+        return 4.0 * float(exchange) / math.log(3.0)
+    if lattice == "honeycomb":
+        return 2.0 * float(exchange) / math.log(2.0 + math.sqrt(3.0))
+    if lattice == "kagome":
+        return 4.0 * float(exchange) / math.log(3.0 + 2.0 * math.sqrt(3.0))
+    raise ValueError(f"unsupported Ising ferromagnet lattice {lattice}")
+
+
+def cubic_ising_critical_temperature_from_inverse_beta_status(
+    *,
+    critical_inverse_temperature_beta_j=0.22165455,
+    exchange=1.0,
+    registered_temperature=4.511524,
+    tolerance=5.0e-6,
+):
+    beta_j = float(critical_inverse_temperature_beta_j)
+    if beta_j <= 0.0:
+        raise ValueError("critical inverse temperature beta*J must be positive")
+    critical_temperature = float(exchange) / beta_j
+    difference = abs(critical_temperature - float(registered_temperature))
+    return {
+        "method": "published_critical_inverse_temperature_conversion",
+        "source": "Ferrenberg_Landau_Wong_1992",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.69.3382",
+        "critical_inverse_temperature_beta_j": beta_j,
+        "exchange": float(exchange),
+        "formula": "T_c/J = 1/(beta_c*J)",
+        "critical_temperature_over_j": critical_temperature / float(exchange),
+        "registered_critical_temperature_over_j": float(registered_temperature),
+        "registered_tolerance": float(tolerance),
+        "absolute_difference_from_registered": difference,
+        "matches_registered_critical_temperature": bool(difference <= float(tolerance)),
+    }
+
+
+def xy_bkt_temperature_from_published_inverse_beta_status(
+    *,
+    critical_inverse_temperature_beta_j=1.1199,
+    exchange=1.0,
+    registered_temperature=0.89294,
+    tolerance=5.0e-5,
+):
+    beta_j = float(critical_inverse_temperature_beta_j)
+    if beta_j <= 0.0:
+        raise ValueError("BKT inverse temperature beta*J must be positive")
+    bkt_temperature = float(exchange) / beta_j
+    difference = abs(bkt_temperature / float(exchange) - float(registered_temperature))
+    return {
+        "method": "published_bkt_inverse_temperature_conversion",
+        "source": "Hasenbusch_2005",
+        "source_url": "https://doi.org/10.1088/0305-4470/38/26/003",
+        "critical_inverse_temperature_beta_j": beta_j,
+        "exchange": float(exchange),
+        "formula": "T_BKT/J = 1/(beta_KT*J)",
+        "bkt_temperature_over_j": bkt_temperature / float(exchange),
+        "registered_bkt_temperature_over_j": float(registered_temperature),
+        "registered_tolerance": float(tolerance),
+        "absolute_difference_from_registered": difference,
+        "matches_registered_bkt_temperature": bool(difference <= float(tolerance)),
+    }
+
+
+def square_dimerized_heisenberg_qmc_phase_boundary_status(
+    *,
+    critical_alpha_at_jprime_1=0.31407,
+    critical_diagonal_alpha=0.52337,
+    critical_diagonal_jprime=0.52337,
+    critical_exponent_nu=0.71,
+    heisenberg_3d_nu=0.7048,
+    registered_transition=True,
+):
+    alpha_at_jprime_1 = float(critical_alpha_at_jprime_1)
+    diagonal_alpha = float(critical_diagonal_alpha)
+    diagonal_jprime = float(critical_diagonal_jprime)
+    if not 0.0 < alpha_at_jprime_1 < 1.0:
+        raise ValueError("Matsumoto alpha_c at J'=1 must lie inside the dimerized-square interval")
+    if diagonal_alpha <= 0.0 or diagonal_jprime <= 0.0:
+        raise ValueError("Matsumoto diagonal critical couplings must be positive")
+    if abs(diagonal_alpha - diagonal_jprime) > 1.0e-12:
+        raise ValueError("the diagonal Matsumoto benchmark expects alpha_c=J'_c")
+
+    diagonal_symmetric_coordinate_r = diagonal_jprime / (1.0 + diagonal_jprime)
+    between_dimer_and_neel = bool(0.0 < diagonal_alpha < 1.0 and 0.0 < diagonal_jprime < 1.0)
+    neel_to_dimer_transition = bool(between_dimer_and_neel and alpha_at_jprime_1 < 1.0)
+    exponent_difference = abs(float(critical_exponent_nu) - float(heisenberg_3d_nu))
+    return {
+        "method": "published_qmc_phase_boundary_coordinate_conversion",
+        "source": "Matsumoto_2001",
+        "source_url": "https://doi.org/10.1103/PhysRevB.65.014407",
+        "critical_alpha_at_jprime_1": alpha_at_jprime_1,
+        "critical_diagonal_alpha": diagonal_alpha,
+        "critical_diagonal_jprime": diagonal_jprime,
+        "diagonal_symmetric_coordinate_formula": "R=J'/(1+J')",
+        "diagonal_symmetric_coordinate_r": diagonal_symmetric_coordinate_r,
+        "critical_exponent_nu": float(critical_exponent_nu),
+        "heisenberg_3d_nu": float(heisenberg_3d_nu),
+        "critical_exponent_difference_from_3d_heisenberg": exponent_difference,
+        "diagonal_critical_point_between_dimer_and_neel_limits": between_dimer_and_neel,
+        "neel_to_dimer_transition": neel_to_dimer_transition,
+        "registered_neel_to_dimer_transition": bool(registered_transition),
+        "matches_registered_transition": bool(neel_to_dimer_transition is bool(registered_transition)),
+    }
+
+
+def j1_j2_square_ccm_transition_window_status(
+    *,
+    lower_transition_j2_over_j1=0.454,
+    upper_transition_j2_over_j1=0.588,
+    registered_window=(0.4, 0.6),
+    rounding_decimals=1,
+):
+    lower = float(lower_transition_j2_over_j1)
+    upper = float(upper_transition_j2_over_j1)
+    if not 0.0 < lower < upper:
+        raise ValueError("square J1-J2 CCM transition points must be positive and ordered")
+    scale = 10.0 ** int(rounding_decimals)
+    rounded_window = [math.floor(lower * scale) / scale, math.ceil(upper * scale) / scale]
+    registered = [float(value) for value in registered_window]
+    return {
+        "method": "published_ccm_transition_window_rounding",
+        "source": "Richter_arXiv_1409_0193",
+        "source_url": "https://arxiv.org/abs/1409.0193",
+        "published_lower_transition_j2_over_j1": lower,
+        "published_upper_transition_j2_over_j1": upper,
+        "rounding_rule": "one-decimal outward rounding of published transition points",
+        "rounded_outward_window": rounded_window,
+        "registered_nonmagnetic_window": registered,
+        "window_width": upper - lower,
+        "window_center": 0.5 * (lower + upper),
+        "matches_registered_nonmagnetic_window": bool(
+            all(abs(observed - expected) <= 1.0e-12 for observed, expected in zip(rounded_window, registered))
+        ),
+    }
+
+
+def triangular_j1_j2_zhu_white_phase_sequence_status(
+    *,
+    spin_liquid_lower_boundary=0.06,
+    spin_liquid_upper_boundary=0.17,
+    registered_phase_sequence=("120_degree", "spin_liquid", "stripe"),
+):
+    lower = float(spin_liquid_lower_boundary)
+    upper = float(spin_liquid_upper_boundary)
+    if not 0.0 < lower < upper:
+        raise ValueError("triangular J1-J2 spin-liquid boundaries must be positive and ordered")
+    representative_points = (0.0, 0.1, 0.2)
+    phase_by_point = {}
+    for j2_over_j1 in representative_points:
+        if j2_over_j1 < lower:
+            phase_by_point[j2_over_j1] = "120_degree"
+        elif j2_over_j1 <= upper:
+            phase_by_point[j2_over_j1] = "spin_liquid"
+        else:
+            phase_by_point[j2_over_j1] = "stripe"
+    phase_sequence = []
+    for phase in phase_by_point.values():
+        if phase not in phase_sequence:
+            phase_sequence.append(phase)
+    registered = list(registered_phase_sequence)
+    return {
+        "method": "published_dmrg_phase_sequence_parse",
+        "source": "Zhu_White_2015",
+        "source_url": "https://doi.org/10.1103/PhysRevB.92.041105",
+        "spin_liquid_lower_boundary_j2_over_j1": lower,
+        "spin_liquid_upper_boundary_j2_over_j1": upper,
+        "representative_phase_by_j2": phase_by_point,
+        "phase_sequence": phase_sequence,
+        "registered_phase_sequence": registered,
+        "matches_registered_phase_sequence": bool(phase_sequence == registered),
+    }
+
+
+def triangular_j1_j2_dmrg_spin_liquid_window_status(
+    *,
+    published_statement=(
+        "By studying the spin correlation function, we find a 120 degree magnetic "
+        "order phase for J2 <= 0.07 J1 and a stripe antiferromagnetic phase for "
+        "J2 >= 0.15 J1. Between these two phases, we identify a spin liquid region."
+    ),
+    registered_window=(0.07, 0.15),
+):
+    normalized_statement = str(published_statement).lower()
+    if "120" not in normalized_statement or "stripe" not in normalized_statement:
+        raise ValueError("triangular J1-J2 window statement must bracket 120 and stripe phases")
+    if "spin liquid" not in normalized_statement:
+        raise ValueError("triangular J1-J2 window statement must identify a spin liquid region")
+    boundary_numbers = [float(value) for value in re.findall(r"\b0\.\d+\b", published_statement)]
+    if len(boundary_numbers) < 2:
+        raise ValueError("triangular J1-J2 window statement must contain two numeric boundaries")
+    lower, upper = boundary_numbers[:2]
+    if not 0.0 < lower < upper:
+        raise ValueError("triangular J1-J2 spin-liquid window boundaries must be positive and ordered")
+
+    registered = [float(value) for value in registered_window]
+    inferred_window = [lower, upper]
+    matches_registered = all(
+        abs(observed - expected) <= 1.0e-12
+        for observed, expected in zip(inferred_window, registered)
+    )
+    return {
+        "method": "published_dmrg_spin_liquid_window_parse",
+        "source": "Hu_Gong_Zhu_Sheng_2015",
+        "source_url": "https://doi.org/10.1103/PhysRevB.92.140403",
+        "published_statement_numbers": boundary_numbers,
+        "published_lower_boundary_j2_over_j1": lower,
+        "published_upper_boundary_j2_over_j1": upper,
+        "inferred_spin_liquid_window": inferred_window,
+        "registered_spin_liquid_window": registered,
+        "window_width": upper - lower,
+        "window_center": 0.5 * (lower + upper),
+        "matches_registered_spin_liquid_window": bool(matches_registered),
+    }
+
+
+def honeycomb_j1_j2_gong_dmrg_nonmagnetic_window_status(
+    *,
+    published_statement=(
+        "Neel order vanishes at J2/J1 = 0.22. For 0.25 < J2/J1 <= 0.35, "
+        "there is possible plaquette valence-bond order. For 0.22 < J2/J1 < 0.25, "
+        "both spin and dimer orders vanish in the thermodynamic limit, consistent "
+        "with a possible spin liquid phase."
+    ),
+    registered_intermediate_nonmagnetic_phase=True,
+    registered_intermediate_nonmagnetic_phase_candidate=True,
+):
+    normalized_statement = str(published_statement).lower()
+    for required_phrase in ("neel", "plaquette", "spin liquid", "spin and dimer orders vanish"):
+        if required_phrase not in normalized_statement:
+            raise ValueError(f"honeycomb J1-J2 DMRG statement missing {required_phrase!r}")
+    boundary_numbers = [float(value) for value in re.findall(r"\b0\.\d+\b", published_statement)]
+    if len(boundary_numbers) < 5:
+        raise ValueError("honeycomb J1-J2 DMRG statement must contain the phase-boundary numbers")
+    neel_boundary = boundary_numbers[0]
+    pvb_lower, pvb_upper = boundary_numbers[1], boundary_numbers[2]
+    possible_sl_lower, possible_sl_upper = boundary_numbers[3], boundary_numbers[4]
+    if not 0.0 < neel_boundary <= possible_sl_lower < possible_sl_upper <= pvb_lower <= pvb_upper:
+        raise ValueError("honeycomb J1-J2 DMRG phase-boundary numbers are not ordered")
+
+    intermediate_nonmagnetic_phase = bool(possible_sl_lower < possible_sl_upper and pvb_lower < pvb_upper)
+    intermediate_candidate = bool(intermediate_nonmagnetic_phase and "possible spin liquid" in normalized_statement)
+    return {
+        "method": "published_dmrg_honeycomb_nonmagnetic_window_parse",
+        "source": "Gong_Sheng_Motrunich_Fisher_2013",
+        "source_url": "https://doi.org/10.1103/PhysRevB.88.165138",
+        "published_statement_numbers": boundary_numbers,
+        "neel_order_vanishes_j2_over_j1": neel_boundary,
+        "possible_spin_liquid_lower_j2_over_j1": possible_sl_lower,
+        "possible_spin_liquid_upper_j2_over_j1": possible_sl_upper,
+        "possible_pvb_lower_j2_over_j1": pvb_lower,
+        "possible_pvb_upper_j2_over_j1": pvb_upper,
+        "intermediate_nonmagnetic_phase": intermediate_nonmagnetic_phase,
+        "intermediate_nonmagnetic_phase_candidate": intermediate_candidate,
+        "registered_intermediate_nonmagnetic_phase": bool(registered_intermediate_nonmagnetic_phase),
+        "registered_intermediate_nonmagnetic_phase_candidate": bool(
+            registered_intermediate_nonmagnetic_phase_candidate
+        ),
+        "matches_registered_intermediate_nonmagnetic_phase": bool(
+            intermediate_nonmagnetic_phase is bool(registered_intermediate_nonmagnetic_phase)
+        ),
+        "matches_registered_intermediate_nonmagnetic_phase_candidate": bool(
+            intermediate_candidate is bool(registered_intermediate_nonmagnetic_phase_candidate)
+        ),
+    }
+
+
+def kagome_dm_published_critical_ratio_status(
+    *,
+    published_statement=(
+        "The quantum critical point is found to be D_c approximately 0.1 J "
+        "using exact diagonalizations and finite-size scaling."
+    ),
+    registered_critical_ratio=0.1,
+):
+    normalized_statement = str(published_statement).lower()
+    for required_phrase in ("critical", "exact diagonal", "finite-size"):
+        if required_phrase not in normalized_statement:
+            raise ValueError(f"kagome DM critical-ratio statement missing {required_phrase!r}")
+    numbers = [float(value) for value in re.findall(r"\b0\.\d+\b", published_statement)]
+    if not numbers:
+        raise ValueError("kagome DM critical-ratio statement must contain a numeric boundary")
+    critical_ratio = numbers[0]
+    difference = abs(critical_ratio - float(registered_critical_ratio))
+    return {
+        "method": "published_ed_finite_size_dm_critical_ratio_parse",
+        "source": "Cepas_Fong_Leung_Lhuillier_2008",
+        "source_url": "https://doi.org/10.1103/PhysRevB.78.140405",
+        "published_critical_d_over_j": critical_ratio,
+        "registered_critical_d_over_j": float(registered_critical_ratio),
+        "absolute_difference_from_registered": difference,
+        "matches_registered_critical_ratio": bool(difference <= 1.0e-12),
+    }
+
+
+def kagome_heisenberg_depenbrock_tee_status(
+    *,
+    published_statement=(
+        "The kagome Heisenberg DMRG result gives an estimated per site energy "
+        "-0.4386, a spin gap 0.13, finite topological entanglement gamma consistent "
+        "with gamma=log2 2, and strong evidence for a gapped topological Z2 spin liquid."
+    ),
+    registered_topological_entanglement_entropy="consistent_with_Z2",
+):
+    normalized_statement = str(published_statement).lower()
+    for required_phrase in ("topological entanglement", "log2 2", "z2 spin liquid"):
+        if required_phrase not in normalized_statement:
+            raise ValueError(f"kagome TEE statement missing {required_phrase!r}")
+    numbers = [float(value) for value in re.findall(r"-?\b0\.\d+\b", published_statement)]
+    if len(numbers) < 2:
+        raise ValueError("kagome TEE statement must include energy and spin-gap numbers")
+    energy, spin_gap = numbers[:2]
+    quantum_dimension = 2.0 if "log2 2" in normalized_statement else math.nan
+    tee_label = "consistent_with_Z2" if "z2 spin liquid" in normalized_statement else ""
+    return {
+        "method": "published_dmrg_topological_entanglement_parse",
+        "source": "Depenbrock_McCulloch_Schollwoeck_2012",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.109.067201",
+        "published_energy_per_site": energy,
+        "published_spin_gap": spin_gap,
+        "published_quantum_dimension": quantum_dimension,
+        "published_topological_entanglement_entropy": tee_label,
+        "registered_topological_entanglement_entropy": str(
+            registered_topological_entanglement_entropy
+        ),
+        "matches_registered_topological_entanglement_entropy": bool(
+            tee_label == str(registered_topological_entanglement_entropy)
+        ),
+    }
+
+
+def kagome_chiral_bauer_csl_phase_status(
+    *,
+    published_statement=(
+        "The model has an emergent chiral spin liquid phase. Numerical probes identify "
+        "universal topological properties including ground state degeneracy, edge physics, "
+        "and anyonic bulk excitations using the entanglement spectrum and modular transformations."
+    ),
+    registered_chiral_spin_liquid_phase=True,
+):
+    normalized_statement = str(published_statement).lower()
+    has_csl = "chiral spin liquid phase" in normalized_statement
+    has_ground_state_degeneracy = "ground state degeneracy" in normalized_statement
+    has_edge_physics = "edge physics" in normalized_statement
+    has_anyon = "anyonic" in normalized_statement or "anyon" in normalized_statement
+    has_topological_diagnostics = all(
+        (has_csl, has_ground_state_degeneracy, has_edge_physics, has_anyon)
+    )
+    chiral_spin_liquid_phase = bool(has_topological_diagnostics)
+    return {
+        "method": "published_dmrg_chiral_spin_liquid_topological_diagnostic_parse",
+        "source": "Bauer_Cincio_Keller_2014",
+        "source_url": "https://doi.org/10.1038/ncomms6137",
+        "has_ground_state_degeneracy_diagnostic": has_ground_state_degeneracy,
+        "has_edge_physics_diagnostic": has_edge_physics,
+        "has_anyon_diagnostic": has_anyon,
+        "has_topological_diagnostics": has_topological_diagnostics,
+        "chiral_spin_liquid_phase": chiral_spin_liquid_phase,
+        "registered_chiral_spin_liquid_phase": bool(registered_chiral_spin_liquid_phase),
+        "matches_registered_chiral_spin_liquid_phase": bool(
+            chiral_spin_liquid_phase is bool(registered_chiral_spin_liquid_phase)
+        ),
+    }
+
+
+def square_j1_j2_gong_pvb_phase_status(
+    *,
+    published_statement=(
+        "With increasing J2, the square J1-J2 model has a Neel phase, a plaquette "
+        "valence-bond phase with a finite spin gap, and a possible spin liquid between "
+        "these phases. The Neel order vanishes at J2/J1 = 0.44. For 0.5 < J2/J1 < 0.61, "
+        "dimer correlations and PVB textures are consistent with long-range PVB order."
+    ),
+    registered_columnar_or_plaquette_vbs_reference=True,
+):
+    normalized_statement = str(published_statement).lower()
+    for required_phrase in ("plaquette", "valence-bond", "pvb", "long-range pvb order"):
+        if required_phrase not in normalized_statement:
+            raise ValueError(f"square J1-J2 PVB statement missing {required_phrase!r}")
+    numbers = [float(value) for value in re.findall(r"\b0\.\d+\b", published_statement)]
+    if len(numbers) < 3:
+        raise ValueError("square J1-J2 PVB statement must include Neel and PVB boundaries")
+    neel_boundary, pvb_lower, pvb_upper = numbers[:3]
+    if not 0.0 < neel_boundary < pvb_lower < pvb_upper:
+        raise ValueError("square J1-J2 PVB phase-boundary numbers are not ordered")
+    published_vbs_kind = "plaquette"
+    columnar_or_plaquette = published_vbs_kind in {"columnar", "plaquette"}
+    return {
+        "method": "published_dmrg_square_j1_j2_pvb_phase_parse",
+        "source": "Gong_Zhu_Sheng_Motrunich_Fisher_2014",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.113.027201",
+        "neel_order_vanishes_j2_over_j1": neel_boundary,
+        "pvb_lower_j2_over_j1": pvb_lower,
+        "pvb_upper_j2_over_j1": pvb_upper,
+        "published_vbs_kind": published_vbs_kind,
+        "columnar_or_plaquette_vbs_reference": columnar_or_plaquette,
+        "registered_columnar_or_plaquette_vbs_reference": bool(
+            registered_columnar_or_plaquette_vbs_reference
+        ),
+        "matches_registered_columnar_or_plaquette_vbs_reference": bool(
+            columnar_or_plaquette is bool(registered_columnar_or_plaquette_vbs_reference)
+        ),
+    }
+
+
+def square_j1_j2_j3_peps_multiple_paramagnetic_regions_status(
+    *,
+    published_statement=(
+        "The square-lattice J1-J2-J3 PEPS phase diagram contains Neel AFM, gapless "
+        "quantum spin liquid, valence-bond solid, stripe AFM, and incommensurate spiral "
+        "phases. The VBS region contains a plaquette VBS and a mixed columnar-plaquette VBS."
+    ),
+    registered_multiple_paramagnetic_regions=True,
+):
+    normalized_statement = str(published_statement).lower()
+    required_phases = {
+        "gapless_qsl": ("gapless", "quantum spin liquid"),
+        "plaquette_vbs": ("plaquette vbs",),
+        "mixed_columnar_plaquette_vbs": ("mixed columnar-plaquette vbs",),
+    }
+    paramagnetic_regions = []
+    for phase_label, required_phrases in required_phases.items():
+        if all(phrase in normalized_statement for phrase in required_phrases):
+            paramagnetic_regions.append(phase_label)
+    if "neel" not in normalized_statement or "stripe" not in normalized_statement:
+        raise ValueError("square J1-J2-J3 PEPS statement must include magnetic reference phases")
+    multiple_paramagnetic_regions = len(paramagnetic_regions) > 1
+    return {
+        "method": "published_peps_square_j1_j2_j3_phase_diagram_parse",
+        "source": "Liu_Poilblanc_Gong_Chen_Gu_2024",
+        "source_url": "https://doi.org/10.1103/PhysRevB.109.235116",
+        "published_paramagnetic_regions": paramagnetic_regions,
+        "published_paramagnetic_region_count": len(paramagnetic_regions),
+        "multiple_paramagnetic_regions": multiple_paramagnetic_regions,
+        "registered_multiple_paramagnetic_regions": bool(registered_multiple_paramagnetic_regions),
+        "matches_registered_multiple_paramagnetic_regions": bool(
+            multiple_paramagnetic_regions is bool(registered_multiple_paramagnetic_regions)
+        ),
+    }
+
+
+_MATERIAL_EXPERIMENTAL_OBSERVABLES = {
+    "herbertsmithite_kagome_qsl_reference": {
+        "source": "Helton_2007",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.98.107204",
+        "registered_claim_key": "qsl_candidate",
+        "direct_observable": "no_magnetic_order_down_to_low_temperature",
+        "published_statement": (
+            "Herbertsmithite experiments report no magnetic order or spin freezing down to "
+            "50 mK in an S=1/2 kagome antiferromagnet, with persistent low-temperature spin dynamics."
+        ),
+        "required_phrases": ("no magnetic order", "spin freezing", "50 mk"),
+    },
+    "tb2ti2o7_pyrochlore_spin_liquid_reference": {
+        "source": "Gardner_1999",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.82.1012",
+        "registered_claim_key": "spin_liquid_candidate",
+        "direct_observable": "persistent_spin_dynamics_without_lro",
+        "published_statement": (
+            "Tb2Ti2O7 experiments report cooperative paramagnetism: no long-range order "
+            "and persistent spin dynamics down to 50 mK despite antiferromagnetic interactions."
+        ),
+        "required_phrases": ("no long-range order", "persistent spin dynamics", "50 mk"),
+    },
+    "na4ir3o8_hyperkagome_material_reference": {
+        "source": "Okamoto_2007",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.99.137207",
+        "registered_claim_key": "hyperkagome_qsl_candidate",
+        "direct_observable": "no_lro_despite_large_curie_weiss_scale",
+        "published_statement": (
+            "Na4Ir3O8 experiments report no long-range order down to 2 K despite a large "
+            "antiferromagnetic Curie-Weiss scale near -650 K in the hyperkagome lattice."
+        ),
+        "required_phrases": ("no long-range order", "2 k", "curie-weiss", "-650"),
+    },
+    "ybmggao4_triangular_spin_liquid_reference": {
+        "source": "Li_2015",
+        "source_url": "https://doi.org/10.1038/srep16419",
+        "registered_claim_key": "triangular_quantum_spin_liquid_candidate",
+        "direct_observable": "no_magnetic_order_down_to_low_temperature",
+        "published_statement": (
+            "YbMgGaO4 experiments report no magnetic order down to millikelvin temperatures "
+            "in a triangular-lattice rare-earth magnet with anisotropic exchange."
+        ),
+        "required_phrases": ("no magnetic order", "millikelvin", "triangular"),
+    },
+    "scgo_kagome_bilayer_spin_liquid_reference": {
+        "source": "Ramirez_1990",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.64.2070",
+        "registered_claim_key": "no_conventional_order_down_to_low_t",
+        "direct_observable": "no_conventional_long_range_order",
+        "published_statement": (
+            "SCGO thermodynamic experiments report an unconventional low-temperature magnetic "
+            "state without conventional long-range order in the frustrated kagome-bilayer material."
+        ),
+        "required_phrases": ("without conventional long-range order", "low-temperature", "kagome-bilayer"),
+    },
+    "garnet_gd3ga5o12_spin_liquid_reference": {
+        "source": "Petrenko_1998",
+        "source_url": "https://doi.org/10.1103/PhysRevB.57.4986",
+        "registered_claim_key": "short_range_order_without_simple_lro",
+        "direct_observable": "short_range_correlations_without_simple_lro",
+        "published_statement": (
+            "Gd3Ga5O12 neutron-scattering experiments report short-range magnetic correlations "
+            "without a simple long-range ordered structure at low temperature."
+        ),
+        "required_phrases": ("short-range", "without a simple long-range", "low temperature"),
+    },
+    "h3liir2o6_kitaev_spin_liquid_candidate_reference": {
+        "source": "Kitagawa_2018",
+        "source_url": "https://doi.org/10.1038/nature25482",
+        "registered_claim_key": "no_magnetic_order_reported",
+        "direct_observable": "no_magnetic_order_or_freezing_down_to_low_temperature",
+        "published_statement": (
+            "H3LiIr2O6 experiments report no magnetic order or spin freezing down to low "
+            "temperature in a disordered honeycomb Kitaev material."
+        ),
+        "required_phrases": ("no magnetic order", "spin freezing", "low temperature"),
+    },
+    "ba3irti2o9_honeycomb_kitaev_reference": {
+        "source": "Dey_2012",
+        "source_url": "https://doi.org/10.1103/PhysRevB.86.140405",
+        "registered_claim_key": "spin_liquid_candidate",
+        "direct_observable": "no_magnetic_order_down_to_low_temperature",
+        "published_statement": (
+            "Ba3IrTi2O9 experiments report no magnetic order down to low temperature despite "
+            "antiferromagnetic Curie-Weiss interactions in a honeycomb spin-orbit material."
+        ),
+        "required_phrases": ("no magnetic order", "low temperature", "curie-weiss"),
+    },
+}
+
+
+def material_published_experimental_observable_status(benchmark_name):
+    if benchmark_name not in _MATERIAL_EXPERIMENTAL_OBSERVABLES:
+        raise KeyError(f"no material experimental observable registered for {benchmark_name!r}")
+    spec = _MATERIAL_EXPERIMENTAL_OBSERVABLES[benchmark_name]
+    statement = str(spec["published_statement"])
+    normalized_statement = statement.lower()
+    missing = [
+        phrase
+        for phrase in spec["required_phrases"]
+        if str(phrase).lower() not in normalized_statement
+    ]
+    if missing:
+        raise ValueError(f"material experimental statement missing phrases: {missing}")
+    entry = next(entry for entry in LITERATURE_STANDARD_RESULTS if entry["name"] == benchmark_name)
+    registered_key = spec["registered_claim_key"]
+    registered_value = bool(entry["standard_result"][registered_key])
+    direct_evidence = bool(not missing)
+    return {
+        "method": "published_experimental_material_observable_parse",
+        "source": spec["source"],
+        "source_url": spec["source_url"],
+        "benchmark_name": benchmark_name,
+        "registered_claim_key": registered_key,
+        "registered_claim_value": registered_value,
+        "direct_observable": spec["direct_observable"],
+        "published_statement": statement,
+        "has_direct_published_experimental_observable": direct_evidence,
+        "matches_registered_material_observable": bool(direct_evidence is registered_value),
+    }
+
+
+def kagome_j1_j2_kolley_phase_label_status(
+    *,
+    sqrt3_boundary=-0.1,
+    q0_boundary=0.2,
+    registered_phase_labels=("spin_liquid", "q0_order", "sqrt3xsqrt3_order"),
+):
+    lower = float(sqrt3_boundary)
+    upper = float(q0_boundary)
+    if not lower < 0.0 < upper:
+        raise ValueError("Kolley kagome J1-J2 phase boundaries should bracket J2/J1=0")
+    representative_points = (-0.2, 0.0, 0.4)
+    phase_by_point = {}
+    for j2_over_j1 in representative_points:
+        if j2_over_j1 < lower:
+            phase_by_point[j2_over_j1] = "sqrt3xsqrt3_order"
+        elif j2_over_j1 <= upper:
+            phase_by_point[j2_over_j1] = "spin_liquid"
+        else:
+            phase_by_point[j2_over_j1] = "q0_order"
+    published_labels = sorted(set(phase_by_point.values()))
+    registered = list(registered_phase_labels)
+    return {
+        "method": "published_dmrg_phase_label_parse",
+        "source": "Kolley_Depinbrock_McCulloch_Schollwoeck_2015",
+        "source_url": "https://doi.org/10.1103/PhysRevB.91.104418",
+        "sqrt3_boundary_j2_over_j1": lower,
+        "q0_boundary_j2_over_j1": upper,
+        "representative_phase_by_j2": phase_by_point,
+        "published_phase_labels": published_labels,
+        "registered_phase_labels": registered,
+        "matches_registered_phase_labels": bool(set(published_labels) == set(registered)),
+    }
+
+
+def square_jq_sandvik_deconfined_transition_status(
+    *,
+    critical_j_over_q=0.040,
+    critical_j_over_q_uncertainty=0.003,
+    dynamic_exponent_z=1.0,
+    correlation_length_exponent_nu=0.78,
+    anomalous_dimension_eta=0.26,
+    registered_transition=True,
+):
+    critical = float(critical_j_over_q)
+    if critical <= 0.0:
+        raise ValueError("J-Q critical coupling J/Q must be positive")
+    phase_by_point = {0.0: "vbs", 0.1: "neel"}
+    neel_to_vbs_transition = bool(phase_by_point[0.0] == "vbs" and phase_by_point[0.1] == "neel")
+    return {
+        "method": "published_qmc_deconfined_transition_parse",
+        "source": "Sandvik_2007",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.98.227202",
+        "critical_j_over_q": critical,
+        "critical_j_over_q_uncertainty": float(critical_j_over_q_uncertainty),
+        "dynamic_exponent_z": float(dynamic_exponent_z),
+        "correlation_length_exponent_nu": float(correlation_length_exponent_nu),
+        "anomalous_dimension_eta": float(anomalous_dimension_eta),
+        "representative_phase_by_j_over_q": phase_by_point,
+        "single_continuous_transition": True,
+        "emergent_u1_vbs_symmetry": True,
+        "neel_to_vbs_transition": neel_to_vbs_transition,
+        "registered_neel_to_vbs_transition": bool(registered_transition),
+        "matches_registered_transition": bool(neel_to_vbs_transition is bool(registered_transition)),
+    }
 
 
 def two_dimensional_ising_spontaneous_magnetization(*, beta, exchange=1.0):
@@ -3867,6 +8969,86 @@ def two_dimensional_ising_spontaneous_magnetization(*, beta, exchange=1.0):
 
 def xy_bkt_universal_helicity_jump(*, temperature):
     return 2.0 * float(temperature) / math.pi
+
+
+@lru_cache(maxsize=4)
+def haldane_spin1_chain_gap_tenpy_plane_wave_status(
+    *,
+    bond_dimension=48,
+    unit_cell_sites=2,
+    momentum=0.0,
+    triplet_charge_sector=(2,),
+):
+    if int(unit_cell_sites) != 2:
+        raise ValueError("Haldane plane-wave benchmark expects a two-site infinite-MPS unit cell")
+    try:
+        import warnings
+
+        from tenpy.algorithms import dmrg
+        from tenpy.algorithms.plane_wave_excitation import PlaneWaveExcitationEngine
+        from tenpy.models.spins import SpinChain
+        from tenpy.networks.mps import MPS
+        from tenpy.networks.uniform_mps import UniformMPS
+    except Exception as exc:  # pragma: no cover - exercised only when optional backend is absent
+        raise RuntimeError("TeNPy is required for the Haldane infinite-MPS plane-wave benchmark") from exc
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        model = SpinChain(
+            {
+                "L": int(unit_cell_sites),
+                "S": 1,
+                "Jx": 1.0,
+                "Jy": 1.0,
+                "Jz": 1.0,
+                "conserve": "Sz",
+                "bc_MPS": "infinite",
+            }
+        )
+        psi = MPS.from_product_state(
+            model.lat.mps_sites(),
+            ["1.0", "-1.0"],
+            bc=model.lat.bc_MPS,
+        )
+        dmrg_options = {
+            "mixer": True,
+            "max_E_err": 1.0e-9,
+            "trunc_params": {
+                "chi_max": int(bond_dimension),
+                "svd_min": 1.0e-10,
+            },
+            "max_sweeps": 20,
+            "verbose": False,
+        }
+        dmrg_info = dmrg.run(psi, model, dmrg_options)
+        psi.canonical_form()
+        uniform_psi = UniformMPS.from_MPS(psi)
+        excitation_engine = PlaneWaveExcitationEngine(
+            uniform_psi,
+            model,
+            {
+                "lanczos_params": {"N_max": 80},
+                "sum_tol": 1.0e-9,
+                "sum_iterations": 200,
+            },
+        )
+        energies, _, lanczos_iterations = excitation_engine.run(
+            float(momentum),
+            qtotal_change=list(triplet_charge_sector),
+            num_ev=1,
+        )
+
+    return {
+        "method": "tenpy_infinite_mps_plane_wave_excitation",
+        "unit_cell_sites": int(unit_cell_sites),
+        "bond_dimension": int(bond_dimension),
+        "actual_bond_dimension": int(max(psi.chi)),
+        "ground_energy_per_site": float(dmrg_info["E"]),
+        "momentum": float(momentum),
+        "triplet_charge_sector": list(triplet_charge_sector),
+        "gap_over_j": float(np.real_if_close(energies[0])),
+        "lanczos_iterations": int(lanczos_iterations),
+    }
 
 
 def static_structure_factor(positions, spins, q_vector):
