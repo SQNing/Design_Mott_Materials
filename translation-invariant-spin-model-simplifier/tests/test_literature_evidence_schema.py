@@ -142,6 +142,41 @@ def test_normalization_requires_kind_and_executable_or_field_rules(normalization
         record(normalization=normalization)
 
 
+@pytest.mark.parametrize("rule_key", ["rules", "executable", "fields", "operations"])
+def test_normalization_rejects_truthy_free_text_rule_content(rule_key):
+    with pytest.raises(EvidenceSchemaError, match="normalization"):
+        record(normalization={"kind": "ratio", rule_key: "divide by J"})
+
+
+@pytest.mark.parametrize(
+    ("rule_key", "content"),
+    [
+        ("rules", {}),
+        ("executable", []),
+        ("fields", ()),
+        ("operations", {}),
+    ],
+)
+def test_normalization_rejects_empty_structured_rule_content(rule_key, content):
+    with pytest.raises(EvidenceSchemaError, match="normalization"):
+        record(normalization={"kind": "ratio", rule_key: content})
+
+
+@pytest.mark.parametrize(
+    ("rule_key", "content"),
+    [
+        ("rules", {"denominator": "J"}),
+        ("executable", {"callable": "validation.normalizers:divide"}),
+        ("fields", ["gap", "J"]),
+        ("operations", [{"operator": "divide", "operands": ["gap", "J"]}]),
+    ],
+)
+def test_normalization_accepts_nonempty_machine_readable_rule_content(rule_key, content):
+    item = record(normalization={"kind": "ratio", rule_key: content})
+
+    assert item.normalization[rule_key]
+
+
 @pytest.mark.parametrize(
     "field",
     ["target_observable", "target_excerpt", "parsed_target", "strict_literature_match", "strict_match", "pass", "verdict"],

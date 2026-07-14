@@ -258,11 +258,22 @@ class EvidenceRecord:
         if not isinstance(normalization, Mapping):
             raise EvidenceSchemaError("normalization must be a structured mapping")
         kind = normalization.get("kind")
-        has_rules = any(
-            key in normalization and normalization[key]
-            for key in ("rules", "executable", "fields", "operations")
+        rule_keys = ("rules", "executable", "fields", "operations")
+        supplied_rules = [normalization[key] for key in rule_keys if key in normalization]
+        rules_are_structured = supplied_rules and all(
+            (isinstance(value, Mapping) and bool(value))
+            or (
+                isinstance(value, Sequence)
+                and not isinstance(value, (str, bytes, bytearray))
+                and bool(value)
+            )
+            for value in supplied_rules
         )
-        if not isinstance(kind, str) or not kind.strip() or not has_rules:
+        if (
+            not isinstance(kind, str)
+            or not kind.strip()
+            or not rules_are_structured
+        ):
             raise EvidenceSchemaError(
                 "normalization requires a nonempty kind and executable or field rules"
             )
