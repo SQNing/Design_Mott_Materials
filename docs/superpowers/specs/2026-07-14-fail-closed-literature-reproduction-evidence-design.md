@@ -75,26 +75,37 @@ Artifacts live below:
 
 ```text
 translation-invariant-spin-model-simplifier/reference/literature-evidence/
-  sources/<source-id>.json
+  sources/<source-id>/provenance.json
+  sources/<source-id>/payload.<media-extension>
   records/<benchmark-name>.json
 ```
 
 ### Source snapshot
 
-Each unique cited source has a JSON snapshot containing:
+Each unique cited source preserves raw authoritative bytes plus a provenance
+record containing:
 
 - canonical source identifier and DOI/arXiv URL;
-- retrieval URL, retrieval date, media type, and retrieval method;
+- retrieval URL, retrieval date, media type, retrieval method, HTTP response
+  metadata, and an immutable DOI/arXiv/repository artifact identifier;
 - source title, authors, venue, and publication date;
-- the official abstract, openly available full text, author manuscript text,
-  or a bounded exact excerpt needed for the observable;
-- SHA-256 of the exact payload consumed by parsers;
+- the raw official abstract response, openly available publisher/repository full
+  text, or author manuscript artifact needed for the observable;
+- SHA-256 and byte length of the raw retrieved payload consumed by parsers;
 - license/access notes and a citation-metadata verification result.
 
+SHA-256 establishes integrity, not authenticity. The acquisition command must
+retrieve the payload from an authoritative publisher, DOI target, arXiv, or
+institutional/author repository and preserve enough response metadata to audit
+that origin. Manually authored source payloads are rejected. A bounded excerpt
+is acceptable only when its exact bytes and coordinates are verified against a
+hashed authoritative parent artifact.
+
 The repository must not claim that Crossref title/author metadata establishes a
-scientific observable. A snapshot is sufficient only when its payload contains
-the actual target statement. If the cited source is inaccessible, the entry
-stays `source_unavailable` until an authoritative snapshot is supplied.
+scientific observable. A snapshot is sufficient only when its authoritative
+payload contains the actual target statement. If the cited source is
+inaccessible, the entry stays `source_unavailable` until an authoritative
+snapshot is supplied.
 
 ### Benchmark evidence record
 
@@ -107,15 +118,32 @@ Each of the 155 benchmarks has one record with these required fields:
   "evidence_mode": "recompute_or_parse",
   "source_id": "...",
   "source_sha256": "...",
+  "registry_selector": {"path": ["energy_per_site"]},
+  "observable_contract": {
+    "subject": "...",
+    "system": "...",
+    "hamiltonian": "...",
+    "parameter_regime": "...",
+    "size_or_limit": "...",
+    "observable": "...",
+    "units": "...",
+    "conditions": "..."
+  },
   "target_locator": {"kind": "equation", "value": "Eq. (3)"},
-  "target_excerpt": "...",
-  "target_observable": {"name": "...", "value": 0.0, "units": "..."},
+  "target_parser": "module:function",
   "normalization": {"description": "..."},
   "adapter": "module:function",
   "adapter_parameters": {},
+  "convergence": {},
   "comparison": {"kind": "absolute", "tolerance": 1e-6}
 }
 ```
+
+The record may declare where and how to parse, but it may not supply
+`target_excerpt` or `target_observable` as parser output. The exact source span,
+raw extracted value, normalized literature target, and byte/page/table
+coordinates are derived at runtime from the hashed payload and written only to
+the run result.
 
 `evidence_mode` is one of:
 
@@ -126,9 +154,13 @@ Each of the 155 benchmarks has one record with these required fields:
 - `projection_only`: preserve a useful smaller-model calculation without
   granting strict status.
 
-Categorical observables use an explicit normalization map. Boolean values are
-accepted only when the source excerpt directly supports the normalized claim;
-material properties cannot be inferred merely from the model family.
+Categorical and experimental observables use a typed claim schema containing
+subject, observable, experimental or model conditions, scope, polarity,
+uncertainty, and an explicit normalization map. Boolean values are accepted only
+when exact source spans directly entail the normalized claim. The auditor
+rejects absence-of-mention, model-to-material inference, review paraphrases when
+primary evidence is claimed, and source conditions that do not match the
+registry contract.
 
 ## Runtime Architecture
 
@@ -136,26 +168,52 @@ material properties cannot be inferred merely from the model family.
 
 A focused module loads snapshots, recomputes SHA-256, validates provenance, and
 returns source text. It rejects missing files, hash mismatches, empty payloads,
-and source identifiers that disagree with the registry URL.
+source identifiers that disagree with the registry URL, non-authoritative
+origins, and excerpts that cannot be located in their hashed parent payload.
 
 ### Literature target parser
 
 Each evidence record declares a parser or a constrained locator. The parser
-must extract the target from snapshot text at runtime. Tests must demonstrate
-that changing or removing the source text makes extraction fail.
+must resolve the locator to exact bytes, pages, table cells, or structured fields
+in the snapshot and derive both the excerpt and target from those bytes at
+runtime. Tests must demonstrate both that removing the target makes extraction
+fail and that replacing it with another syntactically valid target makes the
+parser return the replacement rather than a hard-coded value.
 
 ### Reproduction adapter
 
 Each recomputation adapter accepts explicit parameters and returns a structured
 observable. Adapters may wrap existing benchmark helpers, but they must not read
 `LITERATURE_STANDARD_RESULTS` or the evidence record's target value while
-calculating the local result.
+calculating the local result. `adapter_parameters` contain only model inputs and
+may not contain expected outputs. Model parameters used for recomputation are
+independently parsed from the literature source or declared as universal test
+inputs distinct from the target observable.
+
+The run manifest hashes adapter source code and its transitive project
+dependencies. Counterfactual parameter and property tests require the adapter
+to respond correctly away from the registered benchmark point, preventing a
+constant expected answer hidden in the adapter or a helper from passing.
+
+Before comparing values, the auditor verifies that adapter output has the same
+machine-readable observable identity as the registry contract: subject,
+system/material, Hamiltonian, parameter regime, size or thermodynamic limit,
+observable definition, units, and conditions. A smaller cluster, clean limit,
+representative parameter point, or different material cannot pass solely
+because its numerical label resembles the literature claim.
 
 ### Comparator
 
 The comparator supports exact, absolute-tolerance, relative-tolerance,
 interval, set, sequence, and normalized categorical comparisons. It records
 both operands and the computed error or mismatch reason.
+
+Numerical records declare a convergence protocol appropriate to their backend:
+deterministic seeds where applicable, size/bond-dimension/truncation scans,
+stopping thresholds, finite-size or truncation error estimates, backend version
+and code hash, and a fail-closed bound showing total numerical uncertainty is
+compatible with the comparison tolerance. A numerically close but unconverged
+run is not strict evidence.
 
 ### Auditor
 
@@ -164,15 +222,22 @@ For every registered entry, the auditor performs the following in order:
 1. require exactly one evidence record;
 2. verify source identity and snapshot hash;
 3. extract the literature target from source content;
-4. verify the target agrees with the registry representation;
-5. for `local_recompute`, execute the independent adapter;
-6. compare the local result with the literature target;
-7. emit a structured pass/fail result and all provenance fields.
+4. resolve and verify the machine-readable observable contract;
+5. verify the target agrees with the registry representation;
+6. for `local_recompute`, execute the independent adapter in a fresh process;
+7. verify convergence and observable-identity equality;
+8. compare the local result with the literature target;
+9. emit a structured pass/fail result, extraction trace, execution trace, and
+   all provenance fields.
 
 Any exception, unavailable backend, missing source, missing adapter, stale
 hash, unsupported comparator, target mismatch, or projection-only route yields
 `strict_literature_match=no` with a concrete reason. There is no strict-kind
-promotion whitelist.
+promotion whitelist. Cached verdicts and precomputed pass labels are ignored.
+
+Before running entries, the auditor requires set equality among canonical
+registry names, evidence-record names, outcome names, and report-row names.
+Duplicates, missing records, and orphaned records fail the entire audit.
 
 ## Migration Strategy
 
@@ -198,9 +263,12 @@ full audit reports all 155 strict passes.
 The CSV, Markdown, and PDF reports must show, per entry:
 
 - source identifier, retrieval provenance, and snapshot hash;
-- target excerpt locator and parsed literature value;
+- runtime-resolved source coordinates, exact excerpt, and parsed literature
+  value;
+- machine-readable observable identity and registry selector;
 - evidence mode and executed adapter;
 - local result, comparator, tolerance, and numerical error;
+- extraction, adapter, convergence, and fresh-process execution traces;
 - strict verdict and failure reason.
 
 Summary counts are derived only from runtime evidence results. Report
@@ -216,9 +284,16 @@ Required negative tests cover:
 - no source snapshot;
 - source hash mismatch;
 - source text no longer contains the target;
-- parser returns a hard-coded value without consuming source content;
+- source target is replaced with another valid value but the parser does not
+  return the replacement;
+- declared excerpt differs from bytes selected from the hashed parent artifact;
+- manually authored or non-authoritative source payload;
 - adapter reads the registry or literature target as its result;
+- expected output is smuggled through adapter parameters or a transitive helper;
+- adapter fails counterfactual parameter/property tests;
 - local projection presented for a paper-level/material observable;
+- subject, Hamiltonian, parameter regime, limit, units, or conditions differ
+  from the registered observable identity;
 - backend exception or non-convergence;
 - numerical result outside tolerance;
 - duplicate, orphaned, and stale evidence records.
@@ -229,25 +304,33 @@ parse before batch migration begins.
 
 For every migrated entry, the test suite must execute the same record consumed
 by the production audit. Tests may not independently hard-code a second pass
-classification.
+classification. Acceptance runs in fresh processes, lists the parser and adapter
+invoked for every benchmark, and fails if any record lacks a runtime extraction
+trace, comparison trace, or mode-appropriate execution trace.
 
 ## Acceptance Criteria
 
 The goal is complete only when a fresh run proves all of the following:
 
-- exactly 155 registry entries and exactly 155 evidence records exist;
+- the canonical registry, evidence records, runtime outcomes, CSV rows,
+  Markdown rows, and PDF detail rows contain exactly the same set of 155
+  distinct benchmark identifiers;
 - every record consumes a verified local source snapshot containing the target
   observable;
 - every `local_recompute` adapter executes without reading its expected answer;
 - every local result or direct source parse matches its literature target under
   an explicit comparator;
+- the run manifest contains 155 distinct `strict_literature_match=yes`
+  outcomes and zero failures, skips, duplicates, or orphans;
 - no entry is `projection_only`, `source_unavailable`, `backend_unavailable`, or
   otherwise unresolved;
 - the generated CSV, Markdown, and PDF agree on the per-entry and aggregate
   results;
 - the full project test suite passes after the audit run;
 - a machine-readable run manifest records commands, environment information,
-  source hashes, adapter versions, timestamps, and all 155 outcomes.
+  source hashes, registry/record hashes, adapter and transitive dependency
+  hashes, backend versions, extraction and execution traces, timestamps, all
+  155 outcomes, and hashes of generated report artifacts.
 
 Passing pytest alone is not completion. A `155/155` summary alone is not
 completion. The per-entry runtime evidence and source provenance are the
