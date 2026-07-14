@@ -23,6 +23,10 @@ from validation.literature_evidence_schema import (
     validate_post_run_bijection,
     validate_pre_run_bijection,
 )
+from validation.literature_evidence_comparators import (
+    ObservableComparisonError,
+    compare_observables,
+)
 
 
 def observable(**overrides):
@@ -403,6 +407,326 @@ def test_canonical_json_bytes_is_deterministic_for_dataclasses_mappings_and_sequ
 def test_canonical_json_bytes_rejects_unsupported_and_nonfinite_values(value):
     with pytest.raises(EvidenceSchemaError):
         canonical_json_bytes(value)
+
+
+def compare(kind, literature, candidate, **kwargs):
+    comparison = {"kind": kind, **kwargs.pop("comparison_overrides", {})}
+    return compare_observables(
+        benchmark_name="haldane_gap_reference",
+        comparison=comparison,
+        literature_operand=literature,
+        candidate_operand=candidate,
+        **kwargs,
+    )
+
+
+def test_exact_comparison_is_type_aware_for_scalars_booleans_and_strings():
+    assert compare("exact", True, True).payload["matched"] is True
+    assert compare("exact", "1", "1").payload["matched"] is True
+    assert compare("exact", 1, 1.0).payload["matched"] is False
+    result = compare("exact", True, 1)
+
+    assert result.payload["matched"] is False
+    assert "type" in result.payload["reason"]
+
+
+def test_absolute_comparison_uses_tolerance_and_local_uncertainty_conservatively():
+    passing = compare(
+        "absolute", 1.0, 1.08,
+        comparison_overrides={"tolerance": 0.1},
+        local_uncertainty=0.02,
+    )
+    failing = compare(
+        "absolute", 1.0, 1.081,
+        comparison_overrides={"tolerance": 0.1},
+        local_uncertainty=0.02,
+    )
+
+    assert passing.payload["matched"] is True
+    assert passing.payload["error"] == pytest.approx(0.08)
+    assert passing.payload["tolerance"] == 0.1
+    assert failing.payload["matched"] is False
+    assert "exceeds" in failing.payload["reason"]
+
+
+def test_relative_comparison_uses_relative_error_and_uncertainty():
+    passing = compare(
+        "relative", 10.0, 10.5,
+        comparison_overrides={"tolerance": 0.06},
+        local_uncertainty=0.1,
+    )
+    failing = compare(
+        "relative", 10.0, 10.51,
+        comparison_overrides={"tolerance": 0.06},
+        local_uncertainty=0.1,
+    )
+
+    assert passing.payload["matched"] is True
+    assert passing.payload["error"] == pytest.approx(0.05)
+    assert failing.payload["matched"] is False
+
+
+def test_relative_zero_fails_closed_without_absolute_fallback():
+    result = compare(
+        "relative", 0.0, 0.0,
+        comparison_overrides={"tolerance": 0.01},
+    )
+
+    assert result.payload["matched"] is False
+    assert result.payload["error"] is None
+    assert "zero" in result.payload["reason"]
+
+
+def test_relative_zero_uses_conservative_absolute_tolerance_fallback():
+    passing = compare(
+        "relative", 0.0, 0.04,
+        comparison_overrides={"tolerance": 0.01, "absolute_tolerance": 0.05},
+        local_uncertainty=0.01,
+    )
+    failing = compare(
+        "relative", 0.0, 0.041,
+        comparison_overrides={"tolerance": 0.01, "absolute_tolerance": 0.05},
+        local_uncertainty=0.01,
+    )
+
+    assert passing.payload["matched"] is True
+    assert passing.payload["error"] == pytest.approx(0.04)
+    assert passing.payload["tolerance"] == 0.05
+    assert "fallback" in passing.payload["reason"]
+    assert failing.payload["matched"] is False
+
+
+@pytest.mark.parametrize(
+    ("candidate", "matched"),
+    [(1.0, False), (1.0001, True), (2.9999, True), (3.0, True)],
+)
+def test_interval_comparison_enforces_endpoint_policy(candidate, matched):
+    interval = {
+        "lower": 1.0,
+        "upper": 3.0,
+        "lower_inclusive": False,
+        "upper_inclusive": True,
+    }
+
+    result = compare("interval", interval, candidate)
+
+    assert result.payload["matched"] is matched
+    assert "interval" in result.payload["reason"]
+
+
+def test_interval_comparison_rejects_malformed_intervals():
+    bad_intervals = [
+        {"lower": 2, "upper": 1, "lower_inclusive": True, "upper_inclusive": True},
+        {"lower": 1, "upper": 2, "lower_inclusive": 1, "upper_inclusive": True},
+        {"lower": 1, "upper": 2, "lower_inclusive": True},
+        {"lower": 1, "upper": 2, "lower_inclusive": True, "upper_inclusive": True, "extra": 3},
+    ]
+
+    for interval in bad_intervals:
+        with pytest.raises(ObservableComparisonError, match="interval"):
+            compare("interval", interval, 1.5)
+
+
+def test_set_comparison_is_unordered_and_type_aware():
+    assert compare("set", [1, "x", True], [True, "x", 1]).payload["matched"] is True
+    result = compare("set", [1], [1.0])
+
+    assert result.payload["matched"] is False
+    assert "missing" in result.payload["reason"]
+    assert "extra" in result.payload["reason"]
+
+
+@pytest.mark.parametrize(
+    "operand",
+    [[1, 1], [True, True], [[1]], [{"nested": 1}], "abc"],
+)
+def test_set_comparison_rejects_duplicates_nested_values_and_non_collections(operand):
+    with pytest.raises(ObservableComparisonError, match="set"):
+        compare("set", operand, [1, 2])
+
+
+def test_sequence_comparison_is_ordered_type_aware_and_reports_length():
+    assert compare("sequence", [1, "x", False], [1, "x", False]).payload["matched"] is True
+    mismatch = compare("sequence", [1, 2], [2, 1])
+    length = compare("sequence", [1, 2], [1])
+
+    assert mismatch.payload["matched"] is False
+    assert "index 0" in mismatch.payload["reason"]
+    assert length.payload["matched"] is False
+    assert "length" in length.payload["reason"]
+    with pytest.raises(ObservableComparisonError, match="sequence"):
+        compare("sequence", "ab", "ab")
+
+
+def test_typed_claim_requires_exact_keys_and_recursive_type_aware_values():
+    claim = {"phase": "Haldane", "degeneracy": 4, "flags": {"gapped": True}}
+    assert compare("typed_claim", claim, dict(claim)).payload["matched"] is True
+
+    result = compare(
+        "typed_claim",
+        claim,
+        {"phase": "Haldane", "degeneracy": 4.0, "extra": None},
+    )
+
+    assert result.payload["matched"] is False
+    assert "missing fields: flags" in result.payload["reason"]
+    assert "extra fields: extra" in result.payload["reason"]
+    assert "mismatched fields: degeneracy" in result.payload["reason"]
+
+
+@pytest.mark.parametrize("operand", [[], "claim", {1: "bad"}, {"bad": object()}])
+def test_typed_claim_rejects_malformed_claims(operand):
+    with pytest.raises(ObservableComparisonError, match="typed claim"):
+        compare("typed_claim", operand, {"ok": True})
+
+
+def test_enveloped_operands_require_matching_nonempty_units_and_preserve_operands():
+    literature = {"value": 1.0, "units": "eV"}
+    candidate = {"value": 1.01, "units": "eV"}
+    result = compare(
+        "absolute", literature, candidate,
+        comparison_overrides={"tolerance": 0.02},
+    )
+
+    assert result.payload["original_literature_operand"] == literature
+    assert result.payload["original_candidate_operand"] == candidate
+    assert result.payload["literature_value"] == 1.0
+    assert result.payload["candidate_value"] == 1.01
+    assert result.payload["units"] == "eV"
+    assert result.payload["matched"] is True
+
+
+def test_unit_mismatch_is_a_failed_trace_not_malformed_data():
+    result = compare(
+        "absolute",
+        {"value": 1.0, "units": "eV"},
+        {"value": 1.0, "units": "meV"},
+        comparison_overrides={"tolerance": 0.0},
+    )
+
+    assert result.payload["matched"] is False
+    assert result.payload["units"] == {"literature": "eV", "candidate": "meV"}
+    assert "unit mismatch" in result.payload["reason"]
+
+
+@pytest.mark.parametrize(
+    ("literature", "candidate"),
+    [
+        ({"value": 1, "units": "eV"}, 1),
+        ({"value": 1}, {"value": 1, "units": "eV"}),
+        ({"value": 1, "units": ""}, {"value": 1, "units": ""}),
+        ({"value": 1, "units": "  "}, {"value": 1, "units": "  "}),
+        ({"value": 1, "units": "eV", "extra": True}, {"value": 1, "units": "eV"}),
+    ],
+)
+def test_malformed_or_one_sided_envelopes_raise(literature, candidate):
+    with pytest.raises(ObservableComparisonError, match="envelope"):
+        compare("exact", literature, candidate)
+
+
+@pytest.mark.parametrize(
+    ("comparison", "message"),
+    [
+        ({}, "kind"),
+        ({"kind": "unknown"}, "unsupported"),
+        ({"kind": "exact", "tolerance": 1}, "config"),
+        ({"kind": "absolute"}, "tolerance"),
+        ({"kind": "relative", "tolerance": 0.1, "extra": 1}, "config"),
+        ({"kind": "interval", "absolute_tolerance": 1}, "config"),
+    ],
+)
+def test_comparison_config_is_closed_and_requires_kind_specific_fields(comparison, message):
+    with pytest.raises(ObservableComparisonError, match=message):
+        compare_observables(
+            benchmark_name="haldane_gap_reference",
+            comparison=comparison,
+            literature_operand=1,
+            candidate_operand=1,
+        )
+
+
+@pytest.mark.parametrize("value", [-1, math.inf, -math.inf, math.nan, True, "0.1"])
+def test_tolerances_and_uncertainty_must_be_finite_nonnegative_numbers(value):
+    with pytest.raises(ObservableComparisonError, match="tolerance"):
+        compare("absolute", 1.0, 1.0, comparison_overrides={"tolerance": value})
+    with pytest.raises(ObservableComparisonError, match="uncertainty"):
+        compare(
+            "absolute", 1.0, 1.0,
+            comparison_overrides={"tolerance": 0.1},
+            local_uncertainty=value,
+        )
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf, True, "1"])
+def test_numeric_comparators_reject_nonfinite_and_nonnumeric_operands(value):
+    with pytest.raises(ObservableComparisonError, match="numeric"):
+        compare("absolute", value, 1.0, comparison_overrides={"tolerance": 0.1})
+    with pytest.raises(ObservableComparisonError, match="numeric"):
+        compare("interval", {"lower": 0, "upper": 2, "lower_inclusive": True, "upper_inclusive": True}, value)
+
+
+def test_local_uncertainty_is_rejected_for_non_numeric_comparators():
+    with pytest.raises(ObservableComparisonError, match="uncertainty"):
+        compare("exact", 1, 1, local_uncertainty=0.0)
+
+
+def test_tolerance_boundary_rejects_a_genuinely_larger_error():
+    result = compare(
+        "absolute",
+        0.0,
+        1.0000000000005,
+        comparison_overrides={"tolerance": 1.0},
+    )
+
+    assert result.payload["matched"] is False
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_exact_comparison_rejects_nonfinite_numbers(value):
+    with pytest.raises(ObservableComparisonError, match="non-finite"):
+        compare("exact", value, value)
+
+
+def test_invalid_benchmark_name_is_a_comparison_request_error():
+    with pytest.raises(ObservableComparisonError, match="benchmark_name"):
+        compare_observables(
+            benchmark_name="bad/name",
+            comparison={"kind": "exact"},
+            literature_operand=1,
+            candidate_operand=1,
+        )
+
+
+def test_comparison_trace_payload_is_complete_immutable_and_canonical_serializable():
+    comparison = {"kind": "absolute", "tolerance": 0.2}
+    result = compare_observables(
+        benchmark_name="haldane_gap_reference",
+        comparison=comparison,
+        literature_operand=1.0,
+        candidate_operand=1.1,
+        local_uncertainty=0.01,
+    )
+
+    assert isinstance(result, ComparisonTrace)
+    assert result.payload == {
+        "original_literature_operand": 1.0,
+        "original_candidate_operand": 1.1,
+        "literature_value": 1.0,
+        "candidate_value": 1.1,
+        "units": None,
+        "comparison": comparison,
+        "error": pytest.approx(0.1),
+        "tolerance": 0.2,
+        "local_uncertainty": 0.01,
+        "matched": True,
+        "reason": (
+            "absolute error 0.1 plus local uncertainty 0.01 "
+            "is within tolerance 0.2"
+        ),
+    }
+    with pytest.raises(TypeError):
+        result.payload["matched"] = False
+    assert json.loads(canonical_json_bytes(result))["payload"]["matched"] is True
 
 
 def test_pre_run_bijection_reports_duplicates_missing_and_orphans_together():
