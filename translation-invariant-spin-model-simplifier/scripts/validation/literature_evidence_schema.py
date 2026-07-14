@@ -1,7 +1,7 @@
 """Bounded, immutable schemas for literature evidence audit artifacts."""
 
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields, is_dataclass
 import json
 import math
@@ -14,9 +14,43 @@ class EvidenceSchemaError(ValueError):
 
 
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_LOWER_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_CALLABLE_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+"
+    r":[A-Za-z_][A-Za-z0-9_]*$"
+)
 _EVIDENCE_MODES = frozenset(
     {"local_recompute", "local_source_parse", "projection_only"}
 )
+_NORMALIZATION_ROUTES = ("operations", "rules", "fields", "executable")
+_NORMALIZATION_OPERATORS = frozenset(
+    {
+        "identity",
+        "scale",
+        "offset",
+        "reciprocal",
+        "select_field",
+        "rename_field",
+        "map_value",
+        "negate",
+        "require_equal",
+    }
+)
+_OPERATOR_ARGUMENTS = {
+    "identity": (frozenset(), frozenset()),
+    "scale": (frozenset({"factor"}), frozenset()),
+    "offset": (frozenset({"value"}), frozenset()),
+    "reciprocal": (frozenset(), frozenset({"source_field"})),
+    "select_field": (frozenset({"source_field"}), frozenset()),
+    "rename_field": (
+        frozenset({"source_field", "target_field"}),
+        frozenset(),
+    ),
+    "map_value": (frozenset({"mapping"}), frozenset()),
+    "negate": (frozenset(), frozenset({"source_field"})),
+    "require_equal": (frozenset({"expected"}), frozenset({"source_field"})),
+}
+_REPORT_ARTIFACTS = frozenset({"csv", "markdown", "pdf"})
 _FORBIDDEN_RECORD_KEYS = frozenset(
     {
         "target_observable",
@@ -31,8 +65,29 @@ _FORBIDDEN_RECORD_KEYS = frozenset(
 
 
 def _identifier(value, field_name):
+    if (
+        not isinstance(value, str)
+        or not value
+        or value != value.strip()
+        or "/" in value
+        or "\\" in value
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise EvidenceSchemaError(f"{field_name} must be a safe nonempty identifier")
+    return value
+
+
+def _nonempty_text(value, field_name):
     if not isinstance(value, str) or not value.strip():
         raise EvidenceSchemaError(f"{field_name} must be a nonempty string")
+    return value
+
+
+def _lower_identifier(value, field_name):
+    if not isinstance(value, str) or not _LOWER_IDENTIFIER_RE.fullmatch(value):
+        raise EvidenceSchemaError(
+            f"{field_name} must match ^[a-z][a-z0-9_]*$"
+        )
     return value
 
 
@@ -125,14 +180,12 @@ class CanonicalObservable:
         _initialize(self, args, kwargs)
 
     def __post_init__(self):
-        for field_name in (
-            "canonical_observable_id",
-            "benchmark_name",
-            "subject",
-            "system",
-            "units",
-        ):
-            _identifier(getattr(self, field_name), field_name)
+        _lower_identifier(
+            self.canonical_observable_id, "canonical_observable_id"
+        )
+        _identifier(self.benchmark_name, "benchmark_name")
+        for field_name in ("subject", "system", "units"):
+            _nonempty_text(getattr(self, field_name), field_name)
         _set_structured(
             self,
             (
@@ -163,7 +216,7 @@ class SourceProvenance:
 
     def __post_init__(self):
         _identifier(self.source_id, "source_id")
-        _identifier(self.media_type, "media_type")
+        _nonempty_text(self.media_type, "media_type")
         _validate_sha256(self.raw_payload_sha256, "raw_payload_sha256")
         if (
             isinstance(self.raw_payload_byte_length, bool)
@@ -201,6 +254,138 @@ def _find_forbidden_key(value):
     return None
 
 
+def _normalization_error(detail):
+    raise EvidenceSchemaError(f"normalization {detail}")
+
+
+def _operator_name(step):
+    operator_keys = [key for key in ("op", "operator") if key in step]
+    if len(operator_keys) != 1:
+        _normalization_error("steps require exactly one op or operator")
+    operator = step[operator_keys[0]]
+    if operator not in _NORMALIZATION_OPERATORS:
+        _normalization_error(f"contains unsupported operator {operator!r}")
+    return operator, operator_keys[0]
+
+
+def _validate_operation_step(step):
+    if not isinstance(step, Mapping):
+        _normalization_error("operations and rules must contain only mappings")
+    operator, operator_key = _operator_name(step)
+    required, optional = _OPERATOR_ARGUMENTS[operator]
+    argument_keys = set(step) - {operator_key}
+    unknown = argument_keys - required - optional
+    missing = required - argument_keys
+    if unknown:
+        _normalization_error(
+            f"operator {operator!r} has unrecognized arguments: {', '.join(sorted(unknown))}"
+        )
+    if missing:
+        _normalization_error(
+            f"operator {operator!r} is missing arguments: {', '.join(sorted(missing))}"
+        )
+    for field_name in ("source_field", "target_field"):
+        if field_name in step:
+            _lower_identifier(step[field_name], f"normalization {field_name}")
+    for numeric_name in ("factor", "value"):
+        if numeric_name in step:
+            numeric = step[numeric_name]
+            if (
+                isinstance(numeric, bool)
+                or not isinstance(numeric, (int, float))
+                or not math.isfinite(numeric)
+            ):
+                _normalization_error(f"{numeric_name} must be a finite number")
+    if "mapping" in step and (
+        not isinstance(step["mapping"], Mapping) or not step["mapping"]
+    ):
+        _normalization_error("map_value mapping must be a nonempty mapping")
+
+
+def _validate_operation_route(route, route_name):
+    if (
+        not isinstance(route, Sequence)
+        or isinstance(route, (str, bytes, bytearray))
+        or not route
+    ):
+        _normalization_error(f"{route_name} must be a nonempty ordered sequence")
+    for step in route:
+        _validate_operation_step(step)
+
+
+def _validate_fields_route(route):
+    if not isinstance(route, Mapping) or not route:
+        _normalization_error("fields must be a nonempty mapping")
+    for output_field, spec in route.items():
+        _lower_identifier(output_field, "normalization output field")
+        if not isinstance(spec, Mapping):
+            _normalization_error("field specs must be mappings")
+        allowed = {"source_field", "op", "operator"}
+        unknown = set(spec) - allowed
+        if unknown:
+            _normalization_error(
+                f"field spec has unrecognized keys: {', '.join(sorted(unknown))}"
+            )
+        if "source_field" not in spec:
+            _normalization_error("field spec requires source_field")
+        _lower_identifier(spec["source_field"], "normalization source_field")
+        operator_keys = [key for key in ("op", "operator") if key in spec]
+        if len(operator_keys) > 1:
+            _normalization_error("field spec accepts only one op or operator")
+        if operator_keys and spec[operator_keys[0]] not in _NORMALIZATION_OPERATORS:
+            _normalization_error(
+                f"contains unsupported operator {spec[operator_keys[0]]!r}"
+            )
+
+
+def _validate_executable_route(route):
+    if not isinstance(route, Mapping):
+        _normalization_error("executable must be a mapping")
+    unknown = set(route) - {"callable", "version"}
+    if unknown:
+        _normalization_error(
+            f"executable has unrecognized keys: {', '.join(sorted(unknown))}"
+        )
+    callable_ref = route.get("callable")
+    if not isinstance(callable_ref, str) or not _CALLABLE_RE.fullmatch(callable_ref):
+        _normalization_error("executable callable must match module.path:function_name")
+    if "version" in route and (
+        isinstance(route["version"], bool)
+        or not isinstance(route["version"], int)
+        or route["version"] <= 0
+    ):
+        _normalization_error("executable version must be a positive integer")
+
+
+def _validate_normalization(normalization):
+    """Validate one closed normalization route.
+
+    ``operations`` and ``rules`` contain typed operator steps; ``fields`` maps
+    output identifiers to source-field specs; ``executable`` names a versioned
+    Python callable. No free-form description keys are part of the grammar.
+    """
+
+    if not isinstance(normalization, Mapping):
+        _normalization_error("must be a structured mapping")
+    unknown = set(normalization) - {"kind", *_NORMALIZATION_ROUTES}
+    if unknown:
+        _normalization_error(
+            f"has unrecognized keys: {', '.join(sorted(unknown))}"
+        )
+    _lower_identifier(normalization.get("kind"), "normalization kind")
+    routes = [route for route in _NORMALIZATION_ROUTES if route in normalization]
+    if len(routes) != 1:
+        _normalization_error("requires exactly one structured route")
+    route_name = routes[0]
+    route = normalization[route_name]
+    if route_name in ("operations", "rules"):
+        _validate_operation_route(route, route_name)
+    elif route_name == "fields":
+        _validate_fields_route(route)
+    else:
+        _validate_executable_route(route)
+
+
 @dataclass(frozen=True, init=False)
 class EvidenceRecord:
     schema_version: object
@@ -228,11 +413,13 @@ class EvidenceRecord:
         for field_name in (
             "benchmark_name",
             "source_id",
-            "canonical_observable_id",
             "target_parser",
             "adapter",
         ):
             _identifier(getattr(self, field_name), field_name)
+        _lower_identifier(
+            self.canonical_observable_id, "canonical_observable_id"
+        )
         if self.evidence_mode not in _EVIDENCE_MODES:
             raise EvidenceSchemaError(
                 "evidence_mode must be one of local_recompute, local_source_parse, "
@@ -254,29 +441,7 @@ class EvidenceRecord:
                 raise EvidenceSchemaError(
                     f"{field_name} contains forbidden field {forbidden}"
                 )
-        normalization = self.normalization
-        if not isinstance(normalization, Mapping):
-            raise EvidenceSchemaError("normalization must be a structured mapping")
-        kind = normalization.get("kind")
-        rule_keys = ("rules", "executable", "fields", "operations")
-        supplied_rules = [normalization[key] for key in rule_keys if key in normalization]
-        rules_are_structured = supplied_rules and all(
-            (isinstance(value, Mapping) and bool(value))
-            or (
-                isinstance(value, Sequence)
-                and not isinstance(value, (str, bytes, bytearray))
-                and bool(value)
-            )
-            for value in supplied_rules
-        )
-        if (
-            not isinstance(kind, str)
-            or not kind.strip()
-            or not rules_are_structured
-        ):
-            raise EvidenceSchemaError(
-                "normalization requires a nonempty kind and executable or field rules"
-            )
+        _validate_normalization(self.normalization)
         _set_structured(self, structured_fields)
 
 
@@ -383,8 +548,19 @@ def _name_diagnostics(expected, actual, *, actual_label, missing_label, orphan_l
     return diagnostics
 
 
-def _validated_names(names, field_name):
-    result = list(names)
+def _ordered_collection(values, field_name):
+    if (
+        isinstance(values, (str, bytes, bytearray, Mapping, set, frozenset))
+        or not isinstance(values, Iterable)
+    ):
+        raise EvidenceSchemaError(
+            f"{field_name} must be an ordered duplicate-preserving iterable"
+        )
+    return list(values)
+
+
+def _validated_names(names, collection_name, field_name):
+    result = _ordered_collection(names, collection_name)
     for name in result:
         _identifier(name, field_name)
     return result
@@ -393,8 +569,9 @@ def _validated_names(names, field_name):
 def validate_pre_run_bijection(registry_names, records):
     """Require one evidence record for every unique registry benchmark."""
 
-    registry = _validated_names(registry_names, "registry_name")
-    record_names = [record.benchmark_name for record in records]
+    registry = _validated_names(registry_names, "registry_names", "registry_name")
+    record_items = _ordered_collection(records, "records")
+    record_names = [record.benchmark_name for record in record_items]
     diagnostics = []
     duplicate_registry = _duplicates(registry)
     if duplicate_registry:
@@ -419,8 +596,9 @@ def validate_post_run_bijection(
 ):
     """Require outcomes and each report artifact to exactly cover the registry."""
 
-    registry = _validated_names(registry_names, "registry_name")
-    outcome_names = [outcome.benchmark_name for outcome in outcomes]
+    registry = _validated_names(registry_names, "registry_names", "registry_name")
+    outcome_items = _ordered_collection(outcomes, "outcomes")
+    outcome_names = [outcome.benchmark_name for outcome in outcome_items]
     diagnostics = []
     duplicate_registry = _duplicates(registry)
     if duplicate_registry:
@@ -438,9 +616,27 @@ def validate_post_run_bijection(
     )
     if not isinstance(report_names_by_artifact, Mapping):
         raise EvidenceSchemaError("report_names_by_artifact must be a mapping")
-    for artifact, names in report_names_by_artifact.items():
-        _identifier(artifact, "report artifact")
-        report_names = _validated_names(names, f"{artifact} report name")
+    artifact_names = set(report_names_by_artifact)
+    if artifact_names != _REPORT_ARTIFACTS:
+        missing = sorted(_REPORT_ARTIFACTS - artifact_names)
+        extra = sorted(
+            artifact_names - _REPORT_ARTIFACTS,
+            key=lambda artifact: repr(artifact),
+        )
+        details = []
+        if missing:
+            details.append(f"missing: {', '.join(missing)}")
+        if extra:
+            details.append(f"extra: {', '.join(repr(name) for name in extra)}")
+        raise EvidenceSchemaError(
+            f"report artifacts must be exactly csv, markdown, pdf ({'; '.join(details)})"
+        )
+    for artifact in ("csv", "markdown", "pdf"):
+        report_names = _validated_names(
+            report_names_by_artifact[artifact],
+            f"{artifact} report names",
+            f"{artifact} report name",
+        )
         diagnostics.extend(
             _name_diagnostics(
                 registry,

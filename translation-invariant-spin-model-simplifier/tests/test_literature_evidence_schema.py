@@ -70,7 +70,10 @@ def record(name="haldane_gap_reference", **overrides):
         "canonical_observable_id": "haldane_gap_over_j",
         "target_locator": {"kind": "table", "label": "I"},
         "target_parser": "validation.parsers:parse_scalar",
-        "normalization": {"kind": "ratio", "rules": {"denominator": "J"}},
+        "normalization": {
+            "kind": "ratio",
+            "operations": [{"op": "scale", "factor": 1.0}],
+        },
         "adapter": "validation.adapters:gap",
         "adapter_parameters": {"sizes": [32, 64]},
         "convergence": {"kind": "absolute", "tolerance": 1e-5},
@@ -135,7 +138,12 @@ def test_all_supported_evidence_modes_are_accepted(mode):
 
 @pytest.mark.parametrize(
     "normalization",
-    ["divide by J", {"description": "divide by J"}, {"kind": "ratio"}, {"rules": {"by": "J"}}],
+    [
+        "divide by J",
+        {"description": "divide by J"},
+        {"kind": "ratio"},
+        {"rules": {"by": "J"}},
+    ],
 )
 def test_normalization_requires_kind_and_executable_or_field_rules(normalization):
     with pytest.raises(EvidenceSchemaError, match="normalization"):
@@ -165,16 +173,100 @@ def test_normalization_rejects_empty_structured_rule_content(rule_key, content):
 @pytest.mark.parametrize(
     ("rule_key", "content"),
     [
-        ("rules", {"denominator": "J"}),
+        ("rules", [{"op": "identity"}]),
         ("executable", {"callable": "validation.normalizers:divide"}),
-        ("fields", ["gap", "J"]),
-        ("operations", [{"operator": "divide", "operands": ["gap", "J"]}]),
+        ("fields", {"gap_over_j": {"source_field": "gap_over_j"}}),
+        ("operations", [{"operator": "reciprocal"}]),
     ],
 )
 def test_normalization_accepts_nonempty_machine_readable_rule_content(rule_key, content):
     item = record(normalization={"kind": "ratio", rule_key: content})
 
     assert item.normalization[rule_key]
+
+
+@pytest.mark.parametrize(
+    "normalization",
+    [
+        {"kind": "ratio", "rules": [{"description": "divide by J"}]},
+        {"kind": "ratio", "operations": [{"description": "divide by J"}]},
+        {"kind": "ratio", "fields": ["divide by J"]},
+        {"kind": "ratio", "fields": {"result": {"description": "gap divided by J"}}},
+        {"kind": "ratio", "executable": {"description": "divide by J"}},
+        {"kind": "not valid", "operations": [{"op": "identity"}]},
+        {"kind": "ratio", "operations": [{"op": "divide"}]},
+        {"kind": "ratio", "operations": [{"op": "scale", "prose": "double it"}]},
+        {"kind": "ratio", "operations": ["identity"]},
+        {
+            "kind": "ratio",
+            "rules": [{"op": "identity"}],
+            "operations": [{"op": "identity"}],
+        },
+        {"kind": "ratio", "executable": {"callable": "divide by J"}},
+        {
+            "kind": "ratio",
+            "executable": {"callable": "validation.normalizers:divide", "version": 0},
+        },
+        {"kind": "ratio", "operations": [{"op": "identity"}], "description": "prose"},
+    ],
+)
+def test_normalization_rejects_adversarial_non_grammar_payloads(normalization):
+    with pytest.raises(EvidenceSchemaError, match="normalization"):
+        record(normalization=normalization)
+
+
+@pytest.mark.parametrize(
+    "normalization",
+    [
+        {"kind": "identity", "operations": [{"op": "identity"}]},
+        {
+            "kind": "affine",
+            "operations": [
+                {"operator": "scale", "factor": 2.0},
+                {"op": "offset", "value": -1.0},
+            ],
+        },
+        {
+            "kind": "field_projection",
+            "fields": {
+                "gap": {"source_field": "raw_gap", "op": "negate"},
+            },
+        },
+        {
+            "kind": "custom",
+            "executable": {
+                "callable": "validation.normalizers:divide_by_j",
+                "version": 2,
+            },
+        },
+    ],
+)
+def test_normalization_accepts_closed_machine_readable_grammar(normalization):
+    assert record(normalization=normalization).normalization
+
+
+@pytest.mark.parametrize(
+    "canonical_id",
+    ["", "Haldane_gap", "haldane gap", "haldane/gap", " haldane_gap", "haldane_gap ", "haldane\ngap", "haldane\tgap"],
+)
+def test_canonical_observable_id_requires_lowercase_snake_case(canonical_id):
+    with pytest.raises(EvidenceSchemaError, match="canonical_observable_id"):
+        observable(canonical_observable_id=canonical_id)
+    with pytest.raises(EvidenceSchemaError, match="canonical_observable_id"):
+        record(canonical_observable_id=canonical_id)
+
+
+@pytest.mark.parametrize("identifier", [" name", "name ", "name\npart", "name\tpart", "a/b", "a\\b"])
+def test_benchmark_and_source_identifiers_reject_unsafe_whitespace_and_paths(identifier):
+    with pytest.raises(EvidenceSchemaError, match="benchmark_name"):
+        observable(benchmark_name=identifier)
+    with pytest.raises(EvidenceSchemaError, match="source_id"):
+        source(source_id=identifier)
+
+
+def test_benchmark_and_source_identifiers_preserve_legitimate_punctuation():
+    assert observable(benchmark_name="gap.v2-reference").benchmark_name == "gap.v2-reference"
+    assert source(source_id="doi:10.1000-example").source_id == "doi:10.1000-example"
 
 
 @pytest.mark.parametrize(
@@ -244,11 +336,27 @@ def test_pre_run_bijection_accepts_exact_names_in_any_order():
     validate_pre_run_bijection(["a", "b"], [record("b"), record("a")])
 
 
+@pytest.mark.parametrize(
+    "names",
+    ["ab", b"ab", {"a": 1}, {"a", "b"}, frozenset({"a", "b"})],
+)
+def test_pre_run_bijection_rejects_non_ordered_name_collections(names):
+    with pytest.raises(EvidenceSchemaError, match="registry_names"):
+        validate_pre_run_bijection(names, [record("a"), record("b")])
+
+
+def test_pre_run_bijection_accepts_ordered_generators_and_keeps_duplicates():
+    names = (name for name in ["a", "a"])
+    with pytest.raises(EvidenceSchemaError, match="duplicate registry names: a"):
+        validate_pre_run_bijection(names, [record("a"), record("a")])
+
+
 def test_post_run_bijection_checks_outcomes_and_every_report_artifact():
     outcomes = [AuditOutcome("a", {}), AuditOutcome("a", {}), AuditOutcome("orphan", {})]
     reports = {
         "csv": ["a", "a"],
         "markdown": ["a", "report_orphan"],
+        "pdf": ["a"],
     }
     with pytest.raises(EvidenceSchemaError) as caught:
         validate_post_run_bijection(["a", "missing"], outcomes, reports)
@@ -266,5 +374,37 @@ def test_post_run_bijection_checks_outcomes_and_every_report_artifact():
 def test_post_run_bijection_accepts_exact_names_for_all_artifacts():
     outcomes = [AuditOutcome("b", {}), AuditOutcome("a", {})]
     validate_post_run_bijection(
-        ["a", "b"], outcomes, {"csv": ["a", "b"], "markdown": ["b", "a"]}
+        ["a", "b"],
+        outcomes,
+        {
+            "csv": ["a", "b"],
+            "markdown": ["b", "a"],
+            "pdf": ["a", "b"],
+        },
     )
+
+
+@pytest.mark.parametrize(
+    "reports",
+    [
+        {},
+        {"csv": ["a"], "markdown": ["a"]},
+        {"csv": ["a"], "markdown": ["a"], "pdf": ["a"], "json": ["a"]},
+        {"csv": ["a"], "markdown": ["a"], "pdf": ["a"], 1: ["a"]},
+    ],
+)
+def test_post_run_bijection_requires_exact_report_artifacts(reports):
+    with pytest.raises(EvidenceSchemaError, match="report artifacts"):
+        validate_post_run_bijection(["a"], [AuditOutcome("a", {})], reports)
+
+
+@pytest.mark.parametrize(
+    "names",
+    ["ab", b"ab", {"a": 1}, {"a", "b"}, frozenset({"a", "b"})],
+)
+def test_post_run_bijection_rejects_non_ordered_report_name_collections(names):
+    reports = {"csv": names, "markdown": ["a", "b"], "pdf": ["a", "b"]}
+    with pytest.raises(EvidenceSchemaError, match="csv report names"):
+        validate_post_run_bijection(
+            ["a", "b"], [AuditOutcome("a", {}), AuditOutcome("b", {})], reports
+        )
