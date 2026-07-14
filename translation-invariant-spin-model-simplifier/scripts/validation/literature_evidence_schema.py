@@ -258,35 +258,52 @@ def _normalization_error(detail):
     raise EvidenceSchemaError(f"normalization {detail}")
 
 
-def _operator_name(step):
+def _mapping_keys(value, path):
+    non_string_keys = [key for key in value if not isinstance(key, str)]
+    if non_string_keys:
+        rendered = ", ".join(
+            repr(key) for key in sorted(non_string_keys, key=repr)
+        )
+        _normalization_error(f"{path} has non-string keys: {rendered}")
+    return set(value)
+
+
+def _operator_name(step, path):
     operator_keys = [key for key in ("op", "operator") if key in step]
     if len(operator_keys) != 1:
-        _normalization_error("steps require exactly one op or operator")
+        _normalization_error(f"{path} requires exactly one op or operator")
     operator = step[operator_keys[0]]
+    if not isinstance(operator, str):
+        _normalization_error(f"{path} op/operator must be a string")
     if operator not in _NORMALIZATION_OPERATORS:
-        _normalization_error(f"contains unsupported operator {operator!r}")
+        _normalization_error(f"{path} contains unsupported operator {operator!r}")
     return operator, operator_keys[0]
 
 
-def _validate_operation_step(step):
+def _validate_operation_step(step, path):
     if not isinstance(step, Mapping):
-        _normalization_error("operations and rules must contain only mappings")
-    operator, operator_key = _operator_name(step)
+        _normalization_error(f"{path} must be a mapping")
+    step_keys = _mapping_keys(step, path)
+    operator, operator_key = _operator_name(step, path)
     required, optional = _OPERATOR_ARGUMENTS[operator]
-    argument_keys = set(step) - {operator_key}
+    argument_keys = step_keys - {operator_key}
     unknown = argument_keys - required - optional
     missing = required - argument_keys
     if unknown:
         _normalization_error(
-            f"operator {operator!r} has unrecognized arguments: {', '.join(sorted(unknown))}"
+            f"{path} operator {operator!r} has unrecognized arguments: "
+            f"{', '.join(sorted(unknown))}"
         )
     if missing:
         _normalization_error(
-            f"operator {operator!r} is missing arguments: {', '.join(sorted(missing))}"
+            f"{path} operator {operator!r} is missing arguments: "
+            f"{', '.join(sorted(missing))}"
         )
     for field_name in ("source_field", "target_field"):
         if field_name in step:
-            _lower_identifier(step[field_name], f"normalization {field_name}")
+            _lower_identifier(
+                step[field_name], f"normalization {path}.{field_name}"
+            )
     for numeric_name in ("factor", "value"):
         if numeric_name in step:
             numeric = step[numeric_name]
@@ -295,11 +312,13 @@ def _validate_operation_step(step):
                 or not isinstance(numeric, (int, float))
                 or not math.isfinite(numeric)
             ):
-                _normalization_error(f"{numeric_name} must be a finite number")
+                _normalization_error(
+                    f"{path}.{numeric_name} must be a finite number"
+                )
     if "mapping" in step and (
         not isinstance(step["mapping"], Mapping) or not step["mapping"]
     ):
-        _normalization_error("map_value mapping must be a nonempty mapping")
+        _normalization_error(f"{path}.mapping must be a nonempty mapping")
 
 
 def _validate_operation_route(route, route_name):
@@ -309,39 +328,37 @@ def _validate_operation_route(route, route_name):
         or not route
     ):
         _normalization_error(f"{route_name} must be a nonempty ordered sequence")
-    for step in route:
-        _validate_operation_step(step)
+    for index, step in enumerate(route):
+        _validate_operation_step(step, f"{route_name}[{index}]")
 
 
 def _validate_fields_route(route):
     if not isinstance(route, Mapping) or not route:
         _normalization_error("fields must be a nonempty mapping")
+    _mapping_keys(route, "fields")
     for output_field, spec in route.items():
         _lower_identifier(output_field, "normalization output field")
+        spec_path = f"fields.{output_field}"
         if not isinstance(spec, Mapping):
-            _normalization_error("field specs must be mappings")
-        allowed = {"source_field", "op", "operator"}
-        unknown = set(spec) - allowed
+            _normalization_error(f"{spec_path} must be a mapping")
+        spec_keys = _mapping_keys(spec, spec_path)
+        unknown = spec_keys - {"source_field", "operation"}
         if unknown:
             _normalization_error(
-                f"field spec has unrecognized keys: {', '.join(sorted(unknown))}"
+                f"{spec_path} has unrecognized keys: {', '.join(sorted(unknown))}"
             )
         if "source_field" not in spec:
-            _normalization_error("field spec requires source_field")
+            _normalization_error(f"{spec_path} requires source_field")
         _lower_identifier(spec["source_field"], "normalization source_field")
-        operator_keys = [key for key in ("op", "operator") if key in spec]
-        if len(operator_keys) > 1:
-            _normalization_error("field spec accepts only one op or operator")
-        if operator_keys and spec[operator_keys[0]] not in _NORMALIZATION_OPERATORS:
-            _normalization_error(
-                f"contains unsupported operator {spec[operator_keys[0]]!r}"
-            )
+        if "operation" not in spec:
+            _normalization_error(f"{spec_path} requires operation")
+        _validate_operation_step(spec["operation"], f"{spec_path}.operation")
 
 
 def _validate_executable_route(route):
     if not isinstance(route, Mapping):
         _normalization_error("executable must be a mapping")
-    unknown = set(route) - {"callable", "version"}
+    unknown = _mapping_keys(route, "executable") - {"callable", "version"}
     if unknown:
         _normalization_error(
             f"executable has unrecognized keys: {', '.join(sorted(unknown))}"
@@ -367,7 +384,10 @@ def _validate_normalization(normalization):
 
     if not isinstance(normalization, Mapping):
         _normalization_error("must be a structured mapping")
-    unknown = set(normalization) - {"kind", *_NORMALIZATION_ROUTES}
+    unknown = _mapping_keys(normalization, "root") - {
+        "kind",
+        *_NORMALIZATION_ROUTES,
+    }
     if unknown:
         _normalization_error(
             f"has unrecognized keys: {', '.join(sorted(unknown))}"

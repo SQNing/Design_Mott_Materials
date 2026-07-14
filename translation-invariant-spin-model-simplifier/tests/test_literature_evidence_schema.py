@@ -175,7 +175,15 @@ def test_normalization_rejects_empty_structured_rule_content(rule_key, content):
     [
         ("rules", [{"op": "identity"}]),
         ("executable", {"callable": "validation.normalizers:divide"}),
-        ("fields", {"gap_over_j": {"source_field": "gap_over_j"}}),
+        (
+            "fields",
+            {
+                "gap_over_j": {
+                    "source_field": "gap_over_j",
+                    "operation": {"op": "identity"},
+                }
+            },
+        ),
         ("operations", [{"operator": "reciprocal"}]),
     ],
 )
@@ -229,7 +237,10 @@ def test_normalization_rejects_adversarial_non_grammar_payloads(normalization):
         {
             "kind": "field_projection",
             "fields": {
-                "gap": {"source_field": "raw_gap", "op": "negate"},
+                "gap": {
+                    "source_field": "raw_gap",
+                    "operation": {"op": "negate"},
+                },
             },
         },
         {
@@ -243,6 +254,80 @@ def test_normalization_rejects_adversarial_non_grammar_payloads(normalization):
 )
 def test_normalization_accepts_closed_machine_readable_grammar(normalization):
     assert record(normalization=normalization).normalization
+
+
+FIELD_OPERATOR_CASES = [
+    ("identity", {}),
+    ("scale", {"factor": 2.0}),
+    ("offset", {"value": 1.0}),
+    ("reciprocal", {}),
+    ("select_field", {"source_field": "alternate_gap"}),
+    (
+        "rename_field",
+        {"source_field": "alternate_gap", "target_field": "normalized_gap"},
+    ),
+    ("map_value", {"mapping": {"raw": "normalized"}}),
+    ("negate", {}),
+    ("require_equal", {"expected": 0.5}),
+]
+
+
+@pytest.mark.parametrize(("operator", "arguments"), FIELD_OPERATOR_CASES)
+def test_field_normalization_enforces_valid_args_for_every_operator(operator, arguments):
+    operation = {"op": operator, **arguments}
+    normalization = {
+        "kind": "field_projection",
+        "fields": {
+            "result": {"source_field": "raw_result", "operation": operation},
+        },
+    }
+
+    assert record(normalization=normalization).normalization["fields"]["result"]
+
+
+@pytest.mark.parametrize(("operator", "arguments"), FIELD_OPERATOR_CASES)
+def test_field_normalization_rejects_missing_required_operator_args(operator, arguments):
+    operation = {"op": operator, **arguments}
+    if arguments:
+        operation.pop(next(iter(arguments)))
+    else:
+        operation.pop("op")
+    normalization = {
+        "kind": "field_projection",
+        "fields": {
+            "result": {"source_field": "raw_result", "operation": operation},
+        },
+    }
+
+    with pytest.raises(EvidenceSchemaError, match=r"normalization fields\.result\.operation"):
+        record(normalization=normalization)
+
+
+@pytest.mark.parametrize(("operator", "arguments"), FIELD_OPERATOR_CASES)
+def test_field_normalization_rejects_unknown_args_for_every_operator(operator, arguments):
+    operation = {"operator": operator, **arguments, "description": "prose"}
+    normalization = {
+        "kind": "field_projection",
+        "fields": {
+            "result": {"source_field": "raw_result", "operation": operation},
+        },
+    }
+
+    with pytest.raises(EvidenceSchemaError, match=r"normalization fields\.result\.operation"):
+        record(normalization=normalization)
+
+
+@pytest.mark.parametrize(
+    "normalization",
+    [
+        {1: "bad", "kind": "identity", "operations": [{"op": "identity"}]},
+        {"kind": "identity", "operations": [{1: "bad", "op": "identity"}]},
+        {"kind": "identity", "operations": [{"op": []}]},
+    ],
+)
+def test_normalization_malformed_keys_and_operators_raise_schema_errors(normalization):
+    with pytest.raises(EvidenceSchemaError, match="normalization"):
+        record(normalization=normalization)
 
 
 @pytest.mark.parametrize(
