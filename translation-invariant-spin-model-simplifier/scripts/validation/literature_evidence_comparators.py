@@ -32,9 +32,8 @@ _INTERVAL_KEYS = frozenset(
 
 def _finite_nonnegative(value, field_name):
     if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or (isinstance(value, float) and not math.isfinite(value))
+        type(value) not in (int, float)
+        or (type(value) is float and not math.isfinite(value))
         or value < 0
     ):
         raise ObservableComparisonError(
@@ -45,9 +44,8 @@ def _finite_nonnegative(value, field_name):
 
 def _finite_numeric(value, field_name="numeric operand"):
     if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or (isinstance(value, float) and not math.isfinite(value))
+        type(value) not in (int, float)
+        or (type(value) is float and not math.isfinite(value))
     ):
         raise ObservableComparisonError(f"{field_name} must be a finite numeric scalar")
     return value
@@ -207,23 +205,27 @@ def _trace(
     local_uncertainty,
     matched,
     reason,
+    diagnostics=None,
 ):
+    payload = {
+        "original_literature_operand": original_literature_operand,
+        "original_candidate_operand": original_candidate_operand,
+        "literature_value": literature_value,
+        "candidate_value": candidate_value,
+        "units": units,
+        "comparison": comparison,
+        "error": error,
+        "tolerance": tolerance,
+        "local_uncertainty": local_uncertainty,
+        "matched": matched,
+        "reason": reason,
+    }
+    if diagnostics:
+        payload.update(diagnostics)
     try:
         return ComparisonTrace(
             benchmark_name=benchmark_name,
-            payload={
-                "original_literature_operand": original_literature_operand,
-                "original_candidate_operand": original_candidate_operand,
-                "literature_value": literature_value,
-                "candidate_value": candidate_value,
-                "units": units,
-                "comparison": comparison,
-                "error": error,
-                "tolerance": tolerance,
-                "local_uncertainty": local_uncertainty,
-                "matched": matched,
-                "reason": reason,
-            },
+            payload=payload,
         )
     except EvidenceSchemaError as error:
         raise ObservableComparisonError(str(error)) from error
@@ -270,9 +272,16 @@ def _relative(literature, candidate, comparison, uncertainty):
     _finite_numeric(candidate, "candidate numeric operand")
     if literature == 0:
         if "absolute_tolerance" not in comparison:
-            return False, None, comparison["tolerance"], (
+            return (
+                False,
+                None,
+                comparison["tolerance"],
                 "relative comparison fails closed because the literature value is zero "
-                "and no absolute_tolerance fallback was provided"
+                "and no absolute_tolerance fallback was provided",
+                {
+                    "normalized_uncertainty": None,
+                    "conservative_relative_error": None,
+                },
             )
         matched, error, tolerance, absolute_reason = _absolute(
             literature,
@@ -280,22 +289,42 @@ def _relative(literature, candidate, comparison, uncertainty):
             comparison["absolute_tolerance"],
             uncertainty,
         )
-        return matched, error, tolerance, f"absolute fallback: {absolute_reason}"
+        return (
+            matched,
+            error,
+            tolerance,
+            f"absolute fallback: {absolute_reason}",
+            {
+                "normalized_uncertainty": None,
+                "conservative_relative_error": None,
+            },
+        )
     with localcontext() as context:
         context.prec = 50
         denominator = abs(_decimal(literature))
         absolute_error = abs(_decimal(candidate) - _decimal(literature))
         error = absolute_error / denominator
-        conservative_error = (absolute_error + _decimal(uncertainty)) / denominator
+        normalized_uncertainty = _decimal(uncertainty) / denominator
+        conservative_error = error + normalized_uncertainty
     tolerance = comparison["tolerance"]
     matched = conservative_error <= _decimal(tolerance)
     relation = "is within" if matched else "exceeds"
     reason = (
-        f"relative error {_format_number(error)} plus absolute local uncertainty "
-        f"{_format_number(uncertainty)} {relation} tolerance "
+        f"relative error {_format_number(error)} plus normalized local uncertainty "
+        f"{_format_number(normalized_uncertainty)} gives conservative relative error "
+        f"{_format_number(conservative_error)}, which {relation} tolerance "
         f"{_format_number(tolerance)}"
     )
-    return matched, _diagnostic_number(error), tolerance, reason
+    return (
+        matched,
+        _diagnostic_number(error),
+        tolerance,
+        reason,
+        {
+            "normalized_uncertainty": _diagnostic_number(normalized_uncertainty),
+            "conservative_relative_error": _diagnostic_number(conservative_error),
+        },
+    )
 
 
 def _interval(literature, candidate):
@@ -453,6 +482,7 @@ def compare_observables(
             literature_operand, candidate_operand
         )
 
+    diagnostics = None
     if kind == "exact":
         outcome = _exact(literature, candidate)
     elif kind == "absolute":
@@ -460,7 +490,9 @@ def compare_observables(
             literature, candidate, comparison_config["tolerance"], uncertainty
         )
     elif kind == "relative":
-        outcome = _relative(literature, candidate, comparison_config, uncertainty)
+        *outcome, diagnostics = _relative(
+            literature, candidate, comparison_config, uncertainty
+        )
     elif kind == "interval":
         outcome = _interval(literature, candidate)
     elif kind == "set":
@@ -503,4 +535,5 @@ def compare_observables(
         local_uncertainty=local_uncertainty,
         matched=matched,
         reason=reason,
+        diagnostics=diagnostics,
     )

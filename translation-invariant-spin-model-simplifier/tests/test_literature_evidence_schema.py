@@ -464,6 +464,12 @@ def test_relative_comparison_uses_relative_error_and_uncertainty():
 
     assert passing.payload["matched"] is True
     assert passing.payload["error"] == pytest.approx(0.05)
+    assert passing.payload["normalized_uncertainty"] == pytest.approx(0.01)
+    assert passing.payload["conservative_relative_error"] == pytest.approx(0.06)
+    assert passing.payload["reason"] == (
+        "relative error 0.05 plus normalized local uncertainty 0.01 gives "
+        "conservative relative error 0.06, which is within tolerance 0.06"
+    )
     assert failing.payload["matched"] is False
 
 
@@ -489,6 +495,10 @@ def test_out_of_float_range_exact_errors_use_json_safe_decimal_diagnostics(
     assert "inf" not in result.payload["error"].lower()
     assert "inf" not in result.payload["reason"].lower()
     assert json.loads(canonical_json_bytes(result))["payload"]["error"] == result.payload["error"]
+    if kind == "relative":
+        assert result.payload["normalized_uncertainty"] == 0.0
+        assert isinstance(result.payload["conservative_relative_error"], str)
+        assert "inf" not in result.payload["conservative_relative_error"].lower()
 
 
 def test_relative_zero_fails_closed_without_absolute_fallback():
@@ -764,6 +774,36 @@ def test_numeric_comparators_safely_support_arbitrary_size_json_integers():
 
     assert absolute.payload["matched"] is True
     assert interval.payload["matched"] is True
+
+
+@pytest.mark.parametrize(
+    ("literature", "tolerance", "uncertainty", "message"),
+    [
+        ("subclass", 0, None, "numeric"),
+        (0, "subclass", None, "tolerance"),
+        (0, 0, "subclass", "uncertainty"),
+    ],
+)
+def test_numeric_comparators_reject_int_subclasses_before_conversion(
+    literature, tolerance, uncertainty, message
+):
+    class MaliciousInt(int):
+        def __str__(self):
+            return None
+
+    malicious = MaliciousInt(1)
+    literature = malicious if literature == "subclass" else literature
+    tolerance = malicious if tolerance == "subclass" else tolerance
+    uncertainty = malicious if uncertainty == "subclass" else uncertainty
+
+    with pytest.raises(ObservableComparisonError, match=message):
+        compare(
+            "absolute",
+            literature,
+            0,
+            comparison_overrides={"tolerance": tolerance},
+            local_uncertainty=uncertainty,
+        )
 
 
 def test_numeric_integer_conversion_failures_are_comparison_errors():
