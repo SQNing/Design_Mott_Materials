@@ -473,6 +473,22 @@ def test_relative_comparison_uses_relative_error_and_uncertainty():
     assert failing.payload["matched"] is False
 
 
+def test_relative_diagnostics_preserve_nonzero_values_that_underflow_float():
+    literature = 10**1000
+    result = compare(
+        "relative",
+        literature,
+        literature + 1,
+        comparison_overrides={"tolerance": 0},
+    )
+
+    assert result.payload["matched"] is False
+    assert result.payload["error"] == "1E-1000"
+    assert result.payload["conservative_relative_error"] == "1E-1000"
+    assert "relative error 1E-1000" in result.payload["reason"]
+    assert "conservative relative error 1E-1000" in result.payload["reason"]
+
+
 @pytest.mark.parametrize(
     ("kind", "literature", "candidate", "tolerance"),
     [
@@ -669,6 +685,37 @@ def test_unit_mismatch_is_a_failed_trace_not_malformed_data():
     assert result.payload["matched"] is False
     assert result.payload["units"] == {"literature": "eV", "candidate": "meV"}
     assert "unit mismatch" in result.payload["reason"]
+
+
+@pytest.mark.parametrize(
+    ("literature", "candidate", "comparison_overrides", "uncertainty"),
+    [
+        (10.0, 10.5, {"tolerance": 0.1}, 0.1),
+        (0.0, 0.0, {"tolerance": 0.1}, None),
+        (0.0, 0.04, {"tolerance": 0.1, "absolute_tolerance": 0.05}, 0.01),
+    ],
+)
+def test_relative_unit_mismatch_preserves_relative_diagnostic_keys(
+    literature, candidate, comparison_overrides, uncertainty
+):
+    normal = compare(
+        "relative",
+        literature,
+        candidate,
+        comparison_overrides=comparison_overrides,
+        local_uncertainty=uncertainty,
+    )
+    mismatch = compare(
+        "relative",
+        {"value": literature, "units": "eV"},
+        {"value": candidate, "units": "meV"},
+        comparison_overrides=comparison_overrides,
+        local_uncertainty=uncertainty,
+    )
+
+    for key in ("normalized_uncertainty", "conservative_relative_error"):
+        assert key in mismatch.payload
+        assert mismatch.payload[key] == normal.payload[key]
 
 
 @pytest.mark.parametrize(

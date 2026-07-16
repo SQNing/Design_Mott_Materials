@@ -163,6 +163,10 @@ def _format_number(value):
     try:
         if isinstance(value, int):
             return str(value)
+        if isinstance(value, Decimal):
+            diagnostic = _diagnostic_number(value)
+            if isinstance(diagnostic, str):
+                return diagnostic
         return format(value, ".15g")
     except (OverflowError, ValueError) as error:
         raise ObservableComparisonError("numeric diagnostic cannot be rendered") from error
@@ -180,7 +184,9 @@ def _diagnostic_number(value):
         converted = float(value)
     except (OverflowError, ValueError) as error:
         raise ObservableComparisonError("numeric diagnostic cannot be converted") from error
-    return converted if math.isfinite(converted) else str(value)
+    if not math.isfinite(converted) or (converted == 0.0 and value != 0):
+        return str(value)
+    return converted
 
 
 def _absolute_errors(literature, candidate, uncertainty):
@@ -519,6 +525,7 @@ def compare_observables(
                 f"unit mismatch: literature uses {literature_units!r}, "
                 f"candidate uses {candidate_units!r}"
             ),
+            diagnostics=diagnostics,
         )
 
     matched, error, tolerance, reason = outcome
