@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "square_potts_exact_critical_point",
+  "canonical_observable_id": "square_potts_exact_critical_point",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "critical_beta_j",
+        "type": "string",
+        "units": "dimensionless_ratio"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "continuous_for_q_le_4",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "critical_beta_j",
+        "type": "string",
+        "units": "dimensionless_ratio"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "continuous_for_q_le_4",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "critical_beta_j",
+      "continuous_for_q_le_4"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_5c4f75ee56f57b91e3e4",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "critical_beta_j",
+          "type": "string",
+          "units": "dimensionless_ratio"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "continuous_for_q_le_4",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

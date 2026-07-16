@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "ho2ti2o7_spin_ice_neutron_reference",
+  "canonical_observable_id": "ho2ti2o7_spin_ice_neutron_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "spin_ice_correlations",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "spin_ice_correlations",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "spin_ice_correlations"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_c733dda5b601f475f156",
+  "target_locator_strategy": {
+    "expected_container": "abstract_claim_statement",
+    "locator_class": "abstract",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "spin_ice_correlations",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

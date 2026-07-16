@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "ca10cr7o28_bilayer_breathing_kagome_reference",
+  "canonical_observable_id": "ca10cr7o28_bilayer_breathing_kagome_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "spin_liquid_candidate",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "mixed_ferromagnetic_antiferromagnetic_exchanges",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "spin_liquid_candidate",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "mixed_ferromagnetic_antiferromagnetic_exchanges",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "spin_liquid_candidate",
+      "mixed_ferromagnetic_antiferromagnetic_exchanges"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_43e75001b61aebd94a9d",
+  "target_locator_strategy": {
+    "expected_container": "abstract_claim_statement",
+    "locator_class": "abstract",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "spin_liquid_candidate",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "mixed_ferromagnetic_antiferromagnetic_exchanges",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

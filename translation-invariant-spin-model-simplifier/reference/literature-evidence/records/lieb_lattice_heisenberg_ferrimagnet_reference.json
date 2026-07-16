@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "lieb_lattice_heisenberg_ferrimagnet_reference",
+  "canonical_observable_id": "lieb_lattice_heisenberg_ferrimagnet_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "ground_state_spin_per_unit_cell",
+        "type": "number",
+        "units": "dimensionless"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "projection_only",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "ground_state_spin_per_unit_cell",
+        "type": "number",
+        "units": "dimensionless"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "ground_state_spin_per_unit_cell"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_73b2515f2a4cc89196d3",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "scalar_or_structured_claim",
+          "id": "ground_state_spin_per_unit_cell",
+          "type": "number",
+          "units": "dimensionless"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

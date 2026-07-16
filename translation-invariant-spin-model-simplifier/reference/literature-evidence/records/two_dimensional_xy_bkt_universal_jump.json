@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "two_dimensional_xy_bkt_universal_jump",
+  "canonical_observable_id": "two_dimensional_xy_bkt_universal_jump",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "symbolic_expression",
+        "id": "formula",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "helicity_modulus_at_t_1",
+        "type": "number",
+        "units": "dimensionless"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "symbolic_expression",
+        "id": "formula",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "helicity_modulus_at_t_1",
+        "type": "number",
+        "units": "dimensionless"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "formula",
+      "helicity_modulus_at_t_1"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_1cac9952c7fb6275a595",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "symbolic_expression",
+          "id": "formula",
+          "type": "string",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "scalar_or_structured_claim",
+          "id": "helicity_modulus_at_t_1",
+          "type": "number",
+          "units": "dimensionless"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "triangular_nn_classical_120_reference",
+  "canonical_observable_id": "triangular_nn_classical_120_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "categorical_label",
+        "id": "order",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "ordering_wavevector",
+        "id": "q_reciprocal",
+        "type": "list[number]",
+        "units": "reciprocal_lattice_unit"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "categorical_label",
+        "id": "order",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "ordering_wavevector",
+        "id": "q_reciprocal",
+        "type": "list[number]",
+        "units": "reciprocal_lattice_unit"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "order",
+      "q_reciprocal"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_9e83835ec0d3b3c1292c",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "categorical_label",
+          "id": "order",
+          "type": "string",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "ordering_wavevector",
+          "id": "q_reciprocal",
+          "type": "list[number]",
+          "units": "reciprocal_lattice_unit"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

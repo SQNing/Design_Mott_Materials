@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "star_lattice_heisenberg_spin_liquid_reference",
+  "canonical_observable_id": "star_lattice_heisenberg_spin_liquid_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "spin_liquid_or_valence_bond_reference",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "spin_liquid_or_valence_bond_reference",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "spin_liquid_or_valence_bond_reference"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_62b7064141c85be36c19",
+  "target_locator_strategy": {
+    "expected_container": "main_text_or_supplemental_table",
+    "locator_class": "table",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "spin_liquid_or_valence_bond_reference",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

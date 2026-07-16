@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "simple_cubic_j1_j2_collinear_reference",
+  "canonical_observable_id": "simple_cubic_j1_j2_collinear_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "neel_to_collinear_boundary_j2_over_j1",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "neel_to_collinear_boundary_j2_over_j1",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "neel_to_collinear_boundary_j2_over_j1"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_84603f88ae7b84f66d95",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "neel_to_collinear_boundary_j2_over_j1",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "kagome_heisenberg_topological_entanglement_reference",
+  "canonical_observable_id": "kagome_heisenberg_topological_entanglement_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "angular_scalar",
+        "id": "topological_entanglement_entropy",
+        "type": "string",
+        "units": "radian"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "angular_scalar",
+        "id": "topological_entanglement_entropy",
+        "type": "string",
+        "units": "radian"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "topological_entanglement_entropy"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_e599150fa96b6322a663",
+  "target_locator_strategy": {
+    "expected_container": "main_text_or_supplemental_table",
+    "locator_class": "table",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "angular_scalar",
+          "id": "topological_entanglement_entropy",
+          "type": "string",
+          "units": "radian"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

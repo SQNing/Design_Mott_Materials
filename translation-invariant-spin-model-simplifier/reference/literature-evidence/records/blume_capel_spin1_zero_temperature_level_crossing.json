@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "blume_capel_spin1_zero_temperature_level_crossing",
+  "canonical_observable_id": "blume_capel_spin1_zero_temperature_level_crossing",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "square_lattice_d_over_j_crossing",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "square_lattice_d_over_j_crossing",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "square_lattice_d_over_j_crossing"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_2b2b97b695eeeeb1378a",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "square_lattice_d_over_j_crossing",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

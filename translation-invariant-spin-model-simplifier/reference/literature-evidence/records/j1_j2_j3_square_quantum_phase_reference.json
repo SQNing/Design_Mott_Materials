@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "j1_j2_j3_square_quantum_phase_reference",
+  "canonical_observable_id": "j1_j2_j3_square_quantum_phase_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "multiple_paramagnetic_regions",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "multiple_paramagnetic_regions",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "multiple_paramagnetic_regions"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_ae5fae7f5deae7bdf7e5",
+  "target_locator_strategy": {
+    "expected_container": "main_text_or_supplemental_table",
+    "locator_class": "table",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "multiple_paramagnetic_regions",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

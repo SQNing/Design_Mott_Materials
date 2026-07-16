@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "transverse_field_ising_chain_critical_point",
+  "canonical_observable_id": "transverse_field_ising_chain_critical_point",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "critical_field_over_exchange",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "critical_field_over_exchange",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "critical_field_over_exchange"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_0dd199cedf8c6235b783",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "critical_field_over_exchange",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

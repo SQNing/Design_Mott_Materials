@@ -53,9 +53,13 @@ _OPERATOR_ARGUMENTS = {
 _REPORT_ARTIFACTS = frozenset({"csv", "markdown", "pdf"})
 _FORBIDDEN_RECORD_KEYS = frozenset(
     {
+        "copied_target",
+        "source_excerpt",
         "target_observable",
         "target_excerpt",
         "parsed_target",
+        "source_sha256",
+        "strict",
         "strict_literature_match",
         "strict_match",
         "pass",
@@ -197,6 +201,9 @@ class CanonicalObservable:
                 "conditions",
             ),
         )
+
+    def as_plain_data(self):
+        return _plain_json(self)
 
 
 @dataclass(frozen=True, init=False)
@@ -463,6 +470,61 @@ class EvidenceRecord:
                 )
         _validate_normalization(self.normalization)
         _set_structured(self, structured_fields)
+
+
+@dataclass(frozen=True, init=False)
+class ProvisionalEvidenceRecord:
+    schema_version: object
+    record_state: str
+    benchmark_name: str
+    source_id: str
+    registry_selector: Mapping
+    canonical_observable_id: str
+    evidence_mode: str
+    target_locator_strategy: Mapping
+    parser_strategy: Mapping
+    comparator: Mapping
+    unresolved_reason: str
+
+    def __init__(self, *args, **kwargs):
+        _initialize(
+            self, args, kwargs, forbidden_extras=_FORBIDDEN_RECORD_KEYS
+        )
+
+    def __post_init__(self):
+        _schema_version(self.schema_version)
+        if self.record_state != "unresolved":
+            raise EvidenceSchemaError(
+                "record_state must be unresolved for provisional evidence"
+            )
+        for field_name in ("benchmark_name", "source_id"):
+            _identifier(getattr(self, field_name), field_name)
+        _lower_identifier(
+            self.canonical_observable_id, "canonical_observable_id"
+        )
+        if self.evidence_mode not in _EVIDENCE_MODES:
+            raise EvidenceSchemaError(
+                "evidence_mode must be one of local_recompute, local_source_parse, "
+                "projection_only"
+            )
+        _nonempty_text(self.unresolved_reason, "unresolved_reason")
+        structured_fields = (
+            "registry_selector",
+            "target_locator_strategy",
+            "parser_strategy",
+            "comparator",
+        )
+        for field_name in structured_fields:
+            value = getattr(self, field_name)
+            forbidden = _find_forbidden_key(value)
+            if forbidden:
+                raise EvidenceSchemaError(
+                    f"{field_name} contains forbidden field {forbidden}"
+                )
+        _set_structured(self, structured_fields)
+
+    def as_plain_data(self):
+        return _plain_json(self)
 
 
 @dataclass(frozen=True, init=False)

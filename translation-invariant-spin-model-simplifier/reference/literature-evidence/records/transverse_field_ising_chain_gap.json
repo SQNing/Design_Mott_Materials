@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "transverse_field_ising_chain_gap",
+  "canonical_observable_id": "transverse_field_ising_chain_gap",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gap_formula",
+        "type": "string",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gap_formula_at_g_0_6",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gap_formula",
+        "type": "string",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gap_formula_at_g_0_6",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "gap_formula",
+      "gap_formula_at_g_0_6"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_0dd199cedf8c6235b783",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "gap_formula",
+          "type": "string",
+          "units": "exchange_energy_unit"
+        },
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "gap_formula_at_g_0_6",
+          "type": "number",
+          "units": "exchange_energy_unit"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

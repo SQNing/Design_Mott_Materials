@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "sr_cu2_bo3_2_shastry_sutherland_material_reference",
+  "canonical_observable_id": "sr_cu2_bo3_2_shastry_sutherland_material_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "orthogonal_dimer_material",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "magnetization_plateaus",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "orthogonal_dimer_material",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "magnetization_plateaus",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "orthogonal_dimer_material",
+      "magnetization_plateaus"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_3e2040dc6e9848bd1404",
+  "target_locator_strategy": {
+    "expected_container": "abstract_claim_statement",
+    "locator_class": "abstract",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "orthogonal_dimer_material",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "magnetization_plateaus",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

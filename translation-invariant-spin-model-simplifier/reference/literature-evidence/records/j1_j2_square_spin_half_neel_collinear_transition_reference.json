@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "j1_j2_square_spin_half_neel_collinear_transition_reference",
+  "canonical_observable_id": "j1_j2_square_spin_half_neel_collinear_transition_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "nonmagnetic_window_approx",
+        "type": "list[number]",
+        "units": "field_dependent_sequence"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "nonmagnetic_window_approx",
+        "type": "list[number]",
+        "units": "field_dependent_sequence"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "nonmagnetic_window_approx"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "arxiv_63ac2dc486b14b933a79",
+  "target_locator_strategy": {
+    "expected_container": "main_text_or_supplemental_table",
+    "locator_class": "table",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ordered_sequence",
+          "id": "nonmagnetic_window_approx",
+          "type": "list[number]",
+          "units": "field_dependent_sequence"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

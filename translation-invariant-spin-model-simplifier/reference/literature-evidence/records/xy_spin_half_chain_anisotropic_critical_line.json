@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "xy_spin_half_chain_anisotropic_critical_line",
+  "canonical_observable_id": "xy_spin_half_chain_anisotropic_critical_line",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "ising_critical_field",
+        "type": "number",
+        "units": "dimensionless"
+      },
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "anisotropy_transition_gamma",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "ising_critical_field",
+        "type": "number",
+        "units": "dimensionless"
+      },
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "anisotropy_transition_gamma",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "ising_critical_field",
+      "anisotropy_transition_gamma"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_2e773eb6fd2e35377402",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "scalar_or_structured_claim",
+          "id": "ising_critical_field",
+          "type": "number",
+          "units": "dimensionless"
+        },
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "anisotropy_transition_gamma",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

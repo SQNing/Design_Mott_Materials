@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "fcc_j1_j2_heisenberg_type_order_reference",
+  "canonical_observable_id": "fcc_j1_j2_heisenberg_type_order_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "common_orders",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "projection_only",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "common_orders",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "common_orders"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_b2f31bfaab7509b45b2e",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ordered_sequence",
+          "id": "common_orders",
+          "type": "list[string]",
+          "units": "field_dependent_sequence"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

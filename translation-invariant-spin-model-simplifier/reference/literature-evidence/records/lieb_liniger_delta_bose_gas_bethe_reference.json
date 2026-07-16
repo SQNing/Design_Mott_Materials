@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "lieb_liniger_delta_bose_gas_bethe_reference",
+  "canonical_observable_id": "lieb_liniger_delta_bose_gas_bethe_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "is_exactly_solved",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "tonks_girardeau_limit_maps_to_free_fermions",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "is_exactly_solved",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "tonks_girardeau_limit_maps_to_free_fermions",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "is_exactly_solved",
+      "tonks_girardeau_limit_maps_to_free_fermions"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_4a885bb805afe8ada960",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "is_exactly_solved",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "tonks_girardeau_limit_maps_to_free_fermions",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

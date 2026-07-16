@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "pyrochlore_heisenberg_coulomb_phase_flat_band",
+  "canonical_observable_id": "pyrochlore_heisenberg_coulomb_phase_flat_band",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "categorical_label",
+        "id": "local_constraint",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "lowest_lt_flat_band",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "categorical_label",
+        "id": "local_constraint",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "lowest_lt_flat_band",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "local_constraint",
+      "lowest_lt_flat_band"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_5b656dfc4b6b9ffc48f2",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "categorical_label",
+          "id": "local_constraint",
+          "type": "string",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "lowest_lt_flat_band",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

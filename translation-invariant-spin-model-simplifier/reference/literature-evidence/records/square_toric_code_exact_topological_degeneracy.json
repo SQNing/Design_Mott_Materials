@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "square_toric_code_exact_topological_degeneracy",
+  "canonical_observable_id": "square_toric_code_exact_topological_degeneracy",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "nonnegative_integer_count",
+        "id": "torus_ground_state_degeneracy",
+        "type": "number",
+        "units": "count"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "nonnegative_integer_count",
+        "id": "torus_ground_state_degeneracy",
+        "type": "number",
+        "units": "count"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "torus_ground_state_degeneracy"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_33fcf4c762fb137794a6",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "nonnegative_integer_count",
+          "id": "torus_ground_state_degeneracy",
+          "type": "number",
+          "units": "count"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

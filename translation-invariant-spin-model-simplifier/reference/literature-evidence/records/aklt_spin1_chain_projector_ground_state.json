@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "aklt_spin1_chain_projector_ground_state",
+  "canonical_observable_id": "aklt_spin1_chain_projector_ground_state",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ordered_two_site_projector_spectrum",
+        "id": "two_site_projector_eigenvalues",
+        "type": "list[number]",
+        "units": "dimensionless_projector_eigenvalue"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "vbs_ground_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ordered_two_site_projector_spectrum",
+        "id": "two_site_projector_eigenvalues",
+        "type": "list[number]",
+        "units": "dimensionless_projector_eigenvalue"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "vbs_ground_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "two_site_projector_eigenvalues",
+      "vbs_ground_energy"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_31d77765ea903f1adaa9",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ordered_two_site_projector_spectrum",
+          "id": "two_site_projector_eigenvalues",
+          "type": "list[number]",
+          "units": "dimensionless_projector_eigenvalue"
+        },
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "vbs_ground_energy",
+          "type": "number",
+          "units": "exchange_energy_unit"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

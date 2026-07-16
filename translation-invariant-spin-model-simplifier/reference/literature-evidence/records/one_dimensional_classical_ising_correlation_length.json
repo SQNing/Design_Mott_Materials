@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "one_dimensional_classical_ising_correlation_length",
+  "canonical_observable_id": "one_dimensional_classical_ising_correlation_length",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "symbolic_expression",
+        "id": "formula",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "bulk_correlation_length",
+        "id": "correlation_length_beta_1_j_1",
+        "type": "number",
+        "units": "lattice_spacing"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "symbolic_expression",
+        "id": "formula",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "bulk_correlation_length",
+        "id": "correlation_length_beta_1_j_1",
+        "type": "number",
+        "units": "lattice_spacing"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "formula",
+      "correlation_length_beta_1_j_1"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_85b0ca56044270e7e63e",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "symbolic_expression",
+          "id": "formula",
+          "type": "string",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "bulk_correlation_length",
+          "id": "correlation_length_beta_1_j_1",
+          "type": "number",
+          "units": "lattice_spacing"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

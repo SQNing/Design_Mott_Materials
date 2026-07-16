@@ -1,0 +1,5337 @@
+{
+  "locators": [
+    {
+      "benchmark_name": "aklt_spin1_chain_projector_ground_state",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_two_site_projector_spectrum",
+              "id": "two_site_projector_eigenvalues",
+              "type": "list[number]",
+              "units": "dimensionless_projector_eigenvalue"
+            },
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "vbs_ground_energy",
+              "type": "number",
+              "units": "exchange_energy_unit"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_31d77765ea903f1adaa9",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_two_site_projector_spectrum",
+            "id": "two_site_projector_eigenvalues",
+            "type": "list[number]",
+            "units": "dimensionless_projector_eigenvalue"
+          },
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "vbs_ground_energy",
+            "type": "number",
+            "units": "exchange_energy_unit"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "alpha_rucl3_kitaev_gamma_zigzag_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "zigzag_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "kitaev_gamma_model_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5532ae478270ecfac0bc",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "zigzag_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "kitaev_gamma_model_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "azurite_diamond_chain_plateau_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "one_third_magnetization_plateau",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_30de47257cfae45dcfca",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "one_third_magnetization_plateau",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ba2cugeo7_dm_spiral_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "dm_induced_incommensurate_spiral",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_c0cf5cc8dcbcb862c362",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "dm_induced_incommensurate_spiral",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ba3cosb2o9_triangular_plateau_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "one_third_magnetization_plateau",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1d4ba213888164ea4467",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "one_third_magnetization_plateau",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ba3irti2o9_honeycomb_kitaev_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_liquid_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1ef6a4cf65b6598edb8b",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_liquid_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "barlowite_kagome_material_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "interlayer_coupling_relevant",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_12c70cd2b0f8ba092030",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "interlayer_coupling_relevant",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "bcc_j1_j2_heisenberg_collinear_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "contains_collinear_large_j2_phase",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3874d0662b42372f806d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "contains_collinear_large_j2_phase",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "beta_li2iro3_spiral_kitaev_gamma_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "incommensurate_spiral_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_57291c85f08380e3074d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "incommensurate_spiral_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "bilinear_biquadratic_spin1_chain_aklt_angle",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "scalar_or_structured_claim",
+              "id": "aklt_tan_theta",
+              "type": "number",
+              "units": "dimensionless"
+            },
+            {
+              "convention": "angular_scalar",
+              "id": "theta_radians",
+              "type": "number",
+              "units": "radian"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_31d77765ea903f1adaa9",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "scalar_or_structured_claim",
+            "id": "aklt_tan_theta",
+            "type": "number",
+            "units": "dimensionless"
+          },
+          {
+            "convention": "angular_scalar",
+            "id": "theta_radians",
+            "type": "number",
+            "units": "radian"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "blume_capel_spin1_zero_temperature_level_crossing",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "square_lattice_d_over_j_crossing",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_2b2b97b695eeeeb1378a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "square_lattice_d_over_j_crossing",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "bpcb_spin_ladder_field_induced_order_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "field_induced_luttinger_liquid_regime",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_bbb9a260b243a8c2d482",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "field_induced_luttinger_liquid_regime",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "breathing_kagome_heisenberg_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "breathing_anisotropy_controls_trimerization",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f36e066fc544152c0c30",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "breathing_anisotropy_controls_trimerization",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ca10cr7o28_bilayer_breathing_kagome_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_liquid_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "mixed_ferromagnetic_antiferromagnetic_exchanges",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_43e75001b61aebd94a9d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_liquid_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "mixed_ferromagnetic_antiferromagnetic_exchanges",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "cacu2o3_spin_ladder_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_ladder_material",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_4ad6882c76431fdc6aa1",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_ladder_material",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "checkerboard_heisenberg_afm_planar_pyrochlore_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "zero_total_spin_per_crossed_plaquette",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_451bbc661fb1baca5288",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "zero_total_spin_per_crossed_plaquette",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "checkerboard_heisenberg_plaquette_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "plaquette_order_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ed93336369a0749b622a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "plaquette_order_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "clinoatacamite_distorted_kagome_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "distorted_kagome_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_404f519ad628c5708818",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "distorted_kagome_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "crcl3_honeycomb_heisenberg_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ferromagnetic_honeycomb_layers",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_583e03a77c1093814101",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ferromagnetic_honeycomb_layers",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "crgete3_honeycomb_ferromagnet_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ferromagnetic_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_c0dc2e73472a60a1af6e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ferromagnetic_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "cri3_honeycomb_ferromagnet_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ferromagnetic_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_b5217ae599c3cb1c02e8",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ferromagnetic_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "cs2cucl4_anisotropic_triangular_spiral_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "incommensurate_spiral_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ead4ad59818f4ad25589",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "incommensurate_spiral_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "cu2iro3_honeycomb_kitaev_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "honeycomb_iridate_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_faffb52a35bbb864057b",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "honeycomb_iridate_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "cu2oseo3_skyrmion_lattice_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "skyrmion_lattice_phase",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5266a6c47781c7144991",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "skyrmion_lattice_phase",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "cubic_ising_critical_temperature_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tc_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_62710597daaa584a9a40",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tc_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "diamond_chain_localized_magnon_flat_band",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "has_exact_localized_magnons",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_8108add70d2566f81e3e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "has_exact_localized_magnons",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "diamond_j1_j2_spiral_surface_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "spiral_surface_for_j2_over_j1_gt",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "arxiv_6d8189949f34733eb8b4",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "spiral_surface_for_j2_over_j1_gt",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "dy2ti2o7_spin_ice_entropy_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "pauling_entropy_observed",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_97c202480cfbffef177b",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "pauling_entropy_observed",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "edwardsite_kagome_antiferromagnet_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "kagome_antiferromagnet_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_998394301da8aab04b39",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "kagome_antiferromagnet_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "eight_vertex_zero_field_exact_solution_status",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "is_exactly_solved",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_cb3265e8744878673955",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "is_exactly_solved",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "er2ti2o7_xy_pyrochlore_order_by_disorder_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "psi2_order_selected",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_8be1a4614254bceb7a20",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "psi2_order_selected",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "fcc_j1_j2_heisenberg_type_order_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "common_orders",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_b2f31bfaab7509b45b2e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "common_orders",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "fe8_molecular_spin_tunneling_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "macroscopic_quantum_tunneling_observed",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_be978237972b2466880e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "macroscopic_quantum_tunneling_observed",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "fe_ps3_honeycomb_ising_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ising_like_zigzag_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_80e63fcc6c4ffbc1bdd4",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ising_like_zigzag_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "fecl3_honeycomb_antiferromagnet_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "neel_order_on_honeycomb",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_05d9c1ea9a7bf527ff4f",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "neel_order_on_honeycomb",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "gadolinium_gallium_garnet_hyperkagome_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "strong_frustration",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0c17290da9e1b554a547",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "strong_frustration",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "gamma_li2iro3_3d_kitaev_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "incommensurate_spiral_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0e95cac63a568de62128",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "incommensurate_spiral_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "garnet_gd3ga5o12_spin_liquid_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "short_range_order_without_simple_lro",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_07dc55c0b95abf20f73b",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "short_range_order_without_simple_lro",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "garnet_gd3te2li3o12_hyperkagome_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "garnet_frustrated_magnet",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_44fc6738c4c3b3095202",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "garnet_frustrated_magnet",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "gaudin_yang_spin_half_fermion_bethe_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "is_exactly_solved",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_26f647152e99a2678e33",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "is_exactly_solved",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "h3liir2o6_kitaev_spin_liquid_candidate_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "no_magnetic_order_reported",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_95a1148cb5d14b4d9680",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "no_magnetic_order_reported",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "haldane_shastry_chain_exact_ground_state",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "has_exact_jastrow_ground_state",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3c3be4c66f0054c73f1d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "has_exact_jastrow_ground_state",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "haldane_spin1_chain_gap_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "gap_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f900791f74b4918a9a3e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "gap_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "haydeeite_ferromagnetic_kagome_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ferromagnetic_kagome_exchange",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3dff8548224b7a0681e5",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ferromagnetic_kagome_exchange",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "herbertsmithite_kagome_qsl_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "qsl_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ce455d188afd140cadc4",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "qsl_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ho2ti2o7_spin_ice_neutron_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_ice_correlations",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_c733dda5b601f475f156",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_ice_correlations",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_haldane_kane_mele_hubbard_spin_model_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_orbit_induced_anisotropy",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_7f88cea74a31c9249c7c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_orbit_induced_anisotropy",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_ising_ferromagnet_exact_tc",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tc_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d579aa38d45a8e10082d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tc_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_j1_j2_j3_classical_phase_diagram",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "phases",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_531cce39b8630ae418ce",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "phases",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "zigzag_order_relevant",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_cccc77107683d181386d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "zigzag_order_relevant",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_j1_j2_spiral_ring_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "symbolic_expression",
+              "id": "ring_condition",
+              "type": "string",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "arxiv_6d8189949f34733eb8b4",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "symbolic_expression",
+            "id": "ring_condition",
+            "type": "string",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_kitaev_gamma_phase_diagram_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "contains_noncollinear_and_zigzag_phases",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_bbb560ff60e674dc1fb7",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "contains_noncollinear_and_zigzag_phases",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_kitaev_heisenberg_four_sublattice_phases",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "ordered_phases",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_cccc77107683d181386d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "ordered_phases",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "honeycomb_spin_half_j1_j2_quantum_phase_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "intermediate_nonmagnetic_phase_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_37d6dcbf16346dd8de23",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "intermediate_nonmagnetic_phase_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "hyperkagome_heisenberg_spin_liquid_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_liquid_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0c40015567515b5d9937",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_liquid_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_chain_bkt_transition_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "critical_j2_over_j1_approx",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_7ebcee4afff97a154c76",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "critical_j2_over_j1_approx",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_chain_okamoto_nomura_critical_point",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "critical_j2_over_j1",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_7d48b95e16196d99b9b1",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "critical_j2_over_j1",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_honeycomb_neel_spin_liquid_transition_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "intermediate_nonmagnetic_phase",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_37d6dcbf16346dd8de23",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "intermediate_nonmagnetic_phase",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_j3_square_quantum_phase_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "multiple_paramagnetic_regions",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ae5fae7f5deae7bdf7e5",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "multiple_paramagnetic_regions",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_square_dqcp_columnar_vbs_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "columnar_or_plaquette_vbs_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_9bc03c9b602db2e07251",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "columnar_or_plaquette_vbs_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_square_spin_half_neel_collinear_transition_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "nonmagnetic_window_approx",
+              "type": "list[number]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "arxiv_63ac2dc486b14b933a79",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "nonmagnetic_window_approx",
+            "type": "list[number]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "j1_j2_triangular_spin_liquid_window_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "spin_liquid_window_approx",
+              "type": "list[number]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_10f8d8a847e8ffd6e766",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "spin_liquid_window_approx",
+            "type": "list[number]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "jarosite_kagome_dzyaloshinskii_moriya_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "q_0_120_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_e1c5b4d344c8f9c88062",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "q_0_120_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_chiral_spin_liquid_j1_j2_jchi_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "chiral_spin_liquid_phase",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_6b6a567626db4d7194ce",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "chiral_spin_liquid_phase",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_dzyaloshinskii_moriya_critical_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "critical_d_over_j_approx",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f912fac30ab22f0a872f",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "critical_d_over_j_approx",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            },
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "spin_gap_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f95413c18507a37940f1",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          },
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "spin_gap_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_heisenberg_topological_entanglement_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "angular_scalar",
+              "id": "topological_entanglement_entropy",
+              "type": "string",
+              "units": "radian"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_e599150fa96b6322a663",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "angular_scalar",
+            "id": "topological_entanglement_entropy",
+            "type": "string",
+            "units": "radian"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_ising_antiferromagnet_residual_entropy_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "macroscopic_ground_state_degeneracy",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5ff3dbcb129ebe58da6a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "macroscopic_ground_state_degeneracy",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_ising_ferromagnet_exact_tc",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tc_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5ff3dbcb129ebe58da6a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tc_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_j1_j2_heisenberg_phase_diagram_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "phases",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_b4979c341380add8983b",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "phases",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_one_third_magnetization_plateau_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "one_third_plateau",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_642f8a747bfe6282382d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "one_third_plateau",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kagome_spin_half_heisenberg_energy_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site_approx",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f95413c18507a37940f1",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site_approx",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kapellasite_kagome_j1_jd_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "competing_kagome_exchanges",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_9cb0dc0aa70484f11c98",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "competing_kagome_exchanges",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "field_opens_non_abelian_gap",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_735636355d51385c61be",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "field_opens_non_abelian_gap",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "is_exactly_solvable",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "categorical_label",
+              "id": "isotropic_phase",
+              "type": "string",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_735636355d51385c61be",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "is_exactly_solvable",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "categorical_label",
+            "id": "isotropic_phase",
+            "type": "string",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "kitaev_honeycomb_gapless_triangle_condition",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "gapless_condition",
+              "type": "string",
+              "units": "exchange_energy_unit"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "isotropic_kitaev_point_gapless",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_735636355d51385c61be",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "gapless_condition",
+            "type": "string",
+            "units": "exchange_energy_unit"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "isotropic_kitaev_point_gapless",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "li2cuo2_frustrated_ferromagnetic_chain_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "frustrated_ferromagnetic_chain",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_c3199a48d54ca388b850",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "frustrated_ferromagnetic_chain",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "li2iro3_hyperhoneycomb_kitaev_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "hyperhoneycomb_kitaev_material",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_20578e17910452318d7b",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "hyperhoneycomb_kitaev_material",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "licuvo4_spiral_chain_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "incommensurate_spiral_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_46d75409d57d2b87addc",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "incommensurate_spiral_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "lieb_lattice_heisenberg_ferrimagnet_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "scalar_or_structured_claim",
+              "id": "ground_state_spin_per_unit_cell",
+              "type": "number",
+              "units": "dimensionless"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_73b2515f2a4cc89196d3",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "scalar_or_structured_claim",
+            "id": "ground_state_spin_per_unit_cell",
+            "type": "number",
+            "units": "dimensionless"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "lieb_liniger_delta_bose_gas_bethe_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "is_exactly_solved",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "tonks_girardeau_limit_maps_to_free_fermions",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_4a885bb805afe8ada960",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "is_exactly_solved",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "tonks_girardeau_limit_maps_to_free_fermions",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "lieb_schultz_mattis_half_integer_constraint",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "unique_gapped_symmetric_ground_state_allowed",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_bb9d8409dad06c02dae3",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "unique_gapped_symmetric_ground_state_allowed",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "majundar_ghosh_chain_exact_dimer_point",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            },
+            {
+              "convention": "scalar_or_structured_claim",
+              "id": "degenerate_dimer_coverings",
+              "type": "number",
+              "units": "dimensionless"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_338d63a0924d74e024e4",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          },
+          {
+            "convention": "scalar_or_structured_claim",
+            "id": "degenerate_dimer_coverings",
+            "type": "number",
+            "units": "dimensionless"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "maple_leaf_lattice_heisenberg_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "frustrated_order_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_dd863fac988c6cf05b03",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "frustrated_order_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "mn_ps3_honeycomb_antiferromagnet_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "neel_order_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d80d8b58bfab492e5df6",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "neel_order_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "mnsi_chiral_helimagnet_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "long_wavelength_helix",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_b757c34f112f5da7b6c7",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "long_wavelength_helix",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "na4ir3o8_hyperkagome_material_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "hyperkagome_qsl_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_787b8f6d6f9d2741d4e9",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "hyperkagome_qsl_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "nacuo2_triangular_heisenberg_material_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "triangular_material_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1f376332a69cdcec20ce",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "triangular_material_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ni_ps3_honeycomb_antiferromagnet_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "zigzag_or_collinear_order_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3210b04d5765cf8591dd",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "zigzag_or_collinear_order_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "one_dimensional_classical_ising_correlation_length",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "symbolic_expression",
+              "id": "formula",
+              "type": "string",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "bulk_correlation_length",
+              "id": "correlation_length_beta_1_j_1",
+              "type": "number",
+              "units": "lattice_spacing"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_85b0ca56044270e7e63e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "symbolic_expression",
+            "id": "formula",
+            "type": "string",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "bulk_correlation_length",
+            "id": "correlation_length_beta_1_j_1",
+            "type": "number",
+            "units": "lattice_spacing"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "one_dimensional_classical_ising_no_finite_t_transition",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "finite_temperature_transition",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tc_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_85b0ca56044270e7e63e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "finite_temperature_transition",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tc_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "pr2zr2o7_quantum_spin_ice_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "quantum_spin_ice_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_664ac00e662da4009081",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "quantum_spin_ice_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "pyrochlore_anisotropic_exchange_jzz_jpm_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "couplings",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_94d0604c7e864a5e1f8f",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "couplings",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "pyrochlore_dipolar_spin_ice_pauling_entropy",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "entropy_density",
+              "id": "pauling_entropy_per_spin",
+              "type": "number",
+              "units": "natural_log_unit_per_spin"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_c32f33c419ab46e79a19",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "entropy_density",
+            "id": "pauling_entropy_per_spin",
+            "type": "number",
+            "units": "natural_log_unit_per_spin"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "pyrochlore_heisenberg_afm_coulomb_phase_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "zero_total_spin_per_tetrahedron",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "pinch_points",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5b656dfc4b6b9ffc48f2",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "zero_total_spin_per_tetrahedron",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "pinch_points",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "pyrochlore_heisenberg_coulomb_phase_flat_band",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "categorical_label",
+              "id": "local_constraint",
+              "type": "string",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "lowest_lt_flat_band",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5b656dfc4b6b9ffc48f2",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "categorical_label",
+            "id": "local_constraint",
+            "type": "string",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "lowest_lt_flat_band",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "quantum_spin_ice_u1_qsl_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "u1_quantum_spin_liquid_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5f1ff552586a07c4ad46",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "u1_quantum_spin_liquid_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ru_br3_kitaev_material_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ru_honeycomb_kitaev_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_983d905d88717d558737",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ru_honeycomb_kitaev_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ruby_lattice_heisenberg_flat_band_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "supports_localized_magnons",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3b8910c1f58e139297ef",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "supports_localized_magnons",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "sawtooth_chain_localized_magnon_flat_band",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "has_exact_localized_magnons",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_8108add70d2566f81e3e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "has_exact_localized_magnons",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "scgo_kagome_bilayer_spin_liquid_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "no_conventional_order_down_to_low_t",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_c7592568c4ee5f8fd07c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "no_conventional_order_down_to_low_t",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "shastry_sutherland_exact_dimer_product",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "dimer_energy",
+              "id": "energy_per_dimer",
+              "type": "number",
+              "units": "exchange_energy_per_dimer"
+            },
+            {
+              "convention": "energy_density",
+              "id": "energy_per_spin",
+              "type": "number",
+              "units": "exchange_energy_per_spin"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_a9fa724159c277eaa6cb",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "dimer_energy",
+            "id": "energy_per_dimer",
+            "type": "number",
+            "units": "exchange_energy_per_dimer"
+          },
+          {
+            "convention": "energy_density",
+            "id": "energy_per_spin",
+            "type": "number",
+            "units": "exchange_energy_per_spin"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "shastry_sutherland_magnetization_plateaus_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "fractional_plateaus_observed",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3e2040dc6e9848bd1404",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "fractional_plateaus_observed",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "shuriken_lattice_heisenberg_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "square_kagome_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0561dc1ddfb83046e779",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "square_kagome_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "simple_cubic_j1_j2_collinear_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "neel_to_collinear_boundary_j2_over_j1",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_84603f88ae7b84f66d95",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "neel_to_collinear_boundary_j2_over_j1",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "single_ion_spin1_anisotropy_levels",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "levels",
+              "type": "list[number]",
+              "units": "exchange_energy_unit"
+            },
+            {
+              "convention": "ordered_sequence",
+              "id": "degeneracies",
+              "type": "list[number]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_2b2b97b695eeeeb1378a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "levels",
+            "type": "list[number]",
+            "units": "exchange_energy_unit"
+          },
+          {
+            "convention": "ordered_sequence",
+            "id": "degeneracies",
+            "type": "list[number]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "spin1_chain_large_d_transition_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "large_d_transition_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_a442ddf2c4a97ebf3282",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "large_d_transition_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "spin_ice_tetrahedron_nn_ice_rule",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "two_in_two_out_energy",
+              "type": "number",
+              "units": "exchange_energy_unit"
+            },
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "three_in_one_out_energy",
+              "type": "number",
+              "units": "exchange_energy_unit"
+            },
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "all_in_all_out_energy",
+              "type": "number",
+              "units": "exchange_energy_unit"
+            },
+            {
+              "convention": "nonnegative_integer_count",
+              "id": "two_in_two_out_degeneracy",
+              "type": "number",
+              "units": "count"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f605e466ceaab98b53c2",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "two_in_two_out_energy",
+            "type": "number",
+            "units": "exchange_energy_unit"
+          },
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "three_in_one_out_energy",
+            "type": "number",
+            "units": "exchange_energy_unit"
+          },
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "all_in_all_out_energy",
+            "type": "number",
+            "units": "exchange_energy_unit"
+          },
+          {
+            "convention": "nonnegative_integer_count",
+            "id": "two_in_two_out_degeneracy",
+            "type": "number",
+            "units": "count"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "spin_ladder_rung_singlet_gap_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "has_finite_spin_gap_for_antiferromagnetic_rungs",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d3dec73b0de1021b7f2a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "has_finite_spin_gap_for_antiferromagnetic_rungs",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "spin_peierls_chain_dimerization_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "finite_delta_opens_gap",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ed7a65b8814519a190b1",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "finite_delta_opens_gap",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_ashkin_teller_exact_critical_line",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "has_exact_critical_line",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_cb3265e8744878673955",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "has_exact_critical_line",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_clock_q5_two_bkt_transitions",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "nonnegative_integer_count",
+              "id": "transition_count",
+              "type": "number",
+              "units": "count"
+            },
+            {
+              "convention": "ordered_sequence",
+              "id": "phase_sequence",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_122dc1b374767a010cb0",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "nonnegative_integer_count",
+            "id": "transition_count",
+            "type": "number",
+            "units": "count"
+          },
+          {
+            "convention": "ordered_sequence",
+            "id": "phase_sequence",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_compass_model_directional_exchange_degeneracy",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "has_line_flip_symmetries",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_f915390aad8ba95157bf",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "has_line_flip_symmetries",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_dimerized_heisenberg_critical_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "neel_to_dimer_transition",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_341bbc061192f2157c1d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "neel_to_dimer_transition",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_fully_frustrated_ising_residual_entropy_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "macroscopic_ground_state_degeneracy",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_19381940c9d01696a519",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "macroscopic_ground_state_degeneracy",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_heisenberg_spin_half_spin_stiffness_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "rho_s_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ebcdccab3f81a5059936",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "rho_s_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_heisenberg_spin_half_staggered_magnetization_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "fraction_of_saturation",
+              "id": "staggered_magnetization",
+              "type": "number",
+              "units": "normalized_magnetization"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ebcdccab3f81a5059936",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "fraction_of_saturation",
+            "id": "staggered_magnetization",
+            "type": "number",
+            "units": "normalized_magnetization"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_heisenberg_spin_wave_velocity_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "renormalized_velocity_over_j_approx",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ebcdccab3f81a5059936",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "renormalized_velocity_over_j_approx",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_j1_j3_classical_lifshitz_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "symbolic_expression",
+              "id": "spiral_condition",
+              "type": "string",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "arxiv_22ae1487c7957c762836",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "symbolic_expression",
+            "id": "spiral_condition",
+            "type": "string",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_jq_model_deconfined_critical_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "neel_to_vbs_transition",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_284ba3da8ffd91111098",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "neel_to_vbs_transition",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_potts_exact_critical_point",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "critical_beta_j",
+              "type": "string",
+              "units": "dimensionless_ratio"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "continuous_for_q_le_4",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5c4f75ee56f57b91e3e4",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "critical_beta_j",
+            "type": "string",
+            "units": "dimensionless_ratio"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "continuous_for_q_le_4",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_ring_exchange_neel_vbs_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "ring_exchange_drives_vbs_phase",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_b4ecc4050d7e6e010534",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "ring_exchange_drives_vbs_phase",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_six_vertex_ice_exact_solution_status",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "is_exactly_solved",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_648ea4bc439b5b7a10c2",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "is_exactly_solved",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_spin_half_heisenberg_qmc_energy",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ebcdccab3f81a5059936",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "square_toric_code_exact_topological_degeneracy",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "nonnegative_integer_count",
+              "id": "torus_ground_state_degeneracy",
+              "type": "number",
+              "units": "count"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_33fcf4c762fb137794a6",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "nonnegative_integer_count",
+            "id": "torus_ground_state_degeneracy",
+            "type": "number",
+            "units": "count"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "sr_cu2_bo3_2_shastry_sutherland_material_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "orthogonal_dimer_material",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "magnetization_plateaus",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_3e2040dc6e9848bd1404",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "orthogonal_dimer_material",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "magnetization_plateaus",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "star_lattice_heisenberg_spin_liquid_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_liquid_or_valence_bond_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_62b7064141c85be36c19",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_liquid_or_valence_bond_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "takhtajan_babujian_spin1_critical_point",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "angular_scalar",
+              "id": "theta_radians",
+              "type": "number",
+              "units": "radian"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "is_integrable",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_4ab4f44c819fbd03a62c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "angular_scalar",
+            "id": "theta_radians",
+            "type": "number",
+            "units": "radian"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "is_integrable",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "tb2ti2o7_pyrochlore_spin_liquid_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "spin_liquid_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0e5fc23af85ddd55e5bc",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "spin_liquid_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "transverse_field_ising_chain_critical_point",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "critical_field_over_exchange",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0dd199cedf8c6235b783",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "critical_field_over_exchange",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "transverse_field_ising_chain_gap",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "gap_formula",
+              "type": "string",
+              "units": "exchange_energy_unit"
+            },
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "gap_formula_at_g_0_6",
+              "type": "number",
+              "units": "exchange_energy_unit"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_0dd199cedf8c6235b783",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "gap_formula",
+            "type": "string",
+            "units": "exchange_energy_unit"
+          },
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "gap_formula_at_g_0_6",
+            "type": "number",
+            "units": "exchange_energy_unit"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_heisenberg_magnetization_plateau_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "one_third_plateau",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_e3b1415a2e57b3de696a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "one_third_plateau",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_heisenberg_spin_half_energy_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site_approx",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1bac9e892e28597b52b7",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site_approx",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_ising_antiferromagnet_residual_entropy",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "entropy_density",
+              "id": "residual_entropy_per_spin",
+              "type": "number",
+              "units": "natural_log_unit_per_spin"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_2817c61413e96673d2ef",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "entropy_density",
+            "id": "residual_entropy_per_spin",
+            "type": "number",
+            "units": "natural_log_unit_per_spin"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_ising_ferromagnet_exact_tc",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tc_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d579aa38d45a8e10082d",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tc_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_j1_j2_spin_half_phase_diagram_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ordered_sequence",
+              "id": "phases",
+              "type": "list[string]",
+              "units": "field_dependent_sequence"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_550d205c56bb397a0f5a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ordered_sequence",
+            "id": "phases",
+            "type": "list[string]",
+            "units": "field_dependent_sequence"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_nn_classical_120_reference",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "categorical_label",
+              "id": "order",
+              "type": "string",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "ordering_wavevector",
+              "id": "q_reciprocal",
+              "type": "list[number]",
+              "units": "reciprocal_lattice_unit"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_9e83835ec0d3b3c1292c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "categorical_label",
+            "id": "order",
+            "type": "string",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "ordering_wavevector",
+            "id": "q_reciprocal",
+            "type": "list[number]",
+            "units": "reciprocal_lattice_unit"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_ring_exchange_spin_liquid_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "contains_spin_liquid_region",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_ad5da9e18d2e393cc975",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "contains_spin_liquid_region",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "triangular_xxz_supersolid_phase_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "contains_supersolid_phase",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_66dbcef072886207eaee",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "contains_supersolid_phase",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "two_dimensional_square_ising_onsager_tc",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tc_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_5ac1fc0c40596b19c09f",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tc_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "two_dimensional_square_ising_spontaneous_magnetization",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "symbolic_expression",
+              "id": "formula",
+              "type": "string",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "fraction_of_saturation",
+              "id": "magnetization_beta_0_6_j_1",
+              "type": "number",
+              "units": "normalized_magnetization"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d58cb3551f9e1c029988",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "symbolic_expression",
+            "id": "formula",
+            "type": "string",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "fraction_of_saturation",
+            "id": "magnetization_beta_0_6_j_1",
+            "type": "number",
+            "units": "normalized_magnetization"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "two_dimensional_xy_bkt_temperature_reference",
+      "expected_container": "main_text_or_supplemental_table",
+      "locator_class": "table",
+      "locator_strategy": {
+        "expected_container": "main_text_or_supplemental_table",
+        "locator_class": "table",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "tbkt_over_j",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d9030016946221a0420c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "tbkt_over_j",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "two_dimensional_xy_bkt_universal_jump",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "symbolic_expression",
+              "id": "formula",
+              "type": "string",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "scalar_or_structured_claim",
+              "id": "helicity_modulus_at_t_1",
+              "type": "number",
+              "units": "dimensionless"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1cac9952c7fb6275a595",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "symbolic_expression",
+            "id": "formula",
+            "type": "string",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "scalar_or_structured_claim",
+            "id": "helicity_modulus_at_t_1",
+            "type": "number",
+            "units": "dimensionless"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "two_leg_ladder_strong_rung_exact_limit",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "rung_energy",
+              "id": "energy_per_rung",
+              "type": "number",
+              "units": "exchange_energy_per_rung"
+            },
+            {
+              "convention": "hamiltonian_energy_scale",
+              "id": "gap_to_triplet",
+              "type": "number",
+              "units": "exchange_energy_unit"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d3dec73b0de1021b7f2a",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "rung_energy",
+            "id": "energy_per_rung",
+            "type": "number",
+            "units": "exchange_energy_per_rung"
+          },
+          {
+            "convention": "hamiltonian_energy_scale",
+            "id": "gap_to_triplet",
+            "type": "number",
+            "units": "exchange_energy_unit"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "uimin_lai_sutherland_spin1_su3_point",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
+      "locator_strategy": {
+        "expected_container": "main_text_claim_statement",
+        "locator_class": "body_text",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "angular_scalar",
+              "id": "theta_radians",
+              "type": "number",
+              "units": "radian"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "su3_symmetric",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_418535974c0633b7e338",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "angular_scalar",
+            "id": "theta_radians",
+            "type": "number",
+            "units": "radian"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "su3_symmetric",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "vesignieite_kagome_material_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "distorted_kagome_relevant",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1c5a42de0551d2e2451c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "distorted_kagome_relevant",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "volborthite_kagome_distorted_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "distorted_kagome_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_777604a7df2a1f46d2cb",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "distorted_kagome_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "xx_spin_half_chain_free_fermion_energy",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_bb9d8409dad06c02dae3",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "xxx_spin_half_chain_bethe_ground_state",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "energy_density",
+              "id": "energy_per_site",
+              "type": "number",
+              "units": "exchange_energy_per_site"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_59384b3efe539754fa1e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "energy_density",
+            "id": "energy_per_site",
+            "type": "number",
+            "units": "exchange_energy_per_site"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "xxz_spin_half_chain_phase_boundaries",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "ferromagnetic_boundary_delta",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            },
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "neel_boundary_delta",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            },
+            {
+              "convention": "closed_anisotropy_interval",
+              "id": "gapless_interval",
+              "type": "list[number]",
+              "units": "dimensionless_anisotropy"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_99dc2b4658823c56a044",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "ferromagnetic_boundary_delta",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          },
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "neel_boundary_delta",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          },
+          {
+            "convention": "closed_anisotropy_interval",
+            "id": "gapless_interval",
+            "type": "list[number]",
+            "units": "dimensionless_anisotropy"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "xy_spin_half_chain_anisotropic_critical_line",
+      "expected_container": "numbered_or_displayed_equation",
+      "locator_class": "equation",
+      "locator_strategy": {
+        "expected_container": "numbered_or_displayed_equation",
+        "locator_class": "equation",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "scalar_or_structured_claim",
+              "id": "ising_critical_field",
+              "type": "number",
+              "units": "dimensionless"
+            },
+            {
+              "convention": "ratio_to_named_model_scale",
+              "id": "anisotropy_transition_gamma",
+              "type": "number",
+              "units": "dimensionless_ratio"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_2e773eb6fd2e35377402",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "scalar_or_structured_claim",
+            "id": "ising_critical_field",
+            "type": "number",
+            "units": "dimensionless"
+          },
+          {
+            "convention": "ratio_to_named_model_scale",
+            "id": "anisotropy_transition_gamma",
+            "type": "number",
+            "units": "dimensionless_ratio"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "yb2ti2o7_pyrochlore_exchange_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "anisotropic_exchange_fit_reference",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_94d0604c7e864a5e1f8f",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "anisotropic_exchange_fit_reference",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "ybmggao4_triangular_spin_liquid_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "triangular_quantum_spin_liquid_candidate",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_d467f120b672ca322e8e",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "triangular_quantum_spin_liquid_candidate",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "zn_barlowite_kagome_qsl_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "reduced_interlayer_magnetism",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_6c0becc5fdeb4d7af399",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "reduced_interlayer_magnetism",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    },
+    {
+      "benchmark_name": "zncu3oh6cl2_kagome_dzyaloshinskii_moriya_reference",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
+      "locator_strategy": {
+        "expected_container": "abstract_claim_statement",
+        "locator_class": "abstract",
+        "target_representation": {
+          "fields": [
+            {
+              "convention": "boolean_claim",
+              "id": "dm_interaction_relevant",
+              "type": "boolean",
+              "units": "not_applicable"
+            }
+          ],
+          "kind": "registered_field_map"
+        }
+      },
+      "source_id": "doi_1acf3789a851994c9d6c",
+      "target_representation": {
+        "fields": [
+          {
+            "convention": "boolean_claim",
+            "id": "dm_interaction_relevant",
+            "type": "boolean",
+            "units": "not_applicable"
+          }
+        ],
+        "kind": "registered_field_map"
+      }
+    }
+  ],
+  "schema_version": 1
+}

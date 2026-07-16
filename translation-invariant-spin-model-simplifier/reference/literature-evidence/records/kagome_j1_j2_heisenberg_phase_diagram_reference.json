@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "kagome_j1_j2_heisenberg_phase_diagram_reference",
+  "canonical_observable_id": "kagome_j1_j2_heisenberg_phase_diagram_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "phases",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "phases",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "phases"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_b4979c341380add8983b",
+  "target_locator_strategy": {
+    "expected_container": "main_text_or_supplemental_table",
+    "locator_class": "table",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ordered_sequence",
+          "id": "phases",
+          "type": "list[string]",
+          "units": "field_dependent_sequence"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

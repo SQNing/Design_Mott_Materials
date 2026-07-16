@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "one_dimensional_classical_ising_no_finite_t_transition",
+  "canonical_observable_id": "one_dimensional_classical_ising_no_finite_t_transition",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "finite_temperature_transition",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "tc_over_j",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "finite_temperature_transition",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "tc_over_j",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "finite_temperature_transition",
+      "tc_over_j"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_85b0ca56044270e7e63e",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "finite_temperature_transition",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "tc_over_j",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

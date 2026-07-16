@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "bilinear_biquadratic_spin1_chain_aklt_angle",
+  "canonical_observable_id": "bilinear_biquadratic_spin1_chain_aklt_angle",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "aklt_tan_theta",
+        "type": "number",
+        "units": "dimensionless"
+      },
+      {
+        "convention": "angular_scalar",
+        "id": "theta_radians",
+        "type": "number",
+        "units": "radian"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "aklt_tan_theta",
+        "type": "number",
+        "units": "dimensionless"
+      },
+      {
+        "convention": "angular_scalar",
+        "id": "theta_radians",
+        "type": "number",
+        "units": "radian"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "aklt_tan_theta",
+      "theta_radians"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_31d77765ea903f1adaa9",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "scalar_or_structured_claim",
+          "id": "aklt_tan_theta",
+          "type": "number",
+          "units": "dimensionless"
+        },
+        {
+          "convention": "angular_scalar",
+          "id": "theta_radians",
+          "type": "number",
+          "units": "radian"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

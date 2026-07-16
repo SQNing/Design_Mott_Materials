@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "lieb_schultz_mattis_half_integer_constraint",
+  "canonical_observable_id": "lieb_schultz_mattis_half_integer_constraint",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "unique_gapped_symmetric_ground_state_allowed",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "projection_only",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "unique_gapped_symmetric_ground_state_allowed",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "unique_gapped_symmetric_ground_state_allowed"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_bb9d8409dad06c02dae3",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "unique_gapped_symmetric_ground_state_allowed",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

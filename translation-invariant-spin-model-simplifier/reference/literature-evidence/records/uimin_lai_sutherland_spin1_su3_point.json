@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "uimin_lai_sutherland_spin1_su3_point",
+  "canonical_observable_id": "uimin_lai_sutherland_spin1_su3_point",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "angular_scalar",
+        "id": "theta_radians",
+        "type": "number",
+        "units": "radian"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "su3_symmetric",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "angular_scalar",
+        "id": "theta_radians",
+        "type": "number",
+        "units": "radian"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "su3_symmetric",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "theta_radians",
+      "su3_symmetric"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_418535974c0633b7e338",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "angular_scalar",
+          "id": "theta_radians",
+          "type": "number",
+          "units": "radian"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "su3_symmetric",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

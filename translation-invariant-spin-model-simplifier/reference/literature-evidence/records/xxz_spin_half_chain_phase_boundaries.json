@@ -1,0 +1,92 @@
+{
+  "benchmark_name": "xxz_spin_half_chain_phase_boundaries",
+  "canonical_observable_id": "xxz_spin_half_chain_phase_boundaries",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "ferromagnetic_boundary_delta",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      },
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "neel_boundary_delta",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      },
+      {
+        "convention": "closed_anisotropy_interval",
+        "id": "gapless_interval",
+        "type": "list[number]",
+        "units": "dimensionless_anisotropy"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "ferromagnetic_boundary_delta",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      },
+      {
+        "convention": "ratio_to_named_model_scale",
+        "id": "neel_boundary_delta",
+        "type": "number",
+        "units": "dimensionless_ratio"
+      },
+      {
+        "convention": "closed_anisotropy_interval",
+        "id": "gapless_interval",
+        "type": "list[number]",
+        "units": "dimensionless_anisotropy"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "ferromagnetic_boundary_delta",
+      "neel_boundary_delta",
+      "gapless_interval"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_99dc2b4658823c56a044",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "ferromagnetic_boundary_delta",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        },
+        {
+          "convention": "ratio_to_named_model_scale",
+          "id": "neel_boundary_delta",
+          "type": "number",
+          "units": "dimensionless_ratio"
+        },
+        {
+          "convention": "closed_anisotropy_interval",
+          "id": "gapless_interval",
+          "type": "list[number]",
+          "units": "dimensionless_anisotropy"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

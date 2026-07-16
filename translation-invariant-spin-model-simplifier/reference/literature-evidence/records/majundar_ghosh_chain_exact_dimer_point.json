@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "majundar_ghosh_chain_exact_dimer_point",
+  "canonical_observable_id": "majundar_ghosh_chain_exact_dimer_point",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "energy_density",
+        "id": "energy_per_site",
+        "type": "number",
+        "units": "exchange_energy_per_site"
+      },
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "degenerate_dimer_coverings",
+        "type": "number",
+        "units": "dimensionless"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "energy_density",
+        "id": "energy_per_site",
+        "type": "number",
+        "units": "exchange_energy_per_site"
+      },
+      {
+        "convention": "scalar_or_structured_claim",
+        "id": "degenerate_dimer_coverings",
+        "type": "number",
+        "units": "dimensionless"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "energy_per_site",
+      "degenerate_dimer_coverings"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_338d63a0924d74e024e4",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "energy_density",
+          "id": "energy_per_site",
+          "type": "number",
+          "units": "exchange_energy_per_site"
+        },
+        {
+          "convention": "scalar_or_structured_claim",
+          "id": "degenerate_dimer_coverings",
+          "type": "number",
+          "units": "dimensionless"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

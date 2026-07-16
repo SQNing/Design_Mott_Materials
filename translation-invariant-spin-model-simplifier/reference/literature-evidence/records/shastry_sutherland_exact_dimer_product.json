@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "shastry_sutherland_exact_dimer_product",
+  "canonical_observable_id": "shastry_sutherland_exact_dimer_product",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "dimer_energy",
+        "id": "energy_per_dimer",
+        "type": "number",
+        "units": "exchange_energy_per_dimer"
+      },
+      {
+        "convention": "energy_density",
+        "id": "energy_per_spin",
+        "type": "number",
+        "units": "exchange_energy_per_spin"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "dimer_energy",
+        "id": "energy_per_dimer",
+        "type": "number",
+        "units": "exchange_energy_per_dimer"
+      },
+      {
+        "convention": "energy_density",
+        "id": "energy_per_spin",
+        "type": "number",
+        "units": "exchange_energy_per_spin"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "energy_per_dimer",
+      "energy_per_spin"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_a9fa724159c277eaa6cb",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "dimer_energy",
+          "id": "energy_per_dimer",
+          "type": "number",
+          "units": "exchange_energy_per_dimer"
+        },
+        {
+          "convention": "energy_density",
+          "id": "energy_per_spin",
+          "type": "number",
+          "units": "exchange_energy_per_spin"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "single_ion_spin1_anisotropy_levels",
+  "canonical_observable_id": "single_ion_spin1_anisotropy_levels",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "levels",
+        "type": "list[number]",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "ordered_sequence",
+        "id": "degeneracies",
+        "type": "list[number]",
+        "units": "field_dependent_sequence"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "levels",
+        "type": "list[number]",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "ordered_sequence",
+        "id": "degeneracies",
+        "type": "list[number]",
+        "units": "field_dependent_sequence"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "levels",
+      "degeneracies"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_2b2b97b695eeeeb1378a",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "levels",
+          "type": "list[number]",
+          "units": "exchange_energy_unit"
+        },
+        {
+          "convention": "ordered_sequence",
+          "id": "degeneracies",
+          "type": "list[number]",
+          "units": "field_dependent_sequence"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

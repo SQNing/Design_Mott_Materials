@@ -1,0 +1,684 @@
+import copy
+import ast
+import json
+import shutil
+import sys
+from pathlib import Path
+
+import pytest
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+
+from validation.literature_evidence_inventory import (
+    INVENTORY_ROOT,
+    InventoryError,
+    canonical_source_identity,
+    derive_unresolved_status,
+    load_and_validate_inventory,
+    resolve_registry_selector,
+    validate_inventory,
+)
+from validation.literature_evidence_schema import (
+    EvidenceSchemaError,
+    EvidenceRecord,
+    ProvisionalEvidenceRecord,
+)
+from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESULTS
+
+
+@pytest.fixture(scope="module")
+def loaded_inventory():
+    return load_and_validate_inventory()
+
+
+def mutable_inventory(loaded_inventory):
+    return copy.deepcopy(loaded_inventory.as_plain_data())
+
+
+def test_inventory_has_exact_registry_contract_record_and_locator_name_sets(
+    loaded_inventory,
+):
+    registry_names = {entry["name"] for entry in LITERATURE_STANDARD_RESULTS}
+    contract_names = {
+        contract.benchmark_name for contract in loaded_inventory.contracts
+    }
+    record_names = {record.benchmark_name for record in loaded_inventory.records}
+    locator_names = {
+        row["benchmark_name"] for row in loaded_inventory.locator_inventory
+    }
+    filenames = {path.stem for path in (INVENTORY_ROOT / "records").glob("*.json")}
+
+    assert len(registry_names) == 155
+    assert len(loaded_inventory.contracts) == 155
+    assert len(loaded_inventory.records) == 155
+    assert len(loaded_inventory.locator_inventory) == 155
+    assert filenames == registry_names == contract_names == record_names == locator_names
+
+
+def test_contracts_define_complete_concrete_claim_identity(loaded_inventory):
+    generic_observables = {
+        "material_reference",
+        "material_model_reference",
+        "phase_diagram_reference",
+        "phase_reference",
+        "status",
+    }
+    required = {
+        "subject",
+        "system",
+        "hamiltonian",
+        "parameter_regime",
+        "size_or_limit",
+        "observable",
+        "representation",
+        "units",
+        "conditions",
+    }
+    for contract in loaded_inventory.contracts:
+        assert required <= set(contract.as_plain_data())
+        assert contract.observable["identity"] not in generic_observables
+        assert contract.observable["claim_fields"]
+        assert {
+            field["id"] for field in contract.representation["fields"]
+        } == set(contract.observable["claim_fields"])
+
+
+def test_contracts_reject_all_generic_placeholder_families(loaded_inventory):
+    forbidden_exact = {
+        "Registered literature claim identified by named fields",
+        "multi_field_registered_claim",
+        "source_defined_registered_regime",
+        "registry_defined_or_dimensionless",
+    }
+    forbidden_patterns = ("registered literature claim", "source_defined", "registry_defined")
+    subjects = []
+    for contract in loaded_inventory.contracts:
+        plain = contract.as_plain_data()
+        subjects.append(contract.subject)
+        checked = (
+            contract.subject,
+            contract.observable["identity"],
+            contract.size_or_limit["category"],
+            contract.units,
+        )
+        assert forbidden_exact.isdisjoint(checked)
+        assert not any(
+            pattern in value.lower()
+            for value in checked
+            for pattern in forbidden_patterns
+        )
+        for field in contract.representation["fields"]:
+            assert field["units"]
+            assert field["convention"]
+    assert len(set(subjects)) == 155
+
+
+def test_selectors_equal_literal_registry_claim_fields(loaded_inventory):
+    literal_fields = _literal_registry_claim_fields()
+    assert len(literal_fields) == 155
+    for record in loaded_inventory.records:
+        assert tuple(record.registry_selector["fields"]) == literal_fields[
+            record.benchmark_name
+        ]
+
+
+def test_haldane_selector_excludes_runtime_curie_weiss_augmentation(loaded_inventory):
+    record = next(
+        item
+        for item in loaded_inventory.records
+        if item.benchmark_name == "haldane_spin1_chain_gap_reference"
+    )
+    contract = next(
+        item
+        for item in loaded_inventory.contracts
+        if item.benchmark_name == record.benchmark_name
+    )
+    assert tuple(record.registry_selector["fields"]) == ("gap_over_j",)
+    assert contract.observable["claim_fields"] == ("gap_over_j",)
+    assert contract.subject == "Spin-1 Heisenberg-chain Haldane excitation gap"
+    assert contract.size_or_limit["category"] == "thermodynamic_limit"
+    assert contract.representation["fields"][0]["units"] == "dimensionless_ratio"
+
+
+@pytest.mark.parametrize(
+    ("benchmark_name", "subject_terms", "scope_category"),
+    [
+        (
+            "aklt_spin1_chain_projector_ground_state",
+            {"aklt", "projector", "ground", "state"},
+            "exact_model_limit",
+        ),
+        (
+            "xxz_spin_half_chain_phase_boundaries",
+            {"xxz", "phase", "boundaries"},
+            "thermodynamic_limit",
+        ),
+        (
+            "square_spin_half_heisenberg_qmc_energy",
+            {"square", "heisenberg", "qmc", "energy"},
+            "thermodynamic_limit",
+        ),
+        (
+            "alpha_rucl3_kitaev_gamma_zigzag_reference",
+            {"alpha", "rucl3", "kitaev", "zigzag"},
+            "published_experimental_material_conditions_pending_source_verification",
+        ),
+    ],
+)
+def test_representative_contract_categories_are_concrete(
+    loaded_inventory, benchmark_name, subject_terms, scope_category
+):
+    contract = next(
+        item for item in loaded_inventory.contracts if item.benchmark_name == benchmark_name
+    )
+    normalized_subject = set(contract.subject.lower().replace("-", " ").split())
+    assert subject_terms <= normalized_subject
+    assert contract.size_or_limit["category"] == scope_category
+    assert contract.observable["identity"] not in {
+        "material_reference",
+        "phase_diagram_reference",
+        "status",
+        "multi_field_registered_claim",
+    }
+
+
+def test_inspected_contract_units_and_material_scope_are_scientific(loaded_inventory):
+    contracts = {
+        item.benchmark_name: item for item in loaded_inventory.contracts
+    }
+    locators = {
+        row["benchmark_name"]: row for row in loaded_inventory.locator_inventory
+    }
+
+    ni_ps3 = contracts["ni_ps3_honeycomb_antiferromagnet_reference"]
+    assert ni_ps3.subject == "NiPS3 honeycomb antiferromagnetic order"
+    assert ni_ps3.size_or_limit["category"] == (
+        "published_experimental_material_conditions_pending_source_verification"
+    )
+    assert locators[ni_ps3.benchmark_name]["locator_class"] == "abstract"
+
+    tfim = contracts["transverse_field_ising_chain_critical_point"]
+    assert tfim.representation["fields"][0]["units"] == "dimensionless_ratio"
+
+    xxz = contracts["xxz_spin_half_chain_phase_boundaries"]
+    xxz_fields = {field["id"]: field for field in xxz.representation["fields"]}
+    assert xxz_fields["gapless_interval"]["units"] == "dimensionless_anisotropy"
+
+    aklt = contracts["aklt_spin1_chain_projector_ground_state"]
+    aklt_fields = {field["id"]: field for field in aklt.representation["fields"]}
+    assert aklt_fields["two_site_projector_eigenvalues"] == {
+        "id": "two_site_projector_eigenvalues",
+        "type": "list[number]",
+        "units": "dimensionless_projector_eigenvalue",
+        "convention": "ordered_two_site_projector_spectrum",
+    }
+
+
+def test_provisional_records_are_complete_and_fail_closed(loaded_inventory):
+    required = {
+        "source_id",
+        "registry_selector",
+        "canonical_observable_id",
+        "evidence_mode",
+        "target_locator_strategy",
+        "parser_strategy",
+        "comparator",
+        "unresolved_reason",
+    }
+    forbidden = {
+        "source_sha256",
+        "parsed_target",
+        "source_excerpt",
+        "copied_target",
+        "target_observable",
+        "target_excerpt",
+        "verdict",
+        "pass",
+        "strict",
+        "strict_match",
+        "strict_literature_match",
+    }
+    for record in loaded_inventory.records:
+        plain = record.as_plain_data()
+        assert required <= set(plain)
+        assert not forbidden.intersection(_recursive_keys(plain))
+        assert record.record_state == "unresolved"
+        assert record.unresolved_reason.strip()
+        assert derive_unresolved_status(record) == "unresolved"
+        with pytest.raises(EvidenceSchemaError):
+            EvidenceRecord(**plain)
+
+
+def test_sources_are_133_unique_canonical_identities_covering_every_record(
+    loaded_inventory,
+):
+    sources = loaded_inventory.source_index
+    assert len(sources) == 133
+    assert len({source["source_id"] for source in sources}) == 133
+    assert len({tuple(source["canonical_identity"].items()) for source in sources}) == 133
+    assert {source["source_id"] for source in sources} == {
+        record.source_id for record in loaded_inventory.records
+    }
+    assert sum(len(source["benchmark_names"]) for source in sources) == 155
+
+    by_url = {
+        entry["source_url"]: canonical_source_identity(entry["source_url"])
+        for entry in LITERATURE_STANDARD_RESULTS
+    }
+    assert len(set(by_url.values())) == 133
+    assert canonical_source_identity(
+        "https://doi.org/10.1103/PhysRevLett.26.832"
+    ) == canonical_source_identity("https://DOI.org/10.1103/physrevlett.26.832")
+    assert canonical_source_identity(
+        "https://arxiv.org/abs/1409.0193"
+    ) == canonical_source_identity("https://arxiv.org/pdf/1409.0193.pdf")
+
+    for doi, expected_benchmarks in (
+        (
+            "10.1103/PhysRevLett.26.832",
+            {
+                "eight_vertex_zero_field_exact_solution_status",
+                "square_ashkin_teller_exact_critical_line",
+            },
+        ),
+        (
+            "10.1103/PhysRevX.1.021002",
+            {
+                "pyrochlore_anisotropic_exchange_jzz_jpm_reference",
+                "yb2ti2o7_pyrochlore_exchange_reference",
+            },
+        ),
+    ):
+        identity = canonical_source_identity(f"https://doi.org/{doi}")
+        matching = [
+            source
+            for source in sources
+            if (
+                f"{source['canonical_identity']['kind']}:"
+                f"{source['canonical_identity']['value']}"
+            )
+            == identity
+        ]
+        assert len(matching) == 1
+        assert set(matching[0]["benchmark_names"]) == expected_benchmarks
+
+
+def test_provisioning_has_one_honest_unacquired_route_per_source(loaded_inventory):
+    routes = loaded_inventory.source_provisioning
+    assert len(routes) == 133
+    assert {route["source_id"] for route in routes} == {
+        source["source_id"] for source in loaded_inventory.source_index
+    }
+    for route in routes:
+        assert route["authoritative_retrieval_route"]["kind"] in {
+            "doi_content_negotiation",
+            "arxiv_export_download",
+        }
+        assert route["expected_media_type"] in {
+            "application/pdf",
+            "application/xml",
+        }
+        assert route["redistributability"] == "unresolved"
+        assert route["current_availability"] == "not_acquired"
+        assert route["local_cache_location"].startswith("source-cache/")
+
+
+def test_locator_inventory_is_structured_target_free_and_complete(loaded_inventory):
+    allowed_classes = {
+        "equation",
+        "table",
+        "abstract",
+        "body_text",
+        "figure_caption",
+        "supplemental",
+        "metadata_field",
+    }
+    forbidden = {
+        "answer",
+        "value",
+        "expected_value",
+        "parsed_target",
+        "source_excerpt",
+        "copied_target",
+        "verdict",
+    }
+    for row in loaded_inventory.locator_inventory:
+        assert row["locator_class"] in allowed_classes
+        assert row["expected_container"]
+        assert row["target_representation"]["fields"]
+        assert not forbidden.intersection(_recursive_keys(row))
+
+
+def test_claim_surfaces_do_not_copy_registry_target_values(loaded_inventory):
+    registry_by_name = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+    locator_by_name = {
+        row["benchmark_name"]: row for row in loaded_inventory.locator_inventory
+    }
+    for contract, record in zip(loaded_inventory.contracts, loaded_inventory.records):
+        standard_result = registry_by_name[contract.benchmark_name]["standard_result"]
+        target_leaves = {
+            (type(value).__name__, repr(value))
+            for key, target in standard_result.items()
+            if key not in {"computable_observables", "tolerance"}
+            for value in _recursive_leaves(target)
+        }
+        locator = locator_by_name[contract.benchmark_name]
+        identity_surfaces = (
+            contract.observable,
+            contract.representation,
+            record.target_locator_strategy,
+            record.parser_strategy,
+            record.comparator,
+            locator["target_representation"],
+        )
+        identity_leaves = {
+            (type(value).__name__, repr(value))
+            for surface in identity_surfaces
+            for value in _recursive_leaves(surface)
+        }
+        assert target_leaves.isdisjoint(identity_leaves), contract.benchmark_name
+
+
+def test_selectors_resolve_only_registered_claim_operands_and_ignore_record_metadata(
+    loaded_inventory,
+):
+    registry_by_name = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+    for record in loaded_inventory.records:
+        registry_entry = registry_by_name[record.benchmark_name]
+        selected = resolve_registry_selector(registry_entry, record.registry_selector)
+        assert selected
+        assert "computable_observables" not in selected
+        assert "tolerance" not in selected
+
+        plain = record.as_plain_data()
+        for key in set(plain) - {"registry_selector"}:
+            mutated = copy.deepcopy(plain)
+            mutated[key] = _different_value(mutated[key])
+            assert (
+                resolve_registry_selector(registry_entry, mutated["registry_selector"])
+                == selected
+            )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda data: data["contracts"].pop(), "missing canonical contracts"),
+        (
+            lambda data: data["contracts"].append(copy.deepcopy(data["contracts"][0])),
+            "duplicate canonical contract names",
+        ),
+        (
+            lambda data: data["contracts"][0].update(benchmark_name="orphan_contract"),
+            "orphan canonical contracts",
+        ),
+        (
+            lambda data: data["records"][0].update(benchmark_name="orphan_record"),
+            "missing provisional records",
+        ),
+    ],
+)
+def test_inventory_rejects_missing_orphan_and_duplicate_names(
+    loaded_inventory, mutation, message
+):
+    data = mutable_inventory(loaded_inventory)
+    mutation(data)
+    with pytest.raises(InventoryError, match=message):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_inventory_rejects_generic_contract(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["contracts"][0]["observable"] = {
+        "identity": "material_reference",
+        "claim_fields": ["material_reference"],
+    }
+    with pytest.raises((InventoryError, EvidenceSchemaError), match="generic"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+@pytest.mark.parametrize(
+    "forbidden_key",
+    ["parsed_target", "source_excerpt", "copied_target", "verdict", "pass"],
+)
+def test_inventory_rejects_forbidden_target_and_verdict_fields_recursively(
+    loaded_inventory, forbidden_key
+):
+    data = mutable_inventory(loaded_inventory)
+    data["records"][0]["parser_strategy"]["nested"] = {forbidden_key: "leak"}
+    with pytest.raises((InventoryError, EvidenceSchemaError), match="forbidden"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+@pytest.mark.parametrize(
+    ("collection", "nested_key", "forbidden_key"),
+    [
+        ("contracts", "conditions", "verdict"),
+        ("source_index", "canonical_identity", "source_excerpt"),
+        (
+            "source_provisioning",
+            "authoritative_retrieval_route",
+            "copied_target",
+        ),
+    ],
+)
+def test_all_inventory_artifacts_reject_recursive_evidence_leakage(
+    loaded_inventory, collection, nested_key, forbidden_key
+):
+    data = mutable_inventory(loaded_inventory)
+    data[collection][0][nested_key][forbidden_key] = "leak"
+    with pytest.raises(InventoryError, match="forbidden"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+@pytest.mark.parametrize("source_hash", ["0" * 64, "a" * 64])
+def test_provisional_record_rejects_any_source_hash(source_hash, loaded_inventory):
+    plain = loaded_inventory.records[0].as_plain_data()
+    plain["source_sha256"] = source_hash
+    with pytest.raises(EvidenceSchemaError, match="source_sha256"):
+        ProvisionalEvidenceRecord(**plain)
+
+
+def test_inventory_rejects_bad_source_count_or_identity(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["source_index"].pop()
+    with pytest.raises(InventoryError, match="133"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+    data = mutable_inventory(loaded_inventory)
+    data["source_index"][0]["canonical_identity"]["value"] = "10.0/fake"
+    with pytest.raises(InventoryError, match="canonical source identity"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+    data = mutable_inventory(loaded_inventory)
+    data["records"][0]["source_id"] = data["records"][1]["source_id"]
+    with pytest.raises(InventoryError, match="record source identity mismatch"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_provisional_record_requires_nonempty_unresolved_reason(loaded_inventory):
+    plain = loaded_inventory.records[0].as_plain_data()
+    plain["unresolved_reason"] = " "
+    with pytest.raises(EvidenceSchemaError, match="unresolved_reason"):
+        ProvisionalEvidenceRecord(**plain)
+
+
+def test_inventory_rejects_locator_answer_leakage(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["locator_inventory"][0]["target_representation"]["answer"] = 1
+    with pytest.raises(InventoryError, match="forbidden"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_inventory_rejects_locator_source_or_empty_strategy(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["locator_inventory"][0]["source_id"] = data["source_index"][1]["source_id"]
+    with pytest.raises(InventoryError, match="locator source identity mismatch"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+    data = mutable_inventory(loaded_inventory)
+    data["locator_inventory"][0]["locator_strategy"] = {}
+    data["records"][0]["target_locator_strategy"] = {}
+    with pytest.raises(InventoryError, match="locator strategy"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_inventory_rejects_provisioning_mismatch(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["source_provisioning"][0]["source_id"] = "orphan_source"
+    with pytest.raises(InventoryError, match="provisioning"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+    data = mutable_inventory(loaded_inventory)
+    route = data["source_provisioning"][0]
+    current_kind = route["authoritative_retrieval_route"]["kind"]
+    route["authoritative_retrieval_route"]["kind"] = (
+        "doi_content_negotiation"
+        if current_kind == "arxiv_export_download"
+        else "arxiv_export_download"
+    )
+    with pytest.raises(InventoryError, match="retrieval route"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+    data = mutable_inventory(loaded_inventory)
+    data["source_provisioning"][0]["current_availability"] = "unavailable"
+    with pytest.raises(InventoryError, match="not_acquired"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_inventory_rejects_bad_canonical_source_url(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["source_index"][0]["canonical_url"] = "https://example.invalid/source"
+    with pytest.raises(InventoryError, match="canonical URL"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+@pytest.mark.parametrize("strategy_name", ["parser_strategy", "comparator"])
+def test_inventory_rejects_empty_parser_or_comparator_strategy(
+    loaded_inventory, strategy_name
+):
+    data = mutable_inventory(loaded_inventory)
+    data["records"][0][strategy_name] = {}
+    with pytest.raises(InventoryError, match=strategy_name.replace("_", " ")):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_loader_rejects_record_filename_mismatch(tmp_path):
+    copied_root = tmp_path / "literature-evidence"
+    shutil.copytree(INVENTORY_ROOT, copied_root)
+    record_path = next((copied_root / "records").glob("*.json"))
+    record_path.rename(record_path.with_name("wrong-record-filename.json"))
+    with pytest.raises(InventoryError, match="record filenames"):
+        load_and_validate_inventory(copied_root)
+
+
+@pytest.mark.parametrize("malformation", ["duplicate_key", "non_finite"])
+def test_loader_rejects_ambiguous_or_nonstandard_json(tmp_path, malformation):
+    copied_root = tmp_path / "literature-evidence"
+    shutil.copytree(INVENTORY_ROOT, copied_root)
+    record_path = next((copied_root / "records").glob("*.json"))
+    raw = record_path.read_text(encoding="utf-8")
+    if malformation == "duplicate_key":
+        raw = raw.replace(
+            '"benchmark_name":',
+            '"benchmark_name": "duplicate",\n  "benchmark_name":',
+            1,
+        )
+    else:
+        raw = raw.replace('"schema_version": 1', '"schema_version": NaN', 1)
+    record_path.write_text(raw, encoding="utf-8")
+    with pytest.raises(InventoryError, match="duplicate JSON key|non-finite JSON"):
+        load_and_validate_inventory(copied_root)
+
+
+def test_canonical_contract_artifact_is_independent_of_mutated_runtime_records(
+    loaded_inventory,
+):
+    contract_path = INVENTORY_ROOT / "canonical-observables.json"
+    before = contract_path.read_bytes()
+    records = [record.as_plain_data() for record in loaded_inventory.records]
+    records[0]["unresolved_reason"] = "mutated runtime metadata"
+    records[0]["parser_strategy"] = {"kind": "manual_future_parse"}
+
+    assert contract_path.read_bytes() == before
+
+
+def _recursive_keys(value):
+    if isinstance(value, dict):
+        keys = set(value)
+        for item in value.values():
+            keys.update(_recursive_keys(item))
+        return keys
+    if isinstance(value, (list, tuple)):
+        keys = set()
+        for item in value:
+            keys.update(_recursive_keys(item))
+        return keys
+    return set()
+
+
+def _different_value(value):
+    if isinstance(value, str):
+        return value + "_mutated"
+    if isinstance(value, dict):
+        return {"mutated": "metadata"}
+    if isinstance(value, list):
+        return ["mutated"]
+    return None
+
+
+def _recursive_leaves(value):
+    if isinstance(value, dict):
+        return [leaf for item in value.values() for leaf in _recursive_leaves(item)]
+    if isinstance(value, (list, tuple)):
+        return [leaf for item in value for leaf in _recursive_leaves(item)]
+    return [value]
+
+
+def _literal_registry_claim_fields():
+    registry_path = (
+        PROJECT_ROOT / "scripts" / "validation" / "literature_spin_model_benchmarks.py"
+    )
+    tree = ast.parse(registry_path.read_text(encoding="utf-8"))
+    list_nodes = []
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name)
+            and target.id == "LITERATURE_STANDARD_RESULTS"
+            for target in node.targets
+        ):
+            list_nodes.append(node.value)
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+            function = node.value.func
+            if (
+                isinstance(function, ast.Attribute)
+                and isinstance(function.value, ast.Name)
+                and function.value.id == "LITERATURE_STANDARD_RESULTS"
+                and function.attr == "extend"
+            ):
+                list_nodes.append(node.value.args[0])
+
+    result = {}
+    for list_node in list_nodes:
+        for entry_node in list_node.elts:
+            entry = {
+                key.value: value
+                for key, value in zip(entry_node.keys, entry_node.values)
+                if isinstance(key, ast.Constant) and isinstance(key.value, str)
+            }
+            name = ast.literal_eval(entry["name"])
+            fields = tuple(
+                key.value
+                for key in entry["standard_result"].keys
+                if isinstance(key, ast.Constant)
+                and isinstance(key.value, str)
+                and key.value not in {"tolerance", "computable_observables"}
+            )
+            result[name] = fields
+    return result

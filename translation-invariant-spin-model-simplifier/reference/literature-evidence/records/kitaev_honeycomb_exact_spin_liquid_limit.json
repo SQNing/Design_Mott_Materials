@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
+  "canonical_observable_id": "kitaev_honeycomb_exact_spin_liquid_limit",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "is_exactly_solvable",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "categorical_label",
+        "id": "isotropic_phase",
+        "type": "string",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "boolean_claim",
+        "id": "is_exactly_solvable",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "categorical_label",
+        "id": "isotropic_phase",
+        "type": "string",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "is_exactly_solvable",
+      "isotropic_phase"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_735636355d51385c61be",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "boolean_claim",
+          "id": "is_exactly_solvable",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "categorical_label",
+          "id": "isotropic_phase",
+          "type": "string",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

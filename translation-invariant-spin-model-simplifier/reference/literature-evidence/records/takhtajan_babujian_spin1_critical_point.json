@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "takhtajan_babujian_spin1_critical_point",
+  "canonical_observable_id": "takhtajan_babujian_spin1_critical_point",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "angular_scalar",
+        "id": "theta_radians",
+        "type": "number",
+        "units": "radian"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "is_integrable",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "angular_scalar",
+        "id": "theta_radians",
+        "type": "number",
+        "units": "radian"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "is_integrable",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "theta_radians",
+      "is_integrable"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_4ab4f44c819fbd03a62c",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "angular_scalar",
+          "id": "theta_radians",
+          "type": "number",
+          "units": "radian"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "is_integrable",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

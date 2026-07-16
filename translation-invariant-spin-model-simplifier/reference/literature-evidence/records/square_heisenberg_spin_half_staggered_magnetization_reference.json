@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "square_heisenberg_spin_half_staggered_magnetization_reference",
+  "canonical_observable_id": "square_heisenberg_spin_half_staggered_magnetization_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "fraction_of_saturation",
+        "id": "staggered_magnetization",
+        "type": "number",
+        "units": "normalized_magnetization"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "fraction_of_saturation",
+        "id": "staggered_magnetization",
+        "type": "number",
+        "units": "normalized_magnetization"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "staggered_magnetization"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_ebcdccab3f81a5059936",
+  "target_locator_strategy": {
+    "expected_container": "main_text_or_supplemental_table",
+    "locator_class": "table",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "fraction_of_saturation",
+          "id": "staggered_magnetization",
+          "type": "number",
+          "units": "normalized_magnetization"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

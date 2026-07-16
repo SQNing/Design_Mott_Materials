@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "honeycomb_j1_j2_j3_classical_phase_diagram",
+  "canonical_observable_id": "honeycomb_j1_j2_j3_classical_phase_diagram",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "phases",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "phases",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "phases"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_531cce39b8630ae418ce",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ordered_sequence",
+          "id": "phases",
+          "type": "list[string]",
+          "units": "field_dependent_sequence"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

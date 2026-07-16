@@ -1,0 +1,111 @@
+{
+  "benchmark_name": "spin_ice_tetrahedron_nn_ice_rule",
+  "canonical_observable_id": "spin_ice_tetrahedron_nn_ice_rule",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "two_in_two_out_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "three_in_one_out_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "all_in_all_out_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "nonnegative_integer_count",
+        "id": "two_in_two_out_degeneracy",
+        "type": "number",
+        "units": "count"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "two_in_two_out_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "three_in_one_out_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "all_in_all_out_energy",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "nonnegative_integer_count",
+        "id": "two_in_two_out_degeneracy",
+        "type": "number",
+        "units": "count"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "two_in_two_out_energy",
+      "three_in_one_out_energy",
+      "all_in_all_out_energy",
+      "two_in_two_out_degeneracy"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_f605e466ceaab98b53c2",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "two_in_two_out_energy",
+          "type": "number",
+          "units": "exchange_energy_unit"
+        },
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "three_in_one_out_energy",
+          "type": "number",
+          "units": "exchange_energy_unit"
+        },
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "all_in_all_out_energy",
+          "type": "number",
+          "units": "exchange_energy_unit"
+        },
+        {
+          "convention": "nonnegative_integer_count",
+          "id": "two_in_two_out_degeneracy",
+          "type": "number",
+          "units": "count"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

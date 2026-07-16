@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "kitaev_honeycomb_gapless_triangle_condition",
+  "canonical_observable_id": "kitaev_honeycomb_gapless_triangle_condition",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gapless_condition",
+        "type": "string",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "isotropic_kitaev_point_gapless",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gapless_condition",
+        "type": "string",
+        "units": "exchange_energy_unit"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "isotropic_kitaev_point_gapless",
+        "type": "boolean",
+        "units": "not_applicable"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "gapless_condition",
+      "isotropic_kitaev_point_gapless"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_735636355d51385c61be",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "gapless_condition",
+          "type": "string",
+          "units": "exchange_energy_unit"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "isotropic_kitaev_point_gapless",
+          "type": "boolean",
+          "units": "not_applicable"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

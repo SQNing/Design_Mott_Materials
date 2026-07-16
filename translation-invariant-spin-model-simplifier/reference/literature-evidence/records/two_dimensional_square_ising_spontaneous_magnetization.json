@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "two_dimensional_square_ising_spontaneous_magnetization",
+  "canonical_observable_id": "two_dimensional_square_ising_spontaneous_magnetization",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "symbolic_expression",
+        "id": "formula",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "fraction_of_saturation",
+        "id": "magnetization_beta_0_6_j_1",
+        "type": "number",
+        "units": "normalized_magnetization"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "symbolic_expression",
+        "id": "formula",
+        "type": "string",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "fraction_of_saturation",
+        "id": "magnetization_beta_0_6_j_1",
+        "type": "number",
+        "units": "normalized_magnetization"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "formula",
+      "magnetization_beta_0_6_j_1"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_d58cb3551f9e1c029988",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "symbolic_expression",
+          "id": "formula",
+          "type": "string",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "fraction_of_saturation",
+          "id": "magnetization_beta_0_6_j_1",
+          "type": "number",
+          "units": "normalized_magnetization"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

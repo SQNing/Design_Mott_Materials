@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "pyrochlore_dipolar_spin_ice_pauling_entropy",
+  "canonical_observable_id": "pyrochlore_dipolar_spin_ice_pauling_entropy",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "entropy_density",
+        "id": "pauling_entropy_per_spin",
+        "type": "number",
+        "units": "natural_log_unit_per_spin"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "entropy_density",
+        "id": "pauling_entropy_per_spin",
+        "type": "number",
+        "units": "natural_log_unit_per_spin"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "pauling_entropy_per_spin"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_c32f33c419ab46e79a19",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "entropy_density",
+          "id": "pauling_entropy_per_spin",
+          "type": "number",
+          "units": "natural_log_unit_per_spin"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

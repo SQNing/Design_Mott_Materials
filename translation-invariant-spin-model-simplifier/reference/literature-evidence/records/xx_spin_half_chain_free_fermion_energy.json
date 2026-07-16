@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "xx_spin_half_chain_free_fermion_energy",
+  "canonical_observable_id": "xx_spin_half_chain_free_fermion_energy",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "energy_density",
+        "id": "energy_per_site",
+        "type": "number",
+        "units": "exchange_energy_per_site"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "energy_density",
+        "id": "energy_per_site",
+        "type": "number",
+        "units": "exchange_energy_per_site"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "energy_per_site"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_bb9d8409dad06c02dae3",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "energy_density",
+          "id": "energy_per_site",
+          "type": "number",
+          "units": "exchange_energy_per_site"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

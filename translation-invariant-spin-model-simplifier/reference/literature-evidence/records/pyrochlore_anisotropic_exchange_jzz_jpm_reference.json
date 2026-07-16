@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "pyrochlore_anisotropic_exchange_jzz_jpm_reference",
+  "canonical_observable_id": "pyrochlore_anisotropic_exchange_jzz_jpm_reference",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "couplings",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_source_parse",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "ordered_sequence",
+        "id": "couplings",
+        "type": "list[string]",
+        "units": "field_dependent_sequence"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "couplings"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_94d0604c7e864a5e1f8f",
+  "target_locator_strategy": {
+    "expected_container": "main_text_claim_statement",
+    "locator_class": "body_text",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "ordered_sequence",
+          "id": "couplings",
+          "type": "list[string]",
+          "units": "field_dependent_sequence"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

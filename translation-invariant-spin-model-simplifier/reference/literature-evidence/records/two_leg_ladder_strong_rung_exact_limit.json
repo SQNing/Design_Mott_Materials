@@ -1,0 +1,73 @@
+{
+  "benchmark_name": "two_leg_ladder_strong_rung_exact_limit",
+  "canonical_observable_id": "two_leg_ladder_strong_rung_exact_limit",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "rung_energy",
+        "id": "energy_per_rung",
+        "type": "number",
+        "units": "exchange_energy_per_rung"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gap_to_triplet",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "rung_energy",
+        "id": "energy_per_rung",
+        "type": "number",
+        "units": "exchange_energy_per_rung"
+      },
+      {
+        "convention": "hamiltonian_energy_scale",
+        "id": "gap_to_triplet",
+        "type": "number",
+        "units": "exchange_energy_unit"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "energy_per_rung",
+      "gap_to_triplet"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_d3dec73b0de1021b7f2a",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "rung_energy",
+          "id": "energy_per_rung",
+          "type": "number",
+          "units": "exchange_energy_per_rung"
+        },
+        {
+          "convention": "hamiltonian_energy_scale",
+          "id": "gap_to_triplet",
+          "type": "number",
+          "units": "exchange_energy_unit"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

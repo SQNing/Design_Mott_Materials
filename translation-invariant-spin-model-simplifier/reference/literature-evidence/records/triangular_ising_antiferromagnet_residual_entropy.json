@@ -1,0 +1,54 @@
+{
+  "benchmark_name": "triangular_ising_antiferromagnet_residual_entropy",
+  "canonical_observable_id": "triangular_ising_antiferromagnet_residual_entropy",
+  "comparator": {
+    "fields": [
+      {
+        "convention": "entropy_density",
+        "id": "residual_entropy_per_spin",
+        "type": "number",
+        "units": "natural_log_unit_per_spin"
+      }
+    ],
+    "kind": "registered_field_comparison"
+  },
+  "evidence_mode": "local_recompute",
+  "parser_strategy": {
+    "kind": "structured_source_field_extraction",
+    "output_fields": [
+      {
+        "convention": "entropy_density",
+        "id": "residual_entropy_per_spin",
+        "type": "number",
+        "units": "natural_log_unit_per_spin"
+      }
+    ]
+  },
+  "record_state": "unresolved",
+  "registry_selector": {
+    "fields": [
+      "residual_entropy_per_spin"
+    ],
+    "path": [
+      "standard_result"
+    ]
+  },
+  "schema_version": 1,
+  "source_id": "doi_2817c61413e96673d2ef",
+  "target_locator_strategy": {
+    "expected_container": "numbered_or_displayed_equation",
+    "locator_class": "equation",
+    "target_representation": {
+      "fields": [
+        {
+          "convention": "entropy_density",
+          "id": "residual_entropy_per_spin",
+          "type": "number",
+          "units": "natural_log_unit_per_spin"
+        }
+      ],
+      "kind": "registered_field_map"
+    }
+  },
+  "unresolved_reason": "Authoritative source payload has not been acquired or parsed."
+}

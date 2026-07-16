@@ -1,0 +1,1468 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "authoritative_retrieval_route": {
+        "kind": "arxiv_export_download",
+        "url": "https://export.arxiv.org/pdf/1409.0193"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/arxiv_63ac2dc486b14b933a79/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "arxiv_63ac2dc486b14b933a79"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "arxiv_export_download",
+        "url": "https://export.arxiv.org/pdf/1804.04308"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/arxiv_22ae1487c7957c762836/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "arxiv_22ae1487c7957c762836"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "arxiv_export_download",
+        "url": "https://export.arxiv.org/pdf/cond-mat/0612001"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/arxiv_6d8189949f34733eb8b4/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "arxiv_6d8189949f34733eb8b4"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1002/9780470316517"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_3874d0662b42372f806d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_3874d0662b42372f806d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1007/bf01341708"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_59384b3efe539754fa1e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_59384b3efe539754fa1e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1007/bf02980577"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_85b0ca56044270e7e63e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_85b0ca56044270e7e63e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0003-4916(61)90115-4"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_bb9d8409dad06c02dae3/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_bb9d8409dad06c02dae3"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0003-4916(70)90270-8"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_0dd199cedf8c6235b783/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_0dd199cedf8c6235b783"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0304-8853(75)90113-5"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_05d9c1ea9a7bf527ff4f/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_05d9c1ea9a7bf527ff4f"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0304-8853(79)90049-2"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_531cce39b8630ae418ce/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_531cce39b8630ae418ce"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0370-2693(82)90471-0"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_4ab4f44c819fbd03a62c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_4ab4f44c819fbd03a62c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0375-9601(74)90701-2"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_418535974c0633b7e338/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_418535974c0633b7e338"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0375-9601(81)90438-x"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_a9fa724159c277eaa6cb/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_a9fa724159c277eaa6cb"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0375-9601(92)90823-5"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_7d48b95e16196d99b9b1/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_7d48b95e16196d99b9b1"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/0375-9601(92)90923-5"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_7ebcee4afff97a154c76/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_7ebcee4afff97a154c76"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/j.aop.2005.10.005"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_735636355d51385c61be/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_735636355d51385c61be"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/s0003-4916(02)00018-0"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_33fcf4c762fb137794a6/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_33fcf4c762fb137794a6"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1016/s0031-8914(50)80099-3"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_d579aa38d45a8e10082d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_d579aa38d45a8e10082d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1021/acs.chemmater.5b01006"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_b5217ae599c3cb1c02e8/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_b5217ae599c3cb1c02e8"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1021/ja053891p"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_3dff8548224b7a0681e5/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_3dff8548224b7a0681e5"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1021/jacs.7b08744"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_faffb52a35bbb864057b/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_faffb52a35bbb864057b"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/19242"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_97c202480cfbffef177b/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_97c202480cfbffef177b"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/nature25482"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_95a1148cb5d14b4d9680/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_95a1148cb5d14b4d9680"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/ncomms14113"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_998394301da8aab04b39/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_998394301da8aab04b39"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/ncomms2914"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_664ac00e662da4009081/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_664ac00e662da4009081"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/ncomms3287"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_642f8a747bfe6282382d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_642f8a747bfe6282382d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/ncomms5203"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_0e95cac63a568de62128/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_0e95cac63a568de62128"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/ncomms6137"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_6b6a567626db4d7194ce/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_6b6a567626db4d7194ce"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/nmat1867"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_404f519ad628c5708818/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_404f519ad628c5708818"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/nphys3826"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_43e75001b61aebd94a9d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_43e75001b61aebd94a9d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1038/srep16419"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_d467f120b672ca322e8e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_d467f120b672ca322e8e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1063/1.1664978"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_338d63a0924d74e024e4/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_338d63a0924d74e024e4"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1063/1.1706360"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_583e03a77c1093814101/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_583e03a77c1093814101"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1063/1.1724276"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_73b2515f2a4cc89196d3/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_73b2515f2a4cc89196d3"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1063/1.367780"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_84603f88ae7b84f66d95/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_84603f88ae7b84f66d95"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/0022-3719/13/31/002"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_b757c34f112f5da7b6c7/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_b757c34f112f5da7b6c7"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/0305-4470/10/10/014"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_19381940c9d01696a519/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_19381940c9d01696a519"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/0305-4470/38/26/003"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_d9030016946221a0420c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_d9030016946221a0420c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/0953-8984/10/29/012"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_d80d8b58bfab492e5df6/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_d80d8b58bfab492e5df6"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/0953-8984/19/14/145259"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1f376332a69cdcec20ce/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1f376332a69cdcec20ce"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/0953-8984/3/1/005"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_e3b1415a2e57b3de696a/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_e3b1415a2e57b3de696a"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/1361-648x/aa8cf5"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_983d905d88717d558737/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_983d905d88717d558737"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1088/1674-1137/41/3/037105"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_6c0becc5fdeb4d7af399/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_6c0becc5fdeb4d7af399"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.130.1605"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_4a885bb805afe8ada960/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_4a885bb805afe8ada960"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.131.546"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_b2f31bfaab7509b45b2e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_b2f31bfaab7509b45b2e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.141.517"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_2b2b97b695eeeeb1378a/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_2b2b97b695eeeeb1378a"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.150.321"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_99dc2b4658823c56a044/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_99dc2b4658823c56a044"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.162.162"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_648ea4bc439b5b7a10c2/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_648ea4bc439b5b7a10c2"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.65.117"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5ac1fc0c40596b19c09f/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5ac1fc0c40596b19c09f"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.79.357"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_2817c61413e96673d2ef/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_2817c61413e96673d2ef"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrev.85.808"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_d58cb3551f9e1c029988/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_d58cb3551f9e1c029988"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physreva.3.786"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_2e773eb6fd2e35377402/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_2e773eb6fd2e35377402"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.109.235116"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ae5fae7f5deae7bdf7e5/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ae5fae7f5deae7bdf7e5"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.19.402"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ed7a65b8814519a190b1/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ed7a65b8814519a190b1"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.48.3844"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_f900791f74b4918a9a3e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_f900791f74b4918a9a3e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.56.11678"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ebcdccab3f81a5059936/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ebcdccab3f81a5059936"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.57.2968"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c0cf5cc8dcbcb862c362/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c0cf5cc8dcbcb862c362"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.57.4986"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_07dc55c0b95abf20f73b/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_07dc55c0b95abf20f73b"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.57.5326"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c3199a48d54ca388b850/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c3199a48d54ca388b850"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.63.144418"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_4ad6882c76431fdc6aa1/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_4ad6882c76431fdc6aa1"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.65.014407"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_341bbc061192f2157c1d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_341bbc061192f2157c1d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.66.014418"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_b4ecc4050d7e6e010534/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_b4ecc4050d7e6e010534"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.67.104401"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_a442ddf2c4a97ebf3282/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_a442ddf2c4a97ebf3282"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.68.134424"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ead4ad59818f4ad25589/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ead4ad59818f4ad25589"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.69.064404"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5f1ff552586a07c4ad46/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5f1ff552586a07c4ad46"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.70.174454"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_0561dc1ddfb83046e779/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_0561dc1ddfb83046e779"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.70.184414"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_62b7064141c85be36c19/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_62b7064141c85be36c19"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.72.045105"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ad5da9e18d2e393cc975/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ad5da9e18d2e393cc975"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.78.140405"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_f912fac30ab22f0a872f/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_f912fac30ab22f0a872f"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.79.020408"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_bbb9a260b243a8c2d482/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_bbb9a260b243a8c2d482"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.82.075106"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_7f88cea74a31c9249c7c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_7f88cea74a31c9249c7c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.85.094422"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_80e63fcc6c4ffbc1bdd4/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_80e63fcc6c4ffbc1bdd4"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.86.140405"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1ef6a4cf65b6598edb8b/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1ef6a4cf65b6598edb8b"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.88.165138"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_37d6dcbf16346dd8de23/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_37d6dcbf16346dd8de23"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.90.094426"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_12c70cd2b0f8ba092030/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_12c70cd2b0f8ba092030"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.90.205116"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_57291c85f08380e3074d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_57291c85f08380e3074d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.91.104418"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_b4979c341380add8983b/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_b4979c341380add8983b"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.92.041105"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_550d205c56bb397a0f5a/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_550d205c56bb397a0f5a"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.92.140403"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_10f8d8a847e8ffd6e766/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_10f8d8a847e8ffd6e766"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.92.140407"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_44fc6738c4c3b3095202/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_44fc6738c4c3b3095202"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.92.224408"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_3210b04d5765cf8591dd/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_3210b04d5765cf8591dd"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.93.214431"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5532ae478270ecfac0bc/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5532ae478270ecfac0bc"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevb.96.205124"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_f36e066fc544152c0c30/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_f36e066fc544152c0c30"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.100.117202"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_30de47257cfae45dcfca/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_30de47257cfae45dcfca"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.101.026405"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1acf3789a851994c9d6c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1acf3789a851994c9d6c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.101.197202"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_0c40015567515b5d9937/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_0c40015567515b5d9937"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.105.027204"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_cccc77107683d181386d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_cccc77107683d181386d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.108.037202"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_8be1a4614254bceb7a20/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_8be1a4614254bceb7a20"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.108.057205"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1d4ba213888164ea4467/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1d4ba213888164ea4467"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.109.037208"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_9cb0dc0aa70484f11c98/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_9cb0dc0aa70484f11c98"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.109.067201"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_e599150fa96b6322a663/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_e599150fa96b6322a663"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.112.077204"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_bbb560ff60e674dc1fb7/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_bbb560ff60e674dc1fb7"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.113.027201"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_9bc03c9b602db2e07251/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_9bc03c9b602db2e07251"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.114.077202"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_20578e17910452318d7b/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_20578e17910452318d7b"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.19.1312"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_26f647152e99a2678e33/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_26f647152e99a2678e33"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.26.832"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_cb3265e8744878673955/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_cb3265e8744878673955"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.39.1201"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1cac9952c7fb6275a595/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1cac9952c7fb6275a595"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.59.799"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_31d77765ea903f1adaa9/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_31d77765ea903f1adaa9"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.60.2531"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_9e83835ec0d3b3c1292c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_9e83835ec0d3b3c1292c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.60.635"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_3c3be4c66f0054c73f1d/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_3c3be4c66f0054c73f1d"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.64.2070"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c7592568c4ee5f8fd07c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c7592568c4ee5f8fd07c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.69.3382"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_62710597daaa584a9a40/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_62710597daaa584a9a40"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.77.2085"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_0c17290da9e1b554a547/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_0c17290da9e1b554a547"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.79.2554"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_f605e466ceaab98b53c2/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_f605e466ceaab98b53c2"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.80.2929"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5b656dfc4b6b9ffc48f2/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5b656dfc4b6b9ffc48f2"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.80.2933"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_451bbc661fb1baca5288/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_451bbc661fb1baca5288"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.82.1012"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_0e5fc23af85ddd55e5bc/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_0e5fc23af85ddd55e5bc"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.82.3168"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_3e2040dc6e9848bd1404/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_3e2040dc6e9848bd1404"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.82.3899"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1bac9e892e28597b52b7/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1bac9e892e28597b52b7"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.87.047205"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c733dda5b601f475f156/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c733dda5b601f475f156"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.93.107206"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_3b8910c1f58e139297ef/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_3b8910c1f58e139297ef"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.95.127205"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_66dbcef072886207eaee/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_66dbcef072886207eaee"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.96.140603"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_122dc1b374767a010cb0/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_122dc1b374767a010cb0"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.96.247201"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_e1c5b4d344c8f9c88062/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_e1c5b4d344c8f9c88062"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.98.107204"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ce455d188afd140cadc4/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ce455d188afd140cadc4"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.98.227202"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_284ba3da8ffd91111098/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_284ba3da8ffd91111098"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevlett.99.137207"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_787b8f6d6f9d2741d4e9/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_787b8f6d6f9d2741d4e9"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/physrevx.1.021002"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_94d0604c7e864a5e1f8f/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_94d0604c7e864a5e1f8f"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/revmodphys.54.235"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5c4f75ee56f57b91e3e4/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5c4f75ee56f57b91e3e4"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1103/revmodphys.87.1"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_f915390aad8ba95157bf/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_f915390aad8ba95157bf"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1126/science.1059820"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c32f33c419ab46e79a19/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c32f33c419ab46e79a19"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1126/science.1201080"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_f95413c18507a37940f1/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_f95413c18507a37940f1"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1126/science.1224143"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5266a6c47781c7144991/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5266a6c47781c7144991"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1126/science.271.5249.618"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_d3dec73b0de1021b7f2a/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_d3dec73b0de1021b7f2a"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1126/science.284.5411.133"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_be978237972b2466880e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_be978237972b2466880e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1140/epjb/e2006-00267-3"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_8108add70d2566f81e3e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_8108add70d2566f81e3e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1140/epjb/e2009-00307-4"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_dd863fac988c6cf05b03/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_dd863fac988c6cf05b03"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1143/jpsj.70.3377"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_777604a7df2a1f46d2cb/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_777604a7df2a1f46d2cb"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1143/jpsj.78.043704"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_1c5a42de0551d2e2451c/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_1c5a42de0551d2e2451c"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1143/ptp.10.158"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_5ff3dbcb129ebe58da6a/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_5ff3dbcb129ebe58da6a"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1209/0295-5075/29/4/008"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c0dc2e73472a60a1af6e/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c0dc2e73472a60a1af6e"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1209/epl/i2002-00102-3"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_ed93336369a0749b622a/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_ed93336369a0749b622a"
+    },
+    {
+      "authoritative_retrieval_route": {
+        "kind": "doi_content_negotiation",
+        "url": "https://doi.org/10.1209/epl/i2005-10075-2"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_46d75409d57d2b87addc/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_46d75409d57d2b87addc"
+    }
+  ]
+}
