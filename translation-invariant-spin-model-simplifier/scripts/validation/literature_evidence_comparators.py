@@ -34,7 +34,7 @@ def _finite_nonnegative(value, field_name):
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
-        or not math.isfinite(value)
+        or (isinstance(value, float) and not math.isfinite(value))
         or value < 0
     ):
         raise ObservableComparisonError(
@@ -47,7 +47,7 @@ def _finite_numeric(value, field_name="numeric operand"):
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
-        or not math.isfinite(value)
+        or (isinstance(value, float) and not math.isfinite(value))
     ):
         raise ObservableComparisonError(f"{field_name} must be a finite numeric scalar")
     return value
@@ -145,26 +145,44 @@ def _validate_json(value, field_name):
 
 
 def _type_aware_equal(left, right):
-    if type(left) is not type(right):
-        return False
     if isinstance(left, Mapping):
+        if not isinstance(right, Mapping):
+            return False
         return set(left) == set(right) and all(
             _type_aware_equal(left[key], right[key]) for key in left
         )
     if isinstance(left, (list, tuple)):
+        if not isinstance(right, (list, tuple)):
+            return False
         return len(left) == len(right) and all(
             _type_aware_equal(left_item, right_item)
             for left_item, right_item in zip(left, right)
         )
-    return left == right
+    return type(left) is type(right) and left == right
 
 
 def _format_number(value):
-    return format(value, ".15g")
+    try:
+        if isinstance(value, int):
+            return str(value)
+        return format(value, ".15g")
+    except (OverflowError, ValueError) as error:
+        raise ObservableComparisonError("numeric diagnostic cannot be rendered") from error
 
 
 def _decimal(value):
-    return Decimal(str(value))
+    try:
+        return Decimal(str(value))
+    except (OverflowError, ValueError) as error:
+        raise ObservableComparisonError("numeric value cannot be converted exactly") from error
+
+
+def _diagnostic_number(value):
+    try:
+        converted = float(value)
+    except (OverflowError, ValueError) as error:
+        raise ObservableComparisonError("numeric diagnostic cannot be converted") from error
+    return converted if math.isfinite(converted) else str(value)
 
 
 def _absolute_errors(literature, candidate, uncertainty):
@@ -239,12 +257,12 @@ def _absolute(literature, candidate, tolerance, uncertainty):
     matched = conservative_error <= _decimal(tolerance)
     relation = "is within" if matched else "exceeds"
     reason = (
-        f"absolute error {_format_number(float(raw_error))}"
+        f"absolute error {_format_number(raw_error)}"
         f" plus local uncertainty {_format_number(uncertainty)} "
         f"{relation} tolerance "
         f"{_format_number(tolerance)}"
     )
-    return matched, float(raw_error), tolerance, reason
+    return matched, _diagnostic_number(raw_error), tolerance, reason
 
 
 def _relative(literature, candidate, comparison, uncertainty):
@@ -273,11 +291,11 @@ def _relative(literature, candidate, comparison, uncertainty):
     matched = conservative_error <= _decimal(tolerance)
     relation = "is within" if matched else "exceeds"
     reason = (
-        f"relative error {_format_number(float(error))} plus absolute local uncertainty "
+        f"relative error {_format_number(error)} plus absolute local uncertainty "
         f"{_format_number(uncertainty)} {relation} tolerance "
         f"{_format_number(tolerance)}"
     )
-    return matched, float(error), tolerance, reason
+    return matched, _diagnostic_number(error), tolerance, reason
 
 
 def _interval(literature, candidate):
@@ -426,29 +444,13 @@ def compare_observables(
                 f"local uncertainty is not supported for {kind!r} comparisons"
             )
     uncertainty = 0 if local_uncertainty is None else local_uncertainty
-    literature, candidate, literature_units, candidate_units = _unwrap_operands(
-        literature_operand, candidate_operand
-    )
-
-    if literature_units is not None and literature_units != candidate_units:
-        _validate_json(literature, "literature operand")
-        _validate_json(candidate, "candidate operand")
-        return _trace(
-            benchmark_name=benchmark_name,
-            comparison=comparison_config,
-            original_literature_operand=literature_operand,
-            original_candidate_operand=candidate_operand,
-            literature_value=literature,
-            candidate_value=candidate,
-            units={"literature": literature_units, "candidate": candidate_units},
-            error=None,
-            tolerance=comparison_config.get("tolerance"),
-            local_uncertainty=local_uncertainty,
-            matched=False,
-            reason=(
-                f"unit mismatch: literature uses {literature_units!r}, "
-                f"candidate uses {candidate_units!r}"
-            ),
+    if kind == "typed_claim":
+        literature = literature_operand
+        candidate = candidate_operand
+        literature_units = candidate_units = None
+    else:
+        literature, candidate, literature_units, candidate_units = _unwrap_operands(
+            literature_operand, candidate_operand
         )
 
     if kind == "exact":
@@ -467,6 +469,25 @@ def compare_observables(
         outcome = _sequence(literature, candidate)
     else:
         outcome = _typed_claim(literature, candidate)
+
+    if literature_units is not None and literature_units != candidate_units:
+        return _trace(
+            benchmark_name=benchmark_name,
+            comparison=comparison_config,
+            original_literature_operand=literature_operand,
+            original_candidate_operand=candidate_operand,
+            literature_value=literature,
+            candidate_value=candidate,
+            units={"literature": literature_units, "candidate": candidate_units},
+            error=None,
+            tolerance=comparison_config.get("tolerance"),
+            local_uncertainty=local_uncertainty,
+            matched=False,
+            reason=(
+                f"unit mismatch: literature uses {literature_units!r}, "
+                f"candidate uses {candidate_units!r}"
+            ),
+        )
 
     matched, error, tolerance, reason = outcome
     return _trace(

@@ -3,6 +3,7 @@ import json
 import math
 import sys
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -466,6 +467,30 @@ def test_relative_comparison_uses_relative_error_and_uncertainty():
     assert failing.payload["matched"] is False
 
 
+@pytest.mark.parametrize(
+    ("kind", "literature", "candidate", "tolerance"),
+    [
+        ("absolute", -1e308, 1e308, 0.0),
+        ("relative", 5e-324, 1e308, 0.0),
+    ],
+)
+def test_out_of_float_range_exact_errors_use_json_safe_decimal_diagnostics(
+    kind, literature, candidate, tolerance
+):
+    result = compare(
+        kind,
+        literature,
+        candidate,
+        comparison_overrides={"tolerance": tolerance},
+    )
+
+    assert result.payload["matched"] is False
+    assert isinstance(result.payload["error"], str)
+    assert "inf" not in result.payload["error"].lower()
+    assert "inf" not in result.payload["reason"].lower()
+    assert json.loads(canonical_json_bytes(result))["payload"]["error"] == result.payload["error"]
+
+
 def test_relative_zero_fails_closed_without_absolute_fallback():
     result = compare(
         "relative", 0.0, 0.0,
@@ -558,6 +583,19 @@ def test_sequence_comparison_is_ordered_type_aware_and_reports_length():
         compare("sequence", "ab", "ab")
 
 
+def test_recursive_json_equality_ignores_container_implementations_only():
+    literature = [{"values": [True, 2.0]}]
+    candidate = (MappingProxyType({"values": (True, 2.0)}),)
+
+    assert compare("sequence", literature, candidate).payload["matched"] is True
+    assert compare(
+        "typed_claim",
+        {"result": {"values": [True, 2.0]}},
+        MappingProxyType({"result": MappingProxyType({"values": (True, 2.0)})}),
+    ).payload["matched"] is True
+    assert compare("sequence", [[True]], ((1,),)).payload["matched"] is False
+
+
 def test_typed_claim_requires_exact_keys_and_recursive_type_aware_values():
     claim = {"phase": "Haldane", "degeneracy": 4, "flags": {"gapped": True}}
     assert compare("typed_claim", claim, dict(claim)).payload["matched"] is True
@@ -572,6 +610,20 @@ def test_typed_claim_requires_exact_keys_and_recursive_type_aware_values():
     assert "missing fields: flags" in result.payload["reason"]
     assert "extra fields: extra" in result.payload["reason"]
     assert "mismatched fields: degeneracy" in result.payload["reason"]
+
+
+def test_typed_claim_value_and_units_fields_are_claim_content_not_an_envelope():
+    claim = {"value": "Haldane", "units": "phase_label"}
+
+    assert compare("typed_claim", claim, dict(claim)).payload["matched"] is True
+    mismatch = compare(
+        "typed_claim",
+        claim,
+        {"value": "trivial", "units": "phase_label"},
+    )
+
+    assert mismatch.payload["matched"] is False
+    assert "mismatched fields: value" in mismatch.payload["reason"]
 
 
 @pytest.mark.parametrize("operand", [[], "claim", {1: "bad"}, {"bad": object()}])
@@ -607,6 +659,30 @@ def test_unit_mismatch_is_a_failed_trace_not_malformed_data():
     assert result.payload["matched"] is False
     assert result.payload["units"] == {"literature": "eV", "candidate": "meV"}
     assert "unit mismatch" in result.payload["reason"]
+
+
+@pytest.mark.parametrize(
+    ("kind", "literature_value", "candidate_value", "comparison_overrides"),
+    [
+        ("exact", [1], [1], {}),
+        ("absolute", "bad", 1.0, {"tolerance": 0.0}),
+        ("relative", 1.0, "bad", {"tolerance": 0.0}),
+        ("interval", {"lower": 0}, 0, {}),
+        ("set", [{"nested": 1}], [1], {}),
+        ("sequence", "bad", ["bad"], {}),
+        ("typed_claim", {"bad": object()}, {"ok": True}, {}),
+    ],
+)
+def test_unit_mismatch_does_not_hide_kind_specific_malformed_operands(
+    kind, literature_value, candidate_value, comparison_overrides
+):
+    with pytest.raises(ObservableComparisonError):
+        compare(
+            kind,
+            {"value": literature_value, "units": "eV"},
+            {"value": candidate_value, "units": "meV"},
+            comparison_overrides=comparison_overrides,
+        )
 
 
 @pytest.mark.parametrize(
@@ -663,6 +739,66 @@ def test_numeric_comparators_reject_nonfinite_and_nonnumeric_operands(value):
         compare("absolute", value, 1.0, comparison_overrides={"tolerance": 0.1})
     with pytest.raises(ObservableComparisonError, match="numeric"):
         compare("interval", {"lower": 0, "upper": 2, "lower_inclusive": True, "upper_inclusive": True}, value)
+
+
+def test_numeric_comparators_safely_support_arbitrary_size_json_integers():
+    huge = 10**1000
+
+    absolute = compare(
+        "absolute",
+        huge,
+        huge,
+        comparison_overrides={"tolerance": huge},
+        local_uncertainty=huge,
+    )
+    interval = compare(
+        "interval",
+        {
+            "lower": -huge,
+            "upper": huge,
+            "lower_inclusive": True,
+            "upper_inclusive": True,
+        },
+        0,
+    )
+
+    assert absolute.payload["matched"] is True
+    assert interval.payload["matched"] is True
+
+
+def test_numeric_integer_conversion_failures_are_comparison_errors():
+    class UnrenderableInt(int):
+        def __str__(self):
+            raise OverflowError("integer cannot be rendered")
+
+    unrenderable = UnrenderableInt(1)
+    requests = [
+        ("absolute", unrenderable, 0, {"tolerance": 0}, None),
+        ("absolute", 0, 0, {"tolerance": unrenderable}, None),
+        ("absolute", 0, 0, {"tolerance": 0}, unrenderable),
+        (
+            "interval",
+            {
+                "lower": unrenderable,
+                "upper": unrenderable,
+                "lower_inclusive": True,
+                "upper_inclusive": True,
+            },
+            0,
+            {},
+            None,
+        ),
+    ]
+
+    for kind, literature, candidate, comparison_overrides, uncertainty in requests:
+        with pytest.raises(ObservableComparisonError):
+            compare(
+                kind,
+                literature,
+                candidate,
+                comparison_overrides=comparison_overrides,
+                local_uncertainty=uncertainty,
+            )
 
 
 def test_local_uncertainty_is_rejected_for_non_numeric_comparators():
