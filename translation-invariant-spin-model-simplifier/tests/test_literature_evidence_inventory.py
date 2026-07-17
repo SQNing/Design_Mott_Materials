@@ -27,6 +27,7 @@ from validation.literature_evidence_schema import (
     EvidenceRecord,
     ProvisionalEvidenceRecord,
 )
+from validation.literature_evidence_sources import authoritative_route_for_identity
 from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESULTS
 
 
@@ -499,24 +500,40 @@ def test_sources_are_133_unique_canonical_identities_covering_every_record(
         assert set(matching[0]["benchmark_names"]) == expected_benchmarks
 
 
-def test_provisioning_has_one_honest_unacquired_route_per_source(loaded_inventory):
+def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
+    loaded_inventory,
+):
     routes = loaded_inventory.source_provisioning
     assert len(routes) == 133
     assert {route["source_id"] for route in routes} == {
         source["source_id"] for source in loaded_inventory.source_index
     }
     for route in routes:
-        assert route["authoritative_retrieval_route"]["kind"] in {
-            "doi_content_negotiation",
-            "arxiv_export_download",
+        source = next(
+            item
+            for item in loaded_inventory.source_index
+            if item["source_id"] == route["source_id"]
+        )
+        expected = authoritative_route_for_identity(source["canonical_identity"])
+        assert route["authoritative_retrieval_route"] == {
+            "kind": expected["kind"],
+            "url": expected["url"],
         }
+        assert route["access_mode"] == expected["access_mode"]
+        assert route["authoritative_retrieval_route"]["kind"] != (
+            "doi_content_negotiation"
+        )
         assert route["expected_media_type"] in {
             "application/pdf",
             "application/xml",
         }
+        assert route["expected_media_type"] == expected["expected_media_type"]
         assert route["redistributability"] == "unresolved"
         assert route["current_availability"] == "not_acquired"
-        assert route["local_cache_location"].startswith("source-cache/")
+        extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
+        assert route["local_cache_location"] == (
+            f"source-cache/{route['source_id']}/source.{extension}"
+        )
 
 
 def test_locator_inventory_is_structured_target_free_and_complete(loaded_inventory):
@@ -815,11 +832,7 @@ def test_inventory_rejects_provisioning_mismatch(loaded_inventory):
     data = mutable_inventory(loaded_inventory)
     route = data["source_provisioning"][0]
     current_kind = route["authoritative_retrieval_route"]["kind"]
-    route["authoritative_retrieval_route"]["kind"] = (
-        "doi_content_negotiation"
-        if current_kind == "arxiv_export_download"
-        else "arxiv_export_download"
-    )
+    route["authoritative_retrieval_route"]["kind"] = current_kind + "_mutated"
     with pytest.raises(InventoryError, match="retrieval route"):
         validate_inventory(data, LITERATURE_STANDARD_RESULTS)
 

@@ -17,6 +17,7 @@ from validation.literature_evidence_schema import (
     EvidenceSchemaError,
     ProvisionalEvidenceRecord,
 )
+from validation.literature_evidence_sources import authoritative_route_for_identity
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -463,24 +464,21 @@ def build_inventory_data(
                 "benchmark_names": sorted(sources_by_identity[identity]),
             }
         )
-        route_kind = (
-            "doi_content_negotiation"
-            if kind == "doi"
-            else "arxiv_export_download"
-        )
-        retrieval_url = (
-            url if kind == "doi" else f"https://export.arxiv.org/pdf/{value}"
-        )
+        route = authoritative_route_for_identity({"kind": kind, "value": value})
+        extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
         provisioning.append(
             {
                 "source_id": source_id,
                 "authoritative_retrieval_route": {
-                    "kind": route_kind,
-                    "url": retrieval_url,
+                    "kind": route["kind"],
+                    "url": route["url"],
                 },
-                "expected_media_type": "application/pdf",
+                "expected_media_type": route["expected_media_type"],
+                "access_mode": route["access_mode"],
                 "redistributability": "unresolved",
-                "local_cache_location": f"source-cache/{source_id}/source.pdf",
+                "local_cache_location": (
+                    f"source-cache/{source_id}/source.{extension}"
+                ),
                 "current_availability": "not_acquired",
             }
         )
@@ -906,6 +904,7 @@ def _validate_provisioning(routes, expected_sources):
             "source_id",
             "authoritative_retrieval_route",
             "expected_media_type",
+            "access_mode",
             "redistributability",
             "local_cache_location",
             "current_availability",
@@ -915,33 +914,32 @@ def _validate_provisioning(routes, expected_sources):
         retrieval = route["authoritative_retrieval_route"]
         if not isinstance(retrieval, Mapping) or set(retrieval) != {"kind", "url"}:
             raise InventoryError(f"invalid authoritative retrieval route for {route['source_id']}")
-        if retrieval["kind"] not in {"doi_content_negotiation", "arxiv_export_download"}:
-            raise InventoryError(f"invalid authoritative retrieval kind for {route['source_id']}")
         identity = identity_by_id[route["source_id"]]
         kind, value = identity.split(":", 1)
-        expected_kind = (
-            "doi_content_negotiation"
-            if kind == "doi"
-            else "arxiv_export_download"
+        expected_route = authoritative_route_for_identity(
+            {"kind": kind, "value": value}
         )
-        expected_url = (
-            f"https://doi.org/{value}"
-            if kind == "doi"
-            else f"https://export.arxiv.org/pdf/{value}"
-        )
-        if retrieval != {"kind": expected_kind, "url": expected_url}:
+        if retrieval != {
+            "kind": expected_route["kind"],
+            "url": expected_route["url"],
+        }:
             raise InventoryError(
                 f"authoritative retrieval route mismatch for {route['source_id']}"
             )
-        if route["expected_media_type"] not in {"application/pdf", "application/xml"}:
+        if route["expected_media_type"] != expected_route["expected_media_type"]:
             raise InventoryError(f"invalid expected media type for {route['source_id']}")
+        if route["access_mode"] != expected_route["access_mode"]:
+            raise InventoryError(f"invalid access mode for {route['source_id']}")
         if route["redistributability"] != "unresolved":
             raise InventoryError(f"redistributability must remain unresolved for {route['source_id']}")
         if route["current_availability"] != "not_acquired":
             raise InventoryError(
                 f"source availability must be not_acquired for {route['source_id']}"
             )
-        expected_cache_location = f"source-cache/{route['source_id']}/source.pdf"
+        extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
+        expected_cache_location = (
+            f"source-cache/{route['source_id']}/source.{extension}"
+        )
         if route["local_cache_location"] != expected_cache_location:
             raise InventoryError(f"invalid local cache location for {route['source_id']}")
 
