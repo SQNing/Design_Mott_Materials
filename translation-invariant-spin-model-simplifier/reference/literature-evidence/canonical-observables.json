@@ -1892,23 +1892,27 @@
         "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
-        "expression": "honeycomb antiferromagnetic Heisenberg exchange",
+        "expression": "layered honeycomb Heisenberg model with competing exchange",
         "lattice": "honeycomb",
         "terms": [
           "heisenberg",
           "honeycomb",
           "antiferromagnetic",
+          "competing_exchange",
+          "layered",
           "material"
         ]
       },
       "observable": {
         "claim_fields": [
-          "neel_order_on_honeycomb"
+          "magnetic_order",
+          "propagation_vector_hexagonal"
         ],
-        "identity": "neel_order_on_honeycomb_in_fecl3_honeycomb_antiferromagnet",
+        "identity": "helimagnetic_order_and_propagation_vector_in_layered_fecl3",
         "semantics": [
-          "Canonical literature observable: neel order on honeycomb in fecl3 honeycomb antiferromagnet.",
-          "Truth value of the proposition 'neel order on honeycomb' for fecl3 honeycomb antiferromagnet, with source conditions matched explicitly."
+          "Canonical literature observable: helimagnetic order and propagation vector in layered FeCl3.",
+          "Published neutron-diffraction magnetic-order classification for layered FeCl3 under the source conditions.",
+          "Published FeCl3 helimagnetic propagation vector represented in the source hexagonal reciprocal-lattice basis."
         ]
       },
       "parameter_regime": {
@@ -1917,10 +1921,16 @@
       "representation": {
         "fields": [
           {
-            "convention": "boolean_claim",
-            "id": "neel_order_on_honeycomb",
-            "type": "boolean",
+            "convention": "categorical_label",
+            "id": "magnetic_order",
+            "type": "string",
             "units": "not_applicable"
+          },
+          {
+            "convention": "ordering_wavevector_hexagonal_basis",
+            "id": "propagation_vector_hexagonal",
+            "type": "list[number]",
+            "units": "reciprocal_lattice_unit"
           }
         ],
         "kind": "registered_field_map"
@@ -1931,7 +1941,7 @@
       },
       "subject": "Fecl3 honeycomb antiferromagnet",
       "system": "fecl3_honeycomb_antiferromagnet",
-      "units": "neel_order_on_honeycomb=not_applicable"
+      "units": "magnetic_order=not_applicable; propagation_vector_hexagonal=reciprocal_lattice_unit"
     },
     {
       "benchmark_name": "gadolinium_gallium_garnet_hyperkagome_reference",

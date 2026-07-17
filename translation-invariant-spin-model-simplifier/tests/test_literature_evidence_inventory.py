@@ -1,6 +1,7 @@
 import copy
 import ast
 import json
+import math
 import shutil
 import sys
 from pathlib import Path
@@ -28,7 +29,13 @@ from validation.literature_evidence_schema import (
     ProvisionalEvidenceRecord,
 )
 from validation.literature_evidence_sources import authoritative_route_for_identity
-from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESULTS
+from validation.literature_spin_model_benchmarks import (
+    LITERATURE_STANDARD_RESULTS,
+    classical_projection_verification_tasks,
+    fecl3_cable_helix_geometry,
+    pitch_and_ordering_vector_verification_tasks,
+    residual_projection_verification_tasks,
+)
 
 
 @pytest.fixture(scope="module")
@@ -596,6 +603,93 @@ def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
     assert set(okamoto_source["benchmark_names"]) == {
         "j1_j2_chain_bkt_transition_reference",
         "j1_j2_chain_okamoto_nomura_critical_point",
+    }
+
+
+def test_fecl3_benchmark_uses_published_helimagnetic_structure(loaded_inventory):
+    entry = next(
+        item
+        for item in LITERATURE_STANDARD_RESULTS
+        if item["name"] == "fecl3_honeycomb_antiferromagnet_reference"
+    )
+    assert entry["source"] == "Cable_1962"
+    assert entry["source_url"] == "https://doi.org/10.1103/PhysRev.127.714"
+    assert entry["standard_result"]["magnetic_order"] == "helimagnetic_spiral"
+    assert entry["standard_result"]["propagation_vector_hexagonal"] == [
+        4.0 / 15.0,
+        1.0 / 15.0,
+        3.0 / 2.0,
+    ]
+    computable = set(entry["standard_result"]["computable_observables"])
+    assert computable == {"spiral_geometry_consistency"}
+    assert computable.isdisjoint(
+        {
+            "gamma_staggered_honeycomb_minimum",
+            "two_band_lsw_spectrum",
+            "classical_luttinger_tisza_minima",
+        }
+    )
+    assert "competing" in entry["hamiltonian"]
+    assert "competing_exchange" in entry["hamiltonian_terms"]
+
+    contract = next(
+        item
+        for item in loaded_inventory.contracts
+        if item.benchmark_name == entry["name"]
+    )
+    assert contract.observable["claim_fields"] == (
+        "magnetic_order",
+        "propagation_vector_hexagonal",
+    )
+    assert contract.observable["identity"] == (
+        "helimagnetic_order_and_propagation_vector_in_layered_fecl3"
+    )
+    fields = {field["id"]: field for field in contract.representation["fields"]}
+    assert fields["magnetic_order"] == {
+        "id": "magnetic_order",
+        "type": "string",
+        "units": "not_applicable",
+        "convention": "categorical_label",
+    }
+    assert fields["propagation_vector_hexagonal"] == {
+        "id": "propagation_vector_hexagonal",
+        "type": "list[number]",
+        "units": "reciprocal_lattice_unit",
+        "convention": "ordering_wavevector_hexagonal_basis",
+    }
+
+
+def test_fecl3_tasks_remove_neel_projection_and_validate_cable_helix_geometry():
+    benchmark_name = "fecl3_honeycomb_antiferromagnet_reference"
+    all_tasks = (
+        classical_projection_verification_tasks()
+        + residual_projection_verification_tasks()
+        + pitch_and_ordering_vector_verification_tasks()
+    )
+    fecl3_tasks = [
+        task for task in all_tasks if task["benchmark_name"] == benchmark_name
+    ]
+    assert [task["computable_observable"] for task in fecl3_tasks] == [
+        "spiral_geometry_consistency"
+    ]
+    task = fecl3_tasks[0]
+    assert task["projection_kind"] == "source_vector_geometry_consistency"
+    assert task["expected_propagation_vector_hexagonal"] == [
+        4.0 / 15.0,
+        1.0 / 15.0,
+        3.0 / 2.0,
+    ]
+
+    geometry = fecl3_cable_helix_geometry(
+        hexagonal_in_plane_numerators=(4, 1),
+        modulation_denominator=15,
+        antiferromagnetic_c_axis=True,
+    )
+    assert geometry == {
+        "magnetic_order": "helimagnetic_spiral",
+        "propagation_vector_hexagonal": [4.0 / 15.0, 1.0 / 15.0, 3.0 / 2.0],
+        "in_plane_period_lattice_spacings": 15,
+        "successive_plane_turn_angle_radians": 2.0 * math.pi / 15.0,
     }
 
 

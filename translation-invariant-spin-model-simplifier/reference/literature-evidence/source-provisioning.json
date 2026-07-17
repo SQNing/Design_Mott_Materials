@@ -157,23 +157,6 @@
     {
       "access_mode": "api_key_or_entitlement",
       "authoritative_retrieval_route": {
-        "artifact_identifier": "doi:10.1016/0304-8853(75)90113-5",
-        "kind": "elsevier_article_api_xml",
-        "url": "https://api.elsevier.com/content/article/doi/10.1016/0304-8853(75)90113-5",
-        "work_identity_evidence": {
-          "kind": "canonical_identity",
-          "url": "https://doi.org/10.1016/0304-8853(75)90113-5"
-        }
-      },
-      "current_availability": "not_acquired",
-      "expected_media_type": "application/xml",
-      "local_cache_location": "source-cache/doi_05d9c1ea9a7bf527ff4f/source.xml",
-      "redistributability": "unresolved",
-      "source_id": "doi_05d9c1ea9a7bf527ff4f"
-    },
-    {
-      "access_mode": "api_key_or_entitlement",
-      "authoritative_retrieval_route": {
         "artifact_identifier": "doi:10.1016/0375-9601(82)90403-0",
         "kind": "elsevier_article_api_xml",
         "url": "https://api.elsevier.com/content/article/doi/10.1016/0375-9601(82)90403-0",
@@ -714,6 +697,23 @@
       "local_cache_location": "source-cache/doi_6c0becc5fdeb4d7af399/source.pdf",
       "redistributability": "unresolved",
       "source_id": "doi_6c0becc5fdeb4d7af399"
+    },
+    {
+      "access_mode": "unattended",
+      "authoritative_retrieval_route": {
+        "artifact_identifier": "doi:10.1103/physrev.127.714",
+        "kind": "aps_harvest_pdf",
+        "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrev.127.714/fulltext",
+        "work_identity_evidence": {
+          "kind": "canonical_identity",
+          "url": "https://doi.org/10.1103/physrev.127.714"
+        }
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_c01358c57a755609d430/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_c01358c57a755609d430"
     },
     {
       "access_mode": "unattended",

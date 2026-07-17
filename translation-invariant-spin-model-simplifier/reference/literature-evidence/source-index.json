@@ -107,17 +107,6 @@
     },
     {
       "benchmark_names": [
-        "fecl3_honeycomb_antiferromagnet_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0304-8853(75)90113-5"
-      },
-      "canonical_url": "https://doi.org/10.1016/0304-8853(75)90113-5",
-      "source_id": "doi_05d9c1ea9a7bf527ff4f"
-    },
-    {
-      "benchmark_names": [
         "takhtajan_babujian_spin1_critical_point"
       ],
       "canonical_identity": {
@@ -470,6 +459,17 @@
       },
       "canonical_url": "https://doi.org/10.1088/1674-1137/41/3/037105",
       "source_id": "doi_6c0becc5fdeb4d7af399"
+    },
+    {
+      "benchmark_names": [
+        "fecl3_honeycomb_antiferromagnet_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrev.127.714"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrev.127.714",
+      "source_id": "doi_c01358c57a755609d430"
     },
     {
       "benchmark_names": [

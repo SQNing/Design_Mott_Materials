@@ -4,10 +4,16 @@
   "comparator": {
     "fields": [
       {
-        "convention": "boolean_claim",
-        "id": "neel_order_on_honeycomb",
-        "type": "boolean",
+        "convention": "categorical_label",
+        "id": "magnetic_order",
+        "type": "string",
         "units": "not_applicable"
+      },
+      {
+        "convention": "ordering_wavevector_hexagonal_basis",
+        "id": "propagation_vector_hexagonal",
+        "type": "list[number]",
+        "units": "reciprocal_lattice_unit"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,26 +23,33 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "boolean_claim",
-        "id": "neel_order_on_honeycomb",
-        "type": "boolean",
+        "convention": "categorical_label",
+        "id": "magnetic_order",
+        "type": "string",
         "units": "not_applicable"
+      },
+      {
+        "convention": "ordering_wavevector_hexagonal_basis",
+        "id": "propagation_vector_hexagonal",
+        "type": "list[number]",
+        "units": "reciprocal_lattice_unit"
       }
     ]
   },
   "record_state": "unresolved",
   "registry_selector": {
     "fields": [
-      "neel_order_on_honeycomb"
+      "magnetic_order",
+      "propagation_vector_hexagonal"
     ],
     "path": [
       "standard_result"
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_05d9c1ea9a7bf527ff4f",
+  "source_id": "doi_c01358c57a755609d430",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1016/0304-8853(75)90113-5",
+    "canonical_source_identity": "doi:10.1103/physrev.127.714",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,21 +58,28 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1016/0304-8853(75)90113-5 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrev.127.714 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "FeCl3",
       "classical order",
-      "neel order on honeycomb",
-      "FeCl3 layered honeycomb antiferromagnet reference"
+      "magnetic order",
+      "propagation vector hexagonal",
+      "FeCl3 helimagnetic propagation vector from neutron diffraction"
     ],
-    "source_context_hint": "FeCl3 layered honeycomb antiferromagnet reference",
+    "source_context_hint": "FeCl3 helimagnetic propagation vector from neutron diffraction",
     "target_representation": {
       "fields": [
         {
-          "convention": "boolean_claim",
-          "id": "neel_order_on_honeycomb",
-          "type": "boolean",
+          "convention": "categorical_label",
+          "id": "magnetic_order",
+          "type": "string",
           "units": "not_applicable"
+        },
+        {
+          "convention": "ordering_wavevector_hexagonal_basis",
+          "id": "propagation_vector_hexagonal",
+          "type": "list[number]",
+          "units": "reciprocal_lattice_unit"
         }
       ],
       "kind": "registered_field_map"

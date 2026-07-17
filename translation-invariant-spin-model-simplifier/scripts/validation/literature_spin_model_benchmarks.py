@@ -2283,19 +2283,29 @@ LITERATURE_STANDARD_RESULTS.extend(
             "name": "fecl3_honeycomb_antiferromagnet_reference",
             "model": "fecl3_honeycomb_antiferromagnet",
             "lattice": "honeycomb",
-            "hamiltonian": "honeycomb antiferromagnetic Heisenberg exchange",
-            "hamiltonian_terms": ["heisenberg", "honeycomb", "antiferromagnetic", "material"],
+            "hamiltonian": "layered honeycomb Heisenberg model with competing exchange",
+            "hamiltonian_terms": [
+                "heisenberg",
+                "honeycomb",
+                "antiferromagnetic",
+                "competing_exchange",
+                "layered",
+                "material",
+            ],
             "parameters": {"material": "FeCl3"},
             "observable": "classical_order",
             "comparison_kind": "paper_numeric",
             "backend_needed": "classical_glt_or_spin_wave",
             "standard_result": {
-                "neel_order_on_honeycomb": True,
-                "computable_observables": ["gamma_staggered_honeycomb_minimum", "two_band_lsw_spectrum"],
+                "magnetic_order": "helimagnetic_spiral",
+                "propagation_vector_hexagonal": [4.0 / 15.0, 1.0 / 15.0, 3.0 / 2.0],
+                "computable_observables": [
+                    "spiral_geometry_consistency",
+                ],
             },
-            "source": "Regnault_1975",
-            "source_url": "https://doi.org/10.1016/0304-8853(75)90113-5",
-            "citation_locator": "FeCl3 layered honeycomb antiferromagnet reference",
+            "source": "Cable_1962",
+            "source_url": "https://doi.org/10.1103/PhysRev.127.714",
+            "citation_locator": "FeCl3 helimagnetic propagation vector from neutron diffraction",
         },
         {
             "name": "ni_ps3_honeycomb_antiferromagnet_reference",
@@ -2555,7 +2565,10 @@ for _entry in LITERATURE_STANDARD_RESULTS:
     _computable = []
     if "heisenberg" in _terms and "nearest_neighbor" in _terms:
         _computable.append("curie_weiss_theta")
-    if "material" in _terms:
+    if (
+        "material" in _terms
+        and _entry["name"] != "fecl3_honeycomb_antiferromagnet_reference"
+    ):
         _computable.extend(["curie_weiss_theta", "classical_luttinger_tisza_minima"])
     if "kitaev" in _terms or "gamma" in _terms:
         _computable.extend(["single_bond_exchange_matrix", "classical_zigzag_or_spiral_energy"])
@@ -3003,17 +3016,6 @@ def classical_projection_verification_tasks(*, lattice=None, required_terms=()):
             "projection_note": "ferromagnetic honeycomb nearest-neighbor layer projection",
         },
         {
-            "benchmark_name": "fecl3_honeycomb_antiferromagnet_reference",
-            "computable_observable": "gamma_staggered_honeycomb_minimum",
-            "projection_kind": "gamma_lowest_kernel_minimum",
-            "model_builder": "honeycomb_nn",
-            "model_parameters": {"j1": 1.0},
-            "expected_q": [0.0, 0.0, 0.0],
-            "higher_energy_competing_q": [[1.0 / 3.0, 2.0 / 3.0, 0.0], [0.5, 0.0, 0.0]],
-            "minimum_gap": 1.0e-1,
-            "projection_note": "antiferromagnetic honeycomb nearest-neighbor staggered Gamma projection",
-        },
-        {
             "benchmark_name": "mn_ps3_honeycomb_antiferromagnet_reference",
             "computable_observable": "gamma_staggered_honeycomb_minimum",
             "projection_kind": "gamma_lowest_kernel_minimum",
@@ -3274,6 +3276,21 @@ def pitch_and_ordering_vector_verification_tasks(*, lattice=None, required_terms
             "projection_kind": "honeycomb_zigzag_m_points",
             "expected_ordering_vectors": [[0.5, 0.0, 0.0], [0.0, 0.5, 0.0], [0.5, 0.5, 0.0]],
             "projection_note": "collinear honeycomb antiferromagnet projected to zigzag M-point manifold",
+        },
+        {
+            "benchmark_name": "fecl3_honeycomb_antiferromagnet_reference",
+            "computable_observable": "spiral_geometry_consistency",
+            "projection_kind": "source_vector_geometry_consistency",
+            "verification_kind": "source_geometry_consistency",
+            "suggested_backend": "analytic_fraction_geometry",
+            "expected_propagation_vector_hexagonal": [
+                4.0 / 15.0,
+                1.0 / 15.0,
+                3.0 / 2.0,
+            ],
+            "expected_in_plane_period_lattice_spacings": 15,
+            "expected_successive_plane_turn_angle_radians": 2.0 * math.pi / 15.0,
+            "projection_note": "Cable 1962 source-vector geometry consistency; not a ground-state recomputation",
         },
     ]
     return _verification_tasks_from_specs(task_specs, lattice=lattice, required=required)
@@ -3678,12 +3695,6 @@ def residual_projection_verification_tasks(*, lattice=None, required_terms=()):
             "projection_kind": "local_gap",
             "anisotropy": 0.13,
             "expected_gap": 0.13,
-        },
-        {
-            "benchmark_name": "fecl3_honeycomb_antiferromagnet_reference",
-            "computable_observable": "two_band_lsw_spectrum",
-            "projection_kind": "local_two_mode_spectrum",
-            "expected_levels": [0.0, 3.0 * math.sqrt(2.0)],
         },
     ]
     covered_lt_names = {
@@ -5504,6 +5515,40 @@ def dm_spiral_pitch_reciprocal_lattice_units(*, exchange, dzyaloshinskii_moriya)
     if exchange == 0.0:
         raise ValueError("exchange must be nonzero for the single-q DM pitch formula")
     return math.atan(float(dzyaloshinskii_moriya) / exchange) / (2.0 * math.pi)
+
+
+def fecl3_cable_helix_geometry(
+    *,
+    hexagonal_in_plane_numerators,
+    modulation_denominator,
+    antiferromagnetic_c_axis,
+):
+    numerators = tuple(hexagonal_in_plane_numerators)
+    if (
+        len(numerators) != 2
+        or any(isinstance(value, bool) or not isinstance(value, int) for value in numerators)
+    ):
+        raise ValueError("FeCl3 helix needs two integer in-plane numerators")
+    if (
+        isinstance(modulation_denominator, bool)
+        or not isinstance(modulation_denominator, int)
+        or modulation_denominator <= 0
+    ):
+        raise ValueError("FeCl3 helix modulation denominator must be a positive integer")
+    if antiferromagnetic_c_axis is not True:
+        raise ValueError("Cable FeCl3 geometry requires antiferromagnetic c-axis stacking")
+    return {
+        "magnetic_order": "helimagnetic_spiral",
+        "propagation_vector_hexagonal": [
+            numerators[0] / modulation_denominator,
+            numerators[1] / modulation_denominator,
+            3.0 / 2.0,
+        ],
+        "in_plane_period_lattice_spacings": modulation_denominator,
+        "successive_plane_turn_angle_radians": (
+            2.0 * math.pi / modulation_denominator
+        ),
+    }
 
 
 def kagome_dm_interaction_relevance_status(*, exchange, dzyaloshinskii_moriya):
