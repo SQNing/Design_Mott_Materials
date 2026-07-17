@@ -689,18 +689,6 @@
       "access_mode": "unattended",
       "authoritative_retrieval_route": {
         "kind": "aps_harvest_pdf",
-        "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrevb.57.4986/fulltext"
-      },
-      "current_availability": "not_acquired",
-      "expected_media_type": "application/pdf",
-      "local_cache_location": "source-cache/doi_07dc55c0b95abf20f73b/source.pdf",
-      "redistributability": "unresolved",
-      "source_id": "doi_07dc55c0b95abf20f73b"
-    },
-    {
-      "access_mode": "unattended",
-      "authoritative_retrieval_route": {
-        "kind": "aps_harvest_pdf",
         "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrevb.57.5326/fulltext"
       },
       "current_availability": "not_acquired",
@@ -888,18 +876,6 @@
       "local_cache_location": "source-cache/doi_37d6dcbf16346dd8de23/source.pdf",
       "redistributability": "unresolved",
       "source_id": "doi_37d6dcbf16346dd8de23"
-    },
-    {
-      "access_mode": "unattended",
-      "authoritative_retrieval_route": {
-        "kind": "aps_harvest_pdf",
-        "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrevb.90.094426/fulltext"
-      },
-      "current_availability": "not_acquired",
-      "expected_media_type": "application/pdf",
-      "local_cache_location": "source-cache/doi_12c70cd2b0f8ba092030/source.pdf",
-      "redistributability": "unresolved",
-      "source_id": "doi_12c70cd2b0f8ba092030"
     },
     {
       "access_mode": "unattended",
@@ -1121,6 +1097,18 @@
       "access_mode": "unattended",
       "authoritative_retrieval_route": {
         "kind": "aps_harvest_pdf",
+        "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrevlett.113.227203/fulltext"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_e2c52a31c542815b07d1/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_e2c52a31c542815b07d1"
+    },
+    {
+      "access_mode": "unattended",
+      "authoritative_retrieval_route": {
+        "kind": "aps_harvest_pdf",
         "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrevlett.114.077202/fulltext"
       },
       "current_availability": "not_acquired",
@@ -1272,6 +1260,18 @@
       "local_cache_location": "source-cache/doi_451bbc661fb1baca5288/source.pdf",
       "redistributability": "unresolved",
       "source_id": "doi_451bbc661fb1baca5288"
+    },
+    {
+      "access_mode": "unattended",
+      "authoritative_retrieval_route": {
+        "kind": "aps_harvest_pdf",
+        "url": "https://harvest.aps.org/v2/journals/articles/10.1103/physrevlett.80.4570/fulltext"
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "application/pdf",
+      "local_cache_location": "source-cache/doi_a1b6d2a721b9d248fcc5/source.pdf",
+      "redistributability": "unresolved",
+      "source_id": "doi_a1b6d2a721b9d248fcc5"
     },
     {
       "access_mode": "unattended",

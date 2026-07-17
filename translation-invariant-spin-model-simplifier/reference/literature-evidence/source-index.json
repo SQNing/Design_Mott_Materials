@@ -641,17 +641,6 @@
     },
     {
       "benchmark_names": [
-        "garnet_gd3ga5o12_spin_liquid_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevb.57.4986"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevb.57.4986",
-      "source_id": "doi_07dc55c0b95abf20f73b"
-    },
-    {
-      "benchmark_names": [
         "li2cuo2_frustrated_ferromagnetic_chain_reference"
       ],
       "canonical_identity": {
@@ -826,17 +815,6 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.88.165138",
       "source_id": "doi_37d6dcbf16346dd8de23"
-    },
-    {
-      "benchmark_names": [
-        "barlowite_kagome_material_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevb.90.094426"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevb.90.094426",
-      "source_id": "doi_12c70cd2b0f8ba092030"
     },
     {
       "benchmark_names": [
@@ -1039,6 +1017,17 @@
     },
     {
       "benchmark_names": [
+        "barlowite_kagome_material_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevlett.113.227203"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevlett.113.227203",
+      "source_id": "doi_e2c52a31c542815b07d1"
+    },
+    {
+      "benchmark_names": [
         "li2iro3_hyperhoneycomb_kitaev_reference"
       ],
       "canonical_identity": {
@@ -1182,6 +1171,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevlett.80.2933",
       "source_id": "doi_451bbc661fb1baca5288"
+    },
+    {
+      "benchmark_names": [
+        "garnet_gd3ga5o12_spin_liquid_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevlett.80.4570"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevlett.80.4570",
+      "source_id": "doi_a1b6d2a721b9d248fcc5"
     },
     {
       "benchmark_names": [

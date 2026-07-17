@@ -500,6 +500,26 @@ def test_sources_are_133_unique_canonical_identities_covering_every_record(
         assert set(matching[0]["benchmark_names"]) == expected_benchmarks
 
 
+def test_corrected_material_primary_source_dois_are_registered(loaded_inventory):
+    registry_by_name = {
+        entry["name"]: entry["source_url"] for entry in LITERATURE_STANDARD_RESULTS
+    }
+    assert registry_by_name["barlowite_kagome_material_reference"] == (
+        "https://doi.org/10.1103/PhysRevLett.113.227203"
+    )
+    assert registry_by_name["garnet_gd3ga5o12_spin_liquid_reference"] == (
+        "https://doi.org/10.1103/PhysRevLett.80.4570"
+    )
+    identities = {
+        source["canonical_identity"]["value"]
+        for source in loaded_inventory.source_index
+    }
+    assert "10.1103/physrevlett.113.227203" in identities
+    assert "10.1103/physrevlett.80.4570" in identities
+    assert "10.1103/physrevb.90.094426" not in identities
+    assert "10.1103/physrevb.57.4986" not in identities
+
+
 def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
     loaded_inventory,
 ):

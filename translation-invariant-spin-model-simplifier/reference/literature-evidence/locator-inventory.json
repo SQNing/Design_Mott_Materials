@@ -312,7 +312,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.90.094426",
+        "canonical_source_identity": "doi:10.1103/physrevlett.113.227203",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -321,7 +321,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.90.094426 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevlett.113.227203 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Cu4(OH)6FBr",
           "material model reference",
@@ -341,7 +341,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_12c70cd2b0f8ba092030",
+      "source_id": "doi_e2c52a31c542815b07d1",
       "target_representation": {
         "fields": [
           {
@@ -1783,7 +1783,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.57.4986",
+        "canonical_source_identity": "doi:10.1103/physrevlett.80.4570",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1792,7 +1792,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.57.4986 payload for the cited context and the declared low temperature correlations observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevlett.80.4570 payload for the cited context and the declared low temperature correlations observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "GGG",
           "low temperature correlations",
@@ -1812,7 +1812,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_07dc55c0b95abf20f73b",
+      "source_id": "doi_a1b6d2a721b9d248fcc5",
       "target_representation": {
         "fields": [
           {

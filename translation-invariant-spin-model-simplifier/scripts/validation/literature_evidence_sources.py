@@ -7,8 +7,10 @@ import hashlib
 import json
 import math
 from pathlib import Path, PurePosixPath
+import re
 import subprocess
 from types import MappingProxyType
+from urllib.parse import urlparse
 import xml.etree.ElementTree as ElementTree
 
 from validation.literature_evidence_schema import (
@@ -156,6 +158,60 @@ def _route(kind, url, media_type, access_mode):
         "expected_media_type": media_type,
         "access_mode": access_mode,
     }
+
+
+def arxiv_atom_identifier_matches(atom_identifier, canonical_id):
+    """Match an Atom entry ID to the same arXiv work, ignoring only vN."""
+
+    if not isinstance(atom_identifier, str) or not isinstance(canonical_id, str):
+        return False
+    path = urlparse(atom_identifier).path.strip("/")
+    if path.lower().startswith("abs/"):
+        path = path[4:]
+    base_id = re.sub(r"v\d+$", "", path, flags=re.IGNORECASE)
+    return base_id.casefold() == canonical_id.strip().casefold()
+
+
+def validate_download_response(route, *, status, headers, body, final_url):
+    """Validate response bytes before they can enter the local source cache."""
+
+    _require_mapping(route, "authoritative route")
+    _require_mapping(headers, "response headers")
+    if status != 200:
+        raise SourceEvidenceError(f"authoritative download returned HTTP status {status}")
+    if not isinstance(body, bytes) or not body:
+        raise SourceEvidenceError("authoritative download returned an empty body")
+    final_host = urlparse(final_url).hostname or ""
+    blocked_hosts = {
+        "validate.perfdrive.com",
+        "idp.nature.com",
+        "challenges.cloudflare.com",
+    }
+    if final_host.lower() in blocked_hosts:
+        raise SourceEvidenceError(f"authoritative download ended at challenge host {final_host}")
+    normalized_headers = {str(key).lower(): str(value) for key, value in headers.items()}
+    content_type = normalized_headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    expected = route.get("expected_media_type")
+    if content_type != expected:
+        raise SourceEvidenceError(
+            f"download media type {content_type or 'missing'} does not match {expected}"
+        )
+    if expected == "application/pdf":
+        if not body.startswith(b"%PDF-"):
+            raise SourceEvidenceError("download body does not have a PDF signature")
+        if len(body) < 512 or b"%%EOF" not in body[-1024:]:
+            raise SourceEvidenceError("downloaded PDF is truncated or implausibly short")
+    elif expected == "application/xml":
+        lowered = body.lower()
+        if b"unauthorized request results in minimized metadata" in lowered:
+            raise SourceEvidenceError("Elsevier response is minimized metadata, not full text")
+        try:
+            ElementTree.fromstring(body)
+        except ElementTree.ParseError as exc:
+            raise SourceEvidenceError(f"downloaded XML is malformed: {exc}") from exc
+    else:
+        raise SourceEvidenceError(f"unsupported authoritative media type {expected}")
+    return content_type
 
 
 class SourceEvidenceError(ValueError):

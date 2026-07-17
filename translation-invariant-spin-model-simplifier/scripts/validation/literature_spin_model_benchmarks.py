@@ -1970,7 +1970,7 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["kagome_layer_flat_band", "curie_weiss_theta", "interlayer_ordering_vector"],
             },
             "source": "Han_2014",
-            "source_url": "https://doi.org/10.1103/PhysRevB.90.094426",
+            "source_url": "https://doi.org/10.1103/PhysRevLett.113.227203",
             "citation_locator": "barlowite kagome antiferromagnet material reference",
         },
         {
@@ -2114,7 +2114,7 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["classical_structure_factor", "dipolar_energy_minima"],
             },
             "source": "Petrenko_1998",
-            "source_url": "https://doi.org/10.1103/PhysRevB.57.4986",
+            "source_url": "https://doi.org/10.1103/PhysRevLett.80.4570",
             "citation_locator": "GGG low-temperature frustrated correlations reference",
         },
         {
@@ -8830,7 +8830,7 @@ _MATERIAL_EXPERIMENTAL_OBSERVABLES = {
     },
     "garnet_gd3ga5o12_spin_liquid_reference": {
         "source": "Petrenko_1998",
-        "source_url": "https://doi.org/10.1103/PhysRevB.57.4986",
+        "source_url": "https://doi.org/10.1103/PhysRevLett.80.4570",
         "registered_claim_key": "short_range_order_without_simple_lro",
         "direct_observable": "short_range_correlations_without_simple_lro",
         "published_statement": (

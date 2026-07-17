@@ -13,8 +13,10 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
+    arxiv_atom_identifier_matches,
     authoritative_route_for_identity,
     load_verified_source,
+    validate_download_response,
 )
 from validation.literature_evidence_inventory import load_and_validate_inventory
 
@@ -404,3 +406,82 @@ def test_representative_authoritative_routes_are_exact(
         "expected_media_type": media_type,
         "access_mode": access_mode,
     }
+
+
+def test_download_validation_rejects_html_challenge_even_with_status_200():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1103/physrevlett.59.799"}
+    )
+    with pytest.raises(SourceEvidenceError, match="media type"):
+        validate_download_response(
+            route,
+            status=200,
+            headers={"content-type": "text/html; charset=UTF-8"},
+            body=b"<html>challenge</html>",
+            final_url="https://validate.example/challenge",
+        )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"not-a-pdf" + b"x" * 512,
+        b"%PDF-1.4\nshort",
+    ],
+)
+def test_download_validation_rejects_invalid_or_truncated_pdf(body):
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1103/physrevlett.59.799"}
+    )
+    with pytest.raises(SourceEvidenceError, match="PDF"):
+        validate_download_response(
+            route,
+            status=200,
+            headers={"content-type": "application/pdf"},
+            body=body,
+            final_url=route["url"],
+        )
+
+
+def test_download_validation_accepts_real_pdf_shape():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1103/physrevlett.59.799"}
+    )
+    body = _minimal_pdf("Target observable appears on PDF page one.")
+    assert validate_download_response(
+        route,
+        status=200,
+        headers={"content-type": "application/pdf"},
+        body=body,
+        final_url=route["url"],
+    ) == "application/pdf"
+
+
+def test_download_validation_rejects_elsevier_minimized_metadata_xml():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1016/j.aop.2005.10.005"}
+    )
+    body = (
+        b"<response><warning>Unauthorized request results in minimized metadata "
+        b"response</warning></response>"
+    )
+    with pytest.raises(SourceEvidenceError, match="minimized metadata"):
+        validate_download_response(
+            route,
+            status=200,
+            headers={"content-type": "application/xml;charset=UTF-8"},
+            body=body,
+            final_url=route["url"],
+        )
+
+
+def test_arxiv_atom_identity_accepts_only_versioned_form_of_same_base_id():
+    assert arxiv_atom_identifier_matches(
+        "http://arxiv.org/abs/1409.0193v2", "1409.0193"
+    )
+    assert arxiv_atom_identifier_matches(
+        "https://arxiv.org/abs/cond-mat/0612001v3", "cond-mat/0612001"
+    )
+    assert not arxiv_atom_identifier_matches(
+        "https://arxiv.org/abs/1409.0194v2", "1409.0193"
+    )
