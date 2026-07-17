@@ -12,8 +12,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from validation.literature_evidence_inventory import (
+    CANONICAL_OBSERVABLE_SPECS,
     INVENTORY_ROOT,
     InventoryError,
+    build_inventory_data,
     canonical_source_identity,
     derive_unresolved_status,
     load_and_validate_inventory,
@@ -109,10 +111,30 @@ def test_contracts_reject_all_generic_placeholder_families(loaded_inventory):
             for value in checked
             for pattern in forbidden_patterns
         )
+        assert not contract.observable["identity"].startswith(
+            ("published_observable_", "material_model_", "phase_diagram_")
+        )
+        assert all(
+            "under the declared parameter regime" not in semantic
+            and "published published observable" not in semantic
+            for semantic in contract.observable["semantics"]
+        )
         for field in contract.representation["fields"]:
             assert field["units"]
             assert field["convention"]
     assert len(set(subjects)) == 155
+
+
+def test_every_benchmark_has_an_explicit_canonical_observable_spec():
+    registry_names = {entry["name"] for entry in LITERATURE_STANDARD_RESULTS}
+    assert set(CANONICAL_OBSERVABLE_SPECS) == registry_names
+    for name, spec in CANONICAL_OBSERVABLE_SPECS.items():
+        assert set(spec) == {"identity", "primary_semantic"}, name
+        assert spec["identity"].strip()
+        assert spec["primary_semantic"].strip()
+        assert not spec["identity"].endswith(
+            ("_reference", "_candidate", "_status", "_claim")
+        )
 
 
 @pytest.mark.parametrize(
@@ -198,9 +220,55 @@ def test_scientific_sequence_and_normalization_conventions_are_distinct(
         "units": "helicity_modulus_over_exchange_j",
         "convention": "rho_s_over_j_at_temperature_over_j_equal_one",
     }
-    assert bkt.conditions["normalization_relation"] == (
-        "rho_s(T_BKT)/J = 2 [T_BKT/J] / pi"
+    normalization = bkt.conditions["normalization_relation"]
+    assert tuple(normalization["normalized_quantities"]) == ("rho_s/J", "T/J")
+    assert normalization["universal_coefficient"] == (
+        "must_be_parsed_from_authoritative_source"
     )
+
+    expected_nonfallback = {
+        "aklt_tan_theta": (
+            "dimensionless_tangent_of_bilinear_biquadratic_angle",
+            "tan_theta_in_declared_hamiltonian_parameterization",
+        ),
+        "spin_liquid_window_approx": (
+            "dimensionless_j2_over_j1",
+            "closed_interval_endpoints_in_ascending_j2_over_j1",
+        ),
+        "ground_state_spin_per_unit_cell": (
+            "spin_angular_momentum_hbar",
+            "total_ground_state_spin_per_crystallographic_unit_cell",
+        ),
+        "degenerate_dimer_coverings": (
+            "count",
+            "nonnegative_integer_number_of_exact_dimer_coverings",
+        ),
+        "ising_critical_field": (
+            "field_over_exchange_j",
+            "critical_transverse_field_normalized_by_exchange_j",
+        ),
+    }
+    observed = {
+        field["id"]: (field["units"], field["convention"])
+        for contract in loaded_inventory.contracts
+        for field in contract.representation["fields"]
+        if field["id"] in expected_nonfallback
+    }
+    assert observed == expected_nonfallback
+    forbidden_fallbacks = {
+        "field_dependent_sequence",
+        "scalar_or_structured_claim",
+        "dimensionless_sequence",
+        "dimensionless_observable",
+        "ordered_values_under_declared_convention",
+        "scalar_under_declared_hamiltonian_convention",
+    }
+    assert not {
+        field[key]
+        for contract in loaded_inventory.contracts
+        for field in contract.representation["fields"]
+        for key in ("units", "convention")
+    }.intersection(forbidden_fallbacks)
 
     phase_contract = next(
         item
@@ -528,6 +596,7 @@ def test_claim_surfaces_do_not_copy_registry_target_values(loaded_inventory):
         identity_surfaces = (
             contract.observable,
             contract.representation,
+            contract.conditions,
             record.target_locator_strategy,
             record.parser_strategy,
             record.comparator,
@@ -769,6 +838,17 @@ def test_canonical_contract_artifact_is_independent_of_mutated_runtime_records(
     records[0]["parser_strategy"] = {"kind": "manual_future_parse"}
 
     assert contract_path.read_bytes() == before
+
+
+def test_canonical_contracts_are_not_regenerated_from_registry_observable_labels():
+    baseline = build_inventory_data(LITERATURE_STANDARD_RESULTS)["contracts"]
+    mutated_registry = copy.deepcopy(LITERATURE_STANDARD_RESULTS)
+    for entry in mutated_registry:
+        entry["observable"] = "generic_registry_label_that_must_not_define_contract"
+
+    rebuilt = build_inventory_data(mutated_registry)["contracts"]
+
+    assert rebuilt == baseline
 
 
 def _recursive_keys(value):

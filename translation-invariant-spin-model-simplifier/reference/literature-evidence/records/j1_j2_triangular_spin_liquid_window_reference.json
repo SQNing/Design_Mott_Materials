@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_values_under_declared_convention",
+        "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
         "id": "spin_liquid_window_approx",
         "type": "list[number]",
-        "units": "dimensionless_sequence"
+        "units": "dimensionless_j2_over_j1"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_values_under_declared_convention",
+        "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
         "id": "spin_liquid_window_approx",
         "type": "list[number]",
-        "units": "dimensionless_sequence"
+        "units": "dimensionless_j2_over_j1"
       }
     ]
   },
@@ -55,10 +55,10 @@
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_values_under_declared_convention",
+          "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
           "id": "spin_liquid_window_approx",
           "type": "list[number]",
-          "units": "dimensionless_sequence"
+          "units": "dimensionless_j2_over_j1"
         }
       ],
       "kind": "registered_field_map"

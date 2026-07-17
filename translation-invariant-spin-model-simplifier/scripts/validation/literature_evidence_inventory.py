@@ -35,28 +35,16 @@ _GENERIC_OBSERVABLES = frozenset(
 _GENERIC_OBSERVABLE_SUFFIX_RE = re.compile(
     r"(?:^|_)(?:reference|candidate|status|claim)$"
 )
-_OBSERVABLE_OVERRIDES = {
-    "ba3irti2o9_honeycomb_kitaev_reference": (
-        "assessment_of_spin_liquid_behavior_in_ba3irti2o9",
-        "published material-scale assessment of spin-liquid behavior",
-    ),
-    "herbertsmithite_kagome_qsl_reference": (
-        "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
-        "published experimental assessment of quantum-spin-liquid behavior",
-    ),
-    "checkerboard_heisenberg_plaquette_reference": (
-        "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
-        "published assessment of plaquette valence-bond order",
-    ),
-    "j1_j2_square_spin_half_neel_collinear_transition_reference": (
-        "nonmagnetic_phase_window_in_j2_over_j1",
-        "approximate nonmagnetic-phase interval in the J2/J1 coupling ratio",
-    ),
-    "two_dimensional_xy_bkt_universal_jump": (
-        "universal_bkt_helicity_modulus_jump_relation",
-        "universal relation between helicity modulus and transition temperature",
-    ),
-}
+_FORBIDDEN_GENERIC_REPRESENTATIONS = frozenset(
+    {
+        "field_dependent_sequence",
+        "scalar_or_structured_claim",
+        "dimensionless_sequence",
+        "dimensionless_observable",
+        "ordered_values_under_declared_convention",
+        "scalar_under_declared_hamiltonian_convention",
+    }
+)
 _LOCATOR_CLASS_OVERRIDES = {
     "honeycomb_kitaev_gamma_phase_diagram_reference": "figure_caption",
     "ni_ps3_honeycomb_antiferromagnet_reference": "abstract",
@@ -318,9 +306,8 @@ def validate_inventory(data, registry_entries):
             raise InventoryError(f"canonical representation mismatch for {name}")
         if contract.canonical_observable_id != name:
             raise InventoryError(f"canonical observable ID mismatch for {name}")
-        expected_contract = _contract_for_entry(entry, expected_fields)
-        if contract.as_plain_data() != expected_contract:
-            raise InventoryError(f"canonical contract semantics mismatch for {name}")
+        _validate_canonical_contract_against_registry(contract, entry)
+        field_specs = [_plain(field) for field in representation_fields]
 
         record = record_by_name[name]
         if record.canonical_observable_id != contract.canonical_observable_id:
@@ -337,7 +324,7 @@ def validate_inventory(data, registry_entries):
         _reject_forbidden_keys(record.as_plain_data(), f"record {name}")
         _validate_record_strategies(
             record,
-            expected_contract["representation"]["fields"],
+            field_specs,
             name,
         )
 
@@ -374,15 +361,20 @@ def build_inventory_data(registry_entries):
         identity = canonical_source_identity(entry["source_url"])
         sources_by_identity[identity].append(entry["name"])
 
-    contracts = []
+    contracts = _load_collection(
+        INVENTORY_ROOT / "canonical-observables.json", "canonical_observables"
+    )
+    contract_by_name = {contract["benchmark_name"]: contract for contract in contracts}
     records = []
     locators = []
     for entry in registry:
         fields = _claim_fields(entry, literal_fields_by_name)
-        field_specs = [
-            _field_representation(field, entry["standard_result"][field])
-            for field in fields
-        ]
+        contract = contract_by_name.get(entry["name"])
+        if contract is None:
+            raise InventoryError(
+                f"missing independently maintained canonical contract for {entry['name']}"
+            )
+        field_specs = contract["representation"]["fields"]
         locator_class = _forecast_locator_class(entry, field_specs)
         target_representation = {"kind": "registered_field_map", "fields": field_specs}
         locator_strategy = _locator_strategy(
@@ -390,7 +382,6 @@ def build_inventory_data(registry_entries):
         )
         identity = canonical_source_identity(entry["source_url"])
         source_id = source_id_for_identity(identity)
-        contracts.append(_contract_for_entry(entry, fields))
         records.append(
             {
                 "schema_version": 1,
@@ -594,191 +585,8 @@ def _claim_fields(entry, literal_fields_by_name):
     return fields
 
 
-def _contract_for_entry(entry, fields):
-    field_specs = [
-        _field_representation(field, entry["standard_result"][field])
-        for field in fields
-    ]
-    subject = _subject_for_entry(entry)
-    observable_identity, observable_semantics = _observable_identity_and_semantics(
-        entry, fields
-    )
-    conditions = {
-        "comparison_kind": entry["comparison_kind"],
-        "backend_scope": entry["backend_needed"],
-        "physical_regime": _physical_regime(entry),
-        "source_claim_scope": _source_claim_scope(entry),
-        "model_parameters": entry["parameters"],
-    }
-    if entry["name"] == "two_dimensional_xy_bkt_universal_jump":
-        conditions["normalization_relation"] = (
-            "rho_s(T_BKT)/J = 2 [T_BKT/J] / pi"
-        )
-    return {
-        "canonical_observable_id": entry["name"],
-        "benchmark_name": entry["name"],
-        "subject": subject,
-        "system": entry["model"],
-        "hamiltonian": {
-            "expression": entry["hamiltonian"],
-            "terms": entry["hamiltonian_terms"],
-            "lattice": entry["lattice"],
-        },
-        "parameter_regime": entry["parameters"],
-        "size_or_limit": {
-            "category": _scope_category(entry),
-            "scope_subject": subject,
-        },
-        "observable": {
-            "identity": observable_identity,
-            "claim_fields": list(fields),
-            "semantics": observable_semantics,
-        },
-        "representation": {
-            "kind": "registered_field_map",
-            "fields": field_specs,
-        },
-        "units": "; ".join(
-            f"{field['id']}={field['units']}" for field in field_specs
-        ),
-        "conditions": conditions,
-    }
-
-
-def _subject_for_entry(entry):
-    if entry["name"] == "haldane_spin1_chain_gap_reference":
-        return "Spin-1 Heisenberg-chain Haldane excitation gap"
-    if entry["name"] == "ni_ps3_honeycomb_antiferromagnet_reference":
-        return "NiPS3 honeycomb antiferromagnetic order"
-    subject = entry["name"]
-    if subject.endswith("_reference"):
-        subject = subject[: -len("_reference")]
-    replacements = {
-        "spin1": "spin-1",
-        "spin_half": "spin-half",
-        "j1_j2": "J1-J2",
-        "j1_j3": "J1-J3",
-        "j1_j2_j3": "J1-J2-J3",
-        "qmc": "QMC",
-        "dmrg": "DMRG",
-        "xxz": "XXZ",
-        "xxx": "XXX",
-        "xy": "XY",
-        "aklt": "AKLT",
-        "bkt": "BKT",
-    }
-    for source, target in replacements.items():
-        subject = subject.replace(source, target)
-    return subject.replace("_", " ").strip().capitalize()
-
-
 def _humanize_identifier(identifier):
     return identifier.replace("_", " ")
-
-
-def _observable_identity_and_semantics(entry, fields):
-    override = _OBSERVABLE_OVERRIDES.get(entry["name"])
-    if override is not None:
-        identity, primary_semantic = override
-    else:
-        observable = re.sub(
-            r"(?:_reference|_candidate|_status|_claim)+$", "", entry["observable"]
-        ).strip("_")
-        if observable in {"material", "phase", "model"} or not observable:
-            observable = "published_observable"
-        identity = f"{observable}_in_{entry['model']}"
-        primary_semantic = (
-            f"published {_humanize_identifier(observable)} for "
-            f"{_humanize_identifier(entry['model'])}"
-        )
-    field_semantics = [_field_semantic(entry, field) for field in fields]
-    return identity, [primary_semantic, *field_semantics]
-
-
-def _field_semantic(entry, field):
-    explicit = {
-        "spin_liquid_candidate": "assessment of spin-liquid phenomenology under the cited material or model conditions",
-        "qsl_candidate": "assessment of quantum-spin-liquid phenomenology under the cited experimental conditions",
-        "plaquette_order_candidate": "assessment of plaquette valence-bond order in the stated checkerboard model",
-        "nonmagnetic_window_approx": "endpoints of the approximate nonmagnetic interval in J2/J1",
-        "helicity_modulus_at_t_1": "helicity modulus rho_s/J evaluated at T/J = 1",
-        "distorted_kagome_reference": "identification of the material's magnetically active lattice as distorted kagome",
-        "honeycomb_iridate_reference": "identification of the cited material as a spin-orbit-coupled honeycomb iridate",
-        "kagome_antiferromagnet_reference": "identification of antiferromagnetic kagome interactions in the cited material",
-        "zigzag_or_collinear_order_reference": "experimentally inferred zigzag or collinear magnetic order",
-        "neel_order_reference": "experimentally inferred Neel antiferromagnetic order",
-        "triangular_material_reference": "identification of a triangular-lattice magnetic material",
-        "anisotropic_exchange_fit_reference": "anisotropic exchange parameters inferred from the published fit",
-        "large_d_transition_reference": "location or identification of the Haldane-to-large-D transition",
-        "columnar_or_plaquette_vbs_reference": "identification of columnar or plaquette valence-bond-solid order",
-        "frustrated_order_reference": "published magnetic-order characterization in the frustrated lattice model",
-        "square_kagome_reference": "identification of the shuriken lattice with the square-kagome geometry",
-        "quantum_spin_ice_candidate": "assessment of quantum-spin-ice phenomenology under the cited conditions",
-        "hyperkagome_qsl_candidate": "assessment of quantum-spin-liquid phenomenology on the hyperkagome material",
-        "triangular_quantum_spin_liquid_candidate": "assessment of quantum-spin-liquid phenomenology in the triangular material",
-        "u1_quantum_spin_liquid_candidate": "assessment of a U(1) quantum-spin-liquid phase in pyrochlore spin ice",
-        "spin_liquid_or_valence_bond_reference": "published discrimination between spin-liquid and valence-bond behavior",
-        "kitaev_gamma_model_reference": "identification of the effective Kitaev-Gamma interaction model",
-        "ru_honeycomb_kitaev_candidate": "assessment of honeycomb Kitaev interactions in the ruthenium material",
-    }
-    if field in explicit:
-        return explicit[field]
-    return (
-        f"{_humanize_identifier(field)} for the {_humanize_identifier(entry['model'])} "
-        "Hamiltonian under the declared parameter regime"
-    )
-
-
-def _physical_regime(entry):
-    scope = _scope_category(entry)
-    if scope == "thermodynamic_limit":
-        return "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters"
-    if scope == "exact_model_limit":
-        return "exactly specified solvable or enumerable model limit"
-    if scope == "finite_local_cluster":
-        return "finite local cluster defined by the Hamiltonian and lattice"
-    return "published material conditions, to be resolved exactly from the authoritative source"
-
-
-def _source_claim_scope(entry):
-    if _is_material_claim(entry):
-        return "direct published material or experimental observable"
-    if entry["comparison_kind"] in {"exact_solution", "exact_enumeration"}:
-        return "published exact model result"
-    if entry["comparison_kind"] == "paper_formula":
-        return "published analytic relation or formula"
-    return "published numerical or categorical model result"
-
-
-def _scope_category(entry):
-    name = entry["name"]
-    observable = entry["observable"]
-    if _is_material_claim(entry):
-        return "published_experimental_material_conditions_pending_source_verification"
-    if any(
-        marker in observable or marker in name
-        for marker in (
-            "phase",
-            "critical",
-            "thermodynamic",
-            "residual_entropy",
-            "correlation_length",
-            "spin_stiffness",
-            "staggered_magnetization",
-            "spin_wave_velocity",
-            "qmc_energy",
-            "haldane_gap",
-        )
-    ):
-        return "thermodynamic_limit"
-    if any(
-        marker in observable or marker in name
-        for marker in ("tetrahedron", "single_ion", "onsite_levels")
-    ):
-        return "finite_local_cluster"
-    if entry["comparison_kind"] in {"exact_solution", "exact_enumeration"}:
-        return "exact_model_limit"
-    return "thermodynamic_limit"
 
 
 def _is_material_claim(entry):
@@ -788,97 +596,6 @@ def _is_material_claim(entry):
     )
 
 
-def _field_representation(field, value):
-    representation_type = _representation_type(value)
-    units, convention = _field_units_and_convention(field, representation_type)
-    return {
-        "id": field,
-        "type": representation_type,
-        "units": units,
-        "convention": convention,
-    }
-
-
-def _field_units_and_convention(field, representation_type):
-    if representation_type == "boolean":
-        return "not_applicable", "boolean_claim"
-    if field == "two_site_projector_eigenvalues":
-        return (
-            "dimensionless_projector_eigenvalue",
-            "ordered_two_site_projector_spectrum",
-        )
-    if field == "gapless_interval":
-        return "dimensionless_anisotropy", "closed_anisotropy_interval"
-    if field == "nonmagnetic_window_approx":
-        return (
-            "dimensionless_j2_over_j1",
-            "closed_interval_endpoints_in_ascending_j2_over_j1",
-        )
-    if field == "helicity_modulus_at_t_1":
-        return (
-            "helicity_modulus_over_exchange_j",
-            "rho_s_over_j_at_temperature_over_j_equal_one",
-        )
-    if field == "phases":
-        return "not_applicable", "categorical_phase_label_set"
-    if field in {"phase_sequence", "ordered_phases", "common_orders"}:
-        return "not_applicable", "ordered_categorical_phase_labels"
-    if field == "couplings":
-        return (
-            "source_declared_coupling_units",
-            "named_hamiltonian_coupling_parameter_map",
-        )
-    if field == "degeneracies":
-        return "count", "ordered_nonnegative_integer_degeneracies"
-    if "radians" in field or "angle" in field:
-        return "radian", "angular_scalar"
-    if "degeneracy" in field or "transition_count" in field:
-        return "count", "nonnegative_integer_count"
-    if "entropy" in field:
-        return "natural_log_unit_per_spin", "entropy_density"
-    if "correlation_length" in field:
-        return "lattice_spacing", "bulk_correlation_length"
-    if any(token in field for token in ("q_reciprocal", "wavevector", "pitch")):
-        return "reciprocal_lattice_unit", "ordering_wavevector"
-    if "magnetization" in field or "plateau" in field:
-        return "normalized_magnetization", "fraction_of_saturation"
-    if any(
-        token in field
-        for token in (
-            "over_j",
-            "over_exchange",
-            "ratio",
-            "beta_j",
-            "delta",
-            "gamma",
-        )
-    ):
-        return "dimensionless_ratio", "ratio_to_named_model_scale"
-    if "energy_per_site" in field:
-        return "exchange_energy_per_site", "energy_density"
-    if "energy_per_spin" in field:
-        return "exchange_energy_per_spin", "energy_density"
-    if "energy_per_dimer" in field:
-        return "exchange_energy_per_dimer", "dimer_energy"
-    if "energy_per_rung" in field:
-        return "exchange_energy_per_rung", "rung_energy"
-    if "energy" in field or "gap" in field or "level" in field:
-        return "exchange_energy_unit", "hamiltonian_energy_scale"
-    if "temperature" in field or field.startswith("tc_") or field.startswith("tbkt_"):
-        return "exchange_energy_over_boltzmann_constant", "temperature_scale"
-    if representation_type == "string":
-        if "formula" in field or "condition" in field:
-            return "not_applicable", "symbolic_expression"
-        return "not_applicable", "categorical_label"
-    if representation_type.startswith("list["):
-        if "phase" in field or "order" in field:
-            return "not_applicable", "ordered_categorical_labels"
-        if "coupling" in field or "exchange" in field:
-            return "source_declared_coupling_units", "ordered_named_couplings"
-        return "dimensionless_sequence", "ordered_values_under_declared_convention"
-    if representation_type == "field_map":
-        return "field_specific", "named_fields_with_declared_per_field_conventions"
-    return "dimensionless_observable", "scalar_under_declared_hamiltonian_convention"
 
 
 def _is_generic_observable_identity(identity):
@@ -886,8 +603,58 @@ def _is_generic_observable_identity(identity):
         not isinstance(identity, str)
         or not identity
         or identity in _GENERIC_OBSERVABLES
+        or identity.startswith(
+            ("published_observable_", "material_model_", "phase_diagram_")
+        )
         or bool(_GENERIC_OBSERVABLE_SUFFIX_RE.search(identity))
     )
+
+
+def _validate_canonical_contract_against_registry(contract, entry):
+    name = entry["name"]
+    if contract.system != entry["model"]:
+        raise InventoryError(f"canonical contract system mismatch for {name}")
+    expected_hamiltonian = {
+        "expression": entry["hamiltonian"],
+        "terms": entry["hamiltonian_terms"],
+        "lattice": entry["lattice"],
+    }
+    if _plain(contract.hamiltonian) != expected_hamiltonian:
+        raise InventoryError(f"canonical contract Hamiltonian mismatch for {name}")
+    if _plain(contract.parameter_regime) != entry["parameters"]:
+        raise InventoryError(f"canonical contract parameter regime mismatch for {name}")
+    semantics = contract.observable.get("semantics")
+    if (
+        not isinstance(semantics, tuple)
+        or not semantics
+        or any(not isinstance(item, str) or not item.strip() for item in semantics)
+        or any(
+            phrase in item.lower()
+            for item in semantics
+            for phrase in (
+                "under the declared parameter regime",
+                "published published observable",
+            )
+        )
+    ):
+        raise InventoryError(f"generic observable semantics for {name}")
+    for field in contract.representation["fields"]:
+        if field["units"] in _FORBIDDEN_GENERIC_REPRESENTATIONS:
+            raise InventoryError(f"generic representation units for {name}")
+        if field["convention"] in _FORBIDDEN_GENERIC_REPRESENTATIONS:
+            raise InventoryError(f"generic representation convention for {name}")
+    conditions = contract.conditions
+    required_conditions = {
+        "comparison_kind",
+        "backend_scope",
+        "physical_regime",
+        "source_claim_scope",
+        "model_parameters",
+    }
+    if not required_conditions <= set(conditions):
+        raise InventoryError(f"canonical physical conditions missing for {name}")
+    if _plain(conditions["model_parameters"]) != entry["parameters"]:
+        raise InventoryError(f"canonical condition parameters mismatch for {name}")
 
 
 def _validate_selector(selector):
@@ -1131,23 +898,6 @@ def _reject_forbidden_keys(
             )
 
 
-def _representation_type(value):
-    if isinstance(value, bool):
-        return "boolean"
-    if isinstance(value, (int, float)):
-        return "number"
-    if isinstance(value, str):
-        return "string"
-    if isinstance(value, list):
-        element_types = sorted({_representation_type(item) for item in value})
-        return "list[" + "|".join(element_types) + "]"
-    if isinstance(value, Mapping):
-        return "field_map"
-    if value is None:
-        return "null"
-    raise InventoryError(f"unsupported registry operand type {type(value).__name__}")
-
-
 def _forecast_locator_class(entry, field_specs):
     if entry["name"] in _LOCATOR_CLASS_OVERRIDES:
         return _LOCATOR_CLASS_OVERRIDES[entry["name"]]
@@ -1285,6 +1035,22 @@ def _load_json(path):
             )
     except (OSError, json.JSONDecodeError) as exc:
         raise InventoryError(f"cannot load structured JSON {path}: {exc}") from exc
+
+
+def _canonical_observable_specs_from_artifact():
+    contracts = _load_collection(
+        INVENTORY_ROOT / "canonical-observables.json", "canonical_observables"
+    )
+    return {
+        contract["benchmark_name"]: {
+            "identity": contract["observable"]["identity"],
+            "primary_semantic": contract["observable"]["semantics"][0],
+        }
+        for contract in contracts
+    }
+
+
+CANONICAL_OBSERVABLE_SPECS = _canonical_observable_specs_from_artifact()
 
 
 def _write_collection(path, key, values):

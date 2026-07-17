@@ -28,11 +28,11 @@
           "two_site_projector_eigenvalues",
           "vbs_ground_energy"
         ],
-        "identity": "local_spectrum_in_spin_1_bilinear_biquadratic_chain",
+        "identity": "two_site_projector_eigenvalues_and_vbs_ground_energy_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "published local spectrum for spin 1 bilinear biquadratic chain",
-          "two site projector eigenvalues for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
-          "vbs ground energy for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: two site projector eigenvalues, vbs ground energy in spin 1 bilinear biquadratic chain.",
+          "Published interval, set, or ordered sequence for two site projector eigenvalues in spin 1 bilinear biquadratic chain, represented as ordered two site projector spectrum with units dimensionless projector eigenvalue.",
+          "Published numerical vbs ground energy for spin 1 bilinear biquadratic chain, expressed in exchange energy unit using hamiltonian energy scale."
         ]
       },
       "parameter_regime": {
@@ -92,11 +92,11 @@
           "zigzag_order",
           "kitaev_gamma_model_reference"
         ],
-        "identity": "zigzag_order_in_alpha_rucl3_effective_spin_model",
+        "identity": "zigzag_order_and_kitaev_gamma_model_characterization_in_alpha_rucl3_effective_spin_model",
         "semantics": [
-          "published zigzag order for alpha rucl3 effective spin model",
-          "zigzag order for the alpha rucl3 effective spin model Hamiltonian under the declared parameter regime",
-          "identification of the effective Kitaev-Gamma interaction model"
+          "Canonical literature observable: zigzag order, kitaev gamma model characterization in alpha rucl3 effective spin model.",
+          "Truth value of the proposition 'zigzag order' for alpha rucl3 effective spin model, with source conditions matched explicitly.",
+          "Truth value of the proposition 'kitaev gamma model reference' for alpha rucl3 effective spin model, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -153,10 +153,10 @@
         "claim_fields": [
           "one_third_magnetization_plateau"
         ],
-        "identity": "magnetization_plateau_in_azurite_distorted_diamond_chain",
+        "identity": "one_third_magnetization_plateau_in_azurite_distorted_diamond_chain",
         "semantics": [
-          "published magnetization plateau for azurite distorted diamond chain",
-          "one third magnetization plateau for the azurite distorted diamond chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: one third magnetization plateau in azurite distorted diamond chain.",
+          "Truth value of the proposition 'one third magnetization plateau' for azurite distorted diamond chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -207,10 +207,10 @@
         "claim_fields": [
           "dm_induced_incommensurate_spiral"
         ],
-        "identity": "classical_spiral_pitch_in_ba2cugeo7_dzyaloshinskii_moriya",
+        "identity": "dm_induced_incommensurate_spiral_in_ba2cugeo7_dzyaloshinskii_moriya",
         "semantics": [
-          "published classical spiral pitch for ba2cugeo7 dzyaloshinskii moriya",
-          "dm induced incommensurate spiral for the ba2cugeo7 dzyaloshinskii moriya Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: dm induced incommensurate spiral in ba2cugeo7 dzyaloshinskii moriya.",
+          "Truth value of the proposition 'dm induced incommensurate spiral' for ba2cugeo7 dzyaloshinskii moriya, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -261,10 +261,10 @@
         "claim_fields": [
           "one_third_magnetization_plateau"
         ],
-        "identity": "magnetization_plateau_in_ba3cosb2o9_triangular_heisenberg",
+        "identity": "one_third_magnetization_plateau_in_ba3cosb2o9_triangular_heisenberg",
         "semantics": [
-          "published magnetization plateau for ba3cosb2o9 triangular heisenberg",
-          "one third magnetization plateau for the ba3cosb2o9 triangular heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: one third magnetization plateau in ba3cosb2o9 triangular heisenberg.",
+          "Truth value of the proposition 'one third magnetization plateau' for ba3cosb2o9 triangular heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -318,7 +318,7 @@
         "identity": "assessment_of_spin_liquid_behavior_in_ba3irti2o9",
         "semantics": [
           "published material-scale assessment of spin-liquid behavior",
-          "assessment of spin-liquid phenomenology under the cited material or model conditions"
+          "Truth value of the proposition 'spin liquid candidate' for ba3irti2o9 honeycomb iridate, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -369,10 +369,10 @@
         "claim_fields": [
           "interlayer_coupling_relevant"
         ],
-        "identity": "material_model_in_barlowite_kagome_interlayer_coupled",
+        "identity": "interlayer_coupling_relevant_in_barlowite_kagome_interlayer_coupled",
         "semantics": [
-          "published material model for barlowite kagome interlayer coupled",
-          "interlayer coupling relevant for the barlowite kagome interlayer coupled Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: interlayer coupling relevant in barlowite kagome interlayer coupled.",
+          "Truth value of the proposition 'interlayer coupling relevant' for barlowite kagome interlayer coupled, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -423,10 +423,10 @@
         "claim_fields": [
           "contains_collinear_large_j2_phase"
         ],
-        "identity": "ordering_type_in_bcc_j1_j2_heisenberg",
+        "identity": "phase_content_collinear_large_j2_phase_in_bcc_j1_j2_heisenberg",
         "semantics": [
-          "published ordering type for bcc j1 j2 heisenberg",
-          "contains collinear large j2 phase for the bcc j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phase content collinear large j2 phase in bcc j1 j2 heisenberg.",
+          "Truth value of the proposition 'contains collinear large j2 phase' for bcc j1 j2 heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -477,10 +477,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "spiral_order_in_beta_li2iro3_spiral_order",
+        "identity": "incommensurate_spiral_order_in_beta_li2iro3_spiral_order",
         "semantics": [
-          "published spiral order for beta li2iro3 spiral order",
-          "incommensurate spiral order for the beta li2iro3 spiral order Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: incommensurate spiral order in beta li2iro3 spiral order.",
+          "Truth value of the proposition 'incommensurate spiral order' for beta li2iro3 spiral order, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -531,11 +531,11 @@
           "aklt_tan_theta",
           "theta_radians"
         ],
-        "identity": "special_angle_in_spin_1_bilinear_biquadratic_chain",
+        "identity": "aklt_tan_theta_and_theta_radians_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "published special angle for spin 1 bilinear biquadratic chain",
-          "aklt tan theta for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
-          "theta radians for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: aklt tan theta, theta radians in spin 1 bilinear biquadratic chain.",
+          "Published numerical aklt tan theta for spin 1 bilinear biquadratic chain, expressed in dimensionless tangent of bilinear biquadratic angle using tan theta in declared hamiltonian parameterization.",
+          "Published numerical theta radians for spin 1 bilinear biquadratic chain, expressed in radian using angular scalar."
         ]
       },
       "parameter_regime": {
@@ -544,10 +544,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "tan_theta_in_declared_hamiltonian_parameterization",
             "id": "aklt_tan_theta",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "dimensionless_tangent_of_bilinear_biquadratic_angle"
           },
           {
             "convention": "angular_scalar",
@@ -564,7 +564,7 @@
       },
       "subject": "Bilinear biquadratic spin-1 chain aklt angle",
       "system": "spin_1_bilinear_biquadratic_chain",
-      "units": "aklt_tan_theta=dimensionless_observable; theta_radians=radian"
+      "units": "aklt_tan_theta=dimensionless_tangent_of_bilinear_biquadratic_angle; theta_radians=radian"
     },
     {
       "benchmark_name": "blume_capel_spin1_zero_temperature_level_crossing",
@@ -592,10 +592,10 @@
         "claim_fields": [
           "square_lattice_d_over_j_crossing"
         ],
-        "identity": "zero_temperature_level_crossing_in_spin_1_blume_capel",
+        "identity": "square_lattice_d_over_j_crossing_in_spin_1_blume_capel",
         "semantics": [
-          "published zero temperature level crossing for spin 1 blume capel",
-          "square lattice d over j crossing for the spin 1 blume capel Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: square lattice d over j crossing in spin 1 blume capel.",
+          "Published numerical square lattice d over j crossing for spin 1 blume capel, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -647,10 +647,10 @@
         "claim_fields": [
           "field_induced_luttinger_liquid_regime"
         ],
-        "identity": "field_induced_order_in_bpcb_spin_ladder",
+        "identity": "field_induced_luttinger_liquid_regime_in_bpcb_spin_ladder",
         "semantics": [
-          "published field induced order for bpcb spin ladder",
-          "field induced luttinger liquid regime for the bpcb spin ladder Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: field induced luttinger liquid regime in bpcb spin ladder.",
+          "Truth value of the proposition 'field induced luttinger liquid regime' for bpcb spin ladder, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -700,10 +700,10 @@
         "claim_fields": [
           "breathing_anisotropy_controls_trimerization"
         ],
-        "identity": "published_observable_in_breathing_kagome_heisenberg",
+        "identity": "breathing_anisotropy_controls_trimerization_in_breathing_kagome_heisenberg",
         "semantics": [
-          "published published observable for breathing kagome heisenberg",
-          "breathing anisotropy controls trimerization for the breathing kagome heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: breathing anisotropy controls trimerization in breathing kagome heisenberg.",
+          "Truth value of the proposition 'breathing anisotropy controls trimerization' for breathing kagome heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -756,11 +756,11 @@
           "spin_liquid_candidate",
           "mixed_ferromagnetic_antiferromagnetic_exchanges"
         ],
-        "identity": "material_exchange_model_in_ca10cr7o28_bilayer_breathing_kagome",
+        "identity": "spin_liquid_assessment_and_mixed_ferromagnetic_antiferromagnetic_exchanges_in_ca10cr7o28_bilayer_breathing_kagome",
         "semantics": [
-          "published material exchange model for ca10cr7o28 bilayer breathing kagome",
-          "assessment of spin-liquid phenomenology under the cited material or model conditions",
-          "mixed ferromagnetic antiferromagnetic exchanges for the ca10cr7o28 bilayer breathing kagome Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spin liquid assessment, mixed ferromagnetic antiferromagnetic exchanges in ca10cr7o28 bilayer breathing kagome.",
+          "Truth value of the proposition 'spin liquid candidate' for ca10cr7o28 bilayer breathing kagome, with source conditions matched explicitly.",
+          "Truth value of the proposition 'mixed ferromagnetic antiferromagnetic exchanges' for ca10cr7o28 bilayer breathing kagome, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -817,10 +817,10 @@
         "claim_fields": [
           "spin_ladder_material"
         ],
-        "identity": "material_model_in_cacu2o3_spin_ladder",
+        "identity": "spin_ladder_material_in_cacu2o3_spin_ladder",
         "semantics": [
-          "published material model for cacu2o3 spin ladder",
-          "spin ladder material for the cacu2o3 spin ladder Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spin ladder material in cacu2o3 spin ladder.",
+          "Truth value of the proposition 'spin ladder material' for cacu2o3 spin ladder, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -871,10 +871,10 @@
         "claim_fields": [
           "zero_total_spin_per_crossed_plaquette"
         ],
-        "identity": "ground_state_constraint_in_checkerboard_heisenberg_antiferromagnet",
+        "identity": "zero_total_spin_per_crossed_plaquette_in_checkerboard_heisenberg_antiferromagnet",
         "semantics": [
-          "published ground state constraint for checkerboard heisenberg antiferromagnet",
-          "zero total spin per crossed plaquette for the checkerboard heisenberg antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: zero total spin per crossed plaquette in checkerboard heisenberg antiferromagnet.",
+          "Truth value of the proposition 'zero total spin per crossed plaquette' for checkerboard heisenberg antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -927,7 +927,7 @@
         "identity": "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
         "semantics": [
           "published assessment of plaquette valence-bond order",
-          "assessment of plaquette valence-bond order in the stated checkerboard model"
+          "Truth value of the proposition 'plaquette order candidate' for checkerboard heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -977,10 +977,10 @@
         "claim_fields": [
           "distorted_kagome_reference"
         ],
-        "identity": "material_model_in_clinoatacamite_distorted_kagome",
+        "identity": "distorted_kagome_characterization_in_clinoatacamite_distorted_kagome",
         "semantics": [
-          "published material model for clinoatacamite distorted kagome",
-          "identification of the material's magnetically active lattice as distorted kagome"
+          "Canonical literature observable: distorted kagome characterization in clinoatacamite distorted kagome.",
+          "Truth value of the proposition 'distorted kagome reference' for clinoatacamite distorted kagome, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1032,10 +1032,10 @@
         "claim_fields": [
           "ferromagnetic_honeycomb_layers"
         ],
-        "identity": "classical_order_in_crcl3_honeycomb_heisenberg",
+        "identity": "ferromagnetic_honeycomb_layers_in_crcl3_honeycomb_heisenberg",
         "semantics": [
-          "published classical order for crcl3 honeycomb heisenberg",
-          "ferromagnetic honeycomb layers for the crcl3 honeycomb heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ferromagnetic honeycomb layers in crcl3 honeycomb heisenberg.",
+          "Truth value of the proposition 'ferromagnetic honeycomb layers' for crcl3 honeycomb heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1088,10 +1088,10 @@
         "claim_fields": [
           "ferromagnetic_order"
         ],
-        "identity": "classical_order_in_crgete3_honeycomb_ferromagnet",
+        "identity": "ferromagnetic_order_in_crgete3_honeycomb_ferromagnet",
         "semantics": [
-          "published classical order for crgete3 honeycomb ferromagnet",
-          "ferromagnetic order for the crgete3 honeycomb ferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ferromagnetic order in crgete3 honeycomb ferromagnet.",
+          "Truth value of the proposition 'ferromagnetic order' for crgete3 honeycomb ferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1145,10 +1145,10 @@
         "claim_fields": [
           "ferromagnetic_order"
         ],
-        "identity": "classical_order_in_cri3_honeycomb_ferromagnet",
+        "identity": "ferromagnetic_order_in_cri3_honeycomb_ferromagnet",
         "semantics": [
-          "published classical order for cri3 honeycomb ferromagnet",
-          "ferromagnetic order for the cri3 honeycomb ferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ferromagnetic order in cri3 honeycomb ferromagnet.",
+          "Truth value of the proposition 'ferromagnetic order' for cri3 honeycomb ferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1200,10 +1200,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "spiral_order_in_cs2cucl4_anisotropic_triangular",
+        "identity": "incommensurate_spiral_order_in_cs2cucl4_anisotropic_triangular",
         "semantics": [
-          "published spiral order for cs2cucl4 anisotropic triangular",
-          "incommensurate spiral order for the cs2cucl4 anisotropic triangular Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: incommensurate spiral order in cs2cucl4 anisotropic triangular.",
+          "Truth value of the proposition 'incommensurate spiral order' for cs2cucl4 anisotropic triangular, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1254,10 +1254,10 @@
         "claim_fields": [
           "honeycomb_iridate_reference"
         ],
-        "identity": "material_model_in_cu2iro3_honeycomb_kitaev",
+        "identity": "honeycomb_iridate_characterization_in_cu2iro3_honeycomb_kitaev",
         "semantics": [
-          "published material model for cu2iro3 honeycomb kitaev",
-          "identification of the cited material as a spin-orbit-coupled honeycomb iridate"
+          "Canonical literature observable: honeycomb iridate characterization in cu2iro3 honeycomb kitaev.",
+          "Truth value of the proposition 'honeycomb iridate reference' for cu2iro3 honeycomb kitaev, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1311,8 +1311,8 @@
         ],
         "identity": "skyrmion_lattice_phase_in_cu2oseo3_chiral_ferrimagnet",
         "semantics": [
-          "published skyrmion lattice phase for cu2oseo3 chiral ferrimagnet",
-          "skyrmion lattice phase for the cu2oseo3 chiral ferrimagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: skyrmion lattice phase in cu2oseo3 chiral ferrimagnet.",
+          "Truth value of the proposition 'skyrmion lattice phase' for cu2oseo3 chiral ferrimagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1362,10 +1362,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "critical_temperature_in_classical_cubic_ising",
+        "identity": "tc_over_j_in_classical_cubic_ising",
         "semantics": [
-          "published critical temperature for classical cubic ising",
-          "tc over j for the classical cubic ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: tc over j in classical cubic ising.",
+          "Published numerical tc over j for classical cubic ising, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -1415,10 +1415,10 @@
         "claim_fields": [
           "has_exact_localized_magnons"
         ],
-        "identity": "localized_magnon_in_diamond_chain_heisenberg",
+        "identity": "property_exact_localized_magnons_in_diamond_chain_heisenberg",
         "semantics": [
-          "published localized magnon for diamond chain heisenberg",
-          "has exact localized magnons for the diamond chain heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exact localized magnons in diamond chain heisenberg.",
+          "Truth value of the proposition 'has exact localized magnons' for diamond chain heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1470,10 +1470,10 @@
         "claim_fields": [
           "spiral_surface_for_j2_over_j1_gt"
         ],
-        "identity": "spiral_surface_in_diamond_j1_j2_heisenberg",
+        "identity": "spiral_surface_for_j2_over_j1_gt_in_diamond_j1_j2_heisenberg",
         "semantics": [
-          "published spiral surface for diamond j1 j2 heisenberg",
-          "spiral surface for j2 over j1 gt for the diamond j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spiral surface for j2 over j1 gt in diamond j1 j2 heisenberg.",
+          "Published numerical spiral surface for j2 over j1 gt for diamond j1 j2 heisenberg, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -1526,10 +1526,10 @@
         "claim_fields": [
           "pauling_entropy_observed"
         ],
-        "identity": "residual_entropy_in_dy2ti2o7_spin_ice",
+        "identity": "pauling_entropy_observed_in_dy2ti2o7_spin_ice",
         "semantics": [
-          "published residual entropy for dy2ti2o7 spin ice",
-          "pauling entropy observed for the dy2ti2o7 spin ice Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: pauling entropy observed in dy2ti2o7 spin ice.",
+          "Truth value of the proposition 'pauling entropy observed' for dy2ti2o7 spin ice, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1580,10 +1580,10 @@
         "claim_fields": [
           "kagome_antiferromagnet_reference"
         ],
-        "identity": "material_model_in_edwardsite_kagome_antiferromagnet",
+        "identity": "kagome_antiferromagnet_characterization_in_edwardsite_kagome_antiferromagnet",
         "semantics": [
-          "published material model for edwardsite kagome antiferromagnet",
-          "identification of antiferromagnetic kagome interactions in the cited material"
+          "Canonical literature observable: kagome antiferromagnet characterization in edwardsite kagome antiferromagnet.",
+          "Truth value of the proposition 'kagome antiferromagnet reference' for edwardsite kagome antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1633,10 +1633,10 @@
         "claim_fields": [
           "is_exactly_solved"
         ],
-        "identity": "exact_solution_in_eight_vertex_model",
+        "identity": "property_exactly_solved_in_eight_vertex_model",
         "semantics": [
-          "published exact solution for eight vertex model",
-          "is exactly solved for the eight vertex model Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exactly solved in eight vertex model.",
+          "Truth value of the proposition 'is exactly solved' for eight vertex model, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1686,10 +1686,10 @@
         "claim_fields": [
           "psi2_order_selected"
         ],
-        "identity": "selected_order_in_xy_pyrochlore_antiferromagnet",
+        "identity": "psi2_order_selected_in_xy_pyrochlore_antiferromagnet",
         "semantics": [
-          "published selected order for xy pyrochlore antiferromagnet",
-          "psi2 order selected for the xy pyrochlore antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: psi2 order selected in xy pyrochlore antiferromagnet.",
+          "Truth value of the proposition 'psi2 order selected' for xy pyrochlore antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1740,10 +1740,10 @@
         "claim_fields": [
           "common_orders"
         ],
-        "identity": "ordering_type_in_fcc_j1_j2_heisenberg",
+        "identity": "common_orders_in_fcc_j1_j2_heisenberg",
         "semantics": [
-          "published ordering type for fcc j1 j2 heisenberg",
-          "common orders for the fcc j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: common orders in fcc j1 j2 heisenberg.",
+          "Published interval, set, or ordered sequence for common orders in fcc j1 j2 heisenberg, represented as ordered categorical phase labels with units not applicable."
         ]
       },
       "parameter_regime": {
@@ -1795,10 +1795,10 @@
         "claim_fields": [
           "macroscopic_quantum_tunneling_observed"
         ],
-        "identity": "quantum_tunneling_in_fe8_single_molecule_magnet",
+        "identity": "macroscopic_quantum_tunneling_observed_in_fe8_single_molecule_magnet",
         "semantics": [
-          "published quantum tunneling for fe8 single molecule magnet",
-          "macroscopic quantum tunneling observed for the fe8 single molecule magnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: macroscopic quantum tunneling observed in fe8 single molecule magnet.",
+          "Truth value of the proposition 'macroscopic quantum tunneling observed' for fe8 single molecule magnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1851,10 +1851,10 @@
         "claim_fields": [
           "ising_like_zigzag_order"
         ],
-        "identity": "ising_like_order_in_feps3_honeycomb_ising",
+        "identity": "ising_like_zigzag_order_in_feps3_honeycomb_ising",
         "semantics": [
-          "published ising like order for feps3 honeycomb ising",
-          "ising like zigzag order for the feps3 honeycomb ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ising like zigzag order in feps3 honeycomb ising.",
+          "Truth value of the proposition 'ising like zigzag order' for feps3 honeycomb ising, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1905,10 +1905,10 @@
         "claim_fields": [
           "neel_order_on_honeycomb"
         ],
-        "identity": "classical_order_in_fecl3_honeycomb_antiferromagnet",
+        "identity": "neel_order_on_honeycomb_in_fecl3_honeycomb_antiferromagnet",
         "semantics": [
-          "published classical order for fecl3 honeycomb antiferromagnet",
-          "neel order on honeycomb for the fecl3 honeycomb antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: neel order on honeycomb in fecl3 honeycomb antiferromagnet.",
+          "Truth value of the proposition 'neel order on honeycomb' for fecl3 honeycomb antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -1959,10 +1959,10 @@
         "claim_fields": [
           "strong_frustration"
         ],
-        "identity": "frustrated_garnet_in_gadolinium_gallium_garnet",
+        "identity": "strong_frustration_in_gadolinium_gallium_garnet",
         "semantics": [
-          "published frustrated garnet for gadolinium gallium garnet",
-          "strong frustration for the gadolinium gallium garnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: strong frustration in gadolinium gallium garnet.",
+          "Truth value of the proposition 'strong frustration' for gadolinium gallium garnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2014,10 +2014,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "spiral_order_in_gamma_li2iro3_3d_kitaev_gamma",
+        "identity": "incommensurate_spiral_order_in_gamma_li2iro3_3d_kitaev_gamma",
         "semantics": [
-          "published spiral order for gamma li2iro3 3d kitaev gamma",
-          "incommensurate spiral order for the gamma li2iro3 3d kitaev gamma Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: incommensurate spiral order in gamma li2iro3 3d kitaev gamma.",
+          "Truth value of the proposition 'incommensurate spiral order' for gamma li2iro3 3d kitaev gamma, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2068,10 +2068,10 @@
         "claim_fields": [
           "short_range_order_without_simple_lro"
         ],
-        "identity": "low_temperature_correlations_in_gd3ga5o12_garnet",
+        "identity": "short_range_order_without_simple_lro_in_gd3ga5o12_garnet",
         "semantics": [
-          "published low temperature correlations for gd3ga5o12 garnet",
-          "short range order without simple lro for the gd3ga5o12 garnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: short range order without simple lro in gd3ga5o12 garnet.",
+          "Truth value of the proposition 'short range order without simple lro' for gd3ga5o12 garnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2122,10 +2122,10 @@
         "claim_fields": [
           "garnet_frustrated_magnet"
         ],
-        "identity": "material_model_in_gd3te2li3o12_garnet",
+        "identity": "garnet_frustrated_magnet_in_gd3te2li3o12_garnet",
         "semantics": [
-          "published material model for gd3te2li3o12 garnet",
-          "garnet frustrated magnet for the gd3te2li3o12 garnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: garnet frustrated magnet in gd3te2li3o12 garnet.",
+          "Truth value of the proposition 'garnet frustrated magnet' for gd3te2li3o12 garnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2176,10 +2176,10 @@
         "claim_fields": [
           "is_exactly_solved"
         ],
-        "identity": "exact_solution_in_gaudin_yang_fermion_gas",
+        "identity": "property_exactly_solved_in_gaudin_yang_fermion_gas",
         "semantics": [
-          "published exact solution for gaudin yang fermion gas",
-          "is exactly solved for the gaudin yang fermion gas Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exactly solved in gaudin yang fermion gas.",
+          "Truth value of the proposition 'is exactly solved' for gaudin yang fermion gas, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2231,10 +2231,10 @@
         "claim_fields": [
           "no_magnetic_order_reported"
         ],
-        "identity": "spin_liquid_in_h3liir2o6_honeycomb_kitaev",
+        "identity": "no_magnetic_order_reported_in_h3liir2o6_honeycomb_kitaev",
         "semantics": [
-          "published spin liquid for h3liir2o6 honeycomb kitaev",
-          "no magnetic order reported for the h3liir2o6 honeycomb kitaev Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: no magnetic order reported in h3liir2o6 honeycomb kitaev.",
+          "Truth value of the proposition 'no magnetic order reported' for h3liir2o6 honeycomb kitaev, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2284,10 +2284,10 @@
         "claim_fields": [
           "has_exact_jastrow_ground_state"
         ],
-        "identity": "exact_ground_state_in_haldane_shastry_chain",
+        "identity": "property_exact_jastrow_ground_state_in_haldane_shastry_chain",
         "semantics": [
-          "published exact ground state for haldane shastry chain",
-          "has exact jastrow ground state for the haldane shastry chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exact jastrow ground state in haldane shastry chain.",
+          "Truth value of the proposition 'has exact jastrow ground state' for haldane shastry chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2338,10 +2338,10 @@
         "claim_fields": [
           "gap_over_j"
         ],
-        "identity": "haldane_gap_in_spin_1_heisenberg_chain",
+        "identity": "gap_over_j_in_spin_1_heisenberg_chain",
         "semantics": [
-          "published haldane gap for spin 1 heisenberg chain",
-          "gap over j for the spin 1 heisenberg chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: gap over j in spin 1 heisenberg chain.",
+          "Published numerical gap over j for spin 1 heisenberg chain, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -2393,10 +2393,10 @@
         "claim_fields": [
           "ferromagnetic_kagome_exchange"
         ],
-        "identity": "classical_ground_state_in_haydeeite_kagome_ferromagnet",
+        "identity": "ferromagnetic_kagome_exchange_in_haydeeite_kagome_ferromagnet",
         "semantics": [
-          "published classical ground state for haydeeite kagome ferromagnet",
-          "ferromagnetic kagome exchange for the haydeeite kagome ferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ferromagnetic kagome exchange in haydeeite kagome ferromagnet.",
+          "Truth value of the proposition 'ferromagnetic kagome exchange' for haydeeite kagome ferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2450,7 +2450,7 @@
         "identity": "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
         "semantics": [
           "published experimental assessment of quantum-spin-liquid behavior",
-          "assessment of quantum-spin-liquid phenomenology under the cited experimental conditions"
+          "Truth value of the proposition 'qsl candidate' for herbertsmithite kagome heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2502,10 +2502,10 @@
         "claim_fields": [
           "spin_ice_correlations"
         ],
-        "identity": "neutron_scattering_in_ho2ti2o7_spin_ice",
+        "identity": "spin_ice_correlations_in_ho2ti2o7_spin_ice",
         "semantics": [
-          "published neutron scattering for ho2ti2o7 spin ice",
-          "spin ice correlations for the ho2ti2o7 spin ice Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spin ice correlations in ho2ti2o7 spin ice.",
+          "Truth value of the proposition 'spin ice correlations' for ho2ti2o7 spin ice, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2555,10 +2555,10 @@
         "claim_fields": [
           "spin_orbit_induced_anisotropy"
         ],
-        "identity": "strong_coupling_in_kane_mele_hubbard_strong_coupling",
+        "identity": "spin_orbit_induced_anisotropy_in_kane_mele_hubbard_strong_coupling",
         "semantics": [
-          "published strong coupling for kane mele hubbard strong coupling",
-          "spin orbit induced anisotropy for the kane mele hubbard strong coupling Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spin orbit induced anisotropy in kane mele hubbard strong coupling.",
+          "Truth value of the proposition 'spin orbit induced anisotropy' for kane mele hubbard strong coupling, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2609,10 +2609,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "critical_temperature_in_classical_honeycomb_ising",
+        "identity": "tc_over_j_in_classical_honeycomb_ising",
         "semantics": [
-          "published critical temperature for classical honeycomb ising",
-          "tc over j for the classical honeycomb ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: tc over j in classical honeycomb ising.",
+          "Published numerical tc over j for classical honeycomb ising, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -2664,10 +2664,10 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "phase_diagram_in_honeycomb_j1_j2_j3_heisenberg",
+        "identity": "phases_in_honeycomb_j1_j2_j3_heisenberg",
         "semantics": [
-          "published phase diagram for honeycomb j1 j2 j3 heisenberg",
-          "phases for the honeycomb j1 j2 j3 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phases in honeycomb j1 j2 j3 heisenberg.",
+          "Published interval, set, or ordered sequence for phases in honeycomb j1 j2 j3 heisenberg, represented as categorical phase label set with units not applicable."
         ]
       },
       "parameter_regime": {
@@ -2718,10 +2718,10 @@
         "claim_fields": [
           "zigzag_order_relevant"
         ],
-        "identity": "material_model_in_na2iro3_honeycomb_kitaev_heisenberg",
+        "identity": "zigzag_order_relevant_in_na2iro3_honeycomb_kitaev_heisenberg",
         "semantics": [
-          "published material model for na2iro3 honeycomb kitaev heisenberg",
-          "zigzag order relevant for the na2iro3 honeycomb kitaev heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: zigzag order relevant in na2iro3 honeycomb kitaev heisenberg.",
+          "Truth value of the proposition 'zigzag order relevant' for na2iro3 honeycomb kitaev heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2772,10 +2772,10 @@
         "claim_fields": [
           "ring_condition"
         ],
-        "identity": "spiral_ring_in_honeycomb_j1_j2_heisenberg",
+        "identity": "ring_condition_in_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "published spiral ring for honeycomb j1 j2 heisenberg",
-          "ring condition for the honeycomb j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ring condition in honeycomb j1 j2 heisenberg.",
+          "Published symbolic or categorical specification of ring condition for honeycomb j1 j2 heisenberg, interpreted as symbolic expression."
         ]
       },
       "parameter_regime": {
@@ -2826,10 +2826,10 @@
         "claim_fields": [
           "contains_noncollinear_and_zigzag_phases"
         ],
-        "identity": "phase_diagram_in_honeycomb_kitaev_gamma",
+        "identity": "phase_content_noncollinear_and_zigzag_phases_in_honeycomb_kitaev_gamma",
         "semantics": [
-          "published phase diagram for honeycomb kitaev gamma",
-          "contains noncollinear and zigzag phases for the honeycomb kitaev gamma Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phase content noncollinear and zigzag phases in honeycomb kitaev gamma.",
+          "Truth value of the proposition 'contains noncollinear and zigzag phases' for honeycomb kitaev gamma, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2879,10 +2879,10 @@
         "claim_fields": [
           "ordered_phases"
         ],
-        "identity": "phase_diagram_in_honeycomb_kitaev_heisenberg",
+        "identity": "ordered_phases_in_honeycomb_kitaev_heisenberg",
         "semantics": [
-          "published phase diagram for honeycomb kitaev heisenberg",
-          "ordered phases for the honeycomb kitaev heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ordered phases in honeycomb kitaev heisenberg.",
+          "Published interval, set, or ordered sequence for ordered phases in honeycomb kitaev heisenberg, represented as ordered categorical phase labels with units not applicable."
         ]
       },
       "parameter_regime": {
@@ -2933,10 +2933,10 @@
         "claim_fields": [
           "intermediate_nonmagnetic_phase_candidate"
         ],
-        "identity": "published_observable_in_spin_1_2_honeycomb_j1_j2_heisenberg",
+        "identity": "intermediate_nonmagnetic_phase_assessment_in_spin_1_2_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "published published observable for spin 1 2 honeycomb j1 j2 heisenberg",
-          "intermediate nonmagnetic phase candidate for the spin 1 2 honeycomb j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: intermediate nonmagnetic phase assessment in spin 1 2 honeycomb j1 j2 heisenberg.",
+          "Truth value of the proposition 'intermediate nonmagnetic phase candidate' for spin 1 2 honeycomb j1 j2 heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -2986,10 +2986,10 @@
         "claim_fields": [
           "spin_liquid_candidate"
         ],
-        "identity": "spin_liquid_in_hyperkagome_heisenberg",
+        "identity": "spin_liquid_assessment_in_hyperkagome_heisenberg",
         "semantics": [
-          "published spin liquid for hyperkagome heisenberg",
-          "assessment of spin-liquid phenomenology under the cited material or model conditions"
+          "Canonical literature observable: spin liquid assessment in hyperkagome heisenberg.",
+          "Truth value of the proposition 'spin liquid candidate' for hyperkagome heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3040,10 +3040,10 @@
         "claim_fields": [
           "critical_j2_over_j1_approx"
         ],
-        "identity": "dimerization_transition_in_spin_1_2_j1_j2_chain",
+        "identity": "critical_j2_over_j1_approx_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "published dimerization transition for spin 1 2 j1 j2 chain",
-          "critical j2 over j1 approx for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: critical j2 over j1 approx in spin 1 2 j1 j2 chain.",
+          "Published numerical critical j2 over j1 approx for spin 1 2 j1 j2 chain, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -3095,10 +3095,10 @@
         "claim_fields": [
           "critical_j2_over_j1"
         ],
-        "identity": "dimerization_transition_in_spin_1_2_j1_j2_chain",
+        "identity": "critical_j2_over_j1_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "published dimerization transition for spin 1 2 j1 j2 chain",
-          "critical j2 over j1 for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: critical j2 over j1 in spin 1 2 j1 j2 chain.",
+          "Published numerical critical j2 over j1 for spin 1 2 j1 j2 chain, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -3150,10 +3150,10 @@
         "claim_fields": [
           "intermediate_nonmagnetic_phase"
         ],
-        "identity": "quantum_phase_window_in_spin_1_2_honeycomb_j1_j2_heisenberg",
+        "identity": "intermediate_nonmagnetic_phase_in_spin_1_2_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "published quantum phase window for spin 1 2 honeycomb j1 j2 heisenberg",
-          "intermediate nonmagnetic phase for the spin 1 2 honeycomb j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: intermediate nonmagnetic phase in spin 1 2 honeycomb j1 j2 heisenberg.",
+          "Truth value of the proposition 'intermediate nonmagnetic phase' for spin 1 2 honeycomb j1 j2 heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3205,10 +3205,10 @@
         "claim_fields": [
           "multiple_paramagnetic_regions"
         ],
-        "identity": "published_observable_in_spin_1_2_square_j1_j2_j3_heisenberg",
+        "identity": "multiple_paramagnetic_regions_in_spin_1_2_square_j1_j2_j3_heisenberg",
         "semantics": [
-          "published published observable for spin 1 2 square j1 j2 j3 heisenberg",
-          "multiple paramagnetic regions for the spin 1 2 square j1 j2 j3 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: multiple paramagnetic regions in spin 1 2 square j1 j2 j3 heisenberg.",
+          "Truth value of the proposition 'multiple paramagnetic regions' for spin 1 2 square j1 j2 j3 heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3259,10 +3259,10 @@
         "claim_fields": [
           "columnar_or_plaquette_vbs_reference"
         ],
-        "identity": "vbs_in_square_j1_j2_vbs",
+        "identity": "columnar_or_plaquette_vbs_characterization_in_square_j1_j2_vbs",
         "semantics": [
-          "published vbs for square j1 j2 vbs",
-          "identification of columnar or plaquette valence-bond-solid order"
+          "Canonical literature observable: columnar or plaquette vbs characterization in square j1 j2 vbs.",
+          "Truth value of the proposition 'columnar or plaquette vbs reference' for square j1 j2 vbs, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3316,7 +3316,7 @@
         "identity": "nonmagnetic_phase_window_in_j2_over_j1",
         "semantics": [
           "approximate nonmagnetic-phase interval in the J2/J1 coupling ratio",
-          "endpoints of the approximate nonmagnetic interval in J2/J1"
+          "Published interval, set, or ordered sequence for nonmagnetic window approx in spin 1 2 square j1 j2 heisenberg, represented as closed interval endpoints in ascending j2 over j1 with units dimensionless j2 over j1."
         ]
       },
       "parameter_regime": {
@@ -3368,10 +3368,10 @@
         "claim_fields": [
           "spin_liquid_window_approx"
         ],
-        "identity": "quantum_phase_window_in_spin_1_2_triangular_j1_j2_heisenberg",
+        "identity": "spin_liquid_window_approx_in_spin_1_2_triangular_j1_j2_heisenberg",
         "semantics": [
-          "published quantum phase window for spin 1 2 triangular j1 j2 heisenberg",
-          "spin liquid window approx for the spin 1 2 triangular j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spin liquid window approx in spin 1 2 triangular j1 j2 heisenberg.",
+          "Published interval, set, or ordered sequence for spin liquid window approx in spin 1 2 triangular j1 j2 heisenberg, represented as closed interval endpoints in ascending j2 over j1 with units dimensionless j2 over j1."
         ]
       },
       "parameter_regime": {
@@ -3380,10 +3380,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_values_under_declared_convention",
+            "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
             "id": "spin_liquid_window_approx",
             "type": "list[number]",
-            "units": "dimensionless_sequence"
+            "units": "dimensionless_j2_over_j1"
           }
         ],
         "kind": "registered_field_map"
@@ -3394,7 +3394,7 @@
       },
       "subject": "J1-j2 triangular spin liquid window",
       "system": "spin_1_2_triangular_j1_j2_heisenberg",
-      "units": "spin_liquid_window_approx=dimensionless_sequence"
+      "units": "spin_liquid_window_approx=dimensionless_j2_over_j1"
     },
     {
       "benchmark_name": "jarosite_kagome_dzyaloshinskii_moriya_reference",
@@ -3422,10 +3422,10 @@
         "claim_fields": [
           "q_0_120_order"
         ],
-        "identity": "classical_order_in_jarosite_kagome_dm",
+        "identity": "q_0_120_order_in_jarosite_kagome_dm",
         "semantics": [
-          "published classical order for jarosite kagome dm",
-          "q 0 120 order for the jarosite kagome dm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: q 0 120 order in jarosite kagome dm.",
+          "Truth value of the proposition 'q 0 120 order' for jarosite kagome dm, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3479,8 +3479,8 @@
         ],
         "identity": "chiral_spin_liquid_phase_in_kagome_heisenberg_chiral_j1_j2_jchi",
         "semantics": [
-          "published chiral spin liquid phase for kagome heisenberg chiral j1 j2 jchi",
-          "chiral spin liquid phase for the kagome heisenberg chiral j1 j2 jchi Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: chiral spin liquid phase in kagome heisenberg chiral j1 j2 jchi.",
+          "Truth value of the proposition 'chiral spin liquid phase' for kagome heisenberg chiral j1 j2 jchi, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3530,10 +3530,10 @@
         "claim_fields": [
           "critical_d_over_j_approx"
         ],
-        "identity": "quantum_critical_ratio_in_spin_1_2_kagome_dm_heisenberg",
+        "identity": "critical_d_over_j_approx_in_spin_1_2_kagome_dm_heisenberg",
         "semantics": [
-          "published quantum critical ratio for spin 1 2 kagome dm heisenberg",
-          "critical d over j approx for the spin 1 2 kagome dm heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: critical d over j approx in spin 1 2 kagome dm heisenberg.",
+          "Published numerical critical d over j approx for spin 1 2 kagome dm heisenberg, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -3586,11 +3586,11 @@
           "energy_per_site",
           "spin_gap_over_j"
         ],
-        "identity": "ground_state_energy_and_gap_in_spin_1_2_kagome_heisenberg_afm",
+        "identity": "energy_per_site_and_spin_gap_over_j_in_spin_1_2_kagome_heisenberg_afm",
         "semantics": [
-          "published ground state energy and gap for spin 1 2 kagome heisenberg afm",
-          "energy per site for the spin 1 2 kagome heisenberg afm Hamiltonian under the declared parameter regime",
-          "spin gap over j for the spin 1 2 kagome heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site, spin gap over j in spin 1 2 kagome heisenberg afm.",
+          "Published numerical energy per site for spin 1 2 kagome heisenberg afm, expressed in exchange energy per site using energy density.",
+          "Published numerical spin gap over j for spin 1 2 kagome heisenberg afm, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -3651,8 +3651,8 @@
         ],
         "identity": "topological_entanglement_entropy_in_spin_1_2_kagome_heisenberg_afm",
         "semantics": [
-          "published topological entanglement entropy for spin 1 2 kagome heisenberg afm",
-          "topological entanglement entropy for the spin 1 2 kagome heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: topological entanglement entropy in spin 1 2 kagome heisenberg afm.",
+          "Published symbolic or categorical specification of topological entanglement entropy for spin 1 2 kagome heisenberg afm, interpreted as angular scalar."
         ]
       },
       "parameter_regime": {
@@ -3704,10 +3704,10 @@
         "claim_fields": [
           "macroscopic_ground_state_degeneracy"
         ],
-        "identity": "residual_entropy_in_classical_kagome_ising_antiferromagnet",
+        "identity": "macroscopic_ground_state_degeneracy_in_classical_kagome_ising_antiferromagnet",
         "semantics": [
-          "published residual entropy for classical kagome ising antiferromagnet",
-          "macroscopic ground state degeneracy for the classical kagome ising antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: macroscopic ground state degeneracy in classical kagome ising antiferromagnet.",
+          "Truth value of the proposition 'macroscopic ground state degeneracy' for classical kagome ising antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3758,10 +3758,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "critical_temperature_in_classical_kagome_ising",
+        "identity": "tc_over_j_in_classical_kagome_ising",
         "semantics": [
-          "published critical temperature for classical kagome ising",
-          "tc over j for the classical kagome ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: tc over j in classical kagome ising.",
+          "Published numerical tc over j for classical kagome ising, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -3812,10 +3812,10 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "phase_diagram_in_spin_1_2_kagome_j1_j2_heisenberg",
+        "identity": "phases_in_spin_1_2_kagome_j1_j2_heisenberg",
         "semantics": [
-          "published phase diagram for spin 1 2 kagome j1 j2 heisenberg",
-          "phases for the spin 1 2 kagome j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phases in spin 1 2 kagome j1 j2 heisenberg.",
+          "Published interval, set, or ordered sequence for phases in spin 1 2 kagome j1 j2 heisenberg, represented as categorical phase label set with units not applicable."
         ]
       },
       "parameter_regime": {
@@ -3865,10 +3865,10 @@
         "claim_fields": [
           "one_third_plateau"
         ],
-        "identity": "magnetization_plateau_in_kagome_heisenberg_high_field",
+        "identity": "one_third_plateau_in_kagome_heisenberg_high_field",
         "semantics": [
-          "published magnetization plateau for kagome heisenberg high field",
-          "one third plateau for the kagome heisenberg high field Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: one third plateau in kagome heisenberg high field.",
+          "Truth value of the proposition 'one third plateau' for kagome heisenberg high field, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -3919,10 +3919,10 @@
         "claim_fields": [
           "energy_per_site_approx"
         ],
-        "identity": "ground_state_energy_in_spin_1_2_kagome_heisenberg",
+        "identity": "energy_per_site_approx_in_spin_1_2_kagome_heisenberg",
         "semantics": [
-          "published ground state energy for spin 1 2 kagome heisenberg",
-          "energy per site approx for the spin 1 2 kagome heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site approx in spin 1 2 kagome heisenberg.",
+          "Published numerical energy per site approx for spin 1 2 kagome heisenberg, expressed in exchange energy per site using energy density."
         ]
       },
       "parameter_regime": {
@@ -3974,10 +3974,10 @@
         "claim_fields": [
           "competing_kagome_exchanges"
         ],
-        "identity": "material_exchange_in_kapellasite_kagome_j1_jd",
+        "identity": "competing_kagome_exchanges_in_kapellasite_kagome_j1_jd",
         "semantics": [
-          "published material exchange for kapellasite kagome j1 jd",
-          "competing kagome exchanges for the kapellasite kagome j1 jd Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: competing kagome exchanges in kapellasite kagome j1 jd.",
+          "Truth value of the proposition 'competing kagome exchanges' for kapellasite kagome j1 jd, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4027,10 +4027,10 @@
         "claim_fields": [
           "field_opens_non_abelian_gap"
         ],
-        "identity": "field_induced_gap_in_kitaev_honeycomb_field",
+        "identity": "field_opens_non_abelian_gap_in_kitaev_honeycomb_field",
         "semantics": [
-          "published field induced gap for kitaev honeycomb field",
-          "field opens non abelian gap for the kitaev honeycomb field Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: field opens non abelian gap in kitaev honeycomb field.",
+          "Truth value of the proposition 'field opens non abelian gap' for kitaev honeycomb field, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4083,11 +4083,11 @@
           "is_exactly_solvable",
           "isotropic_phase"
         ],
-        "identity": "exact_solution_in_spin_1_2_kitaev_honeycomb",
+        "identity": "property_exactly_solvable_and_isotropic_phase_in_spin_1_2_kitaev_honeycomb",
         "semantics": [
-          "published exact solution for spin 1 2 kitaev honeycomb",
-          "is exactly solvable for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime",
-          "isotropic phase for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exactly solvable, isotropic phase in spin 1 2 kitaev honeycomb.",
+          "Truth value of the proposition 'is exactly solvable' for spin 1 2 kitaev honeycomb, with source conditions matched explicitly.",
+          "Published symbolic or categorical specification of isotropic phase for spin 1 2 kitaev honeycomb, interpreted as categorical label."
         ]
       },
       "parameter_regime": {
@@ -4148,11 +4148,11 @@
           "gapless_condition",
           "isotropic_kitaev_point_gapless"
         ],
-        "identity": "gapless_condition_in_spin_1_2_kitaev_honeycomb",
+        "identity": "gapless_condition_and_isotropic_kitaev_point_gapless_in_spin_1_2_kitaev_honeycomb",
         "semantics": [
-          "published gapless condition for spin 1 2 kitaev honeycomb",
-          "gapless condition for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime",
-          "isotropic kitaev point gapless for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: gapless condition, isotropic kitaev point gapless in spin 1 2 kitaev honeycomb.",
+          "Published symbolic or categorical specification of gapless condition for spin 1 2 kitaev honeycomb, interpreted as hamiltonian energy scale.",
+          "Truth value of the proposition 'isotropic kitaev point gapless' for spin 1 2 kitaev honeycomb, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4212,10 +4212,10 @@
         "claim_fields": [
           "frustrated_ferromagnetic_chain"
         ],
-        "identity": "material_model_in_li2cuo2_j1_j2_chain",
+        "identity": "frustrated_ferromagnetic_chain_in_li2cuo2_j1_j2_chain",
         "semantics": [
-          "published material model for li2cuo2 j1 j2 chain",
-          "frustrated ferromagnetic chain for the li2cuo2 j1 j2 chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: frustrated ferromagnetic chain in li2cuo2 j1 j2 chain.",
+          "Truth value of the proposition 'frustrated ferromagnetic chain' for li2cuo2 j1 j2 chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4267,10 +4267,10 @@
         "claim_fields": [
           "hyperhoneycomb_kitaev_material"
         ],
-        "identity": "published_observable_in_beta_li2iro3_hyperhoneycomb",
+        "identity": "hyperhoneycomb_kitaev_material_in_beta_li2iro3_hyperhoneycomb",
         "semantics": [
-          "published published observable for beta li2iro3 hyperhoneycomb",
-          "hyperhoneycomb kitaev material for the beta li2iro3 hyperhoneycomb Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: hyperhoneycomb kitaev material in beta li2iro3 hyperhoneycomb.",
+          "Truth value of the proposition 'hyperhoneycomb kitaev material' for beta li2iro3 hyperhoneycomb, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4322,10 +4322,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "spiral_order_in_licuvo4_j1_j2_chain",
+        "identity": "incommensurate_spiral_order_in_licuvo4_j1_j2_chain",
         "semantics": [
-          "published spiral order for licuvo4 j1 j2 chain",
-          "incommensurate spiral order for the licuvo4 j1 j2 chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: incommensurate spiral order in licuvo4 j1 j2 chain.",
+          "Truth value of the proposition 'incommensurate spiral order' for licuvo4 j1 j2 chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4375,10 +4375,10 @@
         "claim_fields": [
           "ground_state_spin_per_unit_cell"
         ],
-        "identity": "lieb_mattis_ferrimagnetism_in_lieb_lattice_heisenberg",
+        "identity": "ground_state_spin_per_unit_cell_in_lieb_lattice_heisenberg",
         "semantics": [
-          "published lieb mattis ferrimagnetism for lieb lattice heisenberg",
-          "ground state spin per unit cell for the lieb lattice heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ground state spin per unit cell in lieb lattice heisenberg.",
+          "Published numerical ground state spin per unit cell for lieb lattice heisenberg, expressed in spin angular momentum hbar using total ground state spin per crystallographic unit cell."
         ]
       },
       "parameter_regime": {
@@ -4387,10 +4387,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
             "id": "ground_state_spin_per_unit_cell",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "spin_angular_momentum_hbar"
           }
         ],
         "kind": "registered_field_map"
@@ -4401,7 +4401,7 @@
       },
       "subject": "Lieb lattice heisenberg ferrimagnet",
       "system": "lieb_lattice_heisenberg",
-      "units": "ground_state_spin_per_unit_cell=dimensionless_observable"
+      "units": "ground_state_spin_per_unit_cell=spin_angular_momentum_hbar"
     },
     {
       "benchmark_name": "lieb_liniger_delta_bose_gas_bethe_reference",
@@ -4429,11 +4429,11 @@
           "is_exactly_solved",
           "tonks_girardeau_limit_maps_to_free_fermions"
         ],
-        "identity": "exact_solution_in_lieb_liniger_bose_gas",
+        "identity": "property_exactly_solved_and_tonks_girardeau_limit_maps_to_free_fermions_in_lieb_liniger_bose_gas",
         "semantics": [
-          "published exact solution for lieb liniger bose gas",
-          "is exactly solved for the lieb liniger bose gas Hamiltonian under the declared parameter regime",
-          "tonks girardeau limit maps to free fermions for the lieb liniger bose gas Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exactly solved, tonks girardeau limit maps to free fermions in lieb liniger bose gas.",
+          "Truth value of the proposition 'is exactly solved' for lieb liniger bose gas, with source conditions matched explicitly.",
+          "Truth value of the proposition 'tonks girardeau limit maps to free fermions' for lieb liniger bose gas, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4489,10 +4489,10 @@
         "claim_fields": [
           "unique_gapped_symmetric_ground_state_allowed"
         ],
-        "identity": "spectral_constraint_in_half_integer_spin_chain",
+        "identity": "unique_gapped_symmetric_ground_state_allowed_in_half_integer_spin_chain",
         "semantics": [
-          "published spectral constraint for half integer spin chain",
-          "unique gapped symmetric ground state allowed for the half integer spin chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: unique gapped symmetric ground state allowed in half integer spin chain.",
+          "Truth value of the proposition 'unique gapped symmetric ground state allowed' for half integer spin chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4545,11 +4545,11 @@
           "energy_per_site",
           "degenerate_dimer_coverings"
         ],
-        "identity": "ground_state_energy_in_spin_1_2_j1_j2_chain",
+        "identity": "energy_per_site_and_degenerate_dimer_coverings_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "published ground state energy for spin 1 2 j1 j2 chain",
-          "energy per site for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime",
-          "degenerate dimer coverings for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site, degenerate dimer coverings in spin 1 2 j1 j2 chain.",
+          "Published numerical energy per site for spin 1 2 j1 j2 chain, expressed in exchange energy per site using energy density.",
+          "Published numerical degenerate dimer coverings for spin 1 2 j1 j2 chain, expressed in count using nonnegative integer number of exact dimer coverings."
         ]
       },
       "parameter_regime": {
@@ -4565,10 +4565,10 @@
             "units": "exchange_energy_per_site"
           },
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
             "id": "degenerate_dimer_coverings",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "count"
           }
         ],
         "kind": "registered_field_map"
@@ -4579,7 +4579,7 @@
       },
       "subject": "Majundar ghosh chain exact dimer point",
       "system": "spin_1_2_j1_j2_chain",
-      "units": "energy_per_site=exchange_energy_per_site; degenerate_dimer_coverings=dimensionless_observable"
+      "units": "energy_per_site=exchange_energy_per_site; degenerate_dimer_coverings=count"
     },
     {
       "benchmark_name": "maple_leaf_lattice_heisenberg_reference",
@@ -4605,10 +4605,10 @@
         "claim_fields": [
           "frustrated_order_reference"
         ],
-        "identity": "published_observable_in_maple_leaf_lattice_heisenberg",
+        "identity": "frustrated_order_characterization_in_maple_leaf_lattice_heisenberg",
         "semantics": [
-          "published published observable for maple leaf lattice heisenberg",
-          "published magnetic-order characterization in the frustrated lattice model"
+          "Canonical literature observable: frustrated order characterization in maple leaf lattice heisenberg.",
+          "Truth value of the proposition 'frustrated order reference' for maple leaf lattice heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4659,10 +4659,10 @@
         "claim_fields": [
           "neel_order_reference"
         ],
-        "identity": "classical_order_in_mnps3_honeycomb_antiferromagnet",
+        "identity": "neel_order_characterization_in_mnps3_honeycomb_antiferromagnet",
         "semantics": [
-          "published classical order for mnps3 honeycomb antiferromagnet",
-          "experimentally inferred Neel antiferromagnetic order"
+          "Canonical literature observable: neel order characterization in mnps3 honeycomb antiferromagnet.",
+          "Truth value of the proposition 'neel order reference' for mnps3 honeycomb antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4713,10 +4713,10 @@
         "claim_fields": [
           "long_wavelength_helix"
         ],
-        "identity": "helical_wavevector_in_mnsi_chiral_helimagnet",
+        "identity": "long_wavelength_helix_in_mnsi_chiral_helimagnet",
         "semantics": [
-          "published helical wavevector for mnsi chiral helimagnet",
-          "long wavelength helix for the mnsi chiral helimagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: long wavelength helix in mnsi chiral helimagnet.",
+          "Truth value of the proposition 'long wavelength helix' for mnsi chiral helimagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4767,10 +4767,10 @@
         "claim_fields": [
           "hyperkagome_qsl_candidate"
         ],
-        "identity": "material_qsl_in_na4ir3o8_hyperkagome",
+        "identity": "hyperkagome_qsl_assessment_in_na4ir3o8_hyperkagome",
         "semantics": [
-          "published material qsl for na4ir3o8 hyperkagome",
-          "assessment of quantum-spin-liquid phenomenology on the hyperkagome material"
+          "Canonical literature observable: hyperkagome qsl assessment in na4ir3o8 hyperkagome.",
+          "Truth value of the proposition 'hyperkagome qsl candidate' for na4ir3o8 hyperkagome, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4820,10 +4820,10 @@
         "claim_fields": [
           "triangular_material_reference"
         ],
-        "identity": "published_observable_in_nacuo2_triangular_heisenberg",
+        "identity": "triangular_material_characterization_in_nacuo2_triangular_heisenberg",
         "semantics": [
-          "published published observable for nacuo2 triangular heisenberg",
-          "identification of a triangular-lattice magnetic material"
+          "Canonical literature observable: triangular material characterization in nacuo2 triangular heisenberg.",
+          "Truth value of the proposition 'triangular material reference' for nacuo2 triangular heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4874,10 +4874,10 @@
         "claim_fields": [
           "zigzag_or_collinear_order_reference"
         ],
-        "identity": "classical_order_in_nips3_honeycomb_antiferromagnet",
+        "identity": "zigzag_or_collinear_order_characterization_in_nips3_honeycomb_antiferromagnet",
         "semantics": [
-          "published classical order for nips3 honeycomb antiferromagnet",
-          "experimentally inferred zigzag or collinear magnetic order"
+          "Canonical literature observable: zigzag or collinear order characterization in nips3 honeycomb antiferromagnet.",
+          "Truth value of the proposition 'zigzag or collinear order reference' for nips3 honeycomb antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -4929,11 +4929,11 @@
           "formula",
           "correlation_length_beta_1_j_1"
         ],
-        "identity": "correlation_length_in_classical_ising_chain",
+        "identity": "formula_and_correlation_length_beta_1_j_1_in_classical_ising_chain",
         "semantics": [
-          "published correlation length for classical ising chain",
-          "formula for the classical ising chain Hamiltonian under the declared parameter regime",
-          "correlation length beta 1 j 1 for the classical ising chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: formula, correlation length beta 1 j 1 in classical ising chain.",
+          "Published symbolic or categorical specification of formula for classical ising chain, interpreted as symbolic expression.",
+          "Published numerical correlation length beta 1 j 1 for classical ising chain, expressed in lattice spacing using bulk correlation length."
         ]
       },
       "parameter_regime": {
@@ -4991,11 +4991,11 @@
           "finite_temperature_transition",
           "tc_over_j"
         ],
-        "identity": "critical_temperature_in_classical_ising_chain",
+        "identity": "finite_temperature_transition_and_tc_over_j_in_classical_ising_chain",
         "semantics": [
-          "published critical temperature for classical ising chain",
-          "finite temperature transition for the classical ising chain Hamiltonian under the declared parameter regime",
-          "tc over j for the classical ising chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: finite temperature transition, tc over j in classical ising chain.",
+          "Truth value of the proposition 'finite temperature transition' for classical ising chain, with source conditions matched explicitly.",
+          "Published numerical tc over j for classical ising chain, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -5053,10 +5053,10 @@
         "claim_fields": [
           "quantum_spin_ice_candidate"
         ],
-        "identity": "quantum_spin_ice_in_pr2zr2o7_quantum_spin_ice",
+        "identity": "quantum_spin_ice_assessment_in_pr2zr2o7_quantum_spin_ice",
         "semantics": [
-          "published quantum spin ice for pr2zr2o7 quantum spin ice",
-          "assessment of quantum-spin-ice phenomenology under the cited conditions"
+          "Canonical literature observable: quantum spin ice assessment in pr2zr2o7 quantum spin ice.",
+          "Truth value of the proposition 'quantum spin ice candidate' for pr2zr2o7 quantum spin ice, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5108,10 +5108,10 @@
         "claim_fields": [
           "couplings"
         ],
-        "identity": "exchange_parameterization_in_rare_earth_pyrochlore_anisotropic_exchange",
+        "identity": "couplings_in_rare_earth_pyrochlore_anisotropic_exchange",
         "semantics": [
-          "published exchange parameterization for rare earth pyrochlore anisotropic exchange",
-          "couplings for the rare earth pyrochlore anisotropic exchange Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: couplings in rare earth pyrochlore anisotropic exchange.",
+          "Published interval, set, or ordered sequence for couplings in rare earth pyrochlore anisotropic exchange, represented as named hamiltonian coupling parameter map with units source declared coupling units."
         ]
       },
       "parameter_regime": {
@@ -5162,10 +5162,10 @@
         "claim_fields": [
           "pauling_entropy_per_spin"
         ],
-        "identity": "residual_entropy_in_dipolar_spin_ice_pyrochlore",
+        "identity": "pauling_entropy_per_spin_in_dipolar_spin_ice_pyrochlore",
         "semantics": [
-          "published residual entropy for dipolar spin ice pyrochlore",
-          "pauling entropy per spin for the dipolar spin ice pyrochlore Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: pauling entropy per spin in dipolar spin ice pyrochlore.",
+          "Published numerical pauling entropy per spin for dipolar spin ice pyrochlore, expressed in natural log unit per spin using entropy density."
         ]
       },
       "parameter_regime": {
@@ -5217,11 +5217,11 @@
           "zero_total_spin_per_tetrahedron",
           "pinch_points"
         ],
-        "identity": "ground_state_constraint_in_classical_pyrochlore_heisenberg_afm",
+        "identity": "zero_total_spin_per_tetrahedron_and_pinch_points_in_classical_pyrochlore_heisenberg_afm",
         "semantics": [
-          "published ground state constraint for classical pyrochlore heisenberg afm",
-          "zero total spin per tetrahedron for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime",
-          "pinch points for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: zero total spin per tetrahedron, pinch points in classical pyrochlore heisenberg afm.",
+          "Truth value of the proposition 'zero total spin per tetrahedron' for classical pyrochlore heisenberg afm, with source conditions matched explicitly.",
+          "Truth value of the proposition 'pinch points' for classical pyrochlore heisenberg afm, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5279,11 +5279,11 @@
           "local_constraint",
           "lowest_lt_flat_band"
         ],
-        "identity": "coulomb_phase_in_classical_pyrochlore_heisenberg_afm",
+        "identity": "local_constraint_and_lowest_lt_flat_band_in_classical_pyrochlore_heisenberg_afm",
         "semantics": [
-          "published coulomb phase for classical pyrochlore heisenberg afm",
-          "local constraint for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime",
-          "lowest lt flat band for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: local constraint, lowest lt flat band in classical pyrochlore heisenberg afm.",
+          "Published symbolic or categorical specification of local constraint for classical pyrochlore heisenberg afm, interpreted as categorical label.",
+          "Truth value of the proposition 'lowest lt flat band' for classical pyrochlore heisenberg afm, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5340,10 +5340,10 @@
         "claim_fields": [
           "u1_quantum_spin_liquid_candidate"
         ],
-        "identity": "published_observable_in_quantum_spin_ice_pyrochlore",
+        "identity": "u1_quantum_spin_liquid_assessment_in_quantum_spin_ice_pyrochlore",
         "semantics": [
-          "published published observable for quantum spin ice pyrochlore",
-          "assessment of a U(1) quantum-spin-liquid phase in pyrochlore spin ice"
+          "Canonical literature observable: u1 quantum spin liquid assessment in quantum spin ice pyrochlore.",
+          "Truth value of the proposition 'u1 quantum spin liquid candidate' for quantum spin ice pyrochlore, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5394,10 +5394,10 @@
         "claim_fields": [
           "ru_honeycomb_kitaev_candidate"
         ],
-        "identity": "material_model_in_ru_br3_honeycomb_kitaev",
+        "identity": "ru_honeycomb_kitaev_assessment_in_ru_br3_honeycomb_kitaev",
         "semantics": [
-          "published material model for ru br3 honeycomb kitaev",
-          "assessment of honeycomb Kitaev interactions in the ruthenium material"
+          "Canonical literature observable: ru honeycomb kitaev assessment in ru br3 honeycomb kitaev.",
+          "Truth value of the proposition 'ru honeycomb kitaev candidate' for ru br3 honeycomb kitaev, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5447,10 +5447,10 @@
         "claim_fields": [
           "supports_localized_magnons"
         ],
-        "identity": "localized_magnon_in_ruby_lattice_heisenberg",
+        "identity": "supports_localized_magnons_in_ruby_lattice_heisenberg",
         "semantics": [
-          "published localized magnon for ruby lattice heisenberg",
-          "supports localized magnons for the ruby lattice heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: supports localized magnons in ruby lattice heisenberg.",
+          "Truth value of the proposition 'supports localized magnons' for ruby lattice heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5500,10 +5500,10 @@
         "claim_fields": [
           "has_exact_localized_magnons"
         ],
-        "identity": "localized_magnon_in_sawtooth_chain_heisenberg",
+        "identity": "property_exact_localized_magnons_in_sawtooth_chain_heisenberg",
         "semantics": [
-          "published localized magnon for sawtooth chain heisenberg",
-          "has exact localized magnons for the sawtooth chain heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exact localized magnons in sawtooth chain heisenberg.",
+          "Truth value of the proposition 'has exact localized magnons' for sawtooth chain heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5555,10 +5555,10 @@
         "claim_fields": [
           "no_conventional_order_down_to_low_t"
         ],
-        "identity": "spin_liquid_material_in_sr_cr_ga_o_kagome_bilayer",
+        "identity": "no_conventional_order_down_to_low_t_in_sr_cr_ga_o_kagome_bilayer",
         "semantics": [
-          "published spin liquid material for sr cr ga o kagome bilayer",
-          "no conventional order down to low t for the sr cr ga o kagome bilayer Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: no conventional order down to low t in sr cr ga o kagome bilayer.",
+          "Truth value of the proposition 'no conventional order down to low t' for sr cr ga o kagome bilayer, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5611,11 +5611,11 @@
           "energy_per_dimer",
           "energy_per_spin"
         ],
-        "identity": "exact_dimer_energy_in_shastry_sutherland",
+        "identity": "energy_per_dimer_and_energy_per_spin_in_shastry_sutherland",
         "semantics": [
-          "published exact dimer energy for shastry sutherland",
-          "energy per dimer for the shastry sutherland Hamiltonian under the declared parameter regime",
-          "energy per spin for the shastry sutherland Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per dimer, energy per spin in shastry sutherland.",
+          "Published numerical energy per dimer for shastry sutherland, expressed in exchange energy per dimer using dimer energy.",
+          "Published numerical energy per spin for shastry sutherland, expressed in exchange energy per spin using energy density."
         ]
       },
       "parameter_regime": {
@@ -5673,10 +5673,10 @@
         "claim_fields": [
           "fractional_plateaus_observed"
         ],
-        "identity": "magnetization_plateaus_in_shastry_sutherland_high_field",
+        "identity": "fractional_plateaus_observed_in_shastry_sutherland_high_field",
         "semantics": [
-          "published magnetization plateaus for shastry sutherland high field",
-          "fractional plateaus observed for the shastry sutherland high field Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: fractional plateaus observed in shastry sutherland high field.",
+          "Truth value of the proposition 'fractional plateaus observed' for shastry sutherland high field, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5726,10 +5726,10 @@
         "claim_fields": [
           "square_kagome_reference"
         ],
-        "identity": "published_observable_in_shuriken_lattice_heisenberg",
+        "identity": "square_kagome_characterization_in_shuriken_lattice_heisenberg",
         "semantics": [
-          "published published observable for shuriken lattice heisenberg",
-          "identification of the shuriken lattice with the square-kagome geometry"
+          "Canonical literature observable: square kagome characterization in shuriken lattice heisenberg.",
+          "Truth value of the proposition 'square kagome reference' for shuriken lattice heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5780,10 +5780,10 @@
         "claim_fields": [
           "neel_to_collinear_boundary_j2_over_j1"
         ],
-        "identity": "phase_boundary_in_simple_cubic_j1_j2_heisenberg",
+        "identity": "neel_to_collinear_boundary_j2_over_j1_in_simple_cubic_j1_j2_heisenberg",
         "semantics": [
-          "published phase boundary for simple cubic j1 j2 heisenberg",
-          "neel to collinear boundary j2 over j1 for the simple cubic j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: neel to collinear boundary j2 over j1 in simple cubic j1 j2 heisenberg.",
+          "Published numerical neel to collinear boundary j2 over j1 for simple cubic j1 j2 heisenberg, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -5835,11 +5835,11 @@
           "levels",
           "degeneracies"
         ],
-        "identity": "onsite_levels_in_spin_1_single_ion_anisotropy",
+        "identity": "levels_and_degeneracies_in_spin_1_single_ion_anisotropy",
         "semantics": [
-          "published onsite levels for spin 1 single ion anisotropy",
-          "levels for the spin 1 single ion anisotropy Hamiltonian under the declared parameter regime",
-          "degeneracies for the spin 1 single ion anisotropy Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: levels, degeneracies in spin 1 single ion anisotropy.",
+          "Published interval, set, or ordered sequence for levels in spin 1 single ion anisotropy, represented as hamiltonian energy scale with units exchange energy unit.",
+          "Published interval, set, or ordered sequence for degeneracies in spin 1 single ion anisotropy, represented as ordered nonnegative integer degeneracies with units count."
         ]
       },
       "parameter_regime": {
@@ -5897,10 +5897,10 @@
         "claim_fields": [
           "large_d_transition_reference"
         ],
-        "identity": "haldane_large_d_transition_in_spin_1_heisenberg_single_ion_chain",
+        "identity": "large_d_transition_characterization_in_spin_1_heisenberg_single_ion_chain",
         "semantics": [
-          "published haldane large d transition for spin 1 heisenberg single ion chain",
-          "location or identification of the Haldane-to-large-D transition"
+          "Canonical literature observable: large d transition characterization in spin 1 heisenberg single ion chain.",
+          "Truth value of the proposition 'large d transition reference' for spin 1 heisenberg single ion chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -5954,13 +5954,13 @@
           "all_in_all_out_energy",
           "two_in_two_out_degeneracy"
         ],
-        "identity": "tetrahedron_energy_levels_in_nearest_neighbor_spin_ice_tetrahedron",
+        "identity": "two_in_two_out_energy_and_three_in_one_out_energy_and_all_in_all_out_energy_and_two_in_two_out_degeneracy_in_nearest_neighbor_spin_ice_tetrahedron",
         "semantics": [
-          "published tetrahedron energy levels for nearest neighbor spin ice tetrahedron",
-          "two in two out energy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime",
-          "three in one out energy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime",
-          "all in all out energy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime",
-          "two in two out degeneracy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: two in two out energy, three in one out energy, all in all out energy, two in two out degeneracy in nearest neighbor spin ice tetrahedron.",
+          "Published numerical two in two out energy for nearest neighbor spin ice tetrahedron, expressed in exchange energy unit using hamiltonian energy scale.",
+          "Published numerical three in one out energy for nearest neighbor spin ice tetrahedron, expressed in exchange energy unit using hamiltonian energy scale.",
+          "Published numerical all in all out energy for nearest neighbor spin ice tetrahedron, expressed in exchange energy unit using hamiltonian energy scale.",
+          "Published numerical two in two out degeneracy for nearest neighbor spin ice tetrahedron, expressed in count using nonnegative integer count."
         ]
       },
       "parameter_regime": {
@@ -6029,10 +6029,10 @@
         "claim_fields": [
           "has_finite_spin_gap_for_antiferromagnetic_rungs"
         ],
-        "identity": "spin_gap_in_two_leg_heisenberg_ladder",
+        "identity": "property_finite_spin_gap_for_antiferromagnetic_rungs_in_two_leg_heisenberg_ladder",
         "semantics": [
-          "published spin gap for two leg heisenberg ladder",
-          "has finite spin gap for antiferromagnetic rungs for the two leg heisenberg ladder Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property finite spin gap for antiferromagnetic rungs in two leg heisenberg ladder.",
+          "Truth value of the proposition 'has finite spin gap for antiferromagnetic rungs' for two leg heisenberg ladder, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6082,10 +6082,10 @@
         "claim_fields": [
           "finite_delta_opens_gap"
         ],
-        "identity": "spin_gap_opens_with_dimerization_in_spin_peierls_heisenberg_chain",
+        "identity": "finite_delta_opens_gap_in_spin_peierls_heisenberg_chain",
         "semantics": [
-          "published spin gap opens with dimerization for spin peierls heisenberg chain",
-          "finite delta opens gap for the spin peierls heisenberg chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: finite delta opens gap in spin peierls heisenberg chain.",
+          "Truth value of the proposition 'finite delta opens gap' for spin peierls heisenberg chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6136,10 +6136,10 @@
         "claim_fields": [
           "has_exact_critical_line"
         ],
-        "identity": "critical_line_in_ashkin_teller_square",
+        "identity": "property_exact_critical_line_in_ashkin_teller_square",
         "semantics": [
-          "published critical line for ashkin teller square",
-          "has exact critical line for the ashkin teller square Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exact critical line in ashkin teller square.",
+          "Truth value of the proposition 'has exact critical line' for ashkin teller square, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6192,11 +6192,11 @@
           "transition_count",
           "phase_sequence"
         ],
-        "identity": "bkt_transition_count_in_q_state_clock_square",
+        "identity": "transition_count_and_phase_sequence_in_q_state_clock_square",
         "semantics": [
-          "published bkt transition count for q state clock square",
-          "transition count for the q state clock square Hamiltonian under the declared parameter regime",
-          "phase sequence for the q state clock square Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: transition count, phase sequence in q state clock square.",
+          "Published numerical transition count for q state clock square, expressed in count using nonnegative integer count.",
+          "Published interval, set, or ordered sequence for phase sequence in q state clock square, represented as ordered categorical phase labels with units not applicable."
         ]
       },
       "parameter_regime": {
@@ -6254,10 +6254,10 @@
         "claim_fields": [
           "has_line_flip_symmetries"
         ],
-        "identity": "directional_symmetry_in_orbital_compass_square",
+        "identity": "property_line_flip_symmetries_in_orbital_compass_square",
         "semantics": [
-          "published directional symmetry for orbital compass square",
-          "has line flip symmetries for the orbital compass square Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property line flip symmetries in orbital compass square.",
+          "Truth value of the proposition 'has line flip symmetries' for orbital compass square, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6308,10 +6308,10 @@
         "claim_fields": [
           "neel_to_dimer_transition"
         ],
-        "identity": "quantum_critical_point_in_square_dimerized_heisenberg",
+        "identity": "neel_to_dimer_transition_in_square_dimerized_heisenberg",
         "semantics": [
-          "published quantum critical point for square dimerized heisenberg",
-          "neel to dimer transition for the square dimerized heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: neel to dimer transition in square dimerized heisenberg.",
+          "Truth value of the proposition 'neel to dimer transition' for square dimerized heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6361,10 +6361,10 @@
         "claim_fields": [
           "macroscopic_ground_state_degeneracy"
         ],
-        "identity": "residual_entropy_in_fully_frustrated_square_ising",
+        "identity": "macroscopic_ground_state_degeneracy_in_fully_frustrated_square_ising",
         "semantics": [
-          "published residual entropy for fully frustrated square ising",
-          "macroscopic ground state degeneracy for the fully frustrated square ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: macroscopic ground state degeneracy in fully frustrated square ising.",
+          "Truth value of the proposition 'macroscopic ground state degeneracy' for fully frustrated square ising, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6416,10 +6416,10 @@
         "claim_fields": [
           "rho_s_over_j"
         ],
-        "identity": "spin_stiffness_in_spin_1_2_square_heisenberg_afm",
+        "identity": "rho_s_over_j_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "published spin stiffness for spin 1 2 square heisenberg afm",
-          "rho s over j for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: rho s over j in spin 1 2 square heisenberg afm.",
+          "Published numerical rho s over j for spin 1 2 square heisenberg afm, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -6474,8 +6474,8 @@
         ],
         "identity": "staggered_magnetization_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "published staggered magnetization for spin 1 2 square heisenberg afm",
-          "staggered magnetization for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: staggered magnetization in spin 1 2 square heisenberg afm.",
+          "Published numerical staggered magnetization for spin 1 2 square heisenberg afm, expressed in normalized magnetization using fraction of saturation."
         ]
       },
       "parameter_regime": {
@@ -6527,10 +6527,10 @@
         "claim_fields": [
           "renormalized_velocity_over_j_approx"
         ],
-        "identity": "spin_wave_velocity_in_spin_1_2_square_heisenberg_afm",
+        "identity": "renormalized_velocity_over_j_approx_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "published spin wave velocity for spin 1 2 square heisenberg afm",
-          "renormalized velocity over j approx for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: renormalized velocity over j approx in spin 1 2 square heisenberg afm.",
+          "Published numerical renormalized velocity over j approx for spin 1 2 square heisenberg afm, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -6582,10 +6582,10 @@
         "claim_fields": [
           "spiral_condition"
         ],
-        "identity": "lifshitz_point_in_square_j1_j3_heisenberg",
+        "identity": "spiral_condition_in_square_j1_j3_heisenberg",
         "semantics": [
-          "published lifshitz point for square j1 j3 heisenberg",
-          "spiral condition for the square j1 j3 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: spiral condition in square j1 j3 heisenberg.",
+          "Published symbolic or categorical specification of spiral condition for square j1 j3 heisenberg, interpreted as symbolic expression."
         ]
       },
       "parameter_regime": {
@@ -6635,10 +6635,10 @@
         "claim_fields": [
           "neel_to_vbs_transition"
         ],
-        "identity": "deconfined_critical_point_in_square_jq_model",
+        "identity": "neel_to_vbs_transition_in_square_jq_model",
         "semantics": [
-          "published deconfined critical point for square jq model",
-          "neel to vbs transition for the square jq model Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: neel to vbs transition in square jq model.",
+          "Truth value of the proposition 'neel to vbs transition' for square jq model, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6690,11 +6690,11 @@
           "critical_beta_j",
           "continuous_for_q_le_4"
         ],
-        "identity": "critical_coupling_in_q_state_potts_square",
+        "identity": "critical_beta_j_and_continuous_for_q_le_4_in_q_state_potts_square",
         "semantics": [
-          "published critical coupling for q state potts square",
-          "critical beta j for the q state potts square Hamiltonian under the declared parameter regime",
-          "continuous for q le 4 for the q state potts square Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: critical beta j, continuous for q le 4 in q state potts square.",
+          "Published symbolic or categorical specification of critical beta j for q state potts square, interpreted as ratio to named model scale.",
+          "Truth value of the proposition 'continuous for q le 4' for q state potts square, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6752,10 +6752,10 @@
         "claim_fields": [
           "ring_exchange_drives_vbs_phase"
         ],
-        "identity": "neel_vbs_competition_in_square_heisenberg_ring_exchange",
+        "identity": "ring_exchange_drives_vbs_phase_in_square_heisenberg_ring_exchange",
         "semantics": [
-          "published neel vbs competition for square heisenberg ring exchange",
-          "ring exchange drives vbs phase for the square heisenberg ring exchange Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ring exchange drives vbs phase in square heisenberg ring exchange.",
+          "Truth value of the proposition 'ring exchange drives vbs phase' for square heisenberg ring exchange, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6806,10 +6806,10 @@
         "claim_fields": [
           "is_exactly_solved"
         ],
-        "identity": "exact_solution_in_six_vertex_model",
+        "identity": "property_exactly_solved_in_six_vertex_model",
         "semantics": [
-          "published exact solution for six vertex model",
-          "is exactly solved for the six vertex model Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: property exactly solved in six vertex model.",
+          "Truth value of the proposition 'is exactly solved' for six vertex model, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -6860,10 +6860,10 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "ground_state_energy_in_spin_1_2_square_heisenberg_afm",
+        "identity": "energy_per_site_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "published ground state energy for spin 1 2 square heisenberg afm",
-          "energy per site for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site in spin 1 2 square heisenberg afm.",
+          "Published numerical energy per site for spin 1 2 square heisenberg afm, expressed in exchange energy per site using energy density."
         ]
       },
       "parameter_regime": {
@@ -6914,10 +6914,10 @@
         "claim_fields": [
           "torus_ground_state_degeneracy"
         ],
-        "identity": "ground_state_degeneracy_in_toric_code_square",
+        "identity": "torus_ground_state_degeneracy_in_toric_code_square",
         "semantics": [
-          "published ground state degeneracy for toric code square",
-          "torus ground state degeneracy for the toric code square Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: torus ground state degeneracy in toric code square.",
+          "Published numerical torus ground state degeneracy for toric code square, expressed in count using nonnegative integer count."
         ]
       },
       "parameter_regime": {
@@ -6968,11 +6968,11 @@
           "orthogonal_dimer_material",
           "magnetization_plateaus"
         ],
-        "identity": "material_model_in_sr_cu2_bo3_2",
+        "identity": "orthogonal_dimer_material_and_magnetization_plateaus_in_sr_cu2_bo3_2",
         "semantics": [
-          "published material model for sr cu2 bo3 2",
-          "orthogonal dimer material for the sr cu2 bo3 2 Hamiltonian under the declared parameter regime",
-          "magnetization plateaus for the sr cu2 bo3 2 Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: orthogonal dimer material, magnetization plateaus in sr cu2 bo3 2.",
+          "Truth value of the proposition 'orthogonal dimer material' for sr cu2 bo3 2, with source conditions matched explicitly.",
+          "Truth value of the proposition 'magnetization plateaus' for sr cu2 bo3 2, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7027,10 +7027,10 @@
         "claim_fields": [
           "spin_liquid_or_valence_bond_reference"
         ],
-        "identity": "published_observable_in_star_lattice_heisenberg",
+        "identity": "spin_liquid_or_valence_bond_characterization_in_star_lattice_heisenberg",
         "semantics": [
-          "published published observable for star lattice heisenberg",
-          "published discrimination between spin-liquid and valence-bond behavior"
+          "Canonical literature observable: spin liquid or valence bond characterization in star lattice heisenberg.",
+          "Truth value of the proposition 'spin liquid or valence bond reference' for star lattice heisenberg, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7082,11 +7082,11 @@
           "theta_radians",
           "is_integrable"
         ],
-        "identity": "critical_point_in_spin_1_bilinear_biquadratic_chain",
+        "identity": "theta_radians_and_property_integrable_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "published critical point for spin 1 bilinear biquadratic chain",
-          "theta radians for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
-          "is integrable for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: theta radians, property integrable in spin 1 bilinear biquadratic chain.",
+          "Published numerical theta radians for spin 1 bilinear biquadratic chain, expressed in radian using angular scalar.",
+          "Truth value of the proposition 'is integrable' for spin 1 bilinear biquadratic chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7142,10 +7142,10 @@
         "claim_fields": [
           "spin_liquid_candidate"
         ],
-        "identity": "spin_liquid_in_tb2ti2o7_pyrochlore",
+        "identity": "spin_liquid_assessment_in_tb2ti2o7_pyrochlore",
         "semantics": [
-          "published spin liquid for tb2ti2o7 pyrochlore",
-          "assessment of spin-liquid phenomenology under the cited material or model conditions"
+          "Canonical literature observable: spin liquid assessment in tb2ti2o7 pyrochlore.",
+          "Truth value of the proposition 'spin liquid candidate' for tb2ti2o7 pyrochlore, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7196,10 +7196,10 @@
         "claim_fields": [
           "critical_field_over_exchange"
         ],
-        "identity": "quantum_critical_point_in_spin_1_2_transverse_field_ising_chain",
+        "identity": "critical_field_over_exchange_in_spin_1_2_transverse_field_ising_chain",
         "semantics": [
-          "published quantum critical point for spin 1 2 transverse field ising chain",
-          "critical field over exchange for the spin 1 2 transverse field ising chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: critical field over exchange in spin 1 2 transverse field ising chain.",
+          "Published numerical critical field over exchange for spin 1 2 transverse field ising chain, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -7253,11 +7253,11 @@
           "gap_formula",
           "gap_formula_at_g_0_6"
         ],
-        "identity": "excitation_gap_in_spin_1_2_transverse_field_ising_chain",
+        "identity": "gap_formula_and_gap_formula_at_g_0_6_in_spin_1_2_transverse_field_ising_chain",
         "semantics": [
-          "published excitation gap for spin 1 2 transverse field ising chain",
-          "gap formula for the spin 1 2 transverse field ising chain Hamiltonian under the declared parameter regime",
-          "gap formula at g 0 6 for the spin 1 2 transverse field ising chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: gap formula, gap formula at g 0 6 in spin 1 2 transverse field ising chain.",
+          "Published symbolic or categorical specification of gap formula for spin 1 2 transverse field ising chain, interpreted as hamiltonian energy scale.",
+          "Published numerical gap formula at g 0 6 for spin 1 2 transverse field ising chain, expressed in exchange energy unit using hamiltonian energy scale."
         ]
       },
       "parameter_regime": {
@@ -7315,10 +7315,10 @@
         "claim_fields": [
           "one_third_plateau"
         ],
-        "identity": "magnetization_plateau_in_triangular_heisenberg_high_field",
+        "identity": "one_third_plateau_in_triangular_heisenberg_high_field",
         "semantics": [
-          "published magnetization plateau for triangular heisenberg high field",
-          "one third plateau for the triangular heisenberg high field Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: one third plateau in triangular heisenberg high field.",
+          "Truth value of the proposition 'one third plateau' for triangular heisenberg high field, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7369,10 +7369,10 @@
         "claim_fields": [
           "energy_per_site_approx"
         ],
-        "identity": "ground_state_energy_in_spin_1_2_triangular_heisenberg",
+        "identity": "energy_per_site_approx_in_spin_1_2_triangular_heisenberg",
         "semantics": [
-          "published ground state energy for spin 1 2 triangular heisenberg",
-          "energy per site approx for the spin 1 2 triangular heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site approx in spin 1 2 triangular heisenberg.",
+          "Published numerical energy per site approx for spin 1 2 triangular heisenberg, expressed in exchange energy per site using energy density."
         ]
       },
       "parameter_regime": {
@@ -7424,10 +7424,10 @@
         "claim_fields": [
           "residual_entropy_per_spin"
         ],
-        "identity": "residual_entropy_in_classical_triangular_ising_antiferromagnet",
+        "identity": "residual_entropy_per_spin_in_classical_triangular_ising_antiferromagnet",
         "semantics": [
-          "published residual entropy for classical triangular ising antiferromagnet",
-          "residual entropy per spin for the classical triangular ising antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: residual entropy per spin in classical triangular ising antiferromagnet.",
+          "Published numerical residual entropy per spin for classical triangular ising antiferromagnet, expressed in natural log unit per spin using entropy density."
         ]
       },
       "parameter_regime": {
@@ -7478,10 +7478,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "critical_temperature_in_classical_triangular_ising",
+        "identity": "tc_over_j_in_classical_triangular_ising",
         "semantics": [
-          "published critical temperature for classical triangular ising",
-          "tc over j for the classical triangular ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: tc over j in classical triangular ising.",
+          "Published numerical tc over j for classical triangular ising, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -7532,10 +7532,10 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "phase_diagram_in_spin_1_2_triangular_j1_j2_heisenberg",
+        "identity": "phases_in_spin_1_2_triangular_j1_j2_heisenberg",
         "semantics": [
-          "published phase diagram for spin 1 2 triangular j1 j2 heisenberg",
-          "phases for the spin 1 2 triangular j1 j2 heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phases in spin 1 2 triangular j1 j2 heisenberg.",
+          "Published interval, set, or ordered sequence for phases in spin 1 2 triangular j1 j2 heisenberg, represented as categorical phase label set with units not applicable."
         ]
       },
       "parameter_regime": {
@@ -7586,11 +7586,11 @@
           "order",
           "q_reciprocal"
         ],
-        "identity": "ordering_vector_in_triangular_nn_heisenberg",
+        "identity": "order_and_q_reciprocal_in_triangular_nn_heisenberg",
         "semantics": [
-          "published ordering vector for triangular nn heisenberg",
-          "order for the triangular nn heisenberg Hamiltonian under the declared parameter regime",
-          "q reciprocal for the triangular nn heisenberg Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: order, q reciprocal in triangular nn heisenberg.",
+          "Published symbolic or categorical specification of order for triangular nn heisenberg, interpreted as categorical label.",
+          "Published interval, set, or ordered sequence for q reciprocal in triangular nn heisenberg, represented as ordering wavevector with units reciprocal lattice unit."
         ]
       },
       "parameter_regime": {
@@ -7646,10 +7646,10 @@
         "claim_fields": [
           "contains_spin_liquid_region"
         ],
-        "identity": "phase_diagram_in_triangular_multiple_spin_exchange",
+        "identity": "phase_content_spin_liquid_region_in_triangular_multiple_spin_exchange",
         "semantics": [
-          "published phase diagram for triangular multiple spin exchange",
-          "contains spin liquid region for the triangular multiple spin exchange Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phase content spin liquid region in triangular multiple spin exchange.",
+          "Truth value of the proposition 'contains spin liquid region' for triangular multiple spin exchange, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7699,10 +7699,10 @@
         "claim_fields": [
           "contains_supersolid_phase"
         ],
-        "identity": "phase_diagram_in_triangular_xxz_antiferromagnet",
+        "identity": "phase_content_supersolid_phase_in_triangular_xxz_antiferromagnet",
         "semantics": [
-          "published phase diagram for triangular xxz antiferromagnet",
-          "contains supersolid phase for the triangular xxz antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: phase content supersolid phase in triangular xxz antiferromagnet.",
+          "Truth value of the proposition 'contains supersolid phase' for triangular xxz antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -7752,10 +7752,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "critical_temperature_in_classical_square_ising",
+        "identity": "tc_over_j_in_classical_square_ising",
         "semantics": [
-          "published critical temperature for classical square ising",
-          "tc over j for the classical square ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: tc over j in classical square ising.",
+          "Published numerical tc over j for classical square ising, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -7807,11 +7807,11 @@
           "formula",
           "magnetization_beta_0_6_j_1"
         ],
-        "identity": "spontaneous_magnetization_in_classical_square_ising",
+        "identity": "formula_and_magnetization_beta_0_6_j_1_in_classical_square_ising",
         "semantics": [
-          "published spontaneous magnetization for classical square ising",
-          "formula for the classical square ising Hamiltonian under the declared parameter regime",
-          "magnetization beta 0 6 j 1 for the classical square ising Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: formula, magnetization beta 0 6 j 1 in classical square ising.",
+          "Published symbolic or categorical specification of formula for classical square ising, interpreted as symbolic expression.",
+          "Published numerical magnetization beta 0 6 j 1 for classical square ising, expressed in normalized magnetization using fraction of saturation."
         ]
       },
       "parameter_regime": {
@@ -7868,10 +7868,10 @@
         "claim_fields": [
           "tbkt_over_j"
         ],
-        "identity": "bkt_temperature_in_classical_square_xy",
+        "identity": "tbkt_over_j_in_classical_square_xy",
         "semantics": [
-          "published bkt temperature for classical square xy",
-          "tbkt over j for the classical square xy Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: tbkt over j in classical square xy.",
+          "Published numerical tbkt over j for classical square xy, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -7905,7 +7905,13 @@
         "model_parameters": {
           "temperature": 1.0
         },
-        "normalization_relation": "rho_s(T_BKT)/J = 2 [T_BKT/J] / pi",
+        "normalization_relation": {
+          "normalized_quantities": [
+            "rho_s/J",
+            "T/J"
+          ],
+          "universal_coefficient": "must_be_parsed_from_authoritative_source"
+        },
         "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
         "source_claim_scope": "published analytic relation or formula"
       },
@@ -7926,8 +7932,8 @@
         "identity": "universal_bkt_helicity_modulus_jump_relation",
         "semantics": [
           "universal relation between helicity modulus and transition temperature",
-          "formula for the classical square xy Hamiltonian under the declared parameter regime",
-          "helicity modulus rho_s/J evaluated at T/J = 1"
+          "Published symbolic or categorical specification of formula for classical square xy, interpreted as symbolic expression.",
+          "Published numerical helicity modulus at t 1 for classical square xy, expressed in helicity modulus over exchange j using rho s over j at temperature over j equal one."
         ]
       },
       "parameter_regime": {
@@ -7986,11 +7992,11 @@
           "energy_per_rung",
           "gap_to_triplet"
         ],
-        "identity": "exact_rung_singlet_energy_in_two_leg_heisenberg_ladder_strong_rung",
+        "identity": "energy_per_rung_and_gap_to_triplet_in_two_leg_heisenberg_ladder_strong_rung",
         "semantics": [
-          "published exact rung singlet energy for two leg heisenberg ladder strong rung",
-          "energy per rung for the two leg heisenberg ladder strong rung Hamiltonian under the declared parameter regime",
-          "gap to triplet for the two leg heisenberg ladder strong rung Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per rung, gap to triplet in two leg heisenberg ladder strong rung.",
+          "Published numerical energy per rung for two leg heisenberg ladder strong rung, expressed in exchange energy per rung using rung energy.",
+          "Published numerical gap to triplet for two leg heisenberg ladder strong rung, expressed in exchange energy unit using hamiltonian energy scale."
         ]
       },
       "parameter_regime": {
@@ -8049,11 +8055,11 @@
           "theta_radians",
           "su3_symmetric"
         ],
-        "identity": "integrable_point_in_spin_1_bilinear_biquadratic_chain",
+        "identity": "theta_radians_and_su3_symmetric_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "published integrable point for spin 1 bilinear biquadratic chain",
-          "theta radians for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
-          "su3 symmetric for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: theta radians, su3 symmetric in spin 1 bilinear biquadratic chain.",
+          "Published numerical theta radians for spin 1 bilinear biquadratic chain, expressed in radian using angular scalar.",
+          "Truth value of the proposition 'su3 symmetric' for spin 1 bilinear biquadratic chain, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -8110,10 +8116,10 @@
         "claim_fields": [
           "distorted_kagome_relevant"
         ],
-        "identity": "material_model_in_vesignieite_kagome_antiferromagnet",
+        "identity": "distorted_kagome_relevant_in_vesignieite_kagome_antiferromagnet",
         "semantics": [
-          "published material model for vesignieite kagome antiferromagnet",
-          "distorted kagome relevant for the vesignieite kagome antiferromagnet Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: distorted kagome relevant in vesignieite kagome antiferromagnet.",
+          "Truth value of the proposition 'distorted kagome relevant' for vesignieite kagome antiferromagnet, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -8163,10 +8169,10 @@
         "claim_fields": [
           "distorted_kagome_reference"
         ],
-        "identity": "published_observable_in_volborthite_distorted_kagome",
+        "identity": "distorted_kagome_characterization_in_volborthite_distorted_kagome",
         "semantics": [
-          "published published observable for volborthite distorted kagome",
-          "identification of the material's magnetically active lattice as distorted kagome"
+          "Canonical literature observable: distorted kagome characterization in volborthite distorted kagome.",
+          "Truth value of the proposition 'distorted kagome reference' for volborthite distorted kagome, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -8217,10 +8223,10 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "thermodynamic_limit_ground_state_energy_in_spin_1_2_xx_chain",
+        "identity": "energy_per_site_in_spin_1_2_xx_chain",
         "semantics": [
-          "published thermodynamic limit ground state energy for spin 1 2 xx chain",
-          "energy per site for the spin 1 2 xx chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site in spin 1 2 xx chain.",
+          "Published numerical energy per site for spin 1 2 xx chain, expressed in exchange energy per site using energy density."
         ]
       },
       "parameter_regime": {
@@ -8272,10 +8278,10 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "thermodynamic_limit_ground_state_energy_in_spin_1_2_xxx_chain",
+        "identity": "energy_per_site_in_spin_1_2_xxx_chain",
         "semantics": [
-          "published thermodynamic limit ground state energy for spin 1 2 xxx chain",
-          "energy per site for the spin 1 2 xxx chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: energy per site in spin 1 2 xxx chain.",
+          "Published numerical energy per site for spin 1 2 xxx chain, expressed in exchange energy per site using energy density."
         ]
       },
       "parameter_regime": {
@@ -8328,12 +8334,12 @@
           "neel_boundary_delta",
           "gapless_interval"
         ],
-        "identity": "phase_boundaries_in_spin_1_2_xxz_chain",
+        "identity": "ferromagnetic_boundary_delta_and_neel_boundary_delta_and_gapless_interval_in_spin_1_2_xxz_chain",
         "semantics": [
-          "published phase boundaries for spin 1 2 xxz chain",
-          "ferromagnetic boundary delta for the spin 1 2 xxz chain Hamiltonian under the declared parameter regime",
-          "neel boundary delta for the spin 1 2 xxz chain Hamiltonian under the declared parameter regime",
-          "gapless interval for the spin 1 2 xxz chain Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ferromagnetic boundary delta, neel boundary delta, gapless interval in spin 1 2 xxz chain.",
+          "Published numerical ferromagnetic boundary delta for spin 1 2 xxz chain, expressed in dimensionless ratio using ratio to named model scale.",
+          "Published numerical neel boundary delta for spin 1 2 xxz chain, expressed in dimensionless ratio using ratio to named model scale.",
+          "Published interval, set, or ordered sequence for gapless interval in spin 1 2 xxz chain, represented as closed anisotropy interval with units dimensionless anisotropy."
         ]
       },
       "parameter_regime": {
@@ -8397,11 +8403,11 @@
           "ising_critical_field",
           "anisotropy_transition_gamma"
         ],
-        "identity": "critical_line_in_spin_1_2_xy_chain_transverse_field",
+        "identity": "ising_critical_field_and_anisotropy_transition_gamma_in_spin_1_2_xy_chain_transverse_field",
         "semantics": [
-          "published critical line for spin 1 2 xy chain transverse field",
-          "ising critical field for the spin 1 2 xy chain transverse field Hamiltonian under the declared parameter regime",
-          "anisotropy transition gamma for the spin 1 2 xy chain transverse field Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: ising critical field, anisotropy transition gamma in spin 1 2 xy chain transverse field.",
+          "Published numerical ising critical field for spin 1 2 xy chain transverse field, expressed in field over exchange j using critical transverse field normalized by exchange j.",
+          "Published numerical anisotropy transition gamma for spin 1 2 xy chain transverse field, expressed in dimensionless ratio using ratio to named model scale."
         ]
       },
       "parameter_regime": {
@@ -8410,10 +8416,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "critical_transverse_field_normalized_by_exchange_j",
             "id": "ising_critical_field",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "field_over_exchange_j"
           },
           {
             "convention": "ratio_to_named_model_scale",
@@ -8430,7 +8436,7 @@
       },
       "subject": "Xy spin-half chain anisotropic critical line",
       "system": "spin_1_2_xy_chain_transverse_field",
-      "units": "ising_critical_field=dimensionless_observable; anisotropy_transition_gamma=dimensionless_ratio"
+      "units": "ising_critical_field=field_over_exchange_j; anisotropy_transition_gamma=dimensionless_ratio"
     },
     {
       "benchmark_name": "yb2ti2o7_pyrochlore_exchange_reference",
@@ -8458,10 +8464,10 @@
         "claim_fields": [
           "anisotropic_exchange_fit_reference"
         ],
-        "identity": "exchange_parameter_in_yb2ti2o7_anisotropic_pyrochlore",
+        "identity": "anisotropic_exchange_fit_characterization_in_yb2ti2o7_anisotropic_pyrochlore",
         "semantics": [
-          "published exchange parameter for yb2ti2o7 anisotropic pyrochlore",
-          "anisotropic exchange parameters inferred from the published fit"
+          "Canonical literature observable: anisotropic exchange fit characterization in yb2ti2o7 anisotropic pyrochlore.",
+          "Truth value of the proposition 'anisotropic exchange fit reference' for yb2ti2o7 anisotropic pyrochlore, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -8512,10 +8518,10 @@
         "claim_fields": [
           "triangular_quantum_spin_liquid_candidate"
         ],
-        "identity": "material_model_in_ybmggao4_triangular_exchange",
+        "identity": "triangular_quantum_spin_liquid_assessment_in_ybmggao4_triangular_exchange",
         "semantics": [
-          "published material model for ybmggao4 triangular exchange",
-          "assessment of quantum-spin-liquid phenomenology in the triangular material"
+          "Canonical literature observable: triangular quantum spin liquid assessment in ybmggao4 triangular exchange.",
+          "Truth value of the proposition 'triangular quantum spin liquid candidate' for ybmggao4 triangular exchange, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -8566,10 +8572,10 @@
         "claim_fields": [
           "reduced_interlayer_magnetism"
         ],
-        "identity": "spin_liquid_material_in_zn_substituted_barlowite_kagome",
+        "identity": "reduced_interlayer_magnetism_in_zn_substituted_barlowite_kagome",
         "semantics": [
-          "published spin liquid material for zn substituted barlowite kagome",
-          "reduced interlayer magnetism for the zn substituted barlowite kagome Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: reduced interlayer magnetism in zn substituted barlowite kagome.",
+          "Truth value of the proposition 'reduced interlayer magnetism' for zn substituted barlowite kagome, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {
@@ -8620,10 +8626,10 @@
         "claim_fields": [
           "dm_interaction_relevant"
         ],
-        "identity": "material_model_in_herbertsmithite_kagome_dm",
+        "identity": "dm_interaction_relevant_in_herbertsmithite_kagome_dm",
         "semantics": [
-          "published material model for herbertsmithite kagome dm",
-          "dm interaction relevant for the herbertsmithite kagome dm Hamiltonian under the declared parameter regime"
+          "Canonical literature observable: dm interaction relevant in herbertsmithite kagome dm.",
+          "Truth value of the proposition 'dm interaction relevant' for herbertsmithite kagome dm, with source conditions matched explicitly."
         ]
       },
       "parameter_regime": {

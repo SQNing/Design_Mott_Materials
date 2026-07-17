@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "tan_theta_in_declared_hamiltonian_parameterization",
         "id": "aklt_tan_theta",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "dimensionless_tangent_of_bilinear_biquadratic_angle"
       },
       {
         "convention": "angular_scalar",
@@ -23,10 +23,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "tan_theta_in_declared_hamiltonian_parameterization",
         "id": "aklt_tan_theta",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "dimensionless_tangent_of_bilinear_biquadratic_angle"
       },
       {
         "convention": "angular_scalar",
@@ -69,10 +69,10 @@
     "target_representation": {
       "fields": [
         {
-          "convention": "scalar_under_declared_hamiltonian_convention",
+          "convention": "tan_theta_in_declared_hamiltonian_parameterization",
           "id": "aklt_tan_theta",
           "type": "number",
-          "units": "dimensionless_observable"
+          "units": "dimensionless_tangent_of_bilinear_biquadratic_angle"
         },
         {
           "convention": "angular_scalar",

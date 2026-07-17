@@ -472,10 +472,10 @@
         "target_representation": {
           "fields": [
             {
-              "convention": "scalar_under_declared_hamiltonian_convention",
+              "convention": "tan_theta_in_declared_hamiltonian_parameterization",
               "id": "aklt_tan_theta",
               "type": "number",
-              "units": "dimensionless_observable"
+              "units": "dimensionless_tangent_of_bilinear_biquadratic_angle"
             },
             {
               "convention": "angular_scalar",
@@ -491,10 +491,10 @@
       "target_representation": {
         "fields": [
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "tan_theta_in_declared_hamiltonian_parameterization",
             "id": "aklt_tan_theta",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "dimensionless_tangent_of_bilinear_biquadratic_angle"
           },
           {
             "convention": "angular_scalar",
@@ -2915,10 +2915,10 @@
         "target_representation": {
           "fields": [
             {
-              "convention": "ordered_values_under_declared_convention",
+              "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
               "id": "spin_liquid_window_approx",
               "type": "list[number]",
-              "units": "dimensionless_sequence"
+              "units": "dimensionless_j2_over_j1"
             }
           ],
           "kind": "registered_field_map"
@@ -2928,10 +2928,10 @@
       "target_representation": {
         "fields": [
           {
-            "convention": "ordered_values_under_declared_convention",
+            "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
             "id": "spin_liquid_window_approx",
             "type": "list[number]",
-            "units": "dimensionless_sequence"
+            "units": "dimensionless_j2_over_j1"
           }
         ],
         "kind": "registered_field_map"
@@ -3786,10 +3786,10 @@
         "target_representation": {
           "fields": [
             {
-              "convention": "scalar_under_declared_hamiltonian_convention",
+              "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
               "id": "ground_state_spin_per_unit_cell",
               "type": "number",
-              "units": "dimensionless_observable"
+              "units": "spin_angular_momentum_hbar"
             }
           ],
           "kind": "registered_field_map"
@@ -3799,10 +3799,10 @@
       "target_representation": {
         "fields": [
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
             "id": "ground_state_spin_per_unit_cell",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "spin_angular_momentum_hbar"
           }
         ],
         "kind": "registered_field_map"
@@ -3944,10 +3944,10 @@
               "units": "exchange_energy_per_site"
             },
             {
-              "convention": "scalar_under_declared_hamiltonian_convention",
+              "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
               "id": "degenerate_dimer_coverings",
               "type": "number",
-              "units": "dimensionless_observable"
+              "units": "count"
             }
           ],
           "kind": "registered_field_map"
@@ -3963,10 +3963,10 @@
             "units": "exchange_energy_per_site"
           },
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
             "id": "degenerate_dimer_coverings",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "count"
           }
         ],
         "kind": "registered_field_map"
@@ -7367,10 +7367,10 @@
         "target_representation": {
           "fields": [
             {
-              "convention": "scalar_under_declared_hamiltonian_convention",
+              "convention": "critical_transverse_field_normalized_by_exchange_j",
               "id": "ising_critical_field",
               "type": "number",
-              "units": "dimensionless_observable"
+              "units": "field_over_exchange_j"
             },
             {
               "convention": "ratio_to_named_model_scale",
@@ -7386,10 +7386,10 @@
       "target_representation": {
         "fields": [
           {
-            "convention": "scalar_under_declared_hamiltonian_convention",
+            "convention": "critical_transverse_field_normalized_by_exchange_j",
             "id": "ising_critical_field",
             "type": "number",
-            "units": "dimensionless_observable"
+            "units": "field_over_exchange_j"
           },
           {
             "convention": "ratio_to_named_model_scale",

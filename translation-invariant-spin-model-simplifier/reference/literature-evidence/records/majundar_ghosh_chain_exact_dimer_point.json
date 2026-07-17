@@ -10,10 +10,10 @@
         "units": "exchange_energy_per_site"
       },
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
         "id": "degenerate_dimer_coverings",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "count"
       }
     ],
     "kind": "registered_field_comparison"
@@ -29,10 +29,10 @@
         "units": "exchange_energy_per_site"
       },
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
         "id": "degenerate_dimer_coverings",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "count"
       }
     ]
   },
@@ -75,10 +75,10 @@
           "units": "exchange_energy_per_site"
         },
         {
-          "convention": "scalar_under_declared_hamiltonian_convention",
+          "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
           "id": "degenerate_dimer_coverings",
           "type": "number",
-          "units": "dimensionless_observable"
+          "units": "count"
         }
       ],
       "kind": "registered_field_map"

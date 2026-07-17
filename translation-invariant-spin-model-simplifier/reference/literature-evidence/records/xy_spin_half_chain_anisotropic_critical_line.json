@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "critical_transverse_field_normalized_by_exchange_j",
         "id": "ising_critical_field",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "field_over_exchange_j"
       },
       {
         "convention": "ratio_to_named_model_scale",
@@ -23,10 +23,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "critical_transverse_field_normalized_by_exchange_j",
         "id": "ising_critical_field",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "field_over_exchange_j"
       },
       {
         "convention": "ratio_to_named_model_scale",
@@ -69,10 +69,10 @@
     "target_representation": {
       "fields": [
         {
-          "convention": "scalar_under_declared_hamiltonian_convention",
+          "convention": "critical_transverse_field_normalized_by_exchange_j",
           "id": "ising_critical_field",
           "type": "number",
-          "units": "dimensionless_observable"
+          "units": "field_over_exchange_j"
         },
         {
           "convention": "ratio_to_named_model_scale",

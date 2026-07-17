@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
         "id": "ground_state_spin_per_unit_cell",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "spin_angular_momentum_hbar"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "scalar_under_declared_hamiltonian_convention",
+        "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
         "id": "ground_state_spin_per_unit_cell",
         "type": "number",
-        "units": "dimensionless_observable"
+        "units": "spin_angular_momentum_hbar"
       }
     ]
   },
@@ -55,10 +55,10 @@
     "target_representation": {
       "fields": [
         {
-          "convention": "scalar_under_declared_hamiltonian_convention",
+          "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
           "id": "ground_state_spin_per_unit_cell",
           "type": "number",
-          "units": "dimensionless_observable"
+          "units": "spin_angular_momentum_hbar"
         }
       ],
       "kind": "registered_field_map"
