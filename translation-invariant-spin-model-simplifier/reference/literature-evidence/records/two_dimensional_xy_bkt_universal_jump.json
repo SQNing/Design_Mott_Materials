@@ -10,10 +10,10 @@
         "units": "not_applicable"
       },
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "rho_s_over_j_at_temperature_over_j_equal_one",
         "id": "helicity_modulus_at_t_1",
         "type": "number",
-        "units": "dimensionless"
+        "units": "helicity_modulus_over_exchange_j"
       }
     ],
     "kind": "registered_field_comparison"
@@ -29,10 +29,10 @@
         "units": "not_applicable"
       },
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "rho_s_over_j_at_temperature_over_j_equal_one",
         "id": "helicity_modulus_at_t_1",
         "type": "number",
-        "units": "dimensionless"
+        "units": "helicity_modulus_over_exchange_j"
       }
     ]
   },
@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_1cac9952c7fb6275a595",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.39.1201",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.39.1201 payload for the cited context and the declared helicity modulus jump observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "helicity modulus jump",
+      "formula",
+      "helicity modulus at t 1",
+      "universal BKT stiffness jump"
+    ],
+    "source_context_hint": "universal BKT stiffness jump",
     "target_representation": {
       "fields": [
         {
@@ -60,10 +75,10 @@
           "units": "not_applicable"
         },
         {
-          "convention": "scalar_or_structured_claim",
+          "convention": "rho_s_over_j_at_temperature_over_j_equal_one",
           "id": "helicity_modulus_at_t_1",
           "type": "number",
-          "units": "dimensionless"
+          "units": "helicity_modulus_over_exchange_j"
         }
       ],
       "kind": "registered_field_map"

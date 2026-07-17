@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "named_hamiltonian_coupling_parameter_map",
         "id": "couplings",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "source_declared_coupling_units"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "named_hamiltonian_coupling_parameter_map",
         "id": "couplings",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "source_declared_coupling_units"
       }
     ]
   },
@@ -36,15 +36,29 @@
   "schema_version": 1,
   "source_id": "doi_94d0604c7e864a5e1f8f",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevx.1.021002",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevx.1.021002 payload for the cited context and the declared exchange parameterization observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "exchange parameterization",
+      "couplings",
+      "rare-earth pyrochlore anisotropic nearest-neighbor exchange"
+    ],
+    "source_context_hint": "rare-earth pyrochlore anisotropic nearest-neighbor exchange",
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_sequence",
+          "convention": "named_hamiltonian_coupling_parameter_map",
           "id": "couplings",
           "type": "list[string]",
-          "units": "field_dependent_sequence"
+          "units": "source_declared_coupling_units"
         }
       ],
       "kind": "registered_field_map"

@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "arxiv_22ae1487c7957c762836",
   "target_locator_strategy": {
+    "canonical_source_identity": "arxiv:1804.04308",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative arxiv:1804.04308 payload for the cited context and the declared lifshitz point observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "lifshitz point",
+      "spiral condition",
+      "square J1-J3 classical spiral condition"
+    ],
+    "source_context_hint": "square J1-J3 classical spiral condition",
     "target_representation": {
       "fields": [
         {

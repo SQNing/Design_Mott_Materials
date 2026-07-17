@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_44fc6738c4c3b3095202",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevb.92.140407",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.92.140407 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Gd3Te2Li3O12",
+      "material model reference",
+      "garnet frustrated magnet",
+      "Gd garnet frustrated magnet reference"
+    ],
+    "source_context_hint": "Gd garnet frustrated magnet reference",
     "target_representation": {
       "fields": [
         {

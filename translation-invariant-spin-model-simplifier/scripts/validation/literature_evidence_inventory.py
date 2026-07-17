@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 from types import MappingProxyType
@@ -31,6 +32,36 @@ _GENERIC_OBSERVABLES = frozenset(
         "status",
     }
 )
+_GENERIC_OBSERVABLE_SUFFIX_RE = re.compile(
+    r"(?:^|_)(?:reference|candidate|status|claim)$"
+)
+_OBSERVABLE_OVERRIDES = {
+    "ba3irti2o9_honeycomb_kitaev_reference": (
+        "assessment_of_spin_liquid_behavior_in_ba3irti2o9",
+        "published material-scale assessment of spin-liquid behavior",
+    ),
+    "herbertsmithite_kagome_qsl_reference": (
+        "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
+        "published experimental assessment of quantum-spin-liquid behavior",
+    ),
+    "checkerboard_heisenberg_plaquette_reference": (
+        "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
+        "published assessment of plaquette valence-bond order",
+    ),
+    "j1_j2_square_spin_half_neel_collinear_transition_reference": (
+        "nonmagnetic_phase_window_in_j2_over_j1",
+        "approximate nonmagnetic-phase interval in the J2/J1 coupling ratio",
+    ),
+    "two_dimensional_xy_bkt_universal_jump": (
+        "universal_bkt_helicity_modulus_jump_relation",
+        "universal relation between helicity modulus and transition temperature",
+    ),
+}
+_LOCATOR_CLASS_OVERRIDES = {
+    "honeycomb_kitaev_gamma_phase_diagram_reference": "figure_caption",
+    "ni_ps3_honeycomb_antiferromagnet_reference": "abstract",
+    "square_spin_half_heisenberg_qmc_energy": "body_text",
+}
 _ALLOWED_LOCATOR_CLASSES = frozenset(
     {
         "equation",
@@ -275,8 +306,8 @@ def validate_inventory(data, registry_entries):
         entry = registry_by_name[name]
         expected_fields = _claim_fields(entry, literal_fields_by_name)
         contract = contract_by_name[name]
-        if contract.observable.get("identity") in _GENERIC_OBSERVABLES:
-            raise InventoryError(f"generic canonical contract for {name}")
+        if _is_generic_observable_identity(contract.observable.get("identity")):
+            raise InventoryError(f"generic observable identity for {name}")
         if tuple(contract.observable.get("claim_fields", ())) != expected_fields:
             raise InventoryError(f"canonical contract claim fields mismatch for {name}")
         representation_fields = contract.representation.get("fields")
@@ -354,11 +385,9 @@ def build_inventory_data(registry_entries):
         ]
         locator_class = _forecast_locator_class(entry, field_specs)
         target_representation = {"kind": "registered_field_map", "fields": field_specs}
-        locator_strategy = {
-            "locator_class": locator_class,
-            "expected_container": _expected_container(locator_class),
-            "target_representation": target_representation,
-        }
+        locator_strategy = _locator_strategy(
+            entry, field_specs, locator_class, target_representation
+        )
         identity = canonical_source_identity(entry["source_url"])
         source_id = source_id_for_identity(identity)
         contracts.append(_contract_for_entry(entry, fields))
@@ -571,6 +600,20 @@ def _contract_for_entry(entry, fields):
         for field in fields
     ]
     subject = _subject_for_entry(entry)
+    observable_identity, observable_semantics = _observable_identity_and_semantics(
+        entry, fields
+    )
+    conditions = {
+        "comparison_kind": entry["comparison_kind"],
+        "backend_scope": entry["backend_needed"],
+        "physical_regime": _physical_regime(entry),
+        "source_claim_scope": _source_claim_scope(entry),
+        "model_parameters": entry["parameters"],
+    }
+    if entry["name"] == "two_dimensional_xy_bkt_universal_jump":
+        conditions["normalization_relation"] = (
+            "rho_s(T_BKT)/J = 2 [T_BKT/J] / pi"
+        )
     return {
         "canonical_observable_id": entry["name"],
         "benchmark_name": entry["name"],
@@ -587,9 +630,9 @@ def _contract_for_entry(entry, fields):
             "scope_subject": subject,
         },
         "observable": {
-            "identity": "_and_".join(fields),
+            "identity": observable_identity,
             "claim_fields": list(fields),
-            "semantics": [_humanize_identifier(field) for field in fields],
+            "semantics": observable_semantics,
         },
         "representation": {
             "kind": "registered_field_map",
@@ -598,10 +641,7 @@ def _contract_for_entry(entry, fields):
         "units": "; ".join(
             f"{field['id']}={field['units']}" for field in field_specs
         ),
-        "conditions": {
-            "comparison_kind": entry["comparison_kind"],
-            "backend_scope": entry["backend_needed"],
-        },
+        "conditions": conditions,
     }
 
 
@@ -634,6 +674,80 @@ def _subject_for_entry(entry):
 
 def _humanize_identifier(identifier):
     return identifier.replace("_", " ")
+
+
+def _observable_identity_and_semantics(entry, fields):
+    override = _OBSERVABLE_OVERRIDES.get(entry["name"])
+    if override is not None:
+        identity, primary_semantic = override
+    else:
+        observable = re.sub(
+            r"(?:_reference|_candidate|_status|_claim)+$", "", entry["observable"]
+        ).strip("_")
+        if observable in {"material", "phase", "model"} or not observable:
+            observable = "published_observable"
+        identity = f"{observable}_in_{entry['model']}"
+        primary_semantic = (
+            f"published {_humanize_identifier(observable)} for "
+            f"{_humanize_identifier(entry['model'])}"
+        )
+    field_semantics = [_field_semantic(entry, field) for field in fields]
+    return identity, [primary_semantic, *field_semantics]
+
+
+def _field_semantic(entry, field):
+    explicit = {
+        "spin_liquid_candidate": "assessment of spin-liquid phenomenology under the cited material or model conditions",
+        "qsl_candidate": "assessment of quantum-spin-liquid phenomenology under the cited experimental conditions",
+        "plaquette_order_candidate": "assessment of plaquette valence-bond order in the stated checkerboard model",
+        "nonmagnetic_window_approx": "endpoints of the approximate nonmagnetic interval in J2/J1",
+        "helicity_modulus_at_t_1": "helicity modulus rho_s/J evaluated at T/J = 1",
+        "distorted_kagome_reference": "identification of the material's magnetically active lattice as distorted kagome",
+        "honeycomb_iridate_reference": "identification of the cited material as a spin-orbit-coupled honeycomb iridate",
+        "kagome_antiferromagnet_reference": "identification of antiferromagnetic kagome interactions in the cited material",
+        "zigzag_or_collinear_order_reference": "experimentally inferred zigzag or collinear magnetic order",
+        "neel_order_reference": "experimentally inferred Neel antiferromagnetic order",
+        "triangular_material_reference": "identification of a triangular-lattice magnetic material",
+        "anisotropic_exchange_fit_reference": "anisotropic exchange parameters inferred from the published fit",
+        "large_d_transition_reference": "location or identification of the Haldane-to-large-D transition",
+        "columnar_or_plaquette_vbs_reference": "identification of columnar or plaquette valence-bond-solid order",
+        "frustrated_order_reference": "published magnetic-order characterization in the frustrated lattice model",
+        "square_kagome_reference": "identification of the shuriken lattice with the square-kagome geometry",
+        "quantum_spin_ice_candidate": "assessment of quantum-spin-ice phenomenology under the cited conditions",
+        "hyperkagome_qsl_candidate": "assessment of quantum-spin-liquid phenomenology on the hyperkagome material",
+        "triangular_quantum_spin_liquid_candidate": "assessment of quantum-spin-liquid phenomenology in the triangular material",
+        "u1_quantum_spin_liquid_candidate": "assessment of a U(1) quantum-spin-liquid phase in pyrochlore spin ice",
+        "spin_liquid_or_valence_bond_reference": "published discrimination between spin-liquid and valence-bond behavior",
+        "kitaev_gamma_model_reference": "identification of the effective Kitaev-Gamma interaction model",
+        "ru_honeycomb_kitaev_candidate": "assessment of honeycomb Kitaev interactions in the ruthenium material",
+    }
+    if field in explicit:
+        return explicit[field]
+    return (
+        f"{_humanize_identifier(field)} for the {_humanize_identifier(entry['model'])} "
+        "Hamiltonian under the declared parameter regime"
+    )
+
+
+def _physical_regime(entry):
+    scope = _scope_category(entry)
+    if scope == "thermodynamic_limit":
+        return "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters"
+    if scope == "exact_model_limit":
+        return "exactly specified solvable or enumerable model limit"
+    if scope == "finite_local_cluster":
+        return "finite local cluster defined by the Hamiltonian and lattice"
+    return "published material conditions, to be resolved exactly from the authoritative source"
+
+
+def _source_claim_scope(entry):
+    if _is_material_claim(entry):
+        return "direct published material or experimental observable"
+    if entry["comparison_kind"] in {"exact_solution", "exact_enumeration"}:
+        return "published exact model result"
+    if entry["comparison_kind"] == "paper_formula":
+        return "published analytic relation or formula"
+    return "published numerical or categorical model result"
 
 
 def _scope_category(entry):
@@ -695,6 +809,27 @@ def _field_units_and_convention(field, representation_type):
         )
     if field == "gapless_interval":
         return "dimensionless_anisotropy", "closed_anisotropy_interval"
+    if field == "nonmagnetic_window_approx":
+        return (
+            "dimensionless_j2_over_j1",
+            "closed_interval_endpoints_in_ascending_j2_over_j1",
+        )
+    if field == "helicity_modulus_at_t_1":
+        return (
+            "helicity_modulus_over_exchange_j",
+            "rho_s_over_j_at_temperature_over_j_equal_one",
+        )
+    if field == "phases":
+        return "not_applicable", "categorical_phase_label_set"
+    if field in {"phase_sequence", "ordered_phases", "common_orders"}:
+        return "not_applicable", "ordered_categorical_phase_labels"
+    if field == "couplings":
+        return (
+            "source_declared_coupling_units",
+            "named_hamiltonian_coupling_parameter_map",
+        )
+    if field == "degeneracies":
+        return "count", "ordered_nonnegative_integer_degeneracies"
     if "radians" in field or "angle" in field:
         return "radian", "angular_scalar"
     if "degeneracy" in field or "transition_count" in field:
@@ -736,8 +871,23 @@ def _field_units_and_convention(field, representation_type):
             return "not_applicable", "symbolic_expression"
         return "not_applicable", "categorical_label"
     if representation_type.startswith("list["):
-        return "field_dependent_sequence", "ordered_sequence"
-    return "dimensionless", "scalar_or_structured_claim"
+        if "phase" in field or "order" in field:
+            return "not_applicable", "ordered_categorical_labels"
+        if "coupling" in field or "exchange" in field:
+            return "source_declared_coupling_units", "ordered_named_couplings"
+        return "dimensionless_sequence", "ordered_values_under_declared_convention"
+    if representation_type == "field_map":
+        return "field_specific", "named_fields_with_declared_per_field_conventions"
+    return "dimensionless_observable", "scalar_under_declared_hamiltonian_convention"
+
+
+def _is_generic_observable_identity(identity):
+    return (
+        not isinstance(identity, str)
+        or not identity
+        or identity in _GENERIC_OBSERVABLES
+        or bool(_GENERIC_OBSERVABLE_SUFFIX_RE.search(identity))
+    )
 
 
 def _validate_selector(selector):
@@ -787,13 +937,43 @@ def _validate_locator(locator, expected_fields, name, *, expected_source_id):
     represented = tuple(field.get("id") for field in representation["fields"])
     if represented != expected_fields:
         raise InventoryError(f"locator target representation mismatch for {name}")
-    expected_strategy = {
-        "locator_class": locator["locator_class"],
-        "expected_container": locator["expected_container"],
-        "target_representation": locator["target_representation"],
+    strategy = locator["locator_strategy"]
+    required_strategy = {
+        "locator_class",
+        "expected_container",
+        "target_representation",
+        "source_context_hint",
+        "search_anchors",
+        "rationale",
+        "locator_basis",
+        "canonical_source_identity",
     }
-    if locator["locator_strategy"] != expected_strategy:
+    if not isinstance(strategy, Mapping) or set(strategy) != required_strategy:
         raise InventoryError(f"locator strategy is incomplete for {name}")
+    if strategy["locator_class"] != locator["locator_class"]:
+        raise InventoryError(f"locator strategy class mismatch for {name}")
+    if strategy["expected_container"] != locator["expected_container"]:
+        raise InventoryError(f"locator strategy container mismatch for {name}")
+    if strategy["target_representation"] != locator["target_representation"]:
+        raise InventoryError(f"locator strategy representation mismatch for {name}")
+    for key in ("source_context_hint", "rationale", "canonical_source_identity"):
+        if not isinstance(strategy[key], str) or not strategy[key].strip():
+            raise InventoryError(f"locator strategy missing {key} for {name}")
+    anchors = strategy["search_anchors"]
+    if (
+        not isinstance(anchors, Sequence)
+        or isinstance(anchors, (str, bytes, bytearray))
+        or len(anchors) < 2
+        or any(not isinstance(anchor, str) or not anchor.strip() for anchor in anchors)
+    ):
+        raise InventoryError(f"locator strategy search anchors are incomplete for {name}")
+    if set(strategy["locator_basis"]) != {
+        "citation_locator",
+        "benchmark_name",
+        "observable_semantics",
+        "canonical_source_identity",
+    }:
+        raise InventoryError(f"locator strategy basis is incomplete for {name}")
 
 
 def _validate_record_strategies(record, field_specs, name):
@@ -969,15 +1149,76 @@ def _representation_type(value):
 
 
 def _forecast_locator_class(entry, field_specs):
+    if entry["name"] in _LOCATOR_CLASS_OVERRIDES:
+        return _LOCATOR_CLASS_OVERRIDES[entry["name"]]
     comparison = entry["comparison_kind"]
     types = {field["type"] for field in field_specs}
     if _is_material_claim(entry):
-        return "abstract"
+        locator = entry["citation_locator"].lower()
+        if any(token in locator for token in ("experimental", "observed", "neutron")):
+            return "abstract"
+        return "body_text"
     if comparison in {"exact_solution", "exact_enumeration"} and types <= {"number", "string", "list[number]"}:
         return "equation"
     if comparison == "paper_numeric":
-        return "table"
+        if "phase" in entry["observable"]:
+            return "figure_caption"
+        if any(field["id"] in {"couplings", "levels", "degeneracies"} for field in field_specs):
+            return "table"
+        return "body_text"
     return "body_text"
+
+
+def _locator_strategy(entry, field_specs, locator_class, target_representation):
+    identity = canonical_source_identity(entry["source_url"])
+    anchors = []
+
+    def add_anchor(anchor):
+        if isinstance(anchor, str):
+            anchor = anchor.strip()
+            if anchor and anchor not in anchors:
+                anchors.append(anchor)
+
+    material = entry.get("parameters", {}).get("material")
+    add_anchor(material)
+    add_anchor(_humanize_identifier(entry["observable"]))
+    for field in field_specs:
+        add_anchor(_humanize_identifier(field["id"]))
+    locator_text = entry["citation_locator"]
+    lower_locator = locator_text.lower()
+    for phrase in (
+        "phase diagram",
+        "ground state energy",
+        "spin waves",
+        "exchange parameterization",
+        "universal jump",
+        "critical line",
+        "spin liquid",
+    ):
+        if phrase in lower_locator:
+            add_anchor(phrase if phrase != "ground state energy" else "ground-state energy")
+    add_anchor(locator_text)
+    if len(anchors) < 2:
+        add_anchor(_humanize_identifier(entry["model"]))
+    return {
+        "locator_class": locator_class,
+        "expected_container": _expected_container(locator_class),
+        "target_representation": target_representation,
+        "source_context_hint": locator_text,
+        "search_anchors": anchors,
+        "rationale": (
+            f"Search the authoritative {identity} payload for the cited context and "
+            f"the declared {_humanize_identifier(entry['observable'])} observable; "
+            "Task 5 must replace this forecast with exact source coordinates."
+        ),
+        "locator_basis": [
+            "citation_locator",
+            "benchmark_name",
+            "observable_semantics",
+            "canonical_source_identity",
+        ],
+        "canonical_source_identity": identity,
+    }
 
 
 def _expected_container(locator_class):
@@ -1028,12 +1269,19 @@ def _load_json(path):
     def reject_non_finite(value):
         raise InventoryError(f"non-finite JSON number {value} in {path}")
 
+    def parse_finite_float(value):
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            reject_non_finite(value)
+        return parsed
+
     try:
         with Path(path).open("r", encoding="utf-8") as handle:
             return json.load(
                 handle,
                 object_pairs_hook=reject_duplicate_keys,
                 parse_constant=reject_non_finite,
+                parse_float=parse_finite_float,
             )
     except (OSError, json.JSONDecodeError) as exc:
         raise InventoryError(f"cannot load structured JSON {path}: {exc}") from exc

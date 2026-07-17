@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_1acf3789a851994c9d6c",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevlett.101.026405",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.101.026405 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "ZnCu3(OH)6Cl2",
+      "material model reference",
+      "dm interaction relevant",
+      "herbertsmithite Dzyaloshinskii-Moriya interaction estimate"
+    ],
+    "source_context_hint": "herbertsmithite Dzyaloshinskii-Moriya interaction estimate",
     "target_representation": {
       "fields": [
         {

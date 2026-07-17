@@ -75,8 +75,25 @@
   "schema_version": 1,
   "source_id": "doi_f605e466ceaab98b53c2",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.79.2554",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.79.2554 payload for the cited context and the declared tetrahedron energy levels observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "tetrahedron energy levels",
+      "two in two out energy",
+      "three in one out energy",
+      "all in all out energy",
+      "two in two out degeneracy",
+      "spin-ice rule on pyrochlore tetrahedra"
+    ],
+    "source_context_hint": "spin-ice rule on pyrochlore tetrahedra",
     "target_representation": {
       "fields": [
         {

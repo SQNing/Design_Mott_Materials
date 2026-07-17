@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_95a1148cb5d14b4d9680",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1038/nature25482",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1038/nature25482 payload for the cited context and the declared spin liquid candidate reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "H3LiIr2O6",
+      "spin liquid candidate reference",
+      "no magnetic order reported",
+      "H3LiIr2O6 Kitaev spin-liquid candidate reference"
+    ],
+    "source_context_hint": "H3LiIr2O6 Kitaev spin-liquid candidate reference",
     "target_representation": {
       "fields": [
         {

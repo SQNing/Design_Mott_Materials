@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_1c5a42de0551d2e2451c",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1143/jpsj.78.043704",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1143/jpsj.78.043704 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "BaCu3V2O8(OH)2",
+      "material model reference",
+      "distorted kagome relevant",
+      "vesignieite kagome antiferromagnet reference"
+    ],
+    "source_context_hint": "vesignieite kagome antiferromagnet reference",
     "target_representation": {
       "fields": [
         {

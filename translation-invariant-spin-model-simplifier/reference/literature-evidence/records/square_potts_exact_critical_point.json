@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_5c4f75ee56f57b91e3e4",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/revmodphys.54.235",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/revmodphys.54.235 payload for the cited context and the declared critical coupling observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "critical coupling",
+      "critical beta j",
+      "continuous for q le 4",
+      "square-lattice Potts critical point"
+    ],
+    "source_context_hint": "square-lattice Potts critical point",
     "target_representation": {
       "fields": [
         {

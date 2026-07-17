@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_7ebcee4afff97a154c76",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1016/0375-9601(92)90923-5",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1016/0375-9601(92)90923-5 payload for the cited context and the declared dimerization transition observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "dimerization transition",
+      "critical j2 over j1 approx",
+      "J1-J2 spin-half chain dimerization transition"
+    ],
+    "source_context_hint": "J1-J2 spin-half chain dimerization transition",
     "target_representation": {
       "fields": [
         {

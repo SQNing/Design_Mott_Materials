@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "arxiv_6d8189949f34733eb8b4",
   "target_locator_strategy": {
+    "canonical_source_identity": "arxiv:cond-mat/0612001",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative arxiv:cond-mat/0612001 payload for the cited context and the declared spiral surface observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "spiral surface",
+      "spiral surface for j2 over j1 gt",
+      "spin liquid",
+      "diamond-lattice spiral spin liquid surface"
+    ],
+    "source_context_hint": "diamond-lattice spiral spin liquid surface",
     "target_representation": {
       "fields": [
         {

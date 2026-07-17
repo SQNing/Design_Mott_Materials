@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_6b6a567626db4d7194ce",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1038/ncomms6137",
+    "expected_container": "figure_caption_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "figure_caption",
+    "rationale": "Search the authoritative doi:10.1038/ncomms6137 payload for the cited context and the declared chiral spin liquid phase observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "chiral spin liquid phase",
+      "spin liquid",
+      "kagome chiral spin liquid in Heisenberg plus scalar-chirality model"
+    ],
+    "source_context_hint": "kagome chiral spin liquid in Heisenberg plus scalar-chirality model",
     "target_representation": {
       "fields": [
         {

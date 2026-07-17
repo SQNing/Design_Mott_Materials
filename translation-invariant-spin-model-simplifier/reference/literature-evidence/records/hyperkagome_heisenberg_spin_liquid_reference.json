@@ -36,8 +36,21 @@
   "schema_version": 1,
   "source_id": "doi_0c40015567515b5d9937",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevlett.101.197202",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.101.197202 payload for the cited context and the declared spin liquid candidate observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "spin liquid candidate",
+      "hyperkagome spin-liquid reference"
+    ],
+    "source_context_hint": "hyperkagome spin-liquid reference",
     "target_representation": {
       "fields": [
         {

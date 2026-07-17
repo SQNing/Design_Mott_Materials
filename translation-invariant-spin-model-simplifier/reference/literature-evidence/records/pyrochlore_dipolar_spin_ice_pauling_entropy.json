@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_c32f33c419ab46e79a19",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1126/science.1059820",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1126/science.1059820 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "residual entropy",
+      "pauling entropy per spin",
+      "spin ice Pauling entropy"
+    ],
+    "source_context_hint": "spin ice Pauling entropy",
     "target_representation": {
       "fields": [
         {

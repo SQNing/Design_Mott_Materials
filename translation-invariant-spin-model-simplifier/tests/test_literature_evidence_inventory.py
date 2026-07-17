@@ -115,6 +115,131 @@ def test_contracts_reject_all_generic_placeholder_families(loaded_inventory):
     assert len(set(subjects)) == 155
 
 
+@pytest.mark.parametrize(
+    "placeholder_identity",
+    [
+        "material_reference",
+        "spin_liquid_candidate",
+        "plaquette_order_candidate",
+        "phase_status",
+        "published_claim",
+    ],
+)
+def test_inventory_rejects_status_like_observable_identities(
+    loaded_inventory, placeholder_identity
+):
+    data = mutable_inventory(loaded_inventory)
+    contract = data["contracts"][0]
+    contract["observable"]["identity"] = placeholder_identity
+    with pytest.raises(InventoryError, match="generic observable identity"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_representative_placeholder_fields_expand_to_scientific_observables(
+    loaded_inventory,
+):
+    contracts = {
+        item.benchmark_name: item for item in loaded_inventory.contracts
+    }
+    expected = {
+        "ba3irti2o9_honeycomb_kitaev_reference": (
+            "assessment_of_spin_liquid_behavior_in_ba3irti2o9",
+            "published material-scale assessment of spin-liquid behavior",
+        ),
+        "herbertsmithite_kagome_qsl_reference": (
+            "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
+            "published experimental assessment of quantum-spin-liquid behavior",
+        ),
+        "checkerboard_heisenberg_plaquette_reference": (
+            "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
+            "published assessment of plaquette valence-bond order",
+        ),
+        "j1_j2_square_spin_half_neel_collinear_transition_reference": (
+            "nonmagnetic_phase_window_in_j2_over_j1",
+            "approximate nonmagnetic-phase interval in the J2/J1 coupling ratio",
+        ),
+        "two_dimensional_xy_bkt_universal_jump": (
+            "universal_bkt_helicity_modulus_jump_relation",
+            "universal relation between helicity modulus and transition temperature",
+        ),
+    }
+    for benchmark_name, (identity, semantic) in expected.items():
+        contract = contracts[benchmark_name]
+        assert contract.observable["identity"] == identity
+        assert semantic in contract.observable["semantics"]
+        assert contract.conditions["physical_regime"]
+        assert contract.conditions["source_claim_scope"]
+        assert contract.conditions["model_parameters"] == contract.parameter_regime
+
+
+def test_scientific_sequence_and_normalization_conventions_are_distinct(
+    loaded_inventory,
+):
+    contracts = {
+        item.benchmark_name: item for item in loaded_inventory.contracts
+    }
+
+    j1_j2 = contracts[
+        "j1_j2_square_spin_half_neel_collinear_transition_reference"
+    ]
+    nonmagnetic_window = j1_j2.representation["fields"][0]
+    assert nonmagnetic_window == {
+        "id": "nonmagnetic_window_approx",
+        "type": "list[number]",
+        "units": "dimensionless_j2_over_j1",
+        "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
+    }
+
+    bkt = contracts["two_dimensional_xy_bkt_universal_jump"]
+    bkt_fields = {field["id"]: field for field in bkt.representation["fields"]}
+    assert bkt_fields["helicity_modulus_at_t_1"] == {
+        "id": "helicity_modulus_at_t_1",
+        "type": "number",
+        "units": "helicity_modulus_over_exchange_j",
+        "convention": "rho_s_over_j_at_temperature_over_j_equal_one",
+    }
+    assert bkt.conditions["normalization_relation"] == (
+        "rho_s(T_BKT)/J = 2 [T_BKT/J] / pi"
+    )
+
+    phase_contract = next(
+        item
+        for item in loaded_inventory.contracts
+        if any(field["id"] == "phases" for field in item.representation["fields"])
+    )
+    phase_field = next(
+        field for field in phase_contract.representation["fields"] if field["id"] == "phases"
+    )
+    assert phase_field["units"] == "not_applicable"
+    assert phase_field["convention"] == "categorical_phase_label_set"
+
+    coupling_contract = next(
+        item
+        for item in loaded_inventory.contracts
+        if any(field["id"] == "couplings" for field in item.representation["fields"])
+    )
+    coupling_field = next(
+        field
+        for field in coupling_contract.representation["fields"]
+        if field["id"] == "couplings"
+    )
+    assert coupling_field["units"] == "source_declared_coupling_units"
+    assert coupling_field["convention"] == "named_hamiltonian_coupling_parameter_map"
+
+    degeneracy_contract = next(
+        item
+        for item in loaded_inventory.contracts
+        if any(field["id"] == "degeneracies" for field in item.representation["fields"])
+    )
+    degeneracy_field = next(
+        field
+        for field in degeneracy_contract.representation["fields"]
+        if field["id"] == "degeneracies"
+    )
+    assert degeneracy_field["units"] == "count"
+    assert degeneracy_field["convention"] == "ordered_nonnegative_integer_degeneracies"
+
+
 def test_selectors_equal_literal_registry_claim_fields(loaded_inventory):
     literal_fields = _literal_registry_claim_fields()
     assert len(literal_fields) == 155
@@ -348,7 +473,40 @@ def test_locator_inventory_is_structured_target_free_and_complete(loaded_invento
         assert row["locator_class"] in allowed_classes
         assert row["expected_container"]
         assert row["target_representation"]["fields"]
+        strategy = row["locator_strategy"]
+        assert strategy["source_context_hint"]
+        assert len(strategy["search_anchors"]) >= 2
+        assert all(anchor.strip() for anchor in strategy["search_anchors"])
+        assert strategy["rationale"]
+        assert set(strategy["locator_basis"]) == {
+            "citation_locator",
+            "benchmark_name",
+            "observable_semantics",
+            "canonical_source_identity",
+        }
         assert not forbidden.intersection(_recursive_keys(row))
+
+
+def test_locator_forecasts_are_source_specific_and_honest(loaded_inventory):
+    locators = {
+        row["benchmark_name"]: row for row in loaded_inventory.locator_inventory
+    }
+
+    phase_diagram = locators["honeycomb_kitaev_gamma_phase_diagram_reference"]
+    assert phase_diagram["locator_class"] in {"body_text", "figure_caption"}
+    assert "generic spin model for honeycomb iridates" in phase_diagram[
+        "locator_strategy"
+    ]["source_context_hint"]
+    assert "phase diagram" in phase_diagram["locator_strategy"]["search_anchors"]
+
+    qmc = locators["square_spin_half_heisenberg_qmc_energy"]
+    assert qmc["expected_container"] != "main_text_or_supplemental_table"
+    assert "QMC" in qmc["locator_strategy"]["source_context_hint"]
+
+    material = locators["ni_ps3_honeycomb_antiferromagnet_reference"]
+    assert material["locator_class"] in {"abstract", "body_text", "figure_caption"}
+    assert "NiPS3" in material["locator_strategy"]["search_anchors"]
+    assert "spin waves" in material["locator_strategy"]["search_anchors"]
 
 
 def test_claim_surfaces_do_not_copy_registry_target_values(loaded_inventory):
@@ -578,7 +736,9 @@ def test_loader_rejects_record_filename_mismatch(tmp_path):
         load_and_validate_inventory(copied_root)
 
 
-@pytest.mark.parametrize("malformation", ["duplicate_key", "non_finite"])
+@pytest.mark.parametrize(
+    "malformation", ["duplicate_key", "non_finite", "overflowing_float"]
+)
 def test_loader_rejects_ambiguous_or_nonstandard_json(tmp_path, malformation):
     copied_root = tmp_path / "literature-evidence"
     shutil.copytree(INVENTORY_ROOT, copied_root)
@@ -590,8 +750,10 @@ def test_loader_rejects_ambiguous_or_nonstandard_json(tmp_path, malformation):
             '"benchmark_name": "duplicate",\n  "benchmark_name":',
             1,
         )
-    else:
+    elif malformation == "non_finite":
         raw = raw.replace('"schema_version": 1', '"schema_version": NaN', 1)
+    else:
+        raw = raw.replace('"schema_version": 1', '"schema_version": 1e999', 1)
     record_path.write_text(raw, encoding="utf-8")
     with pytest.raises(InventoryError, match="duplicate JSON key|non-finite JSON"):
         load_and_validate_inventory(copied_root)

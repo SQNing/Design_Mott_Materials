@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_ed7a65b8814519a190b1",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevb.19.402",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.19.402 payload for the cited context and the declared spin gap opens with dimerization observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "spin gap opens with dimerization",
+      "finite delta opens gap",
+      "spin-Peierls chain dimerization gap scaling reference"
+    ],
+    "source_context_hint": "spin-Peierls chain dimerization gap scaling reference",
     "target_representation": {
       "fields": [
         {

@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "scalar_under_declared_hamiltonian_convention",
         "id": "ising_critical_field",
         "type": "number",
-        "units": "dimensionless"
+        "units": "dimensionless_observable"
       },
       {
         "convention": "ratio_to_named_model_scale",
@@ -23,10 +23,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "scalar_under_declared_hamiltonian_convention",
         "id": "ising_critical_field",
         "type": "number",
-        "units": "dimensionless"
+        "units": "dimensionless_observable"
       },
       {
         "convention": "ratio_to_named_model_scale",
@@ -49,15 +49,30 @@
   "schema_version": 1,
   "source_id": "doi_2e773eb6fd2e35377402",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physreva.3.786",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physreva.3.786 payload for the cited context and the declared critical line observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "critical line",
+      "ising critical field",
+      "anisotropy transition gamma",
+      "anisotropic XY chain exact free-fermion solution"
+    ],
+    "source_context_hint": "anisotropic XY chain exact free-fermion solution",
     "target_representation": {
       "fields": [
         {
-          "convention": "scalar_or_structured_claim",
+          "convention": "scalar_under_declared_hamiltonian_convention",
           "id": "ising_critical_field",
           "type": "number",
-          "units": "dimensionless"
+          "units": "dimensionless_observable"
         },
         {
           "convention": "ratio_to_named_model_scale",

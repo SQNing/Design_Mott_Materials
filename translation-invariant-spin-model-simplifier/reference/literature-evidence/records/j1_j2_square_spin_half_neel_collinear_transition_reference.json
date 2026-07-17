@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
         "id": "nonmagnetic_window_approx",
         "type": "list[number]",
-        "units": "field_dependent_sequence"
+        "units": "dimensionless_j2_over_j1"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
         "id": "nonmagnetic_window_approx",
         "type": "list[number]",
-        "units": "field_dependent_sequence"
+        "units": "dimensionless_j2_over_j1"
       }
     ]
   },
@@ -36,15 +36,30 @@
   "schema_version": 1,
   "source_id": "arxiv_63ac2dc486b14b933a79",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "arxiv:1409.0193",
+    "expected_container": "figure_caption_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "figure_caption",
+    "rationale": "Search the authoritative arxiv:1409.0193 payload for the cited context and the declared quantum phase window observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "quantum phase window",
+      "nonmagnetic window approx",
+      "phase diagram",
+      "reviewed J1-J2 square phase diagram window"
+    ],
+    "source_context_hint": "reviewed J1-J2 square phase diagram window",
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_sequence",
+          "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
           "id": "nonmagnetic_window_approx",
           "type": "list[number]",
-          "units": "field_dependent_sequence"
+          "units": "dimensionless_j2_over_j1"
         }
       ],
       "kind": "registered_field_map"

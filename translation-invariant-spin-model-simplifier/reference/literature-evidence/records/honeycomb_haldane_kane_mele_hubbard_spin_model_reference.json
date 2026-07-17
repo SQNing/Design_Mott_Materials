@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_7f88cea74a31c9249c7c",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevb.82.075106",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.82.075106 payload for the cited context and the declared strong coupling reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "strong coupling reference",
+      "spin orbit induced anisotropy",
+      "Kane-Mele-Hubbard strong-coupling spin model reference"
+    ],
+    "source_context_hint": "Kane-Mele-Hubbard strong-coupling spin model reference",
     "target_representation": {
       "fields": [
         {

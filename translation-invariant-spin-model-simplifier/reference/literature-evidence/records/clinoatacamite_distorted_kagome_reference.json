@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_404f519ad628c5708818",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1038/nmat1867",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1038/nmat1867 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Cu2(OH)3Cl",
+      "material model reference",
+      "distorted kagome reference",
+      "clinoatacamite frustrated magnetism reference"
+    ],
+    "source_context_hint": "clinoatacamite frustrated magnetism reference",
     "target_representation": {
       "fields": [
         {

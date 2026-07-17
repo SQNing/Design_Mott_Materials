@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "ordered_values_under_declared_convention",
         "id": "spin_liquid_window_approx",
         "type": "list[number]",
-        "units": "field_dependent_sequence"
+        "units": "dimensionless_sequence"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "ordered_values_under_declared_convention",
         "id": "spin_liquid_window_approx",
         "type": "list[number]",
-        "units": "field_dependent_sequence"
+        "units": "dimensionless_sequence"
       }
     ]
   },
@@ -36,15 +36,29 @@
   "schema_version": 1,
   "source_id": "doi_10f8d8a847e8ffd6e766",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevb.92.140403",
+    "expected_container": "figure_caption_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "figure_caption",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.92.140403 payload for the cited context and the declared quantum phase window observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "quantum phase window",
+      "spin liquid window approx",
+      "triangular J1-J2 spin-liquid window reference"
+    ],
+    "source_context_hint": "triangular J1-J2 spin-liquid window reference",
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_sequence",
+          "convention": "ordered_values_under_declared_convention",
           "id": "spin_liquid_window_approx",
           "type": "list[number]",
-          "units": "field_dependent_sequence"
+          "units": "dimensionless_sequence"
         }
       ],
       "kind": "registered_field_map"

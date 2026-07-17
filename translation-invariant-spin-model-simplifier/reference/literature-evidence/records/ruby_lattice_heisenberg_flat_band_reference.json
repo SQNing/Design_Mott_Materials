@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_3b8910c1f58e139297ef",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.93.107206",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.93.107206 payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "localized magnon",
+      "supports localized magnons",
+      "localized magnons on frustrated lattices"
+    ],
+    "source_context_hint": "localized magnons on frustrated lattices",
     "target_representation": {
       "fields": [
         {

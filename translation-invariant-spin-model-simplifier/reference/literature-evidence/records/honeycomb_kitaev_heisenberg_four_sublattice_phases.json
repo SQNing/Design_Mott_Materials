@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "ordered_categorical_phase_labels",
         "id": "ordered_phases",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "not_applicable"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "ordered_categorical_phase_labels",
         "id": "ordered_phases",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "not_applicable"
       }
     ]
   },
@@ -36,15 +36,29 @@
   "schema_version": 1,
   "source_id": "doi_cccc77107683d181386d",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.105.027204",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.105.027204 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase diagram",
+      "ordered phases",
+      "Kitaev-Heisenberg honeycomb phase diagram"
+    ],
+    "source_context_hint": "Kitaev-Heisenberg honeycomb phase diagram",
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_sequence",
+          "convention": "ordered_categorical_phase_labels",
           "id": "ordered_phases",
           "type": "list[string]",
-          "units": "field_dependent_sequence"
+          "units": "not_applicable"
         }
       ],
       "kind": "registered_field_map"

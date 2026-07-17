@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_57291c85f08380e3074d",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevb.90.205116",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.90.205116 payload for the cited context and the declared spiral order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "beta-Li2IrO3",
+      "spiral order reference",
+      "incommensurate spiral order",
+      "beta-Li2IrO3 incommensurate spiral order reference"
+    ],
+    "source_context_hint": "beta-Li2IrO3 incommensurate spiral order reference",
     "target_representation": {
       "fields": [
         {

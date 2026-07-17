@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_787b8f6d6f9d2741d4e9",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevlett.99.137207",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.99.137207 payload for the cited context and the declared material qsl reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Na4Ir3O8",
+      "material qsl reference",
+      "hyperkagome qsl candidate",
+      "Na4Ir3O8 hyperkagome spin-liquid reference"
+    ],
+    "source_context_hint": "Na4Ir3O8 hyperkagome spin-liquid reference",
     "target_representation": {
       "fields": [
         {

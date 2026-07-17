@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_d58cb3551f9e1c029988",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrev.85.808",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physrev.85.808 payload for the cited context and the declared spontaneous magnetization observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "spontaneous magnetization",
+      "formula",
+      "magnetization beta 0 6 j 1",
+      "square-lattice Ising spontaneous magnetization"
+    ],
+    "source_context_hint": "square-lattice Ising spontaneous magnetization",
     "target_representation": {
       "fields": [
         {

@@ -36,8 +36,24 @@
   "schema_version": 1,
   "source_id": "doi_3210b04d5765cf8591dd",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevb.92.224408",
     "expected_container": "abstract_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "abstract",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.92.224408 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "NiPS3",
+      "classical order",
+      "zigzag or collinear order reference",
+      "spin waves",
+      "NiPS3 honeycomb antiferromagnet spin waves"
+    ],
+    "source_context_hint": "NiPS3 honeycomb antiferromagnet spin waves",
     "target_representation": {
       "fields": [
         {

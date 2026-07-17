@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_5b656dfc4b6b9ffc48f2",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.80.2929",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.80.2929 payload for the cited context and the declared coulomb phase observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "coulomb phase",
+      "local constraint",
+      "lowest lt flat band",
+      "pyrochlore Heisenberg Coulomb phase"
+    ],
+    "source_context_hint": "pyrochlore Heisenberg Coulomb phase",
     "target_representation": {
       "fields": [
         {

@@ -36,8 +36,21 @@
   "schema_version": 1,
   "source_id": "doi_e599150fa96b6322a663",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevlett.109.067201",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.109.067201 payload for the cited context and the declared topological entanglement entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "topological entanglement entropy",
+      "topological entanglement entropy in kagome Heisenberg antiferromagnet"
+    ],
+    "source_context_hint": "topological entanglement entropy in kagome Heisenberg antiferromagnet",
     "target_representation": {
       "fields": [
         {

@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_ad5da9e18d2e393cc975",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevb.72.045105",
+    "expected_container": "figure_caption_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "figure_caption",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.72.045105 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase diagram",
+      "contains spin liquid region",
+      "triangular ring-exchange spin-liquid regime"
+    ],
+    "source_context_hint": "triangular ring-exchange spin-liquid regime",
     "target_representation": {
       "fields": [
         {

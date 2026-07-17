@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_33fcf4c762fb137794a6",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1016/s0003-4916(02)00018-0",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1016/s0003-4916(02)00018-0 payload for the cited context and the declared ground state degeneracy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "ground state degeneracy",
+      "torus ground state degeneracy",
+      "toric-code topological degeneracy on torus"
+    ],
+    "source_context_hint": "toric-code topological degeneracy on torus",
     "target_representation": {
       "fields": [
         {

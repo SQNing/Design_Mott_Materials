@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_3c3be4c66f0054c73f1d",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.60.635",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.60.635 payload for the cited context and the declared exact ground state observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "exact ground state",
+      "has exact jastrow ground state",
+      "Haldane-Shastry inverse-square spin-chain exact state"
+    ],
+    "source_context_hint": "Haldane-Shastry inverse-square spin-chain exact state",
     "target_representation": {
       "fields": [
         {

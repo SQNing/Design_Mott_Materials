@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_85b0ca56044270e7e63e",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1007/bf02980577",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1007/bf02980577 payload for the cited context and the declared correlation length observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "correlation length",
+      "formula",
+      "correlation length beta 1 j 1",
+      "one-dimensional Ising transfer-matrix correlation length"
+    ],
+    "source_context_hint": "one-dimensional Ising transfer-matrix correlation length",
     "target_representation": {
       "fields": [
         {

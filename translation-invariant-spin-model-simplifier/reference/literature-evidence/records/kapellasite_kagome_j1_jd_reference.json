@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_9cb0dc0aa70484f11c98",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevlett.109.037208",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.109.037208 payload for the cited context and the declared material exchange reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "kapellasite",
+      "material exchange reference",
+      "competing kagome exchanges",
+      "kapellasite kagome exchange model reference"
+    ],
+    "source_context_hint": "kapellasite kagome exchange model reference",
     "target_representation": {
       "fields": [
         {

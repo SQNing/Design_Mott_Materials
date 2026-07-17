@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_a9fa724159c277eaa6cb",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1016/0375-9601(81)90438-x",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1016/0375-9601(81)90438-x payload for the cited context and the declared exact dimer energy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "exact dimer energy",
+      "energy per dimer",
+      "energy per spin",
+      "orthogonal dimer exact eigenstate"
+    ],
+    "source_context_hint": "orthogonal dimer exact eigenstate",
     "target_representation": {
       "fields": [
         {

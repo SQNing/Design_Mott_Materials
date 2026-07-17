@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "scalar_under_declared_hamiltonian_convention",
         "id": "ground_state_spin_per_unit_cell",
         "type": "number",
-        "units": "dimensionless"
+        "units": "dimensionless_observable"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "scalar_under_declared_hamiltonian_convention",
         "id": "ground_state_spin_per_unit_cell",
         "type": "number",
-        "units": "dimensionless"
+        "units": "dimensionless_observable"
       }
     ]
   },
@@ -36,15 +36,29 @@
   "schema_version": 1,
   "source_id": "doi_73b2515f2a4cc89196d3",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1063/1.1724276",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1063/1.1724276 payload for the cited context and the declared lieb mattis ferrimagnetism observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "lieb mattis ferrimagnetism",
+      "ground state spin per unit cell",
+      "Lieb-Mattis bipartite ferrimagnetism theorem"
+    ],
+    "source_context_hint": "Lieb-Mattis bipartite ferrimagnetism theorem",
     "target_representation": {
       "fields": [
         {
-          "convention": "scalar_or_structured_claim",
+          "convention": "scalar_under_declared_hamiltonian_convention",
           "id": "ground_state_spin_per_unit_cell",
           "type": "number",
-          "units": "dimensionless"
+          "units": "dimensionless_observable"
         }
       ],
       "kind": "registered_field_map"

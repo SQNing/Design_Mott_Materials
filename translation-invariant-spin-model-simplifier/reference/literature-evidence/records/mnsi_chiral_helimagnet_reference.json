@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_b757c34f112f5da7b6c7",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1088/0022-3719/13/31/002",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1088/0022-3719/13/31/002 payload for the cited context and the declared helical wavevector observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "MnSi",
+      "helical wavevector",
+      "long wavelength helix",
+      "Dzyaloshinskii-Moriya helimagnet model for MnSi"
+    ],
+    "source_context_hint": "Dzyaloshinskii-Moriya helimagnet model for MnSi",
     "target_representation": {
       "fields": [
         {

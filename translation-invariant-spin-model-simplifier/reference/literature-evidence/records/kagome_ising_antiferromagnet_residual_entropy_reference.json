@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_5ff3dbcb129ebe58da6a",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1143/ptp.10.158",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1143/ptp.10.158 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "residual entropy",
+      "macroscopic ground state degeneracy",
+      "kagome Ising antiferromagnet residual entropy reference"
+    ],
+    "source_context_hint": "kagome Ising antiferromagnet residual entropy reference",
     "target_representation": {
       "fields": [
         {

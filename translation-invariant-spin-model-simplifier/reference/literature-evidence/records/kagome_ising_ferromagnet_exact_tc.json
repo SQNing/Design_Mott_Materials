@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_5ff3dbcb129ebe58da6a",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1143/ptp.10.158",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1143/ptp.10.158 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "critical temperature",
+      "tc over j",
+      "kagome-lattice Ising exact critical temperature"
+    ],
+    "source_context_hint": "kagome-lattice Ising exact critical temperature",
     "target_representation": {
       "fields": [
         {

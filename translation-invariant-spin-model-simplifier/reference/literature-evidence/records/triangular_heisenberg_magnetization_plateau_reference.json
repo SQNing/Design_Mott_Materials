@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_e3b1415a2e57b3de696a",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1088/0953-8984/3/1/005",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1088/0953-8984/3/1/005 payload for the cited context and the declared magnetization plateau observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "magnetization plateau",
+      "one third plateau",
+      "triangular antiferromagnet one-third plateau reference"
+    ],
+    "source_context_hint": "triangular antiferromagnet one-third plateau reference",
     "target_representation": {
       "fields": [
         {

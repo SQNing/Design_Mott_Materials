@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_648ea4bc439b5b7a10c2",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrev.162.162",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrev.162.162 payload for the cited context and the declared exact solution status observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "exact solution status",
+      "is exactly solved",
+      "six-vertex ice model exact solution"
+    ],
+    "source_context_hint": "six-vertex ice model exact solution",
     "target_representation": {
       "fields": [
         {

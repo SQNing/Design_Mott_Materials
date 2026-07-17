@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_8108add70d2566f81e3e",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1140/epjb/e2006-00267-3",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1140/epjb/e2006-00267-3 payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "localized magnon",
+      "has exact localized magnons",
+      "localized magnons on sawtooth chain"
+    ],
+    "source_context_hint": "localized magnons on sawtooth chain",
     "target_representation": {
       "fields": [
         {

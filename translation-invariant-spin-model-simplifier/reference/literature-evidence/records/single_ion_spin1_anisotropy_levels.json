@@ -10,10 +10,10 @@
         "units": "exchange_energy_unit"
       },
       {
-        "convention": "ordered_sequence",
+        "convention": "ordered_nonnegative_integer_degeneracies",
         "id": "degeneracies",
         "type": "list[number]",
-        "units": "field_dependent_sequence"
+        "units": "count"
       }
     ],
     "kind": "registered_field_comparison"
@@ -29,10 +29,10 @@
         "units": "exchange_energy_unit"
       },
       {
-        "convention": "ordered_sequence",
+        "convention": "ordered_nonnegative_integer_degeneracies",
         "id": "degeneracies",
         "type": "list[number]",
-        "units": "field_dependent_sequence"
+        "units": "count"
       }
     ]
   },
@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_2b2b97b695eeeeb1378a",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrev.141.517",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physrev.141.517 payload for the cited context and the declared onsite levels observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "onsite levels",
+      "levels",
+      "degeneracies",
+      "single-ion anisotropy term in spin-1 models"
+    ],
+    "source_context_hint": "single-ion anisotropy term in spin-1 models",
     "target_representation": {
       "fields": [
         {
@@ -60,10 +75,10 @@
           "units": "exchange_energy_unit"
         },
         {
-          "convention": "ordered_sequence",
+          "convention": "ordered_nonnegative_integer_degeneracies",
           "id": "degeneracies",
           "type": "list[number]",
-          "units": "field_dependent_sequence"
+          "units": "count"
         }
       ],
       "kind": "registered_field_map"

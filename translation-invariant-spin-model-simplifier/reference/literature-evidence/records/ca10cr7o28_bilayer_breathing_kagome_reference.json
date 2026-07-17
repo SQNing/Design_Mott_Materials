@@ -49,8 +49,24 @@
   "schema_version": 1,
   "source_id": "doi_43e75001b61aebd94a9d",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1038/nphys3826",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1038/nphys3826 payload for the cited context and the declared material exchange model observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Ca10Cr7O28",
+      "material exchange model",
+      "spin liquid candidate",
+      "mixed ferromagnetic antiferromagnetic exchanges",
+      "Ca10Cr7O28 bilayer kagome spin-liquid material exchange model"
+    ],
+    "source_context_hint": "Ca10Cr7O28 bilayer kagome spin-liquid material exchange model",
     "target_representation": {
       "fields": [
         {

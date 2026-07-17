@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_1ef6a4cf65b6598edb8b",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevb.86.140405",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.86.140405 payload for the cited context and the declared spin liquid candidate reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Ba3IrTi2O9",
+      "spin liquid candidate reference",
+      "spin liquid candidate",
+      "Ba3IrTi2O9 honeycomb spin-orbit material reference"
+    ],
+    "source_context_hint": "Ba3IrTi2O9 honeycomb spin-orbit material reference",
     "target_representation": {
       "fields": [
         {

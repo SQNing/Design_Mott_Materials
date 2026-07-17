@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_20578e17910452318d7b",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevlett.114.077202",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.114.077202 payload for the cited context and the declared material reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "beta-Li2IrO3",
+      "material reference",
+      "hyperhoneycomb kitaev material",
+      "hyperhoneycomb beta-Li2IrO3 Kitaev material reference"
+    ],
+    "source_context_hint": "hyperhoneycomb beta-Li2IrO3 Kitaev material reference",
     "target_representation": {
       "fields": [
         {

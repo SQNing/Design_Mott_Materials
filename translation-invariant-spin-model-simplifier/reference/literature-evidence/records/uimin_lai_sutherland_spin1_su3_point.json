@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_418535974c0633b7e338",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1016/0375-9601(74)90701-2",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1016/0375-9601(74)90701-2 payload for the cited context and the declared integrable point observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "integrable point",
+      "theta radians",
+      "su3 symmetric",
+      "ULS SU(3) point in spin-1 bilinear-biquadratic chain"
+    ],
+    "source_context_hint": "ULS SU(3) point in spin-1 bilinear-biquadratic chain",
     "target_representation": {
       "fields": [
         {

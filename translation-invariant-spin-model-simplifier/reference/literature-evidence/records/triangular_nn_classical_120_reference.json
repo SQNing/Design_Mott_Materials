@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_9e83835ec0d3b3c1292c",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.60.2531",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.60.2531 payload for the cited context and the declared ordering vector observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "ordering vector",
+      "order",
+      "q reciprocal",
+      "triangular Heisenberg 120-degree order"
+    ],
+    "source_context_hint": "triangular Heisenberg 120-degree order",
     "target_representation": {
       "fields": [
         {

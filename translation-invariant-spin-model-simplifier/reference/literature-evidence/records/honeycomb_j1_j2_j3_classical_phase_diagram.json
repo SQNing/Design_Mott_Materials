@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "categorical_phase_label_set",
         "id": "phases",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "not_applicable"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "categorical_phase_label_set",
         "id": "phases",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "not_applicable"
       }
     ]
   },
@@ -36,15 +36,29 @@
   "schema_version": 1,
   "source_id": "doi_531cce39b8630ae418ce",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1016/0304-8853(79)90049-2",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1016/0304-8853(79)90049-2 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase diagram",
+      "phases",
+      "honeycomb J1-J2-J3 classical phase diagram"
+    ],
+    "source_context_hint": "honeycomb J1-J2-J3 classical phase diagram",
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_sequence",
+          "convention": "categorical_phase_label_set",
           "id": "phases",
           "type": "list[string]",
-          "units": "field_dependent_sequence"
+          "units": "not_applicable"
         }
       ],
       "kind": "registered_field_map"

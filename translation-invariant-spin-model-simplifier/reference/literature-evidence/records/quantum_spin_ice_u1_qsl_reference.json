@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_5f1ff552586a07c4ad46",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevb.69.064404",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.69.064404 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase reference",
+      "u1 quantum spin liquid candidate",
+      "spin liquid",
+      "U(1) quantum spin liquid in pyrochlore spin ice"
+    ],
+    "source_context_hint": "U(1) quantum spin liquid in pyrochlore spin ice",
     "target_representation": {
       "fields": [
         {

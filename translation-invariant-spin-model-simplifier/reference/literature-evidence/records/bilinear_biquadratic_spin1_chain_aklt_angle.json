@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "scalar_under_declared_hamiltonian_convention",
         "id": "aklt_tan_theta",
         "type": "number",
-        "units": "dimensionless"
+        "units": "dimensionless_observable"
       },
       {
         "convention": "angular_scalar",
@@ -23,10 +23,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "scalar_or_structured_claim",
+        "convention": "scalar_under_declared_hamiltonian_convention",
         "id": "aklt_tan_theta",
         "type": "number",
-        "units": "dimensionless"
+        "units": "dimensionless_observable"
       },
       {
         "convention": "angular_scalar",
@@ -49,15 +49,30 @@
   "schema_version": 1,
   "source_id": "doi_31d77765ea903f1adaa9",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrevlett.59.799",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.59.799 payload for the cited context and the declared special angle observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "special angle",
+      "aklt tan theta",
+      "theta radians",
+      "AKLT point in bilinear-biquadratic chain"
+    ],
+    "source_context_hint": "AKLT point in bilinear-biquadratic chain",
     "target_representation": {
       "fields": [
         {
-          "convention": "scalar_or_structured_claim",
+          "convention": "scalar_under_declared_hamiltonian_convention",
           "id": "aklt_tan_theta",
           "type": "number",
-          "units": "dimensionless"
+          "units": "dimensionless_observable"
         },
         {
           "convention": "angular_scalar",

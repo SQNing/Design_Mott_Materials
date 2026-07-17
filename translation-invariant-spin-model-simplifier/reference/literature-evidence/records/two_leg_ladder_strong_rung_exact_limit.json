@@ -49,8 +49,23 @@
   "schema_version": 1,
   "source_id": "doi_d3dec73b0de1021b7f2a",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1126/science.271.5249.618",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1126/science.271.5249.618 payload for the cited context and the declared exact rung singlet energy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "exact rung singlet energy",
+      "energy per rung",
+      "gap to triplet",
+      "two-leg ladder strong-rung limit"
+    ],
+    "source_context_hint": "two-leg ladder strong-rung limit",
     "target_representation": {
       "fields": [
         {

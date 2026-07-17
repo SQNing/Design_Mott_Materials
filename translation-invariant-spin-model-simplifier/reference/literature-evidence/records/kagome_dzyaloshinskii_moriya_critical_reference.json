@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_f912fac30ab22f0a872f",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevb.78.140405",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.78.140405 payload for the cited context and the declared quantum critical ratio observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "quantum critical ratio",
+      "critical d over j approx",
+      "kagome DM critical coupling estimate"
+    ],
+    "source_context_hint": "kagome DM critical coupling estimate",
     "target_representation": {
       "fields": [
         {

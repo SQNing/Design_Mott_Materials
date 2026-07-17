@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_59384b3efe539754fa1e",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1007/bf01341708",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1007/bf01341708 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "thermodynamic limit ground state energy",
+      "energy per site",
+      "Bethe ansatz antiferromagnetic chain energy"
+    ],
+    "source_context_hint": "Bethe ansatz antiferromagnetic chain energy",
     "target_representation": {
       "fields": [
         {

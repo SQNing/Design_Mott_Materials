@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_5266a6c47781c7144991",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1126/science.1224143",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1126/science.1224143 payload for the cited context and the declared skyrmion lattice phase observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Cu2OSeO3",
+      "skyrmion lattice phase",
+      "Cu2OSeO3 skyrmion-lattice phase reference"
+    ],
+    "source_context_hint": "Cu2OSeO3 skyrmion-lattice phase reference",
     "target_representation": {
       "fields": [
         {

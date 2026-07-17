@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_0c17290da9e1b554a547",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevlett.77.2085",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.77.2085 payload for the cited context and the declared frustrated garnet reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Gd3Ga5O12",
+      "frustrated garnet reference",
+      "strong frustration",
+      "gadolinium gallium garnet frustrated magnet reference"
+    ],
+    "source_context_hint": "gadolinium gallium garnet frustrated magnet reference",
     "target_representation": {
       "fields": [
         {

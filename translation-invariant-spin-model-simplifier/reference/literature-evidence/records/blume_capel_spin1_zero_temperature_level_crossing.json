@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_2b2b97b695eeeeb1378a",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrev.141.517",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physrev.141.517 payload for the cited context and the declared zero temperature level crossing observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "zero temperature level crossing",
+      "square lattice d over j crossing",
+      "Blume-Capel spin-1 anisotropy competition"
+    ],
+    "source_context_hint": "Blume-Capel spin-1 anisotropy competition",
     "target_representation": {
       "fields": [
         {

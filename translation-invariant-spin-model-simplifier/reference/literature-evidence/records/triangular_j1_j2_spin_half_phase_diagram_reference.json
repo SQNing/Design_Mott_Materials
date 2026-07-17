@@ -4,10 +4,10 @@
   "comparator": {
     "fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "categorical_phase_label_set",
         "id": "phases",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "not_applicable"
       }
     ],
     "kind": "registered_field_comparison"
@@ -17,10 +17,10 @@
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
-        "convention": "ordered_sequence",
+        "convention": "categorical_phase_label_set",
         "id": "phases",
         "type": "list[string]",
-        "units": "field_dependent_sequence"
+        "units": "not_applicable"
       }
     ]
   },
@@ -36,15 +36,29 @@
   "schema_version": 1,
   "source_id": "doi_550d205c56bb397a0f5a",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevb.92.041105",
+    "expected_container": "figure_caption_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "figure_caption",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.92.041105 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase diagram",
+      "phases",
+      "triangular J1-J2 spin-half phase diagram"
+    ],
+    "source_context_hint": "triangular J1-J2 spin-half phase diagram",
     "target_representation": {
       "fields": [
         {
-          "convention": "ordered_sequence",
+          "convention": "categorical_phase_label_set",
           "id": "phases",
           "type": "list[string]",
-          "units": "field_dependent_sequence"
+          "units": "not_applicable"
         }
       ],
       "kind": "registered_field_map"

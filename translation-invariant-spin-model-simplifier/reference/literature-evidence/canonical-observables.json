@@ -5,7 +5,13 @@
       "canonical_observable_id": "aklt_spin1_chain_projector_ground_state",
       "conditions": {
         "backend_scope": "ed_or_analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "projector": "P_total_spin_2",
+          "spin": 1.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "sum [Si.Sj + (Si.Sj)^2/3 + 2/3]",
@@ -22,10 +28,11 @@
           "two_site_projector_eigenvalues",
           "vbs_ground_energy"
         ],
-        "identity": "two_site_projector_eigenvalues_and_vbs_ground_energy",
+        "identity": "local_spectrum_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "two site projector eigenvalues",
-          "vbs ground energy"
+          "published local spectrum for spin 1 bilinear biquadratic chain",
+          "two site projector eigenvalues for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
+          "vbs ground energy for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -62,7 +69,12 @@
       "canonical_observable_id": "alpha_rucl3_kitaev_gamma_zigzag_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "alpha-RuCl3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Kitaev-Heisenberg-Gamma effective pseudospin Hamiltonian",
@@ -80,10 +92,11 @@
           "zigzag_order",
           "kitaev_gamma_model_reference"
         ],
-        "identity": "zigzag_order_and_kitaev_gamma_model_reference",
+        "identity": "zigzag_order_in_alpha_rucl3_effective_spin_model",
         "semantics": [
-          "zigzag order",
-          "kitaev gamma model reference"
+          "published zigzag order for alpha rucl3 effective spin model",
+          "zigzag order for the alpha rucl3 effective spin model Hamiltonian under the declared parameter regime",
+          "identification of the effective Kitaev-Gamma interaction model"
         ]
       },
       "parameter_regime": {
@@ -119,7 +132,12 @@
       "canonical_observable_id": "azurite_diamond_chain_plateau_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "azurite"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "distorted diamond-chain Heisenberg model",
@@ -135,9 +153,10 @@
         "claim_fields": [
           "one_third_magnetization_plateau"
         ],
-        "identity": "one_third_magnetization_plateau",
+        "identity": "magnetization_plateau_in_azurite_distorted_diamond_chain",
         "semantics": [
-          "one third magnetization plateau"
+          "published magnetization plateau for azurite distorted diamond chain",
+          "one third magnetization plateau for the azurite distorted diamond chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -167,7 +186,12 @@
       "canonical_observable_id": "ba2cugeo7_dm_spiral_reference",
       "conditions": {
         "backend_scope": "classical_minimization_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Ba2CuGe2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "square-lattice Heisenberg exchange plus Dzyaloshinskii-Moriya interaction",
@@ -183,9 +207,10 @@
         "claim_fields": [
           "dm_induced_incommensurate_spiral"
         ],
-        "identity": "dm_induced_incommensurate_spiral",
+        "identity": "classical_spiral_pitch_in_ba2cugeo7_dzyaloshinskii_moriya",
         "semantics": [
-          "dm induced incommensurate spiral"
+          "published classical spiral pitch for ba2cugeo7 dzyaloshinskii moriya",
+          "dm induced incommensurate spiral for the ba2cugeo7 dzyaloshinskii moriya Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -215,7 +240,12 @@
       "canonical_observable_id": "ba3cosb2o9_triangular_plateau_reference",
       "conditions": {
         "backend_scope": "experiment_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Ba3CoSb2O9"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "triangular-lattice spin-1/2 Heisenberg antiferromagnet in field",
@@ -231,9 +261,10 @@
         "claim_fields": [
           "one_third_magnetization_plateau"
         ],
-        "identity": "one_third_magnetization_plateau",
+        "identity": "magnetization_plateau_in_ba3cosb2o9_triangular_heisenberg",
         "semantics": [
-          "one third magnetization plateau"
+          "published magnetization plateau for ba3cosb2o9 triangular heisenberg",
+          "one third magnetization plateau for the ba3cosb2o9 triangular heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -263,7 +294,12 @@
       "canonical_observable_id": "ba3irti2o9_honeycomb_kitaev_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Ba3IrTi2O9"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "spin-orbit coupled honeycomb iridate exchange model",
@@ -279,9 +315,10 @@
         "claim_fields": [
           "spin_liquid_candidate"
         ],
-        "identity": "spin_liquid_candidate",
+        "identity": "assessment_of_spin_liquid_behavior_in_ba3irti2o9",
         "semantics": [
-          "spin liquid candidate"
+          "published material-scale assessment of spin-liquid behavior",
+          "assessment of spin-liquid phenomenology under the cited material or model conditions"
         ]
       },
       "parameter_regime": {
@@ -311,7 +348,12 @@
       "canonical_observable_id": "barlowite_kagome_material_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Cu4(OH)6FBr"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "kagome Heisenberg layers plus interlayer Cu coupling",
@@ -327,9 +369,10 @@
         "claim_fields": [
           "interlayer_coupling_relevant"
         ],
-        "identity": "interlayer_coupling_relevant",
+        "identity": "material_model_in_barlowite_kagome_interlayer_coupled",
         "semantics": [
-          "interlayer coupling relevant"
+          "published material model for barlowite kagome interlayer coupled",
+          "interlayer coupling relevant for the barlowite kagome interlayer coupled Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -359,7 +402,12 @@
       "canonical_observable_id": "bcc_j1_j2_heisenberg_collinear_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "review_phase_diagram"
+        "comparison_kind": "review_phase_diagram",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -375,9 +423,10 @@
         "claim_fields": [
           "contains_collinear_large_j2_phase"
         ],
-        "identity": "contains_collinear_large_j2_phase",
+        "identity": "ordering_type_in_bcc_j1_j2_heisenberg",
         "semantics": [
-          "contains collinear large j2 phase"
+          "published ordering type for bcc j1 j2 heisenberg",
+          "contains collinear large j2 phase for the bcc j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -407,7 +456,12 @@
       "canonical_observable_id": "beta_li2iro3_spiral_kitaev_gamma_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "beta-Li2IrO3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Kitaev-Gamma-Heisenberg anisotropic exchange",
@@ -423,9 +477,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "incommensurate_spiral_order",
+        "identity": "spiral_order_in_beta_li2iro3_spiral_order",
         "semantics": [
-          "incommensurate spiral order"
+          "published spiral order for beta li2iro3 spiral order",
+          "incommensurate spiral order for the beta li2iro3 spiral order Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -455,7 +510,12 @@
       "canonical_observable_id": "bilinear_biquadratic_spin1_chain_aklt_angle",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "spin": 1.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "sum [cos(theta) Si.Sj + sin(theta) (Si.Sj)^2]",
@@ -471,10 +531,11 @@
           "aklt_tan_theta",
           "theta_radians"
         ],
-        "identity": "aklt_tan_theta_and_theta_radians",
+        "identity": "special_angle_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "aklt tan theta",
-          "theta radians"
+          "published special angle for spin 1 bilinear biquadratic chain",
+          "aklt tan theta for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
+          "theta radians for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -483,10 +544,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "scalar_or_structured_claim",
+            "convention": "scalar_under_declared_hamiltonian_convention",
             "id": "aklt_tan_theta",
             "type": "number",
-            "units": "dimensionless"
+            "units": "dimensionless_observable"
           },
           {
             "convention": "angular_scalar",
@@ -503,14 +564,20 @@
       },
       "subject": "Bilinear biquadratic spin-1 chain aklt angle",
       "system": "spin_1_bilinear_biquadratic_chain",
-      "units": "aklt_tan_theta=dimensionless; theta_radians=radian"
+      "units": "aklt_tan_theta=dimensionless_observable; theta_radians=radian"
     },
     {
       "benchmark_name": "blume_capel_spin1_zero_temperature_level_crossing",
       "canonical_observable_id": "blume_capel_spin1_zero_temperature_level_crossing",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 1.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum Si Sj + D sum Si^2",
@@ -525,9 +592,10 @@
         "claim_fields": [
           "square_lattice_d_over_j_crossing"
         ],
-        "identity": "square_lattice_d_over_j_crossing",
+        "identity": "zero_temperature_level_crossing_in_spin_1_blume_capel",
         "semantics": [
-          "square lattice d over j crossing"
+          "published zero temperature level crossing for spin 1 blume capel",
+          "square lattice d over j crossing for the spin 1 blume capel Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -558,7 +626,12 @@
       "canonical_observable_id": "bpcb_spin_ladder_field_induced_order_reference",
       "conditions": {
         "backend_scope": "experiment_or_ladder_model",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "BPCB"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "two-leg Heisenberg ladder in magnetic field",
@@ -574,9 +647,10 @@
         "claim_fields": [
           "field_induced_luttinger_liquid_regime"
         ],
-        "identity": "field_induced_luttinger_liquid_regime",
+        "identity": "field_induced_order_in_bpcb_spin_ladder",
         "semantics": [
-          "field induced luttinger liquid regime"
+          "published field induced order for bpcb spin ladder",
+          "field induced luttinger liquid regime for the bpcb spin ladder Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -606,7 +680,12 @@
       "canonical_observable_id": "breathing_kagome_heisenberg_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J_up and J_down triangle Heisenberg exchanges",
@@ -621,9 +700,10 @@
         "claim_fields": [
           "breathing_anisotropy_controls_trimerization"
         ],
-        "identity": "breathing_anisotropy_controls_trimerization",
+        "identity": "published_observable_in_breathing_kagome_heisenberg",
         "semantics": [
-          "breathing anisotropy controls trimerization"
+          "published published observable for breathing kagome heisenberg",
+          "breathing anisotropy controls trimerization for the breathing kagome heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -653,7 +733,13 @@
       "canonical_observable_id": "ca10cr7o28_bilayer_breathing_kagome_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Ca10Cr7O28",
+          "spin": 0.5
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "coupled breathing kagome Heisenberg model with ferro and antiferro exchanges",
@@ -670,10 +756,11 @@
           "spin_liquid_candidate",
           "mixed_ferromagnetic_antiferromagnetic_exchanges"
         ],
-        "identity": "spin_liquid_candidate_and_mixed_ferromagnetic_antiferromagnetic_exchanges",
+        "identity": "material_exchange_model_in_ca10cr7o28_bilayer_breathing_kagome",
         "semantics": [
-          "spin liquid candidate",
-          "mixed ferromagnetic antiferromagnetic exchanges"
+          "published material exchange model for ca10cr7o28 bilayer breathing kagome",
+          "assessment of spin-liquid phenomenology under the cited material or model conditions",
+          "mixed ferromagnetic antiferromagnetic exchanges for the ca10cr7o28 bilayer breathing kagome Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -710,7 +797,12 @@
       "canonical_observable_id": "cacu2o3_spin_ladder_reference",
       "conditions": {
         "backend_scope": "experiment_or_ladder_model",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "CaCu2O3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "two-leg spin ladder with interladder coupling",
@@ -725,9 +817,10 @@
         "claim_fields": [
           "spin_ladder_material"
         ],
-        "identity": "spin_ladder_material",
+        "identity": "material_model_in_cacu2o3_spin_ladder",
         "semantics": [
-          "spin ladder material"
+          "published material model for cacu2o3 spin ladder",
+          "spin ladder material for the cacu2o3 spin ladder Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -757,7 +850,12 @@
       "canonical_observable_id": "checkerboard_heisenberg_afm_planar_pyrochlore_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_ed",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj on crossed-square lattice",
@@ -773,9 +871,10 @@
         "claim_fields": [
           "zero_total_spin_per_crossed_plaquette"
         ],
-        "identity": "zero_total_spin_per_crossed_plaquette",
+        "identity": "ground_state_constraint_in_checkerboard_heisenberg_antiferromagnet",
         "semantics": [
-          "zero total spin per crossed plaquette"
+          "published ground state constraint for checkerboard heisenberg antiferromagnet",
+          "zero total spin per crossed plaquette for the checkerboard heisenberg antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -805,7 +904,12 @@
       "canonical_observable_id": "checkerboard_heisenberg_plaquette_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "crossed-square Heisenberg exchange",
@@ -820,9 +924,10 @@
         "claim_fields": [
           "plaquette_order_candidate"
         ],
-        "identity": "plaquette_order_candidate",
+        "identity": "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
         "semantics": [
-          "plaquette order candidate"
+          "published assessment of plaquette valence-bond order",
+          "assessment of plaquette valence-bond order in the stated checkerboard model"
         ]
       },
       "parameter_regime": {
@@ -852,7 +957,12 @@
       "canonical_observable_id": "clinoatacamite_distorted_kagome_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Cu2(OH)3Cl"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "distorted kagome and interlayer Cu exchange",
@@ -867,9 +977,10 @@
         "claim_fields": [
           "distorted_kagome_reference"
         ],
-        "identity": "distorted_kagome_reference",
+        "identity": "material_model_in_clinoatacamite_distorted_kagome",
         "semantics": [
-          "distorted kagome reference"
+          "published material model for clinoatacamite distorted kagome",
+          "identification of the material's magnetically active lattice as distorted kagome"
         ]
       },
       "parameter_regime": {
@@ -899,7 +1010,13 @@
       "canonical_observable_id": "crcl3_honeycomb_heisenberg_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "CrCl3",
+          "spin": 1.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "honeycomb ferromagnetic intralayer exchange plus interlayer antiferromagnetism",
@@ -915,9 +1032,10 @@
         "claim_fields": [
           "ferromagnetic_honeycomb_layers"
         ],
-        "identity": "ferromagnetic_honeycomb_layers",
+        "identity": "classical_order_in_crcl3_honeycomb_heisenberg",
         "semantics": [
-          "ferromagnetic honeycomb layers"
+          "published classical order for crcl3 honeycomb heisenberg",
+          "ferromagnetic honeycomb layers for the crcl3 honeycomb heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -948,7 +1066,13 @@
       "canonical_observable_id": "crgete3_honeycomb_ferromagnet_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "CrGeTe3",
+          "spin": 1.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "honeycomb ferromagnetic exchange with anisotropy",
@@ -964,9 +1088,10 @@
         "claim_fields": [
           "ferromagnetic_order"
         ],
-        "identity": "ferromagnetic_order",
+        "identity": "classical_order_in_crgete3_honeycomb_ferromagnet",
         "semantics": [
-          "ferromagnetic order"
+          "published classical order for crgete3 honeycomb ferromagnet",
+          "ferromagnetic order for the crgete3 honeycomb ferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -997,7 +1122,13 @@
       "canonical_observable_id": "cri3_honeycomb_ferromagnet_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "CrI3",
+          "spin": 1.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "honeycomb ferromagnetic exchange with anisotropy",
@@ -1014,9 +1145,10 @@
         "claim_fields": [
           "ferromagnetic_order"
         ],
-        "identity": "ferromagnetic_order",
+        "identity": "classical_order_in_cri3_honeycomb_ferromagnet",
         "semantics": [
-          "ferromagnetic order"
+          "published classical order for cri3 honeycomb ferromagnet",
+          "ferromagnetic order for the cri3 honeycomb ferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1047,7 +1179,12 @@
       "canonical_observable_id": "cs2cucl4_anisotropic_triangular_spiral_reference",
       "conditions": {
         "backend_scope": "glt_or_lswt",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Cs2CuCl4"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "anisotropic triangular Heisenberg exchange",
@@ -1063,9 +1200,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "incommensurate_spiral_order",
+        "identity": "spiral_order_in_cs2cucl4_anisotropic_triangular",
         "semantics": [
-          "incommensurate spiral order"
+          "published spiral order for cs2cucl4 anisotropic triangular",
+          "incommensurate spiral order for the cs2cucl4 anisotropic triangular Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1095,7 +1233,12 @@
       "canonical_observable_id": "cu2iro3_honeycomb_kitaev_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Cu2IrO3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "honeycomb iridate Kitaev-Heisenberg-Gamma exchange",
@@ -1111,9 +1254,10 @@
         "claim_fields": [
           "honeycomb_iridate_reference"
         ],
-        "identity": "honeycomb_iridate_reference",
+        "identity": "material_model_in_cu2iro3_honeycomb_kitaev",
         "semantics": [
-          "honeycomb iridate reference"
+          "published material model for cu2iro3 honeycomb kitaev",
+          "identification of the cited material as a spin-orbit-coupled honeycomb iridate"
         ]
       },
       "parameter_regime": {
@@ -1143,7 +1287,12 @@
       "canonical_observable_id": "cu2oseo3_skyrmion_lattice_reference",
       "conditions": {
         "backend_scope": "classical_minimization_or_mc",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Cu2OSeO3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "exchange plus Dzyaloshinskii-Moriya and magnetic field",
@@ -1160,9 +1309,10 @@
         "claim_fields": [
           "skyrmion_lattice_phase"
         ],
-        "identity": "skyrmion_lattice_phase",
+        "identity": "skyrmion_lattice_phase_in_cu2oseo3_chiral_ferrimagnet",
         "semantics": [
-          "skyrmion lattice phase"
+          "published skyrmion lattice phase for cu2oseo3 chiral ferrimagnet",
+          "skyrmion lattice phase for the cu2oseo3 chiral ferrimagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1192,7 +1342,12 @@
       "canonical_observable_id": "cubic_ising_critical_temperature_reference",
       "conditions": {
         "backend_scope": "mc_or_series",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_j",
@@ -1207,9 +1362,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "tc_over_j",
+        "identity": "critical_temperature_in_classical_cubic_ising",
         "semantics": [
-          "tc over j"
+          "published critical temperature for classical cubic ising",
+          "tc over j for the classical cubic ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1239,7 +1395,12 @@
       "canonical_observable_id": "diamond_chain_localized_magnon_flat_band",
       "conditions": {
         "backend_scope": "magnon_ed",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "saturation_field_regime": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "frustrated diamond-chain Heisenberg exchange",
@@ -1254,9 +1415,10 @@
         "claim_fields": [
           "has_exact_localized_magnons"
         ],
-        "identity": "has_exact_localized_magnons",
+        "identity": "localized_magnon_in_diamond_chain_heisenberg",
         "semantics": [
-          "has exact localized magnons"
+          "published localized magnon for diamond chain heisenberg",
+          "has exact localized magnons for the diamond chain heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1286,7 +1448,13 @@
       "canonical_observable_id": "diamond_j1_j2_spiral_surface_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true,
+          "lifshitz_ratio_j2_over_j1": 0.125
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -1302,9 +1470,10 @@
         "claim_fields": [
           "spiral_surface_for_j2_over_j1_gt"
         ],
-        "identity": "spiral_surface_for_j2_over_j1_gt",
+        "identity": "spiral_surface_in_diamond_j1_j2_heisenberg",
         "semantics": [
-          "spiral surface for j2 over j1 gt"
+          "published spiral surface for diamond j1 j2 heisenberg",
+          "spiral surface for j2 over j1 gt for the diamond j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1335,7 +1504,12 @@
       "canonical_observable_id": "dy2ti2o7_spin_ice_entropy_reference",
       "conditions": {
         "backend_scope": "mc_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Dy2Ti2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "dipolar spin ice local-axis Ising model",
@@ -1352,9 +1526,10 @@
         "claim_fields": [
           "pauling_entropy_observed"
         ],
-        "identity": "pauling_entropy_observed",
+        "identity": "residual_entropy_in_dy2ti2o7_spin_ice",
         "semantics": [
-          "pauling entropy observed"
+          "published residual entropy for dy2ti2o7 spin ice",
+          "pauling entropy observed for the dy2ti2o7 spin ice Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1384,7 +1559,12 @@
       "canonical_observable_id": "edwardsite_kagome_antiferromagnet_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Cd2Cu3(OH)6(SO4)2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "S=1 kagome antiferromagnet model",
@@ -1400,9 +1580,10 @@
         "claim_fields": [
           "kagome_antiferromagnet_reference"
         ],
-        "identity": "kagome_antiferromagnet_reference",
+        "identity": "material_model_in_edwardsite_kagome_antiferromagnet",
         "semantics": [
-          "kagome antiferromagnet reference"
+          "published material model for edwardsite kagome antiferromagnet",
+          "identification of antiferromagnetic kagome interactions in the cited material"
         ]
       },
       "parameter_regime": {
@@ -1432,7 +1613,12 @@
       "canonical_observable_id": "eight_vertex_zero_field_exact_solution_status",
       "conditions": {
         "backend_scope": "vertex_model",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "field": 0.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "classical vertex weights a,b,c,d",
@@ -1447,9 +1633,10 @@
         "claim_fields": [
           "is_exactly_solved"
         ],
-        "identity": "is_exactly_solved",
+        "identity": "exact_solution_in_eight_vertex_model",
         "semantics": [
-          "is exactly solved"
+          "published exact solution for eight vertex model",
+          "is exactly solved for the eight vertex model Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1479,7 +1666,12 @@
       "canonical_observable_id": "er2ti2o7_xy_pyrochlore_order_by_disorder_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "rare_earth": "Er2Ti2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "local XY anisotropic exchange",
@@ -1494,9 +1686,10 @@
         "claim_fields": [
           "psi2_order_selected"
         ],
-        "identity": "psi2_order_selected",
+        "identity": "selected_order_in_xy_pyrochlore_antiferromagnet",
         "semantics": [
-          "psi2 order selected"
+          "published selected order for xy pyrochlore antiferromagnet",
+          "psi2 order selected for the xy pyrochlore antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1526,7 +1719,12 @@
       "canonical_observable_id": "fcc_j1_j2_heisenberg_type_order_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "review_phase_diagram"
+        "comparison_kind": "review_phase_diagram",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -1542,9 +1740,10 @@
         "claim_fields": [
           "common_orders"
         ],
-        "identity": "common_orders",
+        "identity": "ordering_type_in_fcc_j1_j2_heisenberg",
         "semantics": [
-          "common orders"
+          "published ordering type for fcc j1 j2 heisenberg",
+          "common orders for the fcc j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1553,10 +1752,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "ordered_categorical_phase_labels",
             "id": "common_orders",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "not_applicable"
           }
         ],
         "kind": "registered_field_map"
@@ -1567,14 +1766,20 @@
       },
       "subject": "Fcc j1-j2 heisenberg type order",
       "system": "fcc_j1_j2_heisenberg",
-      "units": "common_orders=field_dependent_sequence"
+      "units": "common_orders=not_applicable"
     },
     {
       "benchmark_name": "fe8_molecular_spin_tunneling_reference",
       "canonical_observable_id": "fe8_molecular_spin_tunneling_reference",
       "conditions": {
         "backend_scope": "single_cluster_exact_diagonalization",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Fe8",
+          "spin": 10.0
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "-D Sz^2 + E(Sx^2 - Sy^2) + Zeeman terms",
@@ -1590,9 +1795,10 @@
         "claim_fields": [
           "macroscopic_quantum_tunneling_observed"
         ],
-        "identity": "macroscopic_quantum_tunneling_observed",
+        "identity": "quantum_tunneling_in_fe8_single_molecule_magnet",
         "semantics": [
-          "macroscopic quantum tunneling observed"
+          "published quantum tunneling for fe8 single molecule magnet",
+          "macroscopic quantum tunneling observed for the fe8 single molecule magnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1623,7 +1829,12 @@
       "canonical_observable_id": "fe_ps3_honeycomb_ising_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "FePS3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "honeycomb anisotropic Ising-like antiferromagnet",
@@ -1640,9 +1851,10 @@
         "claim_fields": [
           "ising_like_zigzag_order"
         ],
-        "identity": "ising_like_zigzag_order",
+        "identity": "ising_like_order_in_feps3_honeycomb_ising",
         "semantics": [
-          "ising like zigzag order"
+          "published ising like order for feps3 honeycomb ising",
+          "ising like zigzag order for the feps3 honeycomb ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1672,7 +1884,12 @@
       "canonical_observable_id": "fecl3_honeycomb_antiferromagnet_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "FeCl3"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "honeycomb antiferromagnetic Heisenberg exchange",
@@ -1688,9 +1905,10 @@
         "claim_fields": [
           "neel_order_on_honeycomb"
         ],
-        "identity": "neel_order_on_honeycomb",
+        "identity": "classical_order_in_fecl3_honeycomb_antiferromagnet",
         "semantics": [
-          "neel order on honeycomb"
+          "published classical order for fecl3 honeycomb antiferromagnet",
+          "neel order on honeycomb for the fecl3 honeycomb antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1720,7 +1938,12 @@
       "canonical_observable_id": "gadolinium_gallium_garnet_hyperkagome_reference",
       "conditions": {
         "backend_scope": "classical_mc_or_glt",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Gd3Ga5O12"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Gd garnet Heisenberg dipolar exchange model",
@@ -1736,9 +1959,10 @@
         "claim_fields": [
           "strong_frustration"
         ],
-        "identity": "strong_frustration",
+        "identity": "frustrated_garnet_in_gadolinium_gallium_garnet",
         "semantics": [
-          "strong frustration"
+          "published frustrated garnet for gadolinium gallium garnet",
+          "strong frustration for the gadolinium gallium garnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1768,7 +1992,12 @@
       "canonical_observable_id": "gamma_li2iro3_3d_kitaev_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange_or_classical_glt",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "gamma-Li2IrO3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "3D honeycomb Kitaev-Heisenberg-Gamma exchange",
@@ -1785,9 +2014,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "incommensurate_spiral_order",
+        "identity": "spiral_order_in_gamma_li2iro3_3d_kitaev_gamma",
         "semantics": [
-          "incommensurate spiral order"
+          "published spiral order for gamma li2iro3 3d kitaev gamma",
+          "incommensurate spiral order for the gamma li2iro3 3d kitaev gamma Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1817,7 +2047,12 @@
       "canonical_observable_id": "garnet_gd3ga5o12_spin_liquid_reference",
       "conditions": {
         "backend_scope": "classical_mc_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "GGG"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Gd3+ Heisenberg and dipolar interactions on garnet lattice",
@@ -1833,9 +2068,10 @@
         "claim_fields": [
           "short_range_order_without_simple_lro"
         ],
-        "identity": "short_range_order_without_simple_lro",
+        "identity": "low_temperature_correlations_in_gd3ga5o12_garnet",
         "semantics": [
-          "short range order without simple lro"
+          "published low temperature correlations for gd3ga5o12 garnet",
+          "short range order without simple lro for the gd3ga5o12 garnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1865,7 +2101,12 @@
       "canonical_observable_id": "garnet_gd3te2li3o12_hyperkagome_reference",
       "conditions": {
         "backend_scope": "classical_mc_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Gd3Te2Li3O12"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Gd garnet Heisenberg and dipolar exchange model",
@@ -1881,9 +2122,10 @@
         "claim_fields": [
           "garnet_frustrated_magnet"
         ],
-        "identity": "garnet_frustrated_magnet",
+        "identity": "material_model_in_gd3te2li3o12_garnet",
         "semantics": [
-          "garnet frustrated magnet"
+          "published material model for gd3te2li3o12 garnet",
+          "garnet frustrated magnet for the gd3te2li3o12 garnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1913,7 +2155,12 @@
       "canonical_observable_id": "gaudin_yang_spin_half_fermion_bethe_reference",
       "conditions": {
         "backend_scope": "nested_bethe_ansatz",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "spin-1/2 fermions with delta interaction",
@@ -1929,9 +2176,10 @@
         "claim_fields": [
           "is_exactly_solved"
         ],
-        "identity": "is_exactly_solved",
+        "identity": "exact_solution_in_gaudin_yang_fermion_gas",
         "semantics": [
-          "is exactly solved"
+          "published exact solution for gaudin yang fermion gas",
+          "is exactly solved for the gaudin yang fermion gas Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -1961,7 +2209,12 @@
       "canonical_observable_id": "h3liir2o6_kitaev_spin_liquid_candidate_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "H3LiIr2O6"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "disordered honeycomb Kitaev-Heisenberg-Gamma exchange",
@@ -1978,9 +2231,10 @@
         "claim_fields": [
           "no_magnetic_order_reported"
         ],
-        "identity": "no_magnetic_order_reported",
+        "identity": "spin_liquid_in_h3liir2o6_honeycomb_kitaev",
         "semantics": [
-          "no magnetic order reported"
+          "published spin liquid for h3liir2o6 honeycomb kitaev",
+          "no magnetic order reported for the h3liir2o6 honeycomb kitaev Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2010,7 +2264,12 @@
       "canonical_observable_id": "haldane_shastry_chain_exact_ground_state",
       "conditions": {
         "backend_scope": "long_range_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "1/r^2 long-range spin-1/2 Heisenberg exchange",
@@ -2025,9 +2284,10 @@
         "claim_fields": [
           "has_exact_jastrow_ground_state"
         ],
-        "identity": "has_exact_jastrow_ground_state",
+        "identity": "exact_ground_state_in_haldane_shastry_chain",
         "semantics": [
-          "has exact jastrow ground state"
+          "published exact ground state for haldane shastry chain",
+          "has exact jastrow ground state for the haldane shastry chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2057,7 +2317,13 @@
       "canonical_observable_id": "haldane_spin1_chain_gap_reference",
       "conditions": {
         "backend_scope": "dmrg_or_large_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J sum Si.Si+1",
@@ -2072,9 +2338,10 @@
         "claim_fields": [
           "gap_over_j"
         ],
-        "identity": "gap_over_j",
+        "identity": "haldane_gap_in_spin_1_heisenberg_chain",
         "semantics": [
-          "gap over j"
+          "published haldane gap for spin 1 heisenberg chain",
+          "gap over j for the spin 1 heisenberg chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2105,7 +2372,12 @@
       "canonical_observable_id": "haydeeite_ferromagnetic_kagome_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "MgCu3(OH)6Cl2"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "ferromagnetic kagome Heisenberg exchange plus further-neighbor couplings",
@@ -2121,9 +2393,10 @@
         "claim_fields": [
           "ferromagnetic_kagome_exchange"
         ],
-        "identity": "ferromagnetic_kagome_exchange",
+        "identity": "classical_ground_state_in_haydeeite_kagome_ferromagnet",
         "semantics": [
-          "ferromagnetic kagome exchange"
+          "published classical ground state for haydeeite kagome ferromagnet",
+          "ferromagnetic kagome exchange for the haydeeite kagome ferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2153,7 +2426,12 @@
       "canonical_observable_id": "herbertsmithite_kagome_qsl_reference",
       "conditions": {
         "backend_scope": "dmrg_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "ZnCu3(OH)6Cl2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "spin-1/2 kagome Heisenberg antiferromagnet",
@@ -2169,9 +2447,10 @@
         "claim_fields": [
           "qsl_candidate"
         ],
-        "identity": "qsl_candidate",
+        "identity": "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
         "semantics": [
-          "qsl candidate"
+          "published experimental assessment of quantum-spin-liquid behavior",
+          "assessment of quantum-spin-liquid phenomenology under the cited experimental conditions"
         ]
       },
       "parameter_regime": {
@@ -2201,7 +2480,12 @@
       "canonical_observable_id": "ho2ti2o7_spin_ice_neutron_reference",
       "conditions": {
         "backend_scope": "mc_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Ho2Ti2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "dipolar spin ice local-axis Ising model",
@@ -2218,9 +2502,10 @@
         "claim_fields": [
           "spin_ice_correlations"
         ],
-        "identity": "spin_ice_correlations",
+        "identity": "neutron_scattering_in_ho2ti2o7_spin_ice",
         "semantics": [
-          "spin ice correlations"
+          "published neutron scattering for ho2ti2o7 spin ice",
+          "spin ice correlations for the ho2ti2o7 spin ice Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2250,7 +2535,12 @@
       "canonical_observable_id": "honeycomb_haldane_kane_mele_hubbard_spin_model_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "lattice": "honeycomb"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "strong-coupling spin model from Kane-Mele-Hubbard",
@@ -2265,9 +2555,10 @@
         "claim_fields": [
           "spin_orbit_induced_anisotropy"
         ],
-        "identity": "spin_orbit_induced_anisotropy",
+        "identity": "strong_coupling_in_kane_mele_hubbard_strong_coupling",
         "semantics": [
-          "spin orbit induced anisotropy"
+          "published strong coupling for kane mele hubbard strong coupling",
+          "spin orbit induced anisotropy for the kane mele hubbard strong coupling Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2297,7 +2588,12 @@
       "canonical_observable_id": "honeycomb_ising_ferromagnet_exact_tc",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_j",
@@ -2313,9 +2609,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "tc_over_j",
+        "identity": "critical_temperature_in_classical_honeycomb_ising",
         "semantics": [
-          "tc over j"
+          "published critical temperature for classical honeycomb ising",
+          "tc over j for the classical honeycomb ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2345,7 +2642,12 @@
       "canonical_observable_id": "honeycomb_j1_j2_j3_classical_phase_diagram",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "spin": "classical_or_large_S"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN + J3 third-neighbor Heisenberg",
@@ -2362,9 +2664,10 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "phases",
+        "identity": "phase_diagram_in_honeycomb_j1_j2_j3_heisenberg",
         "semantics": [
-          "phases"
+          "published phase diagram for honeycomb j1 j2 j3 heisenberg",
+          "phases for the honeycomb j1 j2 j3 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2373,10 +2676,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "categorical_phase_label_set",
             "id": "phases",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "not_applicable"
           }
         ],
         "kind": "registered_field_map"
@@ -2387,14 +2690,19 @@
       },
       "subject": "Honeycomb j1-j2 j3 classical phase diagram",
       "system": "honeycomb_j1_j2_j3_heisenberg",
-      "units": "phases=field_dependent_sequence"
+      "units": "phases=not_applicable"
     },
     {
       "benchmark_name": "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
       "canonical_observable_id": "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "material": "Na2IrO3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Kitaev-Heisenberg honeycomb model for Na2IrO3",
@@ -2410,9 +2718,10 @@
         "claim_fields": [
           "zigzag_order_relevant"
         ],
-        "identity": "zigzag_order_relevant",
+        "identity": "material_model_in_na2iro3_honeycomb_kitaev_heisenberg",
         "semantics": [
-          "zigzag order relevant"
+          "published material model for na2iro3 honeycomb kitaev heisenberg",
+          "zigzag order relevant for the na2iro3 honeycomb kitaev heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2442,7 +2751,12 @@
       "canonical_observable_id": "honeycomb_j1_j2_spiral_ring_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -2458,9 +2772,10 @@
         "claim_fields": [
           "ring_condition"
         ],
-        "identity": "ring_condition",
+        "identity": "spiral_ring_in_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "ring condition"
+          "published spiral ring for honeycomb j1 j2 heisenberg",
+          "ring condition for the honeycomb j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2490,7 +2805,12 @@
       "canonical_observable_id": "honeycomb_kitaev_gamma_phase_diagram_reference",
       "conditions": {
         "backend_scope": "ed_or_classical",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "K Kitaev + Gamma off-diagonal exchange",
@@ -2506,9 +2826,10 @@
         "claim_fields": [
           "contains_noncollinear_and_zigzag_phases"
         ],
-        "identity": "contains_noncollinear_and_zigzag_phases",
+        "identity": "phase_diagram_in_honeycomb_kitaev_gamma",
         "semantics": [
-          "contains noncollinear and zigzag phases"
+          "published phase diagram for honeycomb kitaev gamma",
+          "contains noncollinear and zigzag phases for the honeycomb kitaev gamma Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2538,7 +2859,12 @@
       "canonical_observable_id": "honeycomb_kitaev_heisenberg_four_sublattice_phases",
       "conditions": {
         "backend_scope": "ed_or_classical",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J Heisenberg + K bond-dependent Kitaev",
@@ -2553,9 +2879,10 @@
         "claim_fields": [
           "ordered_phases"
         ],
-        "identity": "ordered_phases",
+        "identity": "phase_diagram_in_honeycomb_kitaev_heisenberg",
         "semantics": [
-          "ordered phases"
+          "published phase diagram for honeycomb kitaev heisenberg",
+          "ordered phases for the honeycomb kitaev heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2564,10 +2891,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "ordered_categorical_phase_labels",
             "id": "ordered_phases",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "not_applicable"
           }
         ],
         "kind": "registered_field_map"
@@ -2578,14 +2905,19 @@
       },
       "subject": "Honeycomb kitaev heisenberg four sublattice phases",
       "system": "honeycomb_kitaev_heisenberg",
-      "units": "ordered_phases=field_dependent_sequence"
+      "units": "ordered_phases=not_applicable"
     },
     {
       "benchmark_name": "honeycomb_spin_half_j1_j2_quantum_phase_reference",
       "canonical_observable_id": "honeycomb_spin_half_j1_j2_quantum_phase_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -2601,9 +2933,10 @@
         "claim_fields": [
           "intermediate_nonmagnetic_phase_candidate"
         ],
-        "identity": "intermediate_nonmagnetic_phase_candidate",
+        "identity": "published_observable_in_spin_1_2_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "intermediate nonmagnetic phase candidate"
+          "published published observable for spin 1 2 honeycomb j1 j2 heisenberg",
+          "intermediate nonmagnetic phase candidate for the spin 1 2 honeycomb j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2633,7 +2966,12 @@
       "canonical_observable_id": "hyperkagome_heisenberg_spin_liquid_reference",
       "conditions": {
         "backend_scope": "many_body_or_classical",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg",
@@ -2648,9 +2986,10 @@
         "claim_fields": [
           "spin_liquid_candidate"
         ],
-        "identity": "spin_liquid_candidate",
+        "identity": "spin_liquid_in_hyperkagome_heisenberg",
         "semantics": [
-          "spin liquid candidate"
+          "published spin liquid for hyperkagome heisenberg",
+          "assessment of spin-liquid phenomenology under the cited material or model conditions"
         ]
       },
       "parameter_regime": {
@@ -2680,7 +3019,12 @@
       "canonical_observable_id": "j1_j2_chain_bkt_transition_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -2696,9 +3040,10 @@
         "claim_fields": [
           "critical_j2_over_j1_approx"
         ],
-        "identity": "critical_j2_over_j1_approx",
+        "identity": "dimerization_transition_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "critical j2 over j1 approx"
+          "published dimerization transition for spin 1 2 j1 j2 chain",
+          "critical j2 over j1 approx for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2728,7 +3073,12 @@
       "canonical_observable_id": "j1_j2_chain_okamoto_nomura_critical_point",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 sum Si.Si+1 + J2 sum Si.Si+2",
@@ -2745,9 +3095,10 @@
         "claim_fields": [
           "critical_j2_over_j1"
         ],
-        "identity": "critical_j2_over_j1",
+        "identity": "dimerization_transition_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "critical j2 over j1"
+          "published dimerization transition for spin 1 2 j1 j2 chain",
+          "critical j2 over j1 for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2777,7 +3128,12 @@
       "canonical_observable_id": "j1_j2_honeycomb_neel_spin_liquid_transition_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -2794,9 +3150,10 @@
         "claim_fields": [
           "intermediate_nonmagnetic_phase"
         ],
-        "identity": "intermediate_nonmagnetic_phase",
+        "identity": "quantum_phase_window_in_spin_1_2_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "intermediate nonmagnetic phase"
+          "published quantum phase window for spin 1 2 honeycomb j1 j2 heisenberg",
+          "intermediate nonmagnetic phase for the spin 1 2 honeycomb j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2826,7 +3183,12 @@
       "canonical_observable_id": "j1_j2_j3_square_quantum_phase_reference",
       "conditions": {
         "backend_scope": "peps_or_ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 diagonal + J3 third-neighbor Heisenberg",
@@ -2843,9 +3205,10 @@
         "claim_fields": [
           "multiple_paramagnetic_regions"
         ],
-        "identity": "multiple_paramagnetic_regions",
+        "identity": "published_observable_in_spin_1_2_square_j1_j2_j3_heisenberg",
         "semantics": [
-          "multiple paramagnetic regions"
+          "published published observable for spin 1 2 square j1 j2 j3 heisenberg",
+          "multiple paramagnetic regions for the spin 1 2 square j1 j2 j3 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2875,7 +3238,12 @@
       "canonical_observable_id": "j1_j2_square_dqcp_columnar_vbs_reference",
       "conditions": {
         "backend_scope": "dmrg_or_vmc",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1-J2 spin-half Heisenberg with VBS regime",
@@ -2891,9 +3259,10 @@
         "claim_fields": [
           "columnar_or_plaquette_vbs_reference"
         ],
-        "identity": "columnar_or_plaquette_vbs_reference",
+        "identity": "vbs_in_square_j1_j2_vbs",
         "semantics": [
-          "columnar or plaquette vbs reference"
+          "published vbs for square j1 j2 vbs",
+          "identification of columnar or plaquette valence-bond-solid order"
         ]
       },
       "parameter_regime": {
@@ -2923,7 +3292,12 @@
       "canonical_observable_id": "j1_j2_square_spin_half_neel_collinear_transition_reference",
       "conditions": {
         "backend_scope": "many_body",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN",
@@ -2939,9 +3313,10 @@
         "claim_fields": [
           "nonmagnetic_window_approx"
         ],
-        "identity": "nonmagnetic_window_approx",
+        "identity": "nonmagnetic_phase_window_in_j2_over_j1",
         "semantics": [
-          "nonmagnetic window approx"
+          "approximate nonmagnetic-phase interval in the J2/J1 coupling ratio",
+          "endpoints of the approximate nonmagnetic interval in J2/J1"
         ]
       },
       "parameter_regime": {
@@ -2950,10 +3325,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "closed_interval_endpoints_in_ascending_j2_over_j1",
             "id": "nonmagnetic_window_approx",
             "type": "list[number]",
-            "units": "field_dependent_sequence"
+            "units": "dimensionless_j2_over_j1"
           }
         ],
         "kind": "registered_field_map"
@@ -2964,14 +3339,19 @@
       },
       "subject": "J1-j2 square spin-half neel collinear transition",
       "system": "spin_1_2_square_j1_j2_heisenberg",
-      "units": "nonmagnetic_window_approx=field_dependent_sequence"
+      "units": "nonmagnetic_window_approx=dimensionless_j2_over_j1"
     },
     {
       "benchmark_name": "j1_j2_triangular_spin_liquid_window_reference",
       "canonical_observable_id": "j1_j2_triangular_spin_liquid_window_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -2988,9 +3368,10 @@
         "claim_fields": [
           "spin_liquid_window_approx"
         ],
-        "identity": "spin_liquid_window_approx",
+        "identity": "quantum_phase_window_in_spin_1_2_triangular_j1_j2_heisenberg",
         "semantics": [
-          "spin liquid window approx"
+          "published quantum phase window for spin 1 2 triangular j1 j2 heisenberg",
+          "spin liquid window approx for the spin 1 2 triangular j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -2999,10 +3380,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "ordered_values_under_declared_convention",
             "id": "spin_liquid_window_approx",
             "type": "list[number]",
-            "units": "field_dependent_sequence"
+            "units": "dimensionless_sequence"
           }
         ],
         "kind": "registered_field_map"
@@ -3013,14 +3394,19 @@
       },
       "subject": "J1-j2 triangular spin liquid window",
       "system": "spin_1_2_triangular_j1_j2_heisenberg",
-      "units": "spin_liquid_window_approx=field_dependent_sequence"
+      "units": "spin_liquid_window_approx=dimensionless_sequence"
     },
     {
       "benchmark_name": "jarosite_kagome_dzyaloshinskii_moriya_reference",
       "canonical_observable_id": "jarosite_kagome_dzyaloshinskii_moriya_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "KFe3(OH)6(SO4)2"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "kagome Heisenberg plus Dzyaloshinskii-Moriya exchange",
@@ -3036,9 +3422,10 @@
         "claim_fields": [
           "q_0_120_order"
         ],
-        "identity": "q_0_120_order",
+        "identity": "classical_order_in_jarosite_kagome_dm",
         "semantics": [
-          "q 0 120 order"
+          "published classical order for jarosite kagome dm",
+          "q 0 120 order for the jarosite kagome dm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3068,7 +3455,12 @@
       "canonical_observable_id": "kagome_chiral_spin_liquid_j1_j2_jchi_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN + J_chi sum Si.(Sj x Sk)",
@@ -3085,9 +3477,10 @@
         "claim_fields": [
           "chiral_spin_liquid_phase"
         ],
-        "identity": "chiral_spin_liquid_phase",
+        "identity": "chiral_spin_liquid_phase_in_kagome_heisenberg_chiral_j1_j2_jchi",
         "semantics": [
-          "chiral spin liquid phase"
+          "published chiral spin liquid phase for kagome heisenberg chiral j1 j2 jchi",
+          "chiral spin liquid phase for the kagome heisenberg chiral j1 j2 jchi Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3117,7 +3510,12 @@
       "canonical_observable_id": "kagome_dzyaloshinskii_moriya_critical_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J Heisenberg + Dz out-of-plane DM",
@@ -3132,9 +3530,10 @@
         "claim_fields": [
           "critical_d_over_j_approx"
         ],
-        "identity": "critical_d_over_j_approx",
+        "identity": "quantum_critical_ratio_in_spin_1_2_kagome_dm_heisenberg",
         "semantics": [
-          "critical d over j approx"
+          "published quantum critical ratio for spin 1 2 kagome dm heisenberg",
+          "critical d over j approx for the spin 1 2 kagome dm heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3164,7 +3563,13 @@
       "canonical_observable_id": "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
       "conditions": {
         "backend_scope": "dmrg_or_large_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj",
@@ -3181,10 +3586,11 @@
           "energy_per_site",
           "spin_gap_over_j"
         ],
-        "identity": "energy_per_site_and_spin_gap_over_j",
+        "identity": "ground_state_energy_and_gap_in_spin_1_2_kagome_heisenberg_afm",
         "semantics": [
-          "energy per site",
-          "spin gap over j"
+          "published ground state energy and gap for spin 1 2 kagome heisenberg afm",
+          "energy per site for the spin 1 2 kagome heisenberg afm Hamiltonian under the declared parameter regime",
+          "spin gap over j for the spin 1 2 kagome heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3221,7 +3627,13 @@
       "canonical_observable_id": "kagome_heisenberg_topological_entanglement_reference",
       "conditions": {
         "backend_scope": "dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj",
@@ -3237,9 +3649,10 @@
         "claim_fields": [
           "topological_entanglement_entropy"
         ],
-        "identity": "topological_entanglement_entropy",
+        "identity": "topological_entanglement_entropy_in_spin_1_2_kagome_heisenberg_afm",
         "semantics": [
-          "topological entanglement entropy"
+          "published topological entanglement entropy for spin 1 2 kagome heisenberg afm",
+          "topological entanglement entropy for the spin 1 2 kagome heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3270,7 +3683,12 @@
       "canonical_observable_id": "kagome_ising_antiferromagnet_residual_entropy_reference",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J sum sigma_i sigma_j",
@@ -3286,9 +3704,10 @@
         "claim_fields": [
           "macroscopic_ground_state_degeneracy"
         ],
-        "identity": "macroscopic_ground_state_degeneracy",
+        "identity": "residual_entropy_in_classical_kagome_ising_antiferromagnet",
         "semantics": [
-          "macroscopic ground state degeneracy"
+          "published residual entropy for classical kagome ising antiferromagnet",
+          "macroscopic ground state degeneracy for the classical kagome ising antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3318,7 +3737,12 @@
       "canonical_observable_id": "kagome_ising_ferromagnet_exact_tc",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_j",
@@ -3334,9 +3758,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "tc_over_j",
+        "identity": "critical_temperature_in_classical_kagome_ising",
         "semantics": [
-          "tc over j"
+          "published critical temperature for classical kagome ising",
+          "tc over j for the classical kagome ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3366,7 +3791,12 @@
       "canonical_observable_id": "kagome_j1_j2_heisenberg_phase_diagram_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -3382,9 +3812,10 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "phases",
+        "identity": "phase_diagram_in_spin_1_2_kagome_j1_j2_heisenberg",
         "semantics": [
-          "phases"
+          "published phase diagram for spin 1 2 kagome j1 j2 heisenberg",
+          "phases for the spin 1 2 kagome j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3393,10 +3824,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "categorical_phase_label_set",
             "id": "phases",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "not_applicable"
           }
         ],
         "kind": "registered_field_map"
@@ -3407,14 +3838,19 @@
       },
       "subject": "Kagome j1-j2 heisenberg phase diagram",
       "system": "spin_1_2_kagome_j1_j2_heisenberg",
-      "units": "phases=field_dependent_sequence"
+      "units": "phases=not_applicable"
     },
     {
       "benchmark_name": "kagome_one_third_magnetization_plateau_reference",
       "canonical_observable_id": "kagome_one_third_magnetization_plateau_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "kagome Heisenberg plus magnetic field",
@@ -3429,9 +3865,10 @@
         "claim_fields": [
           "one_third_plateau"
         ],
-        "identity": "one_third_plateau",
+        "identity": "magnetization_plateau_in_kagome_heisenberg_high_field",
         "semantics": [
-          "one third plateau"
+          "published magnetization plateau for kagome heisenberg high field",
+          "one third plateau for the kagome heisenberg high field Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3461,7 +3898,13 @@
       "canonical_observable_id": "kagome_spin_half_heisenberg_energy_reference",
       "conditions": {
         "backend_scope": "dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg",
@@ -3476,9 +3919,10 @@
         "claim_fields": [
           "energy_per_site_approx"
         ],
-        "identity": "energy_per_site_approx",
+        "identity": "ground_state_energy_in_spin_1_2_kagome_heisenberg",
         "semantics": [
-          "energy per site approx"
+          "published ground state energy for spin 1 2 kagome heisenberg",
+          "energy per site approx for the spin 1 2 kagome heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3509,7 +3953,12 @@
       "canonical_observable_id": "kapellasite_kagome_j1_jd_reference",
       "conditions": {
         "backend_scope": "glt_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "kapellasite"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "kagome J1-Jd-J2 exchange model",
@@ -3525,9 +3974,10 @@
         "claim_fields": [
           "competing_kagome_exchanges"
         ],
-        "identity": "competing_kagome_exchanges",
+        "identity": "material_exchange_in_kapellasite_kagome_j1_jd",
         "semantics": [
-          "competing kagome exchanges"
+          "published material exchange for kapellasite kagome j1 jd",
+          "competing kagome exchanges for the kapellasite kagome j1 jd Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3557,7 +4007,12 @@
       "canonical_observable_id": "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
       "conditions": {
         "backend_scope": "kitaev_majorana",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "Kitaev exchange plus magnetic field perturbation",
@@ -3572,9 +4027,10 @@
         "claim_fields": [
           "field_opens_non_abelian_gap"
         ],
-        "identity": "field_opens_non_abelian_gap",
+        "identity": "field_induced_gap_in_kitaev_honeycomb_field",
         "semantics": [
-          "field opens non abelian gap"
+          "published field induced gap for kitaev honeycomb field",
+          "field opens non abelian gap for the kitaev honeycomb field Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3604,7 +4060,14 @@
       "canonical_observable_id": "kitaev_honeycomb_exact_spin_liquid_limit",
       "conditions": {
         "backend_scope": "kitaev_majorana",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "kx": 1.0,
+          "ky": 1.0,
+          "kz": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "sum_gamma K_gamma S_i^gamma S_j^gamma",
@@ -3620,10 +4083,11 @@
           "is_exactly_solvable",
           "isotropic_phase"
         ],
-        "identity": "is_exactly_solvable_and_isotropic_phase",
+        "identity": "exact_solution_in_spin_1_2_kitaev_honeycomb",
         "semantics": [
-          "is exactly solvable",
-          "isotropic phase"
+          "published exact solution for spin 1 2 kitaev honeycomb",
+          "is exactly solvable for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime",
+          "isotropic phase for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3661,7 +4125,14 @@
       "canonical_observable_id": "kitaev_honeycomb_gapless_triangle_condition",
       "conditions": {
         "backend_scope": "kitaev_majorana",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "kx": 1.0,
+          "ky": 1.0,
+          "kz": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "sum_gamma K_gamma S_i^gamma S_j^gamma",
@@ -3677,10 +4148,11 @@
           "gapless_condition",
           "isotropic_kitaev_point_gapless"
         ],
-        "identity": "gapless_condition_and_isotropic_kitaev_point_gapless",
+        "identity": "gapless_condition_in_spin_1_2_kitaev_honeycomb",
         "semantics": [
-          "gapless condition",
-          "isotropic kitaev point gapless"
+          "published gapless condition for spin 1 2 kitaev honeycomb",
+          "gapless condition for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime",
+          "isotropic kitaev point gapless for the spin 1 2 kitaev honeycomb Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3718,7 +4190,12 @@
       "canonical_observable_id": "li2cuo2_frustrated_ferromagnetic_chain_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Li2CuO2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "ferromagnetic J1 and antiferromagnetic J2 chain",
@@ -3735,9 +4212,10 @@
         "claim_fields": [
           "frustrated_ferromagnetic_chain"
         ],
-        "identity": "frustrated_ferromagnetic_chain",
+        "identity": "material_model_in_li2cuo2_j1_j2_chain",
         "semantics": [
-          "frustrated ferromagnetic chain"
+          "published material model for li2cuo2 j1 j2 chain",
+          "frustrated ferromagnetic chain for the li2cuo2 j1 j2 chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3767,7 +4245,12 @@
       "canonical_observable_id": "li2iro3_hyperhoneycomb_kitaev_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "beta-Li2IrO3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "3D Kitaev-Heisenberg-Gamma model",
@@ -3784,9 +4267,10 @@
         "claim_fields": [
           "hyperhoneycomb_kitaev_material"
         ],
-        "identity": "hyperhoneycomb_kitaev_material",
+        "identity": "published_observable_in_beta_li2iro3_hyperhoneycomb",
         "semantics": [
-          "hyperhoneycomb kitaev material"
+          "published published observable for beta li2iro3 hyperhoneycomb",
+          "hyperhoneycomb kitaev material for the beta li2iro3 hyperhoneycomb Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3816,7 +4300,12 @@
       "canonical_observable_id": "licuvo4_spiral_chain_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "LiCuVO4"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "ferromagnetic J1 and antiferromagnetic J2 chain in field",
@@ -3833,9 +4322,10 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "incommensurate_spiral_order",
+        "identity": "spiral_order_in_licuvo4_j1_j2_chain",
         "semantics": [
-          "incommensurate spiral order"
+          "published spiral order for licuvo4 j1 j2 chain",
+          "incommensurate spiral order for the licuvo4 j1 j2 chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3865,7 +4355,12 @@
       "canonical_observable_id": "lieb_lattice_heisenberg_ferrimagnet_reference",
       "conditions": {
         "backend_scope": "diagnostic",
-        "comparison_kind": "theorem"
+        "comparison_kind": "theorem",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "bipartite Heisenberg exchange with sublattice imbalance",
@@ -3880,9 +4375,10 @@
         "claim_fields": [
           "ground_state_spin_per_unit_cell"
         ],
-        "identity": "ground_state_spin_per_unit_cell",
+        "identity": "lieb_mattis_ferrimagnetism_in_lieb_lattice_heisenberg",
         "semantics": [
-          "ground state spin per unit cell"
+          "published lieb mattis ferrimagnetism for lieb lattice heisenberg",
+          "ground state spin per unit cell for the lieb lattice heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3891,10 +4387,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "scalar_or_structured_claim",
+            "convention": "scalar_under_declared_hamiltonian_convention",
             "id": "ground_state_spin_per_unit_cell",
             "type": "number",
-            "units": "dimensionless"
+            "units": "dimensionless_observable"
           }
         ],
         "kind": "registered_field_map"
@@ -3905,14 +4401,19 @@
       },
       "subject": "Lieb lattice heisenberg ferrimagnet",
       "system": "lieb_lattice_heisenberg",
-      "units": "ground_state_spin_per_unit_cell=dimensionless"
+      "units": "ground_state_spin_per_unit_cell=dimensionless_observable"
     },
     {
       "benchmark_name": "lieb_liniger_delta_bose_gas_bethe_reference",
       "canonical_observable_id": "lieb_liniger_delta_bose_gas_bethe_reference",
       "conditions": {
         "backend_scope": "bethe_ansatz",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "interaction": "repulsive"
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "1D bosons with repulsive delta interaction",
@@ -3928,10 +4429,11 @@
           "is_exactly_solved",
           "tonks_girardeau_limit_maps_to_free_fermions"
         ],
-        "identity": "is_exactly_solved_and_tonks_girardeau_limit_maps_to_free_fermions",
+        "identity": "exact_solution_in_lieb_liniger_bose_gas",
         "semantics": [
-          "is exactly solved",
-          "tonks girardeau limit maps to free fermions"
+          "published exact solution for lieb liniger bose gas",
+          "is exactly solved for the lieb liniger bose gas Hamiltonian under the declared parameter regime",
+          "tonks girardeau limit maps to free fermions for the lieb liniger bose gas Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -3967,7 +4469,12 @@
       "canonical_observable_id": "lieb_schultz_mattis_half_integer_constraint",
       "conditions": {
         "backend_scope": "diagnostic",
-        "comparison_kind": "theorem"
+        "comparison_kind": "theorem",
+        "model_parameters": {
+          "spin_per_unit_cell": "half_integer"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "translation-invariant local spin Hamiltonian",
@@ -3982,9 +4489,10 @@
         "claim_fields": [
           "unique_gapped_symmetric_ground_state_allowed"
         ],
-        "identity": "unique_gapped_symmetric_ground_state_allowed",
+        "identity": "spectral_constraint_in_half_integer_spin_chain",
         "semantics": [
-          "unique gapped symmetric ground state allowed"
+          "published spectral constraint for half integer spin chain",
+          "unique gapped symmetric ground state allowed for the half integer spin chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4014,7 +4522,13 @@
       "canonical_observable_id": "majundar_ghosh_chain_exact_dimer_point",
       "conditions": {
         "backend_scope": "ed_or_analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "j2_over_j1": 0.5,
+          "spin": 0.5
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J1 sum Si.Si+1 + J2 sum Si.Si+2",
@@ -4031,10 +4545,11 @@
           "energy_per_site",
           "degenerate_dimer_coverings"
         ],
-        "identity": "energy_per_site_and_degenerate_dimer_coverings",
+        "identity": "ground_state_energy_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "energy per site",
-          "degenerate dimer coverings"
+          "published ground state energy for spin 1 2 j1 j2 chain",
+          "energy per site for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime",
+          "degenerate dimer coverings for the spin 1 2 j1 j2 chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4050,10 +4565,10 @@
             "units": "exchange_energy_per_site"
           },
           {
-            "convention": "scalar_or_structured_claim",
+            "convention": "scalar_under_declared_hamiltonian_convention",
             "id": "degenerate_dimer_coverings",
             "type": "number",
-            "units": "dimensionless"
+            "units": "dimensionless_observable"
           }
         ],
         "kind": "registered_field_map"
@@ -4064,14 +4579,19 @@
       },
       "subject": "Majundar ghosh chain exact dimer point",
       "system": "spin_1_2_j1_j2_chain",
-      "units": "energy_per_site=exchange_energy_per_site; degenerate_dimer_coverings=dimensionless"
+      "units": "energy_per_site=exchange_energy_per_site; degenerate_dimer_coverings=dimensionless_observable"
     },
     {
       "benchmark_name": "maple_leaf_lattice_heisenberg_reference",
       "canonical_observable_id": "maple_leaf_lattice_heisenberg_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J Heisenberg on maple-leaf lattice",
@@ -4085,9 +4605,10 @@
         "claim_fields": [
           "frustrated_order_reference"
         ],
-        "identity": "frustrated_order_reference",
+        "identity": "published_observable_in_maple_leaf_lattice_heisenberg",
         "semantics": [
-          "frustrated order reference"
+          "published published observable for maple leaf lattice heisenberg",
+          "published magnetic-order characterization in the frustrated lattice model"
         ]
       },
       "parameter_regime": {
@@ -4117,7 +4638,12 @@
       "canonical_observable_id": "mn_ps3_honeycomb_antiferromagnet_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "MnPS3"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "honeycomb Heisenberg antiferromagnet with anisotropy",
@@ -4133,9 +4659,10 @@
         "claim_fields": [
           "neel_order_reference"
         ],
-        "identity": "neel_order_reference",
+        "identity": "classical_order_in_mnps3_honeycomb_antiferromagnet",
         "semantics": [
-          "neel order reference"
+          "published classical order for mnps3 honeycomb antiferromagnet",
+          "experimentally inferred Neel antiferromagnetic order"
         ]
       },
       "parameter_regime": {
@@ -4165,7 +4692,12 @@
       "canonical_observable_id": "mnsi_chiral_helimagnet_reference",
       "conditions": {
         "backend_scope": "classical_minimization",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "MnSi"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "ferromagnetic exchange plus Dzyaloshinskii-Moriya interaction",
@@ -4181,9 +4713,10 @@
         "claim_fields": [
           "long_wavelength_helix"
         ],
-        "identity": "long_wavelength_helix",
+        "identity": "helical_wavevector_in_mnsi_chiral_helimagnet",
         "semantics": [
-          "long wavelength helix"
+          "published helical wavevector for mnsi chiral helimagnet",
+          "long wavelength helix for the mnsi chiral helimagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4213,7 +4746,12 @@
       "canonical_observable_id": "na4ir3o8_hyperkagome_material_reference",
       "conditions": {
         "backend_scope": "many_body_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Na4Ir3O8"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "hyperkagome spin-1/2 Heisenberg model",
@@ -4229,9 +4767,10 @@
         "claim_fields": [
           "hyperkagome_qsl_candidate"
         ],
-        "identity": "hyperkagome_qsl_candidate",
+        "identity": "material_qsl_in_na4ir3o8_hyperkagome",
         "semantics": [
-          "hyperkagome qsl candidate"
+          "published material qsl for na4ir3o8 hyperkagome",
+          "assessment of quantum-spin-liquid phenomenology on the hyperkagome material"
         ]
       },
       "parameter_regime": {
@@ -4261,7 +4800,12 @@
       "canonical_observable_id": "nacuo2_triangular_heisenberg_material_reference",
       "conditions": {
         "backend_scope": "glt_or_many_body",
-        "comparison_kind": "material_reference"
+        "comparison_kind": "material_reference",
+        "model_parameters": {
+          "material": "NaCuO2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "triangular-lattice spin-1/2 Heisenberg exchange",
@@ -4276,9 +4820,10 @@
         "claim_fields": [
           "triangular_material_reference"
         ],
-        "identity": "triangular_material_reference",
+        "identity": "published_observable_in_nacuo2_triangular_heisenberg",
         "semantics": [
-          "triangular material reference"
+          "published published observable for nacuo2 triangular heisenberg",
+          "identification of a triangular-lattice magnetic material"
         ]
       },
       "parameter_regime": {
@@ -4308,7 +4853,12 @@
       "canonical_observable_id": "ni_ps3_honeycomb_antiferromagnet_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_spin_wave",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "NiPS3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "honeycomb Heisenberg exchange with anisotropy",
@@ -4324,9 +4874,10 @@
         "claim_fields": [
           "zigzag_or_collinear_order_reference"
         ],
-        "identity": "zigzag_or_collinear_order_reference",
+        "identity": "classical_order_in_nips3_honeycomb_antiferromagnet",
         "semantics": [
-          "zigzag or collinear order reference"
+          "published classical order for nips3 honeycomb antiferromagnet",
+          "experimentally inferred zigzag or collinear magnetic order"
         ]
       },
       "parameter_regime": {
@@ -4356,7 +4907,13 @@
       "canonical_observable_id": "one_dimensional_classical_ising_correlation_length",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "beta": 1.0,
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_i+1",
@@ -4372,10 +4929,11 @@
           "formula",
           "correlation_length_beta_1_j_1"
         ],
-        "identity": "formula_and_correlation_length_beta_1_j_1",
+        "identity": "correlation_length_in_classical_ising_chain",
         "semantics": [
-          "formula",
-          "correlation length beta 1 j 1"
+          "published correlation length for classical ising chain",
+          "formula for the classical ising chain Hamiltonian under the declared parameter regime",
+          "correlation length beta 1 j 1 for the classical ising chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4412,7 +4970,12 @@
       "canonical_observable_id": "one_dimensional_classical_ising_no_finite_t_transition",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_i+1",
@@ -4428,10 +4991,11 @@
           "finite_temperature_transition",
           "tc_over_j"
         ],
-        "identity": "finite_temperature_transition_and_tc_over_j",
+        "identity": "critical_temperature_in_classical_ising_chain",
         "semantics": [
-          "finite temperature transition",
-          "tc over j"
+          "published critical temperature for classical ising chain",
+          "finite temperature transition for the classical ising chain Hamiltonian under the declared parameter regime",
+          "tc over j for the classical ising chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4467,7 +5031,12 @@
       "canonical_observable_id": "pr2zr2o7_quantum_spin_ice_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Pr2Zr2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "non-Kramers quantum spin ice exchange",
@@ -4484,9 +5053,10 @@
         "claim_fields": [
           "quantum_spin_ice_candidate"
         ],
-        "identity": "quantum_spin_ice_candidate",
+        "identity": "quantum_spin_ice_in_pr2zr2o7_quantum_spin_ice",
         "semantics": [
-          "quantum spin ice candidate"
+          "published quantum spin ice for pr2zr2o7 quantum spin ice",
+          "assessment of quantum-spin-ice phenomenology under the cited conditions"
         ]
       },
       "parameter_regime": {
@@ -4516,7 +5086,12 @@
       "canonical_observable_id": "pyrochlore_anisotropic_exchange_jzz_jpm_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "effective_spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "Jzz,Jpm,Jpmpm,Jzpm nearest-neighbor pseudospin exchange",
@@ -4533,9 +5108,10 @@
         "claim_fields": [
           "couplings"
         ],
-        "identity": "couplings",
+        "identity": "exchange_parameterization_in_rare_earth_pyrochlore_anisotropic_exchange",
         "semantics": [
-          "couplings"
+          "published exchange parameterization for rare earth pyrochlore anisotropic exchange",
+          "couplings for the rare earth pyrochlore anisotropic exchange Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4544,10 +5120,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "named_hamiltonian_coupling_parameter_map",
             "id": "couplings",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "source_declared_coupling_units"
           }
         ],
         "kind": "registered_field_map"
@@ -4558,14 +5134,19 @@
       },
       "subject": "Pyrochlore anisotropic exchange jzz jpm",
       "system": "rare_earth_pyrochlore_anisotropic_exchange",
-      "units": "couplings=field_dependent_sequence"
+      "units": "couplings=source_declared_coupling_units"
     },
     {
       "benchmark_name": "pyrochlore_dipolar_spin_ice_pauling_entropy",
       "canonical_observable_id": "pyrochlore_dipolar_spin_ice_pauling_entropy",
       "conditions": {
         "backend_scope": "mc",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "local-axis Ising + dipolar interaction",
@@ -4581,9 +5162,10 @@
         "claim_fields": [
           "pauling_entropy_per_spin"
         ],
-        "identity": "pauling_entropy_per_spin",
+        "identity": "residual_entropy_in_dipolar_spin_ice_pyrochlore",
         "semantics": [
-          "pauling entropy per spin"
+          "published residual entropy for dipolar spin ice pyrochlore",
+          "pauling entropy per spin for the dipolar spin ice pyrochlore Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4613,7 +5195,12 @@
       "canonical_observable_id": "pyrochlore_heisenberg_afm_coulomb_phase_reference",
       "conditions": {
         "backend_scope": "classical_glt_or_mc",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj",
@@ -4630,10 +5217,11 @@
           "zero_total_spin_per_tetrahedron",
           "pinch_points"
         ],
-        "identity": "zero_total_spin_per_tetrahedron_and_pinch_points",
+        "identity": "ground_state_constraint_in_classical_pyrochlore_heisenberg_afm",
         "semantics": [
-          "zero total spin per tetrahedron",
-          "pinch points"
+          "published ground state constraint for classical pyrochlore heisenberg afm",
+          "zero total spin per tetrahedron for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime",
+          "pinch points for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4669,7 +5257,12 @@
       "canonical_observable_id": "pyrochlore_heisenberg_coulomb_phase_flat_band",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg",
@@ -4686,10 +5279,11 @@
           "local_constraint",
           "lowest_lt_flat_band"
         ],
-        "identity": "local_constraint_and_lowest_lt_flat_band",
+        "identity": "coulomb_phase_in_classical_pyrochlore_heisenberg_afm",
         "semantics": [
-          "local constraint",
-          "lowest lt flat band"
+          "published coulomb phase for classical pyrochlore heisenberg afm",
+          "local constraint for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime",
+          "lowest lt flat band for the classical pyrochlore heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4725,7 +5319,12 @@
       "canonical_observable_id": "quantum_spin_ice_u1_qsl_reference",
       "conditions": {
         "backend_scope": "gauge_theory_or_qmc",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "effective_spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "Jzz spin ice plus transverse exchange",
@@ -4741,9 +5340,10 @@
         "claim_fields": [
           "u1_quantum_spin_liquid_candidate"
         ],
-        "identity": "u1_quantum_spin_liquid_candidate",
+        "identity": "published_observable_in_quantum_spin_ice_pyrochlore",
         "semantics": [
-          "u1 quantum spin liquid candidate"
+          "published published observable for quantum spin ice pyrochlore",
+          "assessment of a U(1) quantum-spin-liquid phase in pyrochlore spin ice"
         ]
       },
       "parameter_regime": {
@@ -4773,7 +5373,12 @@
       "canonical_observable_id": "ru_br3_kitaev_material_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "RuBr3"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Ru honeycomb Kitaev-Heisenberg-Gamma exchange",
@@ -4789,9 +5394,10 @@
         "claim_fields": [
           "ru_honeycomb_kitaev_candidate"
         ],
-        "identity": "ru_honeycomb_kitaev_candidate",
+        "identity": "material_model_in_ru_br3_honeycomb_kitaev",
         "semantics": [
-          "ru honeycomb kitaev candidate"
+          "published material model for ru br3 honeycomb kitaev",
+          "assessment of honeycomb Kitaev interactions in the ruthenium material"
         ]
       },
       "parameter_regime": {
@@ -4821,7 +5427,12 @@
       "canonical_observable_id": "ruby_lattice_heisenberg_flat_band_reference",
       "conditions": {
         "backend_scope": "magnon_ed",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "Heisenberg exchange on ruby lattice",
@@ -4836,9 +5447,10 @@
         "claim_fields": [
           "supports_localized_magnons"
         ],
-        "identity": "supports_localized_magnons",
+        "identity": "localized_magnon_in_ruby_lattice_heisenberg",
         "semantics": [
-          "supports localized magnons"
+          "published localized magnon for ruby lattice heisenberg",
+          "supports localized magnons for the ruby lattice heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4868,7 +5480,12 @@
       "canonical_observable_id": "sawtooth_chain_localized_magnon_flat_band",
       "conditions": {
         "backend_scope": "magnon_ed",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "saturation_field_regime": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "base and zigzag Heisenberg exchanges",
@@ -4883,9 +5500,10 @@
         "claim_fields": [
           "has_exact_localized_magnons"
         ],
-        "identity": "has_exact_localized_magnons",
+        "identity": "localized_magnon_in_sawtooth_chain_heisenberg",
         "semantics": [
-          "has exact localized magnons"
+          "published localized magnon for sawtooth chain heisenberg",
+          "has exact localized magnons for the sawtooth chain heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4915,7 +5533,13 @@
       "canonical_observable_id": "scgo_kagome_bilayer_spin_liquid_reference",
       "conditions": {
         "backend_scope": "classical_mc_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "SrCr9pGa12-9pO19",
+          "spin": 1.5
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Cr3+ kagome-bilayer Heisenberg antiferromagnet with dilution",
@@ -4931,9 +5555,10 @@
         "claim_fields": [
           "no_conventional_order_down_to_low_t"
         ],
-        "identity": "no_conventional_order_down_to_low_t",
+        "identity": "spin_liquid_material_in_sr_cr_ga_o_kagome_bilayer",
         "semantics": [
-          "no conventional order down to low t"
+          "published spin liquid material for sr cr ga o kagome bilayer",
+          "no conventional order down to low t for the sr cr ga o kagome bilayer Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -4964,7 +5589,13 @@
       "canonical_observable_id": "shastry_sutherland_exact_dimer_product",
       "conditions": {
         "backend_scope": "ed_or_analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "dimer_exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J interdimer edges + Jd orthogonal dimers",
@@ -4980,10 +5611,11 @@
           "energy_per_dimer",
           "energy_per_spin"
         ],
-        "identity": "energy_per_dimer_and_energy_per_spin",
+        "identity": "exact_dimer_energy_in_shastry_sutherland",
         "semantics": [
-          "energy per dimer",
-          "energy per spin"
+          "published exact dimer energy for shastry sutherland",
+          "energy per dimer for the shastry sutherland Hamiltonian under the declared parameter regime",
+          "energy per spin for the shastry sutherland Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5020,7 +5652,12 @@
       "canonical_observable_id": "shastry_sutherland_magnetization_plateaus_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "SrCu2(BO3)2"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "Shastry-Sutherland Heisenberg plus magnetic field",
@@ -5036,9 +5673,10 @@
         "claim_fields": [
           "fractional_plateaus_observed"
         ],
-        "identity": "fractional_plateaus_observed",
+        "identity": "magnetization_plateaus_in_shastry_sutherland_high_field",
         "semantics": [
-          "fractional plateaus observed"
+          "published magnetization plateaus for shastry sutherland high field",
+          "fractional plateaus observed for the shastry sutherland high field Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5068,7 +5706,12 @@
       "canonical_observable_id": "shuriken_lattice_heisenberg_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "Heisenberg exchange on square-kagome/shuriken lattice",
@@ -5083,9 +5726,10 @@
         "claim_fields": [
           "square_kagome_reference"
         ],
-        "identity": "square_kagome_reference",
+        "identity": "published_observable_in_shuriken_lattice_heisenberg",
         "semantics": [
-          "square kagome reference"
+          "published published observable for shuriken lattice heisenberg",
+          "identification of the shuriken lattice with the square-kagome geometry"
         ]
       },
       "parameter_regime": {
@@ -5115,7 +5759,12 @@
       "canonical_observable_id": "simple_cubic_j1_j2_collinear_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -5131,9 +5780,10 @@
         "claim_fields": [
           "neel_to_collinear_boundary_j2_over_j1"
         ],
-        "identity": "neel_to_collinear_boundary_j2_over_j1",
+        "identity": "phase_boundary_in_simple_cubic_j1_j2_heisenberg",
         "semantics": [
-          "neel to collinear boundary j2 over j1"
+          "published phase boundary for simple cubic j1 j2 heisenberg",
+          "neel to collinear boundary j2 over j1 for the simple cubic j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5163,7 +5813,13 @@
       "canonical_observable_id": "single_ion_spin1_anisotropy_levels",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "anisotropy": 1.0,
+          "spin": 1.0
+        },
+        "physical_regime": "finite local cluster defined by the Hamiltonian and lattice",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "D Sz^2",
@@ -5179,10 +5835,11 @@
           "levels",
           "degeneracies"
         ],
-        "identity": "levels_and_degeneracies",
+        "identity": "onsite_levels_in_spin_1_single_ion_anisotropy",
         "semantics": [
-          "levels",
-          "degeneracies"
+          "published onsite levels for spin 1 single ion anisotropy",
+          "levels for the spin 1 single ion anisotropy Hamiltonian under the declared parameter regime",
+          "degeneracies for the spin 1 single ion anisotropy Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5198,10 +5855,10 @@
             "units": "exchange_energy_unit"
           },
           {
-            "convention": "ordered_sequence",
+            "convention": "ordered_nonnegative_integer_degeneracies",
             "id": "degeneracies",
             "type": "list[number]",
-            "units": "field_dependent_sequence"
+            "units": "count"
           }
         ],
         "kind": "registered_field_map"
@@ -5212,14 +5869,19 @@
       },
       "subject": "Single ion spin-1 anisotropy levels",
       "system": "spin_1_single_ion_anisotropy",
-      "units": "levels=exchange_energy_unit; degeneracies=field_dependent_sequence"
+      "units": "levels=exchange_energy_unit; degeneracies=count"
     },
     {
       "benchmark_name": "spin1_chain_large_d_transition_reference",
       "canonical_observable_id": "spin1_chain_large_d_transition_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "spin-1 Heisenberg chain plus D Sz^2",
@@ -5235,9 +5897,10 @@
         "claim_fields": [
           "large_d_transition_reference"
         ],
-        "identity": "large_d_transition_reference",
+        "identity": "haldane_large_d_transition_in_spin_1_heisenberg_single_ion_chain",
         "semantics": [
-          "large d transition reference"
+          "published haldane large d transition for spin 1 heisenberg single ion chain",
+          "location or identification of the Haldane-to-large-D transition"
         ]
       },
       "parameter_regime": {
@@ -5267,7 +5930,13 @@
       "canonical_observable_id": "spin_ice_tetrahedron_nn_ice_rule",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_enumeration"
+        "comparison_kind": "exact_enumeration",
+        "model_parameters": {
+          "ising_variables": "sigma=+/-1",
+          "jeff": 1.0
+        },
+        "physical_regime": "finite local cluster defined by the Hamiltonian and lattice",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J_eff sum sigma_i sigma_j on tetrahedron",
@@ -5285,12 +5954,13 @@
           "all_in_all_out_energy",
           "two_in_two_out_degeneracy"
         ],
-        "identity": "two_in_two_out_energy_and_three_in_one_out_energy_and_all_in_all_out_energy_and_two_in_two_out_degeneracy",
+        "identity": "tetrahedron_energy_levels_in_nearest_neighbor_spin_ice_tetrahedron",
         "semantics": [
-          "two in two out energy",
-          "three in one out energy",
-          "all in all out energy",
-          "two in two out degeneracy"
+          "published tetrahedron energy levels for nearest neighbor spin ice tetrahedron",
+          "two in two out energy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime",
+          "three in one out energy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime",
+          "all in all out energy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime",
+          "two in two out degeneracy for the nearest neighbor spin ice tetrahedron Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5339,7 +6009,12 @@
       "canonical_observable_id": "spin_ladder_rung_singlet_gap_reference",
       "conditions": {
         "backend_scope": "dmrg_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "Jleg chains + Jrung rungs",
@@ -5354,9 +6029,10 @@
         "claim_fields": [
           "has_finite_spin_gap_for_antiferromagnetic_rungs"
         ],
-        "identity": "has_finite_spin_gap_for_antiferromagnetic_rungs",
+        "identity": "spin_gap_in_two_leg_heisenberg_ladder",
         "semantics": [
-          "has finite spin gap for antiferromagnetic rungs"
+          "published spin gap for two leg heisenberg ladder",
+          "has finite spin gap for antiferromagnetic rungs for the two leg heisenberg ladder Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5386,7 +6062,12 @@
       "canonical_observable_id": "spin_peierls_chain_dimerization_reference",
       "conditions": {
         "backend_scope": "field_theory_or_dmrg",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "sum J(1 + delta (-1)^i) Si.Si+1",
@@ -5401,9 +6082,10 @@
         "claim_fields": [
           "finite_delta_opens_gap"
         ],
-        "identity": "finite_delta_opens_gap",
+        "identity": "spin_gap_opens_with_dimerization_in_spin_peierls_heisenberg_chain",
         "semantics": [
-          "finite delta opens gap"
+          "published spin gap opens with dimerization for spin peierls heisenberg chain",
+          "finite delta opens gap for the spin peierls heisenberg chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5433,7 +6115,12 @@
       "canonical_observable_id": "square_ashkin_teller_exact_critical_line",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "field": 0.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "two coupled Ising models with four-spin coupling",
@@ -5449,9 +6136,10 @@
         "claim_fields": [
           "has_exact_critical_line"
         ],
-        "identity": "has_exact_critical_line",
+        "identity": "critical_line_in_ashkin_teller_square",
         "semantics": [
-          "has exact critical line"
+          "published critical line for ashkin teller square",
+          "has exact critical line for the ashkin teller square Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5481,7 +6169,13 @@
       "canonical_observable_id": "square_clock_q5_two_bkt_transitions",
       "conditions": {
         "backend_scope": "mc_or_rg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "q": 5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "-J sum cos(theta_i - theta_j)",
@@ -5498,10 +6192,11 @@
           "transition_count",
           "phase_sequence"
         ],
-        "identity": "transition_count_and_phase_sequence",
+        "identity": "bkt_transition_count_in_q_state_clock_square",
         "semantics": [
-          "transition count",
-          "phase sequence"
+          "published bkt transition count for q state clock square",
+          "transition count for the q state clock square Hamiltonian under the declared parameter regime",
+          "phase sequence for the q state clock square Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5517,10 +6212,10 @@
             "units": "count"
           },
           {
-            "convention": "ordered_sequence",
+            "convention": "ordered_categorical_phase_labels",
             "id": "phase_sequence",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "not_applicable"
           }
         ],
         "kind": "registered_field_map"
@@ -5531,14 +6226,20 @@
       },
       "subject": "Square clock q5 two bkt transitions",
       "system": "q_state_clock_square",
-      "units": "transition_count=count; phase_sequence=field_dependent_sequence"
+      "units": "transition_count=count; phase_sequence=not_applicable"
     },
     {
       "benchmark_name": "square_compass_model_directional_exchange_degeneracy",
       "canonical_observable_id": "square_compass_model_directional_exchange_degeneracy",
       "conditions": {
         "backend_scope": "ed_or_analytic",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "j_x": 1.0,
+          "j_z": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "Jx sum_x tau_i^x tau_j^x + Jz sum_z tau_i^z tau_j^z",
@@ -5553,9 +6254,10 @@
         "claim_fields": [
           "has_line_flip_symmetries"
         ],
-        "identity": "has_line_flip_symmetries",
+        "identity": "directional_symmetry_in_orbital_compass_square",
         "semantics": [
-          "has line flip symmetries"
+          "published directional symmetry for orbital compass square",
+          "has line flip symmetries for the orbital compass square Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5586,7 +6288,12 @@
       "canonical_observable_id": "square_dimerized_heisenberg_critical_reference",
       "conditions": {
         "backend_scope": "qmc",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J and J' dimerized square-lattice Heisenberg",
@@ -5601,9 +6308,10 @@
         "claim_fields": [
           "neel_to_dimer_transition"
         ],
-        "identity": "neel_to_dimer_transition",
+        "identity": "quantum_critical_point_in_square_dimerized_heisenberg",
         "semantics": [
-          "neel to dimer transition"
+          "published quantum critical point for square dimerized heisenberg",
+          "neel to dimer transition for the square dimerized heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5633,7 +6341,12 @@
       "canonical_observable_id": "square_fully_frustrated_ising_residual_entropy_reference",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "frustrated_bonds_per_plaquette": 1
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "Ising with one frustrated bond per plaquette",
@@ -5648,9 +6361,10 @@
         "claim_fields": [
           "macroscopic_ground_state_degeneracy"
         ],
-        "identity": "macroscopic_ground_state_degeneracy",
+        "identity": "residual_entropy_in_fully_frustrated_square_ising",
         "semantics": [
-          "macroscopic ground state degeneracy"
+          "published residual entropy for fully frustrated square ising",
+          "macroscopic ground state degeneracy for the fully frustrated square ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5680,7 +6394,13 @@
       "canonical_observable_id": "square_heisenberg_spin_half_spin_stiffness_reference",
       "conditions": {
         "backend_scope": "qmc",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj",
@@ -5696,9 +6416,10 @@
         "claim_fields": [
           "rho_s_over_j"
         ],
-        "identity": "rho_s_over_j",
+        "identity": "spin_stiffness_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "rho s over j"
+          "published spin stiffness for spin 1 2 square heisenberg afm",
+          "rho s over j for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5729,7 +6450,13 @@
       "canonical_observable_id": "square_heisenberg_spin_half_staggered_magnetization_reference",
       "conditions": {
         "backend_scope": "qmc_or_large_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj",
@@ -5745,9 +6472,10 @@
         "claim_fields": [
           "staggered_magnetization"
         ],
-        "identity": "staggered_magnetization",
+        "identity": "staggered_magnetization_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "staggered magnetization"
+          "published staggered magnetization for spin 1 2 square heisenberg afm",
+          "staggered magnetization for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5778,7 +6506,13 @@
       "canonical_observable_id": "square_heisenberg_spin_wave_velocity_reference",
       "conditions": {
         "backend_scope": "qmc_or_lswt",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg",
@@ -5793,9 +6527,10 @@
         "claim_fields": [
           "renormalized_velocity_over_j_approx"
         ],
-        "identity": "renormalized_velocity_over_j_approx",
+        "identity": "spin_wave_velocity_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "renormalized velocity over j approx"
+          "published spin wave velocity for spin 1 2 square heisenberg afm",
+          "renormalized velocity over j approx for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5826,7 +6561,12 @@
       "canonical_observable_id": "square_j1_j3_classical_lifshitz_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J1 NN + J3 third-neighbor Heisenberg",
@@ -5842,9 +6582,10 @@
         "claim_fields": [
           "spiral_condition"
         ],
-        "identity": "spiral_condition",
+        "identity": "lifshitz_point_in_square_j1_j3_heisenberg",
         "semantics": [
-          "spiral condition"
+          "published lifshitz point for square j1 j3 heisenberg",
+          "spiral condition for the square j1 j3 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5874,7 +6615,12 @@
       "canonical_observable_id": "square_jq_model_deconfined_critical_reference",
       "conditions": {
         "backend_scope": "qmc",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "Heisenberg J plus multi-spin Q interactions",
@@ -5889,9 +6635,10 @@
         "claim_fields": [
           "neel_to_vbs_transition"
         ],
-        "identity": "neel_to_vbs_transition",
+        "identity": "deconfined_critical_point_in_square_jq_model",
         "semantics": [
-          "neel to vbs transition"
+          "published deconfined critical point for square jq model",
+          "neel to vbs transition for the square jq model Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5921,7 +6668,13 @@
       "canonical_observable_id": "square_potts_exact_critical_point",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0,
+          "q": "arbitrary"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum delta(sigma_i, sigma_j)",
@@ -5937,10 +6690,11 @@
           "critical_beta_j",
           "continuous_for_q_le_4"
         ],
-        "identity": "critical_beta_j_and_continuous_for_q_le_4",
+        "identity": "critical_coupling_in_q_state_potts_square",
         "semantics": [
-          "critical beta j",
-          "continuous for q le 4"
+          "published critical coupling for q state potts square",
+          "critical beta j for the q state potts square Hamiltonian under the declared parameter regime",
+          "continuous for q le 4 for the q state potts square Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -5977,7 +6731,12 @@
       "canonical_observable_id": "square_ring_exchange_neel_vbs_reference",
       "conditions": {
         "backend_scope": "qmc_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg plus four-spin ring exchange",
@@ -5993,9 +6752,10 @@
         "claim_fields": [
           "ring_exchange_drives_vbs_phase"
         ],
-        "identity": "ring_exchange_drives_vbs_phase",
+        "identity": "neel_vbs_competition_in_square_heisenberg_ring_exchange",
         "semantics": [
-          "ring exchange drives vbs phase"
+          "published neel vbs competition for square heisenberg ring exchange",
+          "ring exchange drives vbs phase for the square heisenberg ring exchange Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6025,7 +6785,12 @@
       "canonical_observable_id": "square_six_vertex_ice_exact_solution_status",
       "conditions": {
         "backend_scope": "vertex_model",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "field": 0.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "six allowed ice-rule vertex weights",
@@ -6041,9 +6806,10 @@
         "claim_fields": [
           "is_exactly_solved"
         ],
-        "identity": "is_exactly_solved",
+        "identity": "exact_solution_in_six_vertex_model",
         "semantics": [
-          "is exactly solved"
+          "published exact solution for six vertex model",
+          "is exactly solved for the six vertex model Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6073,7 +6839,13 @@
       "canonical_observable_id": "square_spin_half_heisenberg_qmc_energy",
       "conditions": {
         "backend_scope": "qmc_or_large_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J sum_<ij> Si.Sj",
@@ -6088,9 +6860,10 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "energy_per_site",
+        "identity": "ground_state_energy_in_spin_1_2_square_heisenberg_afm",
         "semantics": [
-          "energy per site"
+          "published ground state energy for spin 1 2 square heisenberg afm",
+          "energy per site for the spin 1 2 square heisenberg afm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6121,7 +6894,12 @@
       "canonical_observable_id": "square_toric_code_exact_topological_degeneracy",
       "conditions": {
         "backend_scope": "stabilizer",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "genus": 1
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-Je sum A_s - Jm sum B_p",
@@ -6136,9 +6914,10 @@
         "claim_fields": [
           "torus_ground_state_degeneracy"
         ],
-        "identity": "torus_ground_state_degeneracy",
+        "identity": "ground_state_degeneracy_in_toric_code_square",
         "semantics": [
-          "torus ground state degeneracy"
+          "published ground state degeneracy for toric code square",
+          "torus ground state degeneracy for the toric code square Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6168,7 +6947,12 @@
       "canonical_observable_id": "sr_cu2_bo3_2_shastry_sutherland_material_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "SrCu2(BO3)2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "Shastry-Sutherland Heisenberg model for SrCu2(BO3)2",
@@ -6184,10 +6968,11 @@
           "orthogonal_dimer_material",
           "magnetization_plateaus"
         ],
-        "identity": "orthogonal_dimer_material_and_magnetization_plateaus",
+        "identity": "material_model_in_sr_cu2_bo3_2",
         "semantics": [
-          "orthogonal dimer material",
-          "magnetization plateaus"
+          "published material model for sr cu2 bo3 2",
+          "orthogonal dimer material for the sr cu2 bo3 2 Hamiltonian under the declared parameter regime",
+          "magnetization plateaus for the sr cu2 bo3 2 Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6223,7 +7008,12 @@
       "canonical_observable_id": "star_lattice_heisenberg_spin_liquid_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J Heisenberg on star lattice",
@@ -6237,9 +7027,10 @@
         "claim_fields": [
           "spin_liquid_or_valence_bond_reference"
         ],
-        "identity": "spin_liquid_or_valence_bond_reference",
+        "identity": "published_observable_in_star_lattice_heisenberg",
         "semantics": [
-          "spin liquid or valence bond reference"
+          "published published observable for star lattice heisenberg",
+          "published discrimination between spin-liquid and valence-bond behavior"
         ]
       },
       "parameter_regime": {
@@ -6269,7 +7060,12 @@
       "canonical_observable_id": "takhtajan_babujian_spin1_critical_point",
       "conditions": {
         "backend_scope": "bethe_or_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "theta": -0.7853981633974483
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "cos(theta) Si.Sj + sin(theta)(Si.Sj)^2",
@@ -6286,10 +7082,11 @@
           "theta_radians",
           "is_integrable"
         ],
-        "identity": "theta_radians_and_is_integrable",
+        "identity": "critical_point_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "theta radians",
-          "is integrable"
+          "published critical point for spin 1 bilinear biquadratic chain",
+          "theta radians for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
+          "is integrable for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6325,7 +7122,12 @@
       "canonical_observable_id": "tb2ti2o7_pyrochlore_spin_liquid_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Tb2Ti2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "frustrated rare-earth pyrochlore exchange",
@@ -6340,9 +7142,10 @@
         "claim_fields": [
           "spin_liquid_candidate"
         ],
-        "identity": "spin_liquid_candidate",
+        "identity": "spin_liquid_in_tb2ti2o7_pyrochlore",
         "semantics": [
-          "spin liquid candidate"
+          "published spin liquid for tb2ti2o7 pyrochlore",
+          "assessment of spin-liquid phenomenology under the cited material or model conditions"
         ]
       },
       "parameter_regime": {
@@ -6372,7 +7175,13 @@
       "canonical_observable_id": "transverse_field_ising_chain_critical_point",
       "conditions": {
         "backend_scope": "free_fermion_or_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i^z sigma_i+1^z - h sum sigma_i^x",
@@ -6387,9 +7196,10 @@
         "claim_fields": [
           "critical_field_over_exchange"
         ],
-        "identity": "critical_field_over_exchange",
+        "identity": "quantum_critical_point_in_spin_1_2_transverse_field_ising_chain",
         "semantics": [
-          "critical field over exchange"
+          "published quantum critical point for spin 1 2 transverse field ising chain",
+          "critical field over exchange for the spin 1 2 transverse field ising chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6420,7 +7230,14 @@
       "canonical_observable_id": "transverse_field_ising_chain_gap",
       "conditions": {
         "backend_scope": "free_fermion_or_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0,
+          "field_over_exchange": 0.6,
+          "spin": 0.5
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i^z sigma_i+1^z - h sum sigma_i^x",
@@ -6436,10 +7253,11 @@
           "gap_formula",
           "gap_formula_at_g_0_6"
         ],
-        "identity": "gap_formula_and_gap_formula_at_g_0_6",
+        "identity": "excitation_gap_in_spin_1_2_transverse_field_ising_chain",
         "semantics": [
-          "gap formula",
-          "gap formula at g 0 6"
+          "published excitation gap for spin 1 2 transverse field ising chain",
+          "gap formula for the spin 1 2 transverse field ising chain Hamiltonian under the declared parameter regime",
+          "gap formula at g 0 6 for the spin 1 2 transverse field ising chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6477,7 +7295,12 @@
       "canonical_observable_id": "triangular_heisenberg_magnetization_plateau_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "triangular Heisenberg plus magnetic field",
@@ -6492,9 +7315,10 @@
         "claim_fields": [
           "one_third_plateau"
         ],
-        "identity": "one_third_plateau",
+        "identity": "magnetization_plateau_in_triangular_heisenberg_high_field",
         "semantics": [
-          "one third plateau"
+          "published magnetization plateau for triangular heisenberg high field",
+          "one third plateau for the triangular heisenberg high field Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6524,7 +7348,13 @@
       "canonical_observable_id": "triangular_heisenberg_spin_half_energy_reference",
       "conditions": {
         "backend_scope": "dmrg_or_vmc",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg",
@@ -6539,9 +7369,10 @@
         "claim_fields": [
           "energy_per_site_approx"
         ],
-        "identity": "energy_per_site_approx",
+        "identity": "ground_state_energy_in_spin_1_2_triangular_heisenberg",
         "semantics": [
-          "energy per site approx"
+          "published ground state energy for spin 1 2 triangular heisenberg",
+          "energy per site approx for the spin 1 2 triangular heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6572,7 +7403,12 @@
       "canonical_observable_id": "triangular_ising_antiferromagnet_residual_entropy",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J sum sigma_i sigma_j",
@@ -6588,9 +7424,10 @@
         "claim_fields": [
           "residual_entropy_per_spin"
         ],
-        "identity": "residual_entropy_per_spin",
+        "identity": "residual_entropy_in_classical_triangular_ising_antiferromagnet",
         "semantics": [
-          "residual entropy per spin"
+          "published residual entropy for classical triangular ising antiferromagnet",
+          "residual entropy per spin for the classical triangular ising antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6620,7 +7457,12 @@
       "canonical_observable_id": "triangular_ising_ferromagnet_exact_tc",
       "conditions": {
         "backend_scope": "transfer_matrix",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_j",
@@ -6636,9 +7478,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "tc_over_j",
+        "identity": "critical_temperature_in_classical_triangular_ising",
         "semantics": [
-          "tc over j"
+          "published critical temperature for classical triangular ising",
+          "tc over j for the classical triangular ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6668,7 +7511,12 @@
       "canonical_observable_id": "triangular_j1_j2_spin_half_phase_diagram_reference",
       "conditions": {
         "backend_scope": "dmrg_or_many_body",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "J1 NN + J2 NNN Heisenberg",
@@ -6684,9 +7532,10 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "phases",
+        "identity": "phase_diagram_in_spin_1_2_triangular_j1_j2_heisenberg",
         "semantics": [
-          "phases"
+          "published phase diagram for spin 1 2 triangular j1 j2 heisenberg",
+          "phases for the spin 1 2 triangular j1 j2 heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6695,10 +7544,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "ordered_sequence",
+            "convention": "categorical_phase_label_set",
             "id": "phases",
             "type": "list[string]",
-            "units": "field_dependent_sequence"
+            "units": "not_applicable"
           }
         ],
         "kind": "registered_field_map"
@@ -6709,14 +7558,19 @@
       },
       "subject": "Triangular j1-j2 spin-half phase diagram",
       "system": "spin_1_2_triangular_j1_j2_heisenberg",
-      "units": "phases=field_dependent_sequence"
+      "units": "phases=not_applicable"
     },
     {
       "benchmark_name": "triangular_nn_classical_120_reference",
       "canonical_observable_id": "triangular_nn_classical_120_reference",
       "conditions": {
         "backend_scope": "glt",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "classical": true
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "J NN Heisenberg",
@@ -6732,10 +7586,11 @@
           "order",
           "q_reciprocal"
         ],
-        "identity": "order_and_q_reciprocal",
+        "identity": "ordering_vector_in_triangular_nn_heisenberg",
         "semantics": [
-          "order",
-          "q reciprocal"
+          "published ordering vector for triangular nn heisenberg",
+          "order for the triangular nn heisenberg Hamiltonian under the declared parameter regime",
+          "q reciprocal for the triangular nn heisenberg Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6771,7 +7626,12 @@
       "canonical_observable_id": "triangular_ring_exchange_spin_liquid_reference",
       "conditions": {
         "backend_scope": "ed_or_dmrg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "Heisenberg plus cyclic ring exchange",
@@ -6786,9 +7646,10 @@
         "claim_fields": [
           "contains_spin_liquid_region"
         ],
-        "identity": "contains_spin_liquid_region",
+        "identity": "phase_diagram_in_triangular_multiple_spin_exchange",
         "semantics": [
-          "contains spin liquid region"
+          "published phase diagram for triangular multiple spin exchange",
+          "contains spin liquid region for the triangular multiple spin exchange Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6818,7 +7679,12 @@
       "canonical_observable_id": "triangular_xxz_supersolid_phase_reference",
       "conditions": {
         "backend_scope": "qmc_or_ed",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "lattice": "triangular"
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "Jxy transverse exchange + Jz Ising exchange",
@@ -6833,9 +7699,10 @@
         "claim_fields": [
           "contains_supersolid_phase"
         ],
-        "identity": "contains_supersolid_phase",
+        "identity": "phase_diagram_in_triangular_xxz_antiferromagnet",
         "semantics": [
-          "contains supersolid phase"
+          "published phase diagram for triangular xxz antiferromagnet",
+          "contains supersolid phase for the triangular xxz antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6865,7 +7732,12 @@
       "canonical_observable_id": "two_dimensional_square_ising_onsager_tc",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_j",
@@ -6880,9 +7752,10 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "tc_over_j",
+        "identity": "critical_temperature_in_classical_square_ising",
         "semantics": [
-          "tc over j"
+          "published critical temperature for classical square ising",
+          "tc over j for the classical square ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6912,7 +7785,13 @@
       "canonical_observable_id": "two_dimensional_square_ising_spontaneous_magnetization",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "beta": 0.6,
+          "exchange": 1.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-J sum sigma_i sigma_j",
@@ -6928,10 +7807,11 @@
           "formula",
           "magnetization_beta_0_6_j_1"
         ],
-        "identity": "formula_and_magnetization_beta_0_6_j_1",
+        "identity": "spontaneous_magnetization_in_classical_square_ising",
         "semantics": [
-          "formula",
-          "magnetization beta 0 6 j 1"
+          "published spontaneous magnetization for classical square ising",
+          "formula for the classical square ising Hamiltonian under the declared parameter regime",
+          "magnetization beta 0 6 j 1 for the classical square ising Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -6968,7 +7848,12 @@
       "canonical_observable_id": "two_dimensional_xy_bkt_temperature_reference",
       "conditions": {
         "backend_scope": "mc_or_rg",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "exchange": 1.0
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "-J sum cos(theta_i - theta_j)",
@@ -6983,9 +7868,10 @@
         "claim_fields": [
           "tbkt_over_j"
         ],
-        "identity": "tbkt_over_j",
+        "identity": "bkt_temperature_in_classical_square_xy",
         "semantics": [
-          "tbkt over j"
+          "published bkt temperature for classical square xy",
+          "tbkt over j for the classical square xy Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7015,7 +7901,13 @@
       "canonical_observable_id": "two_dimensional_xy_bkt_universal_jump",
       "conditions": {
         "backend_scope": "mc_or_rg",
-        "comparison_kind": "paper_formula"
+        "comparison_kind": "paper_formula",
+        "model_parameters": {
+          "temperature": 1.0
+        },
+        "normalization_relation": "rho_s(T_BKT)/J = 2 [T_BKT/J] / pi",
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "-J sum cos(theta_i - theta_j)",
@@ -7031,10 +7923,11 @@
           "formula",
           "helicity_modulus_at_t_1"
         ],
-        "identity": "formula_and_helicity_modulus_at_t_1",
+        "identity": "universal_bkt_helicity_modulus_jump_relation",
         "semantics": [
-          "formula",
-          "helicity modulus at t 1"
+          "universal relation between helicity modulus and transition temperature",
+          "formula for the classical square xy Hamiltonian under the declared parameter regime",
+          "helicity modulus rho_s/J evaluated at T/J = 1"
         ]
       },
       "parameter_regime": {
@@ -7049,10 +7942,10 @@
             "units": "not_applicable"
           },
           {
-            "convention": "scalar_or_structured_claim",
+            "convention": "rho_s_over_j_at_temperature_over_j_equal_one",
             "id": "helicity_modulus_at_t_1",
             "type": "number",
-            "units": "dimensionless"
+            "units": "helicity_modulus_over_exchange_j"
           }
         ],
         "kind": "registered_field_map"
@@ -7063,14 +7956,20 @@
       },
       "subject": "Two dimensional xy bkt universal jump",
       "system": "classical_square_xy",
-      "units": "formula=not_applicable; helicity_modulus_at_t_1=dimensionless"
+      "units": "formula=not_applicable; helicity_modulus_at_t_1=helicity_modulus_over_exchange_j"
     },
     {
       "benchmark_name": "two_leg_ladder_strong_rung_exact_limit",
       "canonical_observable_id": "two_leg_ladder_strong_rung_exact_limit",
       "conditions": {
         "backend_scope": "ed_or_analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "j_leg": 0.0,
+          "j_rung": 1.0
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "Jleg chains + Jrung rungs",
@@ -7087,10 +7986,11 @@
           "energy_per_rung",
           "gap_to_triplet"
         ],
-        "identity": "energy_per_rung_and_gap_to_triplet",
+        "identity": "exact_rung_singlet_energy_in_two_leg_heisenberg_ladder_strong_rung",
         "semantics": [
-          "energy per rung",
-          "gap to triplet"
+          "published exact rung singlet energy for two leg heisenberg ladder strong rung",
+          "energy per rung for the two leg heisenberg ladder strong rung Hamiltonian under the declared parameter regime",
+          "gap to triplet for the two leg heisenberg ladder strong rung Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7127,7 +8027,12 @@
       "canonical_observable_id": "uimin_lai_sutherland_spin1_su3_point",
       "conditions": {
         "backend_scope": "bethe_or_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "theta": 0.7853981633974483
+        },
+        "physical_regime": "exactly specified solvable or enumerable model limit",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "cos(theta) Si.Sj + sin(theta)(Si.Sj)^2",
@@ -7144,10 +8049,11 @@
           "theta_radians",
           "su3_symmetric"
         ],
-        "identity": "theta_radians_and_su3_symmetric",
+        "identity": "integrable_point_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "theta radians",
-          "su3 symmetric"
+          "published integrable point for spin 1 bilinear biquadratic chain",
+          "theta radians for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime",
+          "su3 symmetric for the spin 1 bilinear biquadratic chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7183,7 +8089,12 @@
       "canonical_observable_id": "vesignieite_kagome_material_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "BaCu3V2O8(OH)2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "distorted kagome Heisenberg antiferromagnet",
@@ -7199,9 +8110,10 @@
         "claim_fields": [
           "distorted_kagome_relevant"
         ],
-        "identity": "distorted_kagome_relevant",
+        "identity": "material_model_in_vesignieite_kagome_antiferromagnet",
         "semantics": [
-          "distorted kagome relevant"
+          "published material model for vesignieite kagome antiferromagnet",
+          "distorted kagome relevant for the vesignieite kagome antiferromagnet Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7231,7 +8143,12 @@
       "canonical_observable_id": "volborthite_kagome_distorted_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "volborthite"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "distorted kagome Heisenberg exchange",
@@ -7246,9 +8163,10 @@
         "claim_fields": [
           "distorted_kagome_reference"
         ],
-        "identity": "distorted_kagome_reference",
+        "identity": "published_observable_in_volborthite_distorted_kagome",
         "semantics": [
-          "distorted kagome reference"
+          "published published observable for volborthite distorted kagome",
+          "identification of the material's magnetically active lattice as distorted kagome"
         ]
       },
       "parameter_regime": {
@@ -7278,7 +8196,13 @@
       "canonical_observable_id": "xx_spin_half_chain_free_fermion_energy",
       "conditions": {
         "backend_scope": "free_fermion_or_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J sum (Sx_i Sx_j + Sy_i Sy_j)",
@@ -7293,9 +8217,10 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "energy_per_site",
+        "identity": "thermodynamic_limit_ground_state_energy_in_spin_1_2_xx_chain",
         "semantics": [
-          "energy per site"
+          "published thermodynamic limit ground state energy for spin 1 2 xx chain",
+          "energy per site for the spin 1 2 xx chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7326,7 +8251,13 @@
       "canonical_observable_id": "xxx_spin_half_chain_bethe_ground_state",
       "conditions": {
         "backend_scope": "bethe_or_extrapolated_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "exchange": 1.0,
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "J sum Si.Si+1",
@@ -7341,9 +8272,10 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "energy_per_site",
+        "identity": "thermodynamic_limit_ground_state_energy_in_spin_1_2_xxx_chain",
         "semantics": [
-          "energy per site"
+          "published thermodynamic limit ground state energy for spin 1 2 xxx chain",
+          "energy per site for the spin 1 2 xxx chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7374,7 +8306,12 @@
       "canonical_observable_id": "xxz_spin_half_chain_phase_boundaries",
       "conditions": {
         "backend_scope": "analytic",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "sum [SxSx + SySy + Delta SzSz]",
@@ -7391,11 +8328,12 @@
           "neel_boundary_delta",
           "gapless_interval"
         ],
-        "identity": "ferromagnetic_boundary_delta_and_neel_boundary_delta_and_gapless_interval",
+        "identity": "phase_boundaries_in_spin_1_2_xxz_chain",
         "semantics": [
-          "ferromagnetic boundary delta",
-          "neel boundary delta",
-          "gapless interval"
+          "published phase boundaries for spin 1 2 xxz chain",
+          "ferromagnetic boundary delta for the spin 1 2 xxz chain Hamiltonian under the declared parameter regime",
+          "neel boundary delta for the spin 1 2 xxz chain Hamiltonian under the declared parameter regime",
+          "gapless interval for the spin 1 2 xxz chain Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7437,7 +8375,12 @@
       "canonical_observable_id": "xy_spin_half_chain_anisotropic_critical_line",
       "conditions": {
         "backend_scope": "free_fermion_or_ed",
-        "comparison_kind": "exact_solution"
+        "comparison_kind": "exact_solution",
+        "model_parameters": {
+          "spin": 0.5
+        },
+        "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
+        "source_claim_scope": "published exact model result"
       },
       "hamiltonian": {
         "expression": "-sum [(1+gamma) SxSx + (1-gamma) SySy] - h sum Sz",
@@ -7454,10 +8397,11 @@
           "ising_critical_field",
           "anisotropy_transition_gamma"
         ],
-        "identity": "ising_critical_field_and_anisotropy_transition_gamma",
+        "identity": "critical_line_in_spin_1_2_xy_chain_transverse_field",
         "semantics": [
-          "ising critical field",
-          "anisotropy transition gamma"
+          "published critical line for spin 1 2 xy chain transverse field",
+          "ising critical field for the spin 1 2 xy chain transverse field Hamiltonian under the declared parameter regime",
+          "anisotropy transition gamma for the spin 1 2 xy chain transverse field Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7466,10 +8410,10 @@
       "representation": {
         "fields": [
           {
-            "convention": "scalar_or_structured_claim",
+            "convention": "scalar_under_declared_hamiltonian_convention",
             "id": "ising_critical_field",
             "type": "number",
-            "units": "dimensionless"
+            "units": "dimensionless_observable"
           },
           {
             "convention": "ratio_to_named_model_scale",
@@ -7486,14 +8430,19 @@
       },
       "subject": "Xy spin-half chain anisotropic critical line",
       "system": "spin_1_2_xy_chain_transverse_field",
-      "units": "ising_critical_field=dimensionless; anisotropy_transition_gamma=dimensionless_ratio"
+      "units": "ising_critical_field=dimensionless_observable; anisotropy_transition_gamma=dimensionless_ratio"
     },
     {
       "benchmark_name": "yb2ti2o7_pyrochlore_exchange_reference",
       "canonical_observable_id": "yb2ti2o7_pyrochlore_exchange_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "Yb2Ti2O7"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "anisotropic rare-earth pyrochlore exchange",
@@ -7509,9 +8458,10 @@
         "claim_fields": [
           "anisotropic_exchange_fit_reference"
         ],
-        "identity": "anisotropic_exchange_fit_reference",
+        "identity": "exchange_parameter_in_yb2ti2o7_anisotropic_pyrochlore",
         "semantics": [
-          "anisotropic exchange fit reference"
+          "published exchange parameter for yb2ti2o7 anisotropic pyrochlore",
+          "anisotropic exchange parameters inferred from the published fit"
         ]
       },
       "parameter_regime": {
@@ -7541,7 +8491,12 @@
       "canonical_observable_id": "ybmggao4_triangular_spin_liquid_reference",
       "conditions": {
         "backend_scope": "anisotropic_exchange_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "YbMgGaO4"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "effective spin-1/2 triangular anisotropic exchange model",
@@ -7557,9 +8512,10 @@
         "claim_fields": [
           "triangular_quantum_spin_liquid_candidate"
         ],
-        "identity": "triangular_quantum_spin_liquid_candidate",
+        "identity": "material_model_in_ybmggao4_triangular_exchange",
         "semantics": [
-          "triangular quantum spin liquid candidate"
+          "published material model for ybmggao4 triangular exchange",
+          "assessment of quantum-spin-liquid phenomenology in the triangular material"
         ]
       },
       "parameter_regime": {
@@ -7589,7 +8545,12 @@
       "canonical_observable_id": "zn_barlowite_kagome_qsl_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "ZnCu3(OH)6FBr"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "nearly ideal kagome Heisenberg layers with reduced interlayer Cu",
@@ -7605,9 +8566,10 @@
         "claim_fields": [
           "reduced_interlayer_magnetism"
         ],
-        "identity": "reduced_interlayer_magnetism",
+        "identity": "spin_liquid_material_in_zn_substituted_barlowite_kagome",
         "semantics": [
-          "reduced interlayer magnetism"
+          "published spin liquid material for zn substituted barlowite kagome",
+          "reduced interlayer magnetism for the zn substituted barlowite kagome Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {
@@ -7637,7 +8599,12 @@
       "canonical_observable_id": "zncu3oh6cl2_kagome_dzyaloshinskii_moriya_reference",
       "conditions": {
         "backend_scope": "ed_or_experiment",
-        "comparison_kind": "paper_numeric"
+        "comparison_kind": "paper_numeric",
+        "model_parameters": {
+          "material": "ZnCu3(OH)6Cl2"
+        },
+        "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
+        "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
         "expression": "J kagome Heisenberg plus Dzyaloshinskii-Moriya exchange",
@@ -7653,9 +8620,10 @@
         "claim_fields": [
           "dm_interaction_relevant"
         ],
-        "identity": "dm_interaction_relevant",
+        "identity": "material_model_in_herbertsmithite_kagome_dm",
         "semantics": [
-          "dm interaction relevant"
+          "published material model for herbertsmithite kagome dm",
+          "dm interaction relevant for the herbertsmithite kagome dm Hamiltonian under the declared parameter regime"
         ]
       },
       "parameter_regime": {

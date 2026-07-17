@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_f915390aad8ba95157bf",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/revmodphys.87.1",
     "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/revmodphys.87.1 payload for the cited context and the declared directional symmetry observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "directional symmetry",
+      "has line flip symmetries",
+      "compass-model directional symmetries"
+    ],
+    "source_context_hint": "compass-model directional symmetries",
     "target_representation": {
       "fields": [
         {

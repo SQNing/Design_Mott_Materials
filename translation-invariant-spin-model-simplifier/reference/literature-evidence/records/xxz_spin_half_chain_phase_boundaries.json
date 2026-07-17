@@ -62,8 +62,25 @@
   "schema_version": 1,
   "source_id": "doi_99dc2b4658823c56a044",
   "target_locator_strategy": {
+    "canonical_source_identity": "doi:10.1103/physrev.150.321",
     "expected_container": "numbered_or_displayed_equation",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
     "locator_class": "equation",
+    "rationale": "Search the authoritative doi:10.1103/physrev.150.321 payload for the cited context and the declared phase boundaries observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase boundaries",
+      "ferromagnetic boundary delta",
+      "neel boundary delta",
+      "gapless interval",
+      "phase diagram",
+      "XXZ Bethe-ansatz phase diagram"
+    ],
+    "source_context_hint": "XXZ Bethe-ansatz phase diagram",
     "target_representation": {
       "fields": [
         {

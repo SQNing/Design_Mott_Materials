@@ -36,8 +36,23 @@
   "schema_version": 1,
   "source_id": "doi_c0cf5cc8dcbcb862c362",
   "target_locator_strategy": {
-    "expected_container": "abstract_claim_statement",
-    "locator_class": "abstract",
+    "canonical_source_identity": "doi:10.1103/physrevb.57.2968",
+    "expected_container": "main_text_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.57.2968 payload for the cited context and the declared classical spiral pitch observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "Ba2CuGe2O7",
+      "classical spiral pitch",
+      "dm induced incommensurate spiral",
+      "Ba2CuGe2O7 Dzyaloshinskii-Moriya spiral reference"
+    ],
+    "source_context_hint": "Ba2CuGe2O7 Dzyaloshinskii-Moriya spiral reference",
     "target_representation": {
       "fields": [
         {

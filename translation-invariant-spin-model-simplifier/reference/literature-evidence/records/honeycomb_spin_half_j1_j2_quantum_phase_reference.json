@@ -36,8 +36,22 @@
   "schema_version": 1,
   "source_id": "doi_37d6dcbf16346dd8de23",
   "target_locator_strategy": {
-    "expected_container": "main_text_or_supplemental_table",
-    "locator_class": "table",
+    "canonical_source_identity": "doi:10.1103/physrevb.88.165138",
+    "expected_container": "figure_caption_claim_statement",
+    "locator_basis": [
+      "citation_locator",
+      "benchmark_name",
+      "observable_semantics",
+      "canonical_source_identity"
+    ],
+    "locator_class": "figure_caption",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.88.165138 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "search_anchors": [
+      "phase reference",
+      "intermediate nonmagnetic phase candidate",
+      "honeycomb spin-half J1-J2 nonmagnetic phase reference"
+    ],
+    "source_context_hint": "honeycomb spin-half J1-J2 nonmagnetic phase reference",
     "target_representation": {
       "fields": [
         {
