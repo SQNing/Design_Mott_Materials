@@ -12,12 +12,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from validation.literature_evidence_inventory import (
-    CANONICAL_OBSERVABLE_SPECS,
     INVENTORY_ROOT,
     InventoryError,
     build_inventory_data,
     canonical_source_identity,
     derive_unresolved_status,
+    load_canonical_observable_specs,
     load_and_validate_inventory,
     resolve_registry_selector,
     validate_inventory,
@@ -127,8 +127,9 @@ def test_contracts_reject_all_generic_placeholder_families(loaded_inventory):
 
 def test_every_benchmark_has_an_explicit_canonical_observable_spec():
     registry_names = {entry["name"] for entry in LITERATURE_STANDARD_RESULTS}
-    assert set(CANONICAL_OBSERVABLE_SPECS) == registry_names
-    for name, spec in CANONICAL_OBSERVABLE_SPECS.items():
+    specs = load_canonical_observable_specs()
+    assert set(specs) == registry_names
+    for name, spec in specs.items():
         assert set(spec) == {"identity", "primary_semantic"}, name
         assert spec["identity"].strip()
         assert spec["primary_semantic"].strip()
@@ -633,6 +634,55 @@ def test_selectors_resolve_only_registered_claim_operands_and_ignore_record_meta
             )
 
 
+def test_generated_artifact_surfaces_do_not_share_mutable_nested_objects():
+    data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    contract_fields = data["contracts"][0]["representation"]["fields"]
+    record = data["records"][0]
+    locator = data["locator_inventory"][0]
+
+    assert contract_fields is not record["parser_strategy"]["output_fields"]
+    assert record["parser_strategy"]["output_fields"] is not record["comparator"]["fields"]
+    assert record["target_locator_strategy"] is not locator["locator_strategy"]
+
+    original_contract_units = contract_fields[0]["units"]
+    original_comparator_units = record["comparator"]["fields"][0]["units"]
+    original_locator_units = locator["target_representation"]["fields"][0]["units"]
+    record["parser_strategy"]["output_fields"][0]["units"] = "mutated"
+
+    assert contract_fields[0]["units"] == original_contract_units
+    assert record["comparator"]["fields"][0]["units"] == original_comparator_units
+    assert locator["target_representation"]["fields"][0]["units"] == original_locator_units
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda c: c.update(subject="generic"), "subject"),
+        (lambda c: c.update(size_or_limit={"kind": "generic"}), "size or limit"),
+        (lambda c: c.update(units="generic"), "top-level units"),
+        (
+            lambda c: c["conditions"].update(physical_regime="generic"),
+            "physical regime",
+        ),
+        (
+            lambda c: c["conditions"].update(source_claim_scope="generic"),
+            "source claim scope",
+        ),
+        (
+            lambda c: c["conditions"].update(backend_scope="generic"),
+            "backend scope",
+        ),
+    ],
+)
+def test_inventory_rejects_corrupted_canonical_identity_dimensions(
+    loaded_inventory, mutation, message
+):
+    data = mutable_inventory(loaded_inventory)
+    mutation(data["contracts"][0])
+    with pytest.raises(InventoryError, match=message):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
@@ -779,6 +829,34 @@ def test_inventory_rejects_provisioning_mismatch(loaded_inventory):
         validate_inventory(data, LITERATURE_STANDARD_RESULTS)
 
 
+@pytest.mark.parametrize(
+    "cache_location",
+    [
+        "source-cache/../../outside/source.pdf",
+        "source-cache/",
+        "source-cache//etc/passwd",
+        "/source-cache/source.pdf",
+        "source-cache/./source.pdf",
+    ],
+)
+def test_inventory_rejects_unsafe_provisioning_cache_paths(
+    loaded_inventory, cache_location
+):
+    data = mutable_inventory(loaded_inventory)
+    data["source_provisioning"][0]["local_cache_location"] = cache_location
+    with pytest.raises(InventoryError, match="local cache location"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_inventory_rejects_duplicate_provisioning_cache_paths(loaded_inventory):
+    data = mutable_inventory(loaded_inventory)
+    data["source_provisioning"][1]["local_cache_location"] = data[
+        "source_provisioning"
+    ][0]["local_cache_location"]
+    with pytest.raises(InventoryError, match="duplicate local cache location"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
 def test_inventory_rejects_bad_canonical_source_url(loaded_inventory):
     data = mutable_inventory(loaded_inventory)
     data["source_index"][0]["canonical_url"] = "https://example.invalid/source"
@@ -849,6 +927,24 @@ def test_canonical_contracts_are_not_regenerated_from_registry_observable_labels
     rebuilt = build_inventory_data(mutated_registry)["contracts"]
 
     assert rebuilt == baseline
+
+
+def test_alternate_root_generation_reads_that_roots_canonical_contracts(tmp_path):
+    copied_root = tmp_path / "literature-evidence"
+    shutil.copytree(INVENTORY_ROOT, copied_root)
+    contract_path = copied_root / "canonical-observables.json"
+    document = json.loads(contract_path.read_text(encoding="utf-8"))
+    marker = "alternate_root_exact_projector_and_vbs_observable"
+    document["canonical_observables"][0]["observable"]["identity"] = marker
+    contract_path.write_text(
+        json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    generated = build_inventory_data(
+        LITERATURE_STANDARD_RESULTS, inventory_root=copied_root
+    )
+
+    assert generated["contracts"][0]["observable"]["identity"] == marker
 
 
 def _recursive_keys(value):

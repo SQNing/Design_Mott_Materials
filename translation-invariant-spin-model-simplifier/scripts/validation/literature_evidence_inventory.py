@@ -50,6 +50,27 @@ _LOCATOR_CLASS_OVERRIDES = {
     "ni_ps3_honeycomb_antiferromagnet_reference": "abstract",
     "square_spin_half_heisenberg_qmc_energy": "body_text",
 }
+_SIZE_LIMIT_PHYSICAL_REGIMES = {
+    "thermodynamic_limit": (
+        "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters"
+    ),
+    "exact_model_limit": "exactly specified solvable or enumerable model limit",
+    "finite_local_cluster": "finite local cluster defined by the Hamiltonian and lattice",
+    "published_experimental_material_conditions_pending_source_verification": (
+        "published material conditions, to be resolved exactly from the authoritative source"
+    ),
+}
+_SOURCE_CLAIM_SCOPES = frozenset(
+    {
+        "direct published material or experimental observable",
+        "published analytic relation or formula",
+        "published exact model result",
+        "published numerical or categorical model result",
+    }
+)
+_PLACEHOLDER_TEXT = frozenset(
+    {"generic", "unknown", "unspecified", "placeholder", "tbd", "n/a"}
+)
 _ALLOWED_LOCATOR_CLASSES = frozenset(
     {
         "equation",
@@ -197,7 +218,7 @@ def derive_unresolved_status(record):
 
 
 def load_and_validate_inventory(
-    inventory_root=INVENTORY_ROOT, registry_entries=None
+    inventory_root=INVENTORY_ROOT, registry_entries=None, *, registry_path=None
 ):
     if registry_entries is None:
         from validation.literature_spin_model_benchmarks import (
@@ -230,16 +251,16 @@ def load_and_validate_inventory(
         ),
         "records": raw_records,
     }
-    return validate_inventory(data, registry_entries)
+    return validate_inventory(data, registry_entries, registry_path=registry_path)
 
 
-def validate_inventory(data, registry_entries):
+def validate_inventory(data, registry_entries, *, registry_path=None):
     """Validate all inventory documents as one exact, fail-closed unit."""
 
     if not isinstance(data, Mapping):
         raise InventoryError("inventory must be a mapping")
     registry = list(registry_entries)
-    literal_fields_by_name = literal_registry_claim_fields()
+    literal_fields_by_name = literal_registry_claim_fields(registry_path)
     registry_names = [entry.get("name") for entry in registry]
     if len(registry) != 155 or len(set(registry_names)) != 155:
         raise InventoryError("registry must contain exactly 155 unique benchmark names")
@@ -351,18 +372,20 @@ def validate_inventory(data, registry_entries):
     )
 
 
-def build_inventory_data(registry_entries):
+def build_inventory_data(
+    registry_entries, *, inventory_root=INVENTORY_ROOT, registry_path=None
+):
     """Build target-free inventory documents from registry identity metadata."""
 
     registry = sorted(registry_entries, key=lambda entry: entry["name"])
-    literal_fields_by_name = literal_registry_claim_fields()
+    literal_fields_by_name = literal_registry_claim_fields(registry_path)
     sources_by_identity = defaultdict(list)
     for entry in registry:
         identity = canonical_source_identity(entry["source_url"])
         sources_by_identity[identity].append(entry["name"])
 
     contracts = _load_collection(
-        INVENTORY_ROOT / "canonical-observables.json", "canonical_observables"
+        Path(inventory_root) / "canonical-observables.json", "canonical_observables"
     )
     contract_by_name = {contract["benchmark_name"]: contract for contract in contracts}
     records = []
@@ -374,9 +397,12 @@ def build_inventory_data(registry_entries):
             raise InventoryError(
                 f"missing independently maintained canonical contract for {entry['name']}"
             )
-        field_specs = contract["representation"]["fields"]
+        field_specs = _plain(contract["representation"]["fields"])
         locator_class = _forecast_locator_class(entry, field_specs)
-        target_representation = {"kind": "registered_field_map", "fields": field_specs}
+        target_representation = {
+            "kind": "registered_field_map",
+            "fields": _plain(field_specs),
+        }
         locator_strategy = _locator_strategy(
             entry, field_specs, locator_class, target_representation
         )
@@ -394,14 +420,14 @@ def build_inventory_data(registry_entries):
                 },
                 "canonical_observable_id": entry["name"],
                 "evidence_mode": _forecast_evidence_mode(entry),
-                "target_locator_strategy": locator_strategy,
+                "target_locator_strategy": _plain(locator_strategy),
                 "parser_strategy": {
                     "kind": "structured_source_field_extraction",
-                    "output_fields": field_specs,
+                    "output_fields": _plain(field_specs),
                 },
                 "comparator": {
                     "kind": "registered_field_comparison",
-                    "fields": field_specs,
+                    "fields": _plain(field_specs),
                 },
                 "unresolved_reason": (
                     "Authoritative source payload has not been acquired or parsed."
@@ -414,8 +440,8 @@ def build_inventory_data(registry_entries):
                 "source_id": source_id,
                 "locator_class": locator_class,
                 "expected_container": _expected_container(locator_class),
-                "target_representation": target_representation,
-                "locator_strategy": locator_strategy,
+                "target_representation": _plain(target_representation),
+                "locator_strategy": _plain(locator_strategy),
             }
         )
 
@@ -467,7 +493,9 @@ def build_inventory_data(registry_entries):
     }
 
 
-def write_inventory(inventory_root=INVENTORY_ROOT, registry_entries=None):
+def write_inventory(
+    inventory_root=INVENTORY_ROOT, registry_entries=None, *, registry_path=None
+):
     """Write deterministic static JSON artifacts; no source acquisition occurs."""
 
     if registry_entries is None:
@@ -476,8 +504,12 @@ def write_inventory(inventory_root=INVENTORY_ROOT, registry_entries=None):
         )
 
         registry_entries = LITERATURE_STANDARD_RESULTS
-    data = build_inventory_data(registry_entries)
-    validate_inventory(data, registry_entries)
+    data = build_inventory_data(
+        registry_entries,
+        inventory_root=inventory_root,
+        registry_path=registry_path,
+    )
+    validate_inventory(data, registry_entries, registry_path=registry_path)
     root = Path(inventory_root)
     records_dir = root / "records"
     records_dir.mkdir(parents=True, exist_ok=True)
@@ -612,6 +644,8 @@ def _is_generic_observable_identity(identity):
 
 def _validate_canonical_contract_against_registry(contract, entry):
     name = entry["name"]
+    if contract.subject.strip().lower() in _PLACEHOLDER_TEXT:
+        raise InventoryError(f"canonical contract subject is generic for {name}")
     if contract.system != entry["model"]:
         raise InventoryError(f"canonical contract system mismatch for {name}")
     expected_hamiltonian = {
@@ -643,6 +677,19 @@ def _validate_canonical_contract_against_registry(contract, entry):
             raise InventoryError(f"generic representation units for {name}")
         if field["convention"] in _FORBIDDEN_GENERIC_REPRESENTATIONS:
             raise InventoryError(f"generic representation convention for {name}")
+    expected_units = "; ".join(
+        f"{field['id']}={field['units']}" for field in contract.representation["fields"]
+    )
+    if contract.units != expected_units:
+        raise InventoryError(f"canonical top-level units mismatch for {name}")
+    size_or_limit = contract.size_or_limit
+    if set(size_or_limit) != {"category", "scope_subject"}:
+        raise InventoryError(f"canonical size or limit schema mismatch for {name}")
+    size_category = size_or_limit["category"]
+    if size_category not in _SIZE_LIMIT_PHYSICAL_REGIMES:
+        raise InventoryError(f"canonical size or limit category mismatch for {name}")
+    if size_or_limit["scope_subject"] != contract.subject:
+        raise InventoryError(f"canonical size or limit subject mismatch for {name}")
     conditions = contract.conditions
     required_conditions = {
         "comparison_kind",
@@ -653,8 +700,30 @@ def _validate_canonical_contract_against_registry(contract, entry):
     }
     if not required_conditions <= set(conditions):
         raise InventoryError(f"canonical physical conditions missing for {name}")
+    if conditions["comparison_kind"] != entry["comparison_kind"]:
+        raise InventoryError(f"canonical comparison condition mismatch for {name}")
+    if conditions["backend_scope"] != entry["backend_needed"]:
+        raise InventoryError(f"canonical backend scope mismatch for {name}")
+    if conditions["physical_regime"] != _SIZE_LIMIT_PHYSICAL_REGIMES[size_category]:
+        raise InventoryError(f"canonical physical regime mismatch for {name}")
+    expected_claim_scope = _expected_source_claim_scope(entry)
+    if (
+        conditions["source_claim_scope"] not in _SOURCE_CLAIM_SCOPES
+        or conditions["source_claim_scope"] != expected_claim_scope
+    ):
+        raise InventoryError(f"canonical source claim scope mismatch for {name}")
     if _plain(conditions["model_parameters"]) != entry["parameters"]:
         raise InventoryError(f"canonical condition parameters mismatch for {name}")
+
+
+def _expected_source_claim_scope(entry):
+    if _is_material_claim(entry):
+        return "direct published material or experimental observable"
+    if entry["comparison_kind"] in {"exact_solution", "exact_enumeration"}:
+        return "published exact model result"
+    if entry["comparison_kind"] == "paper_formula":
+        return "published analytic relation or formula"
+    return "published numerical or categorical model result"
 
 
 def _validate_selector(selector):
@@ -818,6 +887,20 @@ def _validate_provisioning(routes, expected_sources):
     route_ids = [route.get("source_id") for route in routes]
     if len(routes) != 133 or set(route_ids) != expected_ids or len(set(route_ids)) != 133:
         raise InventoryError("source provisioning must match all 133 source identities exactly")
+    cache_locations = [route.get("local_cache_location") for route in routes]
+    duplicate_locations = sorted(
+        [
+            location
+            for location, count in Counter(cache_locations).items()
+            if count > 1
+        ],
+        key=repr,
+    )
+    if duplicate_locations:
+        raise InventoryError(
+            "duplicate local cache location: "
+            + ", ".join(repr(location) for location in duplicate_locations)
+        )
     for route in routes:
         required = {
             "source_id",
@@ -858,7 +941,8 @@ def _validate_provisioning(routes, expected_sources):
             raise InventoryError(
                 f"source availability must be not_acquired for {route['source_id']}"
             )
-        if not route["local_cache_location"].startswith("source-cache/"):
+        expected_cache_location = f"source-cache/{route['source_id']}/source.pdf"
+        if route["local_cache_location"] != expected_cache_location:
             raise InventoryError(f"invalid local cache location for {route['source_id']}")
 
 
@@ -1037,9 +1121,11 @@ def _load_json(path):
         raise InventoryError(f"cannot load structured JSON {path}: {exc}") from exc
 
 
-def _canonical_observable_specs_from_artifact():
+def load_canonical_observable_specs(inventory_root=INVENTORY_ROOT):
+    """Load explicit canonical identities without performing import-time I/O."""
+
     contracts = _load_collection(
-        INVENTORY_ROOT / "canonical-observables.json", "canonical_observables"
+        Path(inventory_root) / "canonical-observables.json", "canonical_observables"
     )
     return {
         contract["benchmark_name"]: {
@@ -1048,9 +1134,6 @@ def _canonical_observable_specs_from_artifact():
         }
         for contract in contracts
     }
-
-
-CANONICAL_OBSERVABLE_SPECS = _canonical_observable_specs_from_artifact()
 
 
 def _write_collection(path, key, values):
