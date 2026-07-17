@@ -95,6 +95,18 @@
     },
     {
       "benchmark_names": [
+        "honeycomb_ising_ferromagnet_exact_tc",
+        "triangular_ising_ferromagnet_exact_tc"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1016/0031-8914(50)90130-3"
+      },
+      "canonical_url": "https://doi.org/10.1016/0031-8914(50)90130-3",
+      "source_id": "doi_54d369496b49144e511c"
+    },
+    {
+      "benchmark_names": [
         "fecl3_honeycomb_antiferromagnet_reference"
       ],
       "canonical_identity": {
@@ -106,50 +118,18 @@
     },
     {
       "benchmark_names": [
-        "honeycomb_j1_j2_j3_classical_phase_diagram"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0304-8853(79)90049-2"
-      },
-      "canonical_url": "https://doi.org/10.1016/0304-8853(79)90049-2",
-      "source_id": "doi_531cce39b8630ae418ce"
-    },
-    {
-      "benchmark_names": [
         "takhtajan_babujian_spin1_critical_point"
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1016/0370-2693(82)90471-0"
+        "value": "10.1016/0375-9601(82)90403-0"
       },
-      "canonical_url": "https://doi.org/10.1016/0370-2693(82)90471-0",
-      "source_id": "doi_4ab4f44c819fbd03a62c"
+      "canonical_url": "https://doi.org/10.1016/0375-9601(82)90403-0",
+      "source_id": "doi_9814f6955bf2fbad0268"
     },
     {
       "benchmark_names": [
-        "uimin_lai_sutherland_spin1_su3_point"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0375-9601(74)90701-2"
-      },
-      "canonical_url": "https://doi.org/10.1016/0375-9601(74)90701-2",
-      "source_id": "doi_418535974c0633b7e338"
-    },
-    {
-      "benchmark_names": [
-        "shastry_sutherland_exact_dimer_product"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0375-9601(81)90438-x"
-      },
-      "canonical_url": "https://doi.org/10.1016/0375-9601(81)90438-x",
-      "source_id": "doi_a9fa724159c277eaa6cb"
-    },
-    {
-      "benchmark_names": [
+        "j1_j2_chain_bkt_transition_reference",
         "j1_j2_chain_okamoto_nomura_critical_point"
       ],
       "canonical_identity": {
@@ -161,14 +141,25 @@
     },
     {
       "benchmark_names": [
-        "j1_j2_chain_bkt_transition_reference"
+        "honeycomb_j1_j2_j3_classical_phase_diagram"
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1016/0375-9601(92)90923-5"
+        "value": "10.1016/0378-4363(79)90002-0"
       },
-      "canonical_url": "https://doi.org/10.1016/0375-9601(92)90923-5",
-      "source_id": "doi_7ebcee4afff97a154c76"
+      "canonical_url": "https://doi.org/10.1016/0378-4363(79)90002-0",
+      "source_id": "doi_08576beddad416af9b0e"
+    },
+    {
+      "benchmark_names": [
+        "shastry_sutherland_exact_dimer_product"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1016/0378-4363(81)90838-x"
+      },
+      "canonical_url": "https://doi.org/10.1016/0378-4363(81)90838-x",
+      "source_id": "doi_804ce6147864268c7acb"
     },
     {
       "benchmark_names": [
@@ -193,18 +184,6 @@
       },
       "canonical_url": "https://doi.org/10.1016/s0003-4916(02)00018-0",
       "source_id": "doi_33fcf4c762fb137794a6"
-    },
-    {
-      "benchmark_names": [
-        "honeycomb_ising_ferromagnet_exact_tc",
-        "triangular_ising_ferromagnet_exact_tc"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/s0031-8914(50)80099-3"
-      },
-      "canonical_url": "https://doi.org/10.1016/s0031-8914(50)80099-3",
-      "source_id": "doi_d579aa38d45a8e10082d"
     },
     {
       "benchmark_names": [
@@ -461,6 +440,17 @@
     },
     {
       "benchmark_names": [
+        "crgete3_honeycomb_ferromagnet_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1088/0953-8984/7/1/008"
+      },
+      "canonical_url": "https://doi.org/10.1088/0953-8984/7/1/008",
+      "source_id": "doi_3c0cd7d12c74eed185ff"
+    },
+    {
+      "benchmark_names": [
         "ru_br3_kitaev_material_reference"
       ],
       "canonical_identity": {
@@ -591,6 +581,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.109.235116",
       "source_id": "doi_ae5fae7f5deae7bdf7e5"
+    },
+    {
+      "benchmark_names": [
+        "uimin_lai_sutherland_spin1_su3_point"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.12.3795"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.12.3795",
+      "source_id": "doi_459b2c4561d2c048a02d"
     },
     {
       "benchmark_names": [
@@ -1452,17 +1453,6 @@
       },
       "canonical_url": "https://doi.org/10.1143/ptp.10.158",
       "source_id": "doi_5ff3dbcb129ebe58da6a"
-    },
-    {
-      "benchmark_names": [
-        "crgete3_honeycomb_ferromagnet_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1209/0295-5075/29/4/008"
-      },
-      "canonical_url": "https://doi.org/10.1209/0295-5075/29/4/008",
-      "source_id": "doi_c0dc2e73472a60a1af6e"
     },
     {
       "benchmark_names": [

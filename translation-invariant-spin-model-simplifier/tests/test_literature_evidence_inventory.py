@@ -446,13 +446,20 @@ def test_provisional_records_are_complete_and_fail_closed(loaded_inventory):
             EvidenceRecord(**plain)
 
 
-def test_sources_are_133_unique_canonical_identities_covering_every_record(
+def test_sources_are_registry_derived_unique_canonical_identities_covering_every_record(
     loaded_inventory,
 ):
     sources = loaded_inventory.source_index
-    assert len(sources) == 133
-    assert len({source["source_id"] for source in sources}) == 133
-    assert len({tuple(source["canonical_identity"].items()) for source in sources}) == 133
+    expected_identities = {
+        canonical_source_identity(entry["source_url"])
+        for entry in LITERATURE_STANDARD_RESULTS
+    }
+    assert len(expected_identities) == 132
+    assert len(sources) == len(expected_identities)
+    assert len({source["source_id"] for source in sources}) == len(expected_identities)
+    assert len({tuple(source["canonical_identity"].items()) for source in sources}) == len(
+        expected_identities
+    )
     assert {source["source_id"] for source in sources} == {
         record.source_id for record in loaded_inventory.records
     }
@@ -462,7 +469,7 @@ def test_sources_are_133_unique_canonical_identities_covering_every_record(
         entry["source_url"]: canonical_source_identity(entry["source_url"])
         for entry in LITERATURE_STANDARD_RESULTS
     }
-    assert len(set(by_url.values())) == 133
+    assert set(by_url.values()) == expected_identities
     assert canonical_source_identity(
         "https://doi.org/10.1103/PhysRevLett.26.832"
     ) == canonical_source_identity("https://DOI.org/10.1103/physrevlett.26.832")
@@ -510,6 +517,9 @@ def test_corrected_material_primary_source_dois_are_registered(loaded_inventory)
     assert registry_by_name["garnet_gd3ga5o12_spin_liquid_reference"] == (
         "https://doi.org/10.1103/PhysRevLett.80.4570"
     )
+    assert registry_by_name["crgete3_honeycomb_ferromagnet_reference"] == (
+        "https://doi.org/10.1088/0953-8984/7/1/008"
+    )
     identities = {
         source["canonical_identity"]["value"]
         for source in loaded_inventory.source_index
@@ -518,13 +528,82 @@ def test_corrected_material_primary_source_dois_are_registered(loaded_inventory)
     assert "10.1103/physrevlett.80.4570" in identities
     assert "10.1103/physrevb.90.094426" not in identities
     assert "10.1103/physrevb.57.4986" not in identities
+    assert "10.1088/0953-8984/7/1/008" in identities
+    assert "10.1209/0295-5075/29/4/008" not in identities
+
+
+def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
+    registry_by_name = {
+        entry["name"]: entry["source_url"] for entry in LITERATURE_STANDARD_RESULTS
+    }
+    expected = {
+        "honeycomb_j1_j2_j3_classical_phase_diagram": (
+            "https://doi.org/10.1016/0378-4363(79)90002-0"
+        ),
+        "takhtajan_babujian_spin1_critical_point": (
+            "https://doi.org/10.1016/0375-9601(82)90403-0"
+        ),
+        "uimin_lai_sutherland_spin1_su3_point": (
+            "https://doi.org/10.1103/PhysRevB.12.3795"
+        ),
+        "shastry_sutherland_exact_dimer_product": (
+            "https://doi.org/10.1016/0378-4363(81)90838-X"
+        ),
+        "j1_j2_chain_bkt_transition_reference": (
+            "https://doi.org/10.1016/0375-9601(92)90823-5"
+        ),
+        "triangular_ising_ferromagnet_exact_tc": (
+            "https://doi.org/10.1016/0031-8914(50)90130-3"
+        ),
+        "honeycomb_ising_ferromagnet_exact_tc": (
+            "https://doi.org/10.1016/0031-8914(50)90130-3"
+        ),
+    }
+    for benchmark_name, source_url in expected.items():
+        assert registry_by_name[benchmark_name] == source_url
+
+    identities = {
+        source["canonical_identity"]["value"]
+        for source in loaded_inventory.source_index
+    }
+    corrected = {
+        canonical_source_identity(source_url).split(":", 1)[1]
+        for source_url in expected.values()
+    }
+    invalid = {
+        "10.1016/0304-8853(79)90049-2",
+        "10.1016/0370-2693(82)90471-0",
+        "10.1016/0375-9601(74)90701-2",
+        "10.1016/0375-9601(81)90438-x",
+        "10.1016/0375-9601(92)90923-5",
+        "10.1016/s0031-8914(50)80099-3",
+    }
+    assert corrected <= identities
+    assert identities.isdisjoint(invalid)
+
+    okamoto_identity = canonical_source_identity(
+        expected["j1_j2_chain_bkt_transition_reference"]
+    )
+    okamoto_source = next(
+        source
+        for source in loaded_inventory.source_index
+        if (
+            f"{source['canonical_identity']['kind']}:"
+            f"{source['canonical_identity']['value']}"
+        )
+        == okamoto_identity
+    )
+    assert set(okamoto_source["benchmark_names"]) == {
+        "j1_j2_chain_bkt_transition_reference",
+        "j1_j2_chain_okamoto_nomura_critical_point",
+    }
 
 
 def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
     loaded_inventory,
 ):
     routes = loaded_inventory.source_provisioning
-    assert len(routes) == 133
+    assert len(routes) == len(loaded_inventory.source_index) == 132
     assert {route["source_id"] for route in routes} == {
         source["source_id"] for source in loaded_inventory.source_index
     }
@@ -538,6 +617,8 @@ def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
         assert route["authoritative_retrieval_route"] == {
             "kind": expected["kind"],
             "url": expected["url"],
+            "artifact_identifier": expected["artifact_identifier"],
+            "work_identity_evidence": expected["work_identity_evidence"],
         }
         assert route["access_mode"] == expected["access_mode"]
         assert route["authoritative_retrieval_route"]["kind"] != (
@@ -802,7 +883,7 @@ def test_provisional_record_rejects_any_source_hash(source_hash, loaded_inventor
 def test_inventory_rejects_bad_source_count_or_identity(loaded_inventory):
     data = mutable_inventory(loaded_inventory)
     data["source_index"].pop()
-    with pytest.raises(InventoryError, match="133"):
+    with pytest.raises(InventoryError, match="canonical source identities exactly"):
         validate_inventory(data, LITERATURE_STANDARD_RESULTS)
 
     data = mutable_inventory(loaded_inventory)

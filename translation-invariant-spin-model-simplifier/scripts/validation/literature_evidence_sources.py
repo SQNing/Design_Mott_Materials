@@ -40,6 +40,27 @@ _AUTHORITATIVE_ORIGINS = {
     "institutional_repository",
     "author_repository",
 }
+_OPEN_REPOSITORY_ROUTES = {
+    "10.1016/j.aop.2005.10.005": ("cond-mat/0506438", "W2141708961"),
+    "10.1016/s0003-4916(02)00018-0": ("quant-ph/9707021", "W2135273380"),
+    "10.1038/nmat1867": ("cond-mat/0702589", "W1968777969"),
+    "10.1038/nphys3826": ("1606.06463", "W2463289911"),
+    "10.1088/0305-4470/38/26/003": ("cond-mat/0502556", "W1975695579"),
+    "10.1088/1361-648x/aa8cf5": ("1706.06113", "W2631568866"),
+    "10.1126/science.1201080": ("1011.6114", "W2057666228"),
+    "10.1126/science.271.5249.618": ("cond-mat/9509181", "W2055891591"),
+    "10.1143/jpsj.70.3377": ("cond-mat/0111127", "W2131097405"),
+    "10.1143/jpsj.78.043704": ("0902.3028", "W2091151398"),
+}
+_INSTITUTIONAL_REPOSITORY_ROUTES = {}
+_OPEN_PUBLISHER_ROUTES = {
+    "10.1038/ncomms14113": ("ncomms14113", "W2591608240"),
+    "10.1038/ncomms2914": ("ncomms2914", "W2068740639"),
+    "10.1038/ncomms3287": ("ncomms3287", "W2103622306"),
+    "10.1038/ncomms5203": ("ncomms5203", "W2013284845"),
+    "10.1038/ncomms6137": ("ncomms6137", "W1695352508"),
+    "10.1038/srep16419": ("srep16419", "W3105052732"),
+}
 
 
 def authoritative_route_for_identity(identity):
@@ -52,8 +73,26 @@ def authoritative_route_for_identity(identity):
     value = identity["value"]
     _require_text(kind, "source identity kind")
     _require_text(value, "source identity value")
-    if kind == "arxiv":
+    def canonical_route(route_kind, url, media_type, access_mode):
+        canonical_url = (
+            f"https://arxiv.org/abs/{value}"
+            if kind == "arxiv"
+            else f"https://doi.org/{value}"
+        )
         return _route(
+            route_kind,
+            url,
+            media_type,
+            access_mode,
+            artifact_identifier=f"{kind}:{value}",
+            work_identity_evidence={
+                "kind": "canonical_identity",
+                "url": canonical_url,
+            },
+        )
+
+    if kind == "arxiv":
+        return canonical_route(
             "arxiv_export_pdf",
             f"https://export.arxiv.org/pdf/{value}",
             "application/pdf",
@@ -64,85 +103,130 @@ def authoritative_route_for_identity(identity):
     prefix, separator, suffix = value.partition("/")
     if not separator:
         raise SourceEvidenceError("DOI identity must contain a registrant prefix and suffix")
-    if prefix == "10.1103":
+    repository_route = _OPEN_REPOSITORY_ROUTES.get(value.lower())
+    if repository_route is not None:
+        arxiv_id, openalex_id = repository_route
         return _route(
+            "arxiv_author_manuscript_pdf",
+            f"https://export.arxiv.org/pdf/{arxiv_id}",
+            "application/pdf",
+            "unattended",
+            artifact_identifier=f"arxiv:{arxiv_id}",
+            work_identity_evidence={
+                "kind": "openalex_same_work_location",
+                "url": f"https://api.openalex.org/works/{openalex_id}",
+            },
+        )
+    publisher_route = _OPEN_PUBLISHER_ROUTES.get(value.lower())
+    if publisher_route is not None:
+        article_id, openalex_id = publisher_route
+        return _route(
+            "nature_open_article_pdf",
+            f"https://www.nature.com/articles/{article_id}.pdf",
+            "application/pdf",
+            "unattended",
+            artifact_identifier=f"doi:{value}",
+            work_identity_evidence={
+                "kind": "openalex_publisher_oa_location",
+                "url": f"https://api.openalex.org/works/{openalex_id}",
+            },
+        )
+    institutional_route = _INSTITUTIONAL_REPOSITORY_ROUTES.get(value.lower())
+    if institutional_route is not None:
+        return _route(
+            "institutional_repository_pdf",
+            institutional_route["url"],
+            "application/pdf",
+            "unattended",
+            artifact_identifier=institutional_route["artifact_identifier"],
+            work_identity_evidence={
+                "kind": "semantic_scholar_same_work_location",
+                "url": (
+                    "https://api.semanticscholar.org/graph/v1/paper/"
+                    + institutional_route["semantic_scholar_id"]
+                    + "?fields=paperId,title,externalIds,openAccessPdf,url"
+                ),
+            },
+        )
+    if prefix == "10.1103":
+        return canonical_route(
             "aps_harvest_pdf",
             f"https://harvest.aps.org/v2/journals/articles/{value}/fulltext",
             "application/pdf",
             "unattended",
         )
     if prefix == "10.1016":
-        return _route(
+        return canonical_route(
             "elsevier_article_api_xml",
             f"https://api.elsevier.com/content/article/doi/{value}",
             "application/xml",
             "api_key_or_entitlement",
         )
     if prefix == "10.1038":
-        return _route(
+        return canonical_route(
             "nature_article_pdf",
             f"https://www.nature.com/articles/{suffix}.pdf",
             "application/pdf",
             "authenticated_session",
         )
     if prefix == "10.1007":
-        return _route(
+        return canonical_route(
             "springer_content_pdf",
             f"https://link.springer.com/content/pdf/{value}.pdf",
             "application/pdf",
             "authenticated_session",
         )
     if prefix == "10.1140":
-        return _route(
+        return canonical_route(
             "epj_springer_content_pdf",
             f"https://link.springer.com/content/pdf/{value}.pdf",
             "application/pdf",
             "authenticated_session",
         )
     if prefix == "10.1088":
-        return _route(
+        return canonical_route(
             "iop_article_pdf",
             f"https://iopscience.iop.org/article/{value}/pdf",
             "application/pdf",
             "challenge_or_institutional",
         )
     if prefix == "10.1209":
-        return _route(
+        return canonical_route(
             "epl_iop_article_pdf",
             f"https://iopscience.iop.org/article/{value}/pdf",
             "application/pdf",
             "challenge_or_institutional",
         )
     if prefix == "10.1126":
-        return _route(
+        return canonical_route(
             "science_article_pdf",
             f"https://www.science.org/doi/pdf/{value}",
             "application/pdf",
             "challenge_or_institutional",
         )
     if prefix == "10.1063":
-        return _route(
+        return canonical_route(
             "aip_article_discovery",
             f"https://doi.org/{value}",
             "application/pdf",
             "challenge_or_institutional",
         )
     if prefix == "10.1021":
-        return _route(
+        return canonical_route(
             "acs_article_pdf",
             f"https://pubs.acs.org/doi/pdf/{value}",
             "application/pdf",
             "challenge_or_institutional",
         )
     if prefix == "10.1143":
-        return _route(
+        return canonical_route(
             "jpsj_article_pdf",
             f"https://journals.jps.jp/doi/pdf/{value}",
             "application/pdf",
             "challenge_or_institutional",
         )
     if prefix == "10.1002":
-        return _route(
+        return canonical_route(
             "wiley_book_provisioning",
             f"https://doi.org/{value}",
             "application/pdf",
@@ -151,12 +235,22 @@ def authoritative_route_for_identity(identity):
     raise SourceEvidenceError(f"no authoritative route is declared for DOI prefix {prefix}")
 
 
-def _route(kind, url, media_type, access_mode):
+def _route(
+    kind,
+    url,
+    media_type,
+    access_mode,
+    *,
+    artifact_identifier,
+    work_identity_evidence,
+):
     return {
         "kind": kind,
         "url": url,
         "expected_media_type": media_type,
         "access_mode": access_mode,
+        "artifact_identifier": artifact_identifier,
+        "work_identity_evidence": work_identity_evidence,
     }
 
 
@@ -205,10 +299,7 @@ def validate_download_response(route, *, status, headers, body, final_url):
         lowered = body.lower()
         if b"unauthorized request results in minimized metadata" in lowered:
             raise SourceEvidenceError("Elsevier response is minimized metadata, not full text")
-        try:
-            ElementTree.fromstring(body)
-        except ElementTree.ParseError as exc:
-            raise SourceEvidenceError(f"downloaded XML is malformed: {exc}") from exc
+        _xml_article_text(body, context="downloaded XML")
     else:
         raise SourceEvidenceError(f"unsupported authoritative media type {expected}")
     return content_type
@@ -251,6 +342,12 @@ def load_verified_source(
     _validate_expected_source(raw, expected_source, provisioning_route)
     _validate_bibliographic_metadata(raw["bibliographic_metadata"])
     _validate_retrieval_metadata(raw["retrieval_metadata"], raw["source_identity"], provisioning_route)
+    _validate_work_identity_payload(
+        root,
+        raw["retrieval_metadata"],
+        raw["source_identity"],
+        provisioning_route,
+    )
     _validate_structured_notes(raw)
 
     payload_path = _payload_path(root, raw["payload_relative_path"])
@@ -353,7 +450,17 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
         "response_headers",
         "immutable_artifact_identifier",
     }
-    _require_exact_fields(metadata, required, "retrieval_metadata")
+    _require_mapping(metadata, "retrieval_metadata")
+    missing = sorted(required - set(metadata))
+    extra = sorted(set(metadata) - required - {"work_identity_evidence"})
+    if missing:
+        raise SourceEvidenceError(
+            f"retrieval_metadata missing required field {missing[0]}"
+        )
+    if extra:
+        raise SourceEvidenceError(
+            f"retrieval_metadata contains unsupported field {extra[0]}"
+        )
     _require_text(metadata["url"], "url")
     try:
         datetime.fromisoformat(metadata["retrieved_at"])
@@ -370,9 +477,172 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
     if isinstance(status, bool) or not isinstance(status, int) or not 200 <= status < 300:
         raise SourceEvidenceError("http_status must be a successful integer status")
     _require_mapping(metadata["response_headers"], "response_headers")
-    expected_artifact_id = f"{identity['kind']}:{identity['value']}"
+    route = provisioning_route.get("authoritative_retrieval_route", {})
+    expected_artifact_id = route.get(
+        "artifact_identifier", f"{identity['kind']}:{identity['value']}"
+    )
     if metadata["immutable_artifact_identifier"] != expected_artifact_id:
         raise SourceEvidenceError("immutable_artifact_identifier disagrees with source identity")
+    evidence = route.get("work_identity_evidence")
+    if evidence and evidence.get("kind") != "canonical_identity":
+        stored = metadata.get("work_identity_evidence")
+        _require_mapping(stored, "work_identity_evidence")
+        if not _same_work_identity_route(stored, evidence):
+            raise SourceEvidenceError("work identity evidence route disagrees with provisioning")
+        allowed = {
+            "kind",
+            "url",
+            "payload_relative_path",
+            "payload_sha256",
+            "payload_byte_length",
+        }
+        if set(stored) not in ({"kind", "url"}, allowed):
+            raise SourceEvidenceError("work_identity_evidence has invalid fields")
+    elif "work_identity_evidence" in metadata:
+        raise SourceEvidenceError("canonical publisher route must not add work identity evidence")
+
+
+def _same_work_identity_route(stored, expected):
+    if stored.get("kind") != expected.get("kind"):
+        return False
+    stored_url = stored.get("url")
+    expected_url = expected.get("url")
+    if stored_url == expected_url:
+        return True
+    if not isinstance(stored_url, str) or not isinstance(expected_url, str):
+        return False
+    left = urlparse(stored_url)
+    right = urlparse(expected_url)
+    kind = expected["kind"]
+    if kind.startswith("openalex_"):
+        allowed_hosts = {"openalex.org", "api.openalex.org"}
+        left_id = left.path.rstrip("/").rsplit("/", 1)[-1]
+        right_id = right.path.rstrip("/").rsplit("/", 1)[-1]
+        return (
+            left.hostname in allowed_hosts
+            and right.hostname in allowed_hosts
+            and re.fullmatch(r"W\d+", left_id) is not None
+            and left_id == right_id
+        )
+    if kind == "semantic_scholar_same_work_location":
+        return (
+            left.hostname == right.hostname == "api.semanticscholar.org"
+            and left.path.rstrip("/") == right.path.rstrip("/")
+        )
+    return False
+
+
+def _validate_work_identity_payload(root, metadata, identity, provisioning_route):
+    route = provisioning_route.get("authoritative_retrieval_route", {})
+    expected = route.get("work_identity_evidence", {})
+    if expected.get("kind") in {None, "canonical_identity"}:
+        return
+    stored = metadata["work_identity_evidence"]
+    if "payload_relative_path" in stored:
+        descriptor = stored
+    else:
+        descriptor = _load_json(root / "work-identity.provenance.json")
+        _require_exact_fields(
+            descriptor,
+            {
+                "kind",
+                "url",
+                "payload_relative_path",
+                "payload_sha256",
+                "payload_byte_length",
+            },
+            "work identity sidecar provenance",
+        )
+        if not _same_work_identity_route(descriptor, stored):
+            raise SourceEvidenceError("work identity sidecar disagrees with source provenance")
+    evidence_path = _payload_path(root, descriptor["payload_relative_path"])
+    try:
+        payload = evidence_path.read_bytes()
+    except OSError as exc:
+        raise SourceEvidenceError(
+            f"cannot read work identity evidence {evidence_path}: {exc}"
+        ) from exc
+    if not payload:
+        raise SourceEvidenceError("work identity evidence payload is empty")
+    if hashlib.sha256(payload).hexdigest() != descriptor["payload_sha256"]:
+        raise SourceEvidenceError("work identity evidence SHA-256 does not match provenance")
+    if len(payload) != descriptor["payload_byte_length"]:
+        raise SourceEvidenceError("work identity evidence byte length does not match provenance")
+    document = _load_json(evidence_path)
+    validate_work_identity_document(
+        document,
+        identity=identity,
+        authoritative_route=route,
+        evidence_kind=descriptor["kind"],
+    )
+
+
+def validate_work_identity_document(
+    document,
+    *,
+    identity,
+    authoritative_route,
+    evidence_kind,
+):
+    """Prove that an external work record links a DOI to the retrieved artifact."""
+
+    _require_mapping(document, "work identity evidence document")
+    canonical_doi = identity.get("value", "").casefold()
+    artifact_identifier = authoritative_route.get("artifact_identifier", "")
+    if evidence_kind.startswith("openalex_"):
+        reported_doi = str(document.get("doi", ""))
+        if reported_doi.casefold() != f"https://doi.org/{canonical_doi}":
+            raise SourceEvidenceError("work identity evidence canonical DOI mismatch")
+        locations = document.get("locations")
+        if not isinstance(locations, list):
+            raise SourceEvidenceError("OpenAlex work identity evidence has no locations")
+        location_urls = {
+            location.get(field)
+            for location in locations
+            if isinstance(location, Mapping)
+            for field in ("pdf_url", "landing_page_url")
+            if isinstance(location.get(field), str)
+        }
+    elif evidence_kind == "semantic_scholar_same_work_location":
+        external_ids = document.get("externalIds")
+        if not isinstance(external_ids, Mapping) or str(
+            external_ids.get("DOI", "")
+        ).casefold() != canonical_doi:
+            raise SourceEvidenceError("work identity evidence canonical DOI mismatch")
+        open_pdf = document.get("openAccessPdf")
+        location_urls = {
+            open_pdf.get("url")
+        } if isinstance(open_pdf, Mapping) and isinstance(open_pdf.get("url"), str) else set()
+    else:
+        raise SourceEvidenceError(
+            f"unsupported work identity evidence kind {evidence_kind}"
+        )
+    if not _artifact_location_matches(
+        artifact_identifier,
+        authoritative_route.get("url", ""),
+        location_urls,
+    ):
+        raise SourceEvidenceError("work identity evidence does not locate the retrieved artifact")
+
+
+def _artifact_location_matches(artifact_identifier, retrieval_url, location_urls):
+    if artifact_identifier.startswith("arxiv:"):
+        expected_id = artifact_identifier.split(":", 1)[1]
+        for location_url in location_urls:
+            parsed = urlparse(location_url)
+            if parsed.hostname not in {"arxiv.org", "export.arxiv.org"}:
+                continue
+            path = parsed.path.strip("/")
+            for prefix in ("pdf/", "abs/"):
+                if path.startswith(prefix):
+                    path = path[len(prefix) :]
+            path = path.removesuffix(".pdf")
+            if arxiv_atom_identifier_matches(
+                f"https://arxiv.org/abs/{path}", expected_id
+            ):
+                return True
+        return False
+    return retrieval_url in location_urls
 
 
 def _validate_structured_notes(raw):
@@ -459,11 +729,7 @@ def _extract_text(payload_path, payload, media_type, extraction):
     if media_type in {"application/xml", "text/xml"}:
         if extraction["tool"] != "xml_text_content":
             raise SourceEvidenceError("XML payload requires xml_text_content extraction")
-        try:
-            root = ElementTree.fromstring(payload)
-        except ElementTree.ParseError as exc:
-            raise SourceEvidenceError(f"malformed XML payload: {exc}") from exc
-        return " ".join(text.strip() for text in root.itertext() if text.strip())
+        return _xml_article_text(payload, context="XML payload")
     if media_type.startswith("text/"):
         if extraction["tool"] != "utf8_text":
             raise SourceEvidenceError("text payload requires utf8_text extraction")
@@ -489,6 +755,53 @@ def _pdftotext_version():
     if not first_line.startswith(prefix) or not first_line[len(prefix) :].strip():
         raise SourceEvidenceError("cannot parse pdftotext version")
     return first_line[len(prefix) :].strip()
+
+
+def _xml_article_text(payload, *, context):
+    try:
+        root = ElementTree.fromstring(payload)
+    except ElementTree.ParseError as exc:
+        raise SourceEvidenceError(f"{context} is malformed: {exc}") from exc
+    def local_tag(node):
+        return node.tag.rsplit("}", 1)[-1].casefold()
+
+    nodes = [node for node in root.iter() if isinstance(node.tag, str)]
+    explicit_body_nodes = [
+        node for node in nodes if local_tag(node) in {"body", "originaltext", "sections"}
+    ]
+    if explicit_body_nodes:
+        body_nodes = explicit_body_nodes
+    else:
+        content_tags = {"p", "para", "section"}
+        body_nodes = [
+            node
+            for node in nodes
+            if local_tag(node) == "article"
+            and any(
+                local_tag(descendant) in content_tags
+                for descendant in node.iter()
+                if isinstance(descendant.tag, str)
+            )
+        ]
+    if not body_nodes:
+        raise SourceEvidenceError(f"{context} contains metadata but no article body")
+    paragraph_tags = {"p", "para", "simple-para"}
+    paragraph_nodes = [
+        descendant
+        for node in body_nodes
+        for descendant in node.iter()
+        if isinstance(descendant.tag, str)
+        and local_tag(descendant) in paragraph_tags
+    ]
+    body_text = " ".join(
+        text.strip()
+        for node in paragraph_nodes
+        for text in node.itertext()
+        if text.strip()
+    )
+    if not body_text:
+        raise SourceEvidenceError(f"{context} contains no nonempty article body")
+    return body_text
 
 
 def _require_target_anchors(text, anchors):

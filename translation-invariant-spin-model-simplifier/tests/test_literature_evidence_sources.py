@@ -114,6 +114,66 @@ def _write_source(tmp_path, provenance=None, payload=PAYLOAD):
     return source_dir
 
 
+def _repository_fixture(
+    tmp_path,
+    *,
+    evidence_doi=DOI,
+    evidence_arxiv_id="2401.01234",
+    legacy_evidence_url=False,
+):
+    arxiv_id = "2401.01234"
+    evidence_url = "https://api.openalex.org/works/W123456789"
+    evidence = json.dumps(
+        {
+            "id": "https://openalex.org/W123456789",
+            "doi": f"https://doi.org/{evidence_doi}",
+            "locations": [
+                {"pdf_url": f"https://arxiv.org/pdf/{evidence_arxiv_id}.pdf"}
+            ],
+        },
+        sort_keys=True,
+    ).encode("utf-8")
+    route = _provisioning()
+    route["expected_media_type"] = "application/xml"
+    route["authoritative_retrieval_route"] = {
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": f"https://export.arxiv.org/pdf/{arxiv_id}",
+        "artifact_identifier": f"arxiv:{arxiv_id}",
+        "work_identity_evidence": {
+            "kind": "openalex_same_work_location",
+            "url": evidence_url,
+        },
+    }
+    provenance = _provenance()
+    provenance["retrieval_metadata"].update(
+        {
+            "method": "arxiv_author_manuscript_pdf",
+            "immutable_artifact_identifier": f"arxiv:{arxiv_id}",
+            "work_identity_evidence": {
+                "kind": "openalex_same_work_location",
+                "url": evidence_url,
+                "payload_relative_path": "work-identity.json",
+                "payload_sha256": hashlib.sha256(evidence).hexdigest(),
+                "payload_byte_length": len(evidence),
+            },
+        }
+    )
+    if legacy_evidence_url:
+        descriptor = provenance["retrieval_metadata"]["work_identity_evidence"]
+        provenance["retrieval_metadata"]["work_identity_evidence"] = {
+            "kind": descriptor["kind"],
+            "url": "https://openalex.org/W123456789",
+        }
+    source_dir = _write_source(tmp_path, provenance=provenance)
+    source_dir.joinpath("work-identity.json").write_bytes(evidence)
+    if legacy_evidence_url:
+        source_dir.joinpath("work-identity.provenance.json").write_text(
+            json.dumps(descriptor, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    return source_dir, route
+
+
 def _minimal_pdf(text):
     escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
     stream = f"BT /F1 12 Tf 72 720 Td ({escaped}) Tj ET".encode("ascii")
@@ -178,6 +238,54 @@ def test_offline_loader_verifies_authoritative_payload_without_network(
         "version": "python-stdlib",
         "deterministic": True,
     }
+
+
+def test_repository_loader_parses_hashed_same_work_identity_payload(tmp_path):
+    source_dir, route = _repository_fixture(tmp_path)
+    verified = load_verified_source(
+        source_dir,
+        expected_source=_expected_source(),
+        provisioning_route=route,
+    )
+    assert verified.source_id == SOURCE_ID
+
+
+def test_repository_loader_rejects_hashed_identity_payload_for_wrong_doi(tmp_path):
+    source_dir, route = _repository_fixture(
+        tmp_path, evidence_doi="10.1234/different-work"
+    )
+    with pytest.raises(SourceEvidenceError, match="canonical DOI"):
+        load_verified_source(
+            source_dir,
+            expected_source=_expected_source(),
+            provisioning_route=route,
+        )
+
+
+def test_repository_loader_rejects_hashed_identity_payload_for_wrong_artifact(
+    tmp_path,
+):
+    source_dir, route = _repository_fixture(
+        tmp_path, evidence_arxiv_id="2401.99999"
+    )
+    with pytest.raises(SourceEvidenceError, match="does not locate"):
+        load_verified_source(
+            source_dir,
+            expected_source=_expected_source(),
+            provisioning_route=route,
+        )
+
+
+def test_repository_loader_accepts_same_openalex_id_across_api_endpoint_migration(
+    tmp_path,
+):
+    source_dir, route = _repository_fixture(tmp_path, legacy_evidence_url=True)
+    verified = load_verified_source(
+        source_dir,
+        expected_source=_expected_source(),
+        provisioning_route=route,
+    )
+    assert verified.source_id == SOURCE_ID
 
 
 @pytest.mark.parametrize(
@@ -332,7 +440,7 @@ def test_pdf_loader_rejects_unrecorded_extractor_version(tmp_path):
         )
 
 
-def test_publisher_specific_routes_cover_all_133_sources_without_generic_doi():
+def test_publisher_specific_routes_cover_all_registry_sources_without_generic_doi():
     inventory = load_and_validate_inventory()
     routes = {
         source["source_id"]: authoritative_route_for_identity(
@@ -346,22 +454,24 @@ def test_publisher_specific_routes_cover_all_133_sources_without_generic_doi():
 
     assert counts == {
         "arxiv_export_pdf": 3,
-        "aps_harvest_pdf": 77,
-        "elsevier_article_api_xml": 12,
-        "nature_article_pdf": 10,
+        "arxiv_author_manuscript_pdf": 10,
+        "aps_harvest_pdf": 78,
+        "elsevier_article_api_xml": 8,
+        "nature_open_article_pdf": 6,
+        "nature_article_pdf": 2,
         "springer_content_pdf": 2,
         "epj_springer_content_pdf": 2,
-        "iop_article_pdf": 8,
-        "epl_iop_article_pdf": 3,
-        "science_article_pdf": 5,
+        "iop_article_pdf": 7,
+        "epl_iop_article_pdf": 2,
+        "science_article_pdf": 3,
         "aip_article_discovery": 4,
         "acs_article_pdf": 3,
-        "jpsj_article_pdf": 3,
+        "jpsj_article_pdf": 1,
         "wiley_book_provisioning": 1,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 80
-    assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 12
+    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 97
+    assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 8
 
 
 @pytest.mark.parametrize(
@@ -382,9 +492,9 @@ def test_publisher_specific_routes_cover_all_133_sources_without_generic_doi():
             "unattended",
         ),
         (
-            {"kind": "doi", "value": "10.1016/j.aop.2005.10.005"},
+            {"kind": "doi", "value": "10.1016/0304-8853(75)90113-5"},
             "elsevier_article_api_xml",
-            "https://api.elsevier.com/content/article/doi/10.1016/j.aop.2005.10.005",
+            "https://api.elsevier.com/content/article/doi/10.1016/0304-8853(75)90113-5",
             "application/xml",
             "api_key_or_entitlement",
         ),
@@ -405,6 +515,70 @@ def test_representative_authoritative_routes_are_exact(
         "url": url,
         "expected_media_type": media_type,
         "access_mode": access_mode,
+        "artifact_identifier": (
+            f"arxiv:{identity['value']}"
+            if identity["kind"] == "arxiv"
+            else f"doi:{identity['value']}"
+        ),
+        "work_identity_evidence": {
+            "kind": "canonical_identity",
+            "url": (
+                f"https://arxiv.org/abs/{identity['value']}"
+                if identity["kind"] == "arxiv"
+                else f"https://doi.org/{identity['value']}"
+            ),
+        },
+    }
+
+
+def test_open_repository_route_binds_arxiv_artifact_to_same_doi_work():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1016/j.aop.2005.10.005"}
+    )
+    assert route == {
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": "https://export.arxiv.org/pdf/cond-mat/0506438",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "arxiv:cond-mat/0506438",
+        "work_identity_evidence": {
+            "kind": "openalex_same_work_location",
+            "url": "https://api.openalex.org/works/W2141708961",
+        },
+    }
+
+
+def test_open_publisher_route_records_oa_identity_evidence():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1038/ncomms14113"}
+    )
+    assert route == {
+        "kind": "nature_open_article_pdf",
+        "url": "https://www.nature.com/articles/ncomms14113.pdf",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "doi:10.1038/ncomms14113",
+        "work_identity_evidence": {
+            "kind": "openalex_publisher_oa_location",
+            "url": "https://api.openalex.org/works/W2591608240",
+        },
+    }
+
+
+def test_corrected_crgete3_source_uses_canonical_iop_route():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1088/0953-8984/7/1/008"}
+    )
+    assert route == {
+        "kind": "iop_article_pdf",
+        "url": "https://iopscience.iop.org/article/10.1088/0953-8984/7/1/008/pdf",
+        "expected_media_type": "application/pdf",
+        "access_mode": "challenge_or_institutional",
+        "artifact_identifier": "doi:10.1088/0953-8984/7/1/008",
+        "work_identity_evidence": {
+            "kind": "canonical_identity",
+            "url": "https://doi.org/10.1088/0953-8984/7/1/008",
+        },
     }
 
 
@@ -459,13 +633,61 @@ def test_download_validation_accepts_real_pdf_shape():
 
 def test_download_validation_rejects_elsevier_minimized_metadata_xml():
     route = authoritative_route_for_identity(
-        {"kind": "doi", "value": "10.1016/j.aop.2005.10.005"}
+        {"kind": "doi", "value": "10.1016/0003-4916(61)90115-4"}
     )
     body = (
         b"<response><warning>Unauthorized request results in minimized metadata "
         b"response</warning></response>"
     )
     with pytest.raises(SourceEvidenceError, match="minimized metadata"):
+        validate_download_response(
+            route,
+            status=200,
+            headers={"content-type": "application/xml;charset=UTF-8"},
+            body=body,
+            final_url=route["url"],
+        )
+
+
+def test_download_validation_rejects_elsevier_coredata_without_article_body():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1016/0003-4916(70)90270-8"}
+    )
+    body = b"""<?xml version='1.0'?>
+    <full-text-retrieval-response xmlns='http://www.elsevier.com/xml/svapi/article/dtd'>
+      <coredata><title>The one-dimensional Ising model</title>
+      <doi>10.1016/0003-4916(70)90270-8</doi></coredata>
+    </full-text-retrieval-response>"""
+    with pytest.raises(SourceEvidenceError, match="article body"):
+        validate_download_response(
+            route,
+            status=200,
+            headers={"content-type": "application/xml;charset=UTF-8"},
+            body=body,
+            final_url=route["url"],
+        )
+
+
+@pytest.mark.parametrize(
+    "body_element",
+    [
+        b"<body/>",
+        b"<originalText></originalText>",
+        b"<sections><section>   </section></sections>",
+        b"<originalText><coredata><title>Metadata only</title></coredata></originalText>",
+    ],
+)
+def test_download_validation_rejects_empty_elsevier_article_body(body_element):
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1016/0003-4916(70)90270-8"}
+    )
+    body = (
+        b"<full-text-retrieval-response>"
+        b"<coredata><title>Metadata title must not count as body</title></coredata>"
+        + body_element
+        + b"</full-text-retrieval-response>"
+    )
+    with pytest.raises(SourceEvidenceError, match="nonempty article body"):
         validate_download_response(
             route,
             status=200,

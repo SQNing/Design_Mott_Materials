@@ -18,6 +18,7 @@ from validation.literature_evidence_sources import (
     arxiv_atom_identifier_matches,
     load_verified_source,
     validate_download_response,
+    validate_work_identity_document,
 )
 
 
@@ -100,7 +101,24 @@ def _fetch_source(cache_root, source, route, *, ca_bundle, resume):
                 provisioning_route=route,
             )
         except SourceEvidenceError as exc:
-            return _outcome(source_id, "failed", f"existing cache is invalid: {exc}")
+            if not _needs_work_identity_sidecar(source_dir, route):
+                return _outcome(source_id, "failed", f"existing cache is invalid: {exc}")
+            try:
+                ssl_context = _ssl_context(ca_bundle)
+                evidence = _fetch_work_identity_evidence(source, route, ssl_context)
+                _write_work_identity_sidecars(source_dir, evidence)
+                load_verified_source(
+                    source_dir,
+                    expected_source=source,
+                    provisioning_route=route,
+                )
+            except Exception as supplement_exc:
+                return _outcome(
+                    source_id,
+                    "failed",
+                    f"existing cache identity supplement failed: {supplement_exc}",
+                )
+            return _outcome(source_id, "resumed", "existing cache identity evidence added")
         return _outcome(source_id, "resumed", "existing cache verified")
     try:
         ssl_context = _ssl_context(ca_bundle)
@@ -111,6 +129,7 @@ def _fetch_source(cache_root, source, route, *, ca_bundle, resume):
         }
         response = _download(route_spec, ssl_context)
         bibliographic = _fetch_bibliographic_metadata(source, ssl_context)
+        evidence = _fetch_work_identity_evidence(source, route, ssl_context)
         extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
         payload_name = f"source.{extension}"
         provenance = _build_provenance(
@@ -126,6 +145,8 @@ def _fetch_source(cache_root, source, route, *, ca_bundle, resume):
         with provenance_path.open("x", encoding="utf-8", newline="\n") as handle:
             json.dump(provenance, handle, indent=2, sort_keys=True, ensure_ascii=True)
             handle.write("\n")
+        if evidence is not None:
+            _write_work_identity_sidecars(source_dir, evidence)
         load_verified_source(
             source_dir,
             expected_source=source,
@@ -176,6 +197,70 @@ def _download(route, ssl_context):
         "final_url": final_url,
         "media_type": media_type,
     }
+
+
+def _fetch_work_identity_evidence(source, route, ssl_context):
+    authoritative_route = route["authoritative_retrieval_route"]
+    evidence_route = authoritative_route["work_identity_evidence"]
+    if evidence_route["kind"] == "canonical_identity":
+        return None
+    request = Request(
+        evidence_route["url"],
+        headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+    )
+    with urlopen(request, context=ssl_context, timeout=30) as response:
+        payload = response.read()
+        if response.status != 200:
+            raise SourceEvidenceError(
+                f"work identity evidence returned HTTP status {response.status}"
+            )
+    try:
+        document = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceEvidenceError(f"work identity evidence is invalid JSON: {exc}") from exc
+    validate_work_identity_document(
+        document,
+        identity=source["canonical_identity"],
+        authoritative_route=authoritative_route,
+        evidence_kind=evidence_route["kind"],
+    )
+    return {
+        "payload": payload,
+        "descriptor": {
+            "kind": evidence_route["kind"],
+            "url": evidence_route["url"],
+            "payload_relative_path": "work-identity.json",
+            "payload_sha256": hashlib.sha256(payload).hexdigest(),
+            "payload_byte_length": len(payload),
+        },
+    }
+
+
+def _needs_work_identity_sidecar(source_dir, route):
+    evidence = route["authoritative_retrieval_route"]["work_identity_evidence"]
+    return (
+        evidence["kind"] != "canonical_identity"
+        and not source_dir.joinpath("work-identity.json").exists()
+        and not source_dir.joinpath("work-identity.provenance.json").exists()
+    )
+
+
+def _write_work_identity_sidecars(source_dir, evidence):
+    if evidence is None:
+        return
+    with source_dir.joinpath("work-identity.json").open("xb") as handle:
+        handle.write(evidence["payload"])
+    with source_dir.joinpath("work-identity.provenance.json").open(
+        "x", encoding="utf-8", newline="\n"
+    ) as handle:
+        json.dump(
+            evidence["descriptor"],
+            handle,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=True,
+        )
+        handle.write("\n")
 
 
 def _fetch_bibliographic_metadata(source, ssl_context):
@@ -247,6 +332,7 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
     body = response["body"]
     identity = source["canonical_identity"]
     retrieval_kind = route["authoritative_retrieval_route"]["kind"]
+    retrieval_route = route["authoritative_retrieval_route"]
     origin = "arxiv" if identity["kind"] == "arxiv" else "publisher"
     extraction = (
         {
@@ -278,7 +364,13 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
             "authoritative_origin": origin,
             "http_status": response["status"],
             "response_headers": _stable_response_headers(response["headers"]),
-            "immutable_artifact_identifier": f"{identity['kind']}:{identity['value']}",
+            "immutable_artifact_identifier": retrieval_route["artifact_identifier"],
+            **(
+                {"work_identity_evidence": retrieval_route["work_identity_evidence"]}
+                if retrieval_route["work_identity_evidence"]["kind"]
+                != "canonical_identity"
+                else {}
+            ),
         },
         "media_type": response["media_type"],
         "raw_payload_sha256": hashlib.sha256(body).hexdigest(),

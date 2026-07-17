@@ -34,9 +34,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_c0dc2e73472a60a1af6e",
+  "source_id": "doi_3c0cd7d12c74eed185ff",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1209/0295-5075/29/4/008",
+    "canonical_source_identity": "doi:10.1088/0953-8984/7/1/008",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,7 +45,7 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1209/0295-5075/29/4/008 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1088/0953-8984/7/1/008 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "CrGeTe3",
       "classical order",

@@ -73,7 +73,7 @@ LITERATURE_STANDARD_RESULTS = [
         "backend_needed": "ed_or_analytic",
         "standard_result": {"energy_per_dimer": -0.75, "energy_per_spin": -0.375},
         "source": "Shastry_Sutherland_1981",
-        "source_url": "https://doi.org/10.1016/0375-9601(81)90438-X",
+        "source_url": "https://doi.org/10.1016/0378-4363(81)90838-X",
         "citation_locator": "orthogonal dimer exact eigenstate",
     },
     {
@@ -483,7 +483,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "glt",
             "standard_result": {"phases": ["neel", "spiral", "zigzag", "stripy"]},
             "source": "Rastelli_Tassi_Reatto_1979",
-            "source_url": "https://doi.org/10.1016/0304-8853(79)90049-2",
+            "source_url": "https://doi.org/10.1016/0378-4363(79)90002-0",
             "citation_locator": "honeycomb J1-J2-J3 classical phase diagram",
         },
         {
@@ -813,7 +813,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "dmrg_or_ed",
             "standard_result": {"critical_j2_over_j1_approx": 0.2411},
             "source": "Okamoto_Nomura_1992",
-            "source_url": "https://doi.org/10.1016/0375-9601(92)90923-5",
+            "source_url": "https://doi.org/10.1016/0375-9601(92)90823-5",
             "citation_locator": "J1-J2 spin-half chain dimerization transition",
         },
         {
@@ -828,7 +828,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "bethe_or_ed",
             "standard_result": {"theta_radians": -math.pi / 4.0, "is_integrable": True},
             "source": "Babujian_1982",
-            "source_url": "https://doi.org/10.1016/0370-2693(82)90471-0",
+            "source_url": "https://doi.org/10.1016/0375-9601(82)90403-0",
             "citation_locator": "Takhtajan-Babujian spin-1 critical point",
         },
         {
@@ -843,7 +843,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "bethe_or_ed",
             "standard_result": {"theta_radians": math.pi / 4.0, "su3_symmetric": True},
             "source": "Uimin_Lai_Sutherland",
-            "source_url": "https://doi.org/10.1016/0375-9601(74)90701-2",
+            "source_url": "https://doi.org/10.1103/PhysRevB.12.3795",
             "citation_locator": "ULS SU(3) point in spin-1 bilinear-biquadratic chain",
         },
         {
@@ -1554,7 +1554,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"tc_over_j": 4.0 / math.log(3.0)},
             "source": "Houtappel_1950",
-            "source_url": "https://doi.org/10.1016/S0031-8914(50)80099-3",
+            "source_url": "https://doi.org/10.1016/0031-8914(50)90130-3",
             "citation_locator": "triangular-lattice Ising exact critical temperature",
         },
         {
@@ -1569,7 +1569,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"tc_over_j": 2.0 / math.log(2.0 + math.sqrt(3.0))},
             "source": "Houtappel_1950",
-            "source_url": "https://doi.org/10.1016/S0031-8914(50)80099-3",
+            "source_url": "https://doi.org/10.1016/0031-8914(50)90130-3",
             "citation_locator": "honeycomb-lattice Ising exact critical temperature",
         },
         {
@@ -2276,7 +2276,7 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["gamma_point_ferromagnetic_minimum", "curie_weiss_theta"],
             },
             "source": "Carteaux_1995",
-            "source_url": "https://doi.org/10.1209/0295-5075/29/4/008",
+            "source_url": "https://doi.org/10.1088/0953-8984/7/1/008",
             "citation_locator": "CrGeTe3 layered ferromagnet reference",
         },
         {

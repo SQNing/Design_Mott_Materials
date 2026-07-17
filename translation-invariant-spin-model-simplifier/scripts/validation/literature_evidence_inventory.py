@@ -472,6 +472,8 @@ def build_inventory_data(
                 "authoritative_retrieval_route": {
                     "kind": route["kind"],
                     "url": route["url"],
+                    "artifact_identifier": route["artifact_identifier"],
+                    "work_identity_evidence": route["work_identity_evidence"],
                 },
                 "expected_media_type": route["expected_media_type"],
                 "access_mode": route["access_mode"],
@@ -832,16 +834,15 @@ def _expected_sources(registry):
     for entry in registry:
         identity = canonical_source_identity(entry["source_url"])
         result[identity].append(entry["name"])
-    if len(result) != 133:
-        raise InventoryError(
-            f"registry must resolve to exactly 133 canonical sources, found {len(result)}"
-        )
     return result
 
 
 def _validate_sources(sources, expected_sources):
-    if len(sources) != 133:
-        raise InventoryError(f"source index must contain exactly 133 sources, found {len(sources)}")
+    if len(sources) != len(expected_sources):
+        raise InventoryError(
+            "source index must match all registry-derived canonical source identities exactly: "
+            f"expected {len(expected_sources)}, found {len(sources)}"
+        )
     ids = [source.get("source_id") for source in sources]
     if len(set(ids)) != len(ids):
         raise InventoryError("duplicate source IDs in source index")
@@ -883,8 +884,14 @@ def _validate_provisioning(routes, expected_sources):
     }
     expected_ids = set(identity_by_id)
     route_ids = [route.get("source_id") for route in routes]
-    if len(routes) != 133 or set(route_ids) != expected_ids or len(set(route_ids)) != 133:
-        raise InventoryError("source provisioning must match all 133 source identities exactly")
+    if (
+        len(routes) != len(expected_ids)
+        or set(route_ids) != expected_ids
+        or len(set(route_ids)) != len(expected_ids)
+    ):
+        raise InventoryError(
+            "source provisioning must match all registry-derived source identities exactly"
+        )
     cache_locations = [route.get("local_cache_location") for route in routes]
     duplicate_locations = sorted(
         [
@@ -912,7 +919,12 @@ def _validate_provisioning(routes, expected_sources):
         if set(route) != required:
             raise InventoryError(f"invalid provisioning fields for {route.get('source_id')}")
         retrieval = route["authoritative_retrieval_route"]
-        if not isinstance(retrieval, Mapping) or set(retrieval) != {"kind", "url"}:
+        if not isinstance(retrieval, Mapping) or set(retrieval) != {
+            "kind",
+            "url",
+            "artifact_identifier",
+            "work_identity_evidence",
+        }:
             raise InventoryError(f"invalid authoritative retrieval route for {route['source_id']}")
         identity = identity_by_id[route["source_id"]]
         kind, value = identity.split(":", 1)
@@ -922,6 +934,8 @@ def _validate_provisioning(routes, expected_sources):
         if retrieval != {
             "kind": expected_route["kind"],
             "url": expected_route["url"],
+            "artifact_identifier": expected_route["artifact_identifier"],
+            "work_identity_evidence": expected_route["work_identity_evidence"],
         }:
             raise InventoryError(
                 f"authoritative retrieval route mismatch for {route['source_id']}"
