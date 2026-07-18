@@ -454,7 +454,7 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
 
     assert counts == {
         "arxiv_export_pdf": 3,
-        "arxiv_author_manuscript_pdf": 10,
+        "arxiv_author_manuscript_pdf": 11,
         "aps_harvest_pdf": 80,
         "elsevier_article_api_xml": 8,
         "nature_open_article_pdf": 6,
@@ -463,14 +463,14 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
         "epj_springer_content_pdf": 2,
         "iop_article_pdf": 7,
         "epl_iop_article_pdf": 2,
-        "science_article_pdf": 3,
+        "science_article_pdf": 2,
         "aip_article_discovery": 3,
         "acs_article_pdf": 2,
         "jpsj_article_pdf": 1,
         "wiley_book_provisioning": 1,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 99
+    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 100
     assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 8
 
 
@@ -544,6 +544,23 @@ def test_open_repository_route_binds_arxiv_artifact_to_same_doi_work():
         "work_identity_evidence": {
             "kind": "openalex_same_work_location",
             "url": "https://api.openalex.org/works/W2141708961",
+        },
+    }
+
+
+def test_spin_ice_science_doi_uses_verified_arxiv_author_manuscript_route():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1126/science.1064761"}
+    )
+    assert route == {
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": "https://export.arxiv.org/pdf/cond-mat/0201427",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "arxiv:cond-mat/0201427",
+        "work_identity_evidence": {
+            "kind": "openalex_same_work_location",
+            "url": "https://api.openalex.org/works/W2128117725",
         },
     }
 

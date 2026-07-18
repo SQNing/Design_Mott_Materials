@@ -2042,14 +2042,14 @@
       "source_id": "doi_f915390aad8ba95157bf"
     },
     {
-      "access_mode": "challenge_or_institutional",
+      "access_mode": "unattended",
       "authoritative_retrieval_route": {
-        "artifact_identifier": "doi:10.1126/science.1064761",
-        "kind": "science_article_pdf",
-        "url": "https://www.science.org/doi/pdf/10.1126/science.1064761",
+        "artifact_identifier": "arxiv:cond-mat/0201427",
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": "https://export.arxiv.org/pdf/cond-mat/0201427",
         "work_identity_evidence": {
-          "kind": "canonical_identity",
-          "url": "https://doi.org/10.1126/science.1064761"
+          "kind": "openalex_same_work_location",
+          "url": "https://api.openalex.org/works/W2128117725"
         }
       },
       "current_availability": "not_acquired",
