@@ -95,6 +95,17 @@
     },
     {
       "benchmark_names": [
+        "crcl3_honeycomb_heisenberg_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1016/0022-3697(61)90053-1"
+      },
+      "canonical_url": "https://doi.org/10.1016/0022-3697(61)90053-1",
+      "source_id": "doi_aec03f65476f23115a77"
+    },
+    {
+      "benchmark_names": [
         "honeycomb_ising_ferromagnet_exact_tc",
         "triangular_ising_ferromagnet_exact_tc"
       ],
@@ -187,17 +198,6 @@
     },
     {
       "benchmark_names": [
-        "haydeeite_ferromagnetic_kagome_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1021/ja053891p"
-      },
-      "canonical_url": "https://doi.org/10.1021/ja053891p",
-      "source_id": "doi_3dff8548224b7a0681e5"
-    },
-    {
-      "benchmark_names": [
         "cu2iro3_honeycomb_kitaev_reference"
       ],
       "canonical_identity": {
@@ -213,10 +213,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1038/19242"
+        "value": "10.1038/20619"
       },
-      "canonical_url": "https://doi.org/10.1038/19242",
-      "source_id": "doi_97c202480cfbffef177b"
+      "canonical_url": "https://doi.org/10.1038/20619",
+      "source_id": "doi_7535f50aacaae5fd8e46"
     },
     {
       "benchmark_names": [
@@ -330,17 +330,6 @@
     },
     {
       "benchmark_names": [
-        "crcl3_honeycomb_heisenberg_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1063/1.1706360"
-      },
-      "canonical_url": "https://doi.org/10.1063/1.1706360",
-      "source_id": "doi_583e03a77c1093814101"
-    },
-    {
-      "benchmark_names": [
         "lieb_lattice_heisenberg_ferrimagnet_reference"
       ],
       "canonical_identity": {
@@ -356,10 +345,21 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1063/1.367780"
+        "value": "10.1063/1.367729"
       },
-      "canonical_url": "https://doi.org/10.1063/1.367780",
-      "source_id": "doi_84603f88ae7b84f66d95"
+      "canonical_url": "https://doi.org/10.1063/1.367729",
+      "source_id": "doi_417e9be0540e18a5c1bf"
+    },
+    {
+      "benchmark_names": [
+        "square_fully_frustrated_ising_residual_entropy_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1088/0022-3719/10/10/014"
+      },
+      "canonical_url": "https://doi.org/10.1088/0022-3719/10/10/014",
+      "source_id": "doi_77ad76b09d88ce916ed8"
     },
     {
       "benchmark_names": [
@@ -371,17 +371,6 @@
       },
       "canonical_url": "https://doi.org/10.1088/0022-3719/13/31/002",
       "source_id": "doi_b757c34f112f5da7b6c7"
-    },
-    {
-      "benchmark_names": [
-        "square_fully_frustrated_ising_residual_entropy_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1088/0305-4470/10/10/014"
-      },
-      "canonical_url": "https://doi.org/10.1088/0305-4470/10/10/014",
-      "source_id": "doi_19381940c9d01696a519"
     },
     {
       "benchmark_names": [
@@ -400,10 +389,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1088/0953-8984/10/29/012"
+        "value": "10.1088/0953-8984/10/28/020"
       },
-      "canonical_url": "https://doi.org/10.1088/0953-8984/10/29/012",
-      "source_id": "doi_d80d8b58bfab492e5df6"
+      "canonical_url": "https://doi.org/10.1088/0953-8984/10/28/020",
+      "source_id": "doi_680bd9719303d60f1392"
     },
     {
       "benchmark_names": [
@@ -838,6 +827,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.91.104418",
       "source_id": "doi_b4979c341380add8983b"
+    },
+    {
+      "benchmark_names": [
+        "haydeeite_ferromagnetic_kagome_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.91.220408"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.91.220408",
+      "source_id": "doi_66f188d2e3f91f43efb9"
     },
     {
       "benchmark_names": [
@@ -1346,10 +1346,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1126/science.1059820"
+        "value": "10.1126/science.1064761"
       },
-      "canonical_url": "https://doi.org/10.1126/science.1059820",
-      "source_id": "doi_c32f33c419ab46e79a19"
+      "canonical_url": "https://doi.org/10.1126/science.1064761",
+      "source_id": "doi_e101c6123a5baf95d0b5"
     },
     {
       "benchmark_names": [
@@ -1369,10 +1369,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1126/science.1224143"
+        "value": "10.1126/science.1214143"
       },
-      "canonical_url": "https://doi.org/10.1126/science.1224143",
-      "source_id": "doi_5266a6c47781c7144991"
+      "canonical_url": "https://doi.org/10.1126/science.1214143",
+      "source_id": "doi_187f5f1c3bdb3f0bdeef"
     },
     {
       "benchmark_names": [

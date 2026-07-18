@@ -896,7 +896,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1063/1.1706360",
+        "canonical_source_identity": "doi:10.1016/0022-3697(61)90053-1",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -905,7 +905,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1063/1.1706360 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1016/0022-3697(61)90053-1 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "CrCl3",
           "classical order",
@@ -925,7 +925,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_583e03a77c1093814101",
+      "source_id": "doi_aec03f65476f23115a77",
       "target_representation": {
         "fields": [
           {
@@ -1131,7 +1131,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1126/science.1224143",
+        "canonical_source_identity": "doi:10.1126/science.1214143",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1140,7 +1140,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1126/science.1224143 payload for the cited context and the declared skyrmion lattice phase observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1126/science.1214143 payload for the cited context and the declared skyrmion lattice phase observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Cu2OSeO3",
           "skyrmion lattice phase",
@@ -1159,7 +1159,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_5266a6c47781c7144991",
+      "source_id": "doi_187f5f1c3bdb3f0bdeef",
       "target_representation": {
         "fields": [
           {
@@ -1316,7 +1316,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1038/19242",
+        "canonical_source_identity": "doi:10.1038/20619",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1325,7 +1325,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1038/19242 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1038/20619 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Dy2Ti2O7",
           "residual entropy",
@@ -1345,7 +1345,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_97c202480cfbffef177b",
+      "source_id": "doi_7535f50aacaae5fd8e46",
       "target_representation": {
         "fields": [
           {
@@ -2075,7 +2075,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1021/ja053891p",
+        "canonical_source_identity": "doi:10.1103/physrevb.91.220408",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2084,7 +2084,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1021/ja053891p payload for the cited context and the declared classical ground state observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.91.220408 payload for the cited context and the declared classical ground state observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "MgCu3(OH)6Cl2",
           "classical ground state",
@@ -2104,7 +2104,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_3dff8548224b7a0681e5",
+      "source_id": "doi_66f188d2e3f91f43efb9",
       "target_representation": {
         "fields": [
           {
@@ -4036,7 +4036,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/0953-8984/10/29/012",
+        "canonical_source_identity": "doi:10.1088/0953-8984/10/28/020",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4045,7 +4045,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/0953-8984/10/29/012 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1088/0953-8984/10/28/020 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "MnPS3",
           "classical order",
@@ -4065,7 +4065,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_d80d8b58bfab492e5df6",
+      "source_id": "doi_680bd9719303d60f1392",
       "target_representation": {
         "fields": [
           {
@@ -4483,7 +4483,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1126/science.1059820",
+        "canonical_source_identity": "doi:10.1126/science.1064761",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4492,7 +4492,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1126/science.1059820 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1126/science.1064761 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "residual entropy",
           "pauling entropy per spin",
@@ -4511,7 +4511,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_c32f33c419ab46e79a19",
+      "source_id": "doi_e101c6123a5baf95d0b5",
       "target_representation": {
         "fields": [
           {
@@ -5032,7 +5032,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1063/1.367780",
+        "canonical_source_identity": "doi:10.1063/1.367729",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5041,7 +5041,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1063/1.367780 payload for the cited context and the declared phase boundary observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1063/1.367729 payload for the cited context and the declared phase boundary observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "phase boundary",
           "neel to collinear boundary j2 over j1",
@@ -5060,7 +5060,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_84603f88ae7b84f66d95",
+      "source_id": "doi_417e9be0540e18a5c1bf",
       "target_representation": {
         "fields": [
           {
@@ -5557,7 +5557,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/0305-4470/10/10/014",
+        "canonical_source_identity": "doi:10.1088/0022-3719/10/10/014",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5566,7 +5566,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/0305-4470/10/10/014 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1088/0022-3719/10/10/014 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "residual entropy",
           "macroscopic ground state degeneracy",
@@ -5585,7 +5585,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_19381940c9d01696a519",
+      "source_id": "doi_77ad76b09d88ce916ed8",
       "target_representation": {
         "fields": [
           {

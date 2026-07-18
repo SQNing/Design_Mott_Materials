@@ -588,7 +588,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "mc",
             "standard_result": {"pauling_entropy_per_spin": 0.5 * math.log(1.5)},
             "source": "Bramwell_Gingras_2001",
-            "source_url": "https://doi.org/10.1126/science.1059820",
+            "source_url": "https://doi.org/10.1126/science.1064761",
             "citation_locator": "spin ice Pauling entropy",
         },
         {
@@ -753,7 +753,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "glt",
             "standard_result": {"neel_to_collinear_boundary_j2_over_j1": 0.25},
             "source": "Pinettes_Diep_1998",
-            "source_url": "https://doi.org/10.1063/1.367780",
+            "source_url": "https://doi.org/10.1063/1.367729",
             "citation_locator": "simple-cubic J1-J2 phase boundary",
         },
         {
@@ -1143,7 +1143,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "mc_or_experiment",
             "standard_result": {"pauling_entropy_observed": True},
             "source": "Ramirez_1999",
-            "source_url": "https://doi.org/10.1038/19242",
+            "source_url": "https://doi.org/10.1038/20619",
             "citation_locator": "Dy2Ti2O7 spin-ice entropy reference",
         },
         {
@@ -1614,7 +1614,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"macroscopic_ground_state_degeneracy": True},
             "source": "Villain_1977",
-            "source_url": "https://doi.org/10.1088/0305-4470/10/10/014",
+            "source_url": "https://doi.org/10.1088/0022-3719/10/10/014",
             "citation_locator": "fully frustrated Ising model degeneracy reference",
         },
         {
@@ -2023,8 +2023,8 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "ferromagnetic_kagome_exchange": True,
                 "computable_observables": ["gamma_point_ferromagnetic_minimum", "curie_weiss_theta"],
             },
-            "source": "Shores_2005",
-            "source_url": "https://doi.org/10.1021/ja053891p",
+            "source": "Boldrin_2015",
+            "source_url": "https://doi.org/10.1103/PhysRevB.91.220408",
             "citation_locator": "haydeeite paratacamite kagome material reference",
         },
         {
@@ -2240,7 +2240,7 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["gamma_point_ferromagnetic_minimum", "curie_weiss_theta"],
             },
             "source": "Cable_1961",
-            "source_url": "https://doi.org/10.1063/1.1706360",
+            "source_url": "https://doi.org/10.1016/0022-3697(61)90053-1",
             "citation_locator": "CrCl3 layered honeycomb magnetic order reference",
         },
         {
@@ -2340,7 +2340,7 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["gamma_staggered_honeycomb_minimum", "curie_weiss_theta"],
             },
             "source": "Wildes_1998",
-            "source_url": "https://doi.org/10.1088/0953-8984/10/29/012",
+            "source_url": "https://doi.org/10.1088/0953-8984/10/28/020",
             "citation_locator": "MnPS3 honeycomb antiferromagnet reference",
         },
         {
@@ -2412,7 +2412,7 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["single_q_helix_energy", "triple_q_skyrmion_variational_energy"],
             },
             "source": "Seki_2012",
-            "source_url": "https://doi.org/10.1126/science.1224143",
+            "source_url": "https://doi.org/10.1126/science.1214143",
             "citation_locator": "Cu2OSeO3 skyrmion-lattice phase reference",
         },
     ]

@@ -539,6 +539,72 @@ def test_corrected_material_primary_source_dois_are_registered(loaded_inventory)
     assert "10.1209/0295-5075/29/4/008" not in identities
 
 
+def test_corrected_mismatched_primary_source_identities_are_registered(
+    loaded_inventory,
+):
+    registry_by_name = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+    expected = {
+        "dy2ti2o7_spin_ice_entropy_reference": (
+            "Ramirez_1999",
+            "https://doi.org/10.1038/20619",
+        ),
+        "simple_cubic_j1_j2_collinear_reference": (
+            "Pinettes_Diep_1998",
+            "https://doi.org/10.1063/1.367729",
+        ),
+        "crcl3_honeycomb_heisenberg_reference": (
+            "Cable_1961",
+            "https://doi.org/10.1016/0022-3697(61)90053-1",
+        ),
+        "square_fully_frustrated_ising_residual_entropy_reference": (
+            "Villain_1977",
+            "https://doi.org/10.1088/0022-3719/10/10/014",
+        ),
+        "mn_ps3_honeycomb_antiferromagnet_reference": (
+            "Wildes_1998",
+            "https://doi.org/10.1088/0953-8984/10/28/020",
+        ),
+        "pyrochlore_dipolar_spin_ice_pauling_entropy": (
+            "Bramwell_Gingras_2001",
+            "https://doi.org/10.1126/science.1064761",
+        ),
+        "cu2oseo3_skyrmion_lattice_reference": (
+            "Seki_2012",
+            "https://doi.org/10.1126/science.1214143",
+        ),
+        "haydeeite_ferromagnetic_kagome_reference": (
+            "Boldrin_2015",
+            "https://doi.org/10.1103/PhysRevB.91.220408",
+        ),
+    }
+    for benchmark_name, (source, source_url) in expected.items():
+        assert registry_by_name[benchmark_name]["source"] == source
+        assert registry_by_name[benchmark_name]["source_url"] == source_url
+
+    identities = {
+        source["canonical_identity"]["value"]
+        for source in loaded_inventory.source_index
+    }
+    corrected = {
+        canonical_source_identity(source_url).split(":", 1)[1]
+        for _, source_url in expected.values()
+    }
+    invalid = {
+        "10.1038/19242",
+        "10.1063/1.367780",
+        "10.1063/1.1706360",
+        "10.1088/0305-4470/10/10/014",
+        "10.1088/0953-8984/10/29/012",
+        "10.1126/science.1059820",
+        "10.1126/science.1224143",
+        "10.1021/ja053891p",
+    }
+    assert corrected <= identities
+    assert identities.isdisjoint(invalid)
+
+
 def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
     registry_by_name = {
         entry["name"]: entry["source_url"] for entry in LITERATURE_STANDARD_RESULTS

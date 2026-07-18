@@ -34,9 +34,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_3dff8548224b7a0681e5",
+  "source_id": "doi_66f188d2e3f91f43efb9",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1021/ja053891p",
+    "canonical_source_identity": "doi:10.1103/physrevb.91.220408",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,7 +45,7 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1021/ja053891p payload for the cited context and the declared classical ground state observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.91.220408 payload for the cited context and the declared classical ground state observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "MgCu3(OH)6Cl2",
       "classical ground state",
