@@ -25,6 +25,17 @@
     },
     {
       "benchmark_names": [
+        "one_dimensional_classical_ising_correlation_length"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "2001.01693"
+      },
+      "canonical_url": "https://arxiv.org/abs/2001.01693",
+      "source_id": "arxiv_1210a896b82f8e645da1"
+    },
+    {
+      "benchmark_names": [
         "diamond_j1_j2_spiral_surface_reference",
         "honeycomb_j1_j2_spiral_ring_reference"
       ],
@@ -37,18 +48,6 @@
     },
     {
       "benchmark_names": [
-        "xxx_spin_half_chain_bethe_ground_state"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1007/bf01341708"
-      },
-      "canonical_url": "https://doi.org/10.1007/bf01341708",
-      "source_id": "doi_59384b3efe539754fa1e"
-    },
-    {
-      "benchmark_names": [
-        "one_dimensional_classical_ising_correlation_length",
         "one_dimensional_classical_ising_no_finite_t_transition"
       ],
       "canonical_identity": {
@@ -60,7 +59,17 @@
     },
     {
       "benchmark_names": [
-        "lieb_schultz_mattis_half_integer_constraint",
+        "lieb_schultz_mattis_half_integer_constraint"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1007/s10955-017-1946-0"
+      },
+      "canonical_url": "https://doi.org/10.1007/s10955-017-1946-0",
+      "source_id": "doi_607b6dc8e2ebace9ef53"
+    },
+    {
+      "benchmark_names": [
         "xx_spin_half_chain_free_fermion_energy"
       ],
       "canonical_identity": {
@@ -482,6 +491,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrev.150.321",
       "source_id": "doi_99dc2b4658823c56a044"
+    },
+    {
+      "benchmark_names": [
+        "xxx_spin_half_chain_bethe_ground_state"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrev.150.327"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrev.150.327",
+      "source_id": "doi_696bd9749ec01fc72d99"
     },
     {
       "benchmark_names": [

@@ -5,20 +5,20 @@
     "fields": [
       {
         "convention": "boolean_claim",
-        "id": "unique_gapped_symmetric_ground_state_allowed",
+        "id": "unique_ground_state_implies_gapless_excitations",
         "type": "boolean",
         "units": "not_applicable"
       }
     ],
     "kind": "registered_field_comparison"
   },
-  "evidence_mode": "projection_only",
+  "evidence_mode": "local_source_parse",
   "parser_strategy": {
     "kind": "structured_source_field_extraction",
     "output_fields": [
       {
         "convention": "boolean_claim",
-        "id": "unique_gapped_symmetric_ground_state_allowed",
+        "id": "unique_ground_state_implies_gapless_excitations",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -27,16 +27,16 @@
   "record_state": "unresolved",
   "registry_selector": {
     "fields": [
-      "unique_gapped_symmetric_ground_state_allowed"
+      "unique_ground_state_implies_gapless_excitations"
     ],
     "path": [
       "standard_result"
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_bb9d8409dad06c02dae3",
+  "source_id": "doi_607b6dc8e2ebace9ef53",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1016/0003-4916(61)90115-4",
+    "canonical_source_identity": "doi:10.1007/s10955-017-1946-0",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +45,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1016/0003-4916(61)90115-4 payload for the cited context and the declared spectral constraint observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1007/s10955-017-1946-0 payload for the cited context and the declared unique ground state gaplessness constraint observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "spectral constraint",
-      "unique gapped symmetric ground state allowed",
-      "LSM half-integer spin-chain constraint"
+      "unique ground state gaplessness constraint",
+      "unique ground state implies gapless excitations",
+      "introduction: half-odd-integer spin with a unique ground state has gapless excitations in the infinite-volume limit"
     ],
-    "source_context_hint": "LSM half-integer spin-chain constraint",
+    "source_context_hint": "introduction: half-odd-integer spin with a unique ground state has gapless excitations in the infinite-volume limit",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
-          "id": "unique_gapped_symmetric_ground_state_allowed",
+          "id": "unique_ground_state_implies_gapless_excitations",
           "type": "boolean",
           "units": "not_applicable"
         }

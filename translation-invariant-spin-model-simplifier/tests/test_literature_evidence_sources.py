@@ -11,8 +11,10 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
+from validation import fetch_literature_evidence_sources as source_fetcher
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
+    _validate_retrieval_metadata,
     arxiv_atom_identifier_matches,
     authoritative_route_for_identity,
     load_verified_source,
@@ -148,6 +150,7 @@ def _repository_fixture(
     provenance["retrieval_metadata"].update(
         {
             "method": "arxiv_author_manuscript_pdf",
+            "authoritative_origin": "author_repository",
             "immutable_artifact_identifier": f"arxiv:{arxiv_id}",
             "work_identity_evidence": {
                 "kind": "openalex_same_work_location",
@@ -453,13 +456,13 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
         counts[route["kind"]] = counts.get(route["kind"], 0) + 1
 
     assert counts == {
-        "arxiv_export_pdf": 3,
-        "arxiv_author_manuscript_pdf": 11,
-        "aps_harvest_pdf": 83,
+        "arxiv_export_pdf": 4,
+        "arxiv_author_manuscript_pdf": 12,
+        "aps_harvest_pdf": 84,
         "elsevier_article_api_xml": 9,
         "nature_open_article_pdf": 6,
         "nature_article_pdf": 2,
-        "springer_content_pdf": 2,
+        "springer_content_pdf": 1,
         "epj_springer_content_pdf": 2,
         "iop_article_pdf": 5,
         "epl_iop_article_pdf": 1,
@@ -469,8 +472,125 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
         "jpsj_article_pdf": 1,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 103
+    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 106
     assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 9
+
+
+def test_tasaki_lsm_source_uses_verified_arxiv_same_work_route():
+    route = authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1007/s10955-017-1946-0"}
+    )
+
+    assert route == {
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": "https://export.arxiv.org/pdf/1708.05186",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "arxiv:1708.05186",
+        "work_identity_evidence": {
+            "kind": "openalex_same_work_location",
+            "url": "https://api.openalex.org/works/W2745733334",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ("identity_kind", "route_kind", "expected_origin"),
+    [
+        ("arxiv", "arxiv_export_pdf", "arxiv"),
+        ("doi", "arxiv_author_manuscript_pdf", "author_repository"),
+        ("doi", "aps_harvest_pdf", "publisher"),
+    ],
+)
+def test_provenance_origin_tracks_actual_retrieval_route(
+    monkeypatch,
+    identity_kind,
+    route_kind,
+    expected_origin,
+):
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "fixture")
+    identity_value = "2401.01234" if identity_kind == "arxiv" else DOI
+    source = {
+        "source_id": SOURCE_ID,
+        "canonical_identity": {
+            "kind": identity_kind,
+            "value": identity_value,
+        },
+        "canonical_url": (
+            f"https://arxiv.org/abs/{identity_value}"
+            if identity_kind == "arxiv"
+            else CANONICAL_URL
+        ),
+    }
+    route = {
+        "authoritative_retrieval_route": {
+            "kind": route_kind,
+            "artifact_identifier": (
+                f"arxiv:{identity_value}"
+                if "arxiv" in route_kind
+                else f"doi:{identity_value}"
+            ),
+            "work_identity_evidence": {
+                "kind": "canonical_identity",
+                "url": source["canonical_url"],
+            },
+        }
+    }
+    response = {
+        "body": b"%PDF-fixture",
+        "final_url": "https://example.test/source.pdf",
+        "status": 200,
+        "headers": {"content-type": "application/pdf"},
+        "media_type": "application/pdf",
+    }
+    bibliographic = {
+        "title": "Fixture",
+        "authors": ["A. Author"],
+        "venue": "Fixture venue",
+        "publication_date": "2024-01-01",
+    }
+
+    provenance = source_fetcher._build_provenance(
+        source,
+        route,
+        response,
+        bibliographic,
+        payload_name="source.pdf",
+    )
+
+    assert provenance["retrieval_metadata"]["authoritative_origin"] == expected_origin
+
+
+def test_loader_rejects_retrieval_origin_that_disagrees_with_route():
+    metadata = dict(_provenance()["retrieval_metadata"])
+    metadata.update(
+        {
+            "method": "arxiv_author_manuscript_pdf",
+            "authoritative_origin": "publisher",
+            "immutable_artifact_identifier": "arxiv:2401.01234",
+            "work_identity_evidence": {
+                "kind": "openalex_same_work_location",
+                "url": "https://api.openalex.org/works/W123456789",
+            },
+        }
+    )
+    route = {
+        "authoritative_retrieval_route": {
+            "kind": "arxiv_author_manuscript_pdf",
+            "artifact_identifier": "arxiv:2401.01234",
+            "work_identity_evidence": {
+                "kind": "openalex_same_work_location",
+                "url": "https://api.openalex.org/works/W123456789",
+            },
+        }
+    }
+
+    with pytest.raises(SourceEvidenceError, match="origin disagrees"):
+        _validate_retrieval_metadata(
+            metadata,
+            _provenance()["source_identity"],
+            route,
+        )
 
 
 @pytest.mark.parametrize(

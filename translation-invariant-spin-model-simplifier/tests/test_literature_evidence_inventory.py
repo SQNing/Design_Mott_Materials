@@ -461,7 +461,7 @@ def test_sources_are_registry_derived_unique_canonical_identities_covering_every
         canonical_source_identity(entry["source_url"])
         for entry in LITERATURE_STANDARD_RESULTS
     }
-    assert len(expected_identities) == 132
+    assert len(expected_identities) == 134
     assert len(sources) == len(expected_identities)
     assert len({source["source_id"] for source in sources}) == len(expected_identities)
     assert len({tuple(source["canonical_identity"].items()) for source in sources}) == len(
@@ -794,6 +794,73 @@ def test_task5_tightened_claims_match_direct_source_scope(loaded_inventory):
     )
 
 
+def test_task5_exact_chain_ising_and_lsm_sources_directly_support_registered_claims(
+    loaded_inventory,
+):
+    registry_by_name = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+    expected_sources = {
+        "xxx_spin_half_chain_bethe_ground_state": (
+            "Yang_Yang_1966_Part_II",
+            "https://doi.org/10.1103/PhysRev.150.327",
+        ),
+        "one_dimensional_classical_ising_correlation_length": (
+            "Taylor_2020",
+            "https://arxiv.org/abs/2001.01693",
+        ),
+        "lieb_schultz_mattis_half_integer_constraint": (
+            "Tasaki_2018",
+            "https://doi.org/10.1007/s10955-017-1946-0",
+        ),
+    }
+    for benchmark_name, (source, source_url) in expected_sources.items():
+        entry = registry_by_name[benchmark_name]
+        assert entry["source"] == source
+        assert entry["source_url"] == source_url
+
+    xxx = registry_by_name["xxx_spin_half_chain_bethe_ground_state"]
+    assert xxx["citation_locator"] == (
+        "Eq. (31c): isotropic zero-magnetization ground-state energy per lattice site"
+    )
+
+    ising = registry_by_name["one_dimensional_classical_ising_correlation_length"]
+    assert ising["citation_locator"] == (
+        "Eq. (5) and following sentence: <s_i s_{i+l}> = tanh^l(beta J)"
+    )
+
+    lsm = registry_by_name["lieb_schultz_mattis_half_integer_constraint"]
+    assert lsm["model"] == "half_odd_integer_u1_spin_chain"
+    assert lsm["parameters"] == {
+        "spin_per_unit_cell": "half_odd_integer",
+        "ground_state": "unique",
+        "interaction_range": "short_range",
+        "symmetries": ["translation", "U(1)"],
+    }
+    assert lsm["standard_result"] == {
+        "unique_ground_state_implies_gapless_excitations": True
+    }
+    assert lsm["citation_locator"] == (
+        "introduction: half-odd-integer spin with a unique ground state has gapless excitations in the infinite-volume limit"
+    )
+
+    contracts = {
+        contract.benchmark_name: contract for contract in loaded_inventory.contracts
+    }
+    lsm_contract = contracts["lieb_schultz_mattis_half_integer_constraint"]
+    assert lsm_contract.system == "half_odd_integer_u1_spin_chain"
+    assert lsm_contract.as_plain_data()["parameter_regime"] == lsm["parameters"]
+    assert lsm_contract.observable["claim_fields"] == (
+        "unique_ground_state_implies_gapless_excitations",
+    )
+    records = {
+        record.benchmark_name: record for record in loaded_inventory.records
+    }
+    assert records["lieb_schultz_mattis_half_integer_constraint"].evidence_mode == (
+        "local_source_parse"
+    )
+
+
 def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
     registry_by_name = {
         entry["name"]: entry["source_url"] for entry in LITERATURE_STANDARD_RESULTS
@@ -952,7 +1019,7 @@ def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
     loaded_inventory,
 ):
     routes = loaded_inventory.source_provisioning
-    assert len(routes) == len(loaded_inventory.source_index) == 132
+    assert len(routes) == len(loaded_inventory.source_index) == 134
     assert {route["source_id"] for route in routes} == {
         source["source_id"] for source in loaded_inventory.source_index
     }

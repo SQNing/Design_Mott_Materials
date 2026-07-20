@@ -12,7 +12,7 @@
     ],
     "kind": "registered_field_comparison"
   },
-  "evidence_mode": "projection_only",
+  "evidence_mode": "local_source_parse",
   "parser_strategy": {
     "kind": "structured_source_field_extraction",
     "output_fields": [

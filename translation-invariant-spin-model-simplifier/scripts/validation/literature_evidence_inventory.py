@@ -721,7 +721,7 @@ def _expected_source_claim_scope(entry):
         return "direct published material or experimental observable"
     if entry["comparison_kind"] in {"exact_solution", "exact_enumeration"}:
         return "published exact model result"
-    if entry["comparison_kind"] == "paper_formula":
+    if entry["comparison_kind"] in {"paper_formula", "theorem"}:
         return "published analytic relation or formula"
     return "published numerical or categorical model result"
 
@@ -1082,7 +1082,7 @@ def _expected_container(locator_class):
 def _forecast_evidence_mode(entry):
     if entry["comparison_kind"] in {"exact_solution", "exact_enumeration"}:
         return "local_recompute"
-    if entry["comparison_kind"] in {"paper_formula", "paper_numeric"}:
+    if entry["comparison_kind"] in {"paper_formula", "paper_numeric", "theorem"}:
         return "local_source_parse"
     return "projection_only"
 

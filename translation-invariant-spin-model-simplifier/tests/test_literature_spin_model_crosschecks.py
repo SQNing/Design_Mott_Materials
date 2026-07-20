@@ -1314,7 +1314,7 @@ def test_stored_exact_status_and_transfer_matrix_results_match_local_helpers():
     assert classical_ising_chain_correlation_length(beta=1.0, exchange=1.0) == pytest.approx(
         ising_correlation["correlation_length_beta_1_j_1"]
     )
-    assert lsm["unique_gapped_symmetric_ground_state_allowed"] is False
+    assert lsm["unique_ground_state_implies_gapless_excitations"] is True
     assert eight_vertex["is_exactly_solved"] is True
     assert blume_capel_square_zero_temperature_level_crossing() == pytest.approx(
         blume_capel["square_lattice_d_over_j_crossing"]

@@ -52,6 +52,7 @@ _OPEN_REPOSITORY_ROUTES = {
     "10.1126/science.271.5249.618": ("cond-mat/9509181", "W2055891591"),
     "10.1143/jpsj.70.3377": ("cond-mat/0111127", "W2131097405"),
     "10.1143/jpsj.78.043704": ("0902.3028", "W2091151398"),
+    "10.1007/s10955-017-1946-0": ("1708.05186", "W2745733334"),
 }
 _INSTITUTIONAL_REPOSITORY_ROUTES = {}
 _OPEN_PUBLISHER_ROUTES = {
@@ -62,6 +63,16 @@ _OPEN_PUBLISHER_ROUTES = {
     "10.1038/ncomms6137": ("ncomms6137", "W1695352508"),
     "10.1038/srep16419": ("srep16419", "W3105052732"),
 }
+
+
+def authoritative_origin_for_route_kind(route_kind):
+    """Return the provenance origin implied by an acquisition route."""
+
+    return {
+        "arxiv_export_pdf": "arxiv",
+        "arxiv_author_manuscript_pdf": "author_repository",
+        "institutional_repository_pdf": "institutional_repository",
+    }.get(route_kind, "publisher")
 
 
 def authoritative_route_for_identity(identity):
@@ -474,6 +485,11 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
         raise SourceEvidenceError("authoritative retrieval method disagrees with provisioning")
     if metadata["authoritative_origin"] not in _AUTHORITATIVE_ORIGINS:
         raise SourceEvidenceError("authoritative retrieval origin is invalid")
+    expected_origin = authoritative_origin_for_route_kind(expected_method)
+    if metadata["authoritative_origin"] != expected_origin:
+        raise SourceEvidenceError(
+            "authoritative retrieval origin disagrees with provisioning route"
+        )
     status = metadata["http_status"]
     if isinstance(status, bool) or not isinstance(status, int) or not 200 <= status < 300:
         raise SourceEvidenceError("http_status must be a successful integer status")

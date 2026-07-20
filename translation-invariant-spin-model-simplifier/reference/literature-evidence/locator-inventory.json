@@ -3896,7 +3896,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0003-4916(61)90115-4",
+        "canonical_source_identity": "doi:10.1007/s10955-017-1946-0",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -3905,18 +3905,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1016/0003-4916(61)90115-4 payload for the cited context and the declared spectral constraint observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1007/s10955-017-1946-0 payload for the cited context and the declared unique ground state gaplessness constraint observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "spectral constraint",
-          "unique gapped symmetric ground state allowed",
-          "LSM half-integer spin-chain constraint"
+          "unique ground state gaplessness constraint",
+          "unique ground state implies gapless excitations",
+          "introduction: half-odd-integer spin with a unique ground state has gapless excitations in the infinite-volume limit"
         ],
-        "source_context_hint": "LSM half-integer spin-chain constraint",
+        "source_context_hint": "introduction: half-odd-integer spin with a unique ground state has gapless excitations in the infinite-volume limit",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "unique_gapped_symmetric_ground_state_allowed",
+              "id": "unique_ground_state_implies_gapless_excitations",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -3924,12 +3924,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_bb9d8409dad06c02dae3",
+      "source_id": "doi_607b6dc8e2ebace9ef53",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "unique_gapped_symmetric_ground_state_allowed",
+            "id": "unique_ground_state_implies_gapless_excitations",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -4283,7 +4283,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1007/bf02980577",
+        "canonical_source_identity": "arxiv:2001.01693",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -4292,14 +4292,14 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1007/bf02980577 payload for the cited context and the declared correlation length observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:2001.01693 payload for the cited context and the declared correlation length observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "correlation length",
           "formula",
           "correlation length beta 1 j 1",
-          "one-dimensional Ising transfer-matrix correlation length"
+          "Eq. (5) and following sentence: <s_i s_{i+l}> = tanh^l(beta J)"
         ],
-        "source_context_hint": "one-dimensional Ising transfer-matrix correlation length",
+        "source_context_hint": "Eq. (5) and following sentence: <s_i s_{i+l}> = tanh^l(beta J)",
         "target_representation": {
           "fields": [
             {
@@ -4318,7 +4318,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_85b0ca56044270e7e63e",
+      "source_id": "arxiv_1210a896b82f8e645da1",
       "target_representation": {
         "fields": [
           {
@@ -7252,7 +7252,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1007/bf01341708",
+        "canonical_source_identity": "doi:10.1103/physrev.150.327",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -7261,13 +7261,13 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1007/bf01341708 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrev.150.327 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "thermodynamic limit ground state energy",
           "energy per site",
-          "Bethe ansatz antiferromagnetic chain energy"
+          "Eq. (31c): isotropic zero-magnetization ground-state energy per lattice site"
         ],
-        "source_context_hint": "Bethe ansatz antiferromagnetic chain energy",
+        "source_context_hint": "Eq. (31c): isotropic zero-magnetization ground-state energy per lattice site",
         "target_representation": {
           "fields": [
             {
@@ -7280,7 +7280,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_59384b3efe539754fa1e",
+      "source_id": "doi_696bd9749ec01fc72d99",
       "target_representation": {
         "fields": [
           {

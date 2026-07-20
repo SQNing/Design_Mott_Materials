@@ -4383,7 +4383,7 @@
           "spin": 0.5
         },
         "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
-        "source_claim_scope": "published numerical or categorical model result"
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
         "expression": "bipartite Heisenberg exchange with sublattice imbalance",
@@ -4494,38 +4494,52 @@
         "backend_scope": "diagnostic",
         "comparison_kind": "theorem",
         "model_parameters": {
-          "spin_per_unit_cell": "half_integer"
+          "ground_state": "unique",
+          "interaction_range": "short_range",
+          "spin_per_unit_cell": "half_odd_integer",
+          "symmetries": [
+            "translation",
+            "U(1)"
+          ]
         },
         "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
-        "source_claim_scope": "published numerical or categorical model result"
+        "source_claim_scope": "published analytic relation or formula"
       },
       "hamiltonian": {
-        "expression": "translation-invariant local spin Hamiltonian",
+        "expression": "one-dimensional short-range translation-invariant U(1)-symmetric spin Hamiltonian",
         "lattice": "chain",
         "terms": [
           "local_spin",
+          "short_range",
           "translation_invariant",
-          "half_integer"
+          "u1_symmetric",
+          "half_odd_integer"
         ]
       },
       "observable": {
         "claim_fields": [
-          "unique_gapped_symmetric_ground_state_allowed"
+          "unique_ground_state_implies_gapless_excitations"
         ],
-        "identity": "unique_gapped_symmetric_ground_state_allowed_in_half_integer_spin_chain",
+        "identity": "unique_ground_state_implies_gapless_excitations_in_half_odd_integer_u1_spin_chain",
         "semantics": [
-          "Canonical literature observable: unique gapped symmetric ground state allowed in half integer spin chain.",
-          "Truth value of the proposition 'unique gapped symmetric ground state allowed' for half integer spin chain, with source conditions matched explicitly."
+          "For a one-dimensional short-range translation-invariant U(1)-symmetric spin system with half-odd-integer spin per unit cell, a unique ground state implies gapless excitations in the infinite-volume limit.",
+          "The claim does not apply without the stated locality, symmetry, filling, and ground-state uniqueness conditions."
         ]
       },
       "parameter_regime": {
-        "spin_per_unit_cell": "half_integer"
+        "ground_state": "unique",
+        "interaction_range": "short_range",
+        "spin_per_unit_cell": "half_odd_integer",
+        "symmetries": [
+          "translation",
+          "U(1)"
+        ]
       },
       "representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "unique_gapped_symmetric_ground_state_allowed",
+            "id": "unique_ground_state_implies_gapless_excitations",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -4534,11 +4548,11 @@
       },
       "size_or_limit": {
         "category": "thermodynamic_limit",
-        "scope_subject": "Lieb schultz mattis half integer constraint"
+        "scope_subject": "Half-odd-integer U(1)-symmetric spin-chain gaplessness constraint"
       },
-      "subject": "Lieb schultz mattis half integer constraint",
-      "system": "half_integer_spin_chain",
-      "units": "unique_gapped_symmetric_ground_state_allowed=not_applicable"
+      "subject": "Half-odd-integer U(1)-symmetric spin-chain gaplessness constraint",
+      "system": "half_odd_integer_u1_spin_chain",
+      "units": "unique_ground_state_implies_gapless_excitations=not_applicable"
     },
     {
       "benchmark_name": "majundar_ghosh_chain_exact_dimer_point",
@@ -4957,8 +4971,8 @@
         "identity": "formula_and_correlation_length_beta_1_j_1_in_classical_ising_chain",
         "semantics": [
           "Canonical literature observable: formula, correlation length beta 1 j 1 in classical ising chain.",
-          "Published symbolic or categorical specification of formula for classical ising chain, interpreted as symbolic expression.",
-          "Published numerical correlation length beta 1 j 1 for classical ising chain, expressed in lattice spacing using bulk correlation length."
+          "The source equation gives the exact two-point correlation <s_i s_{i+l}> = tanh^l(beta J); exponential-decay normalization yields xi = -1/log(tanh(beta J)).",
+          "The beta J = 1 correlation length is obtained from that source equation in lattice-spacing units."
         ]
       },
       "parameter_regime": {

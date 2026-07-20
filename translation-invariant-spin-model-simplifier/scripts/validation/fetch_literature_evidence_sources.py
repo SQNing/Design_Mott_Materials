@@ -16,6 +16,7 @@ from validation.literature_evidence_sources import (
     SourceEvidenceError,
     _pdftotext_version,
     arxiv_atom_identifier_matches,
+    authoritative_origin_for_route_kind,
     load_verified_source,
     validate_download_response,
     validate_work_identity_document,
@@ -333,7 +334,7 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
     identity = source["canonical_identity"]
     retrieval_kind = route["authoritative_retrieval_route"]["kind"]
     retrieval_route = route["authoritative_retrieval_route"]
-    origin = "arxiv" if identity["kind"] == "arxiv" else "publisher"
+    origin = authoritative_origin_for_route_kind(retrieval_kind)
     extraction = (
         {
             "tool": "pdftotext",
