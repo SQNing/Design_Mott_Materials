@@ -182,8 +182,8 @@ def test_representative_placeholder_fields_expand_to_scientific_observables(
             "published experimental assessment of quantum-spin-liquid behavior",
         ),
         "checkerboard_heisenberg_plaquette_reference": (
-            "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
-            "published assessment of plaquette valence-bond order",
+            "plaquette_long_range_order_and_valence_bond_crystal_in_spin_half_checkerboard_heisenberg_antiferromagnet",
+            "published long-range order in four-spin S=0 plaquettes and valence-bond-crystal identification",
         ),
         "j1_j2_square_spin_half_neel_collinear_transition_reference": (
             "nonmagnetic_phase_window_in_j2_over_j1",
@@ -603,6 +603,195 @@ def test_corrected_mismatched_primary_source_identities_are_registered(
     }
     assert corrected <= identities
     assert identities.isdisjoint(invalid)
+
+
+def test_task5_corrected_source_identities_are_registered(loaded_inventory):
+    registry_by_name = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+    expected = {
+        "cri3_honeycomb_ferromagnet_reference": (
+            "McGuire_2015",
+            "https://doi.org/10.1021/cm504242t",
+        ),
+        "cu2iro3_honeycomb_kitaev_reference": (
+            "Abramchuk_2017",
+            "https://doi.org/10.1021/jacs.7b06911",
+        ),
+        "sawtooth_chain_localized_magnon_flat_band": (
+            "Derzhko_Richter_2006",
+            "https://doi.org/10.1140/epjb/e2006-00273-y",
+        ),
+        "diamond_chain_localized_magnon_flat_band": (
+            "Derzhko_Richter_2006",
+            "https://doi.org/10.1140/epjb/e2006-00273-y",
+        ),
+        "maple_leaf_lattice_heisenberg_reference": (
+            "Farnell_Darradi_Schmidt_Richter_2011",
+            "https://doi.org/10.1103/PhysRevB.84.104406",
+        ),
+        "checkerboard_heisenberg_plaquette_reference": (
+            "Fouet_Mambrini_Sindzingre_Lhuillier_2003",
+            "https://doi.org/10.1103/PhysRevB.67.054411",
+        ),
+        "licuvo4_spiral_chain_reference": (
+            "Enderle_2005",
+            "https://doi.org/10.1209/epl/i2004-10484-x",
+        ),
+        "zn_barlowite_kagome_qsl_reference": (
+            "Guterding_Valenti_Jeschke_2016",
+            "https://doi.org/10.1103/PhysRevB.94.125136",
+        ),
+        "kagome_ising_ferromagnet_exact_tc": (
+            "Kano_Naya_1953",
+            "https://doi.org/10.1143/ptp/10.2.158",
+        ),
+        "kagome_ising_antiferromagnet_residual_entropy_reference": (
+            "Kano_Naya_1953",
+            "https://doi.org/10.1143/ptp/10.2.158",
+        ),
+        "bcc_j1_j2_heisenberg_collinear_reference": (
+            "Mueller_Richter_Hauser_Ihle_2015",
+            "https://doi.org/10.1140/epjb/e2015-60113-7",
+        ),
+        "nacuo2_triangular_heisenberg_material_reference": (
+            "Hsieh_Qian_Berger_Cava_Lynn_Huang_Hasan_2008",
+            "https://doi.org/10.1016/j.physb.2007.10.295",
+        ),
+    }
+
+    for benchmark_name, (source, source_url) in expected.items():
+        entry = registry_by_name[benchmark_name]
+        assert entry["source"] == source
+        assert entry["source_url"] == source_url
+
+    plain_inventory = loaded_inventory.as_plain_data()
+    source_index_text = json.dumps(
+        plain_inventory["source_index"], sort_keys=True
+    ).lower()
+    corrected_dois = {
+        canonical_source_identity(source_url).split(":", 1)[1]
+        for _, source_url in expected.values()
+    }
+    assert corrected_dois <= {
+        source["canonical_identity"]["value"]
+        for source in loaded_inventory.source_index
+    }
+    assert "10.1140/epjb/e2006-00273-y" in source_index_text
+
+
+def test_task5_invalid_source_identities_are_absent_from_every_inventory_surface(
+    loaded_inventory,
+):
+    invalid_dois = {
+        "10.1021/acs.chemmater.5b01006",
+        "10.1021/jacs.7b08744",
+        "10.1140/epjb/e2006-00267-3",
+        "10.1140/epjb/e2009-00307-4",
+        "10.1209/epl/i2002-00102-3",
+        "10.1209/epl/i2005-10075-2",
+        "10.1088/1674-1137/41/3/037105",
+        "10.1143/ptp.10.158",
+        "10.1002/9780470316517",
+        "10.1088/0953-8984/19/14/145259",
+    }
+    plain_inventory = loaded_inventory.as_plain_data()
+    surfaces = {
+        "registry": [entry["source_url"] for entry in LITERATURE_STANDARD_RESULTS],
+        "source_index": plain_inventory["source_index"],
+        "source_provisioning": plain_inventory["source_provisioning"],
+        "locator_inventory": plain_inventory["locator_inventory"],
+        "records": plain_inventory["records"],
+    }
+    for surface_name, surface in surfaces.items():
+        serialized = json.dumps(surface, sort_keys=True).lower()
+        for invalid_doi in invalid_dois:
+            assert invalid_doi not in serialized, (surface_name, invalid_doi)
+
+
+def test_task5_tightened_claims_match_direct_source_scope(loaded_inventory):
+    registry_by_name = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+    expected = {
+        "cu2iro3_honeycomb_kitaev_reference": (
+            "honeycomb_frustrated_iridate_identity",
+            {"honeycomb_frustrated_iridate_identity": True},
+            "abstract: honeycomb frustrated iridate Cu2IrO3",
+        ),
+        "maple_leaf_lattice_heisenberg_reference": (
+            "ground_state_magnetic_long_range_order",
+            {"magnetic_long_range_order": True},
+            "abstract: magnetically ordered ground state with drastically reduced sublattice magnetization",
+        ),
+        "checkerboard_heisenberg_plaquette_reference": (
+            "plaquette_long_range_order_and_valence_bond_crystal",
+            {
+                "plaquette_long_range_order": True,
+                "valence_bond_crystal": True,
+            },
+            "abstract: long-range order in four-spin S=0 plaquettes and a valence-bond crystal",
+        ),
+        "zn_barlowite_kagome_qsl_reference": (
+            "substitution_effective_exchange_model",
+            {
+                "significantly_reduced_interkagome_exchange": True,
+                "two_parameter_heisenberg_hamiltonian": True,
+            },
+            "abstract: nonmagnetic isoelectronic Zn substitution significantly reduces interkagome exchange and yields a two-parameter Heisenberg Hamiltonian",
+        ),
+        "bcc_j1_j2_heisenberg_collinear_reference": (
+            "large_j2_collinear_order",
+            {"large_j2_collinear_order": True},
+            "abstract: large-J2 collinear order for ferromagnetic J1 and antiferromagnetic J2",
+        ),
+        "nacuo2_triangular_heisenberg_material_reference": (
+            "material_spin_order_reference",
+            {"unconventional_spin_order_reference": True},
+            "abstract: unconventional spin order in triangular-lattice NaCrO2",
+        ),
+    }
+    for benchmark_name, (observable, standard_result, locator) in expected.items():
+        entry = registry_by_name[benchmark_name]
+        assert entry["observable"] == observable
+        assert entry["standard_result"] == standard_result
+        assert entry["citation_locator"] == locator
+        assert "computable_observables" not in entry["standard_result"]
+
+    bcc = registry_by_name["bcc_j1_j2_heisenberg_collinear_reference"]
+    assert bcc["model"] == "bcc_ferromagnetic_j1_antiferromagnetic_j2_heisenberg"
+    assert bcc["parameters"] == {
+        "j1_sign": "ferromagnetic",
+        "j2_sign": "antiferromagnetic",
+        "spin": "arbitrary",
+    }
+    assert "J1 < 0" in bcc["hamiltonian"]
+    assert "J2 > 0" in bcc["hamiltonian"]
+
+    legacy = registry_by_name["nacuo2_triangular_heisenberg_material_reference"]
+    assert legacy["model"] == "nacro2_triangular_heisenberg"
+    assert legacy["parameters"] == {"material": "NaCrO2", "spin": 1.5}
+    assert "spin-3/2" in legacy["hamiltonian"]
+    physical_payload = {key: value for key, value in legacy.items() if key != "name"}
+    assert "NaCuO2" not in json.dumps(physical_payload, sort_keys=True)
+    assert "120" not in json.dumps(physical_payload, sort_keys=True)
+
+    contracts = {
+        contract.benchmark_name: contract for contract in loaded_inventory.contracts
+    }
+    for benchmark_name, (_, standard_result, _) in expected.items():
+        contract = contracts[benchmark_name]
+        assert contract.observable["claim_fields"] == tuple(standard_result)
+        assert {
+            field["id"] for field in contract.representation["fields"]
+        } == set(standard_result)
+
+    legacy_contract = contracts["nacuo2_triangular_heisenberg_material_reference"]
+    assert legacy_contract.system == "nacro2_triangular_heisenberg"
+    assert legacy_contract.parameter_regime == {"material": "NaCrO2", "spin": 1.5}
+    assert "NaCuO2" not in json.dumps(
+        legacy_contract.as_plain_data(), sort_keys=True
+    )
 
 
 def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):

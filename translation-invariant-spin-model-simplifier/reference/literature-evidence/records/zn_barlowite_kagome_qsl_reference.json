@@ -5,7 +5,13 @@
     "fields": [
       {
         "convention": "boolean_claim",
-        "id": "reduced_interlayer_magnetism",
+        "id": "significantly_reduced_interkagome_exchange",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "two_parameter_heisenberg_hamiltonian",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -18,7 +24,13 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
-        "id": "reduced_interlayer_magnetism",
+        "id": "significantly_reduced_interkagome_exchange",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "two_parameter_heisenberg_hamiltonian",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -27,16 +39,17 @@
   "record_state": "unresolved",
   "registry_selector": {
     "fields": [
-      "reduced_interlayer_magnetism"
+      "significantly_reduced_interkagome_exchange",
+      "two_parameter_heisenberg_hamiltonian"
     ],
     "path": [
       "standard_result"
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_6c0becc5fdeb4d7af399",
+  "source_id": "doi_c730fdcc0ab4794da339",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1088/1674-1137/41/3/037105",
+    "canonical_source_identity": "doi:10.1103/physrevb.94.125136",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,19 +58,25 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1088/1674-1137/41/3/037105 payload for the cited context and the declared spin liquid material reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.94.125136 payload for the cited context and the declared substitution effective exchange model observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "ZnCu3(OH)6FBr",
-      "spin liquid material reference",
-      "reduced interlayer magnetism",
-      "Zn-substituted barlowite kagome spin-liquid candidate"
+      "substitution effective exchange model",
+      "significantly reduced interkagome exchange",
+      "two parameter heisenberg hamiltonian",
+      "abstract: nonmagnetic isoelectronic Zn substitution significantly reduces interkagome exchange and yields a two-parameter Heisenberg Hamiltonian"
     ],
-    "source_context_hint": "Zn-substituted barlowite kagome spin-liquid candidate",
+    "source_context_hint": "abstract: nonmagnetic isoelectronic Zn substitution significantly reduces interkagome exchange and yields a two-parameter Heisenberg Hamiltonian",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
-          "id": "reduced_interlayer_magnetism",
+          "id": "significantly_reduced_interkagome_exchange",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "two_parameter_heisenberg_hamiltonian",
           "type": "boolean",
           "units": "not_applicable"
         }

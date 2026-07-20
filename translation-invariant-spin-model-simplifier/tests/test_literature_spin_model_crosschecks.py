@@ -472,7 +472,7 @@ def test_literature_standard_results_include_benchmark_models_from_recent_survey
     assert expected_names <= {entry["name"] for entry in LITERATURE_STANDARD_RESULTS}
 
 
-def test_complex_material_references_record_computable_observable_projections():
+def test_declared_complex_material_projections_are_structurally_valid_and_optional():
     complex_reference_names = {
         "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
         "kagome_heisenberg_topological_entanglement_reference",
@@ -510,11 +510,24 @@ def test_complex_material_references_record_computable_observable_projections():
     for name in complex_reference_names:
         computable = entries_by_name[name]["standard_result"].get("computable_observables", [])
         assert isinstance(computable, list)
-        assert len(computable) >= 2
         assert all(isinstance(observable, str) and observable for observable in computable)
+        assert len(computable) == len(set(computable))
+
+    assert entries_by_name["cu2iro3_honeycomb_kitaev_reference"]["standard_result"].get(
+        "computable_observables", []
+    ) == []
+    assert entries_by_name["zn_barlowite_kagome_qsl_reference"]["standard_result"].get(
+        "computable_observables", []
+    ) == []
+    assert entries_by_name["nacuo2_triangular_heisenberg_material_reference"][
+        "standard_result"
+    ].get("computable_observables", []) == []
+    assert entries_by_name["fecl3_honeycomb_antiferromagnet_reference"][
+        "standard_result"
+    ].get("computable_observables", []) == ["spiral_geometry_consistency"]
 
 
-def test_all_complex_references_have_queryable_computable_observable_projections():
+def test_declared_complex_reference_projections_remain_queryable():
     complex_terms = {"material", "kitaev", "gamma", "dzyaloshinskii_moriya", "spin_liquid"}
     complex_entries = [
         entry
@@ -525,7 +538,8 @@ def test_all_complex_references_have_queryable_computable_observable_projections
     assert len(complex_entries) >= 55
     for entry in complex_entries:
         computable = entry["standard_result"].get("computable_observables", [])
-        assert len(computable) >= 2, entry["name"]
+        for observable in computable:
+            assert entry in standard_results_for_computable_observable(observable)
 
     honeycomb_bond_matrix = standard_results_for_computable_observable(
         "single_bond_exchange_matrix",
@@ -549,7 +563,12 @@ def test_all_complex_references_have_queryable_computable_observable_projections
     assert {entry["name"] for entry in kagome_curie_weiss} >= {
         "herbertsmithite_kagome_qsl_reference",
         "barlowite_kagome_material_reference",
-        "zn_barlowite_kagome_qsl_reference",
+    }
+    assert "zn_barlowite_kagome_qsl_reference" not in {
+        entry["name"] for entry in kagome_curie_weiss
+    }
+    assert "cu2iro3_honeycomb_kitaev_reference" not in {
+        entry["name"] for entry in honeycomb_bond_matrix
     }
     assert {entry["name"] for entry in dm_single_q} >= {
         "kagome_dzyaloshinskii_moriya_critical_reference",
@@ -572,14 +591,20 @@ def test_computable_observable_summary_and_verification_tasks_are_actionable():
 
     assert summary["curie_weiss_theta"]["count"] >= 25
     assert {"kagome", "honeycomb", "pyrochlore"} <= set(summary["curie_weiss_theta"]["lattices"])
-    assert kagome_summary["curie_weiss_theta"]["count"] >= 10
-    assert all(lattice == "kagome" for lattice in kagome_summary["curie_weiss_theta"]["lattices"])
+    kagome_curie_weiss = kagome_summary["curie_weiss_theta"]
+    assert kagome_curie_weiss["count"] == len(kagome_curie_weiss["benchmark_names"])
+    assert kagome_curie_weiss["count"] > 0
+    assert all(lattice == "kagome" for lattice in kagome_curie_weiss["lattices"])
+    assert "zn_barlowite_kagome_qsl_reference" not in kagome_curie_weiss[
+        "benchmark_names"
+    ]
 
     task_names = {task["benchmark_name"] for task in honeycomb_kitaev_tasks}
     assert task_names >= {
         "alpha_rucl3_kitaev_gamma_zigzag_reference",
         "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
     }
+    assert "cu2iro3_honeycomb_kitaev_reference" not in task_names
     for task in honeycomb_kitaev_tasks:
         assert task["computable_observable"] == "single_bond_exchange_matrix"
         assert task["lattice"] == "honeycomb"
@@ -702,9 +727,11 @@ def test_computable_observable_coverage_report_accounts_for_all_registry_labels(
         "honeycomb_kitaev_heisenberg_four_sublattice_phases",
         "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
         "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
-        "cu2iro3_honeycomb_kitaev_reference",
         "ba3irti2o9_honeycomb_kitaev_reference",
     } <= set(report["single_bond_exchange_matrix"]["covered_benchmark_names"])
+    assert "cu2iro3_honeycomb_kitaev_reference" not in report[
+        "single_bond_exchange_matrix"
+    ]["covered_benchmark_names"]
     assert report["single_bond_exchange_matrix"]["uncovered_benchmark_names"] == []
 
     assert report["single_bond_exchange_eigenvalues"]["executable_task_count"] == 6
@@ -722,12 +749,7 @@ def test_computable_observable_coverage_report_accounts_for_all_registry_labels(
     ]
     assert report["single_bond_anisotropic_exchange_matrix"]["uncovered_benchmark_names"] == []
 
-    assert report["kitaev_triangle_gapless_condition"]["executable_task_count"] == 1
-    assert report["kitaev_triangle_gapless_condition"]["coverage_status"] == "fully_executable"
-    assert report["kitaev_triangle_gapless_condition"]["covered_benchmark_names"] == [
-        "cu2iro3_honeycomb_kitaev_reference"
-    ]
-    assert report["kitaev_triangle_gapless_condition"]["uncovered_benchmark_names"] == []
+    assert "kitaev_triangle_gapless_condition" not in report
 
     assert report["dm_selected_chirality"]["executable_task_count"] == report["dm_selected_chirality"]["count"] == 6
     assert report["dm_selected_chirality"]["coverage_status"] == "fully_executable"
@@ -846,9 +868,9 @@ def test_local_exchange_matrix_tasks_cover_material_eigenvalue_and_anisotropic_l
         "honeycomb_kitaev_heisenberg_four_sublattice_phases",
         "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
         "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
-        "cu2iro3_honeycomb_kitaev_reference",
         "ba3irti2o9_honeycomb_kitaev_reference",
     } <= matrix_task_names
+    assert "cu2iro3_honeycomb_kitaev_reference" not in matrix_task_names
 
     eigenvalue_tasks = tasks_by_observable["single_bond_exchange_eigenvalues"]
     eigenvalue_task_labels = {
@@ -1393,24 +1415,22 @@ def test_stored_remaining_exact_and_formula_results_match_local_helpers():
     ]
 
 
-def test_stored_fcc_and_bcc_j1_j2_ordering_types_match_local_fourier_energies():
+def test_stored_fcc_orders_and_bcc_large_j2_collinear_claim_match_local_energies():
     fcc = _standard_result("fcc_j1_j2_heisenberg_type_order_reference")
     bcc = _standard_result("bcc_j1_j2_heisenberg_collinear_reference")
 
     fcc_type_i = fcc_j1_j2_classical_order_energies(j1=1.0, j2=-0.2)
     fcc_type_ii = fcc_j1_j2_classical_order_energies(j1=1.0, j2=1.0)
     fcc_type_iii = fcc_j1_j2_classical_order_energies(j1=1.0, j2=0.2)
-    bcc_neel = bcc_j1_j2_classical_order_energies(j1=1.0, j2=0.1)
-    bcc_collinear = bcc_j1_j2_classical_order_energies(j1=1.0, j2=1.0)
+    bcc_collinear = bcc_j1_j2_classical_order_energies(j1=-1.0, j2=1.0)
 
     assert fcc_type_i["minimum_order"] == "type_I"
     assert fcc_type_ii["minimum_order"] == "type_II"
     assert fcc_type_iii["minimum_order"] == "type_III"
     assert sorted(fcc["common_orders"]) == ["type_I", "type_II", "type_III"]
-    assert bcc_neel["minimum_order"] == "neel"
     assert bcc_collinear["minimum_order"] == "collinear"
     assert bcc_collinear["energies"]["collinear"] < bcc_collinear["energies"]["neel"]
-    assert bcc["contains_collinear_large_j2_phase"] is True
+    assert bcc["large_j2_collinear_order"] is True
 
 
 def test_stored_triangular_xxz_supersolid_reference_matches_three_sublattice_variational_formula():
@@ -1579,7 +1599,6 @@ def test_stored_honeycomb_ferro_and_af_material_order_matches_local_nn_glt_limit
         "crcl3_honeycomb_heisenberg_reference": ("ferromagnetic", "ferromagnetic_honeycomb_layers"),
         "cri3_honeycomb_ferromagnet_reference": ("ferromagnetic", "ferromagnetic_order"),
         "crgete3_honeycomb_ferromagnet_reference": ("ferromagnetic", "ferromagnetic_order"),
-        "fecl3_honeycomb_antiferromagnet_reference": ("neel", "neel_order_on_honeycomb"),
         "mn_ps3_honeycomb_antiferromagnet_reference": ("neel", "neel_order_reference"),
     }
 
@@ -1587,13 +1606,15 @@ def test_stored_honeycomb_ferro_and_af_material_order_matches_local_nn_glt_limit
         result = _standard_result(name)
         assert honeycomb_nearest_neighbor_order_status(order) == result[result_key]
 
+    fecl3 = _standard_result("fecl3_honeycomb_antiferromagnet_reference")
+    assert "neel_order_on_honeycomb" not in fecl3
+
 
 def test_stored_honeycomb_ferro_and_af_material_order_matches_local_nn_fourier_kernel():
     expected_orders = {
         "crcl3_honeycomb_heisenberg_reference": (-1.0, "ferromagnetic", "ferromagnetic_honeycomb_layers"),
         "cri3_honeycomb_ferromagnet_reference": (-1.0, "ferromagnetic", "ferromagnetic_order"),
         "crgete3_honeycomb_ferromagnet_reference": (-1.0, "ferromagnetic", "ferromagnetic_order"),
-        "fecl3_honeycomb_antiferromagnet_reference": (1.0, "neel", "neel_order_on_honeycomb"),
         "mn_ps3_honeycomb_antiferromagnet_reference": (1.0, "neel", "neel_order_reference"),
     }
 
@@ -1724,29 +1745,20 @@ def test_stored_cs2cucl4_spiral_order_matches_local_anisotropic_triangular_limit
     assert energy(q) < energy(math.pi)
 
 
-def test_stored_nacuo2_triangular_material_matches_local_nn_120_degree_limit():
+def test_nacro2_direct_source_claim_is_not_certified_by_local_nn_120_degree_limit():
     result = _standard_result("nacuo2_triangular_heisenberg_material_reference")
     model = _triangular_lattice_nearest_neighbor_model(j1=1.0)
     k_point = [1.0 / 3.0, 2.0 / 3.0, 0.0]
 
     assert _single_q_glt_energy(model, k_point) < _single_q_glt_energy(model, [0.0, 0.0, 0.0]) - 1.0
-    assert result["triangular_material_reference"] is True
+    assert result == {"unconventional_spin_order_reference": True}
+    assert "triangular_material_reference" not in result
 
 
-def test_registry_kitaev_triangle_gapless_condition_tasks_exercise_theorem_route():
+def test_cu2iro3_direct_source_claim_does_not_create_kitaev_theorem_projection():
     tasks = kitaev_triangle_gapless_condition_verification_tasks()
 
-    assert {task["benchmark_name"] for task in tasks} == {
-        "cu2iro3_honeycomb_kitaev_reference",
-    }
-    for task in tasks:
-        assert task["verification_kind"] == "theorem"
-        assert task["suggested_backend"] == "analytic_or_symbolic"
-        assert task["projection_kind"] == "triangle_inequality_gapless_condition"
-        assert task["model_parameters"] == {"kx": 1.0, "ky": 1.0, "kz": 1.0}
-        assert task["expected_gapless_condition"] == "triangle_inequalities"
-        assert task["expected_isotropic_kitaev_point_gapless"] is True
-        assert task["projection_note"]
+    assert tasks == []
 
 
 def test_registry_paper_reference_tasks_cover_the_remaining_reference_claims():
@@ -2042,14 +2054,19 @@ def test_stored_barlowite_interlayer_reference_matches_local_nonzero_interlayer_
     )["interlayer_coupling_relevant"] is False
 
 
-def test_stored_zn_barlowite_reference_matches_local_interlayer_reduction_status():
+def test_zn_barlowite_direct_source_claim_is_not_certified_by_arbitrary_exchange_ratio():
     result = _standard_result("zn_barlowite_kagome_qsl_reference")
     status = spin_benchmarks.kagome_interlayer_reduction_status(
         parent_interlayer_exchange=0.18,
         substituted_interlayer_exchange=0.02,
     )
 
-    assert status["reduced_interlayer_magnetism"] is result["reduced_interlayer_magnetism"]
+    assert result == {
+        "significantly_reduced_interkagome_exchange": True,
+        "two_parameter_heisenberg_hamiltonian": True,
+    }
+    assert "reduced_interlayer_magnetism" not in result
+    assert status["reduced_interlayer_magnetism"] is True
     assert status["substituted_to_parent_ratio"] == pytest.approx(0.02 / 0.18)
     assert status["interlayer_reduction_fraction"] == pytest.approx(1.0 - 0.02 / 0.18)
     assert spin_benchmarks.kagome_interlayer_reduction_status(
@@ -2171,11 +2188,16 @@ def test_stored_bpcb_field_induced_order_matches_local_strong_rung_field_window(
     )["field_induced_luttinger_liquid_regime"] is False
 
 
-def test_stored_checkerboard_plaquette_reference_matches_local_plaquette_singlet_ed():
+def test_checkerboard_long_range_claim_is_not_certified_by_isolated_plaquette_ed():
     result = _standard_result("checkerboard_heisenberg_plaquette_reference")
     status = spin_benchmarks.spin_half_square_plaquette_singlet_status(exchange=1.0)
 
-    assert status["plaquette_order_candidate"] is result["plaquette_order_candidate"]
+    assert result == {
+        "plaquette_long_range_order": True,
+        "valence_bond_crystal": True,
+    }
+    assert "plaquette_order_candidate" not in result
+    assert status["plaquette_order_candidate"] is True
     assert status["ground_state_total_spin_squared"] == pytest.approx(0.0, abs=1.0e-10)
     assert status["singlet_triplet_gap"] > 0.0
     assert spin_benchmarks.spin_half_square_plaquette_singlet_status(exchange=-1.0)[
@@ -2183,7 +2205,7 @@ def test_stored_checkerboard_plaquette_reference_matches_local_plaquette_singlet
     ] is False
 
 
-def test_stored_checkerboard_plaquette_reference_matches_checkerboard_cyclic_plaquette_ed():
+def test_checkerboard_long_range_claim_is_not_certified_by_4x4_plaquette_ed():
     result = _standard_result("checkerboard_heisenberg_plaquette_reference")
     status = spin_benchmarks.checkerboard_heisenberg_plaquette_order_ed_status(
         linear_size=4,
@@ -2198,7 +2220,8 @@ def test_stored_checkerboard_plaquette_reference_matches_checkerboard_cyclic_pla
     assert status["crossed_plaquette_cyclic_q"] == pytest.approx(-0.1081331725, abs=1.0e-10)
     assert status["cyclic_plaquette_q_contrast"] > 0.5
     assert status["edge_sum_contrast"] == pytest.approx(0.0, abs=1.0e-10)
-    assert status["plaquette_order_candidate"] is result["plaquette_order_candidate"]
+    assert "plaquette_order_candidate" not in result
+    assert status["plaquette_order_candidate"] is True
     assert spin_benchmarks.checkerboard_heisenberg_plaquette_order_ed_status(
         linear_size=4,
         exchange=-1.0,
@@ -2536,7 +2559,7 @@ def test_stored_ca10_reference_matches_local_bilayer_breathing_kagome_glt_model(
     assert status["linear_spin_wave_modes"] == pytest.approx([0.0, 1.0])
 
 
-def test_stored_cu2iro3_reference_matches_local_honeycomb_kitaev_material_status():
+def test_cu2iro3_direct_source_claim_is_not_certified_by_assumed_kh_parameters():
     result = _standard_result("cu2iro3_honeycomb_kitaev_reference")
     status = spin_benchmarks.honeycomb_kitaev_material_status(
         lattice="honeycomb",
@@ -2545,7 +2568,9 @@ def test_stored_cu2iro3_reference_matches_local_honeycomb_kitaev_material_status
         heisenberg=0.25,
     )
 
-    assert status["honeycomb_iridate_reference"] is result["honeycomb_iridate_reference"]
+    assert result == {"honeycomb_frustrated_iridate_identity": True}
+    assert "honeycomb_iridate_reference" not in result
+    assert status["honeycomb_iridate_reference"] is True
     assert status["has_honeycomb_geometry"] is True
     assert status["has_kitaev_exchange"] is True
     assert spin_benchmarks.honeycomb_kitaev_material_status(
@@ -2556,7 +2581,7 @@ def test_stored_cu2iro3_reference_matches_local_honeycomb_kitaev_material_status
     )["honeycomb_iridate_reference"] is False
 
 
-def test_stored_cu2iro3_reference_matches_local_honeycomb_kh_zigzag_energy():
+def test_cu2iro3_direct_source_claim_is_not_certified_by_assumed_kh_zigzag_energy():
     result = _standard_result("cu2iro3_honeycomb_kitaev_reference")
     status = spin_benchmarks.cu2iro3_honeycomb_kitaev_heisenberg_energy_status(
         lattice="honeycomb",
@@ -2566,7 +2591,8 @@ def test_stored_cu2iro3_reference_matches_local_honeycomb_kh_zigzag_energy():
     )
 
     assert status["method"] == "honeycomb_kitaev_heisenberg_zigzag_energy_enumeration"
-    assert status["honeycomb_iridate_reference"] is result["honeycomb_iridate_reference"]
+    assert "honeycomb_iridate_reference" not in result
+    assert status["honeycomb_iridate_reference"] is True
     assert status["has_honeycomb_lattice"] is True
     assert status["has_material_context"] is True
     assert status["has_kitaev_exchange"] is True
@@ -2754,7 +2780,6 @@ def test_stored_cu2oseo3_reference_matches_local_skyrmion_lattice_variational_mi
     "name,lattice,result_key",
     [
         ("star_lattice_heisenberg_spin_liquid_reference", "star", "spin_liquid_or_valence_bond_reference"),
-        ("maple_leaf_lattice_heisenberg_reference", "maple_leaf", "frustrated_order_reference"),
         ("shuriken_lattice_heisenberg_reference", "shuriken", "square_kagome_reference"),
     ],
 )
@@ -2767,6 +2792,19 @@ def test_stored_frustrated_lattice_references_match_local_geometry_status(name, 
     assert spin_benchmarks.frustrated_lattice_geometry_status(lattice="chain", exchange=1.0)[
         result_key
     ] is False
+
+
+def test_maple_leaf_long_range_order_claim_is_not_certified_by_geometry_label():
+    result = _standard_result("maple_leaf_lattice_heisenberg_reference")
+    status = spin_benchmarks.frustrated_lattice_geometry_status(
+        lattice="maple_leaf",
+        exchange=1.0,
+    )
+
+    assert result == {"magnetic_long_range_order": True}
+    assert "frustrated_order_reference" not in result
+    assert status["frustrated_order_reference"] is True
+    assert status["is_frustrated_lattice"] is True
 
 
 def test_stored_star_lattice_reference_matches_betts_18_site_ed_energy_and_gap():
@@ -2792,11 +2830,12 @@ def test_stored_star_lattice_reference_matches_betts_18_site_ed_energy_and_gap()
     ]
 
 
-def test_stored_maple_leaf_reference_matches_local_glt_non_gamma_order():
+def test_maple_leaf_quantum_long_range_claim_is_not_certified_by_classical_glt():
     result = _standard_result("maple_leaf_lattice_heisenberg_reference")
     status = spin_benchmarks.maple_leaf_classical_glt_order_status(exchange=1.0)
 
-    assert status["frustrated_order_reference"] is result["frustrated_order_reference"]
+    assert "frustrated_order_reference" not in result
+    assert status["frustrated_order_reference"] is True
     assert status["coordination_number"] == 5
     assert status["unit_cell_site_count"] == 6
     assert status["lowest_q_fractional"] == pytest.approx([2.0 / 3.0, 1.0 / 3.0])
@@ -3280,15 +3319,15 @@ def test_registry_classical_projection_tasks_are_executable_glt_or_local_checks(
         "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
         "herbertsmithite_kagome_qsl_reference",
         "barlowite_kagome_material_reference",
-        "zn_barlowite_kagome_qsl_reference",
         "edwardsite_kagome_antiferromagnet_reference",
         "haydeeite_ferromagnetic_kagome_reference",
         "crcl3_honeycomb_heisenberg_reference",
         "cri3_honeycomb_ferromagnet_reference",
         "crgete3_honeycomb_ferromagnet_reference",
-        "fecl3_honeycomb_antiferromagnet_reference",
         "mn_ps3_honeycomb_antiferromagnet_reference",
     }
+    assert "zn_barlowite_kagome_qsl_reference" not in task_names
+    assert "fecl3_honeycomb_antiferromagnet_reference" not in task_names
 
     for task in tasks:
         assert task["verification_kind"] == "classical_ground_state"
@@ -3374,6 +3413,16 @@ def test_pitch_and_ordering_vector_tasks_are_executable_projection_checks():
                 (0.0, 0.5, 0.0),
                 (0.5, 0.5, 0.0),
             }
+        elif task["projection_kind"] == "source_vector_geometry_consistency":
+            assert task["benchmark_name"] == "fecl3_honeycomb_antiferromagnet_reference"
+            assert task["verification_kind"] == "source_geometry_consistency"
+            assert task["expected_propagation_vector_hexagonal"] == pytest.approx(
+                [4.0 / 15.0, 1.0 / 15.0, 1.5]
+            )
+            assert task["expected_in_plane_period_lattice_spacings"] == 15
+            assert task["expected_successive_plane_turn_angle_radians"] == pytest.approx(
+                2.0 * math.pi / 15.0
+            )
         else:
             raise AssertionError(f"unknown projection kind {task['projection_kind']}")
 
@@ -3382,7 +3431,7 @@ def test_zigzag_or_spiral_projection_tasks_cover_kitaev_gamma_candidate_manifold
     tasks = zigzag_or_spiral_projection_verification_tasks()
     task_names = {task["benchmark_name"] for task in tasks}
 
-    assert len(tasks) == 14
+    assert len(tasks) == 13
     assert task_names >= {
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "alpha_rucl3_kitaev_gamma_zigzag_reference",
@@ -3390,6 +3439,7 @@ def test_zigzag_or_spiral_projection_tasks_cover_kitaev_gamma_candidate_manifold
         "gamma_li2iro3_3d_kitaev_reference",
         "ru_br3_kitaev_material_reference",
     }
+    assert "cu2iro3_honeycomb_kitaev_reference" not in task_names
 
     for task in tasks:
         ordering_vectors = np.array(task["expected_ordering_vectors"], dtype=float)
@@ -3582,9 +3632,13 @@ def test_registry_structure_factor_tasks_are_executable_classical_toy_checks():
     for task in tasks:
         tasks_by_observable.setdefault(task["computable_observable"], []).append(task)
 
-    assert {"static_structure_factor", "nearest_neighbor_structure_factor", "classical_structure_factor"} <= set(
+    assert {"static_structure_factor", "classical_structure_factor"} <= set(
         tasks_by_observable
     )
+    assert "nearest_neighbor_structure_factor" not in tasks_by_observable
+    assert "zn_barlowite_kagome_qsl_reference" not in {
+        task["benchmark_name"] for task in tasks
+    }
     assert "structure_factor_peak_absence" in tasks_by_observable
     for task in tasks:
         positions = np.array(task["positions"], dtype=float)
@@ -3622,8 +3676,11 @@ def test_residual_projection_tasks_make_all_remaining_routed_labels_executable()
         "spin_wave_gap",
         "single_ion_or_exchange_anisotropy_gap",
         "singlet_gap",
-        "two_band_lsw_spectrum",
     } <= task_labels
+    assert "two_band_lsw_spectrum" not in task_labels
+    assert "nacuo2_triangular_heisenberg_material_reference" not in {
+        task["benchmark_name"] for task in tasks
+    }
 
     for task in tasks:
         assert task["projection_note"]

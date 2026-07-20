@@ -455,23 +455,22 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
     assert counts == {
         "arxiv_export_pdf": 3,
         "arxiv_author_manuscript_pdf": 11,
-        "aps_harvest_pdf": 80,
-        "elsevier_article_api_xml": 8,
+        "aps_harvest_pdf": 83,
+        "elsevier_article_api_xml": 9,
         "nature_open_article_pdf": 6,
         "nature_article_pdf": 2,
         "springer_content_pdf": 2,
         "epj_springer_content_pdf": 2,
-        "iop_article_pdf": 7,
-        "epl_iop_article_pdf": 2,
+        "iop_article_pdf": 5,
+        "epl_iop_article_pdf": 1,
         "science_article_pdf": 2,
         "aip_article_discovery": 3,
         "acs_article_pdf": 2,
         "jpsj_article_pdf": 1,
-        "wiley_book_provisioning": 1,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 100
-    assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 8
+    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 103
+    assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 9
 
 
 @pytest.mark.parametrize(

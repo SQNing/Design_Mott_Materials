@@ -5,7 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
-        "id": "frustrated_order_reference",
+        "id": "magnetic_long_range_order",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -18,7 +18,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
-        "id": "frustrated_order_reference",
+        "id": "magnetic_long_range_order",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -27,36 +27,36 @@
   "record_state": "unresolved",
   "registry_selector": {
     "fields": [
-      "frustrated_order_reference"
+      "magnetic_long_range_order"
     ],
     "path": [
       "standard_result"
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_dd863fac988c6cf05b03",
+  "source_id": "doi_cfe62ae82154c2d78602",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1140/epjb/e2009-00307-4",
-    "expected_container": "figure_caption_claim_statement",
+    "canonical_source_identity": "doi:10.1103/physrevb.84.104406",
+    "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
       "benchmark_name",
       "observable_semantics",
       "canonical_source_identity"
     ],
-    "locator_class": "figure_caption",
-    "rationale": "Search the authoritative doi:10.1140/epjb/e2009-00307-4 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.84.104406 payload for the cited context and the declared ground state magnetic long range order observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "phase reference",
-      "frustrated order reference",
-      "maple-leaf lattice Heisenberg antiferromagnet"
+      "ground state magnetic long range order",
+      "magnetic long range order",
+      "abstract: magnetically ordered ground state with drastically reduced sublattice magnetization"
     ],
-    "source_context_hint": "maple-leaf lattice Heisenberg antiferromagnet",
+    "source_context_hint": "abstract: magnetically ordered ground state with drastically reduced sublattice magnetization",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
-          "id": "frustrated_order_reference",
+          "id": "magnetic_long_range_order",
           "type": "boolean",
           "units": "not_applicable"
         }

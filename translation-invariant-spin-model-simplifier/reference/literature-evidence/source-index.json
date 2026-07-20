@@ -37,17 +37,6 @@
     },
     {
       "benchmark_names": [
-        "bcc_j1_j2_heisenberg_collinear_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1002/9780470316517"
-      },
-      "canonical_url": "https://doi.org/10.1002/9780470316517",
-      "source_id": "doi_3874d0662b42372f806d"
-    },
-    {
-      "benchmark_names": [
         "xxx_spin_half_chain_bethe_ground_state"
       ],
       "canonical_identity": {
@@ -176,6 +165,17 @@
     },
     {
       "benchmark_names": [
+        "nacuo2_triangular_heisenberg_material_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1016/j.physb.2007.10.295"
+      },
+      "canonical_url": "https://doi.org/10.1016/j.physb.2007.10.295",
+      "source_id": "doi_28f85cb05dabe4f5ef52"
+    },
+    {
+      "benchmark_names": [
         "square_toric_code_exact_topological_degeneracy"
       ],
       "canonical_identity": {
@@ -191,10 +191,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1021/acs.chemmater.5b01006"
+        "value": "10.1021/cm504242t"
       },
-      "canonical_url": "https://doi.org/10.1021/acs.chemmater.5b01006",
-      "source_id": "doi_b5217ae599c3cb1c02e8"
+      "canonical_url": "https://doi.org/10.1021/cm504242t",
+      "source_id": "doi_f31ef7e012b01a5ac71d"
     },
     {
       "benchmark_names": [
@@ -202,10 +202,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1021/jacs.7b08744"
+        "value": "10.1021/jacs.7b06911"
       },
-      "canonical_url": "https://doi.org/10.1021/jacs.7b08744",
-      "source_id": "doi_faffb52a35bbb864057b"
+      "canonical_url": "https://doi.org/10.1021/jacs.7b06911",
+      "source_id": "doi_c580f55afb67414f9a9e"
     },
     {
       "benchmark_names": [
@@ -396,17 +396,6 @@
     },
     {
       "benchmark_names": [
-        "nacuo2_triangular_heisenberg_material_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1088/0953-8984/19/14/145259"
-      },
-      "canonical_url": "https://doi.org/10.1088/0953-8984/19/14/145259",
-      "source_id": "doi_1f376332a69cdcec20ce"
-    },
-    {
-      "benchmark_names": [
         "triangular_heisenberg_magnetization_plateau_reference"
       ],
       "canonical_identity": {
@@ -437,17 +426,6 @@
       },
       "canonical_url": "https://doi.org/10.1088/1361-648x/aa8cf5",
       "source_id": "doi_983d905d88717d558737"
-    },
-    {
-      "benchmark_names": [
-        "zn_barlowite_kagome_qsl_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1088/1674-1137/41/3/037105"
-      },
-      "canonical_url": "https://doi.org/10.1088/1674-1137/41/3/037105",
-      "source_id": "doi_6c0becc5fdeb4d7af399"
     },
     {
       "benchmark_names": [
@@ -675,6 +653,17 @@
     },
     {
       "benchmark_names": [
+        "checkerboard_heisenberg_plaquette_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.67.054411"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.67.054411",
+      "source_id": "doi_7f5b5aacbb36eeb82b59"
+    },
+    {
+      "benchmark_names": [
         "spin1_chain_large_d_transition_reference"
       ],
       "canonical_identity": {
@@ -771,6 +760,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.82.075106",
       "source_id": "doi_7f88cea74a31c9249c7c"
+    },
+    {
+      "benchmark_names": [
+        "maple_leaf_lattice_heisenberg_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.84.104406"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.84.104406",
+      "source_id": "doi_cfe62ae82154c2d78602"
     },
     {
       "benchmark_names": [
@@ -893,6 +893,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.93.214431",
       "source_id": "doi_5532ae478270ecfac0bc"
+    },
+    {
+      "benchmark_names": [
+        "zn_barlowite_kagome_qsl_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.94.125136"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.94.125136",
+      "source_id": "doi_c730fdcc0ab4794da339"
     },
     {
       "benchmark_names": [
@@ -1404,21 +1415,21 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1140/epjb/e2006-00267-3"
+        "value": "10.1140/epjb/e2006-00273-y"
       },
-      "canonical_url": "https://doi.org/10.1140/epjb/e2006-00267-3",
-      "source_id": "doi_8108add70d2566f81e3e"
+      "canonical_url": "https://doi.org/10.1140/epjb/e2006-00273-y",
+      "source_id": "doi_b5e49ab59ee164e8232f"
     },
     {
       "benchmark_names": [
-        "maple_leaf_lattice_heisenberg_reference"
+        "bcc_j1_j2_heisenberg_collinear_reference"
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1140/epjb/e2009-00307-4"
+        "value": "10.1140/epjb/e2015-60113-7"
       },
-      "canonical_url": "https://doi.org/10.1140/epjb/e2009-00307-4",
-      "source_id": "doi_dd863fac988c6cf05b03"
+      "canonical_url": "https://doi.org/10.1140/epjb/e2015-60113-7",
+      "source_id": "doi_3657eab098631e3d70fe"
     },
     {
       "benchmark_names": [
@@ -1449,21 +1460,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1143/ptp.10.158"
+        "value": "10.1143/ptp/10.2.158"
       },
-      "canonical_url": "https://doi.org/10.1143/ptp.10.158",
-      "source_id": "doi_5ff3dbcb129ebe58da6a"
-    },
-    {
-      "benchmark_names": [
-        "checkerboard_heisenberg_plaquette_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1209/epl/i2002-00102-3"
-      },
-      "canonical_url": "https://doi.org/10.1209/epl/i2002-00102-3",
-      "source_id": "doi_ed93336369a0749b622a"
+      "canonical_url": "https://doi.org/10.1143/ptp/10.2.158",
+      "source_id": "doi_a368c0c9e03dd0b4142f"
     },
     {
       "benchmark_names": [
@@ -1471,10 +1471,10 @@
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1209/epl/i2005-10075-2"
+        "value": "10.1209/epl/i2004-10484-x"
       },
-      "canonical_url": "https://doi.org/10.1209/epl/i2005-10075-2",
-      "source_id": "doi_46d75409d57d2b87addc"
+      "canonical_url": "https://doi.org/10.1209/epl/i2004-10484-x",
+      "source_id": "doi_8bdac77ccac0554c0b1b"
     }
   ]
 }

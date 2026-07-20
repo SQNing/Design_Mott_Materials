@@ -401,42 +401,48 @@
       "benchmark_name": "bcc_j1_j2_heisenberg_collinear_reference",
       "canonical_observable_id": "bcc_j1_j2_heisenberg_collinear_reference",
       "conditions": {
-        "backend_scope": "glt",
-        "comparison_kind": "review_phase_diagram",
+        "backend_scope": "many_body_thermodynamics",
+        "comparison_kind": "paper_numeric",
         "model_parameters": {
-          "classical": true
+          "j1_sign": "ferromagnetic",
+          "j2_sign": "antiferromagnetic",
+          "spin": "arbitrary"
         },
         "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
         "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
-        "expression": "J1 NN + J2 NNN Heisenberg",
+        "expression": "J1 < 0 NN + J2 > 0 NNN Heisenberg exchange on the BCC lattice",
         "lattice": "bcc",
         "terms": [
           "heisenberg",
           "j1",
           "j2",
+          "ferromagnetic",
+          "antiferromagnetic",
           "collinear"
         ]
       },
       "observable": {
         "claim_fields": [
-          "contains_collinear_large_j2_phase"
+          "large_j2_collinear_order"
         ],
-        "identity": "phase_content_collinear_large_j2_phase_in_bcc_j1_j2_heisenberg",
+        "identity": "large_j2_collinear_order_in_ferromagnetic_j1_antiferromagnetic_j2_bcc_heisenberg_model",
         "semantics": [
-          "Canonical literature observable: phase content collinear large j2 phase in bcc j1 j2 heisenberg.",
-          "Truth value of the proposition 'contains collinear large j2 phase' for bcc j1 j2 heisenberg, with source conditions matched explicitly."
+          "published large-J2 collinear order for the ferromagnetic-J1 antiferromagnetic-J2 BCC Heisenberg model",
+          "Truth value of the directly stated large-J2 collinear-order claim for arbitrary spin."
         ]
       },
       "parameter_regime": {
-        "classical": true
+        "j1_sign": "ferromagnetic",
+        "j2_sign": "antiferromagnetic",
+        "spin": "arbitrary"
       },
       "representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "contains_collinear_large_j2_phase",
+            "id": "large_j2_collinear_order",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -448,8 +454,8 @@
         "scope_subject": "Bcc j1-j2 heisenberg collinear"
       },
       "subject": "Bcc j1-j2 heisenberg collinear",
-      "system": "bcc_j1_j2_heisenberg",
-      "units": "contains_collinear_large_j2_phase=not_applicable"
+      "system": "bcc_ferromagnetic_j1_antiferromagnetic_j2_heisenberg",
+      "units": "large_j2_collinear_order=not_applicable"
     },
     {
       "benchmark_name": "beta_li2iro3_spiral_kitaev_gamma_reference",
@@ -922,12 +928,13 @@
       },
       "observable": {
         "claim_fields": [
-          "plaquette_order_candidate"
+          "plaquette_long_range_order",
+          "valence_bond_crystal"
         ],
-        "identity": "assessment_of_plaquette_valence_bond_order_in_checkerboard_heisenberg_model",
+        "identity": "plaquette_long_range_order_and_valence_bond_crystal_in_spin_half_checkerboard_heisenberg_antiferromagnet",
         "semantics": [
-          "published assessment of plaquette valence-bond order",
-          "Truth value of the proposition 'plaquette order candidate' for checkerboard heisenberg, with source conditions matched explicitly."
+          "published long-range order in four-spin S=0 plaquettes and valence-bond-crystal identification",
+          "Truth values of the directly stated plaquette-long-range-order and valence-bond-crystal claims."
         ]
       },
       "parameter_regime": {
@@ -937,7 +944,13 @@
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "plaquette_order_candidate",
+            "id": "plaquette_long_range_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "valence_bond_crystal",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -950,7 +963,7 @@
       },
       "subject": "Checkerboard heisenberg plaquette",
       "system": "checkerboard_heisenberg",
-      "units": "plaquette_order_candidate=not_applicable"
+      "units": "plaquette_long_range_order=not_applicable; valence_bond_crystal=not_applicable"
     },
     {
       "benchmark_name": "clinoatacamite_distorted_kagome_reference",
@@ -1238,7 +1251,7 @@
           "material": "Cu2IrO3"
         },
         "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
-        "source_claim_scope": "direct published material or experimental observable"
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
         "expression": "honeycomb iridate Kitaev-Heisenberg-Gamma exchange",
@@ -1252,12 +1265,12 @@
       },
       "observable": {
         "claim_fields": [
-          "honeycomb_iridate_reference"
+          "honeycomb_frustrated_iridate_identity"
         ],
-        "identity": "honeycomb_iridate_characterization_in_cu2iro3_honeycomb_kitaev",
+        "identity": "honeycomb_frustrated_iridate_identity_of_cu2iro3",
         "semantics": [
-          "Canonical literature observable: honeycomb iridate characterization in cu2iro3 honeycomb kitaev.",
-          "Truth value of the proposition 'honeycomb iridate reference' for cu2iro3 honeycomb kitaev, with source conditions matched explicitly."
+          "published identification of Cu2IrO3 as a honeycomb frustrated iridate",
+          "This contract does not infer generic Kitaev or Gamma projections from the material identity."
         ]
       },
       "parameter_regime": {
@@ -1267,7 +1280,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "honeycomb_iridate_reference",
+            "id": "honeycomb_frustrated_iridate_identity",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -1280,7 +1293,7 @@
       },
       "subject": "Cu2iro3 honeycomb kitaev",
       "system": "cu2iro3_honeycomb_kitaev",
-      "units": "honeycomb_iridate_reference=not_applicable"
+      "units": "honeycomb_frustrated_iridate_identity=not_applicable"
     },
     {
       "benchmark_name": "cu2oseo3_skyrmion_lattice_reference",
@@ -4613,12 +4626,12 @@
       },
       "observable": {
         "claim_fields": [
-          "frustrated_order_reference"
+          "magnetic_long_range_order"
         ],
-        "identity": "frustrated_order_characterization_in_maple_leaf_lattice_heisenberg",
+        "identity": "ground_state_magnetic_long_range_order_in_spin_half_maple_leaf_heisenberg_antiferromagnet",
         "semantics": [
-          "Canonical literature observable: frustrated order characterization in maple leaf lattice heisenberg.",
-          "Truth value of the proposition 'frustrated order reference' for maple leaf lattice heisenberg, with source conditions matched explicitly."
+          "published magnetic long-range order in the ground state of the pure spin-1/2 maple-leaf Heisenberg antiferromagnet",
+          "The direct source claim includes a drastically reduced sublattice magnetization."
         ]
       },
       "parameter_regime": {
@@ -4628,7 +4641,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "frustrated_order_reference",
+            "id": "magnetic_long_range_order",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -4641,7 +4654,7 @@
       },
       "subject": "Maple leaf lattice heisenberg",
       "system": "maple_leaf_lattice_heisenberg",
-      "units": "frustrated_order_reference=not_applicable"
+      "units": "magnetic_long_range_order=not_applicable"
     },
     {
       "benchmark_name": "mn_ps3_honeycomb_antiferromagnet_reference",
@@ -4809,16 +4822,17 @@
       "benchmark_name": "nacuo2_triangular_heisenberg_material_reference",
       "canonical_observable_id": "nacuo2_triangular_heisenberg_material_reference",
       "conditions": {
-        "backend_scope": "glt_or_many_body",
+        "backend_scope": "neutron_scattering_reference",
         "comparison_kind": "material_reference",
         "model_parameters": {
-          "material": "NaCuO2"
+          "material": "NaCrO2",
+          "spin": 1.5
         },
         "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
         "source_claim_scope": "direct published material or experimental observable"
       },
       "hamiltonian": {
-        "expression": "triangular-lattice spin-1/2 Heisenberg exchange",
+        "expression": "triangular-lattice spin-3/2 Heisenberg exchange",
         "lattice": "triangular",
         "terms": [
           "heisenberg",
@@ -4828,22 +4842,23 @@
       },
       "observable": {
         "claim_fields": [
-          "triangular_material_reference"
+          "unconventional_spin_order_reference"
         ],
-        "identity": "triangular_material_characterization_in_nacuo2_triangular_heisenberg",
+        "identity": "material_spin_order_reference_for_triangular_lattice_nacro2",
         "semantics": [
-          "Canonical literature observable: triangular material characterization in nacuo2 triangular heisenberg.",
-          "Truth value of the proposition 'triangular material reference' for nacuo2 triangular heisenberg, with source conditions matched explicitly."
+          "published neutron-scattering reference for unconventional spin order in triangular-lattice NaCrO2",
+          "No spin-1/2 or 120-degree-order claim is included."
         ]
       },
       "parameter_regime": {
-        "material": "NaCuO2"
+        "material": "NaCrO2",
+        "spin": 1.5
       },
       "representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "triangular_material_reference",
+            "id": "unconventional_spin_order_reference",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -4852,11 +4867,11 @@
       },
       "size_or_limit": {
         "category": "published_experimental_material_conditions_pending_source_verification",
-        "scope_subject": "Nacuo2 triangular heisenberg material"
+        "scope_subject": "NaCrO2 triangular Heisenberg material"
       },
-      "subject": "Nacuo2 triangular heisenberg material",
-      "system": "nacuo2_triangular_heisenberg",
-      "units": "triangular_material_reference=not_applicable"
+      "subject": "NaCrO2 triangular Heisenberg material",
+      "system": "nacro2_triangular_heisenberg",
+      "units": "unconventional_spin_order_reference=not_applicable"
     },
     {
       "benchmark_name": "ni_ps3_honeycomb_antiferromagnet_reference",
@@ -8560,42 +8575,51 @@
       "benchmark_name": "zn_barlowite_kagome_qsl_reference",
       "canonical_observable_id": "zn_barlowite_kagome_qsl_reference",
       "conditions": {
-        "backend_scope": "ed_or_experiment",
+        "backend_scope": "first_principles_exchange_mapping",
         "comparison_kind": "paper_numeric",
         "model_parameters": {
-          "material": "ZnCu3(OH)6FBr"
+          "parent_material": "Cu4(OH)6FBr",
+          "substitution": "Zn"
         },
         "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
-        "source_claim_scope": "direct published material or experimental observable"
+        "source_claim_scope": "published numerical or categorical model result"
       },
       "hamiltonian": {
-        "expression": "nearly ideal kagome Heisenberg layers with reduced interlayer Cu",
+        "expression": "two-parameter Heisenberg Hamiltonian with kagome and interkagome exchange",
         "lattice": "kagome",
         "terms": [
           "heisenberg",
           "kagome",
-          "spin_liquid",
+          "interkagome",
           "material"
         ]
       },
       "observable": {
         "claim_fields": [
-          "reduced_interlayer_magnetism"
+          "significantly_reduced_interkagome_exchange",
+          "two_parameter_heisenberg_hamiltonian"
         ],
-        "identity": "reduced_interlayer_magnetism_in_zn_substituted_barlowite_kagome",
+        "identity": "zn_substitution_effective_exchange_model_in_barlowite",
         "semantics": [
-          "Canonical literature observable: reduced interlayer magnetism in zn substituted barlowite kagome.",
-          "Truth value of the proposition 'reduced interlayer magnetism' for zn substituted barlowite kagome, with source conditions matched explicitly."
+          "published significant reduction of interkagome exchange under nonmagnetic isoelectronic Zn substitution",
+          "published reduction to a two-parameter Heisenberg Hamiltonian; no experimental quantum-spin-liquid realization is claimed."
         ]
       },
       "parameter_regime": {
-        "material": "ZnCu3(OH)6FBr"
+        "parent_material": "Cu4(OH)6FBr",
+        "substitution": "Zn"
       },
       "representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "reduced_interlayer_magnetism",
+            "id": "significantly_reduced_interkagome_exchange",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "two_parameter_heisenberg_hamiltonian",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -8604,11 +8628,11 @@
       },
       "size_or_limit": {
         "category": "published_experimental_material_conditions_pending_source_verification",
-        "scope_subject": "Zn barlowite kagome qsl"
+        "scope_subject": "Zn substitution in barlowite"
       },
-      "subject": "Zn barlowite kagome qsl",
+      "subject": "Zn substitution in barlowite",
       "system": "zn_substituted_barlowite_kagome",
-      "units": "reduced_interlayer_magnetism=not_applicable"
+      "units": "significantly_reduced_interkagome_exchange=not_applicable; two_parameter_heisenberg_hamiltonian=not_applicable"
     },
     {
       "benchmark_name": "zncu3oh6cl2_kagome_dzyaloshinskii_moriya_reference",

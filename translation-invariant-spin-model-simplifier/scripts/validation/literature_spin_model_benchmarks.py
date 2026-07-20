@@ -638,18 +638,22 @@ LITERATURE_STANDARD_RESULTS.extend(
         },
         {
             "name": "bcc_j1_j2_heisenberg_collinear_reference",
-            "model": "bcc_j1_j2_heisenberg",
+            "model": "bcc_ferromagnetic_j1_antiferromagnetic_j2_heisenberg",
             "lattice": "bcc",
-            "hamiltonian": "J1 NN + J2 NNN Heisenberg",
-            "hamiltonian_terms": ["heisenberg", "j1", "j2", "collinear"],
-            "parameters": {"classical": True},
-            "observable": "ordering_type",
-            "comparison_kind": "review_phase_diagram",
-            "backend_needed": "glt",
-            "standard_result": {"contains_collinear_large_j2_phase": True},
-            "source": "Smart_1966",
-            "source_url": "https://doi.org/10.1002/9780470316517",
-            "citation_locator": "bcc J1-J2 classical magnetic orders",
+            "hamiltonian": "J1 < 0 NN + J2 > 0 NNN Heisenberg exchange on the BCC lattice",
+            "hamiltonian_terms": ["heisenberg", "j1", "j2", "ferromagnetic", "antiferromagnetic", "collinear"],
+            "parameters": {
+                "j1_sign": "ferromagnetic",
+                "j2_sign": "antiferromagnetic",
+                "spin": "arbitrary",
+            },
+            "observable": "large_j2_collinear_order",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "many_body_thermodynamics",
+            "standard_result": {"large_j2_collinear_order": True},
+            "source": "Mueller_Richter_Hauser_Ihle_2015",
+            "source_url": "https://doi.org/10.1140/epjb/e2015-60113-7",
+            "citation_locator": "abstract: large-J2 collinear order for ferromagnetic J1 and antiferromagnetic J2",
         },
         {
             "name": "sawtooth_chain_localized_magnon_flat_band",
@@ -663,7 +667,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "magnon_ed",
             "standard_result": {"has_exact_localized_magnons": True},
             "source": "Derzhko_Richter_2006",
-            "source_url": "https://doi.org/10.1140/epjb/e2006-00267-3",
+            "source_url": "https://doi.org/10.1140/epjb/e2006-00273-y",
             "citation_locator": "localized magnons on sawtooth chain",
         },
         {
@@ -678,7 +682,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "magnon_ed",
             "standard_result": {"has_exact_localized_magnons": True},
             "source": "Derzhko_Richter_2006",
-            "source_url": "https://doi.org/10.1140/epjb/e2006-00267-3",
+            "source_url": "https://doi.org/10.1140/epjb/e2006-00273-y",
             "citation_locator": "localized magnons on diamond chain",
         },
         {
@@ -778,13 +782,16 @@ LITERATURE_STANDARD_RESULTS.extend(
             "hamiltonian": "crossed-square Heisenberg exchange",
             "hamiltonian_terms": ["heisenberg", "frustrated", "plaquette"],
             "parameters": {"spin": 0.5},
-            "observable": "plaquette_order_reference",
+            "observable": "plaquette_long_range_order_and_valence_bond_crystal",
             "comparison_kind": "paper_numeric",
             "backend_needed": "ed_or_dmrg",
-            "standard_result": {"plaquette_order_candidate": True},
-            "source": "Sindzingre_Lhuillier_2002",
-            "source_url": "https://doi.org/10.1209/epl/i2002-00102-3",
-            "citation_locator": "checkerboard antiferromagnet plaquette phase reference",
+            "standard_result": {
+                "plaquette_long_range_order": True,
+                "valence_bond_crystal": True,
+            },
+            "source": "Fouet_Mambrini_Sindzingre_Lhuillier_2003",
+            "source_url": "https://doi.org/10.1103/PhysRevB.67.054411",
+            "citation_locator": "abstract: long-range order in four-spin S=0 plaquettes and a valence-bond crystal",
         },
         {
             "name": "lieb_lattice_heisenberg_ferrimagnet_reference",
@@ -943,13 +950,13 @@ LITERATURE_STANDARD_RESULTS.extend(
             "hamiltonian": "J Heisenberg on maple-leaf lattice",
             "hamiltonian_terms": ["heisenberg", "frustrated"],
             "parameters": {"spin": 0.5},
-            "observable": "phase_reference",
+            "observable": "ground_state_magnetic_long_range_order",
             "comparison_kind": "paper_numeric",
             "backend_needed": "ed_or_dmrg",
-            "standard_result": {"frustrated_order_reference": True},
-            "source": "Farnell_Richter_Bishop_2009",
-            "source_url": "https://doi.org/10.1140/epjb/e2009-00307-4",
-            "citation_locator": "maple-leaf lattice Heisenberg antiferromagnet",
+            "standard_result": {"magnetic_long_range_order": True},
+            "source": "Farnell_Darradi_Schmidt_Richter_2011",
+            "source_url": "https://doi.org/10.1103/PhysRevB.84.104406",
+            "citation_locator": "abstract: magnetically ordered ground state with drastically reduced sublattice magnetization",
         },
         {
             "name": "shuriken_lattice_heisenberg_reference",
@@ -1058,18 +1065,18 @@ LITERATURE_STANDARD_RESULTS.extend(
         },
         {
             "name": "nacuo2_triangular_heisenberg_material_reference",
-            "model": "nacuo2_triangular_heisenberg",
+            "model": "nacro2_triangular_heisenberg",
             "lattice": "triangular",
-            "hamiltonian": "triangular-lattice spin-1/2 Heisenberg exchange",
+            "hamiltonian": "triangular-lattice spin-3/2 Heisenberg exchange",
             "hamiltonian_terms": ["heisenberg", "nearest_neighbor", "material"],
-            "parameters": {"material": "NaCuO2"},
-            "observable": "material_reference",
+            "parameters": {"material": "NaCrO2", "spin": 1.5},
+            "observable": "material_spin_order_reference",
             "comparison_kind": "material_reference",
-            "backend_needed": "glt_or_many_body",
-            "standard_result": {"triangular_material_reference": True},
-            "source": "Triangular_Material_Review",
-            "source_url": "https://doi.org/10.1088/0953-8984/19/14/145259",
-            "citation_locator": "triangular antiferromagnet material reference",
+            "backend_needed": "neutron_scattering_reference",
+            "standard_result": {"unconventional_spin_order_reference": True},
+            "source": "Hsieh_Qian_Berger_Cava_Lynn_Huang_Hasan_2008",
+            "source_url": "https://doi.org/10.1016/j.physb.2007.10.295",
+            "citation_locator": "abstract: unconventional spin order in triangular-lattice NaCrO2",
         },
         {
             "name": "cs2cucl4_anisotropic_triangular_spiral_reference",
@@ -1584,7 +1591,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"tc_over_j": 4.0 / math.log(3.0 + 2.0 * math.sqrt(3.0))},
             "source": "Kano_Naya_1953",
-            "source_url": "https://doi.org/10.1143/PTP.10.158",
+            "source_url": "https://doi.org/10.1143/ptp/10.2.158",
             "citation_locator": "kagome-lattice Ising exact critical temperature",
         },
         {
@@ -1629,7 +1636,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"macroscopic_ground_state_degeneracy": True},
             "source": "Kano_Naya_1953",
-            "source_url": "https://doi.org/10.1143/PTP.10.158",
+            "source_url": "https://doi.org/10.1143/ptp/10.2.158",
             "citation_locator": "kagome Ising antiferromagnet residual entropy reference",
         },
         {
@@ -1749,7 +1756,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "ed_or_experiment",
             "standard_result": {"incommensurate_spiral_order": True},
             "source": "Enderle_2005",
-            "source_url": "https://doi.org/10.1209/epl/i2005-10075-2",
+            "source_url": "https://doi.org/10.1209/epl/i2004-10484-x",
             "citation_locator": "LiCuVO4 frustrated-chain spiral order reference",
         },
         {
@@ -1977,19 +1984,22 @@ LITERATURE_STANDARD_RESULTS.extend(
             "name": "zn_barlowite_kagome_qsl_reference",
             "model": "zn_substituted_barlowite_kagome",
             "lattice": "kagome",
-            "hamiltonian": "nearly ideal kagome Heisenberg layers with reduced interlayer Cu",
-            "hamiltonian_terms": ["heisenberg", "kagome", "spin_liquid", "material"],
-            "parameters": {"material": "ZnCu3(OH)6FBr"},
-            "observable": "spin_liquid_material_reference",
-            "comparison_kind": "paper_numeric",
-            "backend_needed": "ed_or_experiment",
-            "standard_result": {
-                "reduced_interlayer_magnetism": True,
-                "computable_observables": ["kagome_layer_flat_band", "curie_weiss_theta", "nearest_neighbor_structure_factor"],
+            "hamiltonian": "two-parameter Heisenberg Hamiltonian with kagome and interkagome exchange",
+            "hamiltonian_terms": ["heisenberg", "kagome", "interkagome", "material"],
+            "parameters": {
+                "parent_material": "Cu4(OH)6FBr",
+                "substitution": "Zn",
             },
-            "source": "Feng_2017",
-            "source_url": "https://doi.org/10.1088/1674-1137/41/3/037105",
-            "citation_locator": "Zn-substituted barlowite kagome spin-liquid candidate",
+            "observable": "substitution_effective_exchange_model",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "first_principles_exchange_mapping",
+            "standard_result": {
+                "significantly_reduced_interkagome_exchange": True,
+                "two_parameter_heisenberg_hamiltonian": True,
+            },
+            "source": "Guterding_Valenti_Jeschke_2016",
+            "source_url": "https://doi.org/10.1103/PhysRevB.94.125136",
+            "citation_locator": "abstract: nonmagnetic isoelectronic Zn substitution significantly reduces interkagome exchange and yields a two-parameter Heisenberg Hamiltonian",
         },
         {
             "name": "vesignieite_kagome_material_reference",
@@ -2178,16 +2188,13 @@ LITERATURE_STANDARD_RESULTS.extend(
             "hamiltonian": "honeycomb iridate Kitaev-Heisenberg-Gamma exchange",
             "hamiltonian_terms": ["kitaev", "heisenberg", "honeycomb", "material"],
             "parameters": {"material": "Cu2IrO3"},
-            "observable": "material_model_reference",
+            "observable": "honeycomb_frustrated_iridate_identity",
             "comparison_kind": "paper_numeric",
             "backend_needed": "anisotropic_exchange_or_experiment",
-            "standard_result": {
-                "honeycomb_iridate_reference": True,
-                "computable_observables": ["kitaev_triangle_gapless_condition", "single_bond_exchange_matrix"],
-            },
+            "standard_result": {"honeycomb_frustrated_iridate_identity": True},
             "source": "Abramchuk_2017",
-            "source_url": "https://doi.org/10.1021/jacs.7b08744",
-            "citation_locator": "Cu2IrO3 honeycomb Kitaev material reference",
+            "source_url": "https://doi.org/10.1021/jacs.7b06911",
+            "citation_locator": "abstract: honeycomb frustrated iridate Cu2IrO3",
         },
         {
             "name": "ba3irti2o9_honeycomb_kitaev_reference",
@@ -2258,8 +2265,8 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "computable_observables": ["gamma_point_ferromagnetic_minimum", "single_ion_or_exchange_anisotropy_gap"],
             },
             "source": "McGuire_2015",
-            "source_url": "https://doi.org/10.1021/acs.chemmater.5b01006",
-            "citation_locator": "CrI3 honeycomb ferromagnet reference",
+            "source_url": "https://doi.org/10.1021/cm504242t",
+            "citation_locator": "title: Coupling of Crystal Structure and Magnetism in the Layered, Ferromagnetic Insulator CrI3",
         },
         {
             "name": "crgete3_honeycomb_ferromagnet_reference",
@@ -2552,6 +2559,13 @@ _SINGLE_Q_COMPUTABLE_OBSERVABLE_BENCHMARKS = {
 }
 
 
+_DIRECT_SOURCE_ONLY_BENCHMARKS = {
+    "cu2iro3_honeycomb_kitaev_reference",
+    "nacuo2_triangular_heisenberg_material_reference",
+    "zn_barlowite_kagome_qsl_reference",
+}
+
+
 def _curie_weiss_temperature_from_coordination(coordination, exchange):
     return -float(coordination) * float(exchange) / 3.0
 
@@ -2563,24 +2577,25 @@ for _entry in LITERATURE_STANDARD_RESULTS:
 
     _terms = set(_entry.get("hamiltonian_terms", []))
     _computable = []
-    if "heisenberg" in _terms and "nearest_neighbor" in _terms:
-        _computable.append("curie_weiss_theta")
-    if (
-        "material" in _terms
-        and _entry["name"] != "fecl3_honeycomb_antiferromagnet_reference"
-    ):
-        _computable.extend(["curie_weiss_theta", "classical_luttinger_tisza_minima"])
-    if "kitaev" in _terms or "gamma" in _terms:
-        _computable.extend(["single_bond_exchange_matrix", "classical_zigzag_or_spiral_energy"])
-    if "dzyaloshinskii_moriya" in _terms:
-        _computable.extend(["single_q_classical_energy", "dm_selected_chirality"])
-    if "spin_liquid" in _terms:
-        _computable.extend(["finite_cluster_energy", "static_structure_factor"])
-    if _entry["name"] in _SINGLE_Q_COMPUTABLE_OBSERVABLE_BENCHMARKS:
-        _computable.append("single_q_classical_energy")
-    _finite_cluster_observable = _FINITE_CLUSTER_COMPUTABLE_OBSERVABLES_BY_BENCHMARK.get(_entry["name"])
-    if _finite_cluster_observable is not None:
-        _computable.append(_finite_cluster_observable)
+    if _entry["name"] not in _DIRECT_SOURCE_ONLY_BENCHMARKS:
+        if "heisenberg" in _terms and "nearest_neighbor" in _terms:
+            _computable.append("curie_weiss_theta")
+        if (
+            "material" in _terms
+            and _entry["name"] != "fecl3_honeycomb_antiferromagnet_reference"
+        ):
+            _computable.extend(["curie_weiss_theta", "classical_luttinger_tisza_minima"])
+        if "kitaev" in _terms or "gamma" in _terms:
+            _computable.extend(["single_bond_exchange_matrix", "classical_zigzag_or_spiral_energy"])
+        if "dzyaloshinskii_moriya" in _terms:
+            _computable.extend(["single_q_classical_energy", "dm_selected_chirality"])
+        if "spin_liquid" in _terms:
+            _computable.extend(["finite_cluster_energy", "static_structure_factor"])
+        if _entry["name"] in _SINGLE_Q_COMPUTABLE_OBSERVABLE_BENCHMARKS:
+            _computable.append("single_q_classical_energy")
+        _finite_cluster_observable = _FINITE_CLUSTER_COMPUTABLE_OBSERVABLES_BY_BENCHMARK.get(_entry["name"])
+        if _finite_cluster_observable is not None:
+            _computable.append(_finite_cluster_observable)
     if _computable:
         _standard_result = _entry.setdefault("standard_result", {})
         _existing = list(_standard_result.get("computable_observables", []))
@@ -2940,16 +2955,6 @@ def classical_projection_verification_tasks(*, lattice=None, required_terms=()):
             "sample_q": [[0.0, 0.0, 0.0], [0.25, 0.125, 0.0], [0.5, 0.5, 0.0]],
             "expected_lowest_kernel_eigenvalue": -1.0,
             "projection_note": "single kagome layer projected to nearest-neighbor Heisenberg LT flat band",
-        },
-        {
-            "benchmark_name": "zn_barlowite_kagome_qsl_reference",
-            "computable_observable": "kagome_layer_flat_band",
-            "projection_kind": "flat_lowest_kernel_band",
-            "model_builder": "kagome_nn",
-            "model_parameters": {"j1": 1.0},
-            "sample_q": [[0.0, 0.0, 0.0], [0.25, 0.125, 0.0], [0.5, 0.5, 0.0]],
-            "expected_lowest_kernel_eigenvalue": -1.0,
-            "projection_note": "Zn-substituted barlowite layer projected to nearest-neighbor kagome LT flat band",
         },
         {
             "benchmark_name": "edwardsite_kagome_antiferromagnet_reference",
@@ -3546,21 +3551,6 @@ def structure_factor_verification_tasks(*, lattice=None, required_terms=()):
             "absent_peak_q": [0.0, 0.0],
             "maximum_absent_peak_value": 1.0e-12,
             "projection_note": "toy local 120-degree pattern checks absence of a q=0 Bragg peak only",
-        },
-        {
-            "benchmark_name": "zn_barlowite_kagome_qsl_reference",
-            "computable_observable": "nearest_neighbor_structure_factor",
-            "structure_factor_kind": "antiferromagnetic_peak",
-            "positions": [[0.0], [1.0]],
-            "spins": [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]],
-            "sample_points": [
-                {"q": [0.0], "expected_value": 0.0},
-                {"q": [math.pi], "expected_value": 2.0},
-            ],
-            "expected_peak_q": [math.pi],
-            "lower_intensity_q": [[0.0]],
-            "minimum_intensity_gap": 1.0,
-            "projection_note": "nearest-neighbor antiferromagnetic bond structure-factor toy projection",
         },
         {
             "benchmark_name": "garnet_gd3ga5o12_spin_liquid_reference",

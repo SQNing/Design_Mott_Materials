@@ -359,7 +359,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1002/9780470316517",
+        "canonical_source_identity": "doi:10.1140/epjb/e2015-60113-7",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -368,18 +368,17 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1002/9780470316517 payload for the cited context and the declared ordering type observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1140/epjb/e2015-60113-7 payload for the cited context and the declared large j2 collinear order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "ordering type",
-          "contains collinear large j2 phase",
-          "bcc J1-J2 classical magnetic orders"
+          "large j2 collinear order",
+          "abstract: large-J2 collinear order for ferromagnetic J1 and antiferromagnetic J2"
         ],
-        "source_context_hint": "bcc J1-J2 classical magnetic orders",
+        "source_context_hint": "abstract: large-J2 collinear order for ferromagnetic J1 and antiferromagnetic J2",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "contains_collinear_large_j2_phase",
+              "id": "large_j2_collinear_order",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -387,12 +386,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_3874d0662b42372f806d",
+      "source_id": "doi_3657eab098631e3d70fe",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "contains_collinear_large_j2_phase",
+            "id": "large_j2_collinear_order",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -803,7 +802,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1209/epl/i2002-00102-3",
+        "canonical_source_identity": "doi:10.1103/physrevb.67.054411",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -812,18 +811,25 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1209/epl/i2002-00102-3 payload for the cited context and the declared plaquette order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.67.054411 payload for the cited context and the declared plaquette long range order and valence bond crystal observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "plaquette order reference",
-          "plaquette order candidate",
-          "checkerboard antiferromagnet plaquette phase reference"
+          "plaquette long range order and valence bond crystal",
+          "plaquette long range order",
+          "valence bond crystal",
+          "abstract: long-range order in four-spin S=0 plaquettes and a valence-bond crystal"
         ],
-        "source_context_hint": "checkerboard antiferromagnet plaquette phase reference",
+        "source_context_hint": "abstract: long-range order in four-spin S=0 plaquettes and a valence-bond crystal",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "plaquette_order_candidate",
+              "id": "plaquette_long_range_order",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "valence_bond_crystal",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -831,12 +837,18 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_ed93336369a0749b622a",
+      "source_id": "doi_7f5b5aacbb36eeb82b59",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "plaquette_order_candidate",
+            "id": "plaquette_long_range_order",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "valence_bond_crystal",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -990,7 +1002,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1021/acs.chemmater.5b01006",
+        "canonical_source_identity": "doi:10.1021/cm504242t",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -999,14 +1011,14 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1021/acs.chemmater.5b01006 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1021/cm504242t payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "CrI3",
           "classical order",
           "ferromagnetic order",
-          "CrI3 honeycomb ferromagnet reference"
+          "title: Coupling of Crystal Structure and Magnetism in the Layered, Ferromagnetic Insulator CrI3"
         ],
-        "source_context_hint": "CrI3 honeycomb ferromagnet reference",
+        "source_context_hint": "title: Coupling of Crystal Structure and Magnetism in the Layered, Ferromagnetic Insulator CrI3",
         "target_representation": {
           "fields": [
             {
@@ -1019,7 +1031,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_b5217ae599c3cb1c02e8",
+      "source_id": "doi_f31ef7e012b01a5ac71d",
       "target_representation": {
         "fields": [
           {
@@ -1084,7 +1096,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1021/jacs.7b08744",
+        "canonical_source_identity": "doi:10.1021/jacs.7b06911",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1093,19 +1105,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1021/jacs.7b08744 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1021/jacs.7b06911 payload for the cited context and the declared honeycomb frustrated iridate identity observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Cu2IrO3",
-          "material model reference",
-          "honeycomb iridate reference",
-          "Cu2IrO3 honeycomb Kitaev material reference"
+          "honeycomb frustrated iridate identity",
+          "abstract: honeycomb frustrated iridate Cu2IrO3"
         ],
-        "source_context_hint": "Cu2IrO3 honeycomb Kitaev material reference",
+        "source_context_hint": "abstract: honeycomb frustrated iridate Cu2IrO3",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "honeycomb_iridate_reference",
+              "id": "honeycomb_frustrated_iridate_identity",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -1113,12 +1124,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_faffb52a35bbb864057b",
+      "source_id": "doi_c580f55afb67414f9a9e",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "honeycomb_iridate_reference",
+            "id": "honeycomb_frustrated_iridate_identity",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -1223,7 +1234,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1140/epjb/e2006-00267-3",
+        "canonical_source_identity": "doi:10.1140/epjb/e2006-00273-y",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1232,7 +1243,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1140/epjb/e2006-00267-3 payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1140/epjb/e2006-00273-y payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "localized magnon",
           "has exact localized magnons",
@@ -1251,7 +1262,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_8108add70d2566f81e3e",
+      "source_id": "doi_b5e49ab59ee164e8232f",
       "target_representation": {
         "fields": [
           {
@@ -3199,7 +3210,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1143/ptp.10.158",
+        "canonical_source_identity": "doi:10.1143/ptp/10.2.158",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -3208,7 +3219,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1143/ptp.10.158 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1143/ptp/10.2.158 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "residual entropy",
           "macroscopic ground state degeneracy",
@@ -3227,7 +3238,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_5ff3dbcb129ebe58da6a",
+      "source_id": "doi_a368c0c9e03dd0b4142f",
       "target_representation": {
         "fields": [
           {
@@ -3245,7 +3256,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1143/ptp.10.158",
+        "canonical_source_identity": "doi:10.1143/ptp/10.2.158",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -3254,7 +3265,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1143/ptp.10.158 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1143/ptp/10.2.158 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical temperature",
           "tc over j",
@@ -3273,7 +3284,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_5ff3dbcb129ebe58da6a",
+      "source_id": "doi_a368c0c9e03dd0b4142f",
       "target_representation": {
         "fields": [
           {
@@ -3733,7 +3744,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1209/epl/i2005-10075-2",
+        "canonical_source_identity": "doi:10.1209/epl/i2004-10484-x",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -3742,7 +3753,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1209/epl/i2005-10075-2 payload for the cited context and the declared spiral order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1209/epl/i2004-10484-x payload for the cited context and the declared spiral order reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "LiCuVO4",
           "spiral order reference",
@@ -3762,7 +3773,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_46d75409d57d2b87addc",
+      "source_id": "doi_8bdac77ccac0554c0b1b",
       "target_representation": {
         "fields": [
           {
@@ -3987,30 +3998,30 @@
     },
     {
       "benchmark_name": "maple_leaf_lattice_heisenberg_reference",
-      "expected_container": "figure_caption_claim_statement",
-      "locator_class": "figure_caption",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1140/epjb/e2009-00307-4",
-        "expected_container": "figure_caption_claim_statement",
+        "canonical_source_identity": "doi:10.1103/physrevb.84.104406",
+        "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
           "benchmark_name",
           "observable_semantics",
           "canonical_source_identity"
         ],
-        "locator_class": "figure_caption",
-        "rationale": "Search the authoritative doi:10.1140/epjb/e2009-00307-4 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "locator_class": "body_text",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.84.104406 payload for the cited context and the declared ground state magnetic long range order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "phase reference",
-          "frustrated order reference",
-          "maple-leaf lattice Heisenberg antiferromagnet"
+          "ground state magnetic long range order",
+          "magnetic long range order",
+          "abstract: magnetically ordered ground state with drastically reduced sublattice magnetization"
         ],
-        "source_context_hint": "maple-leaf lattice Heisenberg antiferromagnet",
+        "source_context_hint": "abstract: magnetically ordered ground state with drastically reduced sublattice magnetization",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "frustrated_order_reference",
+              "id": "magnetic_long_range_order",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -4018,12 +4029,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_dd863fac988c6cf05b03",
+      "source_id": "doi_cfe62ae82154c2d78602",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "frustrated_order_reference",
+            "id": "magnetic_long_range_order",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -4177,7 +4188,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/0953-8984/19/14/145259",
+        "canonical_source_identity": "doi:10.1016/j.physb.2007.10.295",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4186,19 +4197,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/0953-8984/19/14/145259 payload for the cited context and the declared material reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1016/j.physb.2007.10.295 payload for the cited context and the declared material spin order reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "NaCuO2",
-          "material reference",
-          "triangular material reference",
-          "triangular antiferromagnet material reference"
+          "NaCrO2",
+          "material spin order reference",
+          "unconventional spin order reference",
+          "abstract: unconventional spin order in triangular-lattice NaCrO2"
         ],
-        "source_context_hint": "triangular antiferromagnet material reference",
+        "source_context_hint": "abstract: unconventional spin order in triangular-lattice NaCrO2",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "triangular_material_reference",
+              "id": "unconventional_spin_order_reference",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -4206,12 +4217,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_1f376332a69cdcec20ce",
+      "source_id": "doi_28f85cb05dabe4f5ef52",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "triangular_material_reference",
+            "id": "unconventional_spin_order_reference",
             "type": "boolean",
             "units": "not_applicable"
           }
@@ -4787,7 +4798,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1140/epjb/e2006-00267-3",
+        "canonical_source_identity": "doi:10.1140/epjb/e2006-00273-y",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4796,7 +4807,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1140/epjb/e2006-00267-3 payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1140/epjb/e2006-00273-y payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "localized magnon",
           "has exact localized magnons",
@@ -4815,7 +4826,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_8108add70d2566f81e3e",
+      "source_id": "doi_b5e49ab59ee164e8232f",
       "target_representation": {
         "fields": [
           {
@@ -7514,7 +7525,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/1674-1137/41/3/037105",
+        "canonical_source_identity": "doi:10.1103/physrevb.94.125136",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -7523,19 +7534,25 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/1674-1137/41/3/037105 payload for the cited context and the declared spin liquid material reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.94.125136 payload for the cited context and the declared substitution effective exchange model observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "ZnCu3(OH)6FBr",
-          "spin liquid material reference",
-          "reduced interlayer magnetism",
-          "Zn-substituted barlowite kagome spin-liquid candidate"
+          "substitution effective exchange model",
+          "significantly reduced interkagome exchange",
+          "two parameter heisenberg hamiltonian",
+          "abstract: nonmagnetic isoelectronic Zn substitution significantly reduces interkagome exchange and yields a two-parameter Heisenberg Hamiltonian"
         ],
-        "source_context_hint": "Zn-substituted barlowite kagome spin-liquid candidate",
+        "source_context_hint": "abstract: nonmagnetic isoelectronic Zn substitution significantly reduces interkagome exchange and yields a two-parameter Heisenberg Hamiltonian",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
-              "id": "reduced_interlayer_magnetism",
+              "id": "significantly_reduced_interkagome_exchange",
+              "type": "boolean",
+              "units": "not_applicable"
+            },
+            {
+              "convention": "boolean_claim",
+              "id": "two_parameter_heisenberg_hamiltonian",
               "type": "boolean",
               "units": "not_applicable"
             }
@@ -7543,12 +7560,18 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_6c0becc5fdeb4d7af399",
+      "source_id": "doi_c730fdcc0ab4794da339",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
-            "id": "reduced_interlayer_magnetism",
+            "id": "significantly_reduced_interkagome_exchange",
+            "type": "boolean",
+            "units": "not_applicable"
+          },
+          {
+            "convention": "boolean_claim",
+            "id": "two_parameter_heisenberg_hamiltonian",
             "type": "boolean",
             "units": "not_applicable"
           }

@@ -5,7 +5,13 @@
     "fields": [
       {
         "convention": "boolean_claim",
-        "id": "plaquette_order_candidate",
+        "id": "plaquette_long_range_order",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "valence_bond_crystal",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -18,7 +24,13 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
-        "id": "plaquette_order_candidate",
+        "id": "plaquette_long_range_order",
+        "type": "boolean",
+        "units": "not_applicable"
+      },
+      {
+        "convention": "boolean_claim",
+        "id": "valence_bond_crystal",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -27,16 +39,17 @@
   "record_state": "unresolved",
   "registry_selector": {
     "fields": [
-      "plaquette_order_candidate"
+      "plaquette_long_range_order",
+      "valence_bond_crystal"
     ],
     "path": [
       "standard_result"
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_ed93336369a0749b622a",
+  "source_id": "doi_7f5b5aacbb36eeb82b59",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1209/epl/i2002-00102-3",
+    "canonical_source_identity": "doi:10.1103/physrevb.67.054411",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +58,25 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1209/epl/i2002-00102-3 payload for the cited context and the declared plaquette order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.67.054411 payload for the cited context and the declared plaquette long range order and valence bond crystal observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "plaquette order reference",
-      "plaquette order candidate",
-      "checkerboard antiferromagnet plaquette phase reference"
+      "plaquette long range order and valence bond crystal",
+      "plaquette long range order",
+      "valence bond crystal",
+      "abstract: long-range order in four-spin S=0 plaquettes and a valence-bond crystal"
     ],
-    "source_context_hint": "checkerboard antiferromagnet plaquette phase reference",
+    "source_context_hint": "abstract: long-range order in four-spin S=0 plaquettes and a valence-bond crystal",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
-          "id": "plaquette_order_candidate",
+          "id": "plaquette_long_range_order",
+          "type": "boolean",
+          "units": "not_applicable"
+        },
+        {
+          "convention": "boolean_claim",
+          "id": "valence_bond_crystal",
           "type": "boolean",
           "units": "not_applicable"
         }

@@ -34,9 +34,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_5ff3dbcb129ebe58da6a",
+  "source_id": "doi_a368c0c9e03dd0b4142f",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1143/ptp.10.158",
+    "canonical_source_identity": "doi:10.1143/ptp/10.2.158",
     "expected_container": "numbered_or_displayed_equation",
     "locator_basis": [
       "citation_locator",
@@ -45,7 +45,7 @@
       "canonical_source_identity"
     ],
     "locator_class": "equation",
-    "rationale": "Search the authoritative doi:10.1143/ptp.10.158 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1143/ptp/10.2.158 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "critical temperature",
       "tc over j",

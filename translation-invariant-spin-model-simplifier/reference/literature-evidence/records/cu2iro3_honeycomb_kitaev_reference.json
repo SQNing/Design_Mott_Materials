@@ -5,7 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
-        "id": "honeycomb_iridate_reference",
+        "id": "honeycomb_frustrated_iridate_identity",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -18,7 +18,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
-        "id": "honeycomb_iridate_reference",
+        "id": "honeycomb_frustrated_iridate_identity",
         "type": "boolean",
         "units": "not_applicable"
       }
@@ -27,16 +27,16 @@
   "record_state": "unresolved",
   "registry_selector": {
     "fields": [
-      "honeycomb_iridate_reference"
+      "honeycomb_frustrated_iridate_identity"
     ],
     "path": [
       "standard_result"
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_faffb52a35bbb864057b",
+  "source_id": "doi_c580f55afb67414f9a9e",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1021/jacs.7b08744",
+    "canonical_source_identity": "doi:10.1021/jacs.7b06911",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,19 +45,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1021/jacs.7b08744 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1021/jacs.7b06911 payload for the cited context and the declared honeycomb frustrated iridate identity observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "Cu2IrO3",
-      "material model reference",
-      "honeycomb iridate reference",
-      "Cu2IrO3 honeycomb Kitaev material reference"
+      "honeycomb frustrated iridate identity",
+      "abstract: honeycomb frustrated iridate Cu2IrO3"
     ],
-    "source_context_hint": "Cu2IrO3 honeycomb Kitaev material reference",
+    "source_context_hint": "abstract: honeycomb frustrated iridate Cu2IrO3",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
-          "id": "honeycomb_iridate_reference",
+          "id": "honeycomb_frustrated_iridate_identity",
           "type": "boolean",
           "units": "not_applicable"
         }
