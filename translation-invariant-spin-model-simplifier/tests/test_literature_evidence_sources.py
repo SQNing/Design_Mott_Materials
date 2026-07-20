@@ -19,6 +19,7 @@ from validation.literature_evidence_sources import (
     authoritative_route_for_identity,
     load_verified_source,
     validate_download_response,
+    validate_work_identity_document,
 )
 from validation.literature_evidence_inventory import load_and_validate_inventory
 
@@ -467,11 +468,12 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
         "epl_iop_article_pdf": 1,
         "science_article_pdf": 2,
         "aip_article_discovery": 3,
-        "acs_article_pdf": 2,
+        "institutional_repository_pdf": 1,
+        "acs_article_pdf": 1,
         "jpsj_article_pdf": 1,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 108
+    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 109
     assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 9
 
 
@@ -518,6 +520,77 @@ def test_epj_sources_use_verified_arxiv_same_work_routes(
             "url": f"https://api.openalex.org/works/{openalex_id}",
         },
     }
+
+
+def _osti_work_identity_document(
+    *,
+    doi="10.1021/cm504242t",
+    fulltext_url="https://www.osti.gov/servlets/purl/1185798",
+):
+    return [
+        {
+            "title": (
+                "Coupling of Crystal Structure and Magnetism in the Layered, "
+                "Ferromagnetic Insulator CrI3"
+            ),
+            "doi": doi,
+            "links": [
+                {"rel": "citation", "href": "https://www.osti.gov/biblio/1185798"},
+                {"rel": "fulltext", "href": fulltext_url},
+            ],
+        }
+    ]
+
+
+def _cri3_osti_route():
+    return authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1021/cm504242t"}
+    )
+
+
+def test_cri3_source_uses_osti_institutional_repository_route():
+    assert _cri3_osti_route() == {
+        "kind": "institutional_repository_pdf",
+        "url": "https://www.osti.gov/servlets/purl/1185798",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "osti:1185798",
+        "work_identity_evidence": {
+            "kind": "osti_same_work_fulltext",
+            "url": "https://www.osti.gov/api/v1/records/1185798",
+        },
+    }
+
+
+def test_osti_identity_document_binds_doi_to_retrieved_fulltext():
+    validate_work_identity_document(
+        _osti_work_identity_document(),
+        identity={"kind": "doi", "value": "10.1021/cm504242t"},
+        authoritative_route=_cri3_osti_route(),
+        evidence_kind="osti_same_work_fulltext",
+    )
+
+
+def test_osti_identity_document_rejects_wrong_doi():
+    with pytest.raises(SourceEvidenceError, match="canonical DOI"):
+        validate_work_identity_document(
+            _osti_work_identity_document(doi="10.1021/different-work"),
+            identity={"kind": "doi", "value": "10.1021/cm504242t"},
+            authoritative_route=_cri3_osti_route(),
+            evidence_kind="osti_same_work_fulltext",
+        )
+
+
+def test_osti_identity_document_rejects_wrong_fulltext_url():
+    with pytest.raises(SourceEvidenceError, match="does not locate"):
+        validate_work_identity_document(
+            _osti_work_identity_document(
+                fulltext_url="https://www.osti.gov/servlets/purl/9999999"
+            ),
+            identity={"kind": "doi", "value": "10.1021/cm504242t"},
+            authoritative_route=_cri3_osti_route(),
+            evidence_kind="osti_same_work_fulltext",
+        )
 
 
 @pytest.mark.parametrize(

@@ -56,7 +56,16 @@ _OPEN_REPOSITORY_ROUTES = {
     "10.1140/epjb/e2006-00273-y": ("cond-mat/0604023", "W1983899391"),
     "10.1140/epjb/e2015-60113-7": ("1505.07219", "W2115824467"),
 }
-_INSTITUTIONAL_REPOSITORY_ROUTES = {}
+_INSTITUTIONAL_REPOSITORY_ROUTES = {
+    "10.1021/cm504242t": {
+        "url": "https://www.osti.gov/servlets/purl/1185798",
+        "artifact_identifier": "osti:1185798",
+        "work_identity_evidence": {
+            "kind": "osti_same_work_fulltext",
+            "url": "https://www.osti.gov/api/v1/records/1185798",
+        },
+    },
+}
 _OPEN_PUBLISHER_ROUTES = {
     "10.1038/ncomms14113": ("ncomms14113", "W2591608240"),
     "10.1038/ncomms2914": ("ncomms2914", "W2068740639"),
@@ -153,14 +162,7 @@ def authoritative_route_for_identity(identity):
             "application/pdf",
             "unattended",
             artifact_identifier=institutional_route["artifact_identifier"],
-            work_identity_evidence={
-                "kind": "semantic_scholar_same_work_location",
-                "url": (
-                    "https://api.semanticscholar.org/graph/v1/paper/"
-                    + institutional_route["semantic_scholar_id"]
-                    + "?fields=paperId,title,externalIds,openAccessPdf,url"
-                ),
-            },
+            work_identity_evidence=institutional_route["work_identity_evidence"],
         )
     if prefix == "10.1103":
         return canonical_route(
@@ -605,9 +607,32 @@ def validate_work_identity_document(
 ):
     """Prove that an external work record links a DOI to the retrieved artifact."""
 
-    _require_mapping(document, "work identity evidence document")
     canonical_doi = identity.get("value", "").casefold()
     artifact_identifier = authoritative_route.get("artifact_identifier", "")
+    if evidence_kind == "osti_same_work_fulltext":
+        if (
+            not isinstance(document, list)
+            or not document
+            or not isinstance(document[0], Mapping)
+        ):
+            raise SourceEvidenceError(
+                "OSTI work identity evidence must be a nonempty record list"
+            )
+        record = document[0]
+        if str(record.get("doi", "")).casefold() != canonical_doi:
+            raise SourceEvidenceError("work identity evidence canonical DOI mismatch")
+        links = record.get("links")
+        if not isinstance(links, list):
+            raise SourceEvidenceError("OSTI work identity evidence has no links")
+        location_urls = {
+            link.get("href")
+            for link in links
+            if isinstance(link, Mapping)
+            and link.get("rel") == "fulltext"
+            and isinstance(link.get("href"), str)
+        }
+    else:
+        _require_mapping(document, "work identity evidence document")
     if evidence_kind.startswith("openalex_"):
         reported_doi = str(document.get("doi", ""))
         if reported_doi.casefold() != f"https://doi.org/{canonical_doi}":
@@ -632,7 +657,7 @@ def validate_work_identity_document(
         location_urls = {
             open_pdf.get("url")
         } if isinstance(open_pdf, Mapping) and isinstance(open_pdf.get("url"), str) else set()
-    else:
+    elif evidence_kind != "osti_same_work_fulltext":
         raise SourceEvidenceError(
             f"unsupported work identity evidence kind {evidence_kind}"
         )

@@ -291,14 +291,14 @@
       "source_id": "doi_33fcf4c762fb137794a6"
     },
     {
-      "access_mode": "challenge_or_institutional",
+      "access_mode": "unattended",
       "authoritative_retrieval_route": {
-        "artifact_identifier": "doi:10.1021/cm504242t",
-        "kind": "acs_article_pdf",
-        "url": "https://pubs.acs.org/doi/pdf/10.1021/cm504242t",
+        "artifact_identifier": "osti:1185798",
+        "kind": "institutional_repository_pdf",
+        "url": "https://www.osti.gov/servlets/purl/1185798",
         "work_identity_evidence": {
-          "kind": "canonical_identity",
-          "url": "https://doi.org/10.1021/cm504242t"
+          "kind": "osti_same_work_fulltext",
+          "url": "https://www.osti.gov/api/v1/records/1185798"
         }
       },
       "current_availability": "not_acquired",
