@@ -457,13 +457,12 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
 
     assert counts == {
         "arxiv_export_pdf": 4,
-        "arxiv_author_manuscript_pdf": 12,
+        "arxiv_author_manuscript_pdf": 14,
         "aps_harvest_pdf": 84,
         "elsevier_article_api_xml": 9,
         "nature_open_article_pdf": 6,
         "nature_article_pdf": 2,
         "springer_content_pdf": 1,
-        "epj_springer_content_pdf": 2,
         "iop_article_pdf": 5,
         "epl_iop_article_pdf": 1,
         "science_article_pdf": 2,
@@ -472,7 +471,7 @@ def test_publisher_specific_routes_cover_all_registry_sources_without_generic_do
         "jpsj_article_pdf": 1,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 106
+    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 108
     assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 9
 
 
@@ -490,6 +489,33 @@ def test_tasaki_lsm_source_uses_verified_arxiv_same_work_route():
         "work_identity_evidence": {
             "kind": "openalex_same_work_location",
             "url": "https://api.openalex.org/works/W2745733334",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ("doi", "arxiv_id", "openalex_id"),
+    [
+        ("10.1140/epjb/e2006-00273-y", "cond-mat/0604023", "W1983899391"),
+        ("10.1140/epjb/e2015-60113-7", "1505.07219", "W2115824467"),
+    ],
+)
+def test_epj_sources_use_verified_arxiv_same_work_routes(
+    doi,
+    arxiv_id,
+    openalex_id,
+):
+    route = authoritative_route_for_identity({"kind": "doi", "value": doi})
+
+    assert route == {
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": f"https://export.arxiv.org/pdf/{arxiv_id}",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": f"arxiv:{arxiv_id}",
+        "work_identity_evidence": {
+            "kind": "openalex_same_work_location",
+            "url": f"https://api.openalex.org/works/{openalex_id}",
         },
     }
 

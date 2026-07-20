@@ -2178,14 +2178,14 @@
       "source_id": "doi_be978237972b2466880e"
     },
     {
-      "access_mode": "authenticated_session",
+      "access_mode": "unattended",
       "authoritative_retrieval_route": {
-        "artifact_identifier": "doi:10.1140/epjb/e2006-00273-y",
-        "kind": "epj_springer_content_pdf",
-        "url": "https://link.springer.com/content/pdf/10.1140/epjb/e2006-00273-y.pdf",
+        "artifact_identifier": "arxiv:cond-mat/0604023",
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": "https://export.arxiv.org/pdf/cond-mat/0604023",
         "work_identity_evidence": {
-          "kind": "canonical_identity",
-          "url": "https://doi.org/10.1140/epjb/e2006-00273-y"
+          "kind": "openalex_same_work_location",
+          "url": "https://api.openalex.org/works/W1983899391"
         }
       },
       "current_availability": "not_acquired",
@@ -2195,14 +2195,14 @@
       "source_id": "doi_b5e49ab59ee164e8232f"
     },
     {
-      "access_mode": "authenticated_session",
+      "access_mode": "unattended",
       "authoritative_retrieval_route": {
-        "artifact_identifier": "doi:10.1140/epjb/e2015-60113-7",
-        "kind": "epj_springer_content_pdf",
-        "url": "https://link.springer.com/content/pdf/10.1140/epjb/e2015-60113-7.pdf",
+        "artifact_identifier": "arxiv:1505.07219",
+        "kind": "arxiv_author_manuscript_pdf",
+        "url": "https://export.arxiv.org/pdf/1505.07219",
         "work_identity_evidence": {
-          "kind": "canonical_identity",
-          "url": "https://doi.org/10.1140/epjb/e2015-60113-7"
+          "kind": "openalex_same_work_location",
+          "url": "https://api.openalex.org/works/W2115824467"
         }
       },
       "current_availability": "not_acquired",
