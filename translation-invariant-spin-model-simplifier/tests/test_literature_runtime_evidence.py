@@ -110,6 +110,24 @@ for each neighboring pair, H = sum_i P_2(S_i + S_i+1).
 Clearly, the ground-state energy is zero.
 """
 
+DIAMOND_LOCALIZED_MAGNON_SOURCE_TEXT = """
+For the diamond chain the magnons may be localized on the vertical bonds.
+The explicit expressions for the localized one-magnon state having the
+smallest possible region of localization read |1lm> proportional to
+(|s-1, s> - |s, s-1>) |s, ..., s>.
+The independent localized magnon states are the lowest-energy states in the
+corresponding sectors of Sz = Ns - 1, ..., Ns - nmax.
+"""
+
+SAWTOOTH_LOCALIZED_MAGNON_SOURCE_TEXT = """
+For the sawtooth chain the localized magnons may be trapped in a valley between
+two neighboring triangles. The explicit expressions for the localized
+one-magnon state having the smallest possible region of localization read
+|1lm> proportional to (|s-1, s, s> - 2|s, s-1, s> + |s, s, s-1>) |s, ..., s>.
+The independent localized magnon states are the lowest-energy states in the
+corresponding sectors of Sz = Ns - 1, ..., Ns - nmax.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -124,6 +142,7 @@ REQUIRED_RUNTIME_SOURCE_IDS = {
     "doi_31d77765ea903f1adaa9",
     "doi_607b6dc8e2ebace9ef53",
     "doi_d3dec73b0de1021b7f2a",
+    "doi_b5e49ab59ee164e8232f",
 }
 
 
@@ -502,6 +521,78 @@ def test_aklt_projector_parser_derives_local_spectrum_and_ground_energy():
 def test_aklt_projector_parser_fails_closed_without_projector_claim(source_text):
     with pytest.raises(RuntimeEvidenceError, match="AKLT projector claim"):
         literature_runtime_evidence.parse_aklt_projector_ground_state(source_text)
+
+
+def test_diamond_parser_extracts_exact_localized_magnon_claim():
+    parsed, trace = literature_runtime_evidence.parse_diamond_localized_magnon(
+        DIAMOND_LOCALIZED_MAGNON_SOURCE_TEXT
+    )
+
+    assert parsed == {"has_exact_localized_magnons": True}
+    assert trace["parser"] == "parse_diamond_localized_magnon"
+    assert trace["matched_anchors"] == [
+        "diamond-chain vertical-bond trapping",
+        "explicit localized one-magnon state",
+        "localized magnons are sector lowest-energy states",
+    ]
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        DIAMOND_LOCALIZED_MAGNON_SOURCE_TEXT.replace("diamond chain", "dimer chain"),
+        DIAMOND_LOCALIZED_MAGNON_SOURCE_TEXT.replace("vertical bonds", "plaquettes"),
+        DIAMOND_LOCALIZED_MAGNON_SOURCE_TEXT.replace(
+            "explicit expressions for the localized one-magnon state",
+            "a qualitative magnon picture",
+        ),
+        DIAMOND_LOCALIZED_MAGNON_SOURCE_TEXT.replace(
+            "lowest-energy states", "candidate states"
+        ),
+    ],
+)
+def test_diamond_parser_fails_closed_without_model_specific_exact_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="diamond localized-magnon claim"):
+        literature_runtime_evidence.parse_diamond_localized_magnon(source_text)
+
+
+def test_sawtooth_parser_extracts_exact_localized_magnon_claim():
+    parsed, trace = literature_runtime_evidence.parse_sawtooth_localized_magnon(
+        SAWTOOTH_LOCALIZED_MAGNON_SOURCE_TEXT
+    )
+
+    assert parsed == {"has_exact_localized_magnons": True}
+    assert trace["parser"] == "parse_sawtooth_localized_magnon"
+    assert trace["matched_anchors"] == [
+        "sawtooth-chain neighboring-triangle valley trapping",
+        "explicit localized one-magnon state",
+        "localized magnons are sector lowest-energy states",
+    ]
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        SAWTOOTH_LOCALIZED_MAGNON_SOURCE_TEXT.replace(
+            "sawtooth chain", "zigzag chain"
+        ),
+        SAWTOOTH_LOCALIZED_MAGNON_SOURCE_TEXT.replace(
+            "neighboring triangles", "unrelated plaquettes"
+        ),
+        SAWTOOTH_LOCALIZED_MAGNON_SOURCE_TEXT.replace(
+            "explicit expressions",
+            "a qualitative magnon picture",
+        ),
+        SAWTOOTH_LOCALIZED_MAGNON_SOURCE_TEXT.replace(
+            "lowest-energy states", "candidate states"
+        ),
+    ],
+)
+def test_sawtooth_parser_fails_closed_without_model_specific_exact_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="sawtooth localized-magnon claim"):
+        literature_runtime_evidence.parse_sawtooth_localized_magnon(source_text)
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1266,6 +1357,36 @@ def test_runtime_collector_recomputes_aklt_projector_ground_state(monkeypatch):
     assert record["comparison"]["matched"] is True
 
 
+def test_runtime_collector_parses_distinct_localized_magnon_claims_from_shared_source():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    diamond = evidence["diamond_chain_localized_magnon_flat_band"]
+    sawtooth = evidence["sawtooth_chain_localized_magnon_flat_band"]
+    expected = {"has_exact_localized_magnons": True}
+    expected_sha256 = (
+        "cd16bd2abe7c57e0b34e89e47c5e38618e7406595d3ca82d63e79305ccfe66c9"
+    )
+    for bundle in (diamond, sawtooth):
+        record = bundle["runtime_evidence_record"]
+        assert record["evidence_mode"] == "local_source_parse"
+        assert record["source_sha256"] == expected_sha256
+        assert record["source_operand"] == expected
+        assert record["registry_operand"] == expected
+        assert record["comparison"] == {
+            "kind": "exact_field_map",
+            "matched": True,
+        }
+        assert "execution_trace" not in bundle
+    assert diamond["extraction_trace"]["parser"] == (
+        "parse_diamond_localized_magnon"
+    )
+    assert sawtooth["extraction_trace"]["parser"] == (
+        "parse_sawtooth_localized_magnon"
+    )
+
+
 def test_runtime_collector_recomputes_toric_code_genus_one_degeneracy(monkeypatch):
     _require_runtime_cache()
     calls = []
@@ -1314,6 +1435,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     for name in {
         "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
+        "diamond_chain_localized_magnon_flat_band",
         "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
@@ -1321,6 +1443,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
+        "sawtooth_chain_localized_magnon_flat_band",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1332,11 +1455,11 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `6`" in markdown_text
-    assert "strict_local_source_parsed: `6`" in markdown_text
-    assert "Supported: `12`" in markdown_text
-    assert "Missing: `143`" in markdown_text
+    assert "strict_local_source_parsed: `8`" in markdown_text
+    assert "Supported: `14`" in markdown_text
+    assert "Missing: `141`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "12 of 155 entries are strict" in gaps_text
+    assert "14 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1348,12 +1471,13 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_twelve_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_fourteen_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
         "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
+        "diamond_chain_localized_magnon_flat_band",
         "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
@@ -1361,6 +1485,7 @@ def test_runtime_audit_has_exactly_the_twelve_cache_backed_strict_routes():
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
+        "sawtooth_chain_localized_magnon_flat_band",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1379,14 +1504,14 @@ def test_runtime_audit_has_exactly_the_twelve_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 143
+    assert len(remaining_names) == 141
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 12,
-        "missing": 143,
+        "supported": 14,
+        "missing": 141,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1509,6 +1634,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
     assert set(evidence) == {
         "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
+        "diamond_chain_localized_magnon_flat_band",
         "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
@@ -1516,6 +1642,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
+        "sawtooth_chain_localized_magnon_flat_band",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1574,8 +1701,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 12
-    assert coverage["missing"] == 143
+    assert coverage["supported"] == 14
+    assert coverage["missing"] == 141
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1584,7 +1711,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="143 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="141 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )

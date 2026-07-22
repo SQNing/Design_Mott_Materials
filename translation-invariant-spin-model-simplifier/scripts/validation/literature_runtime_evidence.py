@@ -759,6 +759,78 @@ def parse_aklt_projector_ground_state(source_text):
     )
 
 
+def _parse_localized_magnon_claim(source_text, *, model, trapping_pattern, label):
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            f"{model} localized-magnon claim requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    trapping_match = re.search(trapping_pattern, normalized, flags=re.IGNORECASE)
+    state_match = re.search(
+        r"explicit expressions? for the localized one-magnon state"
+        r".{0,100}?smallest possible region of localization read",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    lowest_match = re.search(
+        r"independent localized magnon states are the lowest-energy states in "
+        r"the corresponding sectors of S\s*z",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if trapping_match is None or state_match is None or lowest_match is None:
+        raise RuntimeEvidenceError(
+            f"{model} localized-magnon claim must contain model-specific "
+            "trapping, an explicit localized one-magnon state, and the "
+            "sector lowest-energy statement"
+        )
+    return (
+        {"has_exact_localized_magnons": True},
+        {
+            "parser": f"parse_{model}_localized_magnon",
+            "matched_anchors": [
+                label,
+                "explicit localized one-magnon state",
+                "localized magnons are sector lowest-energy states",
+            ],
+            "text_spans": [
+                [trapping_match.start(), trapping_match.end()],
+                [state_match.start(), state_match.end()],
+                [lowest_match.start(), lowest_match.end()],
+            ],
+        },
+    )
+
+
+def parse_diamond_localized_magnon(source_text):
+    """Extract the exact diamond-chain vertical-bond localized-magnon claim."""
+
+    return _parse_localized_magnon_claim(
+        source_text,
+        model="diamond",
+        trapping_pattern=(
+            r"(?:diamond(?:\s|-)+chain|diamond and dimer-plaquette chains)"
+            r".{0,140}?magnons may be localized on "
+            r"the vertical bonds"
+        ),
+        label="diamond-chain vertical-bond trapping",
+    )
+
+
+def parse_sawtooth_localized_magnon(source_text):
+    """Extract the exact sawtooth-chain valley localized-magnon claim."""
+
+    return _parse_localized_magnon_claim(
+        source_text,
+        model="sawtooth",
+        trapping_pattern=(
+            r"sawtooth(?:\s|-)+chain.{0,100}?localized magnons may be trapped "
+            r"in a valley between two neighboring triangles"
+        ),
+        label="sawtooth-chain neighboring-triangle valley trapping",
+    )
+
+
 def _select_registry_operand(entry, selector):
     value = entry
     for component in selector["path"]:
@@ -893,6 +965,16 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
                 "two_site_projector_eigenvalues": "two_site_projector_eigenvalues",
                 "vbs_ground_energy": "vbs_ground_energy",
             },
+        },
+        {
+            "benchmark_name": "diamond_chain_localized_magnon_flat_band",
+            "mode": "local_source_parse",
+            "parser": parse_diamond_localized_magnon,
+        },
+        {
+            "benchmark_name": "sawtooth_chain_localized_magnon_flat_band",
+            "mode": "local_source_parse",
+            "parser": parse_sawtooth_localized_magnon,
         },
     )
     for spec in specs:
