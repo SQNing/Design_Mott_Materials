@@ -548,6 +548,48 @@ def parse_kitaev_gapless_triangle_condition(source_text):
     )
 
 
+def parse_kitaev_toric_code_degeneracy(source_text):
+    """Derive the genus-one toric-code ground-state degeneracy."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "toric-code degeneracy claim requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    torus_match = re.search(
+        r"lattices on the torus and other 2-D surfaces",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    degeneracy_match = re.search(
+        r"ground state.{0,120}?protected space.{0,80}?"
+        r"4(?:\^\s*g|g)\s*-?fold degenerate,?\s*where g is the genus",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if torus_match is None or degeneracy_match is None:
+        raise RuntimeEvidenceError(
+            "toric-code degeneracy claim must state the torus ground-state "
+            "space is 4^g-fold degenerate with g the surface genus"
+        )
+    return (
+        {"torus_ground_state_degeneracy": 4},
+        {
+            "parser": "parse_kitaev_toric_code_degeneracy",
+            "derivation": "torus has genus g=1, so 4^g=4",
+            "matched_anchors": [
+                "lattices on the torus",
+                "ground-state protected space is 4^g-fold degenerate",
+                "g is the genus of the surface",
+            ],
+            "text_spans": [
+                [torus_match.start(), torus_match.end()],
+                [degeneracy_match.start(), degeneracy_match.end()],
+            ],
+        },
+    )
+
+
 def _select_registry_operand(entry, selector):
     value = entry
     for component in selector["path"]:
@@ -650,6 +692,14 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "benchmark_name": "kitaev_honeycomb_gapless_triangle_condition",
             "mode": "local_source_parse",
             "parser": parse_kitaev_gapless_triangle_condition,
+        },
+        {
+            "benchmark_name": "square_toric_code_exact_topological_degeneracy",
+            "mode": "local_recompute",
+            "parser": parse_kitaev_toric_code_degeneracy,
+            "adapter": benchmark_functions.toric_code_ground_state_degeneracy,
+            "adapter_parameters": {"genus": 1},
+            "output_field": "torus_ground_state_degeneracy",
         },
     )
     for spec in specs:

@@ -4306,6 +4306,12 @@ def bilinear_biquadratic_aklt_angle():
     return math.atan(1.0 / 3.0)
 
 
+def toric_code_ground_state_degeneracy(*, genus):
+    if isinstance(genus, bool) or not isinstance(genus, int) or genus < 0:
+        raise ValueError("genus must be a nonnegative integer")
+    return 4**genus
+
+
 def xxx_spin_half_chain_bethe_energy_per_site(exchange=1.0):
     return float(exchange) * (0.25 - math.log(2.0))
 

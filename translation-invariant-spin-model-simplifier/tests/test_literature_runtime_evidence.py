@@ -84,6 +84,13 @@ In the symmetric case (Jx = Jy = Jz) the zeros of the spectrum are given by
 q = plus or minus q star.
 """
 
+KITAEV_TORIC_CODE_SOURCE_TEXT = """
+I start with a class of stabilizer quantum codes associated with lattices on
+the torus and other 2-D surfaces. The ground state of this Hamiltonian
+coincides with the protected space of the code. It is 4^g-fold degenerate,
+where g is the genus of the surface.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -92,6 +99,7 @@ REQUIRED_RUNTIME_SOURCE_IDS = {
     "doi_f31ef7e012b01a5ac71d",
     "doi_696bd9749ec01fc72d99",
     "doi_735636355d51385c61be",
+    "doi_33fcf4c762fb137794a6",
     "doi_607b6dc8e2ebace9ef53",
     "doi_d3dec73b0de1021b7f2a",
 }
@@ -359,6 +367,43 @@ def test_kitaev_triangle_parser_extracts_gapless_condition():
 def test_kitaev_triangle_parser_fails_closed_without_complete_condition(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Kitaev gapless condition"):
         literature_runtime_evidence.parse_kitaev_gapless_triangle_condition(source_text)
+
+
+def test_toric_code_parser_derives_genus_one_degeneracy():
+    parsed, trace = literature_runtime_evidence.parse_kitaev_toric_code_degeneracy(
+        KITAEV_TORIC_CODE_SOURCE_TEXT
+    )
+
+    assert parsed == {"torus_ground_state_degeneracy": 4}
+    assert trace["parser"] == "parse_kitaev_toric_code_degeneracy"
+    assert "g=1" in trace["derivation"]
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        KITAEV_TORIC_CODE_SOURCE_TEXT.replace("torus", "plane"),
+        KITAEV_TORIC_CODE_SOURCE_TEXT.replace("ground state", "excited state"),
+        KITAEV_TORIC_CODE_SOURCE_TEXT.replace("4^g-fold", "2^g-fold"),
+        KITAEV_TORIC_CODE_SOURCE_TEXT.replace("genus", "area"),
+    ],
+)
+def test_toric_code_parser_fails_closed_without_genus_degeneracy(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="toric-code degeneracy claim"):
+        literature_runtime_evidence.parse_kitaev_toric_code_degeneracy(source_text)
+
+
+def test_toric_code_degeneracy_adapter_computes_genus_one_and_rejects_invalid_genus():
+    assert literature_spin_model_benchmarks.toric_code_ground_state_degeneracy(
+        genus=1
+    ) == 4
+    assert literature_spin_model_benchmarks.toric_code_ground_state_degeneracy(
+        genus=2
+    ) == 16
+    with pytest.raises(ValueError, match="nonnegative integer"):
+        literature_spin_model_benchmarks.toric_code_ground_state_degeneracy(genus=-1)
+    with pytest.raises(ValueError, match="nonnegative integer"):
+        literature_spin_model_benchmarks.toric_code_ground_state_degeneracy(genus=1.5)
 
 
 def test_audit_rejects_legacy_prose_without_runtime_record():
@@ -982,6 +1027,35 @@ def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source(
     assert triangle_record["comparison"]["matched"] is True
 
 
+def test_runtime_collector_recomputes_toric_code_genus_one_degeneracy(monkeypatch):
+    _require_runtime_cache()
+    calls = []
+
+    def recorded_adapter(*, genus):
+        calls.append(genus)
+        return 4**genus
+
+    monkeypatch.setattr(
+        literature_spin_model_benchmarks,
+        "toric_code_ground_state_degeneracy",
+        recorded_adapter,
+    )
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    assert calls == [1]
+    record = evidence["square_toric_code_exact_topological_degeneracy"][
+        "runtime_evidence_record"
+    ]
+    expected = {"torus_ground_state_degeneracy": 4}
+    assert record["source_sha256"] == (
+        "095171071c8735471da47b929da4d2623d847dff9873d40930cdc169b96cb514"
+    )
+    assert record["source_operand"] == expected
+    assert record["computed_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"]["matched"] is True
+
+
 def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
@@ -1004,6 +1078,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "square_toric_code_exact_topological_degeneracy",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1014,15 +1089,15 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
             "extraction_trace",
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
-    assert "strict_local_recomputed: `4`" in markdown_text
+    assert "strict_local_recomputed: `5`" in markdown_text
     assert "strict_local_source_parsed: `4`" in markdown_text
-    assert "Supported: `8`" in markdown_text
-    assert "Missing: `147`" in markdown_text
+    assert "Supported: `9`" in markdown_text
+    assert "Missing: `146`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "8 of 155 entries are strict" in gaps_text
+    assert "9 of 155 entries are strict" in gaps_text
 
 
-def test_runtime_audit_has_exactly_the_eight_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_nine_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1031,6 +1106,7 @@ def test_runtime_audit_has_exactly_the_eight_cache_backed_strict_routes():
         "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "square_toric_code_exact_topological_degeneracy",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1049,14 +1125,14 @@ def test_runtime_audit_has_exactly_the_eight_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 147
+    assert len(remaining_names) == 146
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 8,
-        "missing": 147,
+        "supported": 9,
+        "missing": 146,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1182,6 +1258,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "square_toric_code_exact_topological_degeneracy",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1240,8 +1317,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 8
-    assert coverage["missing"] == 147
+    assert coverage["supported"] == 9
+    assert coverage["missing"] == 146
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1250,7 +1327,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="147 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="146 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
