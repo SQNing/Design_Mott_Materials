@@ -148,6 +148,13 @@ Eight-Vertex Model in Lattice Statistics. The solution of the zero-field
 Ising, dimer, ice, and KDP models as special cases.
 """
 
+LIEB_SQUARE_ICE_SOURCE_TEXT = """
+The statement of the problem in two dimensions is to find the number of ways
+of drawing arrows on the bonds of a square planar net so that precisely two
+arrows point into each vertex. If N is the number of molecules and W^N is the
+number of arrangements, then S = Nk ln W. Our exact result is W = (4/3)^(3/2).
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -165,6 +172,7 @@ REQUIRED_RUNTIME_SOURCE_IDS = {
     "doi_b5e49ab59ee164e8232f",
     "doi_3c3be4c66f0054c73f1d",
     "doi_cb3265e8744878673955",
+    "doi_648ea4bc439b5b7a10c2",
 }
 
 
@@ -704,6 +712,34 @@ def test_baxter_parser_extracts_zero_field_eight_vertex_solution():
 def test_baxter_parser_fails_closed_without_complete_eight_vertex_claim(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Baxter eight-vertex solution"):
         literature_runtime_evidence.parse_baxter_eight_vertex_solution(source_text)
+
+
+def test_lieb_square_ice_parser_extracts_exact_solution_status():
+    parsed, trace = literature_runtime_evidence.parse_lieb_square_ice_solution(
+        LIEB_SQUARE_ICE_SOURCE_TEXT
+    )
+
+    assert parsed == {"is_exactly_solved": True}
+    assert trace["parser"] == "parse_lieb_square_ice_solution"
+    assert trace["matched_anchors"] == [
+        "two-dimensional square planar net",
+        "two arrows point into each vertex",
+        "exact square-ice result",
+    ]
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        LIEB_SQUARE_ICE_SOURCE_TEXT.replace("two dimensions", "three dimensions"),
+        LIEB_SQUARE_ICE_SOURCE_TEXT.replace("square planar net", "triangular net"),
+        LIEB_SQUARE_ICE_SOURCE_TEXT.replace("precisely two", "precisely one"),
+        LIEB_SQUARE_ICE_SOURCE_TEXT.replace("Our exact result", "Our estimate"),
+    ],
+)
+def test_lieb_square_ice_parser_fails_closed_without_complete_exact_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Lieb square-ice solution"):
+        literature_runtime_evidence.parse_lieb_square_ice_solution(source_text)
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1425,6 +1461,25 @@ def test_runtime_collector_parses_only_supported_baxter_eight_vertex_claim():
     assert "square_ashkin_teller_exact_critical_line" not in evidence
 
 
+def test_runtime_collector_parses_lieb_square_ice_exact_solution_status():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["square_six_vertex_ice_exact_solution_status"]
+    record = bundle["runtime_evidence_record"]
+    expected = {"is_exactly_solved": True}
+    assert record["evidence_mode"] == "local_source_parse"
+    assert record["source_sha256"] == (
+        "df7a0f803a6cf0cafa4527d1fd9c1d98e586845097912377cc99a93d97bbf365"
+    )
+    assert record["source_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == "parse_lieb_square_ice_solution"
+    assert "execution_trace" not in bundle
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1618,6 +1673,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
+        "square_six_vertex_ice_exact_solution_status",
         "sawtooth_chain_localized_magnon_flat_band",
         "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
@@ -1631,11 +1687,11 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `6`" in markdown_text
-    assert "strict_local_source_parsed: `11`" in markdown_text
-    assert "Supported: `17`" in markdown_text
-    assert "Missing: `138`" in markdown_text
+    assert "strict_local_source_parsed: `12`" in markdown_text
+    assert "Supported: `18`" in markdown_text
+    assert "Missing: `137`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "17 of 155 entries are strict" in gaps_text
+    assert "18 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1647,7 +1703,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_seventeen_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_eighteen_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1663,6 +1719,7 @@ def test_runtime_audit_has_exactly_the_seventeen_cache_backed_strict_routes():
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
+        "square_six_vertex_ice_exact_solution_status",
         "sawtooth_chain_localized_magnon_flat_band",
         "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
@@ -1683,14 +1740,14 @@ def test_runtime_audit_has_exactly_the_seventeen_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 138
+    assert len(remaining_names) == 137
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 17,
-        "missing": 138,
+        "supported": 18,
+        "missing": 137,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1823,6 +1880,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
+        "square_six_vertex_ice_exact_solution_status",
         "sawtooth_chain_localized_magnon_flat_band",
         "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
@@ -1883,8 +1941,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 17
-    assert coverage["missing"] == 138
+    assert coverage["supported"] == 18
+    assert coverage["missing"] == 137
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1893,7 +1951,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="138 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="137 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )

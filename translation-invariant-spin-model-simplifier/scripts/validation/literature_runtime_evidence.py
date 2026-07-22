@@ -628,6 +628,48 @@ def parse_baxter_eight_vertex_solution(source_text):
     )
 
 
+def parse_lieb_square_ice_solution(source_text):
+    """Extract Lieb's exact square-ice solution status."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("Lieb square-ice solution requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    geometry_match = re.search(
+        r"problem in two dimensions.{0,100}?bonds of a square planar net",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    ice_rule_match = re.search(
+        r"precisely two arrows point into each vertex",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    exact_match = re.search(
+        r"Our exact result is", normalized, flags=re.IGNORECASE
+    )
+    if geometry_match is None or ice_rule_match is None or exact_match is None:
+        raise RuntimeEvidenceError(
+            "Lieb square-ice solution must define the two-dimensional square "
+            "planar net, its two-in ice rule, and an exact result"
+        )
+    return (
+        {"is_exactly_solved": True},
+        {
+            "parser": "parse_lieb_square_ice_solution",
+            "matched_anchors": [
+                "two-dimensional square planar net",
+                "two arrows point into each vertex",
+                "exact square-ice result",
+            ],
+            "text_spans": [
+                [geometry_match.start(), geometry_match.end()],
+                [ice_rule_match.start(), ice_rule_match.end()],
+                [exact_match.start(), exact_match.end()],
+            ],
+        },
+    )
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -1096,6 +1138,11 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "benchmark_name": "eight_vertex_zero_field_exact_solution_status",
             "mode": "local_source_parse",
             "parser": parse_baxter_eight_vertex_solution,
+        },
+        {
+            "benchmark_name": "square_six_vertex_ice_exact_solution_status",
+            "mode": "local_source_parse",
+            "parser": parse_lieb_square_ice_solution,
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
