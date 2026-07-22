@@ -470,6 +470,59 @@ def parse_dagotto_rice_strong_rung_limit(source_text):
     )
 
 
+def parse_dagotto_rice_two_leg_gap(source_text):
+    """Extract the finite spin-gap claim for an AF two-leg ladder."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Dagotto-Rice two-leg gap requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    antiferromagnetic_match = re.search(
+        r"J\s*\(\s*>\s*0\s*\)\s+is the antiferromagnetic exchange coupling",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    gap_match = re.search(
+        r"2-leg ladders have a finite.{0,20}?spin\s*[-−]?\s*gap"
+        r".{0,80}?finite energy is needed to create a S\s*=\s*1 excitation",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    rung_match = re.search(
+        r"exchange coupling along the rungs of a 2-leg ladder"
+        r".{0,40}?denoted by J['′]",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        antiferromagnetic_match is None
+        or gap_match is None
+        or rung_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Dagotto-Rice two-leg gap must define positive exchange as "
+            "antiferromagnetic, state the finite S=1 gap, and identify J' "
+            "as the two-leg-ladder rung exchange"
+        )
+    return (
+        {"has_finite_spin_gap_for_antiferromagnetic_rungs": True},
+        {
+            "parser": "parse_dagotto_rice_two_leg_gap",
+            "matched_anchors": [
+                "positive exchange is antiferromagnetic",
+                "two-leg ladder has a finite spin gap",
+                "J' is the two-leg-ladder rung exchange",
+            ],
+            "text_spans": [
+                [antiferromagnetic_match.start(), antiferromagnetic_match.end()],
+                [gap_match.start(), gap_match.end()],
+                [rung_match.start(), rung_match.end()],
+            ],
+        },
+    )
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -923,6 +976,11 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
                 "energy_per_rung": "rung_singlet_energy",
                 "gap_to_triplet": "rung_gap",
             },
+        },
+        {
+            "benchmark_name": "spin_ladder_rung_singlet_gap_reference",
+            "mode": "local_source_parse",
+            "parser": parse_dagotto_rice_two_leg_gap,
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",

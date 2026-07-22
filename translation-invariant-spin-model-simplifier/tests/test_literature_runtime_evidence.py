@@ -128,6 +128,13 @@ The independent localized magnon states are the lowest-energy states in the
 corresponding sectors of Sz = Ns - 1, ..., Ns - nmax.
 """
 
+DAGOTTO_RICE_TWO_LEG_GAP_SOURCE_TEXT = """
+J (> 0) is the antiferromagnetic exchange coupling that provides the energy
+scale in the problem. There is evidence that 2-leg ladders have a finite
+spin-gap, i.e. a finite energy is needed to create a S=1 excitation. The
+exchange coupling along the rungs of a 2-leg ladder is denoted by J'.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -593,6 +600,37 @@ def test_sawtooth_parser_extracts_exact_localized_magnon_claim():
 def test_sawtooth_parser_fails_closed_without_model_specific_exact_claim(source_text):
     with pytest.raises(RuntimeEvidenceError, match="sawtooth localized-magnon claim"):
         literature_runtime_evidence.parse_sawtooth_localized_magnon(source_text)
+
+
+def test_dagotto_rice_parser_extracts_two_leg_antiferromagnetic_rung_gap():
+    parsed, trace = literature_runtime_evidence.parse_dagotto_rice_two_leg_gap(
+        DAGOTTO_RICE_TWO_LEG_GAP_SOURCE_TEXT
+    )
+
+    assert parsed == {"has_finite_spin_gap_for_antiferromagnetic_rungs": True}
+    assert trace["parser"] == "parse_dagotto_rice_two_leg_gap"
+    assert trace["matched_anchors"] == [
+        "positive exchange is antiferromagnetic",
+        "two-leg ladder has a finite spin gap",
+        "J' is the two-leg-ladder rung exchange",
+    ]
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        DAGOTTO_RICE_TWO_LEG_GAP_SOURCE_TEXT.replace("J (> 0)", "J (< 0)"),
+        DAGOTTO_RICE_TWO_LEG_GAP_SOURCE_TEXT.replace("2-leg ladders", "3-leg ladders"),
+        DAGOTTO_RICE_TWO_LEG_GAP_SOURCE_TEXT.replace(
+            "finite energy is needed", "no energy is needed"
+        ),
+        DAGOTTO_RICE_TWO_LEG_GAP_SOURCE_TEXT.replace("along the rungs", "along the chains"),
+    ],
+)
+def test_dagotto_rice_two_leg_gap_parser_fails_closed_without_complete_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Dagotto-Rice two-leg gap"):
+        literature_runtime_evidence.parse_dagotto_rice_two_leg_gap(source_text)
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1252,6 +1290,25 @@ def test_runtime_collector_recomputes_decoupled_two_leg_rung_spectrum(monkeypatc
     assert record["comparison"]["matched"] is True
 
 
+def test_runtime_collector_parses_general_two_leg_antiferromagnetic_rung_gap():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["spin_ladder_rung_singlet_gap_reference"]
+    record = bundle["runtime_evidence_record"]
+    expected = {"has_finite_spin_gap_for_antiferromagnetic_rungs": True}
+    assert record["evidence_mode"] == "local_source_parse"
+    assert record["source_sha256"] == (
+        "f98d47e008e6245bb1ea9f6fa8c5c7dc13ce4c0e3eb36d9b8c7962024a7cef09"
+    )
+    assert record["source_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == "parse_dagotto_rice_two_leg_gap"
+    assert "execution_trace" not in bundle
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1444,6 +1501,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
         "sawtooth_chain_localized_magnon_flat_band",
+        "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1455,11 +1513,11 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `6`" in markdown_text
-    assert "strict_local_source_parsed: `8`" in markdown_text
-    assert "Supported: `14`" in markdown_text
-    assert "Missing: `141`" in markdown_text
+    assert "strict_local_source_parsed: `9`" in markdown_text
+    assert "Supported: `15`" in markdown_text
+    assert "Missing: `140`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "14 of 155 entries are strict" in gaps_text
+    assert "15 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1471,7 +1529,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_fourteen_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_fifteen_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1486,6 +1544,7 @@ def test_runtime_audit_has_exactly_the_fourteen_cache_backed_strict_routes():
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
         "sawtooth_chain_localized_magnon_flat_band",
+        "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1504,14 +1563,14 @@ def test_runtime_audit_has_exactly_the_fourteen_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 141
+    assert len(remaining_names) == 140
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 14,
-        "missing": 141,
+        "supported": 15,
+        "missing": 140,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1643,6 +1702,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
         "sawtooth_chain_localized_magnon_flat_band",
+        "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1701,8 +1761,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 14
-    assert coverage["missing"] == 141
+    assert coverage["supported"] == 15
+    assert coverage["missing"] == 140
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1711,7 +1771,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="141 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="140 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
