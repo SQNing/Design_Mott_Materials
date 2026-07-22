@@ -142,6 +142,12 @@ antiferromagnet with an exchange coupling falling off as the inverse square
 of the distance between sites.
 """
 
+BAXTER_EIGHT_VERTEX_SOURCE_TEXT = """
+Eight-Vertex Model in Lattice Statistics. The solution of the zero-field
+"eight-vertex" model is presented. This model includes the square lattice
+Ising, dimer, ice, and KDP models as special cases.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -158,6 +164,7 @@ REQUIRED_RUNTIME_SOURCE_IDS = {
     "doi_d3dec73b0de1021b7f2a",
     "doi_b5e49ab59ee164e8232f",
     "doi_3c3be4c66f0054c73f1d",
+    "doi_cb3265e8744878673955",
 }
 
 
@@ -669,6 +676,34 @@ def test_haldane_shastry_parser_extracts_exact_jastrow_ground_state():
 def test_haldane_shastry_parser_fails_closed_without_complete_model_claim(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Haldane-Shastry ground state"):
         literature_runtime_evidence.parse_haldane_shastry_ground_state(source_text)
+
+
+def test_baxter_parser_extracts_zero_field_eight_vertex_solution():
+    parsed, trace = literature_runtime_evidence.parse_baxter_eight_vertex_solution(
+        BAXTER_EIGHT_VERTEX_SOURCE_TEXT
+    )
+
+    assert parsed == {"is_exactly_solved": True}
+    assert trace["parser"] == "parse_baxter_eight_vertex_solution"
+    assert trace["matched_anchors"] == [
+        "eight-vertex lattice-statistics model",
+        "solution of zero-field eight-vertex model is presented",
+        "square-lattice models included as special cases",
+    ]
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        BAXTER_EIGHT_VERTEX_SOURCE_TEXT.replace("Eight-Vertex Model", "Vertex Model"),
+        BAXTER_EIGHT_VERTEX_SOURCE_TEXT.replace("zero-field", "finite-field"),
+        BAXTER_EIGHT_VERTEX_SOURCE_TEXT.replace("solution", "approximation"),
+        BAXTER_EIGHT_VERTEX_SOURCE_TEXT.replace("special cases", "unrelated models"),
+    ],
+)
+def test_baxter_parser_fails_closed_without_complete_eight_vertex_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Baxter eight-vertex solution"):
+        literature_runtime_evidence.parse_baxter_eight_vertex_solution(source_text)
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1368,6 +1403,28 @@ def test_runtime_collector_parses_haldane_shastry_exact_ground_state():
     assert "execution_trace" not in bundle
 
 
+def test_runtime_collector_parses_only_supported_baxter_eight_vertex_claim():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["eight_vertex_zero_field_exact_solution_status"]
+    record = bundle["runtime_evidence_record"]
+    expected = {"is_exactly_solved": True}
+    assert record["evidence_mode"] == "local_source_parse"
+    assert record["source_sha256"] == (
+        "5466c1555c8dd11d46282158b86aeeaf1ddacfd71df92eaa1b6fa158adb4b7a0"
+    )
+    assert record["source_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == (
+        "parse_baxter_eight_vertex_solution"
+    )
+    assert "execution_trace" not in bundle
+    assert "square_ashkin_teller_exact_critical_line" not in evidence
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1552,6 +1609,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
         "diamond_chain_localized_magnon_flat_band",
+        "eight_vertex_zero_field_exact_solution_status",
         "haldane_spin1_chain_gap_reference",
         "haldane_shastry_chain_exact_ground_state",
         "kitaev_honeycomb_exact_spin_liquid_limit",
@@ -1573,11 +1631,11 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `6`" in markdown_text
-    assert "strict_local_source_parsed: `10`" in markdown_text
-    assert "Supported: `16`" in markdown_text
-    assert "Missing: `139`" in markdown_text
+    assert "strict_local_source_parsed: `11`" in markdown_text
+    assert "Supported: `17`" in markdown_text
+    assert "Missing: `138`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "16 of 155 entries are strict" in gaps_text
+    assert "17 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1589,13 +1647,14 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_sixteen_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_seventeen_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
         "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
         "diamond_chain_localized_magnon_flat_band",
+        "eight_vertex_zero_field_exact_solution_status",
         "haldane_spin1_chain_gap_reference",
         "haldane_shastry_chain_exact_ground_state",
         "kitaev_honeycomb_exact_spin_liquid_limit",
@@ -1624,14 +1683,14 @@ def test_runtime_audit_has_exactly_the_sixteen_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 139
+    assert len(remaining_names) == 138
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 16,
-        "missing": 139,
+        "supported": 17,
+        "missing": 138,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1755,6 +1814,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
         "diamond_chain_localized_magnon_flat_band",
+        "eight_vertex_zero_field_exact_solution_status",
         "haldane_spin1_chain_gap_reference",
         "haldane_shastry_chain_exact_ground_state",
         "kitaev_honeycomb_exact_spin_liquid_limit",
@@ -1823,8 +1883,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 16
-    assert coverage["missing"] == 139
+    assert coverage["supported"] == 17
+    assert coverage["missing"] == 138
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1833,7 +1893,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="139 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="138 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )

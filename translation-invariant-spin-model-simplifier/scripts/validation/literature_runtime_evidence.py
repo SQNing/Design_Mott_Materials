@@ -576,6 +576,58 @@ def parse_haldane_shastry_ground_state(source_text):
     )
 
 
+def parse_baxter_eight_vertex_solution(source_text):
+    """Extract Baxter's zero-field eight-vertex solution claim."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Baxter eight-vertex solution requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    title_match = re.search(
+        r"Eight-Vertex Model in Lattice Statistics",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    solution_match = re.search(
+        r"solution of the zero-field [\"“]?eight-vertex[\"”]? model is presented",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    special_cases_match = re.search(
+        r"model includes the square lattice Ising, dimer, ice"
+        r".{0,40}?models as special cases",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        title_match is None
+        or solution_match is None
+        or special_cases_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Baxter eight-vertex solution must identify the lattice-statistics "
+            "model, present its zero-field solution, and list square-lattice "
+            "models as special cases"
+        )
+    return (
+        {"is_exactly_solved": True},
+        {
+            "parser": "parse_baxter_eight_vertex_solution",
+            "matched_anchors": [
+                "eight-vertex lattice-statistics model",
+                "solution of zero-field eight-vertex model is presented",
+                "square-lattice models included as special cases",
+            ],
+            "text_spans": [
+                [title_match.start(), title_match.end()],
+                [solution_match.start(), solution_match.end()],
+                [special_cases_match.start(), special_cases_match.end()],
+            ],
+        },
+    )
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -1039,6 +1091,11 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "benchmark_name": "haldane_shastry_chain_exact_ground_state",
             "mode": "local_source_parse",
             "parser": parse_haldane_shastry_ground_state,
+        },
+        {
+            "benchmark_name": "eight_vertex_zero_field_exact_solution_status",
+            "mode": "local_source_parse",
+            "parser": parse_baxter_eight_vertex_solution,
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
