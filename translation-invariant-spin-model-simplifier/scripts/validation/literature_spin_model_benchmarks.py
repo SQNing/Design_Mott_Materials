@@ -4302,6 +4302,13 @@ def aklt_two_site_projector_eigenvalues():
     return [0.0, 0.0, 1.0]
 
 
+def aklt_projector_ground_state_result():
+    return {
+        "two_site_projector_eigenvalues": aklt_two_site_projector_eigenvalues(),
+        "vbs_ground_energy": 0.0,
+    }
+
+
 def bilinear_biquadratic_aklt_angle():
     return math.atan(1.0 / 3.0)
 

@@ -708,6 +708,57 @@ def parse_sandvik_square_qmc_energy(source_text):
     )
 
 
+def parse_aklt_projector_ground_state(source_text):
+    """Derive the local projector spectrum and zero-energy VBS claim."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("AKLT projector claim requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    exclusion_match = re.search(
+        r"neighboring pair.{0,120}?total spin of each such.{0,120}?"
+        r"pair cannot be 2",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    projector_match = re.search(
+        r"Hamiltonian.{0,120}?sum of projection operators onto"
+        r".{0,180}?spin 2 for each neighboring pair",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    energy_match = re.search(
+        r"ground-state energy is zero", normalized, flags=re.IGNORECASE
+    )
+    if exclusion_match is None or projector_match is None or energy_match is None:
+        raise RuntimeEvidenceError(
+            "AKLT projector claim must identify the excluded neighboring-pair "
+            "spin-2 sector, its projector Hamiltonian, and zero ground energy"
+        )
+    return (
+        {
+            "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+            "vbs_ground_energy": 0.0,
+        },
+        {
+            "parser": "parse_aklt_projector_ground_state",
+            "derivation": (
+                "For two spin-1 sites S_total=0,1,2; P_2 has eigenvalues "
+                "0,0,1, and the ground state excludes S_total=2"
+            ),
+            "matched_anchors": [
+                "neighboring pair cannot have total spin 2",
+                "neighboring-pair spin-2 projector Hamiltonian",
+                "zero ground-state energy",
+            ],
+            "text_spans": [
+                [exclusion_match.start(), exclusion_match.end()],
+                [projector_match.start(), projector_match.end()],
+                [energy_match.start(), energy_match.end()],
+            ],
+        },
+    )
+
+
 def _select_registry_operand(entry, selector):
     value = entry
     for component in selector["path"]:
@@ -831,6 +882,17 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "mode": "local_source_parse",
             "parser": parse_sandvik_square_qmc_energy,
             "registry_fields": ("energy_per_site",),
+        },
+        {
+            "benchmark_name": "aklt_spin1_chain_projector_ground_state",
+            "mode": "local_recompute",
+            "parser": parse_aklt_projector_ground_state,
+            "adapter": benchmark_functions.aklt_projector_ground_state_result,
+            "adapter_parameters": {},
+            "output_fields": {
+                "two_site_projector_eigenvalues": "two_site_projector_eigenvalues",
+                "vbs_ground_energy": "vbs_ground_energy",
+            },
         },
     )
     for spec in specs:

@@ -103,6 +103,13 @@ Heisenberg model are calculated using quantum Monte Carlo. The extrapolated
 ground-state energy per spin is E = -0.669437(5).
 """
 
+AKLT_PROJECTOR_SOURCE_TEXT = """
+The neighboring pair implies that the total spin of each such pair cannot be 2.
+We choose our Hamiltonian to be a sum of projection operators onto spin 2
+for each neighboring pair, H = sum_i P_2(S_i + S_i+1).
+Clearly, the ground-state energy is zero.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -114,6 +121,7 @@ REQUIRED_RUNTIME_SOURCE_IDS = {
     "doi_696bd9749ec01fc72d99",
     "doi_735636355d51385c61be",
     "doi_33fcf4c762fb137794a6",
+    "doi_31d77765ea903f1adaa9",
     "doi_607b6dc8e2ebace9ef53",
     "doi_d3dec73b0de1021b7f2a",
 }
@@ -466,6 +474,41 @@ def test_sandvik_parser_extracts_square_heisenberg_qmc_energy():
 def test_sandvik_parser_fails_closed_without_specific_energy_claim(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Sandvik square-QMC energy"):
         literature_runtime_evidence.parse_sandvik_square_qmc_energy(source_text)
+
+
+def test_aklt_projector_parser_derives_local_spectrum_and_ground_energy():
+    parsed, trace = literature_runtime_evidence.parse_aklt_projector_ground_state(
+        AKLT_PROJECTOR_SOURCE_TEXT
+    )
+
+    assert parsed == {
+        "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+        "vbs_ground_energy": 0.0,
+    }
+    assert trace["parser"] == "parse_aklt_projector_ground_state"
+    assert "S_total=0,1,2" in trace["derivation"]
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        AKLT_PROJECTOR_SOURCE_TEXT.replace("projection operators", "exchange operators"),
+        AKLT_PROJECTOR_SOURCE_TEXT.replace("spin 2", "spin 1"),
+        AKLT_PROJECTOR_SOURCE_TEXT.replace("neighboring pair", "three-site block"),
+        AKLT_PROJECTOR_SOURCE_TEXT.replace("ground-state energy is zero", "ground-state energy is finite"),
+        AKLT_PROJECTOR_SOURCE_TEXT.replace("cannot be 2", "can be 2"),
+    ],
+)
+def test_aklt_projector_parser_fails_closed_without_projector_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="AKLT projector claim"):
+        literature_runtime_evidence.parse_aklt_projector_ground_state(source_text)
+
+
+def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
+    assert literature_spin_model_benchmarks.aklt_projector_ground_state_result() == {
+        "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+        "vbs_ground_energy": 0.0,
+    }
 
 
 def test_audit_rejects_legacy_prose_without_runtime_record():
@@ -1188,6 +1231,41 @@ def test_runtime_collector_parses_sandvik_square_qmc_energy_exactly():
     }
 
 
+def test_runtime_collector_recomputes_aklt_projector_ground_state(monkeypatch):
+    _require_runtime_cache()
+    calls = []
+
+    def recorded_adapter():
+        calls.append(True)
+        return {
+            "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+            "vbs_ground_energy": 0.0,
+        }
+
+    monkeypatch.setattr(
+        literature_spin_model_benchmarks,
+        "aklt_projector_ground_state_result",
+        recorded_adapter,
+    )
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    assert calls == [True]
+    record = evidence["aklt_spin1_chain_projector_ground_state"][
+        "runtime_evidence_record"
+    ]
+    expected = {
+        "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+        "vbs_ground_energy": 0.0,
+    }
+    assert record["source_sha256"] == (
+        "1a0734ffb58e1fcba8570fe4ce6a36014bad3b07d8d3a34fcf13451af186ffc8"
+    )
+    assert record["source_operand"] == expected
+    assert record["computed_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"]["matched"] is True
+
+
 def test_runtime_collector_recomputes_toric_code_genus_one_degeneracy(monkeypatch):
     _require_runtime_cache()
     calls = []
@@ -1234,6 +1312,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     gaps_text = gaps_path.read_text(encoding="utf-8")
     audit_rows = {row["name"]: row for row in audit["rows"]}
     for name in {
+        "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
         "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
@@ -1252,12 +1331,12 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
             "extraction_trace",
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
-    assert "strict_local_recomputed: `5`" in markdown_text
+    assert "strict_local_recomputed: `6`" in markdown_text
     assert "strict_local_source_parsed: `6`" in markdown_text
-    assert "Supported: `11`" in markdown_text
-    assert "Missing: `144`" in markdown_text
+    assert "Supported: `12`" in markdown_text
+    assert "Missing: `143`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "11 of 155 entries are strict" in gaps_text
+    assert "12 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1269,10 +1348,11 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_eleven_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_twelve_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
+        "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
         "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
@@ -1299,14 +1379,14 @@ def test_runtime_audit_has_exactly_the_eleven_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 144
+    assert len(remaining_names) == 143
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 11,
-        "missing": 144,
+        "supported": 12,
+        "missing": 143,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1427,6 +1507,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
     evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
 
     assert set(evidence) == {
+        "aklt_spin1_chain_projector_ground_state",
         "cri3_honeycomb_ferromagnet_reference",
         "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
@@ -1493,8 +1574,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 11
-    assert coverage["missing"] == 144
+    assert coverage["supported"] == 12
+    assert coverage["missing"] == 143
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1503,7 +1584,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="144 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="143 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
