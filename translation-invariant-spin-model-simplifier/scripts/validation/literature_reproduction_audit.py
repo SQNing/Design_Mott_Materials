@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
@@ -29,6 +31,12 @@ from validation.literature_spin_model_benchmarks import (
     residual_projection_verification_tasks,
     structure_factor_verification_tasks,
     zigzag_or_spiral_projection_verification_tasks,
+)
+from validation.literature_runtime_evidence import (
+    DEFAULT_CACHE_ROOT,
+    collect_runtime_evidence,
+    structurally_validate_runtime_evidence_bundle,
+    structurally_validate_runtime_evidence_coverage,
 )
 
 
@@ -915,17 +923,12 @@ WEAK_LOCAL_MARKERS = (
 )
 
 
-def _strict_audit_category(category, local_kind, evidence):
-    if category != "local_recomputed":
-        return category
-    normalized_kind = str(local_kind).lower()
-    normalized_evidence = str(evidence).lower()
-    combined = f"{normalized_kind} {normalized_evidence}"
-    if local_kind in STRICT_LOCAL_KINDS:
-        return "strict_local_recomputed"
-    if any(marker in combined for marker in WEAK_LOCAL_MARKERS):
+def _strict_audit_category(category, runtime_category):
+    if runtime_category is not None:
+        return runtime_category
+    if category == "local_recomputed":
         return "local_projection_only"
-    return "local_projection_only"
+    return category
 
 
 def _strict_literature_match_verdict(strict_category):
@@ -934,6 +937,12 @@ def _strict_literature_match_verdict(strict_category):
             True,
             "yes",
             "Local calculation matches the registered observable under the strict audit rule.",
+        )
+    if strict_category == "strict_local_source_parsed":
+        return (
+            True,
+            "yes",
+            "A hash-verified local source parse matches the independently selected registry operand.",
         )
     if strict_category == "local_projection_only":
         return (
@@ -965,6 +974,8 @@ def _strict_reproduction_gap_action(entry, strict_category, local_kind):
     backend = entry["backend_needed"]
     if strict_category == "strict_local_recomputed":
         return "No gap: the registered observable is strictly reproduced locally."
+    if strict_category == "strict_local_source_parsed":
+        return "No gap: the hash-verified source target matches the registry operand."
     if strict_category == "local_projection_only":
         if local_kind:
             return (
@@ -989,7 +1000,14 @@ def _strict_reproduction_gap_action(entry, strict_category, local_kind):
     return f"To upgrade, handle strict audit category `{strict_category}` for registered `{observable}`."
 
 
-def build_literature_reproduction_audit():
+def build_literature_reproduction_audit(
+    *, runtime_evidence_enabled=True, cache_root=DEFAULT_CACHE_ROOT
+):
+    runtime_evidence_by_name = (
+        collect_runtime_evidence(LITERATURE_STANDARD_RESULTS, cache_root=cache_root)
+        if runtime_evidence_enabled
+        else {}
+    )
     tasks_by_benchmark = _task_index_by_benchmark()
     coverage = computable_observable_coverage_report()
     covered_observables_by_benchmark = defaultdict(list)
@@ -1001,7 +1019,16 @@ def build_literature_reproduction_audit():
     for entry in LITERATURE_STANDARD_RESULTS:
         tasks = tasks_by_benchmark.get(entry["name"], [])
         category, local_kind, evidence = _classify_entry(entry, tasks)
-        strict_category = _strict_audit_category(category, local_kind, evidence)
+        collected_bundle = (
+            runtime_evidence_by_name.get(entry["name"])
+            if isinstance(runtime_evidence_by_name, Mapping)
+            else None
+        )
+        runtime_category = structurally_validate_runtime_evidence_bundle(
+            entry["name"], collected_bundle
+        )
+        runtime_bundle = collected_bundle if runtime_category is not None else None
+        strict_category = _strict_audit_category(category, runtime_category)
         strict_match, strict_match_label, strict_match_reason = _strict_literature_match_verdict(strict_category)
         strict_reproduction_gap_action = _strict_reproduction_gap_action(entry, strict_category, local_kind)
         strict_reproduction_negative_evidence = STRICT_REPRODUCTION_NEGATIVE_EVIDENCE.get(entry["name"], "")
@@ -1024,6 +1051,21 @@ def build_literature_reproduction_audit():
                 "local_check_evidence": evidence if category == "local_recomputed" else "",
                 "covered_computable_observables": sorted(covered_observables_by_benchmark.get(entry["name"], [])),
                 "verification_task_count": len(tasks),
+                "runtime_evidence_record": (
+                    runtime_bundle.get("runtime_evidence_record")
+                    if isinstance(runtime_bundle, Mapping)
+                    else None
+                ),
+                "execution_trace": (
+                    runtime_bundle.get("execution_trace")
+                    if isinstance(runtime_bundle, Mapping)
+                    else None
+                ),
+                "extraction_trace": (
+                    runtime_bundle.get("extraction_trace")
+                    if isinstance(runtime_bundle, Mapping)
+                    else None
+                ),
                 "source": entry["source"],
                 "source_url": entry["source_url"],
             }
@@ -1035,16 +1077,21 @@ def build_literature_reproduction_audit():
     strict_category_counts = Counter(row["strict_audit_category"] for row in rows)
     for category in (
         "strict_local_recomputed",
+        "strict_local_source_parsed",
         "local_projection_only",
         "executable_projection",
         "reference_only",
     ):
         strict_category_counts.setdefault(category, 0)
+    runtime_evidence_coverage = structurally_validate_runtime_evidence_coverage(
+        LITERATURE_STANDARD_RESULTS, runtime_evidence_by_name
+    )
 
     return {
         "total_standard_results": len(LITERATURE_STANDARD_RESULTS),
         "category_counts": dict(sorted(category_counts.items())),
         "strict_category_counts": dict(sorted(strict_category_counts.items())),
+        "runtime_evidence_coverage": runtime_evidence_coverage,
         "rows": rows,
     }
 
@@ -1068,6 +1115,9 @@ def write_audit_csv(audit, path):
         "local_check_evidence",
         "covered_computable_observables",
         "verification_task_count",
+        "runtime_evidence_record",
+        "execution_trace",
+        "extraction_trace",
         "source",
         "source_url",
     ]
@@ -1077,6 +1127,14 @@ def write_audit_csv(audit, path):
         for row in audit["rows"]:
             csv_row = dict(row)
             csv_row["covered_computable_observables"] = ";".join(row["covered_computable_observables"])
+            for field in (
+                "runtime_evidence_record",
+                "execution_trace",
+                "extraction_trace",
+            ):
+                csv_row[field] = json.dumps(
+                    row[field], sort_keys=True, ensure_ascii=True, allow_nan=False
+                )
             writer.writerow(csv_row)
 
 
@@ -1094,7 +1152,8 @@ def write_audit_markdown(audit, path):
         "",
         "Strict categories:",
         "",
-        "- `strict_local_recomputed`: the local check is an analytic formula, exact spectrum, exact enumeration, ED calculation, GLT/Fourier energy calculation, or similarly direct reproduction.",
+        "- `strict_local_recomputed`: a hash-verified source target, an independently executed local calculation, and the registry selector operand all match.",
+        "- `strict_local_source_parsed`: a hash-verified source parser and the independent registry selector produce matching operands.",
         "- `local_projection_only`: the older local check is executable but only verifies local geometry, candidate labels, material context, or another projection weaker than reproducing the cited literature result.",
         "",
         "## Counts",
@@ -1107,6 +1166,20 @@ def write_audit_markdown(audit, path):
     for category, count in audit["strict_category_counts"].items():
         lines.append(f"- {category}: `{count}`")
 
+    coverage = audit["runtime_evidence_coverage"]
+    lines.extend(
+        [
+            "",
+            "## Runtime Evidence Coverage",
+            "",
+            f"- Supported: `{coverage['supported']}`",
+            f"- Missing: `{coverage['missing']}`",
+            f"- Extra: `{coverage['extra']}`",
+            f"- Invalid: `{coverage['invalid']}`",
+            f"- Complete: `{coverage['complete']}`",
+        ]
+    )
+
     lines.extend(
         [
             "",
@@ -1117,7 +1190,14 @@ def write_audit_markdown(audit, path):
         ]
     )
     for index, row in enumerate(audit["rows"], start=1):
-        if row["audit_category"] == "local_recomputed":
+        runtime_record = row["runtime_evidence_record"]
+        if runtime_record is not None:
+            evidence = (
+                f"runtime {runtime_record['evidence_mode']}: "
+                f"source_sha256={runtime_record['source_sha256']}; "
+                f"comparison={runtime_record['comparison']}"
+            )
+        elif row["audit_category"] == "local_recomputed":
             evidence = f"{row['local_check_kind']}: {row['local_check_evidence']}"
         elif row["audit_category"] == "executable_projection":
             evidence = "projection observables: " + ", ".join(row["covered_computable_observables"])
@@ -1144,7 +1224,13 @@ def write_audit_markdown(audit, path):
 
 def write_remaining_strict_reproduction_gaps_markdown(audit, path):
     strict_counts = audit["strict_category_counts"]
-    strict_count = strict_counts["strict_local_recomputed"]
+    strict_count = sum(
+        strict_counts[category]
+        for category in (
+            "strict_local_recomputed",
+            "strict_local_source_parsed",
+        )
+    )
     total_count = audit["total_standard_results"]
     remaining_rows = [
         row for row in audit["rows"] if row["strict_literature_match_label"] == "no"
@@ -1171,13 +1257,13 @@ def write_remaining_strict_reproduction_gaps_markdown(audit, path):
     if remaining_rows:
         summary_sentence = (
             f"After the current audit, {strict_count} of {total_count} entries are strict "
-            "local recomputations. The rows below remain `no` because the local calculation "
+            "runtime-evidenced entries. The rows below remain `no` because the local calculation "
             "does not yet reproduce the registered literature observable."
         )
     else:
         summary_sentence = (
             f"After the current audit, {strict_count} of {total_count} entries are strict "
-            "local recomputations. No rows remain `no`; every registered literature entry "
+            "runtime-evidenced entries. No rows remain `no`; every registered literature entry "
             "has strict local evidence under the current audit rule."
         )
 
@@ -1190,6 +1276,20 @@ def write_remaining_strict_reproduction_gaps_markdown(audit, path):
     ]
     for category, count in strict_counts.items():
         lines.append(f"- `{category}`: {count}")
+
+    coverage = audit["runtime_evidence_coverage"]
+    lines.extend(
+        [
+            "",
+            "Runtime evidence coverage:",
+            "",
+            f"- `supported`: {coverage['supported']}",
+            f"- `missing`: {coverage['missing']}",
+            f"- `extra`: {coverage['extra']}",
+            f"- `invalid`: {coverage['invalid']}",
+            f"- `complete`: {coverage['complete']}",
+        ]
+    )
 
     lines.extend(
         [
