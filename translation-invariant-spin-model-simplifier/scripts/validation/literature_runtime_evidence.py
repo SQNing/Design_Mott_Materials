@@ -333,6 +333,101 @@ def parse_tasaki_lsm_half_integer_constraint(source_text):
     )
 
 
+def parse_onsager_square_ising_tc(source_text):
+    """Derive the isotropic square-Ising critical temperature from Onsager."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("Onsager critical condition requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    transition_match = re.search(
+        r"order-disorder transition.{0,120}?temperature\s+T\s*=\s*T",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    condition_match = re.search(
+        r"sinh\s*\(\s*2\s*J\s*/\s*kT[^)]*\)\s*"
+        r"sinh\s*\(\s*2\s*J['′]?\s*/\s*kT[^)]*\)\s*=\s*1",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if transition_match is None or condition_match is None:
+        raise RuntimeEvidenceError(
+            "Onsager critical condition must identify the order-disorder "
+            "transition and sinh(2J/kTc) sinh(2J'/kTc) = 1"
+        )
+    return (
+        {"tc_over_j": 2.0 / math.log(1.0 + math.sqrt(2.0))},
+        {
+            "parser": "parse_onsager_square_ising_tc",
+            "derivation": (
+                "J'=J and sinh(2J/kTc)^2=1 => "
+                "Tc/J=2/log(1+sqrt(2)), with k=1"
+            ),
+            "matched_anchors": [
+                "order-disorder transition temperature",
+                "sinh(2J/kTc) sinh(2J'/kTc) = 1",
+            ],
+            "text_spans": [
+                [transition_match.start(), transition_match.end()],
+                [condition_match.start(), condition_match.end()],
+            ],
+        },
+    )
+
+
+def parse_dagotto_rice_strong_rung_limit(source_text):
+    """Extract the decoupled two-leg-ladder rung spectrum."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Dagotto-Rice strong-rung limit requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    strong_rung_match = re.search(
+        r"J['′]\s*(?:>>|≫)\s*J", normalized, flags=re.IGNORECASE
+    )
+    singlet_match = re.search(
+        r"(?:-|−)\s*(?:3\s*/\s*4|3\s*4|4\s*3)\s*J['′].{0,80}?"
+        r"energy of each rung singlet",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    triplet_match = re.search(
+        r"isolated rung-triplet has an energy\s+J['′]\s+above the rung singlet",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        strong_rung_match is None
+        or singlet_match is None
+        or triplet_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Dagotto-Rice strong-rung limit must state J' >> J, the -3J'/4 "
+            "rung-singlet energy, and the J' triplet gap"
+        )
+    return (
+        {"energy_per_rung": -0.75, "gap_to_triplet": 1.0},
+        {
+            "parser": "parse_dagotto_rice_strong_rung_limit",
+            "derivation": (
+                "Take the exact decoupled-rung endpoint Jleg=0, Jrung=1: "
+                "Es=-3Jrung/4 and Et-Es=Jrung"
+            ),
+            "matched_anchors": [
+                "J' much larger than J",
+                "-3J'/4 energy of each rung singlet",
+                "isolated rung triplet J' above singlet",
+            ],
+            "text_spans": [
+                [strong_rung_match.start(), strong_rung_match.end()],
+                [singlet_match.start(), singlet_match.end()],
+                [triplet_match.start(), triplet_match.end()],
+            ],
+        },
+    )
+
+
 def _select_registry_operand(entry, selector):
     value = entry
     for component in selector["path"]:
@@ -407,6 +502,25 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "mode": "local_source_parse",
             "parser": parse_tasaki_lsm_half_integer_constraint,
         },
+        {
+            "benchmark_name": "two_dimensional_square_ising_onsager_tc",
+            "mode": "local_recompute",
+            "parser": parse_onsager_square_ising_tc,
+            "adapter": benchmark_functions.two_dimensional_ising_square_tc,
+            "adapter_parameters": {"exchange": 1.0},
+            "output_field": "tc_over_j",
+        },
+        {
+            "benchmark_name": "two_leg_ladder_strong_rung_exact_limit",
+            "mode": "local_recompute",
+            "parser": parse_dagotto_rice_strong_rung_limit,
+            "adapter": benchmark_functions.spin_ladder_strong_rung_gap_status,
+            "adapter_parameters": {"j_rung": 1.0, "j_leg": 0.0},
+            "output_fields": {
+                "energy_per_rung": "rung_singlet_energy",
+                "gap_to_triplet": "rung_gap",
+            },
+        },
     )
     for spec in specs:
         benchmark_name = spec["benchmark_name"]
@@ -451,9 +565,28 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
         operands = [source_operand, registry_operand]
         if spec["mode"] == "local_recompute":
             parameters = spec["adapter_parameters"]
-            computed_operand = {
-                spec["output_field"]: spec["adapter"](**parameters)
-            }
+            adapter_output = spec["adapter"](**parameters)
+            if "output_fields" in spec:
+                if not isinstance(adapter_output, Mapping):
+                    raise RuntimeEvidenceError(
+                        f"adapter for {benchmark_name} must return a mapping"
+                    )
+                missing_outputs = [
+                    output_name
+                    for output_name in spec["output_fields"].values()
+                    if output_name not in adapter_output
+                ]
+                if missing_outputs:
+                    raise RuntimeEvidenceError(
+                        f"adapter for {benchmark_name} is missing output "
+                        f"{missing_outputs[0]}"
+                    )
+                computed_operand = {
+                    registry_field: adapter_output[output_name]
+                    for registry_field, output_name in spec["output_fields"].items()
+                }
+            else:
+                computed_operand = {spec["output_field"]: adapter_output}
             runtime_record["computed_operand"] = computed_operand
             operands.append(computed_operand)
             bundle["execution_trace"] = {

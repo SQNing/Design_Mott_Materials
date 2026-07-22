@@ -54,13 +54,29 @@ one-dimensional spin system with a half-odd-integer S has gapless excitations
 in the infinite volume limit provided that the ground state is unique.
 """
 
+ONSAGER_SQUARE_ISING_SOURCE_TEXT = """
+The two-way infinite crystal has an order-disorder transition at a
+temperature T = Tc given by the condition
+sinh(2 J/kTc) sinh(2 J'/kTc) = 1.
+"""
+
+DAGOTTO_RICE_STRONG_RUNG_SOURCE_TEXT = """
+The exchange coupling along the rungs J' is much larger than J along the
+chains, J' >> J. The energy in this limit is approximately
+Egs = -3/4 J' N, where N is the number of rungs and -3/4 J' the energy of
+each rung singlet. An isolated rung-triplet has an energy J' above the rung
+singlet.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
     "arxiv_1210a896b82f8e645da1",
+    "doi_5ac1fc0c40596b19c09f",
     "doi_f31ef7e012b01a5ac71d",
     "doi_696bd9749ec01fc72d99",
     "doi_607b6dc8e2ebace9ef53",
+    "doi_d3dec73b0de1021b7f2a",
 }
 
 
@@ -210,6 +226,65 @@ def test_tasaki_lsm_parser_extracts_unique_ground_state_gaplessness_claim():
 def test_tasaki_lsm_parser_fails_closed_without_complete_theorem(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Tasaki LSM claim"):
         literature_runtime_evidence.parse_tasaki_lsm_half_integer_constraint(source_text)
+
+
+def test_onsager_parser_derives_isotropic_square_ising_tc():
+    parsed, trace = literature_runtime_evidence.parse_onsager_square_ising_tc(
+        ONSAGER_SQUARE_ISING_SOURCE_TEXT
+    )
+
+    assert parsed == {
+        "tc_over_j": pytest.approx(
+            2.0
+            / literature_runtime_evidence.math.log(
+                1.0 + literature_runtime_evidence.math.sqrt(2.0)
+            )
+        )
+    }
+    assert trace["parser"] == "parse_onsager_square_ising_tc"
+    assert "J'=J" in trace["derivation"]
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        ONSAGER_SQUARE_ISING_SOURCE_TEXT.replace(
+            "order-disorder transition", "smooth crossover"
+        ),
+        ONSAGER_SQUARE_ISING_SOURCE_TEXT.replace("sinh(2 J/kTc)", "cosh(2 J/kTc)"),
+        ONSAGER_SQUARE_ISING_SOURCE_TEXT.replace("sinh(2 J'/kTc)", "cosh(2 J'/kTc)"),
+        ONSAGER_SQUARE_ISING_SOURCE_TEXT.replace("= 1", "= 2"),
+    ],
+)
+def test_onsager_parser_fails_closed_without_transition_condition(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Onsager critical condition"):
+        literature_runtime_evidence.parse_onsager_square_ising_tc(source_text)
+
+
+def test_dagotto_rice_parser_extracts_exact_decoupled_rung_operands():
+    parsed, trace = literature_runtime_evidence.parse_dagotto_rice_strong_rung_limit(
+        DAGOTTO_RICE_STRONG_RUNG_SOURCE_TEXT
+    )
+
+    assert parsed == {"energy_per_rung": -0.75, "gap_to_triplet": 1.0}
+    assert trace["parser"] == "parse_dagotto_rice_strong_rung_limit"
+    assert "Jleg=0" in trace["derivation"]
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        DAGOTTO_RICE_STRONG_RUNG_SOURCE_TEXT.replace("J' >> J", "J' = J"),
+        DAGOTTO_RICE_STRONG_RUNG_SOURCE_TEXT.replace("-3/4 J'", "-1/2 J'"),
+        DAGOTTO_RICE_STRONG_RUNG_SOURCE_TEXT.replace("each rung singlet", "each rung"),
+        DAGOTTO_RICE_STRONG_RUNG_SOURCE_TEXT.replace(
+            "energy J' above", "energy 2J' above"
+        ),
+    ],
+)
+def test_dagotto_rice_parser_fails_closed_without_exact_rung_limit(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Dagotto-Rice strong-rung limit"):
+        literature_runtime_evidence.parse_dagotto_rice_strong_rung_limit(source_text)
 
 
 def test_audit_rejects_legacy_prose_without_runtime_record():
@@ -747,6 +822,63 @@ def test_runtime_collector_parses_tasaki_lsm_constraint():
     assert "execution_trace" not in bundle
 
 
+def test_runtime_collector_recomputes_onsager_square_ising_tc(monkeypatch):
+    _require_runtime_cache()
+    calls = []
+
+    def recorded_adapter(exchange=1.0):
+        calls.append(exchange)
+        return 2.0 * exchange / literature_runtime_evidence.math.log(
+            1.0 + literature_runtime_evidence.math.sqrt(2.0)
+        )
+
+    monkeypatch.setattr(
+        literature_spin_model_benchmarks,
+        "two_dimensional_ising_square_tc",
+        recorded_adapter,
+    )
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    assert calls == [1.0]
+    record = evidence["two_dimensional_square_ising_onsager_tc"][
+        "runtime_evidence_record"
+    ]
+    assert record["source_operand"] == record["computed_operand"]
+    assert record["computed_operand"] == record["registry_operand"]
+    assert record["comparison"]["matched"] is True
+
+
+def test_runtime_collector_recomputes_decoupled_two_leg_rung_spectrum(monkeypatch):
+    _require_runtime_cache()
+    calls = []
+
+    def recorded_adapter(*, j_rung, j_leg):
+        calls.append({"j_rung": j_rung, "j_leg": j_leg})
+        return {
+            "strong_rung_limit": True,
+            "rung_singlet_energy": -0.75,
+            "rung_triplet_energy": 0.25,
+            "rung_gap": 1.0,
+        }
+
+    monkeypatch.setattr(
+        literature_spin_model_benchmarks,
+        "spin_ladder_strong_rung_gap_status",
+        recorded_adapter,
+    )
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    assert calls == [{"j_rung": 1.0, "j_leg": 0.0}]
+    record = evidence["two_leg_ladder_strong_rung_exact_limit"][
+        "runtime_evidence_record"
+    ]
+    expected = {"energy_per_rung": -0.75, "gap_to_triplet": 1.0}
+    assert record["source_operand"] == expected
+    assert record["computed_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"]["matched"] is True
+
+
 def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
@@ -767,6 +899,8 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "cri3_honeycomb_ferromagnet_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "two_dimensional_square_ising_onsager_tc",
+        "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
     }:
         for field in (
@@ -775,21 +909,23 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
             "extraction_trace",
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
-    assert "strict_local_recomputed: `2`" in markdown_text
+    assert "strict_local_recomputed: `4`" in markdown_text
     assert "strict_local_source_parsed: `2`" in markdown_text
-    assert "Supported: `4`" in markdown_text
-    assert "Missing: `151`" in markdown_text
+    assert "Supported: `6`" in markdown_text
+    assert "Missing: `149`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "4 of 155 entries are strict" in gaps_text
+    assert "6 of 155 entries are strict" in gaps_text
 
 
-def test_runtime_audit_has_exactly_the_four_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_six_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
         "cri3_honeycomb_ferromagnet_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "two_dimensional_square_ising_onsager_tc",
+        "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
     }
     registry_names = {entry["name"] for entry in LITERATURE_STANDARD_RESULTS}
@@ -806,14 +942,14 @@ def test_runtime_audit_has_exactly_the_four_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 151
+    assert len(remaining_names) == 149
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 4,
-        "missing": 151,
+        "supported": 6,
+        "missing": 149,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -937,6 +1073,8 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "cri3_honeycomb_ferromagnet_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "two_dimensional_square_ising_onsager_tc",
+        "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
     }
     assert all(
@@ -993,8 +1131,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 4
-    assert coverage["missing"] == 151
+    assert coverage["supported"] == 6
+    assert coverage["missing"] == 149
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1003,7 +1141,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="151 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="149 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
