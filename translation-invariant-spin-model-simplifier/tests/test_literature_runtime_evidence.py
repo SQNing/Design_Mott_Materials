@@ -68,6 +68,22 @@ each rung singlet. An isolated rung-triplet has an energy J' above the rung
 singlet.
 """
 
+KITAEV_EXACT_SOLUTION_SOURCE_TEXT = """
+The model has two phases (denoted by A and B). The exact solution is obtained
+by a reduction to free real fermions. In phase B the fermions are gapless.
+In the symmetric case (Jx = Jy = Jz) the zeros of the spectrum are given by
+q = plus or minus q star.
+"""
+
+KITAEV_TRIANGLE_SOURCE_TEXT = """
+The equation has solutions if and only if |Jx|, |Jy|, |Jz| satisfy the
+triangle inequalities:
+|Jx| <= |Jy| + |Jz|, |Jy| <= |Jx| + |Jz|, |Jz| <= |Jx| + |Jy|. (33)
+The region defined by inequalities (33) is phase B; this phase is gapless.
+In the symmetric case (Jx = Jy = Jz) the zeros of the spectrum are given by
+q = plus or minus q star.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -75,6 +91,7 @@ REQUIRED_RUNTIME_SOURCE_IDS = {
     "doi_5ac1fc0c40596b19c09f",
     "doi_f31ef7e012b01a5ac71d",
     "doi_696bd9749ec01fc72d99",
+    "doi_735636355d51385c61be",
     "doi_607b6dc8e2ebace9ef53",
     "doi_d3dec73b0de1021b7f2a",
 }
@@ -285,6 +302,63 @@ def test_dagotto_rice_parser_extracts_exact_decoupled_rung_operands():
 def test_dagotto_rice_parser_fails_closed_without_exact_rung_limit(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Dagotto-Rice strong-rung limit"):
         literature_runtime_evidence.parse_dagotto_rice_strong_rung_limit(source_text)
+
+
+def test_kitaev_exact_solution_parser_extracts_isotropic_gapless_phase():
+    parsed, trace = literature_runtime_evidence.parse_kitaev_exact_spin_liquid(
+        KITAEV_EXACT_SOLUTION_SOURCE_TEXT
+    )
+
+    assert parsed == {
+        "is_exactly_solvable": True,
+        "isotropic_phase": "gapless_spin_liquid",
+    }
+    assert trace["parser"] == "parse_kitaev_exact_spin_liquid"
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        KITAEV_EXACT_SOLUTION_SOURCE_TEXT.replace("exact solution", "approximation"),
+        KITAEV_EXACT_SOLUTION_SOURCE_TEXT.replace("free real fermions", "bosons"),
+        KITAEV_EXACT_SOLUTION_SOURCE_TEXT.replace("phase B", "phase C"),
+        KITAEV_EXACT_SOLUTION_SOURCE_TEXT.replace("fermions are gapless", "fermions are gapped"),
+        KITAEV_EXACT_SOLUTION_SOURCE_TEXT.replace("Jx = Jy = Jz", "Jx differs from Jy"),
+    ],
+)
+def test_kitaev_exact_solution_parser_fails_closed_without_full_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Kitaev exact-solution claim"):
+        literature_runtime_evidence.parse_kitaev_exact_spin_liquid(source_text)
+
+
+def test_kitaev_triangle_parser_extracts_gapless_condition():
+    parsed, trace = literature_runtime_evidence.parse_kitaev_gapless_triangle_condition(
+        KITAEV_TRIANGLE_SOURCE_TEXT
+    )
+
+    assert parsed == {
+        "gapless_condition": "triangle_inequalities",
+        "isotropic_kitaev_point_gapless": True,
+    }
+    assert trace["parser"] == "parse_kitaev_gapless_triangle_condition"
+    assert trace["equation"] == "33"
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("if and only if", "sometimes"),
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("|Jx| <= |Jy| + |Jz|", "first condition"),
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("|Jy| <= |Jx| + |Jz|", "second condition"),
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("|Jz| <= |Jx| + |Jy|", "third condition"),
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("(33)", "(34)"),
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("this phase is gapless", "this phase is gapped"),
+        KITAEV_TRIANGLE_SOURCE_TEXT.replace("Jx = Jy = Jz", "Jx differs from Jy"),
+    ],
+)
+def test_kitaev_triangle_parser_fails_closed_without_complete_condition(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Kitaev gapless condition"):
+        literature_runtime_evidence.parse_kitaev_gapless_triangle_condition(source_text)
 
 
 def test_audit_rejects_legacy_prose_without_runtime_record():
@@ -879,6 +953,35 @@ def test_runtime_collector_recomputes_decoupled_two_leg_rung_spectrum(monkeypatc
     assert record["comparison"]["matched"] is True
 
 
+def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    exact_record = evidence["kitaev_honeycomb_exact_spin_liquid_limit"][
+        "runtime_evidence_record"
+    ]
+    triangle_record = evidence["kitaev_honeycomb_gapless_triangle_condition"][
+        "runtime_evidence_record"
+    ]
+    assert exact_record["source_sha256"] == triangle_record["source_sha256"]
+    assert exact_record["source_sha256"] == (
+        "eb99541ee61044a6028edc53aad19dd80afed7e96778350a38420f36269e93ba"
+    )
+    assert exact_record["source_operand"] == {
+        "is_exactly_solvable": True,
+        "isotropic_phase": "gapless_spin_liquid",
+    }
+    assert triangle_record["source_operand"] == {
+        "gapless_condition": "triangle_inequalities",
+        "isotropic_kitaev_point_gapless": True,
+    }
+    assert exact_record["source_operand"] == exact_record["registry_operand"]
+    assert triangle_record["source_operand"] == triangle_record["registry_operand"]
+    assert exact_record["comparison"]["matched"] is True
+    assert triangle_record["comparison"]["matched"] is True
+
+
 def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
@@ -897,6 +1000,8 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     audit_rows = {row["name"]: row for row in audit["rows"]}
     for name in {
         "cri3_honeycomb_ferromagnet_reference",
+        "kitaev_honeycomb_exact_spin_liquid_limit",
+        "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "two_dimensional_square_ising_onsager_tc",
@@ -910,18 +1015,20 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `4`" in markdown_text
-    assert "strict_local_source_parsed: `2`" in markdown_text
-    assert "Supported: `6`" in markdown_text
-    assert "Missing: `149`" in markdown_text
+    assert "strict_local_source_parsed: `4`" in markdown_text
+    assert "Supported: `8`" in markdown_text
+    assert "Missing: `147`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "6 of 155 entries are strict" in gaps_text
+    assert "8 of 155 entries are strict" in gaps_text
 
 
-def test_runtime_audit_has_exactly_the_six_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_eight_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
         "cri3_honeycomb_ferromagnet_reference",
+        "kitaev_honeycomb_exact_spin_liquid_limit",
+        "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "two_dimensional_square_ising_onsager_tc",
@@ -942,14 +1049,14 @@ def test_runtime_audit_has_exactly_the_six_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 149
+    assert len(remaining_names) == 147
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 6,
-        "missing": 149,
+        "supported": 8,
+        "missing": 147,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1071,6 +1178,8 @@ def test_collector_extraction_traces_declare_coordinate_space():
 
     assert set(evidence) == {
         "cri3_honeycomb_ferromagnet_reference",
+        "kitaev_honeycomb_exact_spin_liquid_limit",
+        "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "two_dimensional_square_ising_onsager_tc",
@@ -1131,8 +1240,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 6
-    assert coverage["missing"] == 149
+    assert coverage["supported"] == 8
+    assert coverage["missing"] == 147
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1141,7 +1250,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="149 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="147 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )

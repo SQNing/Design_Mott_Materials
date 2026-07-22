@@ -428,6 +428,126 @@ def parse_dagotto_rice_strong_rung_limit(source_text):
     )
 
 
+def parse_kitaev_exact_spin_liquid(source_text):
+    """Extract the exact-solution and isotropic gapless-phase claims."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Kitaev exact-solution claim requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    exact_match = re.search(
+        r"exact solution is obtained by a reduction to free real fermions",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    phase_match = re.search(
+        r"in phase B the fermions are gapless",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    isotropic_match = re.search(
+        r"symmetric case\s*\(\s*Jx\s*=\s*Jy\s*=\s*Jz\s*\)"
+        r".{0,160}?zeros of the spectrum",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if exact_match is None or phase_match is None or isotropic_match is None:
+        raise RuntimeEvidenceError(
+            "Kitaev exact-solution claim must identify the free-real-fermion "
+            "solution, gapless phase B, and the symmetric isotropic point"
+        )
+    return (
+        {
+            "is_exactly_solvable": True,
+            "isotropic_phase": "gapless_spin_liquid",
+        },
+        {
+            "parser": "parse_kitaev_exact_spin_liquid",
+            "matched_anchors": [
+                "exact solution by free real fermions",
+                "phase B fermions are gapless",
+                "symmetric Jx=Jy=Jz spectrum zeros",
+            ],
+            "text_spans": [
+                [exact_match.start(), exact_match.end()],
+                [phase_match.start(), phase_match.end()],
+                [isotropic_match.start(), isotropic_match.end()],
+            ],
+        },
+    )
+
+
+def parse_kitaev_gapless_triangle_condition(source_text):
+    """Extract Kitaev's Eq. (33) gapless triangle criterion."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("Kitaev gapless condition requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prefix_match = re.search(
+        r"solutions if and only if\s*\|Jx\s*\|\s*,\s*\|Jy\s*\|\s*,\s*\|Jz\s*\|"
+        r"\s+satisfy the triangle inequalities",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    inequality_patterns = (
+        r"\|Jx\s*\|\s*(?:<=|≤|6)\s*\|Jy\s*\|\s*\+\s*\|Jz\s*\|",
+        r"\|Jy\s*\|\s*(?:<=|≤|6)\s*\|Jx\s*\|\s*\+\s*\|Jz\s*\|",
+        r"\|Jz\s*\|\s*(?:<=|≤|6)\s*\|Jx\s*\|\s*\+\s*\|Jy\s*\|",
+    )
+    inequality_matches = [
+        re.search(pattern, normalized, flags=re.IGNORECASE)
+        for pattern in inequality_patterns
+    ]
+    equation_match = re.search(r"\(33\)", normalized)
+    phase_match = re.search(
+        r"(?:phase B|marked by B).{0,80}?this phase is gapless",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    isotropic_match = re.search(
+        r"symmetric case\s*\(\s*Jx\s*=\s*Jy\s*=\s*Jz\s*\)"
+        r".{0,160}?zeros of the spectrum",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        prefix_match is None
+        or any(match is None for match in inequality_matches)
+        or equation_match is None
+        or phase_match is None
+        or isotropic_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Kitaev gapless condition must contain all three Eq. (33) triangle "
+            "inequalities, gapless phase B, and the symmetric isotropic point"
+        )
+    matches = [
+        prefix_match,
+        *inequality_matches,
+        equation_match,
+        phase_match,
+        isotropic_match,
+    ]
+    return (
+        {
+            "gapless_condition": "triangle_inequalities",
+            "isotropic_kitaev_point_gapless": True,
+        },
+        {
+            "parser": "parse_kitaev_gapless_triangle_condition",
+            "equation": "33",
+            "matched_anchors": [
+                "if and only if triangle inequalities",
+                "three exchange triangle inequalities",
+                "Eq. (33) gapless phase B",
+                "symmetric Jx=Jy=Jz spectrum zeros",
+            ],
+            "text_spans": [[match.start(), match.end()] for match in matches],
+        },
+    )
+
+
 def _select_registry_operand(entry, selector):
     value = entry
     for component in selector["path"]:
@@ -520,6 +640,16 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
                 "energy_per_rung": "rung_singlet_energy",
                 "gap_to_triplet": "rung_gap",
             },
+        },
+        {
+            "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
+            "mode": "local_source_parse",
+            "parser": parse_kitaev_exact_spin_liquid,
+        },
+        {
+            "benchmark_name": "kitaev_honeycomb_gapless_triangle_condition",
+            "mode": "local_source_parse",
+            "parser": parse_kitaev_gapless_triangle_condition,
         },
     )
     for spec in specs:
