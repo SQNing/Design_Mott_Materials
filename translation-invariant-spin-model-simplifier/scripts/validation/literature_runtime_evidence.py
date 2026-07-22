@@ -82,6 +82,52 @@ def _exact_json_equal(left, right):
     return left == right
 
 
+def _validate_operand_comparison(comparison, source_operand, registry_operand):
+    if not isinstance(comparison, Mapping) or comparison.get("matched") is not True:
+        return False
+    kind = comparison.get("kind")
+    if kind == "exact_field_map":
+        return _exact_json_equal(source_operand, registry_operand)
+    if kind != "absolute_tolerance":
+        return False
+    tolerance = comparison.get("absolute_tolerance")
+    if (
+        isinstance(tolerance, bool)
+        or not isinstance(tolerance, (int, float))
+        or not math.isfinite(tolerance)
+        or tolerance < 0.0
+    ):
+        return False
+    reported_differences = comparison.get("absolute_differences")
+    if (
+        not isinstance(reported_differences, Mapping)
+        or set(reported_differences) != set(source_operand)
+    ):
+        return False
+    for field in source_operand:
+        source_value = source_operand[field]
+        registry_value = registry_operand[field]
+        reported_difference = reported_differences[field]
+        if any(
+            isinstance(value, bool) or not isinstance(value, (int, float))
+            for value in (source_value, registry_value, reported_difference)
+        ):
+            return False
+        if not all(
+            math.isfinite(value)
+            for value in (source_value, registry_value, reported_difference)
+        ):
+            return False
+        actual_difference = abs(source_value - registry_value)
+        if not math.isclose(
+            reported_difference, actual_difference, rel_tol=0.0, abs_tol=1.0e-15
+        ):
+            return False
+        if actual_difference > tolerance:
+            return False
+    return True
+
+
 def _is_valid_text_spans(value):
     if (
         not isinstance(value, Sequence)
@@ -150,13 +196,9 @@ def structurally_validate_runtime_evidence_bundle(benchmark_name, runtime_bundle
     if not _is_valid_operand(registry_operand, selector_fields):
         return None
     comparison = record.get("comparison")
-    if (
-        not isinstance(comparison, Mapping)
-        or comparison.get("kind") != "exact_field_map"
-        or comparison.get("matched") is not True
+    if not _validate_operand_comparison(
+        comparison, source_operand, registry_operand
     ):
-        return None
-    if not _exact_json_equal(source_operand, registry_operand):
         return None
     mode = record.get("evidence_mode")
     if mode not in {"local_recompute", "local_source_parse"}:
@@ -590,6 +632,82 @@ def parse_kitaev_toric_code_degeneracy(source_text):
     )
 
 
+def parse_white_huse_haldane_gap(source_text):
+    """Extract White and Huse's thermodynamic Haldane-gap estimate."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("White-Huse Haldane gap requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    match = re.search(
+        r"excitation energy of the first excited state.{0,100}?one magnon"
+        r".{0,100}?Haldane gap.{0,100}?0\.41050\s*\(\s*2\s*\)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if match is None:
+        raise RuntimeEvidenceError(
+            "White-Huse Haldane gap must identify the first one-magnon "
+            "excitation and the 0.41050(2) estimate"
+        )
+    return (
+        {"gap_over_j": 0.41050},
+        {
+            "parser": "parse_white_huse_haldane_gap",
+            "reported_uncertainty": 0.00002,
+            "matched_anchors": [
+                "first excited one-magnon state",
+                "Haldane gap 0.41050(2)",
+            ],
+            "text_spans": [[match.start(), match.end()]],
+        },
+    )
+
+
+def parse_sandvik_square_qmc_energy(source_text):
+    """Extract Sandvik's square-lattice Heisenberg QMC energy."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Sandvik square-QMC energy requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    standard_match = re.search(
+        r"two-dimensional\s+S\s*=\s*1\s*/\s*2\s+antiferromagnetic "
+        r"Heisenberg model.{0,160}?quantum Monte Carlo.{0,180}?"
+        r"ground-state energy per spin is\s+E\s*=\s*[-−]\s*0\.669437"
+        r"\s*\(\s*5\s*\)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    locked_ocr_match = re.search(
+        r"two-dimensional\s+S51/2\s+antiferromagnetic Heisenberg model"
+        r".{0,80}?stochastic series expansion quantum Monte Carlo"
+        r".{0,900}?extrapolated ground- state energy per spin is\s+"
+        r"E520\.669437\s*\(\s*5\s*\)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    match = standard_match or locked_ocr_match
+    if match is None:
+        raise RuntimeEvidenceError(
+            "Sandvik square-QMC energy must identify the two-dimensional "
+            "spin-half Heisenberg QMC result -0.669437(5)"
+        )
+    return (
+        {"energy_per_site": -0.669437},
+        {
+            "parser": "parse_sandvik_square_qmc_energy",
+            "reported_uncertainty": 0.000005,
+            "matched_anchors": [
+                "two-dimensional spin-half Heisenberg model",
+                "quantum Monte Carlo",
+                "ground-state energy per spin -0.669437(5)",
+            ],
+            "text_spans": [[match.start(), match.end()]],
+        },
+    )
+
+
 def _select_registry_operand(entry, selector):
     value = entry
     for component in selector["path"]:
@@ -701,6 +819,19 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "adapter_parameters": {"genus": 1},
             "output_field": "torus_ground_state_degeneracy",
         },
+        {
+            "benchmark_name": "haldane_spin1_chain_gap_reference",
+            "mode": "local_source_parse",
+            "parser": parse_white_huse_haldane_gap,
+            "registry_fields": ("gap_over_j",),
+            "absolute_tolerance": 0.00005,
+        },
+        {
+            "benchmark_name": "square_spin_half_heisenberg_qmc_energy",
+            "mode": "local_source_parse",
+            "parser": parse_sandvik_square_qmc_energy,
+            "registry_fields": ("energy_per_site",),
+        },
     )
     for spec in specs:
         benchmark_name = spec["benchmark_name"]
@@ -776,13 +907,29 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
                 "adapter_parameters": dict(parameters),
                 "computed_operand": computed_operand,
             }
-        runtime_record["comparison"] = {
-            "kind": "exact_field_map",
-            "matched": all(
-                _exact_json_equal(operand, operands[0])
-                for operand in operands[1:]
-            ),
-        }
+        if "absolute_tolerance" in spec:
+            tolerance = spec["absolute_tolerance"]
+            differences = {
+                field: abs(source_operand[field] - registry_operand[field])
+                for field in selector["fields"]
+            }
+            runtime_record["comparison"] = {
+                "kind": "absolute_tolerance",
+                "absolute_tolerance": tolerance,
+                "absolute_differences": differences,
+                "matched": all(
+                    difference <= tolerance
+                    for difference in differences.values()
+                ),
+            }
+        else:
+            runtime_record["comparison"] = {
+                "kind": "exact_field_map",
+                "matched": all(
+                    _exact_json_equal(operand, operands[0])
+                    for operand in operands[1:]
+                ),
+            }
         bundle["runtime_evidence_record"] = runtime_record
         evidence[benchmark_name] = bundle
     return evidence

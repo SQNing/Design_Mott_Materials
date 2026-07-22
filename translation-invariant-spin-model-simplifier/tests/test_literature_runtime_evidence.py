@@ -91,12 +91,26 @@ coincides with the protected space of the code. It is 4^g-fold degenerate,
 where g is the genus of the surface.
 """
 
+WHITE_HUSE_HALDANE_SOURCE_TEXT = """
+The excitation energy of the first excited state, a state with one magnon
+with momentum q = pi, is the Haldane gap, which we find to be
+Delta = 0.41050(2).
+"""
+
+SANDVIK_SQUARE_QMC_SOURCE_TEXT = """
+The ground-state parameters of the two-dimensional S=1/2 antiferromagnetic
+Heisenberg model are calculated using quantum Monte Carlo. The extrapolated
+ground-state energy per spin is E = -0.669437(5).
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
     "arxiv_1210a896b82f8e645da1",
     "doi_5ac1fc0c40596b19c09f",
     "doi_f31ef7e012b01a5ac71d",
+    "doi_f900791f74b4918a9a3e",
+    "doi_ebcdccab3f81a5059936",
     "doi_696bd9749ec01fc72d99",
     "doi_735636355d51385c61be",
     "doi_33fcf4c762fb137794a6",
@@ -406,6 +420,54 @@ def test_toric_code_degeneracy_adapter_computes_genus_one_and_rejects_invalid_ge
         literature_spin_model_benchmarks.toric_code_ground_state_degeneracy(genus=1.5)
 
 
+def test_white_huse_parser_extracts_haldane_gap_and_reported_uncertainty():
+    parsed, trace = literature_runtime_evidence.parse_white_huse_haldane_gap(
+        WHITE_HUSE_HALDANE_SOURCE_TEXT
+    )
+
+    assert parsed == {"gap_over_j": 0.41050}
+    assert trace["parser"] == "parse_white_huse_haldane_gap"
+    assert trace["reported_uncertainty"] == 0.00002
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        WHITE_HUSE_HALDANE_SOURCE_TEXT.replace("first excited state", "ground state"),
+        WHITE_HUSE_HALDANE_SOURCE_TEXT.replace("one magnon", "two magnons"),
+        WHITE_HUSE_HALDANE_SOURCE_TEXT.replace("Haldane gap", "correlation length"),
+        WHITE_HUSE_HALDANE_SOURCE_TEXT.replace("0.41050(2)", "0.40000(2)"),
+    ],
+)
+def test_white_huse_parser_fails_closed_without_specific_gap_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="White-Huse Haldane gap"):
+        literature_runtime_evidence.parse_white_huse_haldane_gap(source_text)
+
+
+def test_sandvik_parser_extracts_square_heisenberg_qmc_energy():
+    parsed, trace = literature_runtime_evidence.parse_sandvik_square_qmc_energy(
+        SANDVIK_SQUARE_QMC_SOURCE_TEXT
+    )
+
+    assert parsed == {"energy_per_site": -0.669437}
+    assert trace["parser"] == "parse_sandvik_square_qmc_energy"
+    assert trace["reported_uncertainty"] == 0.000005
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        SANDVIK_SQUARE_QMC_SOURCE_TEXT.replace("two-dimensional", "one-dimensional"),
+        SANDVIK_SQUARE_QMC_SOURCE_TEXT.replace("S=1/2", "S=1"),
+        SANDVIK_SQUARE_QMC_SOURCE_TEXT.replace("quantum Monte Carlo", "mean field"),
+        SANDVIK_SQUARE_QMC_SOURCE_TEXT.replace("-0.669437(5)", "-0.600000(5)"),
+    ],
+)
+def test_sandvik_parser_fails_closed_without_specific_energy_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Sandvik square-QMC energy"):
+        literature_runtime_evidence.parse_sandvik_square_qmc_energy(source_text)
+
+
 def test_audit_rejects_legacy_prose_without_runtime_record():
     audit = build_literature_reproduction_audit(runtime_evidence_enabled=False)
     rows = {row["name"]: row for row in audit["rows"]}
@@ -426,6 +488,64 @@ def test_structural_validator_accepts_matching_source_parse_bundle():
     )
 
     assert category == "strict_local_source_parsed"
+
+
+def test_structural_validator_accepts_source_parse_with_absolute_tolerance():
+    bundle = _source_parse_bundle()
+    record = bundle["runtime_evidence_record"]
+    record["source_operand"] = {"ferromagnetic_order": 0.41050}
+    record["registry_operand"] = {"ferromagnetic_order": 0.41048}
+    record["comparison"] = {
+        "kind": "absolute_tolerance",
+        "absolute_tolerance": 0.00005,
+        "absolute_differences": {"ferromagnetic_order": 0.00002},
+        "matched": True,
+    }
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            "cri3_honeycomb_ferromagnet_reference", bundle
+        )
+        == "strict_local_source_parsed"
+    )
+
+
+@pytest.mark.parametrize(
+    "comparison",
+    [
+        {
+            "kind": "absolute_tolerance",
+            "absolute_tolerance": -1.0,
+            "absolute_differences": {"ferromagnetic_order": 0.00002},
+            "matched": True,
+        },
+        {
+            "kind": "absolute_tolerance",
+            "absolute_tolerance": 0.00001,
+            "absolute_differences": {"ferromagnetic_order": 0.00002},
+            "matched": True,
+        },
+        {
+            "kind": "absolute_tolerance",
+            "absolute_tolerance": 0.00005,
+            "absolute_differences": {"ferromagnetic_order": 0.0},
+            "matched": True,
+        },
+    ],
+)
+def test_structural_validator_rejects_invalid_absolute_tolerance_comparison(comparison):
+    bundle = _source_parse_bundle()
+    record = bundle["runtime_evidence_record"]
+    record["source_operand"] = {"ferromagnetic_order": 0.41050}
+    record["registry_operand"] = {"ferromagnetic_order": 0.41048}
+    record["comparison"] = comparison
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            "cri3_honeycomb_ferromagnet_reference", bundle
+        )
+        is None
+    )
 
 
 def test_structural_validator_rejects_source_parse_when_comparison_does_not_match():
@@ -1027,6 +1147,47 @@ def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source(
     assert triangle_record["comparison"]["matched"] is True
 
 
+def test_runtime_collector_parses_white_huse_gap_with_registry_tolerance():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    record = evidence["haldane_spin1_chain_gap_reference"][
+        "runtime_evidence_record"
+    ]
+    assert record["source_sha256"] == (
+        "a6bff20bc37a0c16484645b07225682d98f843512abcb09f570fb87b966065c1"
+    )
+    assert record["source_operand"] == {"gap_over_j": 0.41050}
+    assert record["registry_operand"] == {"gap_over_j": 0.41048}
+    assert record["comparison"]["kind"] == "absolute_tolerance"
+    assert record["comparison"]["absolute_tolerance"] == 0.00005
+    assert record["comparison"]["absolute_differences"]["gap_over_j"] == (
+        pytest.approx(0.00002)
+    )
+    assert record["comparison"]["matched"] is True
+
+
+def test_runtime_collector_parses_sandvik_square_qmc_energy_exactly():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    record = evidence["square_spin_half_heisenberg_qmc_energy"][
+        "runtime_evidence_record"
+    ]
+    expected = {"energy_per_site": -0.669437}
+    assert record["source_sha256"] == (
+        "f5fc182cbf87f55375357e0bcd1c10ca1e665d09b33a5c52d39a74aa1aa63332"
+    )
+    assert record["source_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {
+        "kind": "exact_field_map",
+        "matched": True,
+    }
+
+
 def test_runtime_collector_recomputes_toric_code_genus_one_degeneracy(monkeypatch):
     _require_runtime_cache()
     calls = []
@@ -1074,11 +1235,13 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     audit_rows = {row["name"]: row for row in audit["rows"]}
     for name in {
         "cri3_honeycomb_ferromagnet_reference",
+        "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
+        "square_spin_half_heisenberg_qmc_energy",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1090,23 +1253,34 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `5`" in markdown_text
-    assert "strict_local_source_parsed: `4`" in markdown_text
-    assert "Supported: `9`" in markdown_text
-    assert "Missing: `146`" in markdown_text
+    assert "strict_local_source_parsed: `6`" in markdown_text
+    assert "Supported: `11`" in markdown_text
+    assert "Missing: `144`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "9 of 155 entries are strict" in gaps_text
+    assert "11 of 155 entries are strict" in gaps_text
+    assert "absolute_tolerance" in markdown_text
+    assert "absolute_differences" in markdown_text
+    haldane_csv_record = json.loads(
+        csv_rows["haldane_spin1_chain_gap_reference"]["runtime_evidence_record"]
+    )
+    assert haldane_csv_record["comparison"]["absolute_tolerance"] == 0.00005
+    assert haldane_csv_record["comparison"]["absolute_differences"][
+        "gap_over_j"
+    ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_nine_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_eleven_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
         "cri3_honeycomb_ferromagnet_reference",
+        "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
+        "square_spin_half_heisenberg_qmc_energy",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1125,14 +1299,14 @@ def test_runtime_audit_has_exactly_the_nine_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 146
+    assert len(remaining_names) == 144
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 9,
-        "missing": 146,
+        "supported": 11,
+        "missing": 144,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1254,11 +1428,13 @@ def test_collector_extraction_traces_declare_coordinate_space():
 
     assert set(evidence) == {
         "cri3_honeycomb_ferromagnet_reference",
+        "haldane_spin1_chain_gap_reference",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
+        "square_spin_half_heisenberg_qmc_energy",
         "two_dimensional_square_ising_onsager_tc",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
@@ -1317,8 +1493,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 9
-    assert coverage["missing"] == 146
+    assert coverage["supported"] == 11
+    assert coverage["missing"] == 144
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1327,7 +1503,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="146 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="144 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
