@@ -523,6 +523,59 @@ def parse_dagotto_rice_two_leg_gap(source_text):
     )
 
 
+def parse_haldane_shastry_ground_state(source_text):
+    """Extract Haldane's exact inverse-square Jastrow ground-state claim."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Haldane-Shastry ground state requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    construction_match = re.search(
+        r"I construct the exact Jastrow-product.{0,80}?ground-state wave "
+        r"function",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    model_match = re.search(
+        r"one-dimen.{0,30}?\(1D\) isotropic Heisenberg antiferromagnet",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    exchange_match = re.search(
+        r"exchange coupling falling off as the inverse square"
+        r".{0,80}?distance between sites",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        construction_match is None
+        or model_match is None
+        or exchange_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Haldane-Shastry ground state must identify the exact "
+            "Jastrow-product ground state, the one-dimensional isotropic "
+            "Heisenberg antiferromagnet, and inverse-square exchange"
+        )
+    return (
+        {"has_exact_jastrow_ground_state": True},
+        {
+            "parser": "parse_haldane_shastry_ground_state",
+            "matched_anchors": [
+                "construct exact Jastrow-product ground state",
+                "one-dimensional isotropic Heisenberg antiferromagnet",
+                "inverse-square distance exchange",
+            ],
+            "text_spans": [
+                [construction_match.start(), construction_match.end()],
+                [model_match.start(), model_match.end()],
+                [exchange_match.start(), exchange_match.end()],
+            ],
+        },
+    )
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -981,6 +1034,11 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "benchmark_name": "spin_ladder_rung_singlet_gap_reference",
             "mode": "local_source_parse",
             "parser": parse_dagotto_rice_two_leg_gap,
+        },
+        {
+            "benchmark_name": "haldane_shastry_chain_exact_ground_state",
+            "mode": "local_source_parse",
+            "parser": parse_haldane_shastry_ground_state,
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
