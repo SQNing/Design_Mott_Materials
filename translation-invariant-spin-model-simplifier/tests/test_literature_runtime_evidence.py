@@ -2,6 +2,7 @@ import sys
 import csv
 import inspect
 import json
+import math
 from copy import deepcopy
 from pathlib import Path
 
@@ -169,6 +170,13 @@ particles interacting via a repulsive delta-function potential has been solved
 exactly. All the eigenfunctions can be found explicitly and the energies are
 given by a transcendental equation. For impenetrable bosons in one dimension,
 the energy spectrum is identical with the spectrum of a noninteracting Fermi gas.
+"""
+
+PAULING_SPIN_ICE_SOURCE_TEXT = """
+Spin ice materials are the magnetic analogue of water ice. Pauling estimated
+the degeneracy to be approximately (3/2)^(N/2), which leads to a measurable
+zero point entropy S0 approximately (R/2) ln(3/2). The two-in two-out ice
+rule describes the disordered spin-ice ground state.
 """
 
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
@@ -808,6 +816,29 @@ def test_lieb_liniger_parser_extracts_exact_solution_and_fermion_limit():
 def test_lieb_liniger_parser_fails_closed_without_both_registry_claims(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Lieb-Liniger solution"):
         literature_runtime_evidence.parse_lieb_liniger_solution(source_text)
+
+
+def test_pauling_spin_ice_parser_derives_entropy_formula():
+    parsed, trace = literature_runtime_evidence.parse_pauling_spin_ice_entropy(
+        PAULING_SPIN_ICE_SOURCE_TEXT
+    )
+    assert parsed == {"pauling_entropy_per_spin": pytest.approx(0.5 * math.log(1.5))}
+    assert trace["parser"] == "parse_pauling_spin_ice_entropy"
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        PAULING_SPIN_ICE_SOURCE_TEXT.replace("Spin ice", "ferromagnets"),
+        PAULING_SPIN_ICE_SOURCE_TEXT.replace("Pauling estimated", "A simulation estimated"),
+        PAULING_SPIN_ICE_SOURCE_TEXT.replace("(3/2)^(N/2)", "2^(N/2)"),
+        PAULING_SPIN_ICE_SOURCE_TEXT.replace("(R/2) ln(3/2)", "R ln(2)"),
+    ],
+)
+def test_pauling_spin_ice_parser_fails_closed_without_complete_formula(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Pauling spin-ice entropy"):
+        literature_runtime_evidence.parse_pauling_spin_ice_entropy(source_text)
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1591,6 +1622,26 @@ def test_runtime_collector_parses_lieb_liniger_solution_and_fermion_limit():
     assert "execution_trace" not in bundle
 
 
+def test_runtime_collector_recomputes_pauling_spin_ice_entropy():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["pyrochlore_dipolar_spin_ice_pauling_entropy"]
+    record = bundle["runtime_evidence_record"]
+    expected = {"pauling_entropy_per_spin": 0.5 * math.log(1.5)}
+    assert record["evidence_mode"] == "local_recompute"
+    assert record["source_sha256"] == (
+        "7290fa424886bfa7e215578710dece5b1d5f83ab9814f7a27dcd2c80327f801d"
+    )
+    assert record["source_operand"] == expected
+    assert record["computed_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == "parse_pauling_spin_ice_entropy"
+    assert bundle["execution_trace"]["adapter"] == "pauling_spin_ice_entropy_per_spin"
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1784,6 +1835,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "lieb_liniger_delta_bose_gas_bethe_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "pyrochlore_dipolar_spin_ice_pauling_entropy",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
         "square_six_vertex_ice_exact_solution_status",
@@ -1799,12 +1851,12 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
             "extraction_trace",
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
-    assert "strict_local_recomputed: `6`" in markdown_text
+    assert "strict_local_recomputed: `7`" in markdown_text
     assert "strict_local_source_parsed: `14`" in markdown_text
-    assert "Supported: `20`" in markdown_text
-    assert "Missing: `135`" in markdown_text
+    assert "Supported: `21`" in markdown_text
+    assert "Missing: `134`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "20 of 155 entries are strict" in gaps_text
+    assert "21 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1816,7 +1868,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_twenty_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_twenty_one_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1832,6 +1884,7 @@ def test_runtime_audit_has_exactly_the_twenty_cache_backed_strict_routes():
         "lieb_liniger_delta_bose_gas_bethe_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "pyrochlore_dipolar_spin_ice_pauling_entropy",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
         "square_six_vertex_ice_exact_solution_status",
@@ -1855,14 +1908,14 @@ def test_runtime_audit_has_exactly_the_twenty_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 135
+    assert len(remaining_names) == 134
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 20,
-        "missing": 135,
+        "supported": 21,
+        "missing": 134,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1995,6 +2048,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "lieb_liniger_delta_bose_gas_bethe_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
+        "pyrochlore_dipolar_spin_ice_pauling_entropy",
         "square_toric_code_exact_topological_degeneracy",
         "square_spin_half_heisenberg_qmc_energy",
         "square_six_vertex_ice_exact_solution_status",
@@ -2058,8 +2112,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 20
-    assert coverage["missing"] == 135
+    assert coverage["supported"] == 21
+    assert coverage["missing"] == 134
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -2068,7 +2122,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="135 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="134 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )

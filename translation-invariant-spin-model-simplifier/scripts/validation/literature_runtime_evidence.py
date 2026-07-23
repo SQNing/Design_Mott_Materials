@@ -775,6 +775,57 @@ def parse_lieb_liniger_solution(source_text):
     )
 
 
+def parse_pauling_spin_ice_entropy(source_text):
+    """Derive the Pauling residual-entropy formula for spin ice."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Pauling spin-ice entropy requires nonempty text"
+        )
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    spin_ice_match = re.search(
+        r"spin ice materials", normalized, flags=re.IGNORECASE
+    )
+    degeneracy_match = re.search(
+        r"Pauling['’]?s? estimated.{0,120}?(?:the )?degeneracy to be.{0,100}?"
+        r"\(\s*3\s*/\s*2\s*\)\s*(?:\^\s*)?\(?N\)?\s*/\s*2",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    entropy_match = re.search(
+        r"zero point entropy S\s*0.{0,100}?\(\s*R\s*/\s*2\s*\)\s*"
+        r"ln\s*\(\s*3\s*/\s*2\s*\)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        spin_ice_match is None
+        or degeneracy_match is None
+        or entropy_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Pauling spin-ice entropy must identify spin ice, Pauling's "
+            "(3/2)^(N/2) degeneracy, and S0=(R/2)ln(3/2)"
+        )
+    return (
+        {"pauling_entropy_per_spin": 0.5 * math.log(1.5)},
+        {
+            "parser": "parse_pauling_spin_ice_entropy",
+            "derivation": "S0/N = (1/2) ln(3/2) from Pauling's degeneracy",
+            "matched_anchors": [
+                "spin-ice materials",
+                "Pauling degeneracy (3/2)^(N/2)",
+                "zero-point entropy (R/2) ln(3/2)",
+            ],
+            "text_spans": [
+                [spin_ice_match.start(), spin_ice_match.end()],
+                [degeneracy_match.start(), degeneracy_match.end()],
+                [entropy_match.start(), entropy_match.end()],
+            ],
+        },
+    )
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -1258,6 +1309,14 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "benchmark_name": "lieb_liniger_delta_bose_gas_bethe_reference",
             "mode": "local_source_parse",
             "parser": parse_lieb_liniger_solution,
+        },
+        {
+            "benchmark_name": "pyrochlore_dipolar_spin_ice_pauling_entropy",
+            "mode": "local_recompute",
+            "parser": parse_pauling_spin_ice_entropy,
+            "adapter": benchmark_functions.pauling_spin_ice_entropy_per_spin,
+            "adapter_parameters": {},
+            "output_field": "pauling_entropy_per_spin",
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
