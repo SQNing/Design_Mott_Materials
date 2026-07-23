@@ -670,6 +670,111 @@ def parse_lieb_square_ice_solution(source_text):
     )
 
 
+def parse_yang_gaudin_fermion_solution(source_text):
+    """Extract Yang's exact repulsive delta-fermion Bethe solution claim."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("Yang-Gaudin solution requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    title_match = re.search(
+        r"Some Exact Results for the Many-Body Problem in One Dimension "
+        r"with Repulsive Delta-Function Interaction",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    bethe_match = re.search(
+        r"repulsive (?:delta(?:-function)?|5) interaction problem in one "
+        r"dimension.{0,100}?Bethe['’]s hypothesis",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    fermion_match = re.search(
+        r"ground-state problem of spin\s*[-−]?\s*(?:1\s*/\s*2|2) fermions "
+        r"is reduced to a generalized Fredholm equation",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if title_match is None or bethe_match is None or fermion_match is None:
+        raise RuntimeEvidenceError(
+            "Yang-Gaudin solution must identify the exact one-dimensional "
+            "repulsive delta-interaction problem, its Bethe reduction, and "
+            "the spin-half-fermion ground-state Fredholm equation"
+        )
+    return (
+        {"is_exactly_solved": True},
+        {
+            "parser": "parse_yang_gaudin_fermion_solution",
+            "matched_anchors": [
+                "exact one-dimensional repulsive delta-interaction result",
+                "repulsive interaction reduced through Bethe hypothesis",
+                "spin-half-fermion ground state reduced to Fredholm equation",
+            ],
+            "text_spans": [
+                [title_match.start(), title_match.end()],
+                [bethe_match.start(), bethe_match.end()],
+                [fermion_match.start(), fermion_match.end()],
+            ],
+        },
+    )
+
+
+def parse_lieb_liniger_solution(source_text):
+    """Extract the Lieb-Liniger exact solution and impenetrable-boson limit."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("Lieb-Liniger solution requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    exact_match = re.search(
+        r"gas of one-dimensional Bose particles interacting via a repulsive "
+        r"delta-function potential has been solved exactly",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    spectrum_match = re.search(
+        r"All the eigenfunctions can be found explicitly and the energies are "
+        r"given by (?:the solutions? of )?a transcendental equation",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    fermion_limit_match = re.search(
+        r"impenetrable bosons in one dimension.{0,120}?energy spectrum"
+        r"(?: of (?:such )?a gas)? is identical with the.{0,100}?spectrum of a "
+        r"noninteracting Fermi gas",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        exact_match is None
+        or spectrum_match is None
+        or fermion_limit_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "Lieb-Liniger solution must identify the exactly solved "
+            "one-dimensional repulsive delta Bose gas, its explicit "
+            "eigenfunctions, and the free-fermion spectrum of the "
+            "impenetrable-boson limit"
+        )
+    return (
+        {
+            "is_exactly_solved": True,
+            "tonks_girardeau_limit_maps_to_free_fermions": True,
+        },
+        {
+            "parser": "parse_lieb_liniger_solution",
+            "matched_anchors": [
+                "one-dimensional repulsive delta Bose gas solved exactly",
+                "explicit eigenfunctions and transcendental energy equation",
+                "impenetrable-boson spectrum equals free-fermion spectrum",
+            ],
+            "text_spans": [
+                [exact_match.start(), exact_match.end()],
+                [spectrum_match.start(), spectrum_match.end()],
+                [fermion_limit_match.start(), fermion_limit_match.end()],
+            ],
+        },
+    )
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -1143,6 +1248,16 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "benchmark_name": "square_six_vertex_ice_exact_solution_status",
             "mode": "local_source_parse",
             "parser": parse_lieb_square_ice_solution,
+        },
+        {
+            "benchmark_name": "gaudin_yang_spin_half_fermion_bethe_reference",
+            "mode": "local_source_parse",
+            "parser": parse_yang_gaudin_fermion_solution,
+        },
+        {
+            "benchmark_name": "lieb_liniger_delta_bose_gas_bethe_reference",
+            "mode": "local_source_parse",
+            "parser": parse_lieb_liniger_solution,
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",

@@ -155,6 +155,22 @@ arrows point into each vertex. If N is the number of molecules and W^N is the
 number of arrangements, then S = Nk ln W. Our exact result is W = (4/3)^(3/2).
 """
 
+YANG_GAUDIN_SOURCE_TEXT = """
+Some Exact Results for the Many-Body Problem in One Dimension with Repulsive
+Delta-Function Interaction. The repulsive delta interaction problem in one
+dimension for N particles is reduced through Bethe's hypothesis. The
+ground-state problem of spin-1/2 fermions is reduced to a generalized Fredholm
+equation.
+"""
+
+LIEB_LINIGER_SOURCE_TEXT = """
+Exact Analysis of an Interacting Bose Gas. A gas of one-dimensional Bose
+particles interacting via a repulsive delta-function potential has been solved
+exactly. All the eigenfunctions can be found explicitly and the energies are
+given by a transcendental equation. For impenetrable bosons in one dimension,
+the energy spectrum is identical with the spectrum of a noninteracting Fermi gas.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -740,6 +756,58 @@ def test_lieb_square_ice_parser_extracts_exact_solution_status():
 def test_lieb_square_ice_parser_fails_closed_without_complete_exact_claim(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Lieb square-ice solution"):
         literature_runtime_evidence.parse_lieb_square_ice_solution(source_text)
+
+
+def test_yang_gaudin_parser_extracts_exact_spin_half_fermion_solution():
+    parsed, trace = literature_runtime_evidence.parse_yang_gaudin_fermion_solution(
+        YANG_GAUDIN_SOURCE_TEXT
+    )
+    assert parsed == {"is_exactly_solved": True}
+    assert trace["parser"] == "parse_yang_gaudin_fermion_solution"
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        YANG_GAUDIN_SOURCE_TEXT.replace("one\ndimension", "two\ndimensions"),
+        YANG_GAUDIN_SOURCE_TEXT.replace("Repulsive", "Attractive").replace(
+            "repulsive", "attractive"
+        ),
+        YANG_GAUDIN_SOURCE_TEXT.replace("Bethe's hypothesis", "perturbation theory"),
+        YANG_GAUDIN_SOURCE_TEXT.replace("spin-1/2 fermions", "bosons"),
+    ],
+)
+def test_yang_gaudin_parser_fails_closed_without_complete_exact_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Yang-Gaudin solution"):
+        literature_runtime_evidence.parse_yang_gaudin_fermion_solution(source_text)
+
+
+def test_lieb_liniger_parser_extracts_exact_solution_and_fermion_limit():
+    parsed, trace = literature_runtime_evidence.parse_lieb_liniger_solution(
+        LIEB_LINIGER_SOURCE_TEXT
+    )
+    assert parsed == {
+        "is_exactly_solved": True,
+        "tonks_girardeau_limit_maps_to_free_fermions": True,
+    }
+    assert trace["parser"] == "parse_lieb_liniger_solution"
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        LIEB_LINIGER_SOURCE_TEXT.replace("one-dimensional", "two-dimensional"),
+        LIEB_LINIGER_SOURCE_TEXT.replace("repulsive delta-function", "finite-range"),
+        LIEB_LINIGER_SOURCE_TEXT.replace("solved\nexactly", "approximated"),
+        LIEB_LINIGER_SOURCE_TEXT.replace("impenetrable bosons", "soft bosons"),
+        LIEB_LINIGER_SOURCE_TEXT.replace("noninteracting Fermi gas", "classical gas"),
+    ],
+)
+def test_lieb_liniger_parser_fails_closed_without_both_registry_claims(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="Lieb-Liniger solution"):
+        literature_runtime_evidence.parse_lieb_liniger_solution(source_text)
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1480,6 +1548,49 @@ def test_runtime_collector_parses_lieb_square_ice_exact_solution_status():
     assert "execution_trace" not in bundle
 
 
+def test_runtime_collector_parses_yang_gaudin_exact_fermion_solution():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["gaudin_yang_spin_half_fermion_bethe_reference"]
+    record = bundle["runtime_evidence_record"]
+    expected = {"is_exactly_solved": True}
+    assert record["evidence_mode"] == "local_source_parse"
+    assert record["source_sha256"] == (
+        "0c5a2ecff72e1bfdc083c2e5e0ded173b53af0f81e782cf1e08c7990f49992a3"
+    )
+    assert record["source_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == (
+        "parse_yang_gaudin_fermion_solution"
+    )
+    assert "execution_trace" not in bundle
+
+
+def test_runtime_collector_parses_lieb_liniger_solution_and_fermion_limit():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["lieb_liniger_delta_bose_gas_bethe_reference"]
+    record = bundle["runtime_evidence_record"]
+    expected = {
+        "is_exactly_solved": True,
+        "tonks_girardeau_limit_maps_to_free_fermions": True,
+    }
+    assert record["evidence_mode"] == "local_source_parse"
+    assert record["source_sha256"] == (
+        "558e741b5d48795f6a1bd1b866ef3ed25d460ded46ff115029ca7ef8df0e8ff8"
+    )
+    assert record["source_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == "parse_lieb_liniger_solution"
+    assert "execution_trace" not in bundle
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1665,10 +1776,12 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "cri3_honeycomb_ferromagnet_reference",
         "diamond_chain_localized_magnon_flat_band",
         "eight_vertex_zero_field_exact_solution_status",
+        "gaudin_yang_spin_half_fermion_bethe_reference",
         "haldane_spin1_chain_gap_reference",
         "haldane_shastry_chain_exact_ground_state",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
+        "lieb_liniger_delta_bose_gas_bethe_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
@@ -1687,11 +1800,11 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
     assert "strict_local_recomputed: `6`" in markdown_text
-    assert "strict_local_source_parsed: `12`" in markdown_text
-    assert "Supported: `18`" in markdown_text
-    assert "Missing: `137`" in markdown_text
+    assert "strict_local_source_parsed: `14`" in markdown_text
+    assert "Supported: `20`" in markdown_text
+    assert "Missing: `135`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "18 of 155 entries are strict" in gaps_text
+    assert "20 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1703,7 +1816,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_eighteen_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_twenty_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1711,10 +1824,12 @@ def test_runtime_audit_has_exactly_the_eighteen_cache_backed_strict_routes():
         "cri3_honeycomb_ferromagnet_reference",
         "diamond_chain_localized_magnon_flat_band",
         "eight_vertex_zero_field_exact_solution_status",
+        "gaudin_yang_spin_half_fermion_bethe_reference",
         "haldane_spin1_chain_gap_reference",
         "haldane_shastry_chain_exact_ground_state",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
+        "lieb_liniger_delta_bose_gas_bethe_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
@@ -1740,14 +1855,14 @@ def test_runtime_audit_has_exactly_the_eighteen_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 137
+    assert len(remaining_names) == 135
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 18,
-        "missing": 137,
+        "supported": 20,
+        "missing": 135,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -1872,10 +1987,12 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "cri3_honeycomb_ferromagnet_reference",
         "diamond_chain_localized_magnon_flat_band",
         "eight_vertex_zero_field_exact_solution_status",
+        "gaudin_yang_spin_half_fermion_bethe_reference",
         "haldane_spin1_chain_gap_reference",
         "haldane_shastry_chain_exact_ground_state",
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "kitaev_honeycomb_gapless_triangle_condition",
+        "lieb_liniger_delta_bose_gas_bethe_reference",
         "lieb_schultz_mattis_half_integer_constraint",
         "one_dimensional_classical_ising_correlation_length",
         "square_toric_code_exact_topological_degeneracy",
@@ -1941,8 +2058,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 18
-    assert coverage["missing"] == 137
+    assert coverage["supported"] == 20
+    assert coverage["missing"] == 135
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -1951,7 +2068,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="137 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="135 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
