@@ -179,6 +179,14 @@ zero point entropy S0 approximately (R/2) ln(3/2). The two-in two-out ice
 rule describes the disordered spin-ice ground state.
 """
 
+BKT_UNIVERSAL_JUMP_SOURCE_TEXT = """
+Universal Jump in the Superfluid Density of Two-Dimensional Superfluids.
+The two-dimensional XY model predicts a universal jump. Predictions for the
+spin-wave stiffness in two-dimensional magnetic systems follow from XY
+magnetism and superfluidity. Taking over the analysis gives
+lim K_i(T)/(k_B T) = 2/pi as T approaches T_BKT from below.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -839,6 +847,41 @@ def test_pauling_spin_ice_parser_derives_entropy_formula():
 def test_pauling_spin_ice_parser_fails_closed_without_complete_formula(source_text):
     with pytest.raises(RuntimeEvidenceError, match="Pauling spin-ice entropy"):
         literature_runtime_evidence.parse_pauling_spin_ice_entropy(source_text)
+
+
+def test_bkt_universal_jump_parser_extracts_formula_and_unit_temperature_value():
+    parsed, trace = literature_runtime_evidence.parse_bkt_universal_jump(
+        BKT_UNIVERSAL_JUMP_SOURCE_TEXT
+    )
+    assert parsed == {
+        "formula": "rho_s(T_BKT)=2T_BKT/pi",
+        "helicity_modulus_at_t_1": pytest.approx(2.0 / math.pi),
+    }
+    assert trace["parser"] == "parse_bkt_universal_jump"
+    assert len(trace["text_spans"]) == 3
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        BKT_UNIVERSAL_JUMP_SOURCE_TEXT.replace("two-dimensional XY", "three-dimensional XY"),
+        BKT_UNIVERSAL_JUMP_SOURCE_TEXT.replace("spin-wave stiffness", "compressibility"),
+        BKT_UNIVERSAL_JUMP_SOURCE_TEXT.replace("2/pi", "3/pi"),
+        BKT_UNIVERSAL_JUMP_SOURCE_TEXT.replace("from below", "from above"),
+    ],
+)
+def test_bkt_universal_jump_parser_fails_closed_without_complete_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match="BKT universal jump"):
+        literature_runtime_evidence.parse_bkt_universal_jump(source_text)
+
+
+def test_bkt_universal_jump_operand_covers_all_registered_fields():
+    assert literature_runtime_evidence.recompute_bkt_universal_jump_operand(
+        temperature=1.0
+    ) == {
+        "formula": "rho_s(T_BKT)=2T_BKT/pi",
+        "helicity_modulus_at_t_1": pytest.approx(2.0 / math.pi),
+    }
 
 
 def test_aklt_projector_adapter_returns_spectrum_and_zero_vbs_energy():
@@ -1642,6 +1685,35 @@ def test_runtime_collector_recomputes_pauling_spin_ice_entropy():
     assert bundle["execution_trace"]["adapter"] == "pauling_spin_ice_entropy_per_spin"
 
 
+def test_runtime_collector_recomputes_bkt_universal_jump_all_fields():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["two_dimensional_xy_bkt_universal_jump"]
+    record = bundle["runtime_evidence_record"]
+    expected = {
+        "formula": "rho_s(T_BKT)=2T_BKT/pi",
+        "helicity_modulus_at_t_1": 2.0 / math.pi,
+    }
+    assert record["evidence_mode"] == "local_recompute"
+    assert record["source_sha256"] == (
+        "f9b73a740336ea1ac9131eed706c3c13c73988e4516934c4f2ee069f441fdc90"
+    )
+    assert record["registry_selector"]["fields"] == [
+        "formula",
+        "helicity_modulus_at_t_1",
+    ]
+    assert record["source_operand"] == expected
+    assert record["computed_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == "parse_bkt_universal_jump"
+    assert bundle["execution_trace"]["adapter"] == (
+        "recompute_bkt_universal_jump_operand"
+    )
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1842,6 +1914,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "sawtooth_chain_localized_magnon_flat_band",
         "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
+        "two_dimensional_xy_bkt_universal_jump",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
     }:
@@ -1851,12 +1924,12 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
             "extraction_trace",
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
-    assert "strict_local_recomputed: `7`" in markdown_text
+    assert "strict_local_recomputed: `8`" in markdown_text
     assert "strict_local_source_parsed: `14`" in markdown_text
-    assert "Supported: `21`" in markdown_text
-    assert "Missing: `134`" in markdown_text
+    assert "Supported: `22`" in markdown_text
+    assert "Missing: `133`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "21 of 155 entries are strict" in gaps_text
+    assert "22 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1868,7 +1941,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_twenty_one_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_twenty_two_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1891,6 +1964,7 @@ def test_runtime_audit_has_exactly_the_twenty_one_cache_backed_strict_routes():
         "sawtooth_chain_localized_magnon_flat_band",
         "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
+        "two_dimensional_xy_bkt_universal_jump",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
     }
@@ -1908,14 +1982,14 @@ def test_runtime_audit_has_exactly_the_twenty_one_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 134
+    assert len(remaining_names) == 133
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 21,
-        "missing": 134,
+        "supported": 22,
+        "missing": 133,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -2055,6 +2129,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "sawtooth_chain_localized_magnon_flat_band",
         "spin_ladder_rung_singlet_gap_reference",
         "two_dimensional_square_ising_onsager_tc",
+        "two_dimensional_xy_bkt_universal_jump",
         "two_leg_ladder_strong_rung_exact_limit",
         "xxx_spin_half_chain_bethe_ground_state",
     }
@@ -2112,8 +2187,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 21
-    assert coverage["missing"] == 134
+    assert coverage["supported"] == 22
+    assert coverage["missing"] == 133
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -2122,7 +2197,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="134 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="133 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )

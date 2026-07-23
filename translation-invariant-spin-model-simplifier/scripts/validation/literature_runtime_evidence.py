@@ -826,6 +826,76 @@ def parse_pauling_spin_ice_entropy(source_text):
     )
 
 
+def parse_bkt_universal_jump(source_text):
+    """Extract the Nelson-Kosterlitz universal XY stiffness jump."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("BKT universal jump requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    universal_match = re.search(
+        r"two-dimensional XY model.{0,120}?predict(?:s)? a universal jump"
+        r".{0,500}?approach(?:es|ed).{0,50}?from below",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    stiffness_match = re.search(
+        r"Predictions for the spin-wave stiffness in two-.{0,160}?"
+        r"dimensional magnetic systems(?: analogous to \(10\)| follow from XY "
+        r"magnetism and superfluidity)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    equation_match = re.search(
+        r"lim\s+K(?:[_ ,]\s*i?)?\s*\(T\)\s*/\s*\(?k(?:_|\s*)B\s*T\)?"
+        r"\s*=\s*2\s*/\s*(?:pi|π|m)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        universal_match is None
+        or stiffness_match is None
+        or equation_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "BKT universal jump must identify the two-dimensional XY jump "
+            "from below, its magnetic spin-wave stiffness, and "
+            "K(T)/(k_B T)=2/pi"
+        )
+    return (
+        {
+            "formula": "rho_s(T_BKT)=2T_BKT/pi",
+            "helicity_modulus_at_t_1": 2.0 / math.pi,
+        },
+        {
+            "parser": "parse_bkt_universal_jump",
+            "normalization": "locked Nelson-Kosterlitz PDF maps pi glyph to m",
+            "matched_anchors": [
+                "two-dimensional XY universal jump approached from below",
+                "magnetic spin-wave stiffness analogous to superfluid result",
+                "critical stiffness ratio 2/pi",
+            ],
+            "text_spans": [
+                [universal_match.start(), universal_match.end()],
+                [stiffness_match.start(), stiffness_match.end()],
+                [equation_match.start(), equation_match.end()],
+            ],
+        },
+    )
+
+
+def recompute_bkt_universal_jump_operand(*, temperature):
+    """Return every registered BKT-jump field from the local helper."""
+
+    return {
+        "formula": "rho_s(T_BKT)=2T_BKT/pi",
+        "helicity_modulus_at_t_1": (
+            benchmark_functions.xy_bkt_universal_helicity_jump(
+                temperature=temperature
+            )
+        ),
+    }
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -1317,6 +1387,17 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "adapter": benchmark_functions.pauling_spin_ice_entropy_per_spin,
             "adapter_parameters": {},
             "output_field": "pauling_entropy_per_spin",
+        },
+        {
+            "benchmark_name": "two_dimensional_xy_bkt_universal_jump",
+            "mode": "local_recompute",
+            "parser": parse_bkt_universal_jump,
+            "adapter": recompute_bkt_universal_jump_operand,
+            "adapter_parameters": {"temperature": 1.0},
+            "output_fields": {
+                "formula": "formula",
+                "helicity_modulus_at_t_1": "helicity_modulus_at_t_1",
+            },
         },
         {
             "benchmark_name": "kitaev_honeycomb_exact_spin_liquid_limit",
