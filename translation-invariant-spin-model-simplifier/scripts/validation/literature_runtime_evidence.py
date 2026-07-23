@@ -896,6 +896,93 @@ def recompute_bkt_universal_jump_operand(*, temperature):
     }
 
 
+def parse_uls_spin1_su3_point(source_text):
+    """Extract Sutherland's spin-1 SU(3) permutation-Hamiltonian point."""
+
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError("ULS spin-1 SU(3) point requires nonempty text")
+    normalized = re.sub(r"\s+", " ", source_text).strip()
+    permutation_match = re.search(
+        r"Place.{0,100}?exactly one.{0,40}?to a site.{0,80}?operator P"
+        r".{0,120}?permute whatever objects occupy.{0,100}?sites.{0,350}?"
+        r"Hamiltonian",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    symmetry_match = re.search(
+        r"(?:Eq\.?|Equation)\s*\(41\).{0,80}?invariant under.{0,160}?the total\s*"
+        r"SU\(3\) group",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    spin1_match = re.search(
+        r"return to consider a spin-1 representa(?:tion|-.{0,160}?tion) "
+        r"for our system.{0,220}?writing the SU\(3\) generators "
+        r"in terms of the three.{0,220}?spin operators.{0,100}?"
+        r"six tensor.{0,220}?operators",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    bethe_match = re.search(
+        r"one dimension(?:al problem)? by Bethe(?:['’]|\s+)s ansatz|"
+        r"one-dimensional problem is solved by Bethe(?:['’]|\s+)s ansatz",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if (
+        permutation_match is None
+        or symmetry_match is None
+        or spin1_match is None
+        or bethe_match is None
+    ):
+        raise RuntimeEvidenceError(
+            "ULS spin-1 SU(3) point must identify the permutation Hamiltonian, "
+            "total SU(3) invariance, its spin-1 representation, and the "
+            "one-dimensional Bethe solution"
+        )
+    return (
+        {"theta_radians": math.pi / 4.0, "su3_symmetric": True},
+        {
+            "parser": "parse_uls_spin1_su3_point",
+            "derivation": (
+                "For spin 1, P_ij = S_i.S_j + (S_i.S_j)^2 - 1; equal "
+                "positive bilinear and biquadratic coefficients imply "
+                "theta=pi/4"
+            ),
+            "matched_anchors": [
+                "nearest-neighbor permutation Hamiltonian",
+                "Hamiltonian invariant under total SU(3)",
+                "SU(3) generators in spin-1 representation",
+                "one-dimensional Bethe ansatz",
+            ],
+            "text_spans": [
+                [permutation_match.start(), permutation_match.end()],
+                [symmetry_match.start(), symmetry_match.end()],
+                [spin1_match.start(), spin1_match.end()],
+                [bethe_match.start(), bethe_match.end()],
+            ],
+        },
+    )
+
+
+def recompute_uls_spin1_su3_operand():
+    """Recompute both registered ULS fields from the equal-coupling point."""
+
+    theta = benchmark_functions.spin1_bilinear_biquadratic_integrable_angle(
+        "uimin_lai_sutherland"
+    )
+    equal_positive_couplings = (
+        math.cos(theta) > 0.0
+        and math.isclose(
+            math.cos(theta), math.sin(theta), rel_tol=0.0, abs_tol=1.0e-15
+        )
+    )
+    return {
+        "theta_radians": theta,
+        "su3_symmetric": equal_positive_couplings,
+    }
+
+
 def parse_kitaev_exact_spin_liquid(source_text):
     """Extract the exact-solution and isotropic gapless-phase claims."""
 
@@ -1397,6 +1484,17 @@ def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT)
             "output_fields": {
                 "formula": "formula",
                 "helicity_modulus_at_t_1": "helicity_modulus_at_t_1",
+            },
+        },
+        {
+            "benchmark_name": "uimin_lai_sutherland_spin1_su3_point",
+            "mode": "local_recompute",
+            "parser": parse_uls_spin1_su3_point,
+            "adapter": recompute_uls_spin1_su3_operand,
+            "adapter_parameters": {},
+            "output_fields": {
+                "theta_radians": "theta_radians",
+                "su3_symmetric": "su3_symmetric",
             },
         },
         {

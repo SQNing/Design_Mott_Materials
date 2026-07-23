@@ -187,6 +187,16 @@ magnetism and superfluidity. Taking over the analysis gives
 lim K_i(T)/(k_B T) = 2/pi as T approaches T_BKT from below.
 """
 
+ULS_SU3_SOURCE_TEXT = """
+Model for a multicomponent quantum system. Place exactly one object to a site
+and let the operator P_jk permute whatever objects occupy neighboring sites;
+the Hamiltonian is the sum of P_j,j+1. Equation (41) is invariant under the
+total SU(3) group. We now
+return to consider a spin-1 representation for our system, writing the SU(3)
+generators in terms of the three spin operators and six tensor operators. The
+one-dimensional problem is solved by Bethe's ansatz.
+"""
+
 SOURCE_SHA256 = "9ad3044b7528d53fd0aa3616eb2ab8190b196b3f46f9f0711e53d10be24815e0"
 MISSING = object()
 REQUIRED_RUNTIME_SOURCE_IDS = {
@@ -881,6 +891,46 @@ def test_bkt_universal_jump_operand_covers_all_registered_fields():
     ) == {
         "formula": "rho_s(T_BKT)=2T_BKT/pi",
         "helicity_modulus_at_t_1": pytest.approx(2.0 / math.pi),
+    }
+
+
+def test_uls_parser_derives_spin1_equal_coupling_su3_point():
+    parsed, trace = literature_runtime_evidence.parse_uls_spin1_su3_point(
+        ULS_SU3_SOURCE_TEXT
+    )
+    assert parsed == {
+        "theta_radians": pytest.approx(math.pi / 4.0),
+        "su3_symmetric": True,
+    }
+    assert trace["parser"] == "parse_uls_spin1_su3_point"
+    assert "P_ij = S_i.S_j + (S_i.S_j)^2 - 1" in trace["derivation"]
+    assert len(trace["text_spans"]) == 4
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        ULS_SU3_SOURCE_TEXT.replace(
+            "permute whatever objects", "count whatever objects"
+        ),
+        ULS_SU3_SOURCE_TEXT.replace(
+            "invariant under the\ntotal SU(3) group", "invariant under U(1)"
+        ),
+        ULS_SU3_SOURCE_TEXT.replace(
+            "spin-1 representation", "spin-1/2 representation"
+        ),
+        ULS_SU3_SOURCE_TEXT.replace("Bethe's ansatz", "mean-field theory"),
+    ],
+)
+def test_uls_parser_fails_closed_without_permutation_su3_spin1_claim(source_text):
+    with pytest.raises(RuntimeEvidenceError, match=r"ULS spin-1 SU\(3\) point"):
+        literature_runtime_evidence.parse_uls_spin1_su3_point(source_text)
+
+
+def test_uls_recompute_operand_covers_angle_and_symmetry_fields():
+    assert literature_runtime_evidence.recompute_uls_spin1_su3_operand() == {
+        "theta_radians": pytest.approx(math.pi / 4.0),
+        "su3_symmetric": True,
     }
 
 
@@ -1714,6 +1764,32 @@ def test_runtime_collector_recomputes_bkt_universal_jump_all_fields():
     )
 
 
+def test_runtime_collector_recomputes_uls_spin1_su3_point_all_fields():
+    _require_runtime_cache()
+
+    evidence = collect_runtime_evidence(LITERATURE_STANDARD_RESULTS)
+
+    bundle = evidence["uimin_lai_sutherland_spin1_su3_point"]
+    record = bundle["runtime_evidence_record"]
+    expected = {"theta_radians": math.pi / 4.0, "su3_symmetric": True}
+    assert record["evidence_mode"] == "local_recompute"
+    assert record["source_sha256"] == (
+        "b18e0b9e3e95958e0f0be8154e88b8f1f907bdafce0e9338d25699870c4f77a5"
+    )
+    assert record["registry_selector"]["fields"] == [
+        "theta_radians",
+        "su3_symmetric",
+    ]
+    assert record["source_operand"] == expected
+    assert record["computed_operand"] == expected
+    assert record["registry_operand"] == expected
+    assert record["comparison"] == {"kind": "exact_field_map", "matched": True}
+    assert bundle["extraction_trace"]["parser"] == "parse_uls_spin1_su3_point"
+    assert bundle["execution_trace"]["adapter"] == (
+        "recompute_uls_spin1_su3_operand"
+    )
+
+
 def test_runtime_collector_parses_two_distinct_kitaev_claims_from_shared_source():
     _require_runtime_cache()
 
@@ -1916,6 +1992,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
         "two_dimensional_square_ising_onsager_tc",
         "two_dimensional_xy_bkt_universal_jump",
         "two_leg_ladder_strong_rung_exact_limit",
+        "uimin_lai_sutherland_spin1_su3_point",
         "xxx_spin_half_chain_bethe_ground_state",
     }:
         for field in (
@@ -1924,12 +2001,12 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
             "extraction_trace",
         ):
             assert json.loads(csv_rows[name][field]) == audit_rows[name][field]
-    assert "strict_local_recomputed: `8`" in markdown_text
+    assert "strict_local_recomputed: `9`" in markdown_text
     assert "strict_local_source_parsed: `14`" in markdown_text
-    assert "Supported: `22`" in markdown_text
-    assert "Missing: `133`" in markdown_text
+    assert "Supported: `23`" in markdown_text
+    assert "Missing: `132`" in markdown_text
     assert "Complete: `False`" in markdown_text
-    assert "22 of 155 entries are strict" in gaps_text
+    assert "23 of 155 entries are strict" in gaps_text
     assert "absolute_tolerance" in markdown_text
     assert "absolute_differences" in markdown_text
     haldane_csv_record = json.loads(
@@ -1941,7 +2018,7 @@ def test_runtime_audit_writers_serialize_structured_evidence(tmp_path):
     ] == pytest.approx(0.00002)
 
 
-def test_runtime_audit_has_exactly_the_twenty_two_cache_backed_strict_routes():
+def test_runtime_audit_has_exactly_the_twenty_three_cache_backed_strict_routes():
     _require_runtime_cache()
     audit = build_literature_reproduction_audit()
     supported_names = {
@@ -1966,6 +2043,7 @@ def test_runtime_audit_has_exactly_the_twenty_two_cache_backed_strict_routes():
         "two_dimensional_square_ising_onsager_tc",
         "two_dimensional_xy_bkt_universal_jump",
         "two_leg_ladder_strong_rung_exact_limit",
+        "uimin_lai_sutherland_spin1_su3_point",
         "xxx_spin_half_chain_bethe_ground_state",
     }
     registry_names = {entry["name"] for entry in LITERATURE_STANDARD_RESULTS}
@@ -1982,14 +2060,14 @@ def test_runtime_audit_has_exactly_the_twenty_two_cache_backed_strict_routes():
 
     assert strict_names == supported_names
     assert remaining_names == registry_names - supported_names
-    assert len(remaining_names) == 133
+    assert len(remaining_names) == 132
     assert audit["runtime_evidence_coverage"] == {
         "supported_names": sorted(supported_names),
         "missing_names": sorted(registry_names - supported_names),
         "extra_names": [],
         "invalid_names": [],
-        "supported": 22,
-        "missing": 133,
+        "supported": 23,
+        "missing": 132,
         "extra": 0,
         "invalid": 0,
         "complete": False,
@@ -2131,6 +2209,7 @@ def test_collector_extraction_traces_declare_coordinate_space():
         "two_dimensional_square_ising_onsager_tc",
         "two_dimensional_xy_bkt_universal_jump",
         "two_leg_ladder_strong_rung_exact_limit",
+        "uimin_lai_sutherland_spin1_su3_point",
         "xxx_spin_half_chain_bethe_ground_state",
     }
     assert all(
@@ -2187,8 +2266,8 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
     )
 
     assert calls == [literature_runtime_evidence.DEFAULT_CACHE_ROOT]
-    assert coverage["supported"] == 22
-    assert coverage["missing"] == 133
+    assert coverage["supported"] == 23
+    assert coverage["missing"] == 132
     assert coverage["extra"] == 0
     assert coverage["invalid"] == 0
     assert coverage["complete"] is False
@@ -2197,7 +2276,7 @@ def test_authoritative_runtime_coverage_collects_verified_local_sources(monkeypa
 def test_runtime_completion_assertion_rejects_current_incomplete_coverage():
     _require_runtime_cache()
 
-    with pytest.raises(RuntimeEvidenceError, match="133 missing"):
+    with pytest.raises(RuntimeEvidenceError, match="132 missing"):
         literature_runtime_evidence.assert_complete_runtime_evidence(
             LITERATURE_STANDARD_RESULTS
         )
