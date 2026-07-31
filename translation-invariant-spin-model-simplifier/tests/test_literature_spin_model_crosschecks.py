@@ -111,6 +111,7 @@ from validation.literature_spin_model_benchmarks import (
     xxz_spin_half_chain_phase_label,
     zigzag_or_spiral_projection_verification_tasks,
 )
+from validation.literature_evidence_inventory import canonical_source_identity
 
 from test_cpn_glt_continuous_search_failures import (
     LITERATURE_BENCHMARK_MODELS,
@@ -123,6 +124,52 @@ from test_cpn_glt_continuous_search_failures import (
     _square_lattice_j1_j2_model,
     _triangular_lattice_nearest_neighbor_model,
 )
+
+
+EXPECTED_REASSIGNED_SOURCE_IDENTITIES = {
+    "blume_capel_spin1_zero_temperature_level_crossing": "arxiv:1204.5027",
+    "single_ion_spin1_anisotropy_levels": "arxiv:1204.5027",
+    "xxz_spin_half_chain_phase_boundaries": "arxiv:cond-mat/9909290",
+    "j1_j2_chain_bkt_transition_reference": "arxiv:1006.5052",
+    "j1_j2_chain_okamoto_nomura_critical_point": "arxiv:1006.5052",
+    "er2ti2o7_xy_pyrochlore_order_by_disorder_reference": "arxiv:1204.1320",
+    "star_lattice_heisenberg_spin_liquid_reference": "doi:10.1103/physrevb.70.174454",
+    "shuriken_lattice_heisenberg_reference": "arxiv:cond-mat/0411673",
+    "fe_ps3_honeycomb_ising_reference": "arxiv:2005.12031",
+    "ruby_lattice_heisenberg_flat_band_reference": "arxiv:2512.14173",
+    "gamma_li2iro3_3d_kitaev_reference": "doi:10.1103/physrevlett.113.197201",
+    "transverse_field_ising_chain_critical_point": "arxiv:cond-mat/0509490",
+    "transverse_field_ising_chain_gap": "arxiv:cond-mat/0509490",
+    "xx_spin_half_chain_free_fermion_energy": "doi:10.1103/physrevb.92.125131",
+    "honeycomb_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
+    "triangular_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
+    "majundar_ghosh_chain_exact_dimer_point": "doi:10.1088/0305-4470/17/13/020",
+    "square_fully_frustrated_ising_residual_entropy_reference": "doi:10.1088/0305-4470/16/10/023",
+    "honeycomb_j1_j2_spiral_ring_reference": "arxiv:1004.1119",
+    "fcc_j1_j2_heisenberg_type_order_reference": "arxiv:2007.00376",
+    "pyrochlore_heisenberg_afm_coulomb_phase_reference": "arxiv:cond-mat/0407005",
+    "checkerboard_heisenberg_afm_planar_pyrochlore_reference": "arxiv:cond-mat/0108070",
+    "takhtajan_babujian_spin1_critical_point": "arxiv:cond-mat/9811353",
+    "cubic_ising_critical_temperature_reference": "arxiv:cond-mat/9509016",
+    "kagome_spin_half_heisenberg_energy_reference": "arxiv:1205.4858",
+    "kagome_heisenberg_dmrg_spin_liquid_yan_reference": "arxiv:1205.4858",
+    "square_ring_exchange_neel_vbs_reference": "arxiv:cond-mat/0205270",
+    "honeycomb_j1_j2_kitaev_material_na2iro3_reference": "arxiv:1209.5100",
+    "honeycomb_kitaev_heisenberg_four_sublattice_phases": "arxiv:1209.5100",
+    "garnet_gd3te2li3o12_hyperkagome_reference": "doi:10.1103/physrevb.87.174421",
+    "gadolinium_gallium_garnet_hyperkagome_reference": "doi:10.1103/physrevlett.73.2500",
+    "mn_ps3_honeycomb_antiferromagnet_reference": "doi:10.1103/physrevb.82.100408",
+    "ru_br3_kitaev_material_reference": "doi:10.1038/s41535-026-00868-6",
+    "vesignieite_kagome_material_reference": "doi:10.1103/physrevlett.121.107203",
+    "square_heisenberg_spin_half_spin_stiffness_reference": "doi:10.1103/physrevb.83.155120",
+    "square_heisenberg_spin_half_staggered_magnetization_reference": "doi:10.1103/physrevb.83.155120",
+    "square_heisenberg_spin_wave_velocity_reference": "doi:10.1103/physrevb.83.155120",
+    "honeycomb_j1_j2_j3_classical_phase_diagram": "arxiv:1309.3744",
+    "nacuo2_triangular_heisenberg_material_reference": "arxiv:1405.6184",
+    "clinoatacamite_distorted_kagome_reference": "arxiv:2601.21024",
+    "edwardsite_kagome_antiferromagnet_reference": "arxiv:1305.2477",
+    "lieb_lattice_heisenberg_ferrimagnet_reference": "arxiv:2409.16715",
+}
 
 
 def _exchange_matrix_eigenvalues(matrix):
@@ -329,6 +376,501 @@ def test_literature_standard_results_store_is_structured_and_traceable():
         assert entry["citation_locator"]
         assert isinstance(entry["standard_result"], dict)
         assert entry["standard_result"]
+
+
+def test_exact_source_identity_corrections_match_transition_manifest():
+    entries = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
+    actual = {
+        name: canonical_source_identity(entries[name]["source_url"])
+        for name in EXPECTED_REASSIGNED_SOURCE_IDENTITIES
+    }
+
+    assert actual == EXPECTED_REASSIGNED_SOURCE_IDENTITIES
+    assert len(actual) == 42
+
+    ba3irti2o9 = "ba3irti2o9_honeycomb_kitaev_reference"
+    assert ba3irti2o9 not in EXPECTED_REASSIGNED_SOURCE_IDENTITIES
+    assert canonical_source_identity(entries[ba3irti2o9]["source_url"]) == (
+        "doi:10.1103/physrevb.86.140405"
+    )
+
+
+def test_scientific_corrections_for_ba3_nacro2_vesignieite_ruby_and_edwardsite():
+    entries = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
+    contract_keys = (
+        "model",
+        "lattice",
+        "hamiltonian",
+        "hamiltonian_terms",
+        "parameters",
+        "observable",
+        "comparison_kind",
+        "backend_needed",
+        "standard_result",
+        "source",
+        "source_url",
+        "citation_locator",
+    )
+    expected = {
+        "ba3irti2o9_honeycomb_kitaev_reference": {
+            "model": "ba3irti2o9_site_diluted_triangular_jeff_half",
+            "lattice": "site_diluted_triangular",
+            "hamiltonian": (
+                "site-diluted triangular-lattice J_eff=1/2 exchange in "
+                "Ba3IrTi2O9"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "spin_orbit",
+                "triangular",
+                "site_dilution",
+                "material",
+            ],
+            "parameters": {
+                "material": "Ba3IrTi2O9",
+                "magnetic_ion": "Ir4+",
+                "effective_spin": 0.5,
+            },
+            "observable": "triangular_spin_liquid_candidate",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "experiment",
+            "standard_result": {"spin_liquid_candidate": True},
+            "source": "Dey_2012",
+            "source_url": "https://doi.org/10.1103/physrevb.86.140405",
+            "citation_locator": (
+                "abstract and conclusion: site-diluted triangular "
+                "J_eff=1/2 spin-liquid candidate"
+            ),
+        },
+        "nacuo2_triangular_heisenberg_material_reference": {
+            "model": "nacro2_triangular_heisenberg",
+            "lattice": "triangular",
+            "hamiltonian": "triangular-lattice spin-3/2 Heisenberg exchange",
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "material",
+            ],
+            "parameters": {"material": "NaCrO2", "spin": 1.5},
+            "observable": "material_spin_order_reference",
+            "comparison_kind": "material_reference",
+            "backend_needed": "neutron_scattering_reference",
+            "standard_result": {"unconventional_spin_order_reference": True},
+            "source": "Hsieh_et_al_arXiv_1405.6184",
+            "source_url": "https://arxiv.org/abs/1405.6184",
+            "citation_locator": (
+                "abstract and neutron-scattering results: unconventional "
+                "dimensional-crossover spin order in NaCrO2"
+            ),
+        },
+        "vesignieite_kagome_material_reference": {
+            "model": "vesignieite_dominant_j3_kagome_antiferromagnet",
+            "lattice": "nearly_ideal_kagome",
+            "hamiltonian": (
+                "spin-1/2 kagome Heisenberg antiferromagnet with dominant "
+                "antiferromagnetic J3 and tiny symmetric exchange anisotropy"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "kagome",
+                "third_neighbor_j3",
+                "symmetric_exchange_anisotropy",
+                "material",
+            ],
+            "parameters": {
+                "material": "BaCu3V2O8(OD)2",
+                "spin": 0.5,
+                "structural_distortion_upper_bound_percent": 1.0,
+                "dominant_exchange": "antiferromagnetic_J3",
+                "isotropic_best_fit_mev": {"J3": 1.9, "Jd": -0.1},
+                "symmetric_anisotropy_over_j3": -0.006,
+            },
+            "observable": "dominant_j3_not_distortion_assessment",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "neutron_scattering_and_spin_wave",
+            "standard_result": {"distorted_kagome_relevant": False},
+            "source": "Boldrin_Walker_Wills_2018",
+            "source_url": "https://doi.org/10.1103/physrevlett.121.107203",
+            "citation_locator": (
+                "abstract, Eq. (1), spin-wave fit, and conclusion: "
+                "dominant J3 with less-than-one-percent distortion"
+            ),
+        },
+        "ruby_lattice_heisenberg_flat_band_reference": {
+            "model": "ruby_lattice_heisenberg",
+            "lattice": "ruby",
+            "hamiltonian": (
+                "spin-1/2 ruby-lattice Heisenberg model with Jh, Jt, and "
+                "Jd at the isotropic point Jh=Jt=Jd"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "frustrated",
+                "localized_one_magnon",
+            ],
+            "parameters": {
+                "spin": 0.5,
+                "coupling_regime": "Jh=Jt=Jd",
+            },
+            "observable": "exact_localized_one_magnon_eigenstate",
+            "comparison_kind": "paper_formula",
+            "backend_needed": "analytic_magnon",
+            "standard_result": {"supports_localized_magnons": True},
+            "source": "Ghosh_Mila_2025",
+            "source_url": "https://arxiv.org/abs/2512.14173",
+            "citation_locator": (
+                "Eqs. (4)-(5) and localized-magnon section: exact "
+                "alternating-sign one-magnon eigenstate, not a plateau mechanism"
+            ),
+        },
+        "edwardsite_kagome_antiferromagnet_reference": {
+            "model": "edwardsite_spin_half_deformed_kagome_antiferromagnet",
+            "lattice": "deformed_kagome",
+            "hamiltonian": (
+                "spin-1/2 deformed-kagome Heisenberg antiferromagnet with "
+                "two stronger J and four weaker J-prime bonds"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "deformed_kagome",
+                "spin_half",
+                "material",
+            ],
+            "parameters": {
+                "material": "Cd2Cu3(SO4)2(OH)6·4H2O",
+                "spin": 0.5,
+            },
+            "observable": "hydrated_spin_half_deformed_kagome_reference",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "experiment",
+            "standard_result": {"kagome_antiferromagnet_reference": True},
+            "source": "Ishikawa_Okamoto_Hiroi_2013",
+            "source_url": "https://arxiv.org/abs/1305.2477",
+            "citation_locator": (
+                "abstract and exchange analysis: hydrated spin-1/2 "
+                "deformed-kagome Edwardsite"
+            ),
+        },
+    }
+
+    actual = {
+        name: {key: entries[name][key] for key in contract_keys}
+        for name in expected
+    }
+    assert actual == expected
+
+    physical_payload = {
+        key: value
+        for key, value in entries[
+            "nacuo2_triangular_heisenberg_material_reference"
+        ].items()
+        if key != "name"
+    }
+    assert "NaCuO2" not in repr(physical_payload)
+
+
+def test_scientific_corrections_for_jiang_ring_plateau_garnets_and_lattice_aliases():
+    entries = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
+    contract_keys = (
+        "model",
+        "lattice",
+        "hamiltonian",
+        "hamiltonian_terms",
+        "parameters",
+        "observable",
+        "comparison_kind",
+        "backend_needed",
+        "standard_result",
+        "source",
+        "source_url",
+        "citation_locator",
+    )
+    square_common = {
+        "model": "spin_1_2_square_heisenberg_afm",
+        "lattice": "square",
+        "hamiltonian": "J sum_<ij> S_i.S_j",
+        "parameters": {"spin": 0.5, "exchange": 1.0},
+        "comparison_kind": "paper_numeric",
+        "source": "Jiang_Wiese_2011",
+        "source_url": "https://doi.org/10.1103/physrevb.83.155120",
+    }
+    expected = {
+        "square_heisenberg_spin_half_spin_stiffness_reference": {
+            **square_common,
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "j1",
+                "spin_stiffness",
+            ],
+            "observable": "spin_stiffness",
+            "backend_needed": "qmc",
+            "standard_result": {
+                "rho_s_over_j": 0.18081,
+                "tolerance": 0.001,
+                "computable_observables": ["curie_weiss_theta"],
+                "coordination_number": 4,
+                "exchange_for_curie_weiss": 1.0,
+                "curie_weiss_theta": -4.0 / 3.0,
+            },
+            "citation_locator": (
+                "combined cubical-regime fit: rho_s=0.18081(11) J"
+            ),
+        },
+        "square_heisenberg_spin_half_staggered_magnetization_reference": {
+            **square_common,
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "j1",
+                "magnetization",
+            ],
+            "observable": "staggered_magnetization",
+            "backend_needed": "qmc_or_large_ed",
+            "standard_result": {
+                "staggered_magnetization": 0.30743,
+                "tolerance": 5e-05,
+                "computable_observables": ["curie_weiss_theta"],
+                "coordination_number": 4,
+                "exchange_for_curie_weiss": 1.0,
+                "curie_weiss_theta": -4.0 / 3.0,
+            },
+            "citation_locator": (
+                "combined cubical-regime fit: M_s=0.30743(1)/a^2"
+            ),
+        },
+        "square_heisenberg_spin_wave_velocity_reference": {
+            **square_common,
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "spin_wave_velocity",
+            ],
+            "observable": "spin_wave_velocity",
+            "backend_needed": "qmc_or_lswt",
+            "standard_result": {
+                "renormalized_velocity_over_j_approx": 1.6586,
+                "computable_observables": ["curie_weiss_theta"],
+                "coordination_number": 4,
+                "exchange_for_curie_weiss": 1.0,
+                "curie_weiss_theta": -4.0 / 3.0,
+            },
+            "citation_locator": (
+                "winding-number aspect-ratio determination: c=1.6586(3) J a"
+            ),
+        },
+        "square_ring_exchange_neel_vbs_reference": {
+            "model": "square_xy_ring_exchange",
+            "lattice": "square",
+            "hamiltonian": (
+                "H=-J sum_<ij> B_ij-K sum_<ijkl> P_ijkl for spin-1/2 "
+                "XY bond and four-spin ring operators"
+            ),
+            "hamiltonian_terms": [
+                "xy",
+                "nearest_neighbor",
+                "four_spin_ring_exchange",
+                "bond_plaquette_order",
+                "spin_peierls",
+                "vbs",
+            ],
+            "parameters": {
+                "spin": 0.5,
+                "coupling_regime": "ring_exchange_driven",
+            },
+            "observable": "ring_exchange_driven_bond_spin_peierls_order",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "qmc",
+            "standard_result": {"ring_exchange_drives_vbs_phase": True},
+            "source": "Sandvik_Daul_Singh_Scalapino_2002",
+            "source_url": "https://arxiv.org/abs/cond-mat/0205270",
+            "citation_locator": (
+                "abstract, Eqs. (1)-(3), finite-size scaling, and conclusion: "
+                "striped bond-plaquette/spin-Peierls order"
+            ),
+        },
+        "triangular_heisenberg_magnetization_plateau_reference": {
+            "model": "spin_half_triangular_heisenberg_in_field",
+            "lattice": "triangular",
+            "hamiltonian": "J sum_<ij> S_i.S_j-h sum_i S_i^z",
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "magnetic_field",
+                "spin_wave_1_over_s",
+                "one_third_plateau",
+            ],
+            "parameters": {
+                "spin": 0.5,
+                "exchange": "antiferromagnetic",
+                "field_regime": "finite_interval_h1_to_h2",
+            },
+            "observable": "one_third_plateau_from_spin_wave_expansion",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "spin_wave_1_over_s",
+            "standard_result": {"one_third_plateau": True},
+            "source": "Chubukov_Golosov_1991",
+            "source_url": "https://doi.org/10.1088/0953-8984/3/1/005",
+            "citation_locator": (
+                "isotropic case, spin-wave 1/S calculation, Fig. 3, and "
+                "summary: finite one-third plateau"
+            ),
+        },
+        "gadolinium_gallium_garnet_hyperkagome_reference": {
+            "model": "gadolinium_gallium_garnet_exchange_dipolar",
+            "lattice": "garnet_interpenetrating_corner_sharing_triangles",
+            "hamiltonian": (
+                "classical Heisenberg spins with nearest-neighbor "
+                "antiferromagnetic exchange and dipolar interactions to "
+                "third neighbor"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "dipolar",
+                "third_neighbor",
+                "material",
+            ],
+            "parameters": {
+                "material": "Gd3Ga5O12",
+                "spin": 3.5,
+                "nearest_neighbor_exchange_energy_k": 1.5,
+                "nearest_neighbor_dipole_energy_k": 0.7,
+            },
+            "observable": "strong_geometric_frustration_in_ggg",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "classical_mc_and_thermodynamics",
+            "standard_result": {"strong_frustration": True},
+            "source": "Schiffer_Ramirez_Huse_Valentino_1994",
+            "source_url": "https://doi.org/10.1103/physrevlett.73.2500",
+            "citation_locator": (
+                "abstract, exchange-dipole Monte Carlo model, and conclusion: "
+                "strong GGG frustration with finite-field order"
+            ),
+        },
+        "garnet_gd3te2li3o12_hyperkagome_reference": {
+            "model": "gd3te2li3o12_hyperkagome_garnet",
+            "lattice": "hyperkagome_garnet",
+            "hamiltonian": (
+                "nearest-neighbor antiferromagnetic Heisenberg exchange plus "
+                "long-range dipolar interaction"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "dipolar",
+                "hyperkagome",
+                "material",
+            ],
+            "parameters": {
+                "material": "Gd3Te2Li3O12",
+                "spin": 3.5,
+                "nearest_neighbor_exchange_k": 0.126,
+                "dipolar_interaction_k": 0.045,
+                "dipolar_to_exchange_ratio": 0.36,
+                "ordering_temperature_k": 0.243,
+                "ordering_transition": "sharp_first_order_long_range_order",
+            },
+            "observable": "frustrated_garnet_with_first_order_long_range_order",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "specific_heat_and_structural_experiment",
+            "standard_result": {"garnet_frustrated_magnet": True},
+            "source": "Quilliam_et_al_2013",
+            "source_url": "https://doi.org/10.1103/physrevb.87.174421",
+            "citation_locator": (
+                "abstract, Hamiltonians, and GTLG results: hyperkagome "
+                "frustration with a sharp first-order 243 mK LRO transition"
+            ),
+        },
+        "star_lattice_heisenberg_spin_liquid_reference": {
+            "model": "uniform_star_lattice_heisenberg_antiferromagnet",
+            "lattice": "star",
+            "hamiltonian": (
+                "uniform spin-1/2 nearest-neighbor Heisenberg "
+                "antiferromagnet on the star lattice with JD=JT=J"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "frustrated",
+                "valence_bond_crystal",
+            ],
+            "parameters": {"spin": 0.5, "coupling_regime": "JD=JT=J"},
+            "observable": "gapped_valence_bond_crystal_reference",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "ed",
+            "standard_result": {"spin_liquid_or_valence_bond_reference": True},
+            "source": "Richter_Schulenburg_Honecker_Schmalfuss_2004",
+            "source_url": "https://doi.org/10.1103/physrevb.70.174454",
+            "citation_locator": (
+                "abstract, Eq. (1), and conclusion: gapped dimerized "
+                "valence-bond crystal in the uniform star model"
+            ),
+        },
+        "shuriken_lattice_heisenberg_reference": {
+            "model": "uniform_square_kagome_heisenberg_antiferromagnet",
+            "lattice": "square_kagome_shuriken",
+            "hamiltonian": (
+                "uniform spin-1/2 nearest-neighbor Heisenberg "
+                "antiferromagnet on the square-kagome lattice with JS=JT=J"
+            ),
+            "hamiltonian_terms": [
+                "heisenberg",
+                "nearest_neighbor",
+                "frustrated",
+                "square_kagome",
+                "localized_magnon",
+            ],
+            "parameters": {"spin": 0.5, "coupling_regime": "JS=JT=J"},
+            "observable": "square_kagome_quantum_paramagnet_reference",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "ed",
+            "standard_result": {"square_kagome_reference": True},
+            "source": "Richter_Schulenburg_Tomczak_Schmalfuss_2004",
+            "source_url": "https://arxiv.org/abs/cond-mat/0411673",
+            "citation_locator": (
+                "abstract, Eq. (1), and conclusion: square-kagome "
+                "spin-liquid-like state and localized magnons on squares"
+            ),
+        },
+        "ru_br3_kitaev_material_reference": {
+            "model": "rubr3_honeycomb_competing_exchange",
+            "lattice": "honeycomb",
+            "hamiltonian": (
+                "pseudospin-1/2 honeycomb J1-K-Gamma-Gamma-prime or "
+                "J1-K-J2-J3 competing-exchange model"
+            ),
+            "hamiltonian_terms": [
+                "kitaev",
+                "gamma",
+                "heisenberg",
+                "third_neighbor",
+                "honeycomb",
+                "material",
+            ],
+            "parameters": {
+                "material": "RuBr3",
+                "pseudospin": 0.5,
+                "ordered_state": "zigzag_antiferromagnet",
+            },
+            "observable": "kitaev_candidate_with_competing_interactions",
+            "comparison_kind": "paper_numeric",
+            "backend_needed": "neutron_scattering_and_spin_wave",
+            "standard_result": {"ru_honeycomb_kitaev_candidate": True},
+            "source": "Nawa_Imai_Sato_2026",
+            "source_url": "https://doi.org/10.1038/s41535-026-00868-6",
+            "citation_locator": (
+                "abstract and competing-model analysis: Gamma or J3 "
+                "interactions drive RuBr3 away from the ideal Kitaev limit"
+            ),
+        },
+    }
+
+    actual = {
+        name: {key: entries[name][key] for key in contract_keys}
+        for name in expected
+    }
+    assert actual == expected
 
 
 def test_literature_standard_results_include_benchmark_models_from_recent_survey():
@@ -727,18 +1269,19 @@ def test_computable_observable_coverage_report_accounts_for_all_registry_labels(
         "honeycomb_kitaev_heisenberg_four_sublattice_phases",
         "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
         "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
-        "ba3irti2o9_honeycomb_kitaev_reference",
     } <= set(report["single_bond_exchange_matrix"]["covered_benchmark_names"])
     assert "cu2iro3_honeycomb_kitaev_reference" not in report[
         "single_bond_exchange_matrix"
     ]["covered_benchmark_names"]
+    assert "ba3irti2o9_honeycomb_kitaev_reference" not in report[
+        "single_bond_exchange_matrix"
+    ]["covered_benchmark_names"]
     assert report["single_bond_exchange_matrix"]["uncovered_benchmark_names"] == []
 
-    assert report["single_bond_exchange_eigenvalues"]["executable_task_count"] == 6
+    assert report["single_bond_exchange_eigenvalues"]["executable_task_count"] == 3
     assert report["single_bond_exchange_eigenvalues"]["coverage_status"] == "fully_executable"
     assert set(report["single_bond_exchange_eigenvalues"]["covered_benchmark_names"]) == {
         "h3liir2o6_kitaev_spin_liquid_candidate_reference",
-        "ru_br3_kitaev_material_reference",
     }
     assert report["single_bond_exchange_eigenvalues"]["uncovered_benchmark_names"] == []
 
@@ -768,7 +1311,6 @@ def test_computable_observable_coverage_report_accounts_for_all_registry_labels(
     assert report["dipolar_energy_minima"]["coverage_status"] == "fully_executable"
     assert report["finite_cylinder_energy"]["coverage_status"] == "fully_executable"
     assert report["honeycomb_ising_domain_wall_energy"]["coverage_status"] == "fully_executable"
-    assert report["honeycomb_kitaev_limit"]["coverage_status"] == "fully_executable"
     assert report["triple_q_skyrmion_variational_energy"]["coverage_status"] == "fully_executable"
 
     assert sum(1 for item in report.values() if item["coverage_status"] == "manual_or_specialized") == 0
@@ -868,9 +1410,9 @@ def test_local_exchange_matrix_tasks_cover_material_eigenvalue_and_anisotropic_l
         "honeycomb_kitaev_heisenberg_four_sublattice_phases",
         "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
         "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
-        "ba3irti2o9_honeycomb_kitaev_reference",
     } <= matrix_task_names
     assert "cu2iro3_honeycomb_kitaev_reference" not in matrix_task_names
+    assert "ba3irti2o9_honeycomb_kitaev_reference" not in matrix_task_names
 
     eigenvalue_tasks = tasks_by_observable["single_bond_exchange_eigenvalues"]
     eigenvalue_task_labels = {
@@ -881,9 +1423,6 @@ def test_local_exchange_matrix_tasks_cover_material_eigenvalue_and_anisotropic_l
         ("h3liir2o6_kitaev_spin_liquid_candidate_reference", "x"),
         ("h3liir2o6_kitaev_spin_liquid_candidate_reference", "y"),
         ("h3liir2o6_kitaev_spin_liquid_candidate_reference", "z"),
-        ("ru_br3_kitaev_material_reference", "x"),
-        ("ru_br3_kitaev_material_reference", "y"),
-        ("ru_br3_kitaev_material_reference", "z"),
     }
 
     axis_for_label = {"x": 0, "y": 1, "z": 2}
@@ -1771,9 +2310,9 @@ def test_registry_paper_reference_tasks_cover_the_remaining_reference_claims():
         "garnet_gd3ga5o12_spin_liquid_reference",
         "kagome_heisenberg_topological_entanglement_reference",
         "fe_ps3_honeycomb_ising_reference",
-        "ba3irti2o9_honeycomb_kitaev_reference",
         "cu2oseo3_skyrmion_lattice_reference",
     }
+    assert "ba3irti2o9_honeycomb_kitaev_reference" not in task_names
 
     expected = {
         "clean_limit_kitaev_phase_condition": ("h3liir2o6_kitaev_spin_liquid_candidate_reference", "no_magnetic_order_reported", True),
@@ -1781,7 +2320,6 @@ def test_registry_paper_reference_tasks_cover_the_remaining_reference_claims():
         "dipolar_energy_minima": ("garnet_gd3ga5o12_spin_liquid_reference", "short_range_order_without_simple_lro", True),
         "finite_cylinder_energy": ("kagome_heisenberg_topological_entanglement_reference", "topological_entanglement_entropy", "consistent_with_Z2"),
         "honeycomb_ising_domain_wall_energy": ("fe_ps3_honeycomb_ising_reference", "ising_like_zigzag_order", True),
-        "honeycomb_kitaev_limit": ("ba3irti2o9_honeycomb_kitaev_reference", "spin_liquid_candidate", True),
         "triple_q_skyrmion_variational_energy": ("cu2oseo3_skyrmion_lattice_reference", "skyrmion_lattice_phase", True),
     }
     for task in tasks:
@@ -2019,7 +2557,6 @@ def test_stored_zncu3oh6cl2_dm_reference_matches_local_dm_relevance_status():
     "name,result_key",
     [
         ("volborthite_kagome_distorted_reference", "distorted_kagome_reference"),
-        ("vesignieite_kagome_material_reference", "distorted_kagome_relevant"),
         ("clinoatacamite_distorted_kagome_reference", "distorted_kagome_reference"),
     ],
 )
@@ -2036,6 +2573,19 @@ def test_stored_distorted_kagome_references_match_local_exchange_inequivalence_s
     assert spin_benchmarks.distorted_kagome_exchange_status(
         nearest_neighbor_exchanges=[1.0, 1.0, 1.0],
     )[result_key] is False
+
+
+def test_stored_vesignieite_reference_is_nearly_ideal_with_dominant_j3():
+    entry = next(
+        item
+        for item in LITERATURE_STANDARD_RESULTS
+        if item["name"] == "vesignieite_kagome_material_reference"
+    )
+
+    assert entry["lattice"] == "nearly_ideal_kagome"
+    assert entry["parameters"]["structural_distortion_upper_bound_percent"] == 1.0
+    assert entry["parameters"]["dominant_exchange"] == "antiferromagnetic_J3"
+    assert entry["standard_result"]["distorted_kagome_relevant"] is False
 
 
 def test_stored_barlowite_interlayer_reference_matches_local_nonzero_interlayer_status():
@@ -3319,7 +3869,6 @@ def test_registry_classical_projection_tasks_are_executable_glt_or_local_checks(
         "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
         "herbertsmithite_kagome_qsl_reference",
         "barlowite_kagome_material_reference",
-        "edwardsite_kagome_antiferromagnet_reference",
         "haydeeite_ferromagnetic_kagome_reference",
         "crcl3_honeycomb_heisenberg_reference",
         "cri3_honeycomb_ferromagnet_reference",
@@ -3328,6 +3877,7 @@ def test_registry_classical_projection_tasks_are_executable_glt_or_local_checks(
     }
     assert "zn_barlowite_kagome_qsl_reference" not in task_names
     assert "fecl3_honeycomb_antiferromagnet_reference" not in task_names
+    assert "edwardsite_kagome_antiferromagnet_reference" not in task_names
 
     for task in tasks:
         assert task["verification_kind"] == "classical_ground_state"
@@ -3384,9 +3934,9 @@ def test_pitch_and_ordering_vector_tasks_are_executable_projection_checks():
         "mnsi_chiral_helimagnet_reference",
         "cu2oseo3_skyrmion_lattice_reference",
         "fe_ps3_honeycomb_ising_reference",
-        "ru_br3_kitaev_material_reference",
         "ni_ps3_honeycomb_antiferromagnet_reference",
     }
+    assert "ru_br3_kitaev_material_reference" not in task_names
 
     for task in tasks:
         assert task["projection_note"]
@@ -3431,15 +3981,15 @@ def test_zigzag_or_spiral_projection_tasks_cover_kitaev_gamma_candidate_manifold
     tasks = zigzag_or_spiral_projection_verification_tasks()
     task_names = {task["benchmark_name"] for task in tasks}
 
-    assert len(tasks) == 13
+    assert len(tasks) == 11
     assert task_names >= {
         "kitaev_honeycomb_exact_spin_liquid_limit",
         "alpha_rucl3_kitaev_gamma_zigzag_reference",
         "beta_li2iro3_spiral_kitaev_gamma_reference",
         "gamma_li2iro3_3d_kitaev_reference",
-        "ru_br3_kitaev_material_reference",
     }
     assert "cu2iro3_honeycomb_kitaev_reference" not in task_names
+    assert "ru_br3_kitaev_material_reference" not in task_names
 
     for task in tasks:
         ordering_vectors = np.array(task["expected_ordering_vectors"], dtype=float)
@@ -3667,7 +4217,6 @@ def test_residual_projection_tasks_make_all_remaining_routed_labels_executable()
     task_labels = {task["computable_observable"] for task in tasks}
 
     assert {
-        "dipolar_luttinger_tisza_minima",
         "distorted_kagome_classical_minima",
         "classical_ground_state_manifold",
         "interlayer_ordering_vector",
@@ -3679,6 +4228,9 @@ def test_residual_projection_tasks_make_all_remaining_routed_labels_executable()
     } <= task_labels
     assert "two_band_lsw_spectrum" not in task_labels
     assert "nacuo2_triangular_heisenberg_material_reference" not in {
+        task["benchmark_name"] for task in tasks
+    }
+    assert "gadolinium_gallium_garnet_hyperkagome_reference" not in {
         task["benchmark_name"] for task in tasks
     }
 

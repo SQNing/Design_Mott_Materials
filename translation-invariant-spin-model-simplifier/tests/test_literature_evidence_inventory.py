@@ -38,9 +38,74 @@ from validation.literature_spin_model_benchmarks import (
 )
 
 
+EXPECTED_CORRECTED_CANONICAL_CONTRACTS = {
+    "ba3irti2o9_honeycomb_kitaev_reference": ("local_source_parse", ("spin_liquid_candidate",)),
+    "clinoatacamite_distorted_kagome_reference": ("local_source_parse", ("distorted_kagome_reference",)),
+    "crcl3_honeycomb_heisenberg_reference": ("local_source_parse", ("ferromagnetic_honeycomb_layers",)),
+    "crgete3_honeycomb_ferromagnet_reference": ("local_source_parse", ("ferromagnetic_order",)),
+    "cu2iro3_honeycomb_kitaev_reference": ("local_source_parse", ("honeycomb_frustrated_iridate_identity",)),
+    "cu2oseo3_skyrmion_lattice_reference": ("local_source_parse", ("skyrmion_lattice_phase",)),
+    "dy2ti2o7_spin_ice_entropy_reference": ("local_source_parse", ("pauling_entropy_observed",)),
+    "edwardsite_kagome_antiferromagnet_reference": ("local_source_parse", ("kagome_antiferromagnet_reference",)),
+    "er2ti2o7_xy_pyrochlore_order_by_disorder_reference": ("local_source_parse", ("psi2_order_selected",)),
+    "fe8_molecular_spin_tunneling_reference": ("local_source_parse", ("macroscopic_quantum_tunneling_observed",)),
+    "fe_ps3_honeycomb_ising_reference": ("local_source_parse", ("ising_like_zigzag_order",)),
+    "gadolinium_gallium_garnet_hyperkagome_reference": ("local_source_parse", ("strong_frustration",)),
+    "gamma_li2iro3_3d_kitaev_reference": ("local_source_parse", ("incommensurate_spiral_order",)),
+    "garnet_gd3te2li3o12_hyperkagome_reference": ("local_source_parse", ("garnet_frustrated_magnet",)),
+    "h3liir2o6_kitaev_spin_liquid_candidate_reference": ("local_source_parse", ("no_magnetic_order_reported",)),
+    "honeycomb_j1_j2_j3_classical_phase_diagram": ("local_source_parse", ("phases",)),
+    "honeycomb_j1_j2_kitaev_material_na2iro3_reference": ("local_source_parse", ("zigzag_order_relevant",)),
+    "honeycomb_kitaev_heisenberg_four_sublattice_phases": ("local_source_parse", ("ordered_phases",)),
+    "j1_j2_chain_bkt_transition_reference": ("local_source_parse", ("critical_j2_over_j1_approx",)),
+    "j1_j2_chain_okamoto_nomura_critical_point": ("local_source_parse", ("critical_j2_over_j1",)),
+    "kagome_heisenberg_dmrg_spin_liquid_yan_reference": ("local_source_parse", ("energy_per_site", "spin_gap_over_j")),
+    "kagome_spin_half_heisenberg_energy_reference": ("local_source_parse", ("energy_per_site_approx",)),
+    "licuvo4_spiral_chain_reference": ("local_source_parse", ("incommensurate_spiral_order",)),
+    "lieb_lattice_heisenberg_ferrimagnet_reference": ("local_source_parse", ("ground_state_spin_per_unit_cell",)),
+    "mn_ps3_honeycomb_antiferromagnet_reference": ("local_source_parse", ("neel_order_reference",)),
+    "mnsi_chiral_helimagnet_reference": ("local_source_parse", ("long_wavelength_helix",)),
+    "nacuo2_triangular_heisenberg_material_reference": ("local_source_parse", ("unconventional_spin_order_reference",)),
+    "ru_br3_kitaev_material_reference": ("local_source_parse", ("ru_honeycomb_kitaev_candidate",)),
+    "ruby_lattice_heisenberg_flat_band_reference": ("local_source_parse", ("supports_localized_magnons",)),
+    "shuriken_lattice_heisenberg_reference": ("local_source_parse", ("square_kagome_reference",)),
+    "square_heisenberg_spin_half_spin_stiffness_reference": ("local_source_parse", ("rho_s_over_j",)),
+    "square_heisenberg_spin_half_staggered_magnetization_reference": ("local_source_parse", ("staggered_magnetization",)),
+    "square_heisenberg_spin_wave_velocity_reference": ("local_source_parse", ("renormalized_velocity_over_j_approx",)),
+    "square_ring_exchange_neel_vbs_reference": ("local_source_parse", ("ring_exchange_drives_vbs_phase",)),
+    "star_lattice_heisenberg_spin_liquid_reference": ("local_source_parse", ("spin_liquid_or_valence_bond_reference",)),
+    "triangular_heisenberg_magnetization_plateau_reference": ("local_source_parse", ("one_third_plateau",)),
+    "vesignieite_kagome_material_reference": ("local_source_parse", ("distorted_kagome_relevant",)),
+    "blume_capel_spin1_zero_temperature_level_crossing": ("local_recompute", ("square_lattice_d_over_j_crossing",)),
+    "checkerboard_heisenberg_afm_planar_pyrochlore_reference": ("local_recompute", ("zero_total_spin_per_crossed_plaquette",)),
+    "cubic_ising_critical_temperature_reference": ("local_recompute", ("tc_over_j",)),
+    "fcc_j1_j2_heisenberg_type_order_reference": ("local_recompute", ("common_orders",)),
+    "honeycomb_ising_ferromagnet_exact_tc": ("local_recompute", ("tc_over_j",)),
+    "honeycomb_j1_j2_spiral_ring_reference": ("local_recompute", ("ring_condition",)),
+    "kagome_ising_antiferromagnet_residual_entropy_reference": ("local_recompute", ("macroscopic_ground_state_degeneracy",)),
+    "kagome_ising_ferromagnet_exact_tc": ("local_recompute", ("tc_over_j",)),
+    "majundar_ghosh_chain_exact_dimer_point": ("local_recompute", ("energy_per_site", "degenerate_dimer_coverings")),
+    "one_dimensional_classical_ising_no_finite_t_transition": ("local_recompute", ("finite_temperature_transition", "tc_over_j")),
+    "pyrochlore_heisenberg_afm_coulomb_phase_reference": ("local_recompute", ("zero_total_spin_per_tetrahedron", "pinch_points")),
+    "shastry_sutherland_exact_dimer_product": ("local_recompute", ("energy_per_dimer", "energy_per_spin")),
+    "simple_cubic_j1_j2_collinear_reference": ("local_recompute", ("neel_to_collinear_boundary_j2_over_j1",)),
+    "single_ion_spin1_anisotropy_levels": ("local_recompute", ("levels", "degeneracies")),
+    "square_fully_frustrated_ising_residual_entropy_reference": ("local_recompute", ("macroscopic_ground_state_degeneracy",)),
+    "takhtajan_babujian_spin1_critical_point": ("local_recompute", ("theta_radians", "is_integrable")),
+    "transverse_field_ising_chain_critical_point": ("local_recompute", ("critical_field_over_exchange",)),
+    "transverse_field_ising_chain_gap": ("local_recompute", ("gap_formula", "gap_formula_at_g_0_6")),
+    "triangular_ising_ferromagnet_exact_tc": ("local_recompute", ("tc_over_j",)),
+    "xx_spin_half_chain_free_fermion_energy": ("local_recompute", ("energy_per_site",)),
+    "xxz_spin_half_chain_phase_boundaries": ("local_recompute", ("ferromagnetic_boundary_delta", "neel_boundary_delta", "gapless_interval")),
+}
+
+
 @pytest.fixture(scope="module")
 def loaded_inventory():
-    return load_and_validate_inventory()
+    return validate_inventory(
+        build_inventory_data(LITERATURE_STANDARD_RESULTS),
+        LITERATURE_STANDARD_RESULTS,
+    )
 
 
 def mutable_inventory(loaded_inventory):
@@ -146,6 +211,49 @@ def test_every_benchmark_has_an_explicit_canonical_observable_spec():
         )
 
 
+def test_exact_58_scientific_correction_contracts_are_source_derived_and_target_free(
+    loaded_inventory,
+):
+    contracts = {
+        contract.benchmark_name: contract
+        for contract in loaded_inventory.contracts
+    }
+
+    assert len(EXPECTED_CORRECTED_CANONICAL_CONTRACTS) == 58
+    assert set(EXPECTED_CORRECTED_CANONICAL_CONTRACTS) <= set(contracts)
+    for name, (mode, fields) in EXPECTED_CORRECTED_CANONICAL_CONTRACTS.items():
+        contract = contracts[name]
+        expected_identity = (
+            f"{mode}_{'_and_'.join(fields)}_for_{name}_observable"
+        )
+        expected_primary_semantic = (
+            f"Authoritative-source contract ({mode}) for {name}: "
+            f"{', '.join(fields)}."
+        )
+
+        assert contract.observable["identity"] == expected_identity
+        assert contract.observable["semantics"][0] == expected_primary_semantic
+        assert contract.observable["claim_fields"] == fields
+        assert tuple(
+            field["id"] for field in contract.representation["fields"]
+        ) == fields
+        assert {
+            field["derivation"]
+            for field in contract.representation["fields"]
+        } == {mode}
+
+        serialized = json.dumps(contract.as_plain_data(), sort_keys=True).lower()
+        for forbidden in (
+            '"answer"',
+            '"target"',
+            '"source_excerpt"',
+            '"source_sha256"',
+            '"verdict"',
+            '"pass"',
+        ):
+            assert forbidden not in serialized
+
+
 @pytest.mark.parametrize(
     "placeholder_identity",
     [
@@ -174,8 +282,8 @@ def test_representative_placeholder_fields_expand_to_scientific_observables(
     }
     expected = {
         "ba3irti2o9_honeycomb_kitaev_reference": (
-            "assessment_of_spin_liquid_behavior_in_ba3irti2o9",
-            "published material-scale assessment of spin-liquid behavior",
+            "local_source_parse_spin_liquid_candidate_for_ba3irti2o9_honeycomb_kitaev_reference_observable",
+            "Authoritative-source contract (local_source_parse) for ba3irti2o9_honeycomb_kitaev_reference: spin_liquid_candidate.",
         ),
         "herbertsmithite_kagome_qsl_reference": (
             "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
@@ -461,7 +569,7 @@ def test_sources_are_registry_derived_unique_canonical_identities_covering_every
         canonical_source_identity(entry["source_url"])
         for entry in LITERATURE_STANDARD_RESULTS
     }
-    assert len(expected_identities) == 134
+    assert len(expected_identities) == 137
     assert len(sources) == len(expected_identities)
     assert len({source["source_id"] for source in sources}) == len(expected_identities)
     assert len({tuple(source["canonical_identity"].items()) for source in sources}) == len(
@@ -559,12 +667,12 @@ def test_corrected_mismatched_primary_source_identities_are_registered(
             "https://doi.org/10.1016/0022-3697(61)90053-1",
         ),
         "square_fully_frustrated_ising_residual_entropy_reference": (
-            "Villain_1977",
-            "https://doi.org/10.1088/0022-3719/10/10/014",
+            "Garel_Maillard_1983",
+            "https://doi.org/10.1088/0305-4470/16/10/023",
         ),
         "mn_ps3_honeycomb_antiferromagnet_reference": (
-            "Wildes_1998",
-            "https://doi.org/10.1088/0953-8984/10/28/020",
+            "Ressouche_et_al_2010",
+            "https://doi.org/10.1103/physrevb.82.100408",
         ),
         "pyrochlore_dipolar_spin_ice_pauling_entropy": (
             "Bramwell_Gingras_2001",
@@ -655,8 +763,8 @@ def test_task5_corrected_source_identities_are_registered(loaded_inventory):
             "https://doi.org/10.1140/epjb/e2015-60113-7",
         ),
         "nacuo2_triangular_heisenberg_material_reference": (
-            "Hsieh_Qian_Berger_Cava_Lynn_Huang_Hasan_2008",
-            "https://doi.org/10.1016/j.physb.2007.10.295",
+            "Hsieh_et_al_arXiv_1405.6184",
+            "https://arxiv.org/abs/1405.6184",
         ),
     }
 
@@ -745,10 +853,10 @@ def test_task5_tightened_claims_match_direct_source_scope(loaded_inventory):
             {"large_j2_collinear_order": True},
             "abstract: large-J2 collinear order for ferromagnetic J1 and antiferromagnetic J2",
         ),
-        "nacuo2_triangular_heisenberg_material_reference": (
-            "material_spin_order_reference",
-            {"unconventional_spin_order_reference": True},
-            "abstract: unconventional spin order in triangular-lattice NaCrO2",
+            "nacuo2_triangular_heisenberg_material_reference": (
+                "material_spin_order_reference",
+                {"unconventional_spin_order_reference": True},
+                "abstract and neutron-scattering results: unconventional dimensional-crossover spin order in NaCrO2",
         ),
     }
     for benchmark_name, (observable, standard_result, locator) in expected.items():
@@ -867,10 +975,10 @@ def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
     }
     expected = {
         "honeycomb_j1_j2_j3_classical_phase_diagram": (
-            "https://doi.org/10.1016/0378-4363(79)90002-0"
+            "https://arxiv.org/abs/1309.3744"
         ),
         "takhtajan_babujian_spin1_critical_point": (
-            "https://doi.org/10.1016/0375-9601(82)90403-0"
+            "https://arxiv.org/abs/cond-mat/9811353"
         ),
         "uimin_lai_sutherland_spin1_su3_point": (
             "https://doi.org/10.1103/PhysRevB.12.3795"
@@ -879,13 +987,13 @@ def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
             "https://doi.org/10.1016/0378-4363(81)90838-X"
         ),
         "j1_j2_chain_bkt_transition_reference": (
-            "https://doi.org/10.1016/0375-9601(92)90823-5"
+            "https://arxiv.org/abs/1006.5052"
         ),
         "triangular_ising_ferromagnet_exact_tc": (
-            "https://doi.org/10.1016/0031-8914(50)90130-3"
+            "https://doi.org/10.1143/ptp.5.2.177"
         ),
         "honeycomb_ising_ferromagnet_exact_tc": (
-            "https://doi.org/10.1016/0031-8914(50)90130-3"
+            "https://doi.org/10.1143/ptp.5.2.177"
         ),
     }
     for benchmark_name, source_url in expected.items():
@@ -1019,7 +1127,7 @@ def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
     loaded_inventory,
 ):
     routes = loaded_inventory.source_provisioning
-    assert len(routes) == len(loaded_inventory.source_index) == 134
+    assert len(routes) == len(loaded_inventory.source_index) == 137
     assert {route["source_id"] for route in routes} == {
         source["source_id"] for source in loaded_inventory.source_index
     }
