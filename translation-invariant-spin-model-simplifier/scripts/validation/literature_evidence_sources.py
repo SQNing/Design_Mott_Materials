@@ -1013,26 +1013,49 @@ class _VisiblePublicationRecordParser(HTMLParser):
             self.records[record_index]["text"].append(normalized)
 
 
+_DOI_VALUE_PATTERN = r"10\.[0-9]{4,9}/[^\s<>\"']+"
+_PLAIN_DOI_VALUE = re.compile(rf"{_DOI_VALUE_PATTERN}\Z", flags=re.IGNORECASE)
+_EXPLICIT_DOI_VALUE = re.compile(
+    rf"(?:https://doi\.org/|(?<![a-z0-9])doi\s*:\s*)"
+    rf"(?P<value>{_DOI_VALUE_PATTERN})",
+    flags=re.IGNORECASE,
+)
+
+
+def _complete_doi_values(carriers):
+    values = set()
+    for carrier in carriers:
+        if not isinstance(carrier, str):
+            continue
+        rendered = unescape(carrier).strip()
+        plain_match = _PLAIN_DOI_VALUE.fullmatch(rendered)
+        if plain_match is not None:
+            values.add(plain_match.group(0).casefold())
+        values.update(
+            match.group("value").casefold()
+            for match in _EXPLICIT_DOI_VALUE.finditer(rendered)
+        )
+    return values
+
+
+def _has_exact_complete_doi(carriers, canonical_doi):
+    if not isinstance(canonical_doi, str):
+        return False
+    expected = canonical_doi.strip().casefold()
+    if _PLAIN_DOI_VALUE.fullmatch(expected) is None:
+        return False
+    return _complete_doi_values(carriers) == {expected}
+
+
 def _record_has_exact_doi(record, canonical_doi):
-    exact_pattern = re.compile(
-        rf"(?<![a-z0-9]){re.escape(canonical_doi)}(?![a-z0-9])",
-        flags=re.IGNORECASE,
+    return _has_exact_complete_doi(
+        (
+            *record["text"],
+            *record["hrefs"],
+            *record["doi_metadata"],
+        ),
+        canonical_doi,
     )
-    visible_text = " ".join(record["text"])
-    if exact_pattern.search(visible_text):
-        return True
-    exact_url = f"https://doi.org/{canonical_doi}"
-    if any(href.casefold() == exact_url for href in record["hrefs"]):
-        return True
-    for value in record["doi_metadata"]:
-        normalized = value.strip().casefold()
-        for prefix in ("doi:", "https://doi.org/"):
-            if normalized.startswith(prefix):
-                normalized = normalized[len(prefix) :]
-                break
-        if normalized == canonical_doi:
-            return True
-    return False
 
 
 def _validate_author_publications_same_work(
@@ -1439,7 +1462,10 @@ def _validate_husimi_syozi_visible_text(visible_text):
     normalized = " ".join(visible_text.split())
     if "The Statistics of Honeycomb and Triangular Lattice. I" not in normalized:
         raise SourceEvidenceError("OUP HTML is missing the exact article title")
-    if "10.1143/ptp.5.2.177" not in normalized.casefold():
+    if not _has_exact_complete_doi(
+        (normalized,),
+        "10.1143/ptp.5.2.177",
+    ):
         raise SourceEvidenceError("OUP HTML is missing the canonical DOI")
     if "Kodi Husimi" not in normalized or not re.search(
         r"Itiro\s+Sy(?:o|ô)zi", normalized, flags=re.IGNORECASE

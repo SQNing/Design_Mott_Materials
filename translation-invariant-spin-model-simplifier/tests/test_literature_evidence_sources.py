@@ -857,6 +857,24 @@ def test_author_publications_same_work_requires_page_doi(mutation):
         )
 
 
+@pytest.mark.parametrize("suffix", (b".999", b"/999", b"-other", b"_other"))
+def test_author_publications_same_work_rejects_longer_doi_with_canonical_prefix(
+    suffix,
+):
+    page = AUTHOR_GAREL_PAGE.replace(
+        AUTHOR_GAREL_DOI,
+        AUTHOR_GAREL_DOI + suffix,
+    )
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        validate_work_identity_document(
+            page,
+            identity={"kind": "doi", "value": "10.1088/0305-4470/16/10/023"},
+            authoritative_route=_author_garel_route(),
+            evidence_kind="author_publications_same_work",
+            bibliographic_metadata=AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA,
+        )
+
+
 @pytest.mark.parametrize(
     "hidden_link",
     (
@@ -3141,9 +3159,10 @@ def test_html_download_and_offline_visible_text_are_deterministic(tmp_path):
 def test_oup_html_accepts_exact_canonical_dotted_doi():
     route_spec = _oup_html_route()
     canonical_payload = OUP_HTML.replace(
-        b"10.1143/ptp/5.2.177",
-        b"10.1143/ptp.5.2.177",
+        b"https://doi.org/10.1143/ptp.5.2.177",
+        b"DOI: 10.1143/PTP.5.2.177",
     )
+    assert canonical_payload != OUP_HTML
     assert validate_download_response(
         route_spec,
         status=200,
@@ -3151,6 +3170,23 @@ def test_oup_html_accepts_exact_canonical_dotted_doi():
         body=canonical_payload,
         final_url=route_spec["url"],
     ) == "text/html"
+
+
+@pytest.mark.parametrize("suffix", (b".999", b"/999", b"-other", b"_other"))
+def test_oup_html_rejects_longer_doi_with_canonical_prefix(suffix):
+    route_spec = _oup_html_route()
+    longer_doi_payload = OUP_HTML.replace(
+        b"10.1143/ptp.5.2.177",
+        b"10.1143/ptp.5.2.177" + suffix,
+    )
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        validate_download_response(
+            route_spec,
+            status=200,
+            headers={"content-type": "text/html"},
+            body=longer_doi_payload,
+            final_url=route_spec["url"],
+        )
 
 
 def test_oup_html_rejects_slash_substitute_for_canonical_doi():
