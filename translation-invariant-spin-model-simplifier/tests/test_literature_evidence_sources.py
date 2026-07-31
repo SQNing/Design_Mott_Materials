@@ -890,6 +890,171 @@ ROUND5_UNSUPPORTED_PREFIX_RULES = (
         id="escaped-selector",
     ),
 )
+ROUND6_CLAMPED_OPACITY_STYLES = (
+    pytest.param(b"opacity:-1", id="negative-integer"),
+    pytest.param(b"opacity:-0.1", id="negative-decimal"),
+    pytest.param(b"opacity:-1%", id="negative-percent"),
+    pytest.param(b"opacity:-1e-9", id="negative-small-exponent"),
+    pytest.param(b"opacity:-1e+2%", id="negative-large-percent"),
+    pytest.param(b"opacity:calc(-1)", id="calc-negative-integer"),
+    pytest.param(b"opacity:calc(-.1)", id="calc-negative-decimal"),
+    pytest.param(b"opacity:calc(-1%)", id="calc-negative-percent"),
+    pytest.param(
+        b"opacity:calc(-1e-9)",
+        id="calc-negative-exponent",
+    ),
+)
+ROUND6_UNRELIABLE_NUMERIC_STYLES = (
+    pytest.param(b"opacity:1e-9999", id="opacity-small-exponent"),
+    pytest.param(
+        b"opacity:1e-9999%",
+        id="opacity-small-percent-exponent",
+    ),
+    pytest.param(
+        b"font-size:1e-9999px",
+        id="font-small-exponent",
+    ),
+    pytest.param(b"opacity:1e9999", id="opacity-large-exponent"),
+    pytest.param(
+        b"opacity:1e9999%",
+        id="opacity-large-percent-exponent",
+    ),
+    pytest.param(
+        b"font-size:1e9999px",
+        id="font-large-exponent",
+    ),
+    pytest.param(
+        b"opacity:calc(1e-9999)",
+        id="opacity-calc-small-exponent",
+    ),
+    pytest.param(
+        b"opacity:calc(1e9999%)",
+        id="opacity-calc-large-percent-exponent",
+    ),
+    pytest.param(
+        b"font-size:calc(1e-9999px)",
+        id="font-calc-small-exponent",
+    ),
+    pytest.param(
+        b"opacity:1e-00009999",
+        id="opacity-leading-zero-exponent",
+    ),
+    pytest.param(
+        b"opacity:1e999999999999999999999999999999999999",
+        id="opacity-bounded-exponent-parser",
+    ),
+)
+ROUND6_I1_HIDDEN_STYLES = (
+    ROUND6_CLAMPED_OPACITY_STYLES + ROUND6_UNRELIABLE_NUMERIC_STYLES
+)
+ROUND6_I1_STYLESHEET_CASES = (
+    pytest.param("class", b"opacity:-1", id="class-negative-integer"),
+    pytest.param("id", b"opacity:-0.1", id="id-negative-decimal"),
+    pytest.param("tag", b"opacity:-1%", id="tag-negative-percent"),
+    pytest.param("class", b"opacity:calc(-1)", id="class-calc-negative"),
+    pytest.param("id", b"opacity:calc(-.1)", id="id-calc-negative-decimal"),
+    pytest.param("tag", b"opacity:calc(-1%)", id="tag-calc-negative-percent"),
+    pytest.param(
+        "class",
+        b"opacity:1e-9999",
+        id="class-small-exponent",
+    ),
+    pytest.param(
+        "id",
+        b"opacity:1e-9999%",
+        id="id-small-percent-exponent",
+    ),
+    pytest.param(
+        "tag",
+        b"font-size:1e-9999px",
+        id="tag-font-small-exponent",
+    ),
+    pytest.param(
+        "class",
+        b"opacity:1e9999",
+        id="class-large-exponent",
+    ),
+    pytest.param(
+        "id",
+        b"opacity:1e9999%",
+        id="id-large-percent-exponent",
+    ),
+    pytest.param(
+        "tag",
+        b"font-size:1e9999px",
+        id="tag-font-large-exponent",
+    ),
+    pytest.param(
+        "class",
+        b"opacity:calc(1e-9999)",
+        id="class-calc-small-exponent",
+    ),
+    pytest.param(
+        "id",
+        b"opacity:calc(1e9999%)",
+        id="id-calc-large-percent-exponent",
+    ),
+    pytest.param(
+        "tag",
+        b"font-size:calc(1e-9999px)",
+        id="tag-font-calc-small-exponent",
+    ),
+)
+ROUND6_I1_VISIBLE_STYLES = (
+    pytest.param(b"opacity:2", id="positive-clamps-to-one"),
+    pytest.param(b"opacity:200%", id="positive-percent-clamps-to-one"),
+    pytest.param(b"opacity:calc(2)", id="calc-positive-clamps-to-one"),
+    pytest.param(
+        b"opacity:calc(200%)",
+        id="calc-positive-percent-clamps-to-one",
+    ),
+    pytest.param(b"opacity:1e-308", id="reliable-small-opacity"),
+    pytest.param(b"opacity:1e308", id="reliable-large-opacity"),
+    pytest.param(b"font-size:1e-308px", id="reliable-small-font"),
+    pytest.param(b"font-size:1e308px", id="reliable-large-font"),
+    pytest.param(b"font-size:-1px", id="negative-font-is-not-zero"),
+    pytest.param(
+        b"font-size:calc(-1px)",
+        id="calc-negative-font-is-not-zero",
+    ),
+)
+ROUND6_I1_VISIBLE_STYLESHEET_CASES = (
+    pytest.param("class", b"opacity:2", id="class-positive-opacity"),
+    pytest.param("id", b"opacity:200%", id="id-positive-percent"),
+    pytest.param("tag", b"opacity:calc(2)", id="tag-calc-positive"),
+    pytest.param(
+        "class",
+        b"opacity:1e-308",
+        id="class-reliable-small-opacity",
+    ),
+    pytest.param(
+        "id",
+        b"font-size:1e308px",
+        id="id-reliable-large-font",
+    ),
+    pytest.param(
+        "tag",
+        b"font-size:-1px",
+        id="tag-negative-font-control",
+    ),
+)
+ROUND6_COLLAPSED_VISIBILITY_STYLES = (
+    pytest.param(b"visibility:collapse", id="collapse"),
+    pytest.param(b"VISIBILITY:COLLAPSE", id="case-insensitive-collapse"),
+    pytest.param(
+        b"visibility: collapse !important",
+        id="collapse-important",
+    ),
+)
+ROUND6_VISIBLE_VISIBILITY_STYLES = (
+    pytest.param(b"visibility:visible", id="visible"),
+    pytest.param(b"visibility:inherit", id="inherit"),
+    pytest.param(b"visibility:initial", id="initial"),
+    pytest.param(
+        b"VISIBILITY:VISIBLE !IMPORTANT",
+        id="case-insensitive-visible-important",
+    ),
+)
 
 
 def _author_garel_page_with_doi():
@@ -963,6 +1128,37 @@ def _author_page_with_local_stylesheet(stylesheet, *, extra_doi):
         1,
     )
     assert page != AUTHOR_GAREL_PAGE
+    return page
+
+
+def _author_page_with_stylesheet_doi_style(
+    style,
+    *,
+    selector_kind,
+    extra_doi,
+):
+    selector = {
+        "class": b".hide-doi",
+        "id": b"#hide-doi",
+        "tag": b"aside",
+    }[selector_kind]
+    page = _author_page_with_local_stylesheet(
+        selector + b" { " + style + b" }",
+        extra_doi=extra_doi,
+    )
+    value = EXTRA_DOI if extra_doi else AUTHOR_GAREL_RESOLVER
+    if selector_kind == "id":
+        page = page.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b'<p id="hide-doi">' + value + b"</p>",
+            1,
+        )
+    elif selector_kind == "tag":
+        page = page.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b"<aside>" + value + b"</aside>",
+            1,
+        )
     return page
 
 
@@ -1625,6 +1821,153 @@ def test_round5_author_nonzero_and_ordinary_styles_remain_visible(
     extra_doi,
 ):
     page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+    else:
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_I1_HIDDEN_STYLES)
+def test_round6_i1_author_clamped_and_unreliable_inline_values_hide_doi(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "style"),
+    ROUND6_I1_STYLESHEET_CASES,
+)
+def test_round6_i1_author_clamped_and_unreliable_stylesheet_values_hide_doi(
+    selector_kind,
+    style,
+    extra_doi,
+):
+    page = _author_page_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_I1_VISIBLE_STYLES)
+def test_round6_i1_author_reliable_positive_and_negative_font_controls_visible(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+    else:
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "style"),
+    ROUND6_I1_VISIBLE_STYLESHEET_CASES,
+)
+def test_round6_i1_author_reliable_stylesheet_controls_remain_visible(
+    selector_kind,
+    style,
+    extra_doi,
+):
+    page = _author_page_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+    else:
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_COLLAPSED_VISIBILITY_STYLES)
+def test_round6_i2_author_collapsed_inline_visibility_hides_doi(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("selector_kind", ("class", "id", "tag"))
+@pytest.mark.parametrize("style", ROUND6_COLLAPSED_VISIBILITY_STYLES)
+def test_round6_i2_author_collapsed_stylesheet_visibility_hides_doi(
+    style,
+    selector_kind,
+    extra_doi,
+):
+    page = _author_page_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_VISIBLE_VISIBILITY_STYLES)
+def test_round6_i2_author_ordinary_inline_visibility_remains_visible(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+    else:
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "style"),
+    (
+        ("class", b"visibility:visible"),
+        ("id", b"visibility:inherit"),
+        ("tag", b"visibility:initial"),
+    ),
+    ids=("class-visible", "id-inherit", "tag-initial"),
+)
+def test_round6_i2_author_ordinary_stylesheet_visibility_remains_visible(
+    selector_kind,
+    style,
+    extra_doi,
+):
+    page = _author_page_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
     if extra_doi:
         with pytest.raises(SourceEvidenceError, match="DOI"):
             _validate_author_garel_page(page)
@@ -4156,6 +4499,37 @@ def _oup_payload_with_local_stylesheet(stylesheet, *, extra_doi):
     return payload
 
 
+def _oup_payload_with_stylesheet_doi_style(
+    style,
+    *,
+    selector_kind,
+    extra_doi,
+):
+    selector = {
+        "class": b".hide-doi",
+        "id": b"#hide-doi",
+        "tag": b"aside",
+    }[selector_kind]
+    payload = _oup_payload_with_local_stylesheet(
+        selector + b" { " + style + b" }",
+        extra_doi=extra_doi,
+    )
+    value = EXTRA_DOI if extra_doi else OUP_RESOLVER
+    if selector_kind == "id":
+        payload = payload.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b'<p id="hide-doi">' + value + b"</p>",
+            1,
+        )
+    elif selector_kind == "tag":
+        payload = payload.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b"<aside>" + value + b"</aside>",
+            1,
+        )
+    return payload
+
+
 @pytest.mark.parametrize(
     "fake_resolver",
     (
@@ -4758,6 +5132,177 @@ def test_round5_oup_nonzero_and_ordinary_styles_remain_visible(
     extra_doi,
 ):
     payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_I1_HIDDEN_STYLES)
+def test_round6_i1_oup_clamped_and_unreliable_inline_values_hide_doi(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "style"),
+    ROUND6_I1_STYLESHEET_CASES,
+)
+def test_round6_i1_oup_clamped_and_unreliable_stylesheet_values_hide_doi(
+    tmp_path,
+    validation_mode,
+    selector_kind,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_I1_VISIBLE_STYLES)
+def test_round6_i1_oup_reliable_positive_and_negative_font_controls_visible(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "style"),
+    ROUND6_I1_VISIBLE_STYLESHEET_CASES,
+)
+def test_round6_i1_oup_reliable_stylesheet_controls_remain_visible(
+    tmp_path,
+    validation_mode,
+    selector_kind,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_COLLAPSED_VISIBILITY_STYLES)
+def test_round6_i2_oup_collapsed_inline_visibility_hides_doi(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("selector_kind", ("class", "id", "tag"))
+@pytest.mark.parametrize("style", ROUND6_COLLAPSED_VISIBILITY_STYLES)
+def test_round6_i2_oup_collapsed_stylesheet_visibility_hides_doi(
+    tmp_path,
+    validation_mode,
+    style,
+    selector_kind,
+    extra_doi,
+):
+    payload = _oup_payload_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND6_VISIBLE_VISIBILITY_STYLES)
+def test_round6_i2_oup_ordinary_inline_visibility_remains_visible(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "style"),
+    (
+        ("class", b"visibility:visible"),
+        ("id", b"visibility:inherit"),
+        ("tag", b"visibility:initial"),
+    ),
+    ids=("class-visible", "id-inherit", "tag-initial"),
+)
+def test_round6_i2_oup_ordinary_stylesheet_visibility_remains_visible(
+    tmp_path,
+    validation_mode,
+    selector_kind,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_stylesheet_doi_style(
+        style,
+        selector_kind=selector_kind,
+        extra_doi=extra_doi,
+    )
     if extra_doi:
         with pytest.raises(SourceEvidenceError, match="DOI"):
             _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)

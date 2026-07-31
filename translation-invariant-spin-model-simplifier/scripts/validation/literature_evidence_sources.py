@@ -986,18 +986,21 @@ _CSS_SIMPLE_CLASS = re.compile(r"\.[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
 _CSS_SIMPLE_ID = re.compile(r"#[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
 _CSS_SIMPLE_TAG = re.compile(r"[a-z][a-z0-9-]*\Z", flags=re.IGNORECASE)
 _CSS_NUMBER_PATTERN = (
-    r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
+    r"(?P<sign>[+-]?)(?P<mantissa>\d+(?:\.\d*)?|\.\d+)"
+    r"(?:[eE](?P<exponent_sign>[+-]?)(?P<exponent>\d+))?"
 )
 _CSS_NUMERIC_VALUE = re.compile(
-    rf"(?P<number>{_CSS_NUMBER_PATTERN})(?P<unit>[a-z]+|%)?\Z",
+    rf"{_CSS_NUMBER_PATTERN}(?P<unit>[a-z]+|%)?\Z",
     flags=re.IGNORECASE,
 )
 _CSS_SIMPLE_CALC_VALUE = re.compile(
-    rf"calc\(\s*(?P<number>{_CSS_NUMBER_PATTERN})"
+    rf"calc\(\s*{_CSS_NUMBER_PATTERN}"
     r"(?P<unit>[a-z]+|%)?\s*\)\Z",
     flags=re.IGNORECASE,
 )
 _CSS_FUNCTION = re.compile(r"(?:^|[^a-z0-9_-])[a-z_-][a-z0-9_-]*\s*\(", re.I)
+_CSS_NUMERIC_UNRELIABLE = object()
+_MAX_CSS_NUMERIC_EXPONENT_MAGNITUDE = 308
 _MAX_INLINE_STYLE_CHARACTERS = 65_536
 _MAX_LOCAL_STYLE_BLOCKS = 256
 _MAX_LOCAL_STYLESHEET_CHARACTERS = 1_000_000
@@ -1012,9 +1015,27 @@ def _css_value_without_important(value):
     ).strip()
 
 
-def _css_number_is_zero(number):
-    mantissa = re.split(r"[eE]", number.lstrip("+-"), maxsplit=1)[0]
-    return not any(character != "0" for character in mantissa if character.isdigit())
+def _css_exponent_is_reliable(exponent):
+    if exponent is None:
+        return True
+    significant_digits = exponent.lstrip("0") or "0"
+    limit = str(_MAX_CSS_NUMERIC_EXPONENT_MAGNITUDE)
+    return (
+        len(significant_digits) < len(limit)
+        or (
+            len(significant_digits) == len(limit)
+            and significant_digits <= limit
+        )
+    )
+
+
+def _css_numeric_classification(match):
+    mantissa_digits = match.group("mantissa").replace(".", "")
+    if not _css_exponent_is_reliable(match.group("exponent")):
+        return _CSS_NUMERIC_UNRELIABLE
+    if not any(character != "0" for character in mantissa_digits):
+        return 0
+    return -1 if match.group("sign") == "-" else 1
 
 
 def _css_numeric_value(value, *, allowed_units, allow_calc):
@@ -1032,7 +1053,7 @@ def _css_numeric_value(value, *, allowed_units, allow_calc):
         and re.fullmatch(r"[a-z]+", unit, flags=re.IGNORECASE) is None
     ):
         return None
-    return _css_number_is_zero(match.group("number"))
+    return _css_numeric_classification(match)
 
 
 def _style_declaration_hides(property_name, value):
@@ -1041,23 +1062,30 @@ def _style_declaration_hides(property_name, value):
     if property_name == "display":
         return value == "none" or _CSS_FUNCTION.search(value) is not None
     if property_name == "visibility":
-        return value == "hidden" or _CSS_FUNCTION.search(value) is not None
+        return (
+            value in {"hidden", "collapse"}
+            or _CSS_FUNCTION.search(value) is not None
+        )
     if property_name == "opacity":
         numeric = _css_numeric_value(
             value,
             allowed_units={"", "%"},
             allow_calc=False,
         )
+        if numeric is _CSS_NUMERIC_UNRELIABLE:
+            return True
         if numeric is not None:
-            return numeric
+            return numeric <= 0
         if value.casefold().startswith("calc("):
             calculated = _css_numeric_value(
                 value,
                 allowed_units={"", "%"},
                 allow_calc=True,
             )
+            if calculated is _CSS_NUMERIC_UNRELIABLE:
+                return True
             if calculated is not None:
-                return calculated
+                return calculated <= 0
         return _CSS_FUNCTION.search(value) is not None
     if property_name == "font-size":
         numeric = _css_numeric_value(
@@ -1065,16 +1093,20 @@ def _style_declaration_hides(property_name, value):
             allowed_units={"", "%", "<dimension>"},
             allow_calc=False,
         )
+        if numeric is _CSS_NUMERIC_UNRELIABLE:
+            return True
         if numeric is not None:
-            return numeric
+            return numeric == 0
         if value.casefold().startswith("calc("):
             calculated = _css_numeric_value(
                 value,
                 allowed_units={"", "%", "<dimension>"},
                 allow_calc=True,
             )
+            if calculated is _CSS_NUMERIC_UNRELIABLE:
+                return True
             if calculated is not None:
-                return calculated
+                return calculated == 0
         return _CSS_FUNCTION.search(value) is not None
     if property_name == "content-visibility":
         return value == "hidden" or _CSS_FUNCTION.search(value) is not None
