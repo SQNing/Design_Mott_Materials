@@ -62,7 +62,9 @@ The approved implementation scope consists of:
 2. The thirteen central registry, source, inventory, audit, and test files
    enumerated in the approval request.
 3. The fifty-eight explicitly enumerated unresolved record JSON files.
-4. New source-cache directories for newly introduced canonical identities.
+4. New source-cache directories for every final identity whose deterministic
+   cache directory does not exist at design time, whether the identity is newly
+   introduced or retained.
 5. New design and `155_of_155` report artifacts.
 
 No other existing file may be overwritten, moved, truncated, or deleted. Old
@@ -369,7 +371,7 @@ The versioned design file and final reports are new files, not replacements:
     reports/remaining_strict_reproduction_gaps_155_of_155.md
     reports/literature_reproduction_audit_155_of_155.pdf
 
-The only new cache directory trees permitted are the following thirty-three
+The only new cache directory trees permitted are the following forty-seven
 exclusive-create paths. Each comment records the canonical identity from which
 the source ID is deterministically derived:
 
@@ -406,6 +408,30 @@ the source ID is deterministically derived:
     source-cache/doi_6da8d81e7ff23f395d98/  # doi:10.1103/physrevlett.121.107203
     source-cache/doi_4dd4b0d22b13ffc3709d/  # doi:10.1103/physrevlett.73.2500
     source-cache/doi_f334ed253565110358b3/  # doi:10.1143/ptp.5.2.177
+    source-cache/doi_85b0ca56044270e7e63e/  # doi:10.1007/bf02980577
+    source-cache/doi_aec03f65476f23115a77/  # doi:10.1016/0022-3697(61)90053-1
+    source-cache/doi_804ce6147864268c7acb/  # doi:10.1016/0378-4363(81)90838-x
+    source-cache/doi_c580f55afb67414f9a9e/  # doi:10.1021/jacs.7b06911
+    source-cache/doi_7535f50aacaae5fd8e46/  # doi:10.1038/20619
+    source-cache/doi_95a1148cb5d14b4d9680/  # doi:10.1038/nature25482
+    source-cache/doi_417e9be0540e18a5c1bf/  # doi:10.1063/1.367729
+    source-cache/doi_b757c34f112f5da7b6c7/  # doi:10.1088/0022-3719/13/31/002
+    source-cache/doi_e3b1415a2e57b3de696a/  # doi:10.1088/0953-8984/3/1/005
+    source-cache/doi_3c0cd7d12c74eed185ff/  # doi:10.1088/0953-8984/7/1/008
+    source-cache/doi_187f5f1c3bdb3f0bdeef/  # doi:10.1126/science.1214143
+    source-cache/doi_be978237972b2466880e/  # doi:10.1126/science.284.5411.133
+    source-cache/doi_a368c0c9e03dd0b4142f/  # doi:10.1143/ptp/10.2.158
+    source-cache/doi_8bdac77ccac0554c0b1b/  # doi:10.1209/epl/i2004-10484-x
+
+Thirty-three of these paths correspond to the added identity set below.
+Fourteen correspond to retained identities that have no local cache at design
+time; those fourteen serve fifteen benchmarks because the two Kano-Naya kagome
+benchmarks share doi:10.1143/ptp/10.2.158. In total, the forty-seven paths
+serve fifty-six of the fifty-eight gaps. The remaining two gaps read the
+already-present, verified caches below without modifying them:
+
+    source-cache/doi_1ef6a4cf65b6598edb8b/  # doi:10.1103/physrevb.86.140405; Ba3IrTi2O9
+    source-cache/doi_0561dc1ddfb83046e779/  # doi:10.1103/physrevb.70.174454; star lattice
 
 Files created below one of those new cache directories are limited to the
 route-declared payload, extracted text, provenance, and required same-work
