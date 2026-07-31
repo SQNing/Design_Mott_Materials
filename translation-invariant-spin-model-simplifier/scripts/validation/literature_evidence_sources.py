@@ -452,6 +452,8 @@ def load_verified_source(
     """Load and verify one source directory without performing network access."""
 
     root = Path(source_dir)
+    if root.is_symlink():
+        raise SourceEvidenceError("source directory must not be a symlink")
     raw = _load_json(root / "provenance.json")
     _require_exact_fields(raw, _PROVENANCE_FIELDS, "provenance")
     if raw["schema_version"] != 1:
@@ -636,8 +638,21 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
             "payload_byte_length",
         }
         legacy_allowed = allowed - {"media_type"}
-        if set(stored) not in ({"kind", "url"}, legacy_allowed, allowed):
+        document_base_allowed = allowed | {"document_base_url"}
+        legacy_document_base_allowed = legacy_allowed | {"document_base_url"}
+        if set(stored) not in (
+            {"kind", "url"},
+            legacy_allowed,
+            allowed,
+            legacy_document_base_allowed,
+            document_base_allowed,
+        ):
             raise SourceEvidenceError("work_identity_evidence has invalid fields")
+        if "document_base_url" in stored:
+            _validate_serialized_https_url(
+                stored["document_base_url"],
+                "work identity document base URL",
+            )
     elif "work_identity_evidence" in metadata:
         raise SourceEvidenceError("canonical publisher route must not add work identity evidence")
 
@@ -647,12 +662,14 @@ def _same_work_identity_route(stored, expected):
         return False
     stored_url = stored.get("url")
     expected_url = expected.get("url")
-    if stored_url == expected_url:
-        return True
-    if not isinstance(stored_url, str) or not isinstance(expected_url, str):
+    stored_identity = _stable_https_route_identity(stored_url)
+    expected_identity = _stable_https_route_identity(expected_url)
+    if stored_identity is None or expected_identity is None:
         return False
-    left = urlparse(stored_url)
-    right = urlparse(expected_url)
+    if stored_identity == expected_identity:
+        return True
+    left = urlparse(stored_identity)
+    right = urlparse(expected_identity)
     kind = expected["kind"]
     if kind.startswith("openalex_"):
         allowed_hosts = {"openalex.org", "api.openalex.org"}
@@ -670,6 +687,25 @@ def _same_work_identity_route(stored, expected):
             and left.path.rstrip("/") == right.path.rstrip("/")
         )
     return False
+
+
+def _stable_https_route_identity(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    if parsed.scheme.casefold() != "https" or not parsed.hostname:
+        return None
+    host = parsed.hostname.casefold()
+    if ":" in host:
+        host = f"[{host}]"
+    netloc = host if port in {None, 443} else f"{host}:{port}"
+    return f"https://{netloc}{parsed.path or ''}"
 
 
 def _validate_serialized_https_url(value, label):
@@ -696,6 +732,7 @@ def _validate_work_identity_payload(
     if expected.get("kind") in {None, "canonical_identity"}:
         return
     stored = metadata["work_identity_evidence"]
+    sidecar_route_reference = None
     if "payload_relative_path" in stored:
         descriptor = stored
     else:
@@ -709,18 +746,34 @@ def _validate_work_identity_payload(
             "payload_sha256",
             "payload_byte_length",
         }
+        descriptor_fields_with_document_base = descriptor_fields | {
+            "document_base_url"
+        }
         if set(descriptor) not in (
             descriptor_fields,
             descriptor_fields - {"media_type"},
+            descriptor_fields_with_document_base,
+            descriptor_fields_with_document_base - {"media_type"},
         ):
             raise SourceEvidenceError(
                 "work identity sidecar provenance has invalid fields"
             )
-        if not _same_work_identity_route(descriptor, stored):
-            raise SourceEvidenceError("work identity sidecar disagrees with source provenance")
+        sidecar_route_reference = stored
     _validate_serialized_https_url(
         descriptor.get("url"), "work identity sidecar URL"
     )
+    document_base_url = descriptor.get("document_base_url", descriptor["url"])
+    _validate_serialized_https_url(
+        document_base_url,
+        "work identity sidecar document base URL",
+    )
+    if sidecar_route_reference is not None and not _same_work_identity_route(
+        descriptor,
+        sidecar_route_reference,
+    ):
+        raise SourceEvidenceError(
+            "work identity sidecar disagrees with source provenance"
+        )
     evidence_path = _payload_path(root, descriptor["payload_relative_path"])
     try:
         payload = evidence_path.read_bytes()
@@ -752,10 +805,17 @@ def _validate_work_identity_payload(
             "work identity evidence payload name disagrees with media type"
         )
     document = payload if media_type == "text/html" else _load_json(evidence_path)
+    validation_route = {
+        **route,
+        "work_identity_evidence": {
+            **expected,
+            "url": document_base_url,
+        },
+    }
     validate_work_identity_document(
         document,
         identity=identity,
-        authoritative_route=route,
+        authoritative_route=validation_route,
         evidence_kind=descriptor["kind"],
         bibliographic_metadata={
             **bibliographic_metadata,
@@ -1207,6 +1267,8 @@ def _style_hides(style):
         return False
     if len(style) > _MAX_INLINE_STYLE_CHARACTERS:
         return True
+    if "\\" in style:
+        return True
     normalized = _css_without_comments(style)
     if normalized is None:
         return True
@@ -1223,8 +1285,21 @@ class _LocalStyleElementCollector(HTMLParser):
         self.parts = []
 
     def handle_starttag(self, tag, attrs):
-        del attrs
-        if tag.casefold() != "style":
+        tag = tag.casefold()
+        normalized_attributes = {
+            str(name).casefold(): value for name, value in attrs
+        }
+        if tag == "base" and "href" in normalized_attributes:
+            raise SourceEvidenceError(
+                f"{self.context} must not declare an HTML base URL"
+            )
+        if tag == "link" and "stylesheet" in str(
+            normalized_attributes.get("rel") or ""
+        ).casefold().split():
+            raise SourceEvidenceError(
+                f"{self.context} must not reference an external stylesheet"
+            )
+        if tag != "style":
             return
         self.style_depth += 1
         self.style_blocks += 1
@@ -1344,6 +1419,15 @@ def _hidden_stylesheet_selectors(document, *, context):
                 raise SourceEvidenceError(
                     f"{context} local stylesheet has an unsupported at-rule"
                 )
+            statement = stylesheet[cursor:rule_end].strip()
+            at_rule = re.match(r"@([a-z-]+)\b", statement, flags=re.IGNORECASE)
+            if at_rule is None or at_rule.group(1).casefold() not in {
+                "charset",
+                "layer",
+            }:
+                raise SourceEvidenceError(
+                    f"{context} local stylesheet has an unsupported external or statement at-rule"
+                )
             cursor = rule_end + 1
             continue
 
@@ -1383,8 +1467,16 @@ def _hidden_stylesheet_selectors(document, *, context):
             )
         declarations = stylesheet[selector_end + 1 : declaration_end]
         cursor = declaration_end + 1
+        if "\\" in declarations:
+            raise SourceEvidenceError(
+                f"{context} local stylesheet contains an unsupported CSS escape"
+            )
         if not _normalized_style_hides(declarations):
             continue
+        if "\\" in selector_group:
+            raise SourceEvidenceError(
+                f"{context} local stylesheet contains an unsupported CSS escape"
+            )
         for raw_selector in selector_group.split(","):
             selector = raw_selector.strip().casefold()
             if _CSS_SIMPLE_CLASS.fullmatch(selector):
@@ -1393,6 +1485,10 @@ def _hidden_stylesheet_selectors(document, *, context):
                 hidden_ids.add(selector[1:])
             elif _CSS_SIMPLE_TAG.fullmatch(selector):
                 hidden_tags.add(selector)
+            else:
+                raise SourceEvidenceError(
+                    f"{context} local stylesheet uses an unsupported hiding selector"
+                )
     return _HiddenStylesheetSelectors(
         classes=frozenset(hidden_classes),
         ids=frozenset(hidden_ids),
@@ -1913,7 +2009,12 @@ def _payload_path(root, relative_path):
     pure = PurePosixPath(relative_path)
     if pure.is_absolute() or len(pure.parts) != 1 or pure.parts[0] in {".", ".."}:
         raise SourceEvidenceError("payload_relative_path must name one local payload file")
-    return root / pure.name
+    path = root / pure.name
+    if path.is_symlink():
+        raise SourceEvidenceError(
+            "payload_relative_path must not reference a symlink"
+        )
+    return path
 
 
 def _validate_coordinates(coordinates, payload_length):
@@ -2313,6 +2414,9 @@ def _require_target_anchors(text, anchors):
 
 
 def _load_json(path):
+    if Path(path).is_symlink():
+        raise SourceEvidenceError(f"JSON evidence path must not be a symlink: {path}")
+
     def reject_duplicates(pairs):
         result = {}
         for key, value in pairs:

@@ -10,7 +10,7 @@ import re
 import ssl
 import stat
 import sys
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 from urllib.request import (
     HTTPRedirectHandler,
     HTTPSHandler,
@@ -170,9 +170,10 @@ def _https_origin(url, *, origin_only=False):
 
 def _contains_sensitive(value, sensitive_values):
     secrets = tuple(
-        str(secret).casefold()
+        variant
         for secret in sensitive_values
         if isinstance(secret, str) and secret
+        for variant in _bounded_percent_decoded_variants(secret)
     )
     if not secrets:
         return False
@@ -184,10 +185,29 @@ def _contains_sensitive(value, sensitive_values):
     if isinstance(value, (list, tuple, set)):
         return any(_contains_sensitive(item, secrets) for item in value)
     if isinstance(value, bytes):
-        rendered = value.decode("utf-8", errors="ignore").casefold()
+        rendered = value.decode("utf-8", errors="ignore")
     else:
-        rendered = str(value).casefold()
-    return any(secret in rendered for secret in secrets)
+        rendered = str(value)
+    rendered_variants = _bounded_percent_decoded_variants(rendered)
+    return any(
+        secret in candidate
+        for candidate in rendered_variants
+        for secret in secrets
+    )
+
+
+def _bounded_percent_decoded_variants(value):
+    variants = []
+    current = str(value)
+    for _ in range(3):
+        folded = current.casefold()
+        if folded not in variants:
+            variants.append(folded)
+        decoded = unquote(current, errors="replace")
+        if decoded == current:
+            break
+        current = decoded
+    return tuple(variants)
 
 
 def _validated_request_url(url, *, sensitive_values=()):
@@ -421,7 +441,10 @@ class _CredentialRedirectHandler(HTTPRedirectHandler):
         self.credential_profile = credential_profile
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        _validated_request_url(newurl)
+        _validated_request_url(
+            newurl,
+            sensitive_values=_credential_values(self.credential_profile),
+        )
         redirected = super().redirect_request(
             req, fp, code, msg, headers, newurl
         )
@@ -540,6 +563,13 @@ def _fetch_source(
     sensitive_values = _credential_values(credential_profile)
     source_dir = Path(cache_root) / source_id
     provenance_path = source_dir / "provenance.json"
+    if source_dir.is_symlink():
+        return _outcome(
+            source_id,
+            "failed",
+            "cache directory is a symlink",
+            sensitive_values=sensitive_values,
+        )
     if source_dir.exists():
         if not resume:
             return _outcome(
@@ -554,40 +584,11 @@ def _fetch_source(
                 expected_source=source,
                 provisioning_route=route,
             )
-        except SourceEvidenceError as exc:
-            if not _needs_work_identity_sidecar(source_dir, route):
-                return _outcome(
-                    source_id,
-                    "failed",
-                    f"existing cache is invalid: {exc}",
-                    sensitive_values=sensitive_values,
-                )
-            try:
-                ssl_context = _ssl_context(ca_bundle)
-                bibliographic = _fetch_bibliographic_metadata(source, ssl_context)
-                evidence = _fetch_work_identity_evidence(
-                    source,
-                    route,
-                    ssl_context,
-                    bibliographic_metadata=bibliographic,
-                )
-                _write_work_identity_sidecars(source_dir, evidence)
-                load_verified_source(
-                    source_dir,
-                    expected_source=source,
-                    provisioning_route=route,
-                )
-            except Exception as supplement_exc:
-                return _outcome(
-                    source_id,
-                    "failed",
-                    f"existing cache identity supplement failed: {supplement_exc}",
-                    sensitive_values=sensitive_values,
-                )
+        except Exception as exc:
             return _outcome(
                 source_id,
-                "resumed",
-                "existing cache identity evidence added",
+                "failed",
+                f"existing cache is invalid: {exc}",
                 sensitive_values=sensitive_values,
             )
         return _outcome(
@@ -623,6 +624,7 @@ def _fetch_source(
             response,
             bibliographic,
             payload_name=payload_name,
+            sensitive_values=sensitive_values,
         )
         source_dir.mkdir(parents=True, exist_ok=False)
         with source_dir.joinpath(payload_name).open("xb") as handle:
@@ -752,7 +754,7 @@ def _fetch_work_identity_evidence(
         payload = response.read()
         payload_sha256 = hashlib.sha256(payload).hexdigest()
         payload_byte_length = len(payload)
-        _validated_request_url(response.geturl())
+        final_url_in_memory = _validated_request_url(response.geturl())
         if response.status != 200:
             raise SourceEvidenceError(
                 f"work identity evidence returned HTTP status {response.status}"
@@ -777,10 +779,19 @@ def _fetch_work_identity_evidence(
             ) from exc
     else:
         document = payload
+    stable_route_url = _sanitize_url_for_output(request_url)
+    document_base_url = _sanitize_url_for_output(final_url_in_memory)
+    validation_route = {
+        **authoritative_route,
+        "work_identity_evidence": {
+            **evidence_route,
+            "url": document_base_url,
+        },
+    }
     validate_work_identity_document(
         document,
         identity=source["canonical_identity"],
-        authoritative_route=authoritative_route,
+        authoritative_route=validation_route,
         evidence_kind=evidence_route["kind"],
         bibliographic_metadata={
             **bibliographic_metadata,
@@ -791,28 +802,14 @@ def _fetch_work_identity_evidence(
         "payload": payload,
         "descriptor": {
             "kind": evidence_route["kind"],
-            "url": _sanitize_url_for_output(request_url),
+            "url": stable_route_url,
+            "document_base_url": document_base_url,
             "media_type": media_type,
             "payload_relative_path": payload_name,
             "payload_sha256": payload_sha256,
             "payload_byte_length": payload_byte_length,
         },
     }
-
-
-def _needs_work_identity_sidecar(source_dir, route):
-    evidence = route["authoritative_retrieval_route"]["work_identity_evidence"]
-    payload_name = (
-        "work-identity.html"
-        if evidence["kind"] == "author_publications_same_work"
-        else "work-identity.json"
-    )
-    return (
-        evidence["kind"] != "canonical_identity"
-        and not source_dir.joinpath(payload_name).exists()
-        and not source_dir.joinpath("work-identity.provenance.json").exists()
-    )
-
 
 def _write_work_identity_sidecars(source_dir, evidence):
     if evidence is None:
@@ -898,7 +895,15 @@ def _arxiv_metadata(arxiv_id, ssl_context):
     }
 
 
-def _build_provenance(source, route, response, bibliographic, *, payload_name):
+def _build_provenance(
+    source,
+    route,
+    response,
+    bibliographic,
+    *,
+    payload_name,
+    sensitive_values=(),
+):
     body = response["body"]
     identity = source["canonical_identity"]
     retrieval_kind = route["authoritative_retrieval_route"]["kind"]
@@ -926,7 +931,6 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
         }
     else:
         raise SourceEvidenceError("unsupported media type for provenance extraction")
-    sensitive_values = response.get("credential_values", ())
     provenance = {
         "schema_version": 1,
         "source_id": source["source_id"],
@@ -947,7 +951,7 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
             "http_status": response["status"],
             "response_headers": _stable_response_headers(
                 response["headers"],
-                forbidden_values=response.get("credential_values", ()),
+                forbidden_values=sensitive_values,
             ),
             "immutable_artifact_identifier": retrieval_route["artifact_identifier"],
             **(

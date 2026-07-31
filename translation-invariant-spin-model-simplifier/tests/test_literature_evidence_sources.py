@@ -874,19 +874,15 @@ ROUND5_COMMENT_HIDDEN_STYLES = (
 )
 ROUND5_STATEMENT_AT_RULES = (
     pytest.param(b"@layer foo;", id="layer"),
-    pytest.param(
-        b'@import url("theme;v1.css") /* import; comment */;',
-        id="import-with-quoted-semicolon-parens-comment",
-    ),
     pytest.param(b'@charset "UTF-8";', id="charset-with-quoted-string"),
 )
 ROUND5_UNSUPPORTED_PREFIX_RULES = (
     pytest.param(
-        b".complex > .unused { display:none }",
+        b".complex > .unused { color:red }",
         id="complex-selector",
     ),
     pytest.param(
-        b".escaped\\2d selector { display:none }",
+        b".escaped\\2d selector { color:red }",
         id="escaped-selector",
     ),
 )
@@ -2231,7 +2227,7 @@ def test_author_publications_same_work_rejects_each_independent_mismatch(perturb
         )
 
 
-def _special_sidecar_cache(tmp_path, evidence_kind):
+def _special_sidecar_cache(tmp_path, evidence_kind, *, write_sidecar=True):
     if evidence_kind == "core_same_work_output":
         route_spec = _core_mg_route()
         identity_value = "10.1088/0305-4470/17/13/020"
@@ -2327,7 +2323,8 @@ def _special_sidecar_cache(tmp_path, evidence_kind):
     source_dir = tmp_path / source_id
     source_dir.mkdir()
     source_dir.joinpath("source.pdf").write_bytes(payload)
-    source_dir.joinpath(sidecar_name).write_bytes(sidecar)
+    if write_sidecar:
+        source_dir.joinpath(sidecar_name).write_bytes(sidecar)
     source_dir.joinpath("provenance.json").write_text(
         json.dumps(provenance, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -3480,7 +3477,7 @@ def test_fetch_source_failure_outcome_case_insensitively_redacts_secret(
     assert not (tmp_path / "cache" / source_id).exists()
 
 
-def test_main_stdout_stderr_drop_secret_case_variants_and_internal_profile(
+def test_round7_d_main_stdout_stderr_drop_secret_case_variants_and_internal_profile(
     tmp_path, monkeypatch, capsys
 ):
     source = {
@@ -3543,7 +3540,7 @@ def test_main_stdout_stderr_drop_secret_case_variants_and_internal_profile(
     assert "request_headers_by_origin" not in rendered
 
 
-def test_provenance_omits_case_insensitive_header_reflections(monkeypatch):
+def test_round7_d_provenance_omits_case_insensitive_header_reflections(monkeypatch):
     monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "fixture")
     source = {
         "source_id": ELSEVIER_SOURCE_ID,
@@ -3570,7 +3567,6 @@ def test_provenance_omits_case_insensitive_header_reflections(monkeypatch):
             "Last-Modified": MIXED_CASE_CREDENTIAL_SENTINEL.casefold(),
         },
         "media_type": "application/pdf",
-        "credential_values": (MIXED_CASE_CREDENTIAL_SENTINEL,),
     }
     provenance = source_fetcher._build_provenance(
         source,
@@ -3583,13 +3579,16 @@ def test_provenance_omits_case_insensitive_header_reflections(monkeypatch):
             "publication_date": "2024-01-01",
         },
         payload_name="source.pdf",
+        sensitive_values=(MIXED_CASE_CREDENTIAL_SENTINEL,),
     )
     assert MIXED_CASE_CREDENTIAL_SENTINEL.casefold() not in (
         json.dumps(provenance, sort_keys=True).casefold()
     )
 
 
-def test_provenance_rejects_active_credential_in_serialized_final_path(monkeypatch):
+def test_round7_d_provenance_rejects_active_credential_in_serialized_final_path(
+    monkeypatch,
+):
     monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "fixture")
     source = {
         "source_id": ELSEVIER_SOURCE_ID,
@@ -3616,7 +3615,6 @@ def test_provenance_rejects_active_credential_in_serialized_final_path(monkeypat
         "status": 200,
         "headers": {"Content-Type": "application/pdf"},
         "media_type": "application/pdf",
-        "credential_values": (MIXED_CASE_CREDENTIAL_SENTINEL,),
     }
     with pytest.raises(SourceEvidenceError) as caught:
         source_fetcher._build_provenance(
@@ -3630,6 +3628,7 @@ def test_provenance_rejects_active_credential_in_serialized_final_path(monkeypat
                 "publication_date": "2024-01-01",
             },
             payload_name="source.pdf",
+            sensitive_values=(MIXED_CASE_CREDENTIAL_SENTINEL,),
         )
     assert MIXED_CASE_CREDENTIAL_SENTINEL.casefold() not in str(caught.value).casefold()
 
@@ -5818,3 +5817,1250 @@ def test_arxiv_atom_identity_accepts_only_versioned_form_of_same_base_id():
     assert not arxiv_atom_identifier_matches(
         "https://arxiv.org/abs/1409.0194v2", "1409.0193"
     )
+
+
+ROUND7_REDIRECT_SECRET = "Round7/Secret:Token=A9z"
+
+
+def _round7_credential_profile(secret=ROUND7_REDIRECT_SECRET):
+    return {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {"X-ELS-APIKey": secret},
+            "https://redirect.elsevier.com": {
+                "Authorization": "Round7RedirectOnlyCredential"
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "reflected_secret",
+    (
+        pytest.param(ROUND7_REDIRECT_SECRET.swapcase(), id="raw-case-variant"),
+        pytest.param(
+            source_fetcher.quote(ROUND7_REDIRECT_SECRET, safe=""),
+            id="percent-encoded",
+        ),
+        pytest.param(
+            source_fetcher.quote(
+                source_fetcher.quote(ROUND7_REDIRECT_SECRET, safe=""),
+                safe="",
+            ),
+            id="double-percent-encoded",
+        ),
+    ),
+)
+def test_round7_a_redirect_handler_rejects_every_secret_location_before_request(
+    reflected_secret,
+):
+    profile = _round7_credential_profile()
+    handler = source_fetcher._CredentialRedirectHandler(profile)
+    initial = Request(
+        "https://api.elsevier.com/content/article",
+        headers={"X-ELS-APIKey": ROUND7_REDIRECT_SECRET},
+    )
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        handler.redirect_request(
+            initial,
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture/" + reflected_secret,
+        )
+
+    assert ROUND7_REDIRECT_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round7_a_two_hop_download_never_issues_secret_bearing_redirect(
+    monkeypatch,
+):
+    profile = _round7_credential_profile()
+    encoded = source_fetcher.quote(
+        source_fetcher.quote(ROUND7_REDIRECT_SECRET, safe=""),
+        safe="",
+    )
+    issued = []
+    payload = _minimal_pdf("Redirect reflection fixture.")
+
+    def opener_factory(*handlers):
+        redirect_handler = next(
+            handler
+            for handler in handlers
+            if isinstance(handler, source_fetcher._CredentialRedirectHandler)
+        )
+
+        class FixtureOpener:
+            def open(self, request, timeout):
+                first = redirect_handler.redirect_request(
+                    request,
+                    None,
+                    302,
+                    "Found",
+                    {},
+                    "https://attacker.invalid/capture/" + encoded,
+                )
+                issued.append(first.full_url)
+                second = redirect_handler.redirect_request(
+                    first,
+                    None,
+                    302,
+                    "Found",
+                    {},
+                    "https://clean.example.invalid/final.pdf",
+                )
+                issued.append(second.full_url)
+                return _SignedFixtureResponse(payload, second.full_url)
+
+        return FixtureOpener()
+
+    monkeypatch.setattr(source_fetcher, "build_opener", opener_factory)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        source_fetcher._download(
+            {
+                "kind": "elsevier_article_api_xml",
+                "url": "https://api.elsevier.com/content/article",
+                "expected_media_type": "application/pdf",
+            },
+            object(),
+            credential_profile=profile,
+        )
+
+    assert issued == []
+    assert ROUND7_REDIRECT_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round7_a_redirect_headers_strip_cross_origin_and_reapply_exact_origin():
+    profile = _round7_credential_profile()
+    handler = source_fetcher._CredentialRedirectHandler(profile)
+    initial = Request(
+        "https://api.elsevier.com/content/article",
+        headers={"X-ELS-APIKey": ROUND7_REDIRECT_SECRET},
+    )
+
+    cross_origin = handler.redirect_request(
+        initial,
+        None,
+        302,
+        "Found",
+        {},
+        "https://redirect.elsevier.com.evil.invalid/final",
+    )
+    exact_origin = handler.redirect_request(
+        initial,
+        None,
+        302,
+        "Found",
+        {},
+        "https://redirect.elsevier.com/final",
+    )
+
+    assert not _CREDENTIAL_HEADER_CASEFOLDS.intersection(
+        _header_dict(cross_origin)
+    )
+    assert _header_dict(exact_origin) == {
+        "authorization": "Round7RedirectOnlyCredential"
+    }
+
+
+def _round7_author_page_with_head_markup(markup):
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"<html>",
+        b"<html><head>" + markup + b"</head>",
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    return page
+
+
+def _round7_oup_page_with_head_markup(markup):
+    page = OUP_HTML.replace(b"  </head>", b"    " + markup + b"\n  </head>", 1)
+    assert page != OUP_HTML
+    return page
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round7_b_author_complex_hiding_selector_fails_entire_document(extra_doi):
+    page = _author_page_with_local_stylesheet(
+        b"article .hide-doi { display:none }",
+        extra_doi=extra_doi,
+    )
+
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round7_b_oup_complex_hiding_selector_fails_entire_document(
+    tmp_path,
+    validation_mode,
+    extra_doi,
+):
+    payload = _oup_payload_with_local_stylesheet(
+        b"article .hide-doi { display:none }",
+        extra_doi=extra_doi,
+    )
+
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round7_b_author_inline_css_escape_is_fail_closed_hidden(extra_doi):
+    page = _author_page_with_inline_doi_style(
+        rb"d\69 splay:none",
+        extra_doi=extra_doi,
+    )
+
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round7_b_oup_inline_css_escape_is_fail_closed_hidden(
+    tmp_path,
+    validation_mode,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(
+        rb"d\69 splay:none",
+        extra_doi=extra_doi,
+    )
+
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize(
+    "stylesheet",
+    (
+        pytest.param(rb".hide-doi { d\69 splay:none }", id="property"),
+        pytest.param(rb".hide-doi { display:n\6f ne }", id="value"),
+        pytest.param(rb".hide\2d doi { display:none }", id="selector"),
+    ),
+)
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round7_b_author_stylesheet_css_escape_fails_entire_document(
+    stylesheet,
+    extra_doi,
+):
+    page = _author_page_with_local_stylesheet(stylesheet, extra_doi=extra_doi)
+
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "stylesheet",
+    (
+        pytest.param(rb".hide-doi { d\69 splay:none }", id="property"),
+        pytest.param(rb".hide-doi { display:n\6f ne }", id="value"),
+        pytest.param(rb".hide\2d doi { display:none }", id="selector"),
+    ),
+)
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round7_b_oup_stylesheet_css_escape_fails_entire_document(
+    tmp_path,
+    validation_mode,
+    stylesheet,
+    extra_doi,
+):
+    payload = _oup_payload_with_local_stylesheet(
+        stylesheet,
+        extra_doi=extra_doi,
+    )
+
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("external_css", ("import", "link"))
+def test_round7_b_author_external_stylesheet_fails_closed_without_fetch(
+    monkeypatch,
+    external_css,
+):
+    monkeypatch.setattr(
+        socket,
+        "socket",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("CSS validation attempted an external fetch")
+        ),
+    )
+    if external_css == "import":
+        page = _author_page_with_local_stylesheet(
+            b'@import url("https://styles.example.invalid/author.css");',
+            extra_doi=False,
+        )
+    else:
+        page = _round7_author_page_with_head_markup(
+            b'<link rel="stylesheet" href="https://styles.example.invalid/author.css">'
+        )
+
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("external_css", ("import", "link"))
+def test_round7_b_oup_external_stylesheet_fails_closed_without_fetch(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+    external_css,
+):
+    monkeypatch.setattr(
+        socket,
+        "socket",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("CSS validation attempted an external fetch")
+        ),
+    )
+    if external_css == "import":
+        payload = _oup_payload_with_local_stylesheet(
+            b'@import url("https://styles.example.invalid/oup.css");',
+            extra_doi=False,
+        )
+    else:
+        payload = _round7_oup_page_with_head_markup(
+            b'<link rel="stylesheet" href="https://styles.example.invalid/oup.css">'
+        )
+
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+def test_round7_b_unknown_nonhiding_complex_rule_remains_ignored():
+    page = _author_page_with_local_stylesheet(
+        b"article .unused { color:red }",
+        extra_doi=False,
+    )
+    _validate_author_garel_page(page)
+
+
+def test_round7_b_import_text_still_obeys_stylesheet_character_bound(monkeypatch):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_CHARACTERS",
+        24,
+    )
+    page = _author_page_with_local_stylesheet(
+        b'@import url("https://styles.example.invalid/long-name.css");',
+        extra_doi=False,
+    )
+
+    with pytest.raises(SourceEvidenceError, match="bound|stylesheet"):
+        _validate_author_garel_page(page)
+
+
+def _round7_redirected_author_evidence_fixture():
+    route_spec = copy.deepcopy(_author_garel_route())
+    request_url = (
+        "https://www.lptmc.jussieu.fr/signed/entry"
+        "?signature=" + SIGNED_QUERY_SENTINEL + "#request-fragment"
+    )
+    final_url = (
+        "https://www.lptmc.jussieu.fr/redirected/catalog/index.html"
+        "?ticket=ROUND7_FINAL_QUERY#final-fragment"
+    )
+    document_base_url = (
+        "https://www.lptmc.jussieu.fr/redirected/catalog/index.html"
+    )
+    retrieval_url = (
+        "https://www.lptmc.jussieu.fr/redirected/catalog/article.pdf"
+    )
+    route_spec["url"] = retrieval_url
+    route_spec["work_identity_evidence"]["url"] = request_url
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"../../files/maillard/PUB2/Frustrated_jav16i10p2257.pdf",
+        b"article.pdf",
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    return route_spec, page, request_url, final_url, document_base_url
+
+
+@pytest.mark.parametrize(
+    "base_href",
+    (
+        "https://attacker.example.invalid/capture/",
+        "../otherwise-benign/",
+    ),
+    ids=("attacker", "relative"),
+)
+def test_round7_c_author_page_rejects_every_base_href(base_href):
+    page = _round7_author_page_with_head_markup(
+        b'<base href="' + base_href.encode("ascii") + b'">'
+    )
+
+    with pytest.raises(SourceEvidenceError, match="base|HTML|validation"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "base_href",
+    (
+        "https://attacker.example.invalid/capture/",
+        "../otherwise-benign/",
+    ),
+    ids=("attacker", "relative"),
+)
+def test_round7_c_oup_rejects_every_base_href(
+    tmp_path,
+    validation_mode,
+    base_href,
+):
+    payload = _round7_oup_page_with_head_markup(
+        b'<base href="' + base_href.encode("ascii") + b'">'
+    )
+
+    with pytest.raises(SourceEvidenceError, match="base|HTML|validation"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+def test_round7_c_live_author_relative_link_uses_sanitized_actual_final_base(
+    monkeypatch,
+):
+    (
+        route_spec,
+        page,
+        request_url,
+        final_url,
+        document_base_url,
+    ) = _round7_redirected_author_evidence_fixture()
+    captured = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            captured.append(request.full_url)
+            return _FixtureHTTPResponse(
+                page,
+                content_type="text/html",
+                final_url=final_url,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    evidence = source_fetcher._fetch_work_identity_evidence(
+        {
+            "canonical_identity": {
+                "kind": "doi",
+                "value": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["doi"],
+            }
+        },
+        {"authoritative_retrieval_route": route_spec},
+        object(),
+        bibliographic_metadata={
+            "title": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["title"],
+            "authors": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["authors"],
+        },
+    )
+
+    assert captured == [request_url]
+    assert evidence["descriptor"]["url"] == (
+        "https://www.lptmc.jussieu.fr/signed/entry"
+    )
+    assert evidence["descriptor"]["document_base_url"] == document_base_url
+    serialized = json.dumps(evidence["descriptor"], sort_keys=True)
+    for secret in (
+        SIGNED_QUERY_SENTINEL,
+        "request-fragment",
+        "ROUND7_FINAL_QUERY",
+        "final-fragment",
+    ):
+        assert secret not in serialized
+
+
+def test_round7_c_live_author_absolute_link_is_independent_of_final_base(
+    monkeypatch,
+):
+    route_spec = copy.deepcopy(_author_garel_route())
+    absolute_page = AUTHOR_GAREL_PAGE.replace(
+        b"../../files/maillard/PUB2/Frustrated_jav16i10p2257.pdf",
+        route_spec["url"].encode("ascii"),
+        1,
+    )
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            return _FixtureHTTPResponse(
+                absolute_page,
+                content_type="text/html",
+                final_url="https://redirect.example.invalid/unrelated/index.html",
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    evidence = source_fetcher._fetch_work_identity_evidence(
+        {
+            "canonical_identity": {
+                "kind": "doi",
+                "value": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["doi"],
+            }
+        },
+        {"authoritative_retrieval_route": route_spec},
+        object(),
+        bibliographic_metadata={
+            "title": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["title"],
+            "authors": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["authors"],
+        },
+    )
+
+    assert evidence["payload"] == absolute_page
+
+
+def test_round7_c_offline_author_relative_link_replays_recorded_document_base(
+    tmp_path,
+):
+    (
+        route_spec,
+        page,
+        _request_url,
+        _final_url,
+        document_base_url,
+    ) = _round7_redirected_author_evidence_fixture()
+    source_dir, source, route, _descriptor = _special_sidecar_cache(
+        tmp_path,
+        "author_publications_same_work",
+    )
+    route["authoritative_retrieval_route"] = route_spec
+    sidecar_path = source_dir / "work-identity.html"
+    sidecar_path.write_bytes(page)
+    provenance_path = source_dir / "provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    provenance["retrieval_metadata"].update(
+        {
+            "url": route_spec["url"],
+            "immutable_artifact_identifier": route_spec["artifact_identifier"],
+            "work_identity_evidence": {
+                "kind": "author_publications_same_work",
+                "url": "https://www.lptmc.jussieu.fr/signed/entry",
+                "document_base_url": document_base_url,
+                "media_type": "text/html",
+                "payload_relative_path": "work-identity.html",
+                "payload_sha256": hashlib.sha256(page).hexdigest(),
+                "payload_byte_length": len(page),
+            },
+        }
+    )
+    provenance_path.write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+
+    assert verified.source_id == source["source_id"]
+
+
+def test_round7_c_work_identity_final_userinfo_is_never_serialized(monkeypatch):
+    route_spec = copy.deepcopy(_author_garel_route())
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            return _FixtureHTTPResponse(
+                AUTHOR_GAREL_PAGE,
+                content_type="text/html",
+                final_url="https://user:password@www.lptmc.jussieu.fr/private",
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+
+    with pytest.raises(SourceEvidenceError, match="userinfo"):
+        source_fetcher._fetch_work_identity_evidence(
+            {
+                "canonical_identity": {
+                    "kind": "doi",
+                    "value": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["doi"],
+                }
+            },
+            {"authoritative_retrieval_route": route_spec},
+            object(),
+            bibliographic_metadata={
+                "title": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["title"],
+                "authors": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["authors"],
+            },
+        )
+
+
+def _round7_provenance_fixture():
+    source = {
+        "source_id": ELSEVIER_SOURCE_ID,
+        "canonical_identity": {"kind": "doi", "value": "10.1016/example"},
+        "canonical_url": "https://doi.org/10.1016/example",
+    }
+    route = {
+        "authoritative_retrieval_route": {
+            "kind": "elsevier_article_api_xml",
+            "url": "https://api.elsevier.com/content/article",
+            "artifact_identifier": "doi:10.1016/example",
+            "work_identity_evidence": {
+                "kind": "canonical_identity",
+                "url": "https://doi.org/10.1016/example",
+            },
+        },
+        "expected_media_type": "application/pdf",
+        "access_mode": "api_key_or_entitlement",
+    }
+    bibliographic = {
+        "title": "Fixture",
+        "authors": ["A. Author"],
+        "venue": "Fixture",
+        "publication_date": "2024-01-01",
+    }
+    return source, route, bibliographic
+
+
+def test_round7_d_real_download_to_provenance_uses_explicit_sensitive_values(
+    monkeypatch,
+):
+    source, route, bibliographic = _round7_provenance_fixture()
+    payload = _minimal_pdf("Credential-safe production-shape fixture.")
+    profile = _round7_credential_profile(MIXED_CASE_CREDENTIAL_SENTINEL)
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            response = _SignedFixtureResponse(
+                payload,
+                "https://api.elsevier.com/content/article",
+            )
+            response.headers = {
+                "Content-Type": "application/pdf",
+                "ETag": MIXED_CASE_CREDENTIAL_SENTINEL.swapcase(),
+            }
+            return response
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "fixture")
+    response = source_fetcher._download(
+        {
+            **route["authoritative_retrieval_route"],
+            "expected_media_type": "application/pdf",
+        },
+        object(),
+        credential_profile=profile,
+    )
+
+    assert "credential_values" not in response
+    provenance = source_fetcher._build_provenance(
+        source,
+        route,
+        response,
+        bibliographic,
+        payload_name="source.pdf",
+        sensitive_values=(MIXED_CASE_CREDENTIAL_SENTINEL,),
+    )
+
+    assert MIXED_CASE_CREDENTIAL_SENTINEL.casefold() not in json.dumps(
+        provenance,
+        sort_keys=True,
+    ).casefold()
+
+
+@pytest.mark.parametrize(
+    "collision",
+    (
+        pytest.param(
+            {"nested": [{"value": MIXED_CASE_CREDENTIAL_SENTINEL.swapcase()}]},
+            id="nested-value",
+        ),
+        pytest.param(
+            {MIXED_CASE_CREDENTIAL_SENTINEL.swapcase(): {"value": "safe"}},
+            id="nested-key",
+        ),
+    ),
+)
+def test_round7_d_recursive_provenance_collision_fails_closed_without_secret(
+    monkeypatch,
+    collision,
+):
+    source, route, bibliographic = _round7_provenance_fixture()
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "fixture")
+    response = {
+        "body": _minimal_pdf("Credential-safe provenance fixture."),
+        "final_url": "https://api.elsevier.com/content/article",
+        "status": 200,
+        "headers": {"Content-Type": "application/pdf"},
+        "media_type": "application/pdf",
+    }
+    bibliographic = {**bibliographic, "recursive_extension": collision}
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        source_fetcher._build_provenance(
+            source,
+            route,
+            response,
+            bibliographic,
+            payload_name="source.pdf",
+            sensitive_values=(MIXED_CASE_CREDENTIAL_SENTINEL,),
+        )
+
+    assert MIXED_CASE_CREDENTIAL_SENTINEL.casefold() not in str(caught.value).casefold()
+
+
+def test_round7_d_fetch_source_passes_secrets_and_fails_before_any_cache_write(
+    tmp_path,
+    monkeypatch,
+):
+    source, route, bibliographic = _round7_provenance_fixture()
+    cache_root = tmp_path / "cache"
+    source_dir = cache_root / source["source_id"]
+    profile = _round7_credential_profile(MIXED_CASE_CREDENTIAL_SENTINEL)
+    bibliographic = {
+        **bibliographic,
+        "recursive_extension": {
+            "records": [MIXED_CASE_CREDENTIAL_SENTINEL.swapcase()]
+        },
+    }
+    response = {
+        "body": _minimal_pdf("Credential-safe fetch-source fixture."),
+        "final_url": "https://api.elsevier.com/content/article",
+        "status": 200,
+        "headers": {"Content-Type": "application/pdf"},
+        "media_type": "application/pdf",
+    }
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda ca_bundle: object())
+    monkeypatch.setattr(source_fetcher, "_download", lambda *args, **kwargs: response)
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: bibliographic,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_work_identity_evidence",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "fixture")
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+        credential_profile=profile,
+    )
+
+    assert outcome["status"] == "failed"
+    assert not source_dir.exists()
+    assert MIXED_CASE_CREDENTIAL_SENTINEL.casefold() not in (
+        " ".join(_recursive_strings(outcome)).casefold()
+    )
+
+
+def _round7_resume_route():
+    route = copy.deepcopy(_provisioning())
+    route["authoritative_retrieval_route"].update(
+        {
+            "artifact_identifier": f"doi:{DOI}",
+            "work_identity_evidence": {
+                "kind": "canonical_identity",
+                "url": CANONICAL_URL,
+            },
+        }
+    )
+    return route
+
+
+def _round7_tree_snapshot(path):
+    path = Path(path)
+    stat_result = path.lstat()
+    common = (
+        stat_result.st_mode,
+        stat_result.st_size,
+        stat_result.st_mtime_ns,
+    )
+    if path.is_symlink():
+        return ("symlink", common, os.readlink(path))
+    if path.is_file():
+        return ("file", common, path.read_bytes())
+    return (
+        "directory",
+        common,
+        tuple(
+            (child.name, _round7_tree_snapshot(child))
+            for child in sorted(path.iterdir(), key=lambda item: item.name)
+        ),
+    )
+
+
+def _round7_forbid_resume_supplement(monkeypatch):
+    events = []
+
+    def forbidden(name):
+        def fail(*args, **kwargs):
+            events.append(name)
+            raise AssertionError(f"resume attempted forbidden operation: {name}")
+
+        return fail
+
+    for name in (
+        "_ssl_context",
+        "_download",
+        "_fetch_bibliographic_metadata",
+        "_fetch_work_identity_evidence",
+        "_write_work_identity_sidecars",
+    ):
+        monkeypatch.setattr(source_fetcher, name, forbidden(name))
+    return events
+
+
+def _round7_invalid_resume_cache(tmp_path, mutation):
+    source_dir = tmp_path / SOURCE_ID
+    source_dir.mkdir(parents=True)
+    payload = PAYLOAD
+    provenance = _provenance(payload)
+    if mutation == "payload":
+        payload += b"\ncorrupted"
+    elif mutation == "hash":
+        provenance["raw_payload_sha256"] = "0" * 64
+    elif mutation == "identity":
+        provenance["source_identity"]["value"] = "10.1234/different"
+    elif mutation == "path":
+        provenance["payload_relative_path"] = "../payload.xml"
+    elif mutation == "provenance":
+        source_dir.joinpath("payload.xml").write_bytes(payload)
+        source_dir.joinpath("provenance.json").write_bytes(b"{not-json")
+        return source_dir
+    elif mutation == "payload-symlink":
+        target = tmp_path / "user-owned-payload.xml"
+        target.write_bytes(payload)
+        source_dir.joinpath("payload.xml").symlink_to(target)
+        source_dir.joinpath("provenance.json").write_text(
+            json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return source_dir
+    else:
+        raise AssertionError(f"unknown resume mutation {mutation}")
+    source_dir.joinpath("payload.xml").write_bytes(payload)
+    source_dir.joinpath("provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return source_dir
+
+
+def test_round7_e_resume_verified_cache_skips_all_network_and_writes(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir = _write_source(tmp_path)
+    before = _round7_tree_snapshot(source_dir)
+    events = _round7_forbid_resume_supplement(monkeypatch)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        _expected_source(),
+        _round7_resume_route(),
+        ca_bundle=Path("/unused"),
+        resume=True,
+    )
+
+    assert outcome == {
+        "source_id": SOURCE_ID,
+        "status": "resumed",
+        "detail": "existing cache verified",
+    }
+    assert events == []
+    assert _round7_tree_snapshot(source_dir) == before
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("payload", "hash", "identity", "provenance", "path", "payload-symlink"),
+)
+def test_round7_e_invalid_resume_cache_is_failed_and_byte_for_byte_unchanged(
+    tmp_path,
+    monkeypatch,
+    mutation,
+):
+    source_dir = _round7_invalid_resume_cache(tmp_path, mutation)
+    before = _round7_tree_snapshot(tmp_path)
+    events = _round7_forbid_resume_supplement(monkeypatch)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        _expected_source(),
+        _round7_resume_route(),
+        ca_bundle=Path("/unused"),
+        resume=True,
+    )
+
+    assert outcome["status"] == "failed"
+    assert events == []
+    assert _round7_tree_snapshot(tmp_path) == before
+    assert source_dir.exists()
+
+
+def test_round7_e_resume_rejects_symlink_source_directory_without_following_it(
+    tmp_path,
+    monkeypatch,
+):
+    target_root = tmp_path / "user-owned-cache"
+    target_dir = _write_source(target_root)
+    cache_root = tmp_path / "cache"
+    cache_root.mkdir()
+    source_link = cache_root / SOURCE_ID
+    source_link.symlink_to(target_dir, target_is_directory=True)
+    link_before = _round7_tree_snapshot(source_link)
+    target_before = _round7_tree_snapshot(target_dir)
+    events = _round7_forbid_resume_supplement(monkeypatch)
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        _expected_source(),
+        _round7_resume_route(),
+        ca_bundle=Path("/unused"),
+        resume=True,
+    )
+
+    assert outcome["status"] == "failed"
+    assert "symlink" in outcome["detail"].casefold()
+    assert events == []
+    assert _round7_tree_snapshot(source_link) == link_before
+    assert _round7_tree_snapshot(target_dir) == target_before
+
+
+def test_round7_e_missing_sidecar_never_triggers_resume_supplement_or_write(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, source, route, descriptor = _special_sidecar_cache(
+        tmp_path,
+        "author_publications_same_work",
+        write_sidecar=False,
+    )
+    assert not source_dir.joinpath(descriptor["payload_relative_path"]).exists()
+    before = _round7_tree_snapshot(source_dir)
+    events = _round7_forbid_resume_supplement(monkeypatch)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=True,
+    )
+
+    assert outcome["status"] == "failed"
+    assert events == []
+    assert _round7_tree_snapshot(source_dir) == before
+    assert not source_dir.joinpath(descriptor["payload_relative_path"]).exists()
+
+
+def test_round7_e_any_unexpected_loader_failure_is_failed_without_mutation(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir = _write_source(tmp_path)
+    before = _round7_tree_snapshot(source_dir)
+    events = _round7_forbid_resume_supplement(monkeypatch)
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_verified_source",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("opaque loader failure")
+        ),
+    )
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        _expected_source(),
+        _round7_resume_route(),
+        ca_bundle=Path("/unused"),
+        resume=True,
+    )
+
+    assert outcome["status"] == "failed"
+    assert "opaque loader failure" in outcome["detail"]
+    assert events == []
+    assert _round7_tree_snapshot(source_dir) == before
+
+
+def _round7_signed_sidecar_roundtrip_fixture(evidence_kind):
+    if evidence_kind == "author_publications_same_work":
+        route_spec, page, _request, _final, _base = (
+            _round7_redirected_author_evidence_fixture()
+        )
+        identity_value = AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["doi"]
+        bibliographic = {
+            "title": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["title"],
+            "authors": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["authors"],
+            "venue": "Journal of Physics A",
+            "publication_date": "1983-01-01",
+        }
+        signed_query = "ROUND7_AUTHOR_SIGNED_QUERY"
+        request_fragment = "round7-author-request-fragment"
+        final_query = "ROUND7_AUTHOR_FINAL_QUERY"
+        final_fragment = "round7-author-final-fragment"
+        route_spec["work_identity_evidence"]["url"] = (
+            "https://www.lptmc.jussieu.fr/signed/author-entry"
+            f"?signature={signed_query}#{request_fragment}"
+        )
+        sidecar_payload = page
+        sidecar_media_type = "text/html"
+        sidecar_final_url = (
+            "https://www.lptmc.jussieu.fr/redirected/catalog/index.html"
+            f"?ticket={final_query}#{final_fragment}"
+        )
+        document_base_url = (
+            "https://www.lptmc.jussieu.fr/redirected/catalog/index.html"
+        )
+    elif evidence_kind == "core_same_work_output":
+        route_spec = copy.deepcopy(_core_mg_route())
+        identity_value = CORE_MG_BIBLIOGRAPHIC_METADATA["doi"]
+        bibliographic = {
+            "title": CORE_MG_BIBLIOGRAPHIC_METADATA["title"],
+            "authors": CORE_MG_BIBLIOGRAPHIC_METADATA["authors"],
+            "venue": "Journal of Physics A",
+            "publication_date": "1984-01-01",
+        }
+        signed_query = "ROUND7_CORE_SIGNED_QUERY"
+        request_fragment = "round7-core-request-fragment"
+        final_query = "ROUND7_CORE_FINAL_QUERY"
+        final_fragment = "round7-core-final-fragment"
+        route_spec["work_identity_evidence"]["url"] = (
+            "https://api.core.ac.uk/v3/outputs/572184419"
+            f"?signature={signed_query}#{request_fragment}"
+        )
+        sidecar_payload = json.dumps(
+            _core_mg_work_identity_document(),
+            sort_keys=True,
+        ).encode("utf-8")
+        sidecar_media_type = "application/json"
+        sidecar_final_url = (
+            "https://api.core.ac.uk/resolved/outputs/572184419"
+            f"?ticket={final_query}#{final_fragment}"
+        )
+        document_base_url = (
+            "https://api.core.ac.uk/resolved/outputs/572184419"
+        )
+    else:
+        raise AssertionError(f"unknown evidence kind {evidence_kind}")
+
+    source_id = "doi_" + hashlib.sha256(
+        f"doi:{identity_value}".encode("ascii")
+    ).hexdigest()[:20]
+    source = {
+        "source_id": source_id,
+        "canonical_identity": {"kind": "doi", "value": identity_value},
+        "canonical_url": f"https://doi.org/{identity_value}",
+        "benchmark_names": ["round7_signed_sidecar_fixture"],
+    }
+    route = {
+        "source_id": source_id,
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+    }
+    return {
+        "source": source,
+        "route": route,
+        "bibliographic": bibliographic,
+        "primary_payload": _minimal_pdf(
+            f"Round seven {evidence_kind} signed-sidecar roundtrip."
+        ),
+        "sidecar_payload": sidecar_payload,
+        "sidecar_media_type": sidecar_media_type,
+        "sidecar_final_url": sidecar_final_url,
+        "document_base_url": document_base_url,
+        "signed_query": signed_query,
+        "request_fragment": request_fragment,
+        "final_query": final_query,
+        "final_fragment": final_fragment,
+    }
+
+
+@pytest.mark.parametrize(
+    "evidence_kind",
+    ("author_publications_same_work", "core_same_work_output"),
+)
+def test_round7_f_signed_sidecar_full_fetch_write_and_offline_roundtrip(
+    tmp_path,
+    monkeypatch,
+    evidence_kind,
+):
+    fixture = _round7_signed_sidecar_roundtrip_fixture(evidence_kind)
+    source = fixture["source"]
+    route = fixture["route"]
+    route_spec = route["authoritative_retrieval_route"]
+    sidecar_request_url = route_spec["work_identity_evidence"]["url"]
+    primary_final_url = route_spec["url"] + (
+        "?download=ROUND7_PRIMARY_FINAL_QUERY#round7-primary-final-fragment"
+    )
+    requests = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append(request.full_url)
+            accept = _header_dict(request).get("accept")
+            if accept == "application/pdf":
+                return _FixtureHTTPResponse(
+                    fixture["primary_payload"],
+                    content_type="application/pdf",
+                    final_url=primary_final_url,
+                )
+            assert accept == fixture["sidecar_media_type"]
+            return _FixtureHTTPResponse(
+                fixture["sidecar_payload"],
+                content_type=fixture["sidecar_media_type"],
+                final_url=fixture["sidecar_final_url"],
+            )
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda ca_bundle: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: dict(fixture["bibliographic"]),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "acquired"
+    source_dir = tmp_path / source["source_id"]
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+    assert verified.source_id == source["source_id"]
+    assert sidecar_request_url in requests
+    descriptor = json.loads(
+        source_dir.joinpath("work-identity.provenance.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    expected_stable_route = sidecar_request_url.split("?", 1)[0]
+    assert descriptor["url"] == expected_stable_route
+    assert descriptor["document_base_url"] == fixture["document_base_url"]
+    assert descriptor["url"] != descriptor["document_base_url"]
+    serialized_cache = b"\n".join(
+        path.read_bytes() for path in sorted(source_dir.iterdir()) if path.is_file()
+    )
+    for forbidden in (
+        fixture["signed_query"],
+        fixture["request_fragment"],
+        fixture["final_query"],
+        fixture["final_fragment"],
+        "ROUND7_PRIMARY_FINAL_QUERY",
+        "round7-primary-final-fragment",
+        ROUND7_REDIRECT_SECRET,
+    ):
+        assert forbidden.encode("utf-8") not in serialized_cache
+
+
+@pytest.mark.parametrize(
+    ("kind", "stable_url", "signed_url"),
+    (
+        (
+            "author_publications_same_work",
+            "https://www.lptmc.jussieu.fr/signed/author-entry",
+            "https://www.lptmc.jussieu.fr/signed/author-entry?signature=secret#fragment",
+        ),
+        (
+            "core_same_work_output",
+            "https://api.core.ac.uk/v3/outputs/572184419",
+            "https://api.core.ac.uk/v3/outputs/572184419?signature=secret#fragment",
+        ),
+    ),
+)
+def test_round7_f_route_match_compares_same_sanitized_stable_identity(
+    kind,
+    stable_url,
+    signed_url,
+):
+    assert evidence_sources._same_work_identity_route(
+        {"kind": kind, "url": stable_url},
+        {"kind": kind, "url": signed_url},
+    )
+
+
+@pytest.mark.parametrize(
+    "stored",
+    (
+        {
+            "kind": "author_publications_same_work",
+            "url": "https://www.lptmc.jussieu.fr/signed/author-entry/extra",
+        },
+        {
+            "kind": "author_publications_same_work",
+            "url": "https://www.lptmc.jussieu.fr.evil.invalid/signed/author-entry",
+        },
+        {
+            "kind": "core_same_work_output",
+            "url": "https://www.lptmc.jussieu.fr/signed/author-entry",
+        },
+    ),
+    ids=("path-suffix", "lookalike-host", "kind-mismatch"),
+)
+def test_round7_f_route_match_rejects_every_nonexact_identity(stored):
+    expected = {
+        "kind": "author_publications_same_work",
+        "url": (
+            "https://www.lptmc.jussieu.fr/signed/author-entry"
+            "?signature=secret#fragment"
+        ),
+    }
+    assert not evidence_sources._same_work_identity_route(stored, expected)
+
+
+@pytest.mark.parametrize(
+    "unsafe_url",
+    (
+        "https://api.core.ac.uk/v3/outputs/572184419?signature=secret",
+        "https://api.core.ac.uk/v3/outputs/572184419#fragment",
+        "https://user:password@api.core.ac.uk/v3/outputs/572184419",
+    ),
+    ids=("query", "fragment", "userinfo"),
+)
+def test_round7_f_serialized_route_identity_rejects_all_secret_bearing_forms(
+    unsafe_url,
+):
+    with pytest.raises(SourceEvidenceError, match="query|fragment|userinfo"):
+        evidence_sources._validate_serialized_https_url(
+            unsafe_url,
+            "round7 stable route identity",
+        )
