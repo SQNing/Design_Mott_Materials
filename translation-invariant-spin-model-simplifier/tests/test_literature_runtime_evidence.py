@@ -14509,6 +14509,8 @@ def test_unmigrated_exact_gap_parser_traces_keep_the_temporary_coordinate_view()
         _exact_gap_manifest_parser_names()
         - set(literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS)
     )
+    assert parser_names == PREPARED_TRACE_BATCH_D_REMAINING
+    assert len(parser_names) == 14
     fixtures = _exact_gap_positive_fixtures(
         _exact_gap_manifest_parser_names()
     )
@@ -14743,6 +14745,220 @@ PREPARED_TRACE_BATCH_B_CORES = {
 }
 
 
+PREPARED_TRACE_BATCH_C_BUILDERS = {
+    "parse_savary_er2ti2o7_psi2_order_by_quantum_disorder": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_richter_star_lattice_valence_bond_ground_state": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_richter_square_kagome_reference": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_wildes_feps3_ising_zigzag_order": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_dey_ba3irti2o9_triangular_spin_liquid_candidate": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_ghosh_mila_ruby_localized_magnon_eigenstate": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_biffin_gamma_li2iro3_spiral_kitaev_order": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_mulder_honeycomb_spiral_contour": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_balla_iqbal_penc_fcc_type_orders": (
+        "balla_fcc_layout_search_text",
+        1,
+    ),
+    "parse_henley_pyrochlore_coulomb_phase": (
+        "ligature_dash_dehyphenated_extracted_text",
+        1,
+    ),
+    "parse_abramchuk_cu2iro3_honeycomb_iridate": (
+        "ligature_dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_enderle_licuvo4_incommensurate_helimagnet": (
+        "ligature_dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_bak_jensen_mnsi_long_wavelength_helix": (
+        "ligature_dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_seki_cu2oseo3_skyrmion_lattice_phase": (
+        "seki_science_layout_search_text",
+        1,
+    ),
+    "parse_wernsdorfer_sessoli_fe8_quantum_tunneling": (
+        "wernsdorfer_science_webprint_search_text",
+        1,
+    ),
+}
+
+
+PREPARED_TRACE_BATCH_C_FIXTURES = {
+    parser_name: _exact_gap_positive_fixtures(
+        _exact_gap_manifest_parser_names()
+    )[parser_name]
+    for parser_name in PREPARED_TRACE_BATCH_C_BUILDERS
+}
+
+
+PREPARED_TRACE_BATCH_C_CORES = {
+    parser_name: f"_{parser_name}_prepared"
+    for parser_name in PREPARED_TRACE_BATCH_C_BUILDERS
+}
+
+
+PREPARED_TRACE_BATCH_D_REMAINING = {
+    "parse_cable_crcl3_ferromagnetic_layers",
+    "parse_carteaux_cr2ge2te6_ferromagnetic_order",
+    "parse_ramirez_dy2ti2o7_pauling_entropy",
+    "parse_kitagawa_h3liir2o6_no_magnetic_order",
+    "parse_mazin_honeycomb_j1_j2_j3_phase_set",
+    "parse_chaloupka_na2iro3_zigzag_relevance",
+    "parse_chaloupka_full_kitaev_heisenberg_ordered_phases",
+    "parse_furuchi_lieb_lattice_ground_state_spin",
+    "parse_ressouche_mnps3_neel_order",
+    "parse_hsieh_nacro2_unconventional_spin_order",
+    "parse_sandvik_daul_square_xy_ring_bond_order",
+    "parse_chubukov_golosov_triangular_plateau",
+    "parse_blote_luijten_heringa_simple_cubic_ising_tc",
+    "parse_kitazawa_nomura_takhtajan_babujian_point",
+}
+
+
+def _independently_normalize_ligatures_and_dashes(source_text):
+    normalized = source_text
+    for old, new in (
+        ("ﬁ", "fi"),
+        ("ﬂ", "fl"),
+        ("ﬀ", "ff"),
+        ("ﬃ", "ffi"),
+        ("ﬄ", "ffl"),
+        ("−", "-"),
+        ("–", "-"),
+        ("—", "-"),
+    ):
+        normalized = normalized.replace(old, new)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _independently_rebuild_batch_c_view(source_text, builder_id):
+    if builder_id in {
+        "whitespace_normalized_extracted_text",
+        "dash_normalized_extracted_text",
+    }:
+        return _independently_rebuild_batch_b_view(source_text, builder_id)
+    if builder_id == "ligature_dash_normalized_extracted_text":
+        return _independently_normalize_ligatures_and_dashes(source_text)
+    if builder_id == "ligature_dash_dehyphenated_extracted_text":
+        normalized = source_text
+        for old, new in (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("·", " dot "),
+        ):
+            normalized = normalized.replace(old, new)
+        normalized = re.sub(r"(?<=\w)-\s+(?=\w)", "", normalized)
+        return re.sub(r"\s+", " ", normalized).strip()
+    if builder_id == "balla_fcc_layout_search_text":
+        normalized = source_text
+        for old, new in (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("·", " dot "),
+        ):
+            normalized = normalized.replace(old, new)
+        normalized = re.sub(r"(?<=\w)-\s+(?=\w)", "", normalized)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized + "\n" + "#" * 5000 + "\n" + source_text
+    if builder_id == "seki_science_layout_search_text":
+        def normalize(text):
+            text = re.sub(
+                r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])", "", text
+            )
+            for old, new in (
+                ("ﬁ", "fi"),
+                ("ﬂ", "fl"),
+                ("ﬀ", "ff"),
+                ("ﬃ", "ffi"),
+                ("ﬄ", "ffl"),
+                ("−", "-"),
+                ("–", "-"),
+                ("—", "-"),
+                ("∼", "~"),
+            ):
+                text = text.replace(old, new)
+            return re.sub(r"\s+", " ", text).strip()
+
+        pages = source_text.split("\f")
+        wide_left_raw = "\n".join(
+            line[:138]
+            for page in pages
+            for line in page.splitlines()
+        )
+        two_column_raw = "\n".join(
+            line[:112]
+            for page in pages
+            for line in page.splitlines()
+        )
+        column_major_raw = "\n".join(
+            "\n".join(line[start:end] for line in page.splitlines())
+            for page in pages
+            for start, end in ((0, 55), (55, 112), (112, None))
+        )
+        search_text = " ".join(
+            (
+                normalize(source_text),
+                normalize(wide_left_raw),
+                normalize(two_column_raw),
+                normalize(column_major_raw),
+            )
+        )
+        separator = "\n" + "#" * 5000 + "\n"
+        return separator.join((search_text, source_text, column_major_raw))
+    if builder_id == "wernsdorfer_science_webprint_search_text":
+        normalized = _independently_normalize_ligatures_and_dashes(
+            source_text
+        )
+        webprint_left_raw = "\n".join(
+            line[:108] for line in source_text.splitlines()
+        )
+        webprint_left_normalized = (
+            _independently_normalize_ligatures_and_dashes(
+                webprint_left_raw
+            )
+        )
+        return " ".join((normalized, webprint_left_normalized))
+    raise AssertionError(f"unexpected Batch C builder: {builder_id}")
+
+
 def _independently_rebuild_batch_b_view(source_text, builder_id):
     whitespace_normalized = re.sub(r"\s+", " ", source_text).strip()
     if builder_id == "whitespace_normalized_extracted_text":
@@ -14816,23 +15032,185 @@ def test_batch_a_prepared_trace_registry_is_exact():
     assert len(PREPARED_TRACE_BATCH_A_BUILDERS) == 13
 
 
-def test_batch_b_prepared_trace_registry_and_cumulative_set_are_exact():
+def test_batch_b_prepared_trace_registry_is_exact_within_batch():
     registered = dict(
         literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS
     )
-    assert set(registered) - set(PREPARED_TRACE_BATCH_A_BUILDERS) == set(
+    assert {
+        parser_name: registered[parser_name]
+        for parser_name in PREPARED_TRACE_BATCH_B_BUILDERS
+    } == PREPARED_TRACE_BATCH_B_BUILDERS
+    assert set(PREPARED_TRACE_BATCH_A_BUILDERS).isdisjoint(
         PREPARED_TRACE_BATCH_B_BUILDERS
     )
-    assert registered == {
-        **PREPARED_TRACE_BATCH_A_BUILDERS,
-        **PREPARED_TRACE_BATCH_B_BUILDERS,
-    }
     assert set(PREPARED_TRACE_BATCH_B_FIXTURES) == set(
         PREPARED_TRACE_BATCH_B_BUILDERS
     )
     assert len(PREPARED_TRACE_BATCH_B_BUILDERS) == 16
-    assert len(registered) == 29
-    assert len(_exact_gap_manifest_parser_names() - set(registered)) == 29
+
+
+def test_batch_c_prepared_trace_registry_and_cumulative_set_are_exact():
+    registered = dict(
+        literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS
+    )
+    prior_builders = {
+        **PREPARED_TRACE_BATCH_A_BUILDERS,
+        **PREPARED_TRACE_BATCH_B_BUILDERS,
+    }
+    assert set(registered) - set(prior_builders) == set(
+        PREPARED_TRACE_BATCH_C_BUILDERS
+    )
+    assert registered == {
+        **prior_builders,
+        **PREPARED_TRACE_BATCH_C_BUILDERS,
+    }
+    assert set(PREPARED_TRACE_BATCH_C_FIXTURES) == set(
+        PREPARED_TRACE_BATCH_C_BUILDERS
+    )
+    assert len(PREPARED_TRACE_BATCH_C_BUILDERS) == 15
+    assert len(registered) == 44
+    assert (
+        _exact_gap_manifest_parser_names() - set(registered)
+        == PREPARED_TRACE_BATCH_D_REMAINING
+    )
+    assert len(PREPARED_TRACE_BATCH_D_REMAINING) == 14
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_C_BUILDERS
+)
+def test_batch_c_trace_replays_independently_declared_prepared_view(
+    parser_name,
+):
+    source_text = PREPARED_TRACE_BATCH_C_FIXTURES[parser_name]
+    builder_id, version = PREPARED_TRACE_BATCH_C_BUILDERS[parser_name]
+    benchmark_name, bundle = _prepared_trace_bundle(parser_name, source_text)
+    trace = bundle["extraction_trace"]
+
+    independently_rebuilt = _independently_rebuild_batch_c_view(
+        source_text, builder_id
+    )
+    assert trace["coordinate_space"] == "private_prepared_extracted_text"
+    assert trace["coordinate_builder"] == builder_id
+    assert type(trace["coordinate_contract_version"]) is int
+    assert trace["coordinate_contract_version"] == version
+    assert trace["coordinate_view_length"] == len(independently_rebuilt)
+    assert trace["coordinate_view_sha256"] == hashlib.sha256(
+        independently_rebuilt.encode("utf-8")
+    ).hexdigest()
+    assert len(trace["text_span_sha256"]) == len(trace["text_spans"])
+    assert len(trace["text_span_captures"]) == len(trace["text_spans"])
+    for span, digest, capture in zip(
+        trace["text_spans"],
+        trace["text_span_sha256"],
+        trace["text_span_captures"],
+    ):
+        start, end = span
+        independently_replayed_capture = independently_rebuilt[start:end]
+        assert 0 <= start < end <= len(independently_rebuilt)
+        assert capture == independently_replayed_capture
+        assert capture
+        assert digest == hashlib.sha256(
+            independently_replayed_capture.encode("utf-8")
+        ).hexdigest()
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        == "strict_local_source_parsed"
+    )
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_C_BUILDERS
+)
+def test_batch_c_public_parsers_prepare_exactly_once(
+    monkeypatch, parser_name
+):
+    source_text = PREPARED_TRACE_BATCH_C_FIXTURES[parser_name]
+    preparation_calls = []
+    original_builder = literature_runtime_evidence._build_prepared_view
+
+    def recording_builder(*args, **kwargs):
+        preparation_calls.append((args, kwargs))
+        return original_builder(*args, **kwargs)
+
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        "_build_prepared_view",
+        recording_builder,
+    )
+
+    getattr(literature_runtime_evidence, parser_name)(source_text)
+
+    assert len(preparation_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_C_BUILDERS
+)
+def test_batch_c_prepared_cores_do_not_prepare_normalize_or_rebuild_layout(
+    monkeypatch, parser_name
+):
+    source_text = PREPARED_TRACE_BATCH_C_FIXTURES[parser_name]
+    builder_id, version = PREPARED_TRACE_BATCH_C_BUILDERS[parser_name]
+    prepared = literature_runtime_evidence._build_prepared_view(
+        source_text, builder_id=builder_id, version=version
+    )
+    expected = getattr(literature_runtime_evidence, parser_name)(source_text)
+    core = getattr(
+        literature_runtime_evidence,
+        PREPARED_TRACE_BATCH_C_CORES[parser_name],
+    )
+    core_source = inspect.getsource(core)
+    core_tree = ast.parse(core_source)
+    forbidden_attributes = {"replace", "split", "splitlines", "join"}
+    assert not any(
+        isinstance(node, ast.Call)
+        and (
+            (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr in forbidden_attributes
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "re"
+                and node.func.attr == "sub"
+            )
+            or (
+                isinstance(node.func, ast.Name)
+                and (
+                    node.func.id.startswith("_build_")
+                    or "normalize" in node.func.id
+                )
+            )
+        )
+        for node in ast.walk(core_tree)
+    )
+
+    def forbidden_preparation(*args, **kwargs):
+        raise AssertionError("prepared core rebuilt its input")
+
+    def forbidden_normalization(*args, **kwargs):
+        raise AssertionError("prepared core normalized its input again")
+
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        "_build_prepared_view",
+        forbidden_preparation,
+    )
+    monkeypatch.setattr(
+        literature_runtime_evidence.re,
+        "sub",
+        forbidden_normalization,
+    )
+    core_result = core(prepared.text)
+
+    assert literature_runtime_evidence._finalize_prepared_trace(
+        core_result, prepared
+    ) == expected
 
 
 @pytest.mark.parametrize(
