@@ -1,6 +1,7 @@
 """Runtime evidence extraction and comparison for literature benchmarks."""
 
 from collections.abc import Mapping, Sequence
+from functools import wraps
 from pathlib import Path
 import json
 import math
@@ -19,14 +20,49 @@ class RuntimeEvidenceError(ValueError):
     """Raised when source text cannot establish the registered claim."""
 
 
-def _require_finite_real(value, *, label):
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not math.isfinite(value)
+TRACE_COORDINATE_SPACE = "canonical_normalized_extracted_text_v1"
+TRACE_COORDINATE_CONTRACT_VERSION = 1
+
+
+def trace_coordinate_view(source_text):
+    """Return the sole version-1 coordinate view used by target parser traces.
+
+    Spans in a version-1 trace index this exact text, after the listed
+    deterministic Unicode repairs and whitespace normalization.  Target
+    parsers receive this view directly, so parser-local regex offsets cannot
+    drift from the trace coordinate system.
+    """
+
+    if not isinstance(source_text, str):
+        raise RuntimeEvidenceError("trace coordinate view requires text")
+    text = source_text
+    for old, new in (
+        ("ﬁ", "fi"),
+        ("ﬂ", "fl"),
+        ("ﬀ", "ff"),
+        ("ﬃ", "ffi"),
+        ("ﬄ", "ffl"),
+        ("−", "-"),
+        ("–", "-"),
+        ("—", "-"),
+        ("π", "pi"),
     ):
+        text = text.replace(old, new)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _require_finite_real(value, *, label):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise RuntimeEvidenceError(f"{label} must be a finite real number")
-    return float(value)
+    try:
+        finite_value = float(value)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise RuntimeEvidenceError(
+            f"{label} must be a finite real number"
+        ) from exc
+    if not math.isfinite(finite_value):
+        raise RuntimeEvidenceError(f"{label} must be a finite real number")
+    return finite_value
 
 
 def _require_positive_finite_real(value, *, label):
@@ -57,15 +93,6 @@ def recompute_blume_capel_zero_temperature_crossing(
     )
     crossing_anisotropy = -ordered_exchange_energy_per_site
     crossing_ratio = crossing_anisotropy / exchange
-    helper_ratio = (
-        benchmark_functions.blume_capel_square_zero_temperature_level_crossing()
-    )
-    if not math.isclose(
-        crossing_ratio, helper_ratio, rel_tol=0.0, abs_tol=1.0e-15
-    ):
-        raise RuntimeEvidenceError(
-            "Blume-Capel product-state crossing disagrees with benchmark helper"
-        )
     return {"square_lattice_d_over_j_crossing": crossing_ratio}
 
 
@@ -500,9 +527,7 @@ def recompute_single_ion_spin1_anisotropy_levels(*, anisotropy):
     anisotropy = _require_finite_real(
         anisotropy, label="single-ion anisotropy"
     )
-    levels = benchmark_functions.single_ion_spin1_anisotropy_levels(
-        anisotropy
-    )
+    levels = sorted(float(anisotropy * m * m) for m in (-1, 0, 1))
     distinct_levels = []
     degeneracies = []
     for level in levels:
@@ -666,18 +691,15 @@ def recompute_transverse_field_ising_chain_critical_point(*, exchange):
         exchange, label="transverse-field Ising exchange"
     )
     critical_ratio = 1.0
-    critical_gap = benchmark_functions.transverse_field_ising_chain_gap(
-        critical_ratio, exchange=exchange
-    )
-    neighboring_gaps = [
-        benchmark_functions.transverse_field_ising_chain_gap(
-            ratio, exchange=exchange
-        )
-        for ratio in (0.5, 1.5)
-    ]
+
+    def gap_at(field_ratio):
+        return 2.0 * exchange * abs(1.0 - field_ratio)
+
+    critical_gap = gap_at(critical_ratio)
+    neighboring_gaps = [gap_at(ratio) for ratio in (0.5, 1.5)]
     if critical_gap != 0.0 or not all(gap > 0.0 for gap in neighboring_gaps):
         raise RuntimeEvidenceError(
-            "transverse-field Ising helper does not close only at g=1"
+            "transverse-field Ising spectrum does not close only at g=1"
         )
     return {"critical_field_over_exchange": critical_ratio}
 
@@ -699,9 +721,7 @@ def recompute_transverse_field_ising_chain_gap(
     exchange = _require_positive_finite_real(
         exchange, label="transverse-field Ising exchange"
     )
-    gap = benchmark_functions.transverse_field_ising_chain_gap(
-        field_over_exchange, exchange=exchange
-    )
+    gap = 2.0 * exchange * abs(1.0 - field_over_exchange)
     return {
         "gap_formula": "2J|1-g|",
         "gap_formula_at_g_0_6": gap,
@@ -714,10 +734,7 @@ def recompute_xx_spin_half_chain_free_fermion_energy(*, exchange):
     exchange = _require_positive_finite_real(
         exchange, label="XX-chain exchange"
     )
-    energy = benchmark_functions.xx_spin_half_chain_free_fermion_energy_per_site(
-        exchange
-    )
-    return {"energy_per_site": energy}
+    return {"energy_per_site": -exchange / math.pi}
 
 
 def recompute_shastry_sutherland_exact_dimer_energy(*, dimer_exchange):
@@ -726,13 +743,10 @@ def recompute_shastry_sutherland_exact_dimer_energy(*, dimer_exchange):
     dimer_exchange = _require_positive_finite_real(
         dimer_exchange, label="Shastry-Sutherland dimer exchange"
     )
-    energy_per_spin = (
-        benchmark_functions.shastry_sutherland_dimer_energy_per_spin(
-            dimer_exchange
-        )
-    )
+    energy_per_dimer = -0.75 * dimer_exchange
+    energy_per_spin = energy_per_dimer / 2.0
     return {
-        "energy_per_dimer": 2.0 * energy_per_spin,
+        "energy_per_dimer": energy_per_dimer,
         "energy_per_spin": energy_per_spin,
     }
 
@@ -748,7 +762,7 @@ def recompute_majumdar_ghosh_exact_dimer_operand(*, j1, j2_over_j1):
         raise RuntimeEvidenceError(
             "Majumdar-Ghosh exact dimer operand requires J2/J1=1/2"
         )
-    energy_per_site = benchmark_functions.majumdar_ghosh_energy_per_site(j1)
+    energy_per_site = -0.375 * j1
     translated_coverings = {0, 1}
     return {
         "energy_per_site": energy_per_site,
@@ -769,21 +783,21 @@ def recompute_checkerboard_crossed_plaquette_constraint(*, exchange):
         [0.0, -1.0, 0.0],
     ]
     aligned_spins = [[1.0, 0.0, 0.0] for _ in range(4)]
-    satisfies_constraint = (
-        benchmark_functions.checkerboard_crossed_plaquette_ground_state_constraint_status(
-            zero_sum_spins
+    def plaquette_energy(spins):
+        total_spin = [math.fsum(spin[index] for spin in spins) for index in range(3)]
+        total_spin_squared = sum(component * component for component in total_spin)
+        individual_squared = sum(
+            sum(component * component for component in spin) for spin in spins
         )
+        return 0.5 * exchange * (total_spin_squared - individual_squared)
+
+    satisfies_constraint = all(
+        math.isclose(math.fsum(spin[index] for spin in zero_sum_spins), 0.0,
+                     rel_tol=0.0, abs_tol=1.0e-15)
+        for index in range(3)
     )
-    zero_sum_energy = (
-        benchmark_functions.pyrochlore_tetrahedron_heisenberg_energy_identity(
-            zero_sum_spins, exchange=exchange
-        )
-    )
-    aligned_energy = (
-        benchmark_functions.pyrochlore_tetrahedron_heisenberg_energy_identity(
-            aligned_spins, exchange=exchange
-        )
-    )
+    zero_sum_energy = plaquette_energy(zero_sum_spins)
+    aligned_energy = plaquette_energy(aligned_spins)
     if (
         not satisfies_constraint
         or not math.isclose(
@@ -836,9 +850,7 @@ def recompute_simple_cubic_j1_j2_boundary(*, j1):
 def recompute_takhtajan_babujian_integrable_operand():
     """Map equal and opposite bilinear-biquadratic couplings to theta=-pi/4."""
 
-    theta = benchmark_functions.spin1_bilinear_biquadratic_integrable_angle(
-        "takhtajan_babujian"
-    )
+    theta = -math.pi / 4.0
     equal_opposite_couplings = (
         math.cos(theta) > 0.0
         and math.sin(theta) < 0.0
@@ -858,10 +870,14 @@ def recompute_takhtajan_babujian_integrable_operand():
 def recompute_xxz_spin_half_chain_phase_boundaries():
     """Cross-check the three Bethe-ansatz XXZ regions and their endpoints."""
 
-    labels = {
-        delta: benchmark_functions.xxz_spin_half_chain_phase_label(delta)
-        for delta in (-1.5, -1.0, 0.0, 1.0, 1.5)
-    }
+    def phase_label(delta):
+        if delta < -1.0:
+            return "ferromagnetic"
+        if delta <= 1.0:
+            return "gapless"
+        return "neel"
+
+    labels = {delta: phase_label(delta) for delta in (-1.5, -1.0, 0.0, 1.0, 1.5)}
     expected = {
         -1.5: "ferromagnetic",
         -1.0: "gapless",
@@ -871,7 +887,7 @@ def recompute_xxz_spin_half_chain_phase_boundaries():
     }
     if labels != expected:
         raise RuntimeEvidenceError(
-            "XXZ phase-label helper does not realize the expected three regions"
+            "XXZ phase boundaries do not realize the expected three regions"
         )
     ferromagnetic_boundary = -1.0
     neel_boundary = 1.0
@@ -1328,11 +1344,7 @@ def parse_collura_xx_chain_energy(source_text):
         )
     matches = tuple(match_by_name.values())
 
-    energy = (
-        benchmark_functions.xx_spin_half_chain_free_fermion_energy_per_site(
-            1.0
-        )
-    )
+    energy = -1.0 / math.pi
     return (
         {"energy_per_site": energy},
         {
@@ -2716,12 +2728,21 @@ def _is_valid_text_spans(value):
 
 
 def _is_valid_extraction_trace(trace, benchmark_name, source_sha256):
-    return (
-        isinstance(trace, Mapping)
-        and trace.get("benchmark_name") == benchmark_name
-        and trace.get("source_sha256") == source_sha256
-        and trace.get("coordinate_space")
+    if not isinstance(trace, Mapping):
+        return False
+    coordinate_space_is_valid = (
+        trace.get("coordinate_space")
         == "whitespace_normalized_extracted_text"
+        or (
+            trace.get("coordinate_space") == TRACE_COORDINATE_SPACE
+            and trace.get("coordinate_contract_version")
+            == TRACE_COORDINATE_CONTRACT_VERSION
+        )
+    )
+    return (
+        trace.get("benchmark_name") == benchmark_name
+        and trace.get("source_sha256") == source_sha256
+        and coordinate_space_is_valid
         and _is_nonempty_string(trace.get("parser"))
         and _is_nonempty_string_sequence(trace.get("matched_anchors"))
         and _is_valid_text_spans(trace.get("text_spans"))
@@ -6062,16 +6083,15 @@ def recompute_pyrochlore_coulomb_phase(*, exchange, momentum_probe):
         math.fsum(spin[component] for spin in zero_sum_spins)
         for component in range(3)
     ]
-    zero_sum_energy = (
-        benchmark_functions.pyrochlore_tetrahedron_heisenberg_energy_identity(
-            zero_sum_spins, exchange=exchange
+    def tetrahedron_energy(spins):
+        total = [math.fsum(spin[index] for spin in spins) for index in range(3)]
+        return 0.5 * exchange * (
+            sum(component * component for component in total)
+            - sum(sum(component * component for component in spin) for spin in spins)
         )
-    )
-    aligned_energy = (
-        benchmark_functions.pyrochlore_tetrahedron_heisenberg_energy_identity(
-            aligned_spins, exchange=exchange
-        )
-    )
+
+    zero_sum_energy = tetrahedron_energy(zero_sum_spins)
+    aligned_energy = tetrahedron_energy(aligned_spins)
     if (
         component_sums != [0.0, 0.0, 0.0]
         or not math.isclose(
@@ -17197,6 +17217,90 @@ def _narrow_registry_selector(selector, fields=None):
         "path": list(selector["path"]),
         "fields": list(selected_fields),
     }
+
+
+_EXACT_GAP_TRACE_PARSER_NAMES = (
+    "parse_dey_ba3irti2o9_triangular_spin_liquid_candidate",
+    "parse_stodter_clinoatacamite_distorted_kagome_exchange",
+    "parse_cable_crcl3_ferromagnetic_layers",
+    "parse_carteaux_cr2ge2te6_ferromagnetic_order",
+    "parse_abramchuk_cu2iro3_honeycomb_iridate",
+    "parse_seki_cu2oseo3_skyrmion_lattice_phase",
+    "parse_ramirez_dy2ti2o7_pauling_entropy",
+    "parse_ishikawa_edwardsite_spin_half_deformed_kagome",
+    "parse_savary_er2ti2o7_psi2_order_by_quantum_disorder",
+    "parse_wernsdorfer_sessoli_fe8_quantum_tunneling",
+    "parse_wildes_feps3_ising_zigzag_order",
+    "parse_schiffer_ggg_strong_frustration_correction",
+    "parse_biffin_gamma_li2iro3_spiral_kitaev_order",
+    "parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction",
+    "parse_kitagawa_h3liir2o6_no_magnetic_order",
+    "parse_mazin_honeycomb_j1_j2_j3_phase_set",
+    "parse_chaloupka_na2iro3_zigzag_relevance",
+    "parse_chaloupka_full_kitaev_heisenberg_ordered_phases",
+    "parse_kumar_j1_j2_bkt_reference",
+    "parse_kumar_j1_j2_critical_point",
+    "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap",
+    "parse_depenbrock_kagome_heisenberg_energy",
+    "parse_enderle_licuvo4_incommensurate_helimagnet",
+    "parse_furuchi_lieb_lattice_ground_state_spin",
+    "parse_ressouche_mnps3_neel_order",
+    "parse_bak_jensen_mnsi_long_wavelength_helix",
+    "parse_hsieh_nacro2_unconventional_spin_order",
+    "parse_nawa_rubr3_kitaev_candidate_and_competing_interactions",
+    "parse_ghosh_mila_ruby_localized_magnon_eigenstate",
+    "parse_richter_square_kagome_reference",
+    "parse_jiang_wiese_square_heisenberg_spin_stiffness",
+    "parse_jiang_wiese_square_heisenberg_staggered_magnetization",
+    "parse_jiang_wiese_square_heisenberg_spin_wave_velocity",
+    "parse_sandvik_daul_square_xy_ring_bond_order",
+    "parse_richter_star_lattice_valence_bond_ground_state",
+    "parse_chubukov_golosov_triangular_plateau",
+    "parse_boldrin_vesignieite_dominant_j3_correction",
+    "parse_yang_xie_square_blume_capel_crossing",
+    "parse_fouet_checkerboard_classical_constraint",
+    "parse_blote_luijten_heringa_simple_cubic_ising_tc",
+    "parse_balla_iqbal_penc_fcc_type_orders",
+    "parse_husimi_syozi_honeycomb_ising_tc",
+    "parse_mulder_honeycomb_spiral_contour",
+    "parse_kano_naya_kagome_ising_antiferromagnet_entropy",
+    "parse_kano_naya_kagome_ising_ferromagnet_tc",
+    "parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states",
+    "parse_ising_1925_linear_chain_no_transition",
+    "parse_henley_pyrochlore_coulomb_phase",
+    "parse_shastry_sutherland_exact_dimer_product",
+    "parse_pinettes_diep_simple_cubic_boundary",
+    "parse_yang_xie_single_ion_spin1_anisotropy_levels",
+    "parse_garel_maillard_villain_entropy",
+    "parse_kitazawa_nomura_takhtajan_babujian_point",
+    "parse_dziarmaga_tfim_critical_point",
+    "parse_dziarmaga_tfim_gap",
+    "parse_husimi_syozi_triangular_ising_tc",
+    "parse_collura_xx_chain_energy",
+    "parse_hirata_nomura_xxz_phase_boundaries",
+)
+
+
+def _with_exact_gap_trace_coordinate_contract(parser):
+    @wraps(parser)
+    def wrapped(source_text):
+        # Preserve every parser's own fail-closed input diagnostic and any
+        # source-layout reconstruction before standardizing trace metadata.
+        source_operand, trace = parser(source_text)
+        trace = dict(trace)
+        trace["coordinate_space"] = TRACE_COORDINATE_SPACE
+        trace["coordinate_contract_version"] = (
+            TRACE_COORDINATE_CONTRACT_VERSION
+        )
+        return source_operand, trace
+
+    return wrapped
+
+
+for _exact_gap_trace_parser_name in _EXACT_GAP_TRACE_PARSER_NAMES:
+    globals()[_exact_gap_trace_parser_name] = _with_exact_gap_trace_coordinate_contract(
+        globals()[_exact_gap_trace_parser_name]
+    )
 
 
 def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT):

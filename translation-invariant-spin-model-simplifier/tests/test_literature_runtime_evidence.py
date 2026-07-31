@@ -1,3 +1,4 @@
+import ast
 import sys
 import csv
 import inspect
@@ -14355,3 +14356,191 @@ def test_exact_model_recompute_adapters_fail_closed_on_invalid_parameters(
 
     with pytest.raises(RuntimeEvidenceError):
         adapter(**parameters)
+
+
+@pytest.mark.parametrize("value", [10**400, -(10**400)])
+def test_require_finite_real_rejects_huge_integers_as_runtime_evidence_errors(value):
+    with pytest.raises(RuntimeEvidenceError, match="finite real number"):
+        literature_runtime_evidence._require_finite_real(
+            value, label="huge-integer test"
+        )
+
+
+def test_exact_gap_recomputes_do_not_depend_on_benchmark_helpers(monkeypatch):
+    def corrupted_helper(*args, **kwargs):
+        raise AssertionError("benchmark helper must not be called")
+
+    for helper_name in (
+        "blume_capel_square_zero_temperature_level_crossing",
+        "single_ion_spin1_anisotropy_levels",
+        "transverse_field_ising_chain_gap",
+        "xx_spin_half_chain_free_fermion_energy_per_site",
+        "shastry_sutherland_dimer_energy_per_spin",
+        "majumdar_ghosh_energy_per_site",
+        "checkerboard_crossed_plaquette_ground_state_constraint_status",
+        "pyrochlore_tetrahedron_heisenberg_energy_identity",
+        "spin1_bilinear_biquadratic_integrable_angle",
+        "xxz_spin_half_chain_phase_label",
+    ):
+        monkeypatch.setattr(
+            literature_runtime_evidence.benchmark_functions,
+            helper_name,
+            corrupted_helper,
+        )
+
+    assert literature_runtime_evidence.recompute_blume_capel_zero_temperature_crossing(
+        coordination_number=4, exchange=1.0
+    ) == {"square_lattice_d_over_j_crossing": 2.0}
+    assert literature_runtime_evidence.recompute_single_ion_spin1_anisotropy_levels(
+        anisotropy=1.0
+    ) == {"levels": [0.0, 1.0, 1.0], "degeneracies": [1, 2]}
+    assert literature_runtime_evidence.recompute_transverse_field_ising_chain_critical_point(
+        exchange=1.0
+    ) == {"critical_field_over_exchange": 1.0}
+    assert literature_runtime_evidence.recompute_transverse_field_ising_chain_gap(
+        field_over_exchange=0.6, exchange=1.0
+    ) == {
+        "gap_formula": "2J|1-g|",
+        "gap_formula_at_g_0_6": pytest.approx(0.8),
+    }
+    assert literature_runtime_evidence.recompute_xx_spin_half_chain_free_fermion_energy(
+        exchange=1.0
+    ) == {"energy_per_site": pytest.approx(-1.0 / math.pi)}
+    assert literature_runtime_evidence.recompute_shastry_sutherland_exact_dimer_energy(
+        dimer_exchange=1.0
+    ) == {"energy_per_dimer": -0.75, "energy_per_spin": -0.375}
+    assert literature_runtime_evidence.recompute_majumdar_ghosh_exact_dimer_operand(
+        j1=1.0, j2_over_j1=0.5
+    ) == {"energy_per_site": -0.375, "degenerate_dimer_coverings": 2}
+    assert literature_runtime_evidence.recompute_checkerboard_crossed_plaquette_constraint(
+        exchange=1.0
+    ) == {"zero_total_spin_per_crossed_plaquette": True}
+    assert literature_runtime_evidence.recompute_takhtajan_babujian_integrable_operand() == {
+        "theta_radians": -math.pi / 4.0,
+        "is_integrable": True,
+    }
+    assert literature_runtime_evidence.recompute_xxz_spin_half_chain_phase_boundaries() == {
+        "ferromagnetic_boundary_delta": -1.0,
+        "neel_boundary_delta": 1.0,
+        "gapless_interval": [-1.0, 1.0],
+    }
+    assert literature_runtime_evidence.recompute_pyrochlore_coulomb_phase(
+        exchange=1.0, momentum_probe=1.0e-3
+    ) == {"zero_total_spin_per_tetrahedron": True, "pinch_points": True}
+
+
+def test_collura_xx_energy_is_the_source_formula_not_a_benchmark_helper(monkeypatch):
+    monkeypatch.setattr(
+        literature_runtime_evidence.benchmark_functions,
+        "xx_spin_half_chain_free_fermion_energy_per_site",
+        lambda *args, **kwargs: 123.0,
+    )
+
+    parsed, _ = literature_runtime_evidence.parse_collura_xx_chain_energy(
+        COLLURA_CALABRESE_ESSLER_XX_SOURCE_TEXT
+    )
+
+    assert parsed == {"energy_per_site": pytest.approx(-1.0 / math.pi)}
+
+
+def _exact_gap_manifest_parser_names():
+    design_text = (
+        PROJECT_ROOT
+        / "docs/superpowers/specs/2026-07-31-literature-evidence-155-of-155-design.md"
+    ).read_text(encoding="utf-8")
+    parser_names = set()
+    for heading in (
+        "### Thirty-seven direct local-source parses",
+        "### Twenty-one local recomputations",
+    ):
+        table = []
+        started = False
+        for line in design_text[design_text.index(heading) :].splitlines()[1:]:
+            if line.startswith("|"):
+                started = True
+                cells = [cell.strip() for cell in line.strip("|").split("|")]
+                if not all(set(cell) <= {"-", ":", " "} for cell in cells):
+                    table.append(cells)
+            elif started:
+                break
+        header, *rows = table
+        parser_index = header.index("Parser")
+        parser_names.update(row[parser_index] for row in rows)
+    assert len(parser_names) == 58
+    return parser_names
+
+
+def _exact_gap_positive_fixtures(parser_names):
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    fixtures = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in parser_names
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id.endswith("SOURCE_TEXT")
+        ):
+            continue
+        fixtures.setdefault(node.func.attr, globals()[node.args[0].id])
+    for parser_name in (
+        "parse_jiang_wiese_square_heisenberg_spin_stiffness",
+        "parse_jiang_wiese_square_heisenberg_staggered_magnetization",
+        "parse_jiang_wiese_square_heisenberg_spin_wave_velocity",
+    ):
+        fixtures[parser_name] = JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT
+    assert set(fixtures) == parser_names
+    return fixtures
+
+
+def test_exact_gap_parser_traces_use_a_replayable_versioned_coordinate_view():
+    parser_names = _exact_gap_manifest_parser_names()
+    fixtures = _exact_gap_positive_fixtures(parser_names)
+    source_sha256 = "a" * 64
+
+    for parser_name, source_text in fixtures.items():
+        source_operand, trace = getattr(
+            literature_runtime_evidence, parser_name
+        )(source_text)
+        coordinate_view = literature_runtime_evidence.trace_coordinate_view(
+            source_text
+        )
+        assert trace["coordinate_space"] == (
+            "canonical_normalized_extracted_text_v1"
+        )
+        assert trace["coordinate_contract_version"] == 1
+        for start, end in trace["text_spans"]:
+            assert coordinate_view[start:end].strip()
+
+        benchmark_name = f"trace-contract-{parser_name}"
+        selector_fields = sorted(source_operand)
+        bundle = {
+            "runtime_evidence_record": {
+                "benchmark_name": benchmark_name,
+                "evidence_mode": "local_source_parse",
+                "source_id": "fixture-source",
+                "source_sha256": source_sha256,
+                "registry_selector": {
+                    "path": ["standard_result"],
+                    "fields": selector_fields,
+                },
+                "source_operand": source_operand,
+                "registry_operand": source_operand,
+                "comparison": {
+                    "kind": "exact_field_map",
+                    "matched": True,
+                },
+            },
+            "extraction_trace": {
+                **trace,
+                "benchmark_name": benchmark_name,
+                "source_sha256": source_sha256,
+            },
+        }
+        assert (
+            literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+                benchmark_name, bundle
+            )
+            == "strict_local_source_parsed"
+        )
