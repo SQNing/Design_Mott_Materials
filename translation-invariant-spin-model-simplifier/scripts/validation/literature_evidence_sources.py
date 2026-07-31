@@ -397,7 +397,10 @@ def validate_download_response(route, *, status, headers, body, final_url):
             raise SourceEvidenceError("Elsevier response is minimized metadata, not full text")
         _xml_article_text(body, context="downloaded XML")
     elif expected == "text/html":
-        visible_text = _html_visible_text(body, context="downloaded HTML")
+        visible_text, html_hrefs, html_doi_metadata = _html_visible_document(
+            body,
+            context="downloaded HTML",
+        )
         lowered = visible_text.casefold()
         challenge_markers = (
             "access denied",
@@ -409,7 +412,11 @@ def validate_download_response(route, *, status, headers, body, final_url):
         if any(marker in lowered for marker in challenge_markers):
             raise SourceEvidenceError("downloaded HTML is a challenge or access-denied page")
         if route.get("kind") == "oup_minimal_html":
-            _validate_husimi_syozi_visible_text(visible_text)
+            _validate_husimi_syozi_visible_text(
+                visible_text,
+                hrefs=html_hrefs,
+                doi_metadata=html_doi_metadata,
+            )
     else:
         raise SourceEvidenceError(f"unsupported authoritative media type {expected}")
     return content_type
@@ -488,7 +495,10 @@ def load_verified_source(
         "kind"
     )
     if route_kind == "oup_minimal_html":
-        _validate_husimi_syozi_visible_text(extracted_text)
+        _validate_husimi_syozi_html_payload(
+            payload,
+            context="OUP offline HTML payload",
+        )
     _require_target_anchors(extracted_text, required_search_anchors)
 
     provenance_fields = {
@@ -892,6 +902,74 @@ def _validate_same_work_bibliographic_metadata(
         raise SourceEvidenceError("work identity bibliographic authors mismatch")
 
 
+_VISIBLE_BLOCK_ELEMENTS = {
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "br",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hr",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+}
+
+
+class _RenderedTextBlocks:
+    def __init__(self):
+        self.parts = []
+
+    def boundary(self):
+        if not self.parts or self.parts[-1] is not None:
+            self.parts.append(None)
+
+    def append(self, value):
+        rendered = re.sub(r"\s+", " ", unescape(value))
+        if rendered:
+            self.parts.append(rendered)
+
+    def blocks(self):
+        blocks = []
+        current = []
+        for part in (*self.parts, None):
+            if part is None:
+                normalized = " ".join("".join(current).split())
+                if normalized:
+                    blocks.append(normalized)
+                current = []
+            else:
+                current.append(part)
+        return tuple(blocks)
+
+
 class _VisiblePublicationRecordParser(HTMLParser):
     _VOID_ELEMENTS = {
         "area",
@@ -966,12 +1044,20 @@ class _VisiblePublicationRecordParser(HTMLParser):
         )
         if starts_record:
             record_index = len(self.records)
-            self.records.append({"text": [], "hrefs": [], "doi_metadata": []})
+            self.records.append(
+                {
+                    "text_builder": _RenderedTextBlocks(),
+                    "hrefs": [],
+                    "doi_metadata": [],
+                }
+            )
         else:
             record_index = parent_record
 
         if record_index is not None and not hidden:
             record = self.records[record_index]
+            if tag in _VISIBLE_BLOCK_ELEMENTS:
+                record["text_builder"].boundary()
             href = attributes.get("href")
             if tag == "a" and isinstance(href, str) and href.strip():
                 record["hrefs"].append(unescape(href.strip()))
@@ -1000,6 +1086,13 @@ class _VisiblePublicationRecordParser(HTMLParser):
             raise SourceEvidenceError(
                 "work identity author publications HTML is malformed"
             )
+        _, hidden, record_index, _ = self.frames[-1]
+        if (
+            record_index is not None
+            and not hidden
+            and tag in _VISIBLE_BLOCK_ELEMENTS
+        ):
+            self.records[record_index]["text_builder"].boundary()
         self.frames.pop()
 
     def handle_data(self, data):
@@ -1008,53 +1101,200 @@ class _VisiblePublicationRecordParser(HTMLParser):
         _, hidden, record_index, _ = self.frames[-1]
         if hidden or record_index is None:
             return
-        normalized = " ".join(unescape(data).split())
-        if normalized:
-            self.records[record_index]["text"].append(normalized)
+        self.records[record_index]["text_builder"].append(data)
 
 
 _DOI_VALUE_PATTERN = r"10\.[0-9]{4,9}/[^\s<>\"']+"
 _PLAIN_DOI_VALUE = re.compile(rf"{_DOI_VALUE_PATTERN}\Z", flags=re.IGNORECASE)
-_EXPLICIT_DOI_VALUE = re.compile(
-    rf"(?:https://doi\.org/|(?<![a-z0-9])doi\s*:\s*)"
-    rf"(?P<value>{_DOI_VALUE_PATTERN})",
+_LABELLED_DOI_VALUE = re.compile(
+    rf"doi\s*:\s*(?P<value>{_DOI_VALUE_PATTERN})\Z",
+    flags=re.IGNORECASE,
+)
+_TEXT_DOI_VALUE = re.compile(
+    rf"(?<![a-z0-9])(?P<value>{_DOI_VALUE_PATTERN})",
+    flags=re.IGNORECASE,
+)
+_ANY_DOI_VALUE = re.compile(_DOI_VALUE_PATTERN, flags=re.IGNORECASE)
+_DOI_RESOLVER_MARKER = re.compile(
+    r"doi\.org(?::[0-9]+)?/",
     flags=re.IGNORECASE,
 )
 
 
-def _complete_doi_values(carriers):
+def _plain_doi_value(value):
+    if not isinstance(value, str):
+        return None
+    rendered = unescape(value).strip()
+    match = _PLAIN_DOI_VALUE.fullmatch(rendered)
+    return match.group(0).casefold() if match is not None else None
+
+
+def _resolver_doi_value(value):
+    if not isinstance(value, str):
+        return None
+    rendered = unescape(value).strip()
+    try:
+        parsed = urlparse(rendered)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme.casefold() != "https"
+        or parsed.hostname is None
+        or parsed.hostname.casefold() != "doi.org"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in {None, 443}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+        or not parsed.path.startswith("/")
+    ):
+        return None
+    return _plain_doi_value(parsed.path[1:])
+
+
+def _structured_metadata_doi_value(value):
+    if not isinstance(value, str):
+        return None
+    rendered = unescape(value).strip()
+    plain = _plain_doi_value(rendered)
+    if plain is not None:
+        return plain
+    resolver = _resolver_doi_value(rendered)
+    if resolver is not None:
+        return resolver
+    labelled = _LABELLED_DOI_VALUE.fullmatch(rendered)
+    if labelled is None:
+        return None
+    return _plain_doi_value(labelled.group("value"))
+
+
+def _text_token_bounds(text, start, end):
+    while start > 0 and not text[start - 1].isspace():
+        start -= 1
+    while end < len(text) and not text[end].isspace():
+        end += 1
+    return start, end
+
+
+def _trim_visible_url_presentation(token):
+    rendered = token.strip()
+    if (
+        len(rendered) >= 2
+        and rendered[0] in "([{"
+        and rendered[-1] == {"(": ")", "[": "]", "{": "}"}[rendered[0]]
+    ):
+        rendered = rendered[1:-1]
+    if rendered.endswith(","):
+        rendered = rendered[:-1]
+    if rendered.endswith("."):
+        rendered = rendered[:-1]
+    return rendered
+
+
+def _unmatched_open_parenthesis(text):
+    depth = 0
+    for character in text:
+        if character == "(":
+            depth += 1
+        elif character == ")" and depth:
+            depth -= 1
+    return depth > 0
+
+
+def _normalized_text_doi_value(text, match):
+    value = match.group("value")
+    following = text[match.end() :]
+    preceding = text[: match.start()]
+    if value.endswith(",") and (not following or following[0].isspace()):
+        value = value[:-1]
+    if value.endswith(")") and (
+        value.count(")") > value.count("(")
+        and _unmatched_open_parenthesis(preceding)
+    ):
+        value = value[:-1]
+    if value.endswith(".") and not following:
+        value = value[:-1]
+    return _plain_doi_value(value)
+
+
+def _visible_text_doi_values(blocks):
     values = set()
-    for carrier in carriers:
-        if not isinstance(carrier, str):
-            continue
-        rendered = unescape(carrier).strip()
-        plain_match = _PLAIN_DOI_VALUE.fullmatch(rendered)
-        if plain_match is not None:
-            values.add(plain_match.group(0).casefold())
-        values.update(
-            match.group("value").casefold()
-            for match in _EXPLICIT_DOI_VALUE.finditer(rendered)
-        )
-    return values
+    valid_carriers = True
+    for block in blocks:
+        for marker in _DOI_RESOLVER_MARKER.finditer(block):
+            token_start, token_end = _text_token_bounds(
+                block,
+                marker.start(),
+                marker.end(),
+            )
+            token = _trim_visible_url_presentation(
+                block[token_start:token_end]
+            )
+            if _resolver_doi_value(token) is None:
+                valid_carriers = False
+        for match in _TEXT_DOI_VALUE.finditer(block):
+            value = _normalized_text_doi_value(block, match)
+            if value is None:
+                valid_carriers = False
+                continue
+            values.add(value)
+            token_start, token_end = _text_token_bounds(
+                block,
+                match.start(),
+                match.end(),
+            )
+            prefix = block[token_start : match.start()]
+            if "://" in prefix or _DOI_RESOLVER_MARKER.search(prefix):
+                token = _trim_visible_url_presentation(
+                    block[token_start:token_end]
+                )
+                if _resolver_doi_value(token) != value:
+                    valid_carriers = False
+    return values, valid_carriers
 
 
-def _has_exact_complete_doi(carriers, canonical_doi):
-    if not isinstance(canonical_doi, str):
-        return False
-    expected = canonical_doi.strip().casefold()
-    if _PLAIN_DOI_VALUE.fullmatch(expected) is None:
-        return False
-    return _complete_doi_values(carriers) == {expected}
+def _doi_values_are_exact(values, canonical_doi, *, valid_carriers):
+    expected = _plain_doi_value(canonical_doi)
+    return valid_carriers and expected is not None and values == {expected}
+
+
+def _record_text_blocks(record):
+    return record["text_builder"].blocks()
+
+
+def _add_structured_doi_carriers(values, valid_carriers, hrefs, doi_metadata):
+    for href in hrefs:
+        if _ANY_DOI_VALUE.search(href) or _DOI_RESOLVER_MARKER.search(href):
+            value = _resolver_doi_value(href)
+            if value is None:
+                valid_carriers = False
+            else:
+                values.add(value)
+    for metadata in doi_metadata:
+        value = _structured_metadata_doi_value(metadata)
+        if value is None:
+            valid_carriers = False
+        else:
+            values.add(value)
+    return values, valid_carriers
 
 
 def _record_has_exact_doi(record, canonical_doi):
-    return _has_exact_complete_doi(
-        (
-            *record["text"],
-            *record["hrefs"],
-            *record["doi_metadata"],
-        ),
+    values, valid_carriers = _visible_text_doi_values(
+        _record_text_blocks(record)
+    )
+    values, valid_carriers = _add_structured_doi_carriers(
+        values,
+        valid_carriers,
+        record["hrefs"],
+        record["doi_metadata"],
+    )
+    return _doi_values_are_exact(
+        values,
         canonical_doi,
+        valid_carriers=valid_carriers,
     )
 
 
@@ -1105,7 +1345,9 @@ def _validate_author_publications_same_work(
         )
     expected_authors = [_normalize_work_text(author) for author in authors]
     for record in records_with_doi:
-        normalized_text = _normalize_work_text(" ".join(record["text"]))
+        normalized_text = _normalize_work_text(
+            " ".join(_record_text_blocks(record))
+        )
         resolved_links = {urljoin(evidence_url, href) for href in record["hrefs"]}
         if (
             expected_title in normalized_text
@@ -1339,7 +1581,9 @@ class _VisibleArticleHTMLParser(HTMLParser):
         self.body_seen = False
         self.body_closed = False
         self.article_seen = False
-        self.visible_chunks = []
+        self.visible_text = _RenderedTextBlocks()
+        self.hrefs = []
+        self.doi_metadata = []
 
     def handle_starttag(self, tag, attrs):
         tag = tag.casefold()
@@ -1395,6 +1639,22 @@ class _VisibleArticleHTMLParser(HTMLParser):
         in_article = parent_article or (article_container and not hidden)
         if article_container and not hidden:
             self.article_seen = True
+        if in_article and not hidden:
+            if tag in _VISIBLE_BLOCK_ELEMENTS:
+                self.visible_text.boundary()
+            href = attributes.get("href")
+            if tag == "a" and isinstance(href, str) and href.strip():
+                self.hrefs.append(unescape(href.strip()))
+            if tag == "meta" and str(
+                attributes.get("name", "")
+            ).casefold() in _VisiblePublicationRecordParser._DOI_META_NAMES:
+                content = attributes.get("content")
+                if isinstance(content, str) and content.strip():
+                    self.doi_metadata.append(unescape(content.strip()))
+            for name in ("data-doi", "doi"):
+                value = attributes.get(name)
+                if isinstance(value, str) and value.strip():
+                    self.doi_metadata.append(unescape(value.strip()))
         if tag not in self._VOID_ELEMENTS:
             self.frames.append((tag, hidden, in_article, in_body))
 
@@ -1407,6 +1667,9 @@ class _VisibleArticleHTMLParser(HTMLParser):
         tag = tag.casefold()
         if not self.frames or self.frames[-1][0] != tag:
             raise SourceEvidenceError(f"{self.context} is malformed HTML nesting")
+        _, hidden, in_article, _ = self.frames[-1]
+        if in_article and not hidden and tag in _VISIBLE_BLOCK_ELEMENTS:
+            self.visible_text.boundary()
         self.frames.pop()
         if tag == "body":
             self.body_closed = True
@@ -1423,9 +1686,7 @@ class _VisibleArticleHTMLParser(HTMLParser):
         _, hidden, in_article, _ = self.frames[-1]
         if hidden or not in_article:
             return
-        normalized = " ".join(unescape(data).split())
-        if normalized:
-            self.visible_chunks.append(normalized)
+        self.visible_text.append(data)
 
     def result(self):
         if not self.root_seen or not self.root_closed:
@@ -1434,15 +1695,15 @@ class _VisibleArticleHTMLParser(HTMLParser):
             raise SourceEvidenceError(f"{self.context} has no complete document body")
         if self.frames:
             raise SourceEvidenceError(f"{self.context} is malformed HTML")
-        visible_text = " ".join(self.visible_chunks)
-        if not self.article_seen or not visible_text:
+        visible_blocks = self.visible_text.blocks()
+        if not self.article_seen or not visible_blocks:
             raise SourceEvidenceError(
                 f"{self.context} contains no nonempty visible article body"
             )
-        return visible_text
+        return "\n".join(visible_blocks)
 
 
-def _html_visible_text(payload, *, context):
+def _html_visible_document(payload, *, context):
     try:
         document = payload.decode("utf-8")
     except (AttributeError, UnicodeDecodeError) as exc:
@@ -1455,16 +1716,36 @@ def _html_visible_text(payload, *, context):
         raise
     except Exception as exc:
         raise SourceEvidenceError(f"{context} is malformed HTML: {exc}") from exc
-    return parser.result()
+    return parser.result(), tuple(parser.hrefs), tuple(parser.doi_metadata)
 
 
-def _validate_husimi_syozi_visible_text(visible_text):
+def _html_visible_text(payload, *, context):
+    visible_text, _, _ = _html_visible_document(payload, context=context)
+    return visible_text
+
+
+def _validate_husimi_syozi_visible_text(
+    visible_text,
+    *,
+    hrefs=(),
+    doi_metadata=(),
+):
     normalized = " ".join(visible_text.split())
     if "The Statistics of Honeycomb and Triangular Lattice. I" not in normalized:
         raise SourceEvidenceError("OUP HTML is missing the exact article title")
-    if not _has_exact_complete_doi(
-        (normalized,),
+    doi_values, valid_doi_carriers = _visible_text_doi_values(
+        visible_text.splitlines()
+    )
+    doi_values, valid_doi_carriers = _add_structured_doi_carriers(
+        doi_values,
+        valid_doi_carriers,
+        hrefs,
+        doi_metadata,
+    )
+    if not _doi_values_are_exact(
+        doi_values,
         "10.1143/ptp.5.2.177",
+        valid_carriers=valid_doi_carriers,
     ):
         raise SourceEvidenceError("OUP HTML is missing the canonical DOI")
     if "Kodi Husimi" not in normalized or not re.search(
@@ -1479,6 +1760,18 @@ def _validate_husimi_syozi_visible_text(visible_text):
     )
     if any(re.search(pattern, normalized, flags=re.IGNORECASE) is None for pattern in equations):
         raise SourceEvidenceError("OUP HTML is missing a target Curie-point equation")
+
+
+def _validate_husimi_syozi_html_payload(payload, *, context):
+    visible_text, hrefs, doi_metadata = _html_visible_document(
+        payload,
+        context=context,
+    )
+    _validate_husimi_syozi_visible_text(
+        visible_text,
+        hrefs=hrefs,
+        doi_metadata=doi_metadata,
+    )
 
 
 def _require_target_anchors(text, anchors):

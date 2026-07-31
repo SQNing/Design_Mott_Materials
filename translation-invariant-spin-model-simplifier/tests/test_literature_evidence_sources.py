@@ -37,6 +37,8 @@ from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESU
 SOURCE_ID = "doi_fixture_source"
 DOI = "10.1234/example.1"
 CANONICAL_URL = f"https://doi.org/{DOI}"
+OUP_DOI = b"10.1143/ptp.5.2.177"
+OUP_RESOLVER = b"https://doi.org/" + OUP_DOI
 PAYLOAD = (
     b"<article><title>Exact observable study</title>"
     b"<p>The target observable is reported in the thermodynamic limit.</p></article>"
@@ -815,6 +817,8 @@ AUTHOR_GAREL_PAGE = b"""<!doctype html>
 </main></body></html>
 """
 AUTHOR_GAREL_DOI = b"10.1088/0305-4470/16/10/023"
+AUTHOR_GAREL_RESOLVER = b"https://doi.org/" + AUTHOR_GAREL_DOI
+EXTRA_DOI = b"10.9999/other"
 
 
 def _author_garel_page_with_doi():
@@ -830,6 +834,31 @@ def _author_garel_route():
     return authoritative_route_for_identity(
         {"kind": "doi", "value": "10.1088/0305-4470/16/10/023"}
     )
+
+
+def _validate_author_garel_page(page):
+    return validate_work_identity_document(
+        page,
+        identity={"kind": "doi", "value": AUTHOR_GAREL_DOI.decode("ascii")},
+        authoritative_route=_author_garel_route(),
+        evidence_kind="author_publications_same_work",
+        bibliographic_metadata=AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA,
+    )
+
+
+def _author_page_with_markup_before_pdf(markup):
+    marker = (
+        b'    <a href="../../files/maillard/PUB2/'
+        b'Frustrated_jav16i10p2257.pdf">article PDF</a>'
+    )
+    assert marker in AUTHOR_GAREL_PAGE
+    page = AUTHOR_GAREL_PAGE.replace(
+        marker,
+        b"    " + markup + b"\n" + marker,
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    return page
 
 
 def test_author_publications_same_work_binds_page_pdf_and_doi_metadata():
@@ -873,6 +902,174 @@ def test_author_publications_same_work_rejects_longer_doi_with_canonical_prefix(
             evidence_kind="author_publications_same_work",
             bibliographic_metadata=AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA,
         )
+
+
+@pytest.mark.parametrize(
+    "fake_resolver",
+    (
+        b"evilhttps://doi.org/" + AUTHOR_GAREL_DOI,
+        b"https://evil.invalid/https://doi.org/" + AUTHOR_GAREL_DOI,
+    ),
+    ids=("prefixed", "nested"),
+)
+@pytest.mark.parametrize(
+    "carrier_kind",
+    ("visible-text", "href", "citation-doi", "data-doi"),
+)
+def test_structured_doi_author_rejects_fake_resolver_carrier(
+    carrier_kind,
+    fake_resolver,
+):
+    if carrier_kind == "visible-text":
+        page = AUTHOR_GAREL_PAGE.replace(
+            AUTHOR_GAREL_RESOLVER,
+            fake_resolver,
+            1,
+        )
+    elif carrier_kind == "href":
+        page = _author_page_with_markup_before_pdf(
+            b'<a href="' + fake_resolver + b'">identity DOI</a>'
+        )
+    elif carrier_kind == "citation-doi":
+        page = _author_page_with_markup_before_pdf(
+            b'<meta name="citation_doi" content="' + fake_resolver + b'">'
+        )
+    else:
+        page = AUTHOR_GAREL_PAGE.replace(
+            b"  <article>",
+            b'  <article data-doi="' + fake_resolver + b'">',
+            1,
+        )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "invalid_href",
+    (
+        b"http://doi.org/" + AUTHOR_GAREL_DOI,
+        b"https://user:password@doi.org/" + AUTHOR_GAREL_DOI,
+        b"https://evil.invalid/" + AUTHOR_GAREL_DOI,
+        b"https://doi.org:444/" + AUTHOR_GAREL_DOI,
+        b"https://doi.org/" + AUTHOR_GAREL_DOI + b"?download=1",
+        b"https://doi.org/" + AUTHOR_GAREL_DOI + b"#fragment",
+    ),
+    ids=("http", "userinfo", "wrong-host", "wrong-port", "query", "fragment"),
+)
+def test_structured_doi_author_rejects_invalid_resolver_href(invalid_href):
+    page = _author_page_with_markup_before_pdf(
+        b'<a href="' + invalid_href + b'">identity DOI</a>'
+    )
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "valid_href",
+    (
+        b"https://doi.org/" + AUTHOR_GAREL_DOI,
+        b"HTTPS://DOI.ORG:443/" + AUTHOR_GAREL_DOI.upper(),
+    ),
+    ids=("canonical", "normalized-default-port"),
+)
+def test_structured_doi_author_accepts_exact_resolver_href(valid_href):
+    page = _author_page_with_markup_before_pdf(
+        b'<a href="' + valid_href + b'">identity DOI</a>'
+    )
+    _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("attribute_kind", ("citation-doi", "data-doi"))
+@pytest.mark.parametrize(
+    "invalid_value",
+    (
+        b"Related " + AUTHOR_GAREL_DOI,
+        b"DOI: " + AUTHOR_GAREL_DOI + b" verified",
+    ),
+    ids=("embedded-plain", "label-with-trailing-text"),
+)
+def test_structured_doi_author_rejects_nonwhole_metadata_value(
+    attribute_kind,
+    invalid_value,
+):
+    if attribute_kind == "citation-doi":
+        page = _author_page_with_markup_before_pdf(
+            b'<meta name="citation_doi" content="' + invalid_value + b'">'
+        )
+    else:
+        page = AUTHOR_GAREL_PAGE.replace(
+            b"  <article>",
+            b'  <article data-doi="' + invalid_value + b'">',
+            1,
+        )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "metadata_value",
+    (
+        AUTHOR_GAREL_DOI,
+        b"DOI: " + AUTHOR_GAREL_DOI.upper(),
+        b"HTTPS://DOI.ORG:443/" + AUTHOR_GAREL_DOI,
+    ),
+    ids=("plain", "labelled", "resolver"),
+)
+def test_structured_doi_author_accepts_whole_metadata_value(metadata_value):
+    page = _author_page_with_markup_before_pdf(
+        b'<meta name="citation_doi" content="' + metadata_value + b'">'
+    )
+    _validate_author_garel_page(page)
+
+
+def test_structured_doi_author_accepts_duplicate_canonical_mixed_carriers():
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"  <article>",
+        b'  <article data-doi="DOI: ' + AUTHOR_GAREL_DOI + b'">',
+        1,
+    )
+    marker = b"    <p>" + AUTHOR_GAREL_RESOLVER + b"</p>"
+    page = page.replace(
+        marker,
+        marker
+        + b'\n    <meta name="citation_doi" content="'
+        + AUTHOR_GAREL_DOI.upper()
+        + b'">',
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    _validate_author_garel_page(page)
+
+
+def test_structured_doi_author_rejects_embedded_extra_bare_doi():
+    page = _author_page_with_markup_before_pdf(
+        b"<p>Related work " + EXTRA_DOI + b"</p>"
+    )
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        b"https://doi.org/10.1088/0305-4470/16/10/02<span>3</span>",
+        AUTHOR_GAREL_DOI,
+        b"DOI: " + AUTHOR_GAREL_DOI + b".",
+        b"DOI: " + AUTHOR_GAREL_DOI + b", verified",
+        b"(DOI: " + AUTHOR_GAREL_DOI + b")",
+    ),
+    ids=("inline-split", "standalone", "terminal-period", "comma-text", "parenthesized"),
+)
+def test_structured_doi_author_accepts_legal_visible_presentation(presentation):
+    page = AUTHOR_GAREL_PAGE.replace(
+        AUTHOR_GAREL_RESOLVER,
+        presentation,
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    _validate_author_garel_page(page)
 
 
 @pytest.mark.parametrize(
@@ -3170,6 +3367,128 @@ def test_oup_html_accepts_exact_canonical_dotted_doi():
         body=canonical_payload,
         final_url=route_spec["url"],
     ) == "text/html"
+
+
+def _validate_oup_html_payload(payload):
+    route_spec = _oup_html_route()
+    return validate_download_response(
+        route_spec,
+        status=200,
+        headers={"content-type": "text/html"},
+        body=payload,
+        final_url=route_spec["url"],
+    )
+
+
+@pytest.mark.parametrize(
+    "fake_resolver",
+    (
+        b"evilhttps://doi.org/" + OUP_DOI,
+        b"https://evil.invalid/https://doi.org/" + OUP_DOI,
+    ),
+    ids=("prefixed", "nested"),
+)
+def test_structured_doi_oup_rejects_fake_visible_resolver(fake_resolver):
+    payload = OUP_HTML.replace(OUP_RESOLVER, fake_resolver, 1)
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize(
+    "extra_markup",
+    (
+        b"<p>Related work " + EXTRA_DOI + b"</p>",
+        b"<p>" + EXTRA_DOI + b"</p>",
+    ),
+    ids=("embedded", "standalone"),
+)
+def test_structured_doi_oup_rejects_extra_bare_doi(extra_markup):
+    payload = OUP_HTML.replace(
+        b"    </article>",
+        b"      " + extra_markup + b"\n    </article>",
+        1,
+    )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize("carrier_kind", ("href", "citation-doi", "data-doi"))
+def test_structured_doi_oup_rejects_extra_attribute_carrier(carrier_kind):
+    if carrier_kind == "href":
+        payload = OUP_HTML.replace(
+            b"    </article>",
+            b'      <a href="https://doi.org/'
+            + EXTRA_DOI
+            + b'">Related publication</a>\n    </article>',
+            1,
+        )
+    elif carrier_kind == "citation-doi":
+        payload = OUP_HTML.replace(
+            b"    </article>",
+            b'      <meta name="citation_doi" content="'
+            + EXTRA_DOI
+            + b'">\n    </article>',
+            1,
+        )
+    else:
+        payload = OUP_HTML.replace(
+            b'<article data-private="attribute-hidden-sentinel">',
+            b'<article data-private="attribute-hidden-sentinel" data-doi="'
+            + EXTRA_DOI
+            + b'">',
+            1,
+        )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload(payload)
+
+
+def test_structured_doi_oup_accepts_duplicate_canonical_attribute_carriers():
+    payload = OUP_HTML.replace(
+        b'<article data-private="attribute-hidden-sentinel">',
+        b'<article data-private="attribute-hidden-sentinel" data-doi="DOI: '
+        + OUP_DOI.upper()
+        + b'">',
+        1,
+    )
+    payload = payload.replace(
+        b"    </article>",
+        b'      <a href="HTTPS://DOI.ORG:443/'
+        + OUP_DOI
+        + b'">Canonical identity</a>\n    </article>',
+        1,
+    )
+    assert payload != OUP_HTML
+    assert _validate_oup_html_payload(payload) == "text/html"
+
+
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        b"https://doi.org/10.1143/ptp.5.2.17<span>7</span>",
+        OUP_DOI,
+        b"DOI: " + OUP_DOI + b".",
+        b"DOI: " + OUP_DOI + b", verified",
+        b"(DOI: " + OUP_DOI + b")",
+    ),
+    ids=("inline-split", "standalone", "terminal-period", "comma-text", "parenthesized"),
+)
+def test_structured_doi_oup_accepts_legal_visible_presentation(presentation):
+    payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
+    assert payload != OUP_HTML
+    assert _validate_oup_html_payload(payload) == "text/html"
+
+
+def test_structured_doi_oup_accepts_duplicate_canonical_plain_value():
+    payload = OUP_HTML.replace(
+        b"    </article>",
+        b"      <p>" + OUP_DOI.upper() + b"</p>\n    </article>",
+        1,
+    )
+    assert payload != OUP_HTML
+    assert _validate_oup_html_payload(payload) == "text/html"
 
 
 @pytest.mark.parametrize("suffix", (b".999", b"/999", b"-other", b"_other"))
