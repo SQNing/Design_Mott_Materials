@@ -837,7 +837,9 @@ LITERATURE_STANDARD_RESULTS.extend(
             "lattice": "chain",
             "hamiltonian": "cos(theta) Si.Sj + sin(theta)(Si.Sj)^2",
             "hamiltonian_terms": ["heisenberg", "biquadratic", "spin1", "critical"],
-            "parameters": {"theta": -math.pi / 4.0},
+            "parameters": {
+                "coupling_point": "integrable_bilinear_biquadratic_critical_point"
+            },
             "observable": "critical_point",
             "comparison_kind": "exact_solution",
             "backend_needed": "bethe_or_ed",

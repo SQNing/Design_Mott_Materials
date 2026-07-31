@@ -622,7 +622,72 @@ def test_jiang_canonical_contracts_do_not_embed_numeric_target_tokens(
         assert re.search(bounded_token, serialized) is None
 
 
-def test_exact_58_canonical_text_surfaces_do_not_embed_selected_target_tokens(
+AUDITED_CANONICAL_NUMERIC_TARGET_INPUTS = frozenset(
+    {
+        # The Lieb-lattice spin-1/2 input happens to equal the theorem output.
+        (
+            "lieb_lattice_heisenberg_ferrimagnet_reference",
+            "ground_state_spin_per_unit_cell",
+            ("conditions", "model_parameters", "spin"),
+            float,
+            0.5,
+        ),
+        (
+            "lieb_lattice_heisenberg_ferrimagnet_reference",
+            "ground_state_spin_per_unit_cell",
+            ("parameter_regime", "spin"),
+            float,
+            0.5,
+        ),
+        # Unit spin and unit anisotropy set the single-ion reference scale.
+        (
+            "single_ion_spin1_anisotropy_levels",
+            "levels",
+            ("conditions", "model_parameters", "anisotropy"),
+            float,
+            1.0,
+        ),
+        (
+            "single_ion_spin1_anisotropy_levels",
+            "levels",
+            ("conditions", "model_parameters", "spin"),
+            float,
+            1.0,
+        ),
+        (
+            "single_ion_spin1_anisotropy_levels",
+            "levels",
+            ("parameter_regime", "anisotropy"),
+            float,
+            1.0,
+        ),
+        (
+            "single_ion_spin1_anisotropy_levels",
+            "levels",
+            ("parameter_regime", "spin"),
+            float,
+            1.0,
+        ),
+        # Unit exchange sets the transverse-field Ising normalization.
+        (
+            "transverse_field_ising_chain_critical_point",
+            "critical_field_over_exchange",
+            ("conditions", "model_parameters", "exchange"),
+            float,
+            1.0,
+        ),
+        (
+            "transverse_field_ising_chain_critical_point",
+            "critical_field_over_exchange",
+            ("parameter_regime", "exchange"),
+            float,
+            1.0,
+        ),
+    }
+)
+
+
+def test_exact_58_canonical_surfaces_do_not_embed_selected_target_values(
     loaded_inventory,
 ):
     contracts = {
@@ -634,15 +699,96 @@ def test_exact_58_canonical_text_surfaces_do_not_embed_selected_target_tokens(
     }
 
     for name, (_, fields) in EXPECTED_CORRECTED_CANONICAL_CONTRACTS.items():
-        text_surface = "\n".join(_recursive_strings(contracts[name])).lower()
+        contract = contracts[name]
+        text_surface = "\n".join(_recursive_strings(contract)).lower()
+        numeric_surface = _recursive_numeric_leaves(contract)
         selected_targets = {
             field: registry[name]["standard_result"][field]
             for field in fields
         }
-        for target in _recursive_leaves(selected_targets):
-            pattern = _bounded_target_token_pattern(target)
-            if pattern is not None:
-                assert re.search(pattern, text_surface) is None, (name, target)
+        for selected_field, selected_target in selected_targets.items():
+            for target in _recursive_leaves(selected_target):
+                numeric_matches = _matching_numeric_target_leaves(
+                    numeric_surface,
+                    target,
+                    benchmark_name=name,
+                    selected_field=selected_field,
+                )
+                assert numeric_matches == [], (
+                    name,
+                    selected_field,
+                    target,
+                    numeric_matches,
+                )
+                pattern = _bounded_target_token_pattern(target)
+                if pattern is not None:
+                    assert re.search(pattern, text_surface) is None, (
+                        name,
+                        selected_field,
+                        target,
+                    )
+
+
+def test_numeric_target_guard_only_allows_audited_input_paths():
+    lieb_name = "lieb_lattice_heisenberg_ferrimagnet_reference"
+    lieb_field = "ground_state_spin_per_unit_cell"
+    lieb_input_surface = {
+        "conditions": {"model_parameters": {"spin": 0.5}},
+        "parameter_regime": {"spin": 0.5},
+    }
+    assert _matching_numeric_target_leaves(
+        _recursive_numeric_leaves(lieb_input_surface),
+        0.5,
+        benchmark_name=lieb_name,
+        selected_field=lieb_field,
+    ) == []
+
+    mutated_lieb_surface = copy.deepcopy(lieb_input_surface)
+    mutated_lieb_surface["observable"] = {"predeclared_result": 0.5}
+    assert _matching_numeric_target_leaves(
+        _recursive_numeric_leaves(mutated_lieb_surface),
+        0.5,
+        benchmark_name=lieb_name,
+        selected_field=lieb_field,
+    ) == [(("observable", "predeclared_result"), 0.5)]
+
+    assert _matching_numeric_target_leaves(
+        _recursive_numeric_leaves(
+            {"parameter_regime": {"theta": -math.pi / 4.0}}
+        ),
+        -math.pi / 4.0,
+        benchmark_name="takhtajan_babujian_spin1_critical_point",
+        selected_field="theta_radians",
+    ) == [(("parameter_regime", "theta"), -math.pi / 4.0)]
+
+
+def test_takhtajan_babujian_contract_does_not_predeclare_theta_output(
+    loaded_inventory,
+):
+    name = "takhtajan_babujian_spin1_critical_point"
+    contract = next(
+        item.as_plain_data()
+        for item in loaded_inventory.contracts
+        if item.benchmark_name == name
+    )
+    registry_entry = next(
+        item for item in LITERATURE_STANDARD_RESULTS if item["name"] == name
+    )
+    theta_target = registry_entry["standard_result"]["theta_radians"]
+    theta_matches = _matching_numeric_target_leaves(
+        _recursive_numeric_leaves(contract),
+        theta_target,
+        benchmark_name=name,
+        selected_field="theta_radians",
+    )
+
+    assert theta_matches == []
+    expected_regime = {
+        "coupling_point": "integrable_bilinear_biquadratic_critical_point"
+    }
+    assert registry_entry["parameters"] == expected_regime
+    assert contract["parameter_regime"] == expected_regime
+    assert contract["conditions"]["model_parameters"] == expected_regime
 
 
 def test_gtlg_contract_and_registry_parameters_exclude_observed_transition_outputs(
@@ -2044,6 +2190,52 @@ def _recursive_strings(value):
     if isinstance(value, str):
         return [value]
     return []
+
+
+def _recursive_numeric_leaves(value, path=()):
+    if isinstance(value, dict):
+        return [
+            numeric
+            for key, item in value.items()
+            for numeric in _recursive_numeric_leaves(item, (*path, key))
+        ]
+    if isinstance(value, (list, tuple)):
+        return [
+            numeric
+            for index, item in enumerate(value)
+            for numeric in _recursive_numeric_leaves(item, (*path, index))
+        ]
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return [(path, value)]
+    return []
+
+
+def _matching_numeric_target_leaves(
+    numeric_surface,
+    target,
+    *,
+    benchmark_name,
+    selected_field,
+):
+    if isinstance(target, bool) or not isinstance(target, (int, float)):
+        return []
+    matches = [
+        (path, value)
+        for path, value in numeric_surface
+        if type(value) is type(target) and value == target
+    ]
+    return [
+        (path, value)
+        for path, value in matches
+        if (
+            benchmark_name,
+            selected_field,
+            path,
+            type(value),
+            value,
+        )
+        not in AUDITED_CANONICAL_NUMERIC_TARGET_INPUTS
+    ]
 
 
 def _bounded_target_token_pattern(target):

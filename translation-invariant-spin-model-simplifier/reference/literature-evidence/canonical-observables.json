@@ -7144,7 +7144,7 @@
         "backend_scope": "bethe_or_ed",
         "comparison_kind": "exact_solution",
         "model_parameters": {
-          "theta": -0.7853981633974483
+          "coupling_point": "integrable_bilinear_biquadratic_critical_point"
         },
         "physical_regime": "bulk or thermodynamic-limit behavior under the declared Hamiltonian parameters",
         "source_claim_scope": "published exact model result"
@@ -7170,7 +7170,7 @@
         ]
       },
       "parameter_regime": {
-        "theta": -0.7853981633974483
+        "coupling_point": "integrable_bilinear_biquadratic_critical_point"
       },
       "representation": {
         "fields": [
