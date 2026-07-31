@@ -4,13 +4,15 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 import hashlib
+from html import unescape
+from html.parser import HTMLParser
 import json
 import math
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
 from types import MappingProxyType
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 import xml.etree.ElementTree as ElementTree
 
 from validation.literature_evidence_schema import (
@@ -74,6 +76,71 @@ _OPEN_PUBLISHER_ROUTES = {
     "10.1038/ncomms6137": ("ncomms6137", "W1695352508"),
     "10.1038/srep16419": ("srep16419", "W3105052732"),
 }
+_EXACT_AUTHORITATIVE_ROUTES = {
+    "10.1143/ptp.5.2.177": {
+        "kind": "oup_minimal_html",
+        "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "artifact_identifier": "doi:10.1143/ptp.5.2.177",
+        "work_identity_evidence": {
+            "kind": "canonical_identity",
+            "url": "https://doi.org/10.1143/ptp.5.2.177",
+        },
+    },
+    "10.1088/0305-4470/17/13/020": {
+        "kind": "institutional_repository_pdf",
+        "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "core:572184419",
+        "work_identity_evidence": {
+            "kind": "core_same_work_output",
+            "url": "https://api.core.ac.uk/v3/outputs/572184419",
+        },
+    },
+    "10.1088/0305-4470/16/10/023": {
+        "kind": "author_repository_pdf",
+        "url": (
+            "https://www.lptmc.jussieu.fr/files/maillard/PUB2/"
+            "Frustrated_jav16i10p2257.pdf"
+        ),
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
+        "work_identity_evidence": {
+            "kind": "author_publications_same_work",
+            "url": "https://www.lptmc.jussieu.fr/users/maillard",
+        },
+    },
+    "10.1038/s41535-026-00868-6": {
+        "kind": "nature_open_article_pdf",
+        "url": "https://www.nature.com/articles/s41535-026-00868-6.pdf",
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "doi:10.1038/s41535-026-00868-6",
+        "work_identity_evidence": {
+            "kind": "canonical_identity",
+            "url": "https://doi.org/10.1038/s41535-026-00868-6",
+        },
+    },
+}
+
+
+def payload_extension_for_media_type(media_type):
+    """Return the only permitted cache extension for a supported payload."""
+
+    extensions = {
+        "application/pdf": "pdf",
+        "application/xml": "xml",
+        "text/html": "html",
+    }
+    try:
+        return extensions[media_type]
+    except (KeyError, TypeError) as exc:
+        raise SourceEvidenceError(
+            f"unsupported authoritative media type {media_type!r}"
+        ) from exc
 
 
 def authoritative_origin_for_route_kind(route_kind):
@@ -83,6 +150,9 @@ def authoritative_origin_for_route_kind(route_kind):
         "arxiv_export_pdf": "arxiv",
         "arxiv_author_manuscript_pdf": "author_repository",
         "institutional_repository_pdf": "institutional_repository",
+        "author_repository_pdf": "author_repository",
+        "oup_minimal_html": "publisher",
+        "nature_open_article_pdf": "publisher",
     }.get(route_kind, "publisher")
 
 
@@ -126,6 +196,16 @@ def authoritative_route_for_identity(identity):
     prefix, separator, suffix = value.partition("/")
     if not separator:
         raise SourceEvidenceError("DOI identity must contain a registrant prefix and suffix")
+    exact_route = _EXACT_AUTHORITATIVE_ROUTES.get(value.casefold())
+    if exact_route is not None:
+        return {
+            key: (
+                dict(item)
+                if key == "work_identity_evidence"
+                else item
+            )
+            for key, item in exact_route.items()
+        }
     repository_route = _OPEN_REPOSITORY_ROUTES.get(value.lower())
     if repository_route is not None:
         arxiv_id, openalex_id = repository_route
@@ -316,6 +396,20 @@ def validate_download_response(route, *, status, headers, body, final_url):
         if b"unauthorized request results in minimized metadata" in lowered:
             raise SourceEvidenceError("Elsevier response is minimized metadata, not full text")
         _xml_article_text(body, context="downloaded XML")
+    elif expected == "text/html":
+        visible_text = _html_visible_text(body, context="downloaded HTML")
+        lowered = visible_text.casefold()
+        challenge_markers = (
+            "access denied",
+            "verify you are human",
+            "captcha",
+            "cloudflare",
+            "enable javascript and cookies",
+        )
+        if any(marker in lowered for marker in challenge_markers):
+            raise SourceEvidenceError("downloaded HTML is a challenge or access-denied page")
+        if route.get("kind") == "oup_minimal_html":
+            _validate_husimi_syozi_visible_text(visible_text)
     else:
         raise SourceEvidenceError(f"unsupported authoritative media type {expected}")
     return content_type
@@ -363,6 +457,7 @@ def load_verified_source(
         raw["retrieval_metadata"],
         raw["source_identity"],
         provisioning_route,
+        raw["bibliographic_metadata"],
     )
     _validate_structured_notes(raw)
 
@@ -383,6 +478,9 @@ def load_verified_source(
     media_type = raw["media_type"]
     if media_type != provisioning_route.get("expected_media_type"):
         raise SourceEvidenceError("payload media type disagrees with provisioning route")
+    expected_suffix = "." + payload_extension_for_media_type(media_type)
+    if payload_path.suffix.casefold() != expected_suffix:
+        raise SourceEvidenceError("payload extension disagrees with payload media type")
     extracted_text = _extract_text(
         payload_path, payload, media_type, raw["text_extraction"]
     )
@@ -478,6 +576,7 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
             f"retrieval_metadata contains unsupported field {extra[0]}"
         )
     _require_text(metadata["url"], "url")
+    _validate_serialized_https_url(metadata["url"], "retrieval metadata URL")
     try:
         datetime.fromisoformat(metadata["retrieved_at"])
     except (TypeError, ValueError) as exc:
@@ -508,16 +607,21 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
     if evidence and evidence.get("kind") != "canonical_identity":
         stored = metadata.get("work_identity_evidence")
         _require_mapping(stored, "work_identity_evidence")
+        _validate_serialized_https_url(
+            stored.get("url"), "work identity evidence URL"
+        )
         if not _same_work_identity_route(stored, evidence):
             raise SourceEvidenceError("work identity evidence route disagrees with provisioning")
         allowed = {
             "kind",
             "url",
+            "media_type",
             "payload_relative_path",
             "payload_sha256",
             "payload_byte_length",
         }
-        if set(stored) not in ({"kind", "url"}, allowed):
+        legacy_allowed = allowed - {"media_type"}
+        if set(stored) not in ({"kind", "url"}, legacy_allowed, allowed):
             raise SourceEvidenceError("work_identity_evidence has invalid fields")
     elif "work_identity_evidence" in metadata:
         raise SourceEvidenceError("canonical publisher route must not add work identity evidence")
@@ -553,7 +657,25 @@ def _same_work_identity_route(stored, expected):
     return False
 
 
-def _validate_work_identity_payload(root, metadata, identity, provisioning_route):
+def _validate_serialized_https_url(value, label):
+    try:
+        parsed = urlparse(value)
+        _ = parsed.port
+    except ValueError:
+        raise SourceEvidenceError(f"{label} is invalid") from None
+    if parsed.username is not None or parsed.password is not None:
+        raise SourceEvidenceError(f"{label} contains forbidden userinfo")
+    if parsed.scheme.casefold() != "https" or not parsed.hostname:
+        raise SourceEvidenceError(f"{label} must be an HTTPS URL")
+    if parsed.query or parsed.fragment:
+        raise SourceEvidenceError(
+            f"{label} must not serialize a query or fragment"
+        )
+
+
+def _validate_work_identity_payload(
+    root, metadata, identity, provisioning_route, bibliographic_metadata
+):
     route = provisioning_route.get("authoritative_retrieval_route", {})
     expected = route.get("work_identity_evidence", {})
     if expected.get("kind") in {None, "canonical_identity"}:
@@ -563,19 +685,27 @@ def _validate_work_identity_payload(root, metadata, identity, provisioning_route
         descriptor = stored
     else:
         descriptor = _load_json(root / "work-identity.provenance.json")
-        _require_exact_fields(
-            descriptor,
-            {
-                "kind",
-                "url",
-                "payload_relative_path",
-                "payload_sha256",
-                "payload_byte_length",
-            },
-            "work identity sidecar provenance",
-        )
+        _require_mapping(descriptor, "work identity sidecar provenance")
+        descriptor_fields = {
+            "kind",
+            "url",
+            "media_type",
+            "payload_relative_path",
+            "payload_sha256",
+            "payload_byte_length",
+        }
+        if set(descriptor) not in (
+            descriptor_fields,
+            descriptor_fields - {"media_type"},
+        ):
+            raise SourceEvidenceError(
+                "work identity sidecar provenance has invalid fields"
+            )
         if not _same_work_identity_route(descriptor, stored):
             raise SourceEvidenceError("work identity sidecar disagrees with source provenance")
+    _validate_serialized_https_url(
+        descriptor.get("url"), "work identity sidecar URL"
+    )
     evidence_path = _payload_path(root, descriptor["payload_relative_path"])
     try:
         payload = evidence_path.read_bytes()
@@ -589,12 +719,33 @@ def _validate_work_identity_payload(root, metadata, identity, provisioning_route
         raise SourceEvidenceError("work identity evidence SHA-256 does not match provenance")
     if len(payload) != descriptor["payload_byte_length"]:
         raise SourceEvidenceError("work identity evidence byte length does not match provenance")
-    document = _load_json(evidence_path)
+    media_type = descriptor.get("media_type", "application/json")
+    expected_media_type = (
+        "text/html"
+        if descriptor["kind"] == "author_publications_same_work"
+        else "application/json"
+    )
+    if media_type != expected_media_type:
+        raise SourceEvidenceError(
+            "work identity evidence media type disagrees with evidence kind"
+        )
+    expected_name = (
+        "work-identity.html" if media_type == "text/html" else "work-identity.json"
+    )
+    if descriptor["payload_relative_path"] != expected_name:
+        raise SourceEvidenceError(
+            "work identity evidence payload name disagrees with media type"
+        )
+    document = payload if media_type == "text/html" else _load_json(evidence_path)
     validate_work_identity_document(
         document,
         identity=identity,
         authoritative_route=route,
         evidence_kind=descriptor["kind"],
+        bibliographic_metadata={
+            **bibliographic_metadata,
+            "doi": identity.get("value", ""),
+        },
     )
 
 
@@ -604,11 +755,20 @@ def validate_work_identity_document(
     identity,
     authoritative_route,
     evidence_kind,
+    bibliographic_metadata=None,
 ):
     """Prove that an external work record links a DOI to the retrieved artifact."""
 
     canonical_doi = identity.get("value", "").casefold()
     artifact_identifier = authoritative_route.get("artifact_identifier", "")
+    if evidence_kind == "author_publications_same_work":
+        _validate_author_publications_same_work(
+            document,
+            canonical_doi=canonical_doi,
+            authoritative_route=authoritative_route,
+            bibliographic_metadata=bibliographic_metadata,
+        )
+        return
     if evidence_kind == "osti_same_work_fulltext":
         if (
             not isinstance(document, list)
@@ -633,7 +793,31 @@ def validate_work_identity_document(
         }
     else:
         _require_mapping(document, "work identity evidence document")
-    if evidence_kind.startswith("openalex_"):
+    if evidence_kind == "core_same_work_output":
+        expected_output_id = artifact_identifier.removeprefix("core:")
+        if not expected_output_id or str(document.get("id", "")) != expected_output_id:
+            raise SourceEvidenceError("work identity evidence CORE output ID mismatch")
+        if str(document.get("doi", "")).casefold() != canonical_doi:
+            raise SourceEvidenceError("work identity evidence canonical DOI mismatch")
+        authors = document.get("authors")
+        if not isinstance(authors, list):
+            raise SourceEvidenceError("work identity evidence CORE authors are missing")
+        author_names = [
+            author.get("name") if isinstance(author, Mapping) else author
+            for author in authors
+        ]
+        _validate_same_work_bibliographic_metadata(
+            canonical_doi=canonical_doi,
+            title=document.get("title"),
+            authors=author_names,
+            bibliographic_metadata=bibliographic_metadata,
+        )
+        location_urls = {
+            document.get(field)
+            for field in ("downloadUrl", "fullTextLink", "pdfUrl")
+            if isinstance(document.get(field), str)
+        }
+    elif evidence_kind.startswith("openalex_"):
         reported_doi = str(document.get("doi", ""))
         if reported_doi.casefold() != f"https://doi.org/{canonical_doi}":
             raise SourceEvidenceError("work identity evidence canonical DOI mismatch")
@@ -667,6 +851,96 @@ def validate_work_identity_document(
         location_urls,
     ):
         raise SourceEvidenceError("work identity evidence does not locate the retrieved artifact")
+
+
+def _normalize_work_text(value):
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    return " ".join(re.findall(r"[a-z0-9]+", unescape(value).casefold()))
+
+
+def _validate_same_work_bibliographic_metadata(
+    *, canonical_doi, title, authors, bibliographic_metadata
+):
+    _require_mapping(bibliographic_metadata, "work identity bibliographic metadata")
+    if str(bibliographic_metadata.get("doi", "")).casefold() != canonical_doi:
+        raise SourceEvidenceError("work identity DOI bibliographic metadata mismatch")
+    expected_title = _normalize_work_text(bibliographic_metadata.get("title"))
+    if not expected_title or _normalize_work_text(title) != expected_title:
+        raise SourceEvidenceError("work identity bibliographic title mismatch")
+    expected_authors = bibliographic_metadata.get("authors")
+    if (
+        not isinstance(expected_authors, Sequence)
+        or isinstance(expected_authors, (str, bytes, bytearray))
+        or not expected_authors
+    ):
+        raise SourceEvidenceError("work identity bibliographic authors are missing")
+    if (
+        not isinstance(authors, Sequence)
+        or isinstance(authors, (str, bytes, bytearray))
+        or not authors
+    ):
+        raise SourceEvidenceError("work identity evidence authors are missing")
+    expected = {_normalize_work_text(author) for author in expected_authors}
+    reported = {_normalize_work_text(author) for author in authors}
+    if "" in expected or "" in reported or reported != expected:
+        raise SourceEvidenceError("work identity bibliographic authors mismatch")
+
+
+class _HTMLLinkCollector(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.hrefs = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.casefold() != "a":
+            return
+        attributes = {str(key).casefold(): value for key, value in attrs}
+        href = attributes.get("href")
+        if isinstance(href, str) and href.strip():
+            self.hrefs.append(unescape(href.strip()))
+
+
+def _validate_author_publications_same_work(
+    document,
+    *,
+    canonical_doi,
+    authoritative_route,
+    bibliographic_metadata,
+):
+    visible_text = _html_visible_text(document, context="author publications work identity")
+    _require_mapping(bibliographic_metadata, "work identity bibliographic metadata")
+    if str(bibliographic_metadata.get("doi", "")).casefold() != canonical_doi:
+        raise SourceEvidenceError("work identity DOI bibliographic metadata mismatch")
+    normalized_visible = _normalize_work_text(visible_text)
+    expected_title = _normalize_work_text(bibliographic_metadata.get("title"))
+    if not expected_title or expected_title not in normalized_visible:
+        raise SourceEvidenceError("work identity author page title mismatch")
+    authors = bibliographic_metadata.get("authors")
+    if (
+        not isinstance(authors, Sequence)
+        or isinstance(authors, (str, bytes, bytearray))
+        or not authors
+        or any(_normalize_work_text(author) not in normalized_visible for author in authors)
+    ):
+        raise SourceEvidenceError("work identity author page authors mismatch")
+
+    parser = _HTMLLinkCollector()
+    try:
+        parser.feed(document.decode("utf-8"))
+        parser.close()
+    except Exception as exc:
+        if isinstance(exc, SourceEvidenceError):
+            raise
+        raise SourceEvidenceError(
+            f"work identity author publications HTML is malformed: {exc}"
+        ) from exc
+    evidence_url = authoritative_route.get("work_identity_evidence", {}).get("url", "")
+    resolved_links = {urljoin(evidence_url, href) for href in parser.hrefs}
+    if authoritative_route.get("url") not in resolved_links:
+        raise SourceEvidenceError(
+            "work identity author page does not locate the retrieved artifact"
+        )
 
 
 def _artifact_location_matches(artifact_identifier, retrieval_url, location_urls):
@@ -737,14 +1011,14 @@ def _validate_coordinates(coordinates, payload_length):
 
 def _extract_text(payload_path, payload, media_type, extraction):
     expected_fields = {"tool", "version", "deterministic"}
-    if media_type == "application/pdf":
+    if media_type in {"application/pdf", "text/html"}:
         expected_fields.add("arguments")
     _require_exact_fields(extraction, expected_fields, "text_extraction")
     _require_text(extraction["tool"], "tool")
-    _require_text(extraction["version"], "version")
     if extraction["deterministic"] is not True:
         raise SourceEvidenceError("text extraction must be deterministic")
     if media_type == "application/pdf":
+        _require_text(extraction["version"], "version")
         if extraction["tool"] != "pdftotext":
             raise SourceEvidenceError("PDF payload requires pdftotext extraction")
         arguments = extraction["arguments"]
@@ -771,10 +1045,23 @@ def _extract_text(payload_path, payload, media_type, extraction):
         except UnicodeDecodeError as exc:
             raise SourceEvidenceError("pdftotext output is not UTF-8") from exc
     if media_type in {"application/xml", "text/xml"}:
+        _require_text(extraction["version"], "version")
         if extraction["tool"] != "xml_text_content":
             raise SourceEvidenceError("XML payload requires xml_text_content extraction")
         return _xml_article_text(payload, context="XML payload")
+    if media_type == "text/html":
+        if extraction != {
+            "tool": "stdlib_html_visible_text",
+            "version": 1,
+            "deterministic": True,
+            "arguments": [],
+        }:
+            raise SourceEvidenceError(
+                "HTML payload requires deterministic stdlib_html_visible_text version 1"
+            )
+        return _html_visible_text(payload, context="HTML payload")
     if media_type.startswith("text/"):
+        _require_text(extraction["version"], "version")
         if extraction["tool"] != "utf8_text":
             raise SourceEvidenceError("text payload requires utf8_text extraction")
         try:
@@ -846,6 +1133,148 @@ def _xml_article_text(payload, *, context):
     if not body_text:
         raise SourceEvidenceError(f"{context} contains no nonempty article body")
     return body_text
+
+
+class _VisibleArticleHTMLParser(HTMLParser):
+    _VOID_ELEMENTS = {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    }
+    _ALWAYS_HIDDEN = {"script", "style", "noscript", "template"}
+
+    def __init__(self, *, context):
+        super().__init__(convert_charrefs=True)
+        self.context = context
+        self.frames = []
+        self.root_seen = False
+        self.root_closed = False
+        self.article_seen = False
+        self.visible_chunks = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.casefold()
+        if self.root_closed:
+            raise SourceEvidenceError(f"{self.context} is malformed after document root")
+        if not self.frames:
+            if self.root_seen or tag != "html":
+                raise SourceEvidenceError(f"{self.context} document root must be html")
+            self.root_seen = True
+        elif tag == "html":
+            raise SourceEvidenceError(f"{self.context} contains a nested document root")
+
+        attributes = {str(key).casefold(): value for key, value in attrs}
+        style = str(attributes.get("style") or "").casefold()
+        parent_hidden = self.frames[-1][1] if self.frames else False
+        hidden = parent_hidden or tag in self._ALWAYS_HIDDEN or (
+            "hidden" in attributes
+            or str(attributes.get("aria-hidden", "")).casefold() == "true"
+            or (
+                tag == "input"
+                and str(attributes.get("type", "")).casefold() == "hidden"
+            )
+            or re.search(r"(?:^|;)\s*display\s*:\s*none(?:\s*!important)?\s*(?:;|$)", style)
+            is not None
+            or re.search(r"(?:^|;)\s*visibility\s*:\s*hidden(?:\s*!important)?\s*(?:;|$)", style)
+            is not None
+        )
+        parent_article = self.frames[-1][2] if self.frames else False
+        class_names = set(str(attributes.get("class") or "").casefold().split())
+        article_container = (
+            tag in {"article", "main"}
+            or "minimal-article-container" in class_names
+        )
+        in_article = parent_article or (article_container and not hidden)
+        if article_container and not hidden:
+            self.article_seen = True
+        if tag not in self._VOID_ELEMENTS:
+            self.frames.append((tag, hidden, in_article))
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag.casefold() not in self._VOID_ELEMENTS:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        tag = tag.casefold()
+        if not self.frames or self.frames[-1][0] != tag:
+            raise SourceEvidenceError(f"{self.context} is malformed HTML nesting")
+        self.frames.pop()
+        if tag == "html":
+            self.root_closed = True
+
+    def handle_data(self, data):
+        if not self.frames:
+            if data.strip():
+                raise SourceEvidenceError(
+                    f"{self.context} has visible data outside the document root"
+                )
+            return
+        _, hidden, in_article = self.frames[-1]
+        if hidden or not in_article:
+            return
+        normalized = " ".join(unescape(data).split())
+        if normalized:
+            self.visible_chunks.append(normalized)
+
+    def result(self):
+        if not self.root_seen or not self.root_closed:
+            raise SourceEvidenceError(f"{self.context} has no complete document root")
+        if self.frames:
+            raise SourceEvidenceError(f"{self.context} is malformed HTML")
+        visible_text = " ".join(self.visible_chunks)
+        if not self.article_seen or not visible_text:
+            raise SourceEvidenceError(
+                f"{self.context} contains no nonempty visible article body"
+            )
+        return visible_text
+
+
+def _html_visible_text(payload, *, context):
+    try:
+        document = payload.decode("utf-8")
+    except (AttributeError, UnicodeDecodeError) as exc:
+        raise SourceEvidenceError(f"{context} is not valid UTF-8") from exc
+    parser = _VisibleArticleHTMLParser(context=context)
+    try:
+        parser.feed(document)
+        parser.close()
+    except SourceEvidenceError:
+        raise
+    except Exception as exc:
+        raise SourceEvidenceError(f"{context} is malformed HTML: {exc}") from exc
+    return parser.result()
+
+
+def _validate_husimi_syozi_visible_text(visible_text):
+    normalized = " ".join(visible_text.split())
+    if "The Statistics of Honeycomb and Triangular Lattice. I" not in normalized:
+        raise SourceEvidenceError("OUP HTML is missing the exact article title")
+    if "10.1143/ptp/5.2.177" not in normalized.casefold():
+        raise SourceEvidenceError("OUP HTML is missing the canonical DOI")
+    if "Kodi Husimi" not in normalized or not re.search(
+        r"Itiro\s+Sy(?:o|ô)zi", normalized, flags=re.IGNORECASE
+    ):
+        raise SourceEvidenceError("OUP HTML is missing the article author anchors")
+    if "Summary" not in normalized:
+        raise SourceEvidenceError("OUP HTML is missing visible article summary text")
+    equations = (
+        r"(?:ch|cosh)\s*\(?\s*2\s*H\s*\)?\s*=\s*2",
+        r"exp\s*\(\s*4\s*H\s*\)\s*=\s*3",
+    )
+    if any(re.search(pattern, normalized, flags=re.IGNORECASE) is None for pattern in equations):
+        raise SourceEvidenceError("OUP HTML is missing a target Curie-point equation")
 
 
 def _require_target_anchors(text, anchors):

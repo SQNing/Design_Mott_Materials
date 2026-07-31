@@ -1,9 +1,14 @@
+from collections import Counter
+import copy
 import hashlib
 import json
+import os
 import socket
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.request import Request
 
 import pytest
 
@@ -12,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from validation import fetch_literature_evidence_sources as source_fetcher
+from validation import literature_evidence_sources as evidence_sources
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
     _validate_retrieval_metadata,
@@ -21,7 +27,10 @@ from validation.literature_evidence_sources import (
     validate_download_response,
     validate_work_identity_document,
 )
-from validation.literature_evidence_inventory import load_and_validate_inventory
+from validation.literature_evidence_inventory import (
+    canonical_source_identity,
+)
+from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESULTS
 
 
 SOURCE_ID = "doi_fixture_source"
@@ -31,6 +40,55 @@ PAYLOAD = (
     b"<article><title>Exact observable study</title>"
     b"<p>The target observable is reported in the thermodynamic limit.</p></article>"
 )
+OUP_HTML = b"""<!doctype html>
+<html lang="en">
+  <head>
+    <title>The Statistics of Honeycomb and Triangular Lattice. I</title>
+    <style>.hidden-css-sentinel { display: none }</style>
+    <script>window.javascript_hidden_sentinel = true;</script>
+  </head>
+  <body>
+    <!-- comment-hidden-sentinel -->
+    <article data-private="attribute-hidden-sentinel">
+      <h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>
+      <p class="authors">Kodi Husimi and Itiro Syozi</p>
+      <p>https://doi.org/10.1143/ptp/5.2.177</p>
+      <section><h2>Summary</h2>
+        <p>We applied the matrix method to the honeycomb lattice and obtained
+        its exact solution and the triangular-net dual.</p>
+        <p>The Curie point occurs at ch 2H = 2 in the honeycomb lattice and at
+        exp(4H) = 3 in the triangular net.</p>
+      </section>
+      <p hidden>hidden-attribute-sentinel</p>
+      <p aria-hidden="true">aria-hidden-sentinel</p>
+      <p style="display:none">inline-style-hidden-sentinel</p>
+      <noscript>noscript-hidden-sentinel</noscript>
+      <template>template-hidden-sentinel</template>
+    </article>
+  </body>
+</html>
+"""
+OUP_MINIMAL_DIV_HTML = b"""<!doctype html>
+<html lang="en">
+  <head><title></title><style>.article-content { display: block }</style></head>
+  <body>
+    <div class="minimal-article-container">
+      <div class="article-header">
+        <h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>
+        <p>Kodi Husimi and Itiro Sy&#244;zi</p>
+        <p>https://doi.org/10.1143/ptp/5.2.177</p>
+      </div>
+      <div class="article-content">
+        <h2>Summary</h2>
+        <section class="abstract">
+          <p>The Curie point occurs at ch 2H = 2 in the honeycomb lattice and
+          at exp (4H) = 3 in the triangular net.</p>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>
+"""
 
 
 def _provenance(payload=PAYLOAD):
@@ -444,37 +502,119 @@ def test_pdf_loader_rejects_unrecorded_extractor_version(tmp_path):
         )
 
 
-def test_publisher_specific_routes_cover_all_registry_sources_without_generic_doi():
-    inventory = load_and_validate_inventory()
-    routes = {
-        source["source_id"]: authoritative_route_for_identity(
-            source["canonical_identity"]
-        )
-        for source in inventory.source_index
+def _registry_routes_by_identity():
+    identities = {
+        canonical_source_identity(entry["source_url"])
+        for entry in LITERATURE_STANDARD_RESULTS
     }
-    counts = {}
-    for route in routes.values():
-        counts[route["kind"]] = counts.get(route["kind"], 0) + 1
+    return {
+        identity: authoritative_route_for_identity(
+            dict(zip(("kind", "value"), identity.split(":", 1)))
+        )
+        for identity in identities
+    }
 
-    assert counts == {
-        "arxiv_export_pdf": 4,
-        "arxiv_author_manuscript_pdf": 14,
-        "aps_harvest_pdf": 84,
-        "elsevier_article_api_xml": 9,
-        "nature_open_article_pdf": 6,
+
+def test_final_authoritative_route_distribution_covers_exact_registry_sources():
+    routes = _registry_routes_by_identity()
+
+    assert len(routes) == 137
+    assert Counter(route["kind"] for route in routes.values()) == {
+        "aps_harvest_pdf": 78,
+        "arxiv_export_pdf": 26,
+        "arxiv_author_manuscript_pdf": 10,
+        "nature_open_article_pdf": 5,
+        "iop_article_pdf": 3,
         "nature_article_pdf": 2,
-        "springer_content_pdf": 1,
-        "iop_article_pdf": 5,
-        "epl_iop_article_pdf": 1,
+        "elsevier_article_api_xml": 2,
+        "institutional_repository_pdf": 2,
         "science_article_pdf": 2,
-        "aip_article_discovery": 3,
-        "institutional_repository_pdf": 1,
         "acs_article_pdf": 1,
+        "aip_article_discovery": 1,
+        "author_repository_pdf": 1,
+        "epl_iop_article_pdf": 1,
         "jpsj_article_pdf": 1,
+        "oup_minimal_html": 1,
+        "springer_content_pdf": 1,
+    }
+    assert Counter(route["expected_media_type"] for route in routes.values()) == {
+        "application/pdf": 134,
+        "application/xml": 2,
+        "text/html": 1,
+    }
+    assert Counter(route["access_mode"] for route in routes.values()) == {
+        "unattended": 123,
+        "challenge_or_institutional": 9,
+        "authenticated_session": 3,
+        "api_key_or_entitlement": 2,
     }
     assert all(route["kind"] != "doi_content_negotiation" for route in routes.values())
-    assert sum(route["access_mode"] == "unattended" for route in routes.values()) == 109
-    assert sum(route["expected_media_type"] == "application/xml" for route in routes.values()) == 9
+
+
+@pytest.mark.parametrize(
+    ("identity", "expected"),
+    [
+        (
+            "doi:10.1143/ptp.5.2.177",
+            {
+                "kind": "oup_minimal_html",
+                "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
+                "expected_media_type": "text/html",
+                "access_mode": "unattended",
+                "artifact_identifier": "doi:10.1143/ptp.5.2.177",
+                "work_identity_evidence": {
+                    "kind": "canonical_identity",
+                    "url": "https://doi.org/10.1143/ptp.5.2.177",
+                },
+            },
+        ),
+        (
+            "doi:10.1088/0305-4470/17/13/020",
+            {
+                "kind": "institutional_repository_pdf",
+                "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+                "expected_media_type": "application/pdf",
+                "access_mode": "unattended",
+                "artifact_identifier": "core:572184419",
+                "work_identity_evidence": {
+                    "kind": "core_same_work_output",
+                    "url": "https://api.core.ac.uk/v3/outputs/572184419",
+                },
+            },
+        ),
+        (
+            "doi:10.1088/0305-4470/16/10/023",
+            {
+                "kind": "author_repository_pdf",
+                "url": "https://www.lptmc.jussieu.fr/files/maillard/PUB2/Frustrated_jav16i10p2257.pdf",
+                "expected_media_type": "application/pdf",
+                "access_mode": "unattended",
+                "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
+                "work_identity_evidence": {
+                    "kind": "author_publications_same_work",
+                    "url": "https://www.lptmc.jussieu.fr/users/maillard",
+                },
+            },
+        ),
+        (
+            "doi:10.1038/s41535-026-00868-6",
+            {
+                "kind": "nature_open_article_pdf",
+                "url": "https://www.nature.com/articles/s41535-026-00868-6.pdf",
+                "expected_media_type": "application/pdf",
+                "access_mode": "unattended",
+                "artifact_identifier": "doi:10.1038/s41535-026-00868-6",
+                "work_identity_evidence": {
+                    "kind": "canonical_identity",
+                    "url": "https://doi.org/10.1038/s41535-026-00868-6",
+                },
+            },
+        ),
+    ],
+)
+def test_final_special_authoritative_routes_are_exact(identity, expected):
+    kind, value = identity.split(":", 1)
+    assert authoritative_route_for_identity({"kind": kind, "value": value}) == expected
 
 
 def test_tasaki_lsm_source_uses_verified_arxiv_same_work_route():
@@ -591,6 +731,1327 @@ def test_osti_identity_document_rejects_wrong_fulltext_url():
             authoritative_route=_cri3_osti_route(),
             evidence_kind="osti_same_work_fulltext",
         )
+
+
+CORE_MG_BIBLIOGRAPHIC_METADATA = {
+    "doi": "10.1088/0305-4470/17/13/020",
+    "title": "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
+    "authors": ["W. J. Caspers", "K. M. Emmett", "W. Magnus"],
+}
+
+
+def _core_mg_work_identity_document():
+    return {
+        "id": 572184419,
+        "doi": "10.1088/0305-4470/17/13/020",
+        "title": "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
+        "authors": [
+            {"name": "W J Caspers"},
+            {"name": "K M Emmett"},
+            {"name": "W Magnus"},
+        ],
+        "downloadUrl": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+    }
+
+
+def _core_mg_route():
+    return authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1088/0305-4470/17/13/020"}
+    )
+
+
+def test_core_same_work_output_binds_exact_doi_output_title_authors_and_pdf():
+    validate_work_identity_document(
+        _core_mg_work_identity_document(),
+        identity={"kind": "doi", "value": "10.1088/0305-4470/17/13/020"},
+        authoritative_route=_core_mg_route(),
+        evidence_kind="core_same_work_output",
+        bibliographic_metadata=CORE_MG_BIBLIOGRAPHIC_METADATA,
+    )
+
+
+@pytest.mark.parametrize(
+    "perturbation",
+    ("doi", "output_id", "title", "authors", "pdf_location"),
+)
+def test_core_same_work_output_rejects_each_independent_mismatch(perturbation):
+    document = _core_mg_work_identity_document()
+    if perturbation == "doi":
+        document["doi"] = "10.1088/0305-4470/17/13/999"
+    elif perturbation == "output_id":
+        document["id"] = 572184418
+    elif perturbation == "title":
+        document["title"] = "A different spin-chain paper"
+    elif perturbation == "authors":
+        document["authors"][-1] = {"name": "A Different Author"}
+    else:
+        document["downloadUrl"] = "https://files01.core.ac.uk/download/pdf/572184418.pdf"
+
+    with pytest.raises(SourceEvidenceError, match="work identity"):
+        validate_work_identity_document(
+            document,
+            identity={"kind": "doi", "value": "10.1088/0305-4470/17/13/020"},
+            authoritative_route=_core_mg_route(),
+            evidence_kind="core_same_work_output",
+            bibliographic_metadata=CORE_MG_BIBLIOGRAPHIC_METADATA,
+        )
+
+
+AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA = {
+    "doi": "10.1088/0305-4470/16/10/023",
+    "title": "Study of a two-dimensional fully frustrated model",
+    "authors": ["T. Garel", "J. M. Maillard"],
+}
+AUTHOR_GAREL_PAGE = b"""<!doctype html>
+<html><body><main>
+  <h1>Publications</h1>
+  <article>
+    <p>Study of a two-dimensional fully frustrated model</p>
+    <p>T Garel and J M Maillard</p>
+    <a href="../../files/maillard/PUB2/Frustrated_jav16i10p2257.pdf">article PDF</a>
+  </article>
+</main></body></html>
+"""
+
+
+def _author_garel_route():
+    return authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1088/0305-4470/16/10/023"}
+    )
+
+
+def test_author_publications_same_work_binds_page_pdf_and_doi_metadata():
+    validate_work_identity_document(
+        AUTHOR_GAREL_PAGE,
+        identity={"kind": "doi", "value": "10.1088/0305-4470/16/10/023"},
+        authoritative_route=_author_garel_route(),
+        evidence_kind="author_publications_same_work",
+        bibliographic_metadata=AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA,
+    )
+
+
+@pytest.mark.parametrize(
+    "perturbation",
+    ("title", "author", "link_target", "doi_metadata", "base_url"),
+)
+def test_author_publications_same_work_rejects_each_independent_mismatch(perturbation):
+    page = AUTHOR_GAREL_PAGE
+    route = copy.deepcopy(_author_garel_route())
+    metadata = dict(AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA)
+    if perturbation == "title":
+        page = page.replace(
+            b"Study of a two-dimensional fully frustrated model",
+            b"A different publication",
+        )
+    elif perturbation == "author":
+        page = page.replace(b"J M Maillard", b"A Different Author")
+    elif perturbation == "link_target":
+        page = page.replace(
+            b"Frustrated_jav16i10p2257.pdf",
+            b"Different_jav16i10p2257.pdf",
+        )
+    elif perturbation == "doi_metadata":
+        metadata["doi"] = "10.1088/0305-4470/16/10/999"
+    else:
+        route["work_identity_evidence"]["url"] = (
+            "https://publications.example.invalid/users/maillard"
+        )
+
+    with pytest.raises(SourceEvidenceError, match="work identity"):
+        validate_work_identity_document(
+            page,
+            identity={"kind": "doi", "value": "10.1088/0305-4470/16/10/023"},
+            authoritative_route=route,
+            evidence_kind="author_publications_same_work",
+            bibliographic_metadata=metadata,
+        )
+
+
+def _special_sidecar_cache(tmp_path, evidence_kind):
+    if evidence_kind == "core_same_work_output":
+        route_spec = _core_mg_route()
+        identity_value = "10.1088/0305-4470/17/13/020"
+        metadata = CORE_MG_BIBLIOGRAPHIC_METADATA
+        sidecar = json.dumps(
+            _core_mg_work_identity_document(), sort_keys=True
+        ).encode("utf-8")
+        sidecar_name = "work-identity.json"
+        sidecar_media_type = "application/json"
+    else:
+        route_spec = _author_garel_route()
+        identity_value = "10.1088/0305-4470/16/10/023"
+        metadata = AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA
+        sidecar = AUTHOR_GAREL_PAGE
+        sidecar_name = "work-identity.html"
+        sidecar_media_type = "text/html"
+    source_id = "doi_" + hashlib.sha256(
+        f"doi:{identity_value}".encode("ascii")
+    ).hexdigest()[:20]
+    payload = _minimal_pdf("Locally verified special-route source payload.")
+    source = {
+        "source_id": source_id,
+        "canonical_identity": {"kind": "doi", "value": identity_value},
+        "canonical_url": f"https://doi.org/{identity_value}",
+        "benchmark_names": ["fixture_benchmark"],
+    }
+    route = {
+        "source_id": source_id,
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+    }
+    descriptor = {
+        "kind": evidence_kind,
+        "url": route_spec["work_identity_evidence"]["url"],
+        "media_type": sidecar_media_type,
+        "payload_relative_path": sidecar_name,
+        "payload_sha256": hashlib.sha256(sidecar).hexdigest(),
+        "payload_byte_length": len(sidecar),
+    }
+    provenance = {
+        "schema_version": 1,
+        "source_id": source_id,
+        "source_identity": {
+            **source["canonical_identity"],
+            "canonical_url": source["canonical_url"],
+        },
+        "bibliographic_metadata": {
+            "title": metadata["title"],
+            "authors": metadata["authors"],
+            "venue": "Journal of Physics A",
+            "publication_date": "1984-01-01" if "17/13" in identity_value else "1983-01-01",
+        },
+        "retrieval_metadata": {
+            "url": route_spec["url"],
+            "retrieved_at": "2026-07-31T12:00:00+08:00",
+            "method": route_spec["kind"],
+            "authoritative_origin": (
+                "institutional_repository"
+                if evidence_kind == "core_same_work_output"
+                else "author_repository"
+            ),
+            "http_status": 200,
+            "response_headers": {"content-type": "application/pdf"},
+            "immutable_artifact_identifier": route_spec["artifact_identifier"],
+            "work_identity_evidence": descriptor,
+        },
+        "media_type": "application/pdf",
+        "raw_payload_sha256": hashlib.sha256(payload).hexdigest(),
+        "raw_payload_byte_length": len(payload),
+        "payload_relative_path": "source.pdf",
+        "artifact_coordinates": {
+            "kind": "whole_payload",
+            "start_byte": 0,
+            "end_byte": len(payload),
+        },
+        "license_access_notes": {
+            "access_status": "open",
+            "redistributability": "fixture_only",
+            "notes": "Synthetic same-work cache fixture.",
+        },
+        "citation_metadata_verification": {
+            "status": "verified",
+            "verified_fields": ["title", "authors", "doi"],
+        },
+        "text_extraction": {
+            "tool": "pdftotext",
+            "version": _pdftotext_version(),
+            "deterministic": True,
+            "arguments": ["-layout", "-enc", "UTF-8"],
+        },
+    }
+    source_dir = tmp_path / source_id
+    source_dir.mkdir()
+    source_dir.joinpath("source.pdf").write_bytes(payload)
+    source_dir.joinpath(sidecar_name).write_bytes(sidecar)
+    source_dir.joinpath("provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return source_dir, source, route, descriptor
+
+
+@pytest.mark.parametrize(
+    ("evidence_kind", "sidecar_name", "media_type"),
+    [
+        ("core_same_work_output", "work-identity.json", "application/json"),
+        ("author_publications_same_work", "work-identity.html", "text/html"),
+    ],
+)
+def test_loader_accepts_media_aware_hashed_same_work_sidecar(
+    tmp_path, evidence_kind, sidecar_name, media_type
+):
+    source_dir, source, route, descriptor = _special_sidecar_cache(
+        tmp_path, evidence_kind
+    )
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+    assert verified.source_id == source["source_id"]
+    assert descriptor["payload_relative_path"] == sidecar_name
+    assert descriptor["media_type"] == media_type
+
+
+@pytest.mark.parametrize(
+    "evidence_kind", ("core_same_work_output", "author_publications_same_work")
+)
+def test_loader_hashes_raw_same_work_sidecar_before_parsing(tmp_path, evidence_kind):
+    source_dir, source, route, descriptor = _special_sidecar_cache(
+        tmp_path, evidence_kind
+    )
+    source_dir.joinpath(descriptor["payload_relative_path"]).write_bytes(b"{}")
+    with pytest.raises(SourceEvidenceError, match="SHA-256"):
+        load_verified_source(
+            source_dir,
+            expected_source=source,
+            provisioning_route=route,
+        )
+
+
+class _FixtureHTTPResponse:
+    def __init__(self, payload, *, content_type):
+        self._payload = payload
+        self.status = 200
+        self.headers = {"Content-Type": content_type}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self):
+        return self._payload
+
+
+@pytest.mark.parametrize(
+    ("evidence_kind", "payload", "metadata", "expected_name", "expected_media"),
+    [
+        (
+            "core_same_work_output",
+            json.dumps(_core_mg_work_identity_document(), sort_keys=True).encode("utf-8"),
+            CORE_MG_BIBLIOGRAPHIC_METADATA,
+            "work-identity.json",
+            "application/json",
+        ),
+        (
+            "author_publications_same_work",
+            AUTHOR_GAREL_PAGE,
+            AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA,
+            "work-identity.html",
+            "text/html",
+        ),
+    ],
+)
+def test_fetcher_preserves_raw_media_aware_same_work_sidecar(
+    monkeypatch,
+    evidence_kind,
+    payload,
+    metadata,
+    expected_name,
+    expected_media,
+):
+    route_spec = (
+        _core_mg_route()
+        if evidence_kind == "core_same_work_output"
+        else _author_garel_route()
+    )
+    source = {
+        "canonical_identity": {
+            "kind": "doi",
+            "value": metadata["doi"],
+        }
+    }
+    route = {"authoritative_retrieval_route": route_spec}
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: _FixtureHTTPResponse(
+            payload, content_type=expected_media
+        ),
+    )
+
+    evidence = source_fetcher._fetch_work_identity_evidence(
+        source,
+        route,
+        object(),
+        bibliographic_metadata={key: value for key, value in metadata.items() if key != "doi"},
+    )
+
+    assert evidence["payload"] == payload
+    assert evidence["descriptor"]["payload_relative_path"] == expected_name
+    assert evidence["descriptor"]["media_type"] == expected_media
+    assert evidence["descriptor"]["payload_sha256"] == hashlib.sha256(payload).hexdigest()
+    assert evidence["descriptor"]["payload_byte_length"] == len(payload)
+
+
+@pytest.mark.parametrize(
+    ("media_type", "extension"),
+    [
+        ("application/pdf", "pdf"),
+        ("application/xml", "xml"),
+        ("text/html", "html"),
+    ],
+)
+def test_payload_extension_mapping_is_closed(media_type, extension):
+    assert evidence_sources.payload_extension_for_media_type(media_type) == extension
+
+
+def test_payload_extension_mapping_rejects_every_unknown_media_type():
+    with pytest.raises(SourceEvidenceError, match="unsupported.*media type"):
+        evidence_sources.payload_extension_for_media_type("text/plain")
+
+
+def test_loader_rejects_payload_extension_that_disagrees_with_media_type(tmp_path):
+    source_dir, source, route = _write_oup_html_source(tmp_path)
+    provenance_path = source_dir / "provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    provenance["payload_relative_path"] = "source.pdf"
+    source_dir.joinpath("source.pdf").write_bytes(OUP_HTML)
+    provenance_path.write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SourceEvidenceError, match="extension"):
+        load_verified_source(
+            source_dir,
+            expected_source=source,
+            provisioning_route=route,
+        )
+
+
+def test_loader_rejects_query_fragment_or_userinfo_in_serialized_retrieval_url(
+    tmp_path,
+):
+    source_dir, source, route = _write_oup_html_source(tmp_path)
+    provenance_path = source_dir / "provenance.json"
+    for unsafe_url in (
+        "https://oup.silverchair-cdn.com/article-minimal/1942776?token=private",
+        "https://oup.silverchair-cdn.com/article-minimal/1942776#private",
+        "https://user:password@oup.silverchair-cdn.com/article-minimal/1942776",
+    ):
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+        provenance["retrieval_metadata"]["url"] = unsafe_url
+        provenance_path.write_text(
+            json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(SourceEvidenceError, match="URL|query|fragment|userinfo"):
+            load_verified_source(
+                source_dir,
+                expected_source=source,
+                provisioning_route=route,
+            )
+
+
+@pytest.mark.parametrize("descriptor_location", ("retrieval", "sidecar"))
+@pytest.mark.parametrize(
+    "unsafe_url",
+    (
+        "https://api.openalex.org/works/W123456789?token=private",
+        "https://api.openalex.org/works/W123456789#private",
+        "https://user:password@api.openalex.org/works/W123456789",
+    ),
+)
+def test_loader_rejects_unsafe_serialized_work_identity_url(
+    tmp_path, descriptor_location, unsafe_url
+):
+    source_dir, route = _repository_fixture(
+        tmp_path,
+        legacy_evidence_url=descriptor_location == "sidecar",
+    )
+    if descriptor_location == "retrieval":
+        descriptor_path = source_dir / "provenance.json"
+        document = json.loads(descriptor_path.read_text(encoding="utf-8"))
+        document["retrieval_metadata"]["work_identity_evidence"]["url"] = unsafe_url
+    else:
+        descriptor_path = source_dir / "work-identity.provenance.json"
+        document = json.loads(descriptor_path.read_text(encoding="utf-8"))
+        document["url"] = unsafe_url
+    descriptor_path.write_text(
+        json.dumps(document, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SourceEvidenceError, match="URL|query|fragment|userinfo"):
+        load_verified_source(
+            source_dir,
+            expected_source=_expected_source(),
+            provisioning_route=route,
+        )
+
+
+CREDENTIAL_SENTINEL = "TEST_ONLY_NOT_A_CREDENTIAL_7f2a9e"
+REDIRECT_CREDENTIAL_SENTINEL = "TEST_ONLY_REDIRECT_CREDENTIAL_d31b"
+SIGNED_QUERY_SENTINEL = "TEST_ONLY_SIGNED_QUERY_91ca"
+ELSEVIER_SOURCE_ID = "doi_aec03f65476f23115a77"
+
+
+def _credential_route(
+    *,
+    source_id=ELSEVIER_SOURCE_ID,
+    doi="10.1016/0022-3697(61)90053-1",
+):
+    route_spec = authoritative_route_for_identity({"kind": "doi", "value": doi})
+    return {
+        "source_id": source_id,
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": route_spec["expected_media_type"],
+        "access_mode": route_spec["access_mode"],
+    }
+
+
+def _credential_document(
+    *,
+    source_id=ELSEVIER_SOURCE_ID,
+    authorization_mode="request_headers",
+    origin="https://api.elsevier.com",
+    headers=None,
+):
+    return {
+        "schema_version": 1,
+        "authorization_by_source_id": {
+            source_id: {
+                "authorization_mode": authorization_mode,
+                "request_headers_by_origin": (
+                    {origin: {"X-ELS-APIKey": CREDENTIAL_SENTINEL}}
+                    if headers is None and authorization_mode == "request_headers"
+                    else (headers or {})
+                ),
+            }
+        },
+    }
+
+
+def _write_external_credential_file(tmp_path, document, *, mode=0o600, raw=False):
+    path = tmp_path / "user-owned-request-credentials.json"
+    content = document if raw else json.dumps(document, sort_keys=True)
+    path.write_text(content, encoding="utf-8")
+    path.chmod(mode)
+    return path
+
+
+def _load_credentials(path, *, routes=None, selected=None, cache_root=None):
+    routes = routes or {ELSEVIER_SOURCE_ID: _credential_route()}
+    selected = selected or [ELSEVIER_SOURCE_ID]
+    return source_fetcher._load_request_authorizations(
+        path,
+        selected_source_ids=selected,
+        route_by_id=routes,
+        cache_root=cache_root or Path("/tmp/literature-source-cache-fixture"),
+    )
+
+
+def _recursive_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _recursive_strings(key)
+            yield from _recursive_strings(item)
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            yield from _recursive_strings(item)
+
+
+def test_credential_loader_accepts_external_owned_mode_0600_exact_source_profile(
+    tmp_path,
+):
+    path = _write_external_credential_file(tmp_path, _credential_document())
+    loaded = _load_credentials(path)
+    assert loaded == {
+        ELSEVIER_SOURCE_ID: {
+            "authorization_mode": "request_headers",
+            "request_headers_by_origin": {
+                "https://api.elsevier.com": {
+                    "X-ELS-APIKey": CREDENTIAL_SENTINEL
+                }
+            },
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("doi", "source_id"),
+    [
+        ("10.1016/0022-3697(61)90053-1", ELSEVIER_SOURCE_ID),
+        ("10.1088/0953-8984/7/1/008", "doi_3c0cd7d12c74eed185ff"),
+    ],
+)
+def test_institution_network_is_accepted_only_for_eligible_access_modes(
+    tmp_path, doi, source_id
+):
+    route = _credential_route(source_id=source_id, doi=doi)
+    path = _write_external_credential_file(
+        tmp_path,
+        _credential_document(
+            source_id=source_id,
+            authorization_mode="institution_network",
+            headers={},
+        ),
+    )
+    assert _load_credentials(
+        path,
+        routes={source_id: route},
+        selected=[source_id],
+    )[source_id] == {
+        "authorization_mode": "institution_network",
+        "request_headers_by_origin": {},
+    }
+
+
+def test_institution_network_is_rejected_for_authenticated_session(tmp_path):
+    source_id = "doi_95a1148cb5d14b4d9680"
+    route = _credential_route(source_id=source_id, doi="10.1038/nature25482")
+    path = _write_external_credential_file(
+        tmp_path,
+        _credential_document(
+            source_id=source_id,
+            authorization_mode="institution_network",
+            headers={},
+        ),
+    )
+    with pytest.raises(SourceEvidenceError, match="authorization mode"):
+        _load_credentials(path, routes={source_id: route}, selected=[source_id])
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "schema_version",
+        "top_level_field",
+        "entry_field",
+        "unknown_mode",
+        "empty_request_headers",
+        "nonempty_institution_headers",
+        "http_origin",
+        "origin_with_path",
+        "nonallowlisted_origin",
+        "unknown_header",
+        "nonstring_header_value",
+        "empty_header_value",
+    ),
+)
+def test_credential_loader_rejects_closed_schema_and_policy_violations(
+    tmp_path, mutation
+):
+    document = _credential_document()
+    entry = document["authorization_by_source_id"][ELSEVIER_SOURCE_ID]
+    if mutation == "schema_version":
+        document["schema_version"] = 2
+    elif mutation == "top_level_field":
+        document["unexpected"] = True
+    elif mutation == "entry_field":
+        entry["unexpected"] = True
+    elif mutation == "unknown_mode":
+        entry["authorization_mode"] = "ambient_magic"
+    elif mutation == "empty_request_headers":
+        entry["request_headers_by_origin"] = {}
+    elif mutation == "nonempty_institution_headers":
+        entry["authorization_mode"] = "institution_network"
+    elif mutation == "http_origin":
+        entry["request_headers_by_origin"] = {
+            "http://api.elsevier.com": {"X-ELS-APIKey": CREDENTIAL_SENTINEL}
+        }
+    elif mutation == "origin_with_path":
+        entry["request_headers_by_origin"] = {
+            "https://api.elsevier.com/content": {
+                "X-ELS-APIKey": CREDENTIAL_SENTINEL
+            }
+        }
+    elif mutation == "nonallowlisted_origin":
+        entry["request_headers_by_origin"] = {
+            "https://example.invalid": {"X-ELS-APIKey": CREDENTIAL_SENTINEL}
+        }
+    elif mutation == "unknown_header":
+        entry["request_headers_by_origin"] = {
+            "https://api.elsevier.com": {"Accept": CREDENTIAL_SENTINEL}
+        }
+    elif mutation == "nonstring_header_value":
+        entry["request_headers_by_origin"] = {
+            "https://api.elsevier.com": {"X-ELS-APIKey": 17}
+        }
+    else:
+        entry["request_headers_by_origin"] = {
+            "https://api.elsevier.com": {"X-ELS-APIKey": "  "}
+        }
+    path = _write_external_credential_file(tmp_path, document)
+    with pytest.raises(SourceEvidenceError, match="credential|authorization|origin|header"):
+        _load_credentials(path)
+
+
+def test_credential_loader_rejects_duplicate_case_header_names(tmp_path):
+    raw = """{
+      "schema_version": 1,
+      "authorization_by_source_id": {
+        "doi_aec03f65476f23115a77": {
+          "authorization_mode": "request_headers",
+          "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+              "Authorization": "TEST_ONLY_NOT_A_CREDENTIAL_7f2a9e",
+              "authorization": "TEST_ONLY_NOT_A_CREDENTIAL_7f2a9e"
+            }
+          }
+        }
+      }
+    }"""
+    path = _write_external_credential_file(tmp_path, raw, raw=True)
+    with pytest.raises(SourceEvidenceError, match="header"):
+        _load_credentials(path)
+
+
+@pytest.mark.parametrize("mode", (0o604, 0o640, 0o644))
+def test_credential_loader_rejects_group_or_other_permission_bits(tmp_path, mode):
+    path = _write_external_credential_file(
+        tmp_path, _credential_document(), mode=mode
+    )
+    with pytest.raises(SourceEvidenceError, match="permission"):
+        _load_credentials(path)
+
+
+def test_credential_loader_rejects_symlink_and_wrong_owner(tmp_path, monkeypatch):
+    target = _write_external_credential_file(tmp_path, _credential_document())
+    link = tmp_path / "credential-link.json"
+    link.symlink_to(target)
+    with pytest.raises(SourceEvidenceError, match="symlink"):
+        _load_credentials(link)
+
+    actual_uid = os.getuid()
+    monkeypatch.setattr(source_fetcher.os, "getuid", lambda: actual_uid + 1)
+    with pytest.raises(SourceEvidenceError, match="owner"):
+        _load_credentials(target)
+
+
+def test_credential_loader_rejects_file_replaced_between_check_and_open(
+    tmp_path, monkeypatch
+):
+    target = _write_external_credential_file(tmp_path, _credential_document())
+    substitute = tmp_path / "substituted-request-credentials.json"
+    substitute.write_text(
+        json.dumps(_credential_document(), sort_keys=True),
+        encoding="utf-8",
+    )
+    substitute.chmod(0o600)
+    real_open = os.open
+
+    def open_substitute(path, flags, *args, **kwargs):
+        return real_open(substitute, flags, *args, **kwargs)
+
+    monkeypatch.setattr(source_fetcher.os, "open", open_substitute)
+    with pytest.raises(SourceEvidenceError, match="changed|safely"):
+        _load_credentials(target)
+
+
+@pytest.mark.parametrize("location", ("project", "cache"))
+def test_credential_loader_rejects_paths_inside_project_or_cache_without_opening(
+    tmp_path, location
+):
+    cache_root = tmp_path / "isolated-cache"
+    path = (
+        PROJECT_ROOT / "never-created-credential.json"
+        if location == "project"
+        else cache_root / "never-created-credential.json"
+    )
+    assert not path.exists()
+    with pytest.raises(SourceEvidenceError, match="outside"):
+        _load_credentials(path, cache_root=cache_root)
+    assert not path.exists()
+
+
+def test_credential_loader_requires_exact_selected_nonunattended_source_entries(
+    tmp_path,
+):
+    empty_path = _write_external_credential_file(
+        tmp_path,
+        {"schema_version": 1, "authorization_by_source_id": {}},
+    )
+    with pytest.raises(SourceEvidenceError, match=ELSEVIER_SOURCE_ID):
+        _load_credentials(empty_path)
+
+    extra_id = "doi_3c0cd7d12c74eed185ff"
+    document = _credential_document()
+    document["authorization_by_source_id"][extra_id] = {
+        "authorization_mode": "institution_network",
+        "request_headers_by_origin": {},
+    }
+    extra_path = tmp_path / "broad-profile.json"
+    extra_path.write_text(json.dumps(document), encoding="utf-8")
+    extra_path.chmod(0o600)
+    routes = {
+        ELSEVIER_SOURCE_ID: _credential_route(),
+        extra_id: _credential_route(
+            source_id=extra_id, doi="10.1088/0953-8984/7/1/008"
+        ),
+    }
+    with pytest.raises(SourceEvidenceError, match="unselected"):
+        _load_credentials(extra_path, routes=routes, selected=[ELSEVIER_SOURCE_ID])
+
+
+def test_credential_loader_rejects_authorization_for_unattended_source(tmp_path):
+    source_id = "doi_422f517c2d9549fef833"
+    route = _credential_route(
+        source_id=source_id, doi="10.1103/physrevb.83.155120"
+    )
+    path = _write_external_credential_file(
+        tmp_path,
+        _credential_document(
+            source_id=source_id,
+            origin="https://harvest.aps.org",
+        ),
+    )
+    with pytest.raises(SourceEvidenceError, match="unattended"):
+        _load_credentials(path, routes={source_id: route}, selected=[source_id])
+
+
+def test_access_mode_all_requires_credentials_before_cache_or_network(
+    tmp_path, monkeypatch
+):
+    source = {
+        "source_id": ELSEVIER_SOURCE_ID,
+        "canonical_identity": {
+            "kind": "doi",
+            "value": "10.1016/0022-3697(61)90053-1",
+        },
+        "canonical_url": "https://doi.org/10.1016/0022-3697(61)90053-1",
+        "benchmark_names": ["fixture"],
+    }
+    route = _credential_route()
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_and_validate_inventory",
+        lambda: SimpleNamespace(source_index=(source,), source_provisioning=(route,)),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_source",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("network/cache path reached before credential validation")
+        ),
+    )
+    with pytest.raises(SystemExit):
+        source_fetcher.main(
+            [
+                "--source-id",
+                ELSEVIER_SOURCE_ID,
+                "--access-mode",
+                "all",
+                "--cache-root",
+                str(tmp_path / "cache"),
+            ]
+        )
+    assert not (tmp_path / "cache").exists()
+
+
+def test_access_mode_all_offline_verification_never_loads_credentials(
+    tmp_path, monkeypatch, capsys
+):
+    source = {
+        "source_id": ELSEVIER_SOURCE_ID,
+        "canonical_identity": {
+            "kind": "doi",
+            "value": "10.1016/0022-3697(61)90053-1",
+        },
+        "canonical_url": "https://doi.org/10.1016/0022-3697(61)90053-1",
+        "benchmark_names": ["fixture"],
+    }
+    route = _credential_route()
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_and_validate_inventory",
+        lambda: SimpleNamespace(source_index=(source,), source_provisioning=(route,)),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_load_request_authorizations",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("offline verification loaded credential input")
+        ),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_verify_cached_source",
+        lambda *args, **kwargs: {
+            "source_id": ELSEVIER_SOURCE_ID,
+            "status": "verified",
+            "detail": "fixture-hash",
+        },
+    )
+
+    assert source_fetcher.main(
+        [
+            "--source-id",
+            ELSEVIER_SOURCE_ID,
+            "--access-mode",
+            "all",
+            "--verify-offline",
+            "--cache-root",
+            str(tmp_path / "cache"),
+        ]
+    ) == 0
+    assert '"status": "verified"' in capsys.readouterr().out
+
+
+def _header_dict(request):
+    return {key.casefold(): value for key, value in request.header_items()}
+
+
+def test_credential_redirect_policy_strips_and_exactly_reapplies_profiles():
+    profile = {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+                "X-ELS-APIKey": CREDENTIAL_SENTINEL
+            },
+            "https://redirect.elsevier.com": {
+                "Authorization": REDIRECT_CREDENTIAL_SENTINEL
+            },
+        },
+    }
+    handler = source_fetcher._CredentialRedirectHandler(profile)
+    initial = Request(
+        "https://api.elsevier.com/content/article",
+        headers={
+            "Accept": "application/xml",
+            "User-Agent": "fixture",
+            "X-ELS-APIKey": CREDENTIAL_SENTINEL,
+        },
+    )
+    unprofiled = handler.redirect_request(
+        initial,
+        None,
+        302,
+        "Found",
+        {},
+        "https://crossref.org/works/redirected",
+    )
+    assert CREDENTIAL_SENTINEL not in _header_dict(unprofiled).values()
+    assert REDIRECT_CREDENTIAL_SENTINEL not in _header_dict(unprofiled).values()
+
+    reprofiled = handler.redirect_request(
+        initial,
+        None,
+        302,
+        "Found",
+        {},
+        "https://redirect.elsevier.com/final",
+    )
+    headers = _header_dict(reprofiled)
+    assert CREDENTIAL_SENTINEL not in headers.values()
+    assert headers["authorization"] == REDIRECT_CREDENTIAL_SENTINEL
+
+
+def test_credential_redirect_policy_rejects_userinfo_and_never_forwards_to_sidecars():
+    profile = {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+                "X-ELS-APIKey": CREDENTIAL_SENTINEL
+            }
+        },
+    }
+    handler = source_fetcher._CredentialRedirectHandler(profile)
+    initial = Request(
+        "https://api.elsevier.com/content/article",
+        headers={"X-ELS-APIKey": CREDENTIAL_SENTINEL},
+    )
+    with pytest.raises(SourceEvidenceError, match="userinfo"):
+        handler.redirect_request(
+            initial,
+            None,
+            302,
+            "Found",
+            {},
+            "https://user:password@api.elsevier.com/private",
+        )
+    for sidecar_url in (
+        "https://api.crossref.org/works/fixture",
+        "https://export.arxiv.org/api/query?id_list=fixture",
+        "https://api.core.ac.uk/v3/outputs/572184419",
+        "https://www.lptmc.jussieu.fr/users/maillard",
+    ):
+        redirected = handler.redirect_request(
+            initial, None, 302, "Found", {}, sidecar_url
+        )
+        assert CREDENTIAL_SENTINEL not in _header_dict(redirected).values()
+
+
+class _SignedFixtureResponse:
+    def __init__(self, body, final_url):
+        self._body = body
+        self.status = 200
+        self.headers = {
+            "Content-Type": "application/pdf",
+            "ETag": f"reflected-{CREDENTIAL_SENTINEL}",
+        }
+        self._final_url = final_url
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self):
+        return self._body
+
+    def geturl(self):
+        return self._final_url
+
+
+def test_authenticated_download_uses_full_signed_url_only_in_memory_and_redacts_outputs(
+    monkeypatch,
+):
+    body = _minimal_pdf("Credential-safe payload.")
+    full_url = (
+        "https://api.elsevier.com/content/article?signature="
+        + SIGNED_QUERY_SENTINEL
+        + "#private-fragment"
+    )
+    captured = {}
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            captured["request"] = request
+            return _SignedFixtureResponse(body, full_url)
+
+    monkeypatch.setattr(source_fetcher, "build_opener", lambda *handlers: FixtureOpener())
+    route = {
+        "kind": "elsevier_article_api_xml",
+        "url": full_url,
+        "expected_media_type": "application/pdf",
+        "access_mode": "api_key_or_entitlement",
+    }
+    profile = {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+                "X-ELS-APIKey": CREDENTIAL_SENTINEL
+            }
+        },
+    }
+    response = source_fetcher._download(
+        route, object(), credential_profile=profile
+    )
+
+    assert captured["request"].full_url == full_url
+    assert _header_dict(captured["request"])["x-els-apikey"] == CREDENTIAL_SENTINEL
+    assert response["final_url"] == "https://api.elsevier.com/content/article"
+    assert not any(
+        CREDENTIAL_SENTINEL in text for text in _recursive_strings(response)
+    )
+    source = {
+        "source_id": ELSEVIER_SOURCE_ID,
+        "canonical_identity": {"kind": "doi", "value": "10.1016/example"},
+        "canonical_url": "https://doi.org/10.1016/example",
+    }
+    provisioning = {
+        "authoritative_retrieval_route": {
+            "kind": "elsevier_article_api_xml",
+            "artifact_identifier": "doi:10.1016/example",
+            "work_identity_evidence": {
+                "kind": "canonical_identity",
+                "url": "https://doi.org/10.1016/example",
+            },
+        }
+    }
+    provenance = source_fetcher._build_provenance(
+        source,
+        provisioning,
+        response,
+        {
+            "title": "Fixture",
+            "authors": ["A. Author"],
+            "venue": "Fixture",
+            "publication_date": "2024-01-01",
+        },
+        payload_name="source.pdf",
+    )
+    serialized = json.dumps(provenance, sort_keys=True)
+    assert CREDENTIAL_SENTINEL not in serialized
+    assert REDIRECT_CREDENTIAL_SENTINEL not in serialized
+    assert SIGNED_QUERY_SENTINEL not in serialized
+    assert "private-fragment" not in serialized
+    assert "etag" not in provenance["retrieval_metadata"]["response_headers"]
+
+
+def test_work_identity_request_uses_full_signed_url_but_descriptor_is_sanitized(
+    monkeypatch,
+):
+    route_spec = copy.deepcopy(_author_garel_route())
+    full_url = (
+        route_spec["work_identity_evidence"]["url"]
+        + "?signature="
+        + SIGNED_QUERY_SENTINEL
+        + "#private-fragment"
+    )
+    route_spec["work_identity_evidence"]["url"] = full_url
+    captured = {}
+
+    def fake_urlopen(request, **kwargs):
+        captured["request"] = request
+        return _FixtureHTTPResponse(AUTHOR_GAREL_PAGE, content_type="text/html")
+
+    monkeypatch.setattr(source_fetcher, "urlopen", fake_urlopen)
+    evidence = source_fetcher._fetch_work_identity_evidence(
+        {
+            "canonical_identity": {
+                "kind": "doi",
+                "value": "10.1088/0305-4470/16/10/023",
+            }
+        },
+        {"authoritative_retrieval_route": route_spec},
+        object(),
+        bibliographic_metadata={
+            "title": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["title"],
+            "authors": AUTHOR_GAREL_BIBLIOGRAPHIC_METADATA["authors"],
+        },
+    )
+
+    assert captured["request"].full_url == full_url
+    request_headers = _header_dict(captured["request"])
+    assert not _CREDENTIAL_HEADER_CASEFOLDS.intersection(request_headers)
+    assert evidence["descriptor"]["url"] == (
+        "https://www.lptmc.jussieu.fr/users/maillard"
+    )
+    serialized = json.dumps(evidence["descriptor"], sort_keys=True)
+    assert SIGNED_QUERY_SENTINEL not in serialized
+    assert "private-fragment" not in serialized
+
+
+_CREDENTIAL_HEADER_CASEFOLDS = {
+    "cookie",
+    "authorization",
+    "x-els-apikey",
+    "x-els-insttoken",
+}
+
+
+def test_exact_fourteen_restricted_routes_have_closed_official_origin_allowlists():
+    routes = _registry_routes_by_identity()
+    restricted = [
+        route for route in routes.values() if route["access_mode"] != "unattended"
+    ]
+    expected_by_kind = {
+        "elsevier_article_api_xml": {"https://api.elsevier.com"},
+        "nature_article_pdf": {
+            "https://www.nature.com",
+            "https://idp.nature.com",
+        },
+        "springer_content_pdf": {"https://link.springer.com"},
+        "iop_article_pdf": {"https://iopscience.iop.org"},
+        "epl_iop_article_pdf": {"https://iopscience.iop.org"},
+        "science_article_pdf": {"https://www.science.org"},
+        "aip_article_discovery": {"https://doi.org", "https://pubs.aip.org"},
+        "acs_article_pdf": {"https://pubs.acs.org"},
+        "jpsj_article_pdf": {"https://journals.jps.jp"},
+    }
+    assert len(restricted) == 14
+    for route_spec in restricted:
+        route = {"authoritative_retrieval_route": route_spec}
+        assert source_fetcher._allowed_authorization_origins(route) == (
+            expected_by_kind[route_spec["kind"]]
+        )
+
+
+@pytest.mark.parametrize("forbidden_header", ("Accept", "User-Agent", "Host", "URL"))
+def test_credential_profile_cannot_override_request_control_headers(
+    tmp_path, forbidden_header
+):
+    document = _credential_document()
+    document["authorization_by_source_id"][ELSEVIER_SOURCE_ID][
+        "request_headers_by_origin"
+    ] = {
+        "https://api.elsevier.com": {
+            forbidden_header: CREDENTIAL_SENTINEL
+        }
+    }
+    path = _write_external_credential_file(tmp_path, document)
+    with pytest.raises(SourceEvidenceError, match="closed allowlist"):
+        _load_credentials(path)
+
+
+def test_credential_loader_rejects_unknown_source_id(tmp_path):
+    unknown_id = "doi_00000000000000000000"
+    path = _write_external_credential_file(
+        tmp_path,
+        _credential_document(source_id=unknown_id),
+    )
+    with pytest.raises(SourceEvidenceError, match="unknown source ID"):
+        _load_credentials(path)
+
+
+def test_cli_passes_only_exact_selected_source_profile_and_prints_no_secret(
+    tmp_path, monkeypatch, capsys
+):
+    source = {
+        "source_id": ELSEVIER_SOURCE_ID,
+        "canonical_identity": {
+            "kind": "doi",
+            "value": "10.1016/0022-3697(61)90053-1",
+        },
+        "canonical_url": "https://doi.org/10.1016/0022-3697(61)90053-1",
+        "benchmark_names": ["fixture"],
+    }
+    route = _credential_route()
+    path = _write_external_credential_file(tmp_path, _credential_document())
+    captured = {}
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_and_validate_inventory",
+        lambda: SimpleNamespace(source_index=(source,), source_provisioning=(route,)),
+    )
+
+    def fake_fetch(cache_root, selected_source, selected_route, **kwargs):
+        captured["profile"] = kwargs["credential_profile"]
+        return {"source_id": ELSEVIER_SOURCE_ID, "status": "acquired", "detail": "ok"}
+
+    monkeypatch.setattr(source_fetcher, "_fetch_source", fake_fetch)
+    assert source_fetcher.main(
+        [
+            "--source-id",
+            ELSEVIER_SOURCE_ID,
+            "--access-mode",
+            "all",
+            "--request-credential-file",
+            str(path),
+            "--cache-root",
+            str(tmp_path / "cache"),
+        ]
+    ) == 0
+    assert captured["profile"]["request_headers_by_origin"] == {
+        "https://api.elsevier.com": {"X-ELS-APIKey": CREDENTIAL_SENTINEL}
+    }
+    streams = capsys.readouterr()
+    assert CREDENTIAL_SENTINEL not in streams.out + streams.err
+
+
+def test_existing_cache_and_sidecar_files_are_never_overwritten(tmp_path):
+    source_id = "doi_e49cda761520424da334"
+    cache_root = tmp_path / "cache"
+    source_dir = cache_root / source_id
+    source_dir.mkdir(parents=True)
+    sentinel_path = source_dir / "user-owned-sentinel.txt"
+    sentinel_path.write_text("preserve-me", encoding="utf-8")
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        {"source_id": source_id},
+        {"source_id": source_id},
+        ca_bundle=Path("/not-used"),
+        resume=False,
+    )
+    assert outcome["status"] == "failed"
+    assert outcome["detail"] == "cache directory already exists"
+    assert sentinel_path.read_text(encoding="utf-8") == "preserve-me"
+    assert list(source_dir.iterdir()) == [sentinel_path]
+
+    existing_sidecar = source_dir / "work-identity.json"
+    existing_sidecar.write_bytes(b"user-owned-sidecar")
+    with pytest.raises(FileExistsError):
+        source_fetcher._write_work_identity_sidecars(
+            source_dir,
+            {
+                "payload": b"replacement",
+                "descriptor": {
+                    "payload_relative_path": "work-identity.json",
+                },
+            },
+        )
+    assert existing_sidecar.read_bytes() == b"user-owned-sidecar"
+
+
+def test_fetch_failure_reports_exact_new_cache_directory_without_creating_it(
+    tmp_path, monkeypatch
+):
+    source_id = "doi_e49cda761520424da334"
+    cache_root = tmp_path / "cache"
+    source_dir = cache_root / source_id
+    monkeypatch.setattr(
+        source_fetcher,
+        "_ssl_context",
+        lambda ca_bundle: (_ for _ in ()).throw(SourceEvidenceError("TLS unavailable")),
+    )
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        {"source_id": source_id},
+        {"source_id": source_id},
+        ca_bundle=Path("/fixture"),
+        resume=False,
+    )
+    assert outcome == {
+        "source_id": source_id,
+        "status": "failed",
+        "detail": f"new cache directory {source_dir} failed: TLS unavailable",
+    }
+    assert not source_dir.exists()
+
+
+def test_authenticated_download_rejects_declared_and_final_userinfo(monkeypatch):
+    profile = {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+                "X-ELS-APIKey": CREDENTIAL_SENTINEL
+            }
+        },
+    }
+    with pytest.raises(SourceEvidenceError, match="userinfo"):
+        source_fetcher._download(
+            {
+                "kind": "elsevier_article_api_xml",
+                "url": "https://user:password@api.elsevier.com/content/article",
+                "expected_media_type": "application/xml",
+            },
+            object(),
+            credential_profile=profile,
+        )
+
+    body = _minimal_pdf("Credential-safe payload.")
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            return _SignedFixtureResponse(
+                body,
+                "https://user:password@api.elsevier.com/content/article",
+            )
+
+    monkeypatch.setattr(source_fetcher, "build_opener", lambda *handlers: FixtureOpener())
+    with pytest.raises(SourceEvidenceError, match="userinfo"):
+        source_fetcher._download(
+            {
+                "kind": "elsevier_article_api_xml",
+                "url": "https://api.elsevier.com/content/article",
+                "expected_media_type": "application/pdf",
+            },
+            object(),
+            credential_profile=profile,
+        )
+
+
+def test_credential_sentinels_never_appear_in_success_or_failure_outcomes(
+    capsys,
+):
+    success = source_fetcher._outcome(
+        ELSEVIER_SOURCE_ID,
+        "acquired",
+        "https://api.elsevier.com/content/article?signature=" + SIGNED_QUERY_SENTINEL,
+        sensitive_values=(CREDENTIAL_SENTINEL,),
+    )
+    failure = source_fetcher._outcome(
+        ELSEVIER_SOURCE_ID,
+        "failed",
+        "request failed with reflected value " + CREDENTIAL_SENTINEL,
+        sensitive_values=(CREDENTIAL_SENTINEL,),
+    )
+    print(json.dumps(success, sort_keys=True))
+    print(json.dumps(failure, sort_keys=True), file=sys.stderr)
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err + json.dumps([success, failure])
+    assert CREDENTIAL_SENTINEL not in combined
+    assert REDIRECT_CREDENTIAL_SENTINEL not in combined
+    assert SIGNED_QUERY_SENTINEL not in combined
 
 
 @pytest.mark.parametrize(
@@ -828,6 +2289,213 @@ def test_download_validation_rejects_html_challenge_even_with_status_200():
             headers={"content-type": "text/html; charset=UTF-8"},
             body=b"<html>challenge</html>",
             final_url="https://validate.example/challenge",
+        )
+
+
+def _oup_html_route():
+    return authoritative_route_for_identity(
+        {"kind": "doi", "value": "10.1143/ptp.5.2.177"}
+    )
+
+
+def _write_oup_html_source(tmp_path, payload=OUP_HTML):
+    source_id = "doi_f334ed253565110358b3"
+    route_spec = _oup_html_route()
+    source = {
+        "source_id": source_id,
+        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp.5.2.177"},
+        "canonical_url": "https://doi.org/10.1143/ptp.5.2.177",
+        "benchmark_names": [
+            "honeycomb_ising_ferromagnet_exact_tc",
+            "triangular_ising_ferromagnet_exact_tc",
+        ],
+    }
+    route = {
+        "source_id": source_id,
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+    }
+    provenance = _provenance(payload)
+    provenance.update(
+        {
+            "source_id": source_id,
+            "source_identity": {
+                **source["canonical_identity"],
+                "canonical_url": source["canonical_url"],
+            },
+            "media_type": "text/html",
+            "payload_relative_path": "source.html",
+            "text_extraction": {
+                "tool": "stdlib_html_visible_text",
+                "version": 1,
+                "deterministic": True,
+                "arguments": [],
+            },
+        }
+    )
+    provenance["retrieval_metadata"].update(
+        {
+            "url": route_spec["url"],
+            "method": route_spec["kind"],
+            "response_headers": {"content-type": "text/html"},
+            "immutable_artifact_identifier": route_spec["artifact_identifier"],
+        }
+    )
+    source_dir = tmp_path / source_id
+    source_dir.mkdir()
+    source_dir.joinpath("source.html").write_bytes(payload)
+    source_dir.joinpath("provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return source_dir, source, route
+
+
+def test_html_download_and_offline_visible_text_are_deterministic(tmp_path):
+    route_spec = _oup_html_route()
+    assert validate_download_response(
+        route_spec,
+        status=200,
+        headers={"content-type": "text/html; charset=UTF-8"},
+        body=OUP_HTML,
+        final_url=route_spec["url"],
+    ) == "text/html"
+
+    source_dir, source, route = _write_oup_html_source(tmp_path)
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+        required_search_anchors=("ch 2H = 2", "exp(4H) = 3"),
+    )
+
+    assert verified.extraction_tool == {
+        "tool": "stdlib_html_visible_text",
+        "version": 1,
+        "deterministic": True,
+        "arguments": [],
+    }
+    assert "The Statistics of Honeycomb and Triangular Lattice. I" in verified.extracted_text
+    assert "Kodi Husimi and Itiro Syozi" in verified.extracted_text
+    assert "ch 2H = 2" in verified.extracted_text
+    assert "exp(4H) = 3" in verified.extracted_text
+    for hidden in (
+        "hidden-css-sentinel",
+        "javascript-hidden-sentinel",
+        "comment-hidden-sentinel",
+        "attribute-hidden-sentinel",
+        "hidden-attribute-sentinel",
+        "aria-hidden-sentinel",
+        "inline-style-hidden-sentinel",
+        "noscript-hidden-sentinel",
+        "template-hidden-sentinel",
+    ):
+        assert hidden not in verified.extracted_text
+
+
+def test_oup_minimal_div_container_is_article_bearing_for_download_and_offline(
+    tmp_path,
+):
+    route_spec = _oup_html_route()
+    assert validate_download_response(
+        route_spec,
+        status=200,
+        headers={"content-type": "text/html; charset=UTF-8"},
+        body=OUP_MINIMAL_DIV_HTML,
+        final_url=route_spec["url"],
+    ) == "text/html"
+
+    source_dir, source, route = _write_oup_html_source(
+        tmp_path, payload=OUP_MINIMAL_DIV_HTML
+    )
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+        required_search_anchors=("ch 2H = 2", "exp (4H) = 3"),
+    )
+    assert "The Statistics of Honeycomb and Triangular Lattice. I" in (
+        verified.extracted_text
+    )
+    assert "Kodi Husimi and Itiro Syôzi" in verified.extracted_text
+
+
+def test_fetcher_records_exact_deterministic_html_extraction_contract():
+    route_spec = _oup_html_route()
+    source = {
+        "source_id": "doi_f334ed253565110358b3",
+        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp.5.2.177"},
+        "canonical_url": "https://doi.org/10.1143/ptp.5.2.177",
+    }
+    route = {"authoritative_retrieval_route": route_spec}
+    response = {
+        "body": OUP_HTML,
+        "final_url": route_spec["url"],
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "media_type": "text/html",
+    }
+    provenance = source_fetcher._build_provenance(
+        source,
+        route,
+        response,
+        {
+            "title": "The Statistics of Honeycomb and Triangular Lattice. I",
+            "authors": ["Kodi Husimi", "Itiro Syozi"],
+            "venue": "Progress of Theoretical Physics",
+            "publication_date": "1950-03-01",
+        },
+        payload_name="source.html",
+    )
+    assert provenance["text_extraction"] == {
+        "tool": "stdlib_html_visible_text",
+        "version": 1,
+        "deterministic": True,
+        "arguments": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("status", "content_type", "body", "match"),
+    [
+        (503, "text/html", OUP_HTML, "HTTP status"),
+        (200, "application/pdf", OUP_HTML, "media type"),
+        (
+            200,
+            "text/html",
+            b"<html><body><article>Access denied: verify you are human with Cloudflare.</article></body></html>",
+            "challenge",
+        ),
+        (200, "text/html", OUP_HTML.replace(b"<html lang=\"en\">", b""), "root"),
+        (200, "text/html", OUP_HTML.replace(b"</article>", b""), "malformed"),
+        (
+            200,
+            "text/html",
+            b"<html><body><article><script>"
+            b"The Statistics of Honeycomb and Triangular Lattice. I; "
+            b"Kodi Husimi and Itiro Syozi; 10.1143/ptp/5.2.177; Summary; "
+            b"ch 2H = 2; exp(4H) = 3"
+            b"</script><p>Visible shell.</p></article></body></html>",
+            "title",
+        ),
+        (200, "text/html", b"<html><body><article>   </article></body></html>", "article"),
+        (200, "text/html", OUP_HTML.replace(b"The Statistics of Honeycomb and Triangular Lattice. I", b"Different title"), "title"),
+        (200, "text/html", OUP_HTML.replace(b"10.1143/ptp/5.2.177", b"10.1143/wrong"), "DOI"),
+        (200, "text/html", OUP_HTML.replace(b"Kodi Husimi", b"Unknown Author"), "author"),
+        (200, "text/html", OUP_HTML.replace(b"ch 2H = 2", b"condition unavailable"), "equation"),
+        (200, "text/html", OUP_HTML.replace(b"exp(4H) = 3", b"condition unavailable"), "equation"),
+    ],
+)
+def test_html_download_fails_closed(status, content_type, body, match):
+    route_spec = _oup_html_route()
+    with pytest.raises(SourceEvidenceError, match=match):
+        validate_download_response(
+            route_spec,
+            status=status,
+            headers={"content-type": content_type},
+            body=body,
+            final_url=route_spec["url"],
         )
 
 
