@@ -2,7 +2,6 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from functools import wraps
 from pathlib import Path
 from types import MappingProxyType
 import hashlib
@@ -23,8 +22,6 @@ class RuntimeEvidenceError(ValueError):
     """Raised when source text cannot establish the registered claim."""
 
 
-TRACE_COORDINATE_SPACE = "canonical_normalized_extracted_text_v1"
-TRACE_COORDINATE_CONTRACT_VERSION = 1
 _PREPARED_TRACE_COORDINATE_SPACE = "private_prepared_extracted_text"
 
 
@@ -638,6 +635,168 @@ def _build_quilliam_pdf_layout_search_text(source_text):
     )
 
 
+_SUBSCRIPT_DIGIT_REPLACEMENTS = tuple(
+    zip("₀₁₂₃₄₅₆₇₈₉", "0123456789")
+)
+_SUPERSCRIPT_DIGIT_REPLACEMENTS = tuple(
+    zip("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+)
+_LIGATURE_DASH_REPLACEMENTS = (
+    ("ﬁ", "fi"),
+    ("ﬂ", "fl"),
+    ("ﬀ", "ff"),
+    ("ﬃ", "ffi"),
+    ("ﬄ", "ffl"),
+    ("−", "-"),
+    ("–", "-"),
+    ("—", "-"),
+)
+
+
+def _build_kitagawa_h3liir2o6_extracted_text(source_text):
+    return _normalize_with_replacements(
+        source_text,
+        (*_LIGATURE_DASH_REPLACEMENTS, *_SUBSCRIPT_DIGIT_REPLACEMENTS),
+    )
+
+
+def _build_ramirez_dy2ti2o7_extracted_text(source_text):
+    return _normalize_with_replacements(
+        source_text,
+        (
+            *_LIGATURE_DASH_REPLACEMENTS,
+            ("‘", "'"),
+            ("’", "'"),
+            *_SUBSCRIPT_DIGIT_REPLACEMENTS,
+        ),
+    )
+
+
+def _build_carteaux_cr2ge2te6_extracted_text(source_text):
+    return _normalize_with_replacements(
+        source_text,
+        (
+            *_LIGATURE_DASH_REPLACEMENTS,
+            *_SUBSCRIPT_DIGIT_REPLACEMENTS,
+            *_SUPERSCRIPT_DIGIT_REPLACEMENTS,
+            ("⁺", "+"),
+            ("μ", "mu"),
+            ("µ", "mu"),
+        ),
+    )
+
+
+def _build_cable_crcl3_extracted_text(source_text):
+    return _normalize_with_replacements(
+        source_text,
+        (
+            *_LIGATURE_DASH_REPLACEMENTS,
+            *_SUBSCRIPT_DIGIT_REPLACEMENTS,
+            ("°", " "),
+        ),
+    )
+
+
+def _build_ressouche_mnps3_extracted_text(source_text):
+    text = source_text
+    for old, new in (
+        *_LIGATURE_DASH_REPLACEMENTS,
+        *_SUBSCRIPT_DIGIT_REPLACEMENTS,
+        *_SUPERSCRIPT_DIGIT_REPLACEMENTS,
+        ("⁺", "+"),
+        ("共", "("),
+        ("兲", ")"),
+    ):
+        text = text.replace(old, new)
+    text = re.sub(r"(?<=[A-Za-z])-\s+(?=[A-Za-z])", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_furuchi_lieb_lattice_extracted_text(source_text):
+    text = source_text
+    for old, new in (
+        *_LIGATURE_DASH_REPLACEMENTS,
+        ("′", "'"),
+        ("’", "'"),
+        ("·", " dot "),
+        ("η", "eta"),
+        *_SUBSCRIPT_DIGIT_REPLACEMENTS,
+    ):
+        text = text.replace(old, new)
+    text = re.sub(r"(?<=[A-Za-z])-\s+(?=[A-Za-z])", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_hsieh_nacro2_extracted_text(source_text):
+    text = source_text
+    for old, new in (
+        *_LIGATURE_DASH_REPLACEMENTS,
+        ("′", "'"),
+        ("’", "'"),
+        ("∼", " approximately "),
+        ("≈", " approximately "),
+        ("ξ", "xi"),
+        ("π", "pi"),
+        ("∞", " infinity "),
+        ("→", " approaching "),
+        ("Å", " A "),
+        ("˚", ""),
+        ("◦", "-degree "),
+        ("°", "-degree "),
+        (">", " greater than "),
+        ("<", " less than "),
+    ):
+        text = text.replace(old, new)
+    text = re.sub(r"(?<=[A-Za-z])-\s+(?=[A-Za-z])", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_mazin_honeycomb_j1_j2_j3_extracted_text(source_text):
+    return _normalize_with_replacements(
+        source_text,
+        (
+            *_LIGATURE_DASH_REPLACEMENTS,
+            ("“", '"'),
+            ("”", '"'),
+            ("’", "'"),
+            ("´", "'"),
+            ("é", "e"),
+            ("É", "E"),
+        ),
+    )
+
+
+def _build_blote_luijten_heringa_numeric_extracted_text(source_text):
+    text = re.sub(r"\s+", " ", source_text).strip()
+    return re.sub(r"(?<=\d):(?=\d)", ".", text)
+
+
+def _build_sandvik_daul_square_xy_ring_extracted_text(source_text):
+    text = re.sub(r"\s+", " ", source_text).strip()
+    return text.replace("−", "-").replace("–", "-")
+
+
+def _build_chaloupka_full_kitaev_heisenberg_extracted_text(source_text):
+    text = re.sub(r"\s+", " ", source_text).strip()
+    return text.replace("−", "-").replace("–", "-")
+
+
+def _build_chubukov_golosov_scan_extracted_text(source_text):
+    scan_layout_forms_accepted = bool(
+        re.search(
+            r"antiferromagneton|onatriangular|magnet-\s+ization",
+            source_text,
+            flags=re.IGNORECASE,
+        )
+    )
+    text = source_text.replace("ﬁ", "fi").replace("ﬂ", "fl")
+    text = re.sub(r"(?<=\w)-\s+(?=\w)", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if scan_layout_forms_accepted:
+        text += "\n#scan-layout-forms-accepted"
+    return text
+
+
 _PREPARED_VIEW_SPECS = MappingProxyType(
     {
         ("yang_xie_extracted_text", 1): _PreparedViewSpec(
@@ -737,6 +896,75 @@ _PREPARED_VIEW_SPECS = MappingProxyType(
             "boldrin_pdf_layout_search_text",
             1,
             _build_boldrin_pdf_layout_search_text,
+        ),
+        ("kitagawa_h3liir2o6_extracted_text", 1): _PreparedViewSpec(
+            "kitagawa_h3liir2o6_extracted_text",
+            1,
+            _build_kitagawa_h3liir2o6_extracted_text,
+        ),
+        ("ramirez_dy2ti2o7_extracted_text", 1): _PreparedViewSpec(
+            "ramirez_dy2ti2o7_extracted_text",
+            1,
+            _build_ramirez_dy2ti2o7_extracted_text,
+        ),
+        ("carteaux_cr2ge2te6_extracted_text", 1): _PreparedViewSpec(
+            "carteaux_cr2ge2te6_extracted_text",
+            1,
+            _build_carteaux_cr2ge2te6_extracted_text,
+        ),
+        ("cable_crcl3_extracted_text", 1): _PreparedViewSpec(
+            "cable_crcl3_extracted_text",
+            1,
+            _build_cable_crcl3_extracted_text,
+        ),
+        ("ressouche_mnps3_extracted_text", 1): _PreparedViewSpec(
+            "ressouche_mnps3_extracted_text",
+            1,
+            _build_ressouche_mnps3_extracted_text,
+        ),
+        ("furuchi_lieb_lattice_extracted_text", 1): _PreparedViewSpec(
+            "furuchi_lieb_lattice_extracted_text",
+            1,
+            _build_furuchi_lieb_lattice_extracted_text,
+        ),
+        ("hsieh_nacro2_extracted_text", 1): _PreparedViewSpec(
+            "hsieh_nacro2_extracted_text",
+            1,
+            _build_hsieh_nacro2_extracted_text,
+        ),
+        ("mazin_honeycomb_j1_j2_j3_extracted_text", 1): _PreparedViewSpec(
+            "mazin_honeycomb_j1_j2_j3_extracted_text",
+            1,
+            _build_mazin_honeycomb_j1_j2_j3_extracted_text,
+        ),
+        (
+            "blote_luijten_heringa_numeric_extracted_text",
+            1,
+        ): _PreparedViewSpec(
+            "blote_luijten_heringa_numeric_extracted_text",
+            1,
+            _build_blote_luijten_heringa_numeric_extracted_text,
+        ),
+        (
+            "chaloupka_full_kitaev_heisenberg_extracted_text",
+            1,
+        ): _PreparedViewSpec(
+            "chaloupka_full_kitaev_heisenberg_extracted_text",
+            1,
+            _build_chaloupka_full_kitaev_heisenberg_extracted_text,
+        ),
+        (
+            "sandvik_daul_square_xy_ring_extracted_text",
+            1,
+        ): _PreparedViewSpec(
+            "sandvik_daul_square_xy_ring_extracted_text",
+            1,
+            _build_sandvik_daul_square_xy_ring_extracted_text,
+        ),
+        ("chubukov_golosov_scan_extracted_text", 1): _PreparedViewSpec(
+            "chubukov_golosov_scan_extracted_text",
+            1,
+            _build_chubukov_golosov_scan_extracted_text,
         ),
     }
 )
@@ -920,6 +1148,62 @@ _PREPARED_TRACE_PARSER_BUILDERS = MappingProxyType(
             "wernsdorfer_science_webprint_search_text",
             1,
         ),
+        "parse_kitagawa_h3liir2o6_no_magnetic_order": (
+            "kitagawa_h3liir2o6_extracted_text",
+            1,
+        ),
+        "parse_ramirez_dy2ti2o7_pauling_entropy": (
+            "ramirez_dy2ti2o7_extracted_text",
+            1,
+        ),
+        "parse_carteaux_cr2ge2te6_ferromagnetic_order": (
+            "carteaux_cr2ge2te6_extracted_text",
+            1,
+        ),
+        "parse_cable_crcl3_ferromagnetic_layers": (
+            "cable_crcl3_extracted_text",
+            1,
+        ),
+        "parse_ressouche_mnps3_neel_order": (
+            "ressouche_mnps3_extracted_text",
+            1,
+        ),
+        "parse_furuchi_lieb_lattice_ground_state_spin": (
+            "furuchi_lieb_lattice_extracted_text",
+            1,
+        ),
+        "parse_hsieh_nacro2_unconventional_spin_order": (
+            "hsieh_nacro2_extracted_text",
+            1,
+        ),
+        "parse_mazin_honeycomb_j1_j2_j3_phase_set": (
+            "mazin_honeycomb_j1_j2_j3_extracted_text",
+            1,
+        ),
+        "parse_kitazawa_nomura_takhtajan_babujian_point": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_blote_luijten_heringa_simple_cubic_ising_tc": (
+            "blote_luijten_heringa_numeric_extracted_text",
+            1,
+        ),
+        "parse_sandvik_daul_square_xy_ring_bond_order": (
+            "sandvik_daul_square_xy_ring_extracted_text",
+            1,
+        ),
+        "parse_chaloupka_full_kitaev_heisenberg_ordered_phases": (
+            "chaloupka_full_kitaev_heisenberg_extracted_text",
+            1,
+        ),
+        "parse_chaloupka_na2iro3_zigzag_relevance": (
+            "chaloupka_full_kitaev_heisenberg_extracted_text",
+            1,
+        ),
+        "parse_chubukov_golosov_triangular_plateau": (
+            "chubukov_golosov_scan_extracted_text",
+            1,
+        ),
     }
 )
 
@@ -1000,32 +1284,6 @@ def _finalize_prepared_trace(parsed_and_trace, prepared):
         }
     )
     return parsed, trace
-
-
-def trace_coordinate_view(source_text):
-    """Return the temporary canonical view for unmigrated target traces.
-
-    Parsers in ``_PREPARED_TRACE_PARSER_BUILDERS`` instead declare and index
-    their exact private prepared view.  This helper remains stable only while
-    the other target parsers are migrated in later batches.
-    """
-
-    if not isinstance(source_text, str):
-        raise RuntimeEvidenceError("trace coordinate view requires text")
-    text = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("π", "pi"),
-    ):
-        text = text.replace(old, new)
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def _require_finite_real(value, *, label):
@@ -3941,14 +4199,6 @@ def _is_valid_extraction_trace(trace, benchmark_name, source_sha256):
         coordinate_space_is_valid = coordinate_metadata == {
             "coordinate_space"
         }
-    elif coordinate_space == TRACE_COORDINATE_SPACE:
-        coordinate_space_is_valid = (
-            coordinate_metadata
-            == {"coordinate_space", "coordinate_contract_version"}
-            and type(trace.get("coordinate_contract_version")) is int
-            and trace.get("coordinate_contract_version")
-            == TRACE_COORDINATE_CONTRACT_VERSION
-        )
     elif coordinate_space == _PREPARED_TRACE_COORDINATE_SPACE:
         coordinate_space_is_valid = _is_valid_prepared_coordinate_trace(
             trace
@@ -8478,30 +8728,21 @@ def parse_kitagawa_h3liir2o6_no_magnetic_order(source_text):
     error_prefix = "Kitagawa H3LiIr2O6 no-magnetic-order report"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_kitagawa_h3liir2o6_no_magnetic_order"
+    )
+    return _finalize_prepared_trace(
+        _parse_kitagawa_h3liir2o6_no_magnetic_order_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("₀", "0"),
-        ("₁", "1"),
-        ("₂", "2"),
-        ("₃", "3"),
-        ("₄", "4"),
-        ("₅", "5"),
-        ("₆", "6"),
-        ("₇", "7"),
-        ("₈", "8"),
-        ("₉", "9"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+def _parse_kitagawa_h3liir2o6_no_magnetic_order_prepared(normalized):
+
+    error_prefix = "Kitagawa H3LiIr2O6 no-magnetic-order report"
+
     material = r"H\s*3\s*Li\s*Ir\s*2\s*O\s*6"
 
     identity_match = re.search(
@@ -8653,32 +8894,19 @@ def parse_ramirez_dy2ti2o7_pauling_entropy(source_text):
     error_prefix = "Ramirez Dy2Ti2O7 Pauling entropy"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_ramirez_dy2ti2o7_pauling_entropy"
+    )
+    return _finalize_prepared_trace(
+        _parse_ramirez_dy2ti2o7_pauling_entropy_prepared(prepared.text),
+        prepared,
+    )
 
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("‘", "'"),
-        ("’", "'"),
-        ("₀", "0"),
-        ("₁", "1"),
-        ("₂", "2"),
-        ("₃", "3"),
-        ("₄", "4"),
-        ("₅", "5"),
-        ("₆", "6"),
-        ("₇", "7"),
-        ("₈", "8"),
-        ("₉", "9"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+def _parse_ramirez_dy2ti2o7_pauling_entropy_prepared(normalized):
+
+    error_prefix = "Ramirez Dy2Ti2O7 Pauling entropy"
+
     material = r"Dy\s*2\s*Ti\s*2\s*O\s*7"
     ice_ih = r"ice\s+I\s*_?\s*\(?\s*h\s*\)?"
 
@@ -8842,43 +9070,19 @@ def parse_carteaux_cr2ge2te6_ferromagnetic_order(source_text):
     error_prefix = "Carteaux Cr2Ge2Te6 ferromagnetic order"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_carteaux_cr2ge2te6_ferromagnetic_order"
+    )
+    return _finalize_prepared_trace(
+        _parse_carteaux_cr2ge2te6_ferromagnetic_order_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("₀", "0"),
-        ("₁", "1"),
-        ("₂", "2"),
-        ("₃", "3"),
-        ("₄", "4"),
-        ("₅", "5"),
-        ("₆", "6"),
-        ("₇", "7"),
-        ("₈", "8"),
-        ("₉", "9"),
-        ("⁰", "0"),
-        ("¹", "1"),
-        ("²", "2"),
-        ("³", "3"),
-        ("⁴", "4"),
-        ("⁵", "5"),
-        ("⁶", "6"),
-        ("⁷", "7"),
-        ("⁸", "8"),
-        ("⁹", "9"),
-        ("⁺", "+"),
-        ("μ", "mu"),
-        ("µ", "mu"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+def _parse_carteaux_cr2ge2te6_ferromagnetic_order_prepared(normalized):
+    error_prefix = "Carteaux Cr2Ge2Te6 ferromagnetic order"
     material = r"Cr\s*2\s*Ge\s*2\s*Te\s*6"
 
     metadata_match = re.search(
@@ -9014,31 +9218,17 @@ def parse_cable_crcl3_ferromagnetic_layers(source_text):
     error_prefix = "Cable CrCl3 ferromagnetic layers"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_cable_crcl3_ferromagnetic_layers"
+    )
+    return _finalize_prepared_trace(
+        _parse_cable_crcl3_ferromagnetic_layers_prepared(prepared.text),
+        prepared,
+    )
 
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("₀", "0"),
-        ("₁", "1"),
-        ("₂", "2"),
-        ("₃", "3"),
-        ("₄", "4"),
-        ("₅", "5"),
-        ("₆", "6"),
-        ("₇", "7"),
-        ("₈", "8"),
-        ("₉", "9"),
-        ("°", " "),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+def _parse_cable_crcl3_ferromagnetic_layers_prepared(normalized):
+    error_prefix = "Cable CrCl3 ferromagnetic layers"
     material = r"Cr\s*Cl\s*3"
 
     identity_match = re.search(
@@ -9182,46 +9372,17 @@ def parse_ressouche_mnps3_neel_order(source_text):
     error_prefix = "Ressouche MnPS3 Neel order"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
-
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("₀", "0"),
-        ("₁", "1"),
-        ("₂", "2"),
-        ("₃", "3"),
-        ("₄", "4"),
-        ("₅", "5"),
-        ("₆", "6"),
-        ("₇", "7"),
-        ("₈", "8"),
-        ("₉", "9"),
-        ("⁰", "0"),
-        ("¹", "1"),
-        ("²", "2"),
-        ("³", "3"),
-        ("⁴", "4"),
-        ("⁵", "5"),
-        ("⁶", "6"),
-        ("⁷", "7"),
-        ("⁸", "8"),
-        ("⁹", "9"),
-        ("⁺", "+"),
-        ("共", "("),
-        ("兲", ")"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(
-        r"(?<=[A-Za-z])-\s+(?=[A-Za-z])", "", normalized
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_ressouche_mnps3_neel_order"
     )
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return _finalize_prepared_trace(
+        _parse_ressouche_mnps3_neel_order_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_ressouche_mnps3_neel_order_prepared(normalized):
+    error_prefix = "Ressouche MnPS3 Neel order"
     material = r"Mn\s*P\s*S\s*3"
     manganese_ion = r"Mn\s*2\s*\+"
 
@@ -9416,37 +9577,19 @@ def parse_furuchi_lieb_lattice_ground_state_spin(source_text):
     error_prefix = "Furuchi Lieb lattice ground-state spin"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
-
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("′", "'"),
-        ("’", "'"),
-        ("·", " dot "),
-        ("η", "eta"),
-        ("₀", "0"),
-        ("₁", "1"),
-        ("₂", "2"),
-        ("₃", "3"),
-        ("₄", "4"),
-        ("₅", "5"),
-        ("₆", "6"),
-        ("₇", "7"),
-        ("₈", "8"),
-        ("₉", "9"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(
-        r"(?<=[A-Za-z])-\s+(?=[A-Za-z])", "", normalized
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_furuchi_lieb_lattice_ground_state_spin"
     )
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return _finalize_prepared_trace(
+        _parse_furuchi_lieb_lattice_ground_state_spin_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_furuchi_lieb_lattice_ground_state_spin_prepared(normalized):
+    error_prefix = "Furuchi Lieb lattice ground-state spin"
 
     identity_match = re.search(
         r"Collapsing Behavior of the Ferrimagnetic Ground State of the "
@@ -9674,37 +9817,19 @@ def parse_hsieh_nacro2_unconventional_spin_order(source_text):
     error_prefix = "Hsieh NaCrO2 unconventional spin order"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
-
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("′", "'"),
-        ("’", "'"),
-        ("∼", " approximately "),
-        ("≈", " approximately "),
-        ("ξ", "xi"),
-        ("π", "pi"),
-        ("∞", " infinity "),
-        ("→", " approaching "),
-        ("Å", " A "),
-        ("˚", ""),
-        ("◦", "-degree "),
-        ("°", "-degree "),
-        (">", " greater than "),
-        ("<", " less than "),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(
-        r"(?<=[A-Za-z])-\s+(?=[A-Za-z])", "", normalized
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_hsieh_nacro2_unconventional_spin_order"
     )
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return _finalize_prepared_trace(
+        _parse_hsieh_nacro2_unconventional_spin_order_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_hsieh_nacro2_unconventional_spin_order_prepared(normalized):
+    error_prefix = "Hsieh NaCrO2 unconventional spin order"
 
     nacro2 = r"Na\s*Cr\s*O\s*_?\s*2"
     nax_cro2 = r"Na\s*_?\s*x\s*Cr\s*O\s*_?\s*2"
@@ -10049,26 +10174,19 @@ def parse_mazin_honeycomb_j1_j2_j3_phase_set(source_text):
     error_prefix = "Mazin honeycomb J1-J2-J3 phase set"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_mazin_honeycomb_j1_j2_j3_phase_set"
+    )
+    return _finalize_prepared_trace(
+        _parse_mazin_honeycomb_j1_j2_j3_phase_set_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("“", '"'),
-        ("”", '"'),
-        ("’", "'"),
-        ("´", "'"),
-        ("é", "e"),
-        ("É", "E"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+def _parse_mazin_honeycomb_j1_j2_j3_phase_set_prepared(normalized):
+    error_prefix = "Mazin honeycomb J1-J2-J3 phase set"
 
     j1 = r"J\s*_?\s*1"
     j2 = r"J\s*_?\s*2"
@@ -14152,7 +14270,19 @@ def parse_kitazawa_nomura_takhtajan_babujian_point(source_text):
         raise RuntimeEvidenceError(
             "Takhtajan-Babujian spin-1 point requires nonempty text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_kitazawa_nomura_takhtajan_babujian_point",
+    )
+    return _finalize_prepared_trace(
+        _parse_kitazawa_nomura_takhtajan_babujian_point_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_kitazawa_nomura_takhtajan_babujian_point_prepared(normalized):
 
     identity_match = re.search(
         r"Bifurcation at the c\s*=\s*3\s*/\s*2 "
@@ -15169,13 +15299,21 @@ def parse_blote_luijten_heringa_simple_cubic_ising_tc(source_text):
             "Blote-Luijten-Heringa simple-cubic Ising evidence requires "
             "nonempty text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    # The original arXiv PDF uses a font whose decimal points are extracted
-    # as colons. Replacing only colons between digits preserves character
-    # offsets while supporting both the preprint and clean transcriptions.
-    numeric_normalized = re.sub(
-        r"(?<=\d):(?=\d)", ".", normalized
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_blote_luijten_heringa_simple_cubic_ising_tc",
     )
+    return _finalize_prepared_trace(
+        _parse_blote_luijten_heringa_simple_cubic_ising_tc_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_blote_luijten_heringa_simple_cubic_ising_tc_prepared(
+    numeric_normalized,
+):
     spin_half_pattern = r"spin\s*-\s*(?:1\s*/\s*2|1\s*2|2\s*1)"
     coupling_pattern = (
         r"K\s*_?\s*(?:3n|3\s*n)\s*(?:/|=)\s*K\s*_?\s*nn"
@@ -15611,9 +15749,25 @@ def parse_sandvik_daul_square_xy_ring_bond_order(source_text):
     )
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_sandvik_daul_square_xy_ring_bond_order"
+    )
+    return _finalize_prepared_trace(
+        _parse_sandvik_daul_square_xy_ring_bond_order_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = normalized.replace("−", "-").replace("–", "-")
+
+def _parse_sandvik_daul_square_xy_ring_bond_order_prepared(normalized):
+    error_message = (
+        "Sandvik-Daul square-XY ring exchange source must establish the "
+        "identified cond-mat/0205270v2 preprint, its spin-half square XY "
+        "bond and four-spin ring operators, H=-J sum B-K sum P, the "
+        "ring-driven striped bond-plaquette phase, thermodynamic-limit "
+        "stripe order, and the absence of a spin-liquid phase"
+    )
     spin_half_pattern = (
         r"(?:S\s*=\s*1\s*/\s*2|spin\s*-\s*1\s*/\s*2)"
     )
@@ -15777,13 +15931,9 @@ def parse_sandvik_daul_square_xy_ring_bond_order(source_text):
     )
 
 
-def _match_chaloupka_full_kitaev_heisenberg_source(source_text):
+def _match_chaloupka_full_kitaev_heisenberg_prepared(normalized):
     """Return common identity, abstract, and Hamiltonian anchors."""
 
-    if not isinstance(source_text, str) or not source_text.strip():
-        return None, {}
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = normalized.replace("−", "-").replace("–", "-")
     material_pattern = r"Na\s*2\s*IrO\s*3"
     identity_match = re.search(
         r"On the Origin of Zigzag Magnetic Order in Iridium Oxide\s+"
@@ -15854,11 +16004,31 @@ def parse_chaloupka_full_kitaev_heisenberg_ordered_phases(source_text):
         "coupling circle, and its ferromagnetic, Neel, zigzag, and stripy "
         "ordered phases alongside two spin-liquid phases"
     )
-    normalized, common = _match_chaloupka_full_kitaev_heisenberg_source(
-        source_text
-    )
-    if normalized is None:
+    if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_chaloupka_full_kitaev_heisenberg_ordered_phases",
+    )
+    return _finalize_prepared_trace(
+        _parse_chaloupka_full_kitaev_heisenberg_ordered_phases_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_chaloupka_full_kitaev_heisenberg_ordered_phases_prepared(
+    normalized,
+):
+    error_message = (
+        "Chaloupka full Kitaev-Heisenberg phase diagram source must "
+        "establish the identified 1209.5100v1 preprint, the nearest-"
+        "neighbor Kitaev-Heisenberg Hamiltonian, the full 0-to-2pi "
+        "coupling circle, and its ferromagnetic, Neel, zigzag, and stripy "
+        "ordered phases alongside two spin-liquid phases"
+    )
+    _, common = _match_chaloupka_full_kitaev_heisenberg_prepared(normalized)
 
     phi_pattern = r"(?:phi|ϕ)"
     pi_pattern = r"(?:pi|π)"
@@ -15979,11 +16149,27 @@ def parse_chaloupka_na2iro3_zigzag_relevance(source_text):
         "natural zigzag ground state, experimental agreement, fitted J "
         "and K couplings, and the localized-Ir-moment conclusion"
     )
-    normalized, common = _match_chaloupka_full_kitaev_heisenberg_source(
-        source_text
-    )
-    if normalized is None:
+    if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_chaloupka_na2iro3_zigzag_relevance"
+    )
+    return _finalize_prepared_trace(
+        _parse_chaloupka_na2iro3_zigzag_relevance_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_chaloupka_na2iro3_zigzag_relevance_prepared(normalized):
+    error_message = (
+        "Chaloupka Na2IrO3 zigzag source must establish the identified "
+        "1209.5100v1 paper, nearest-neighbor Kitaev-Heisenberg model, "
+        "natural zigzag ground state, experimental agreement, fitted J "
+        "and K couplings, and the localized-Ir-moment conclusion"
+    )
+    _, common = _match_chaloupka_full_kitaev_heisenberg_prepared(normalized)
     material_pattern = r"Na\s*2\s*IrO\s*3"
     phase_figure_match = re.search(
         r"(?:FIG\.?|Figure)\s*1\s*:"
@@ -16453,17 +16639,22 @@ def parse_chubukov_golosov_triangular_plateau(source_text):
     error_prefix = "Chubukov-Golosov triangular plateau"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
-
-    scan_layout_forms_accepted = bool(
-        re.search(
-            r"antiferromagneton|onatriangular|magnet-\s+ization",
-            source_text,
-            flags=re.IGNORECASE,
-        )
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_chubukov_golosov_triangular_plateau"
     )
-    normalized = source_text.replace("ﬁ", "fi").replace("ﬂ", "fl")
-    normalized = re.sub(r"(?<=\w)-\s+(?=\w)", "", normalized)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return _finalize_prepared_trace(
+        _parse_chubukov_golosov_triangular_plateau_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_chubukov_golosov_triangular_plateau_prepared(normalized):
+    error_prefix = "Chubukov-Golosov triangular plateau"
+    scan_layout_forms_accepted = normalized.endswith(
+        "\n#scan-layout-forms-accepted"
+    )
 
     title_match = re.search(
         r"Quantum theory of an antiferromagnet\s*on a triangular lattice "
@@ -18112,93 +18303,6 @@ def _narrow_registry_selector(selector, fields=None):
         "path": list(selector["path"]),
         "fields": list(selected_fields),
     }
-
-
-_EXACT_GAP_TRACE_PARSER_NAMES = (
-    "parse_dey_ba3irti2o9_triangular_spin_liquid_candidate",
-    "parse_stodter_clinoatacamite_distorted_kagome_exchange",
-    "parse_cable_crcl3_ferromagnetic_layers",
-    "parse_carteaux_cr2ge2te6_ferromagnetic_order",
-    "parse_abramchuk_cu2iro3_honeycomb_iridate",
-    "parse_seki_cu2oseo3_skyrmion_lattice_phase",
-    "parse_ramirez_dy2ti2o7_pauling_entropy",
-    "parse_ishikawa_edwardsite_spin_half_deformed_kagome",
-    "parse_savary_er2ti2o7_psi2_order_by_quantum_disorder",
-    "parse_wernsdorfer_sessoli_fe8_quantum_tunneling",
-    "parse_wildes_feps3_ising_zigzag_order",
-    "parse_schiffer_ggg_strong_frustration_correction",
-    "parse_biffin_gamma_li2iro3_spiral_kitaev_order",
-    "parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction",
-    "parse_kitagawa_h3liir2o6_no_magnetic_order",
-    "parse_mazin_honeycomb_j1_j2_j3_phase_set",
-    "parse_chaloupka_na2iro3_zigzag_relevance",
-    "parse_chaloupka_full_kitaev_heisenberg_ordered_phases",
-    "parse_kumar_j1_j2_bkt_reference",
-    "parse_kumar_j1_j2_critical_point",
-    "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap",
-    "parse_depenbrock_kagome_heisenberg_energy",
-    "parse_enderle_licuvo4_incommensurate_helimagnet",
-    "parse_furuchi_lieb_lattice_ground_state_spin",
-    "parse_ressouche_mnps3_neel_order",
-    "parse_bak_jensen_mnsi_long_wavelength_helix",
-    "parse_hsieh_nacro2_unconventional_spin_order",
-    "parse_nawa_rubr3_kitaev_candidate_and_competing_interactions",
-    "parse_ghosh_mila_ruby_localized_magnon_eigenstate",
-    "parse_richter_square_kagome_reference",
-    "parse_jiang_wiese_square_heisenberg_spin_stiffness",
-    "parse_jiang_wiese_square_heisenberg_staggered_magnetization",
-    "parse_jiang_wiese_square_heisenberg_spin_wave_velocity",
-    "parse_sandvik_daul_square_xy_ring_bond_order",
-    "parse_richter_star_lattice_valence_bond_ground_state",
-    "parse_chubukov_golosov_triangular_plateau",
-    "parse_boldrin_vesignieite_dominant_j3_correction",
-    "parse_yang_xie_square_blume_capel_crossing",
-    "parse_fouet_checkerboard_classical_constraint",
-    "parse_blote_luijten_heringa_simple_cubic_ising_tc",
-    "parse_balla_iqbal_penc_fcc_type_orders",
-    "parse_husimi_syozi_honeycomb_ising_tc",
-    "parse_mulder_honeycomb_spiral_contour",
-    "parse_kano_naya_kagome_ising_antiferromagnet_entropy",
-    "parse_kano_naya_kagome_ising_ferromagnet_tc",
-    "parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states",
-    "parse_ising_1925_linear_chain_no_transition",
-    "parse_henley_pyrochlore_coulomb_phase",
-    "parse_shastry_sutherland_exact_dimer_product",
-    "parse_pinettes_diep_simple_cubic_boundary",
-    "parse_yang_xie_single_ion_spin1_anisotropy_levels",
-    "parse_garel_maillard_villain_entropy",
-    "parse_kitazawa_nomura_takhtajan_babujian_point",
-    "parse_dziarmaga_tfim_critical_point",
-    "parse_dziarmaga_tfim_gap",
-    "parse_husimi_syozi_triangular_ising_tc",
-    "parse_collura_xx_chain_energy",
-    "parse_hirata_nomura_xxz_phase_boundaries",
-)
-
-
-def _with_exact_gap_trace_coordinate_contract(parser):
-    @wraps(parser)
-    def wrapped(source_text):
-        # Temporary compatibility path for parsers not yet migrated to an
-        # explicit prepared-view boundary.  Migrated parsers bypass it.
-        source_operand, trace = parser(source_text)
-        trace = dict(trace)
-        trace["coordinate_space"] = TRACE_COORDINATE_SPACE
-        trace["coordinate_contract_version"] = (
-            TRACE_COORDINATE_CONTRACT_VERSION
-        )
-        return source_operand, trace
-
-    return wrapped
-
-
-for _exact_gap_trace_parser_name in _EXACT_GAP_TRACE_PARSER_NAMES:
-    if _exact_gap_trace_parser_name not in _PREPARED_TRACE_PARSER_BUILDERS:
-        globals()[_exact_gap_trace_parser_name] = (
-            _with_exact_gap_trace_coordinate_contract(
-                globals()[_exact_gap_trace_parser_name]
-            )
-        )
 
 
 def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT):
