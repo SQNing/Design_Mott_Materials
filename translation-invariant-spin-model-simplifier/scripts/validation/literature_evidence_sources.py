@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 from types import MappingProxyType
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlsplit
 import xml.etree.ElementTree as ElementTree
 
 from validation.literature_evidence_schema import (
@@ -970,6 +970,172 @@ class _RenderedTextBlocks:
         return tuple(blocks)
 
 
+@dataclass(frozen=True)
+class _HiddenStylesheetSelectors:
+    classes: frozenset
+    ids: frozenset
+    tags: frozenset
+
+
+_NO_HIDDEN_STYLESHEET_SELECTORS = _HiddenStylesheetSelectors(
+    classes=frozenset(),
+    ids=frozenset(),
+    tags=frozenset(),
+)
+_CSS_SIMPLE_CLASS = re.compile(r"\.[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
+_CSS_SIMPLE_ID = re.compile(r"#[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
+_CSS_SIMPLE_TAG = re.compile(r"[a-z][a-z0-9-]*\Z", flags=re.IGNORECASE)
+_CSS_ZERO = re.compile(r"(?:0+(?:\.0*)?|\.0+)\Z")
+_CSS_ZERO_LENGTH = re.compile(
+    r"(?:0+(?:\.0*)?|\.0+)(?:[a-z]+|%)?\Z",
+    flags=re.IGNORECASE,
+)
+_MAX_LOCAL_STYLE_BLOCKS = 256
+_MAX_LOCAL_STYLESHEET_CHARACTERS = 1_000_000
+_MAX_LOCAL_STYLESHEET_RULES = 4096
+
+
+def _css_value_without_important(value):
+    return re.sub(
+        r"\s*!\s*important\s*\Z",
+        "",
+        value.strip().casefold(),
+    ).strip()
+
+
+def _style_declaration_hides(property_name, value):
+    property_name = property_name.strip().casefold()
+    value = _css_value_without_important(value)
+    if property_name == "display":
+        return value == "none"
+    if property_name == "visibility":
+        return value == "hidden"
+    if property_name == "opacity":
+        return _CSS_ZERO.fullmatch(value) is not None
+    if property_name == "font-size":
+        return _CSS_ZERO_LENGTH.fullmatch(value) is not None
+    if property_name == "content-visibility":
+        return value == "hidden"
+    return False
+
+
+def _style_hides(style):
+    if not isinstance(style, str):
+        return False
+    for declaration in style.split(";"):
+        if ":" not in declaration:
+            continue
+        property_name, value = declaration.split(":", 1)
+        if _style_declaration_hides(property_name, value):
+            return True
+    return False
+
+
+class _LocalStyleElementCollector(HTMLParser):
+    def __init__(self, *, context):
+        super().__init__(convert_charrefs=True)
+        self.context = context
+        self.style_depth = 0
+        self.style_blocks = 0
+        self.character_count = 0
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        del attrs
+        if tag.casefold() != "style":
+            return
+        self.style_depth += 1
+        self.style_blocks += 1
+        if self.style_blocks > _MAX_LOCAL_STYLE_BLOCKS:
+            raise SourceEvidenceError(
+                f"{self.context} has too many local stylesheet blocks"
+            )
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag.casefold() == "style":
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        if tag.casefold() == "style" and self.style_depth:
+            self.style_depth -= 1
+
+    def handle_data(self, data):
+        if not self.style_depth:
+            return
+        self.character_count += len(data)
+        if self.character_count > _MAX_LOCAL_STYLESHEET_CHARACTERS:
+            raise SourceEvidenceError(
+                f"{self.context} local stylesheets exceed the validation bound"
+            )
+        self.parts.append(data)
+
+
+def _hidden_stylesheet_selectors(document, *, context):
+    collector = _LocalStyleElementCollector(context=context)
+    try:
+        collector.feed(document)
+        collector.close()
+    except SourceEvidenceError:
+        raise
+    except Exception as exc:
+        raise SourceEvidenceError(
+            f"{context} local stylesheet prepass failed: {exc}"
+        ) from exc
+    if not collector.parts:
+        return _NO_HIDDEN_STYLESHEET_SELECTORS
+
+    stylesheet = re.sub(
+        r"/\*.*?\*/",
+        "",
+        "\n".join(collector.parts),
+        flags=re.DOTALL,
+    )
+    hidden_classes = set()
+    hidden_ids = set()
+    hidden_tags = set()
+    rule_count = 0
+    for rule in re.finditer(r"([^{}]+)\{([^{}]*)\}", stylesheet):
+        rule_count += 1
+        if rule_count > _MAX_LOCAL_STYLESHEET_RULES:
+            raise SourceEvidenceError(
+                f"{context} local stylesheets contain too many rules"
+            )
+        if not _style_hides(rule.group(2)):
+            continue
+        for raw_selector in rule.group(1).split(","):
+            selector = raw_selector.strip().casefold()
+            if _CSS_SIMPLE_CLASS.fullmatch(selector):
+                hidden_classes.add(selector[1:])
+            elif _CSS_SIMPLE_ID.fullmatch(selector):
+                hidden_ids.add(selector[1:])
+            elif _CSS_SIMPLE_TAG.fullmatch(selector):
+                hidden_tags.add(selector)
+    return _HiddenStylesheetSelectors(
+        classes=frozenset(hidden_classes),
+        ids=frozenset(hidden_ids),
+        tags=frozenset(hidden_tags),
+    )
+
+
+def _element_is_hidden(tag, attributes, hidden_selectors):
+    class_names = set(str(attributes.get("class") or "").casefold().split())
+    element_id = str(attributes.get("id") or "").casefold()
+    return (
+        tag in {"script", "style", "noscript", "template"}
+        or "hidden" in attributes
+        or str(attributes.get("aria-hidden", "")).casefold() == "true"
+        or (
+            tag == "input"
+            and str(attributes.get("type", "")).casefold() == "hidden"
+        )
+        or _style_hides(str(attributes.get("style") or ""))
+        or tag in hidden_selectors.tags
+        or element_id in hidden_selectors.ids
+        or bool(class_names & hidden_selectors.classes)
+    )
+
+
 class _VisiblePublicationRecordParser(HTMLParser):
     _VOID_ELEMENTS = {
         "area",
@@ -987,7 +1153,6 @@ class _VisiblePublicationRecordParser(HTMLParser):
         "track",
         "wbr",
     }
-    _ALWAYS_HIDDEN = {"script", "style", "noscript", "template"}
     _RECORD_TAGS = {"article", "li", "tr"}
     _RECORD_CLASSES = {
         "publication",
@@ -1001,33 +1166,22 @@ class _VisiblePublicationRecordParser(HTMLParser):
         "prism.doi",
     }
 
-    def __init__(self):
+    def __init__(self, *, hidden_selectors=None):
         super().__init__(convert_charrefs=True)
+        self.hidden_selectors = (
+            hidden_selectors or _NO_HIDDEN_STYLESHEET_SELECTORS
+        )
         self.frames = []
         self.records = []
 
     def handle_starttag(self, tag, attrs):
         tag = tag.casefold()
         attributes = {str(key).casefold(): value for key, value in attrs}
-        style = str(attributes.get("style") or "").casefold()
         parent_hidden = self.frames[-1][1] if self.frames else False
-        hidden = parent_hidden or tag in self._ALWAYS_HIDDEN or (
-            "hidden" in attributes
-            or str(attributes.get("aria-hidden", "")).casefold() == "true"
-            or (
-                tag == "input"
-                and str(attributes.get("type", "")).casefold() == "hidden"
-            )
-            or re.search(
-                r"(?:^|;)\s*display\s*:\s*none(?:\s*!important)?\s*(?:;|$)",
-                style,
-            )
-            is not None
-            or re.search(
-                r"(?:^|;)\s*visibility\s*:\s*hidden(?:\s*!important)?\s*(?:;|$)",
-                style,
-            )
-            is not None
+        hidden = parent_hidden or _element_is_hidden(
+            tag,
+            attributes,
+            self.hidden_selectors,
         )
         parent_record = self.frames[-1][2] if self.frames else None
         parent_body = self.frames[-1][3] if self.frames else False
@@ -1110,15 +1264,16 @@ _LABELLED_DOI_VALUE = re.compile(
     rf"doi\s*:\s*(?P<value>{_DOI_VALUE_PATTERN})\Z",
     flags=re.IGNORECASE,
 )
-_TEXT_DOI_VALUE = re.compile(
-    rf"(?<![a-z0-9])(?P<value>{_DOI_VALUE_PATTERN})",
-    flags=re.IGNORECASE,
-)
 _ANY_DOI_VALUE = re.compile(_DOI_VALUE_PATTERN, flags=re.IGNORECASE)
 _DOI_RESOLVER_MARKER = re.compile(
-    r"doi\.org(?::[0-9]+)?/",
+    r"doi\.org(?::[0-9]*)?/",
     flags=re.IGNORECASE,
 )
+_DOI_RESOLVER_SHAPE = re.compile(
+    r"https://(?:doi\.org|doi\.org:443)/[^\s?#]+\Z",
+    flags=re.IGNORECASE,
+)
+_DOI_LABEL_BEFORE_VALUE = re.compile(r"doi\s*:\s*\Z", flags=re.IGNORECASE)
 
 
 def _plain_doi_value(value):
@@ -1133,19 +1288,15 @@ def _resolver_doi_value(value):
     if not isinstance(value, str):
         return None
     rendered = unescape(value).strip()
+    if _DOI_RESOLVER_SHAPE.fullmatch(rendered) is None:
+        return None
     try:
-        parsed = urlparse(rendered)
-        port = parsed.port
+        parsed = urlsplit(rendered)
     except ValueError:
         return None
     if (
         parsed.scheme.casefold() != "https"
-        or parsed.hostname is None
-        or parsed.hostname.casefold() != "doi.org"
-        or parsed.username is not None
-        or parsed.password is not None
-        or port not in {None, 443}
-        or parsed.params
+        or parsed.netloc.casefold() not in {"doi.org", "doi.org:443"}
         or parsed.query
         or parsed.fragment
         or not parsed.path.startswith("/")
@@ -1180,43 +1331,90 @@ def _text_token_bounds(text, start, end):
 
 def _trim_visible_url_presentation(token):
     rendered = token.strip()
-    if (
-        len(rendered) >= 2
-        and rendered[0] in "([{"
-        and rendered[-1] == {"(": ")", "[": "]", "{": "}"}[rendered[0]]
-    ):
-        rendered = rendered[1:-1]
-    if rendered.endswith(","):
-        rendered = rendered[:-1]
-    if rendered.endswith("."):
-        rendered = rendered[:-1]
+    closing_delimiters = {"(": ")", "[": "]", "{": "}"}
+    while rendered:
+        previous = rendered
+        if rendered.endswith((",", ".")):
+            rendered = rendered[:-1]
+        elif (
+            len(rendered) >= 2
+            and rendered[0] in closing_delimiters
+            and rendered[-1] == closing_delimiters[rendered[0]]
+        ):
+            rendered = rendered[1:-1]
+        if rendered == previous:
+            break
     return rendered
 
 
-def _unmatched_open_parenthesis(text):
+def _unmatched_open_delimiter(text, opener, closer):
     depth = 0
     for character in text:
-        if character == "(":
+        if character == opener:
             depth += 1
-        elif character == ")" and depth:
+        elif character == closer and depth:
             depth -= 1
     return depth > 0
 
 
 def _normalized_text_doi_value(text, match):
-    value = match.group("value")
+    value = match.group(0)
     following = text[match.end() :]
     preceding = text[: match.start()]
-    if value.endswith(",") and (not following or following[0].isspace()):
-        value = value[:-1]
-    if value.endswith(")") and (
-        value.count(")") > value.count("(")
-        and _unmatched_open_parenthesis(preceding)
-    ):
-        value = value[:-1]
-    if value.endswith(".") and not following:
-        value = value[:-1]
+    delimiters = {")": "(", "]": "[", "}": "{"}
+    while value:
+        previous = value
+        if value.endswith(",") and (
+            not following or following[0].isspace()
+        ):
+            value = value[:-1]
+        elif value.endswith(".") and (
+            not following or following[0].isspace()
+        ):
+            value = value[:-1]
+        elif value[-1] in delimiters:
+            closer = value[-1]
+            opener = delimiters[closer]
+            if (
+                value.count(closer) > value.count(opener)
+                and _unmatched_open_delimiter(preceding, opener, closer)
+            ):
+                value = value[:-1]
+        if value == previous:
+            break
     return _plain_doi_value(value)
+
+
+def _starts_at_visible_presentation_boundary(text, start):
+    if start == 0 or text[start - 1].isspace():
+        return True
+    if text[start - 1] not in "([{":
+        return False
+    opener = start - 1
+    return opener == 0 or text[opener - 1].isspace()
+
+
+def _has_labelled_doi_boundary(text, start):
+    label = _DOI_LABEL_BEFORE_VALUE.search(text[:start])
+    return label is not None and _starts_at_visible_presentation_boundary(
+        text,
+        label.start(),
+    )
+
+
+def _visible_doi_match_has_valid_boundary(text, match, value):
+    token_start, token_end = _text_token_bounds(
+        text,
+        match.start(),
+        match.end(),
+    )
+    token_prefix = text[token_start : match.start()]
+    if "://" in token_prefix or _DOI_RESOLVER_MARKER.search(token_prefix):
+        token = _trim_visible_url_presentation(text[token_start:token_end])
+        return _resolver_doi_value(token) == value
+    if _has_labelled_doi_boundary(text, match.start()):
+        return True
+    return _starts_at_visible_presentation_boundary(text, match.start())
 
 
 def _visible_text_doi_values(blocks):
@@ -1234,24 +1432,15 @@ def _visible_text_doi_values(blocks):
             )
             if _resolver_doi_value(token) is None:
                 valid_carriers = False
-        for match in _TEXT_DOI_VALUE.finditer(block):
+        for match in _ANY_DOI_VALUE.finditer(block):
             value = _normalized_text_doi_value(block, match)
             if value is None:
                 valid_carriers = False
                 continue
+            if not _visible_doi_match_has_valid_boundary(block, match, value):
+                valid_carriers = False
+                continue
             values.add(value)
-            token_start, token_end = _text_token_bounds(
-                block,
-                match.start(),
-                match.end(),
-            )
-            prefix = block[token_start : match.start()]
-            if "://" in prefix or _DOI_RESOLVER_MARKER.search(prefix):
-                token = _trim_visible_url_presentation(
-                    block[token_start:token_end]
-                )
-                if _resolver_doi_value(token) != value:
-                    valid_carriers = False
     return values, valid_carriers
 
 
@@ -1322,9 +1511,16 @@ def _validate_author_publications_same_work(
             "work identity author page bibliographic metadata is incomplete"
         )
 
-    parser = _VisiblePublicationRecordParser()
+    rendered_document = document.decode("utf-8")
+    hidden_selectors = _hidden_stylesheet_selectors(
+        rendered_document,
+        context="author publications work identity",
+    )
+    parser = _VisiblePublicationRecordParser(
+        hidden_selectors=hidden_selectors,
+    )
     try:
-        parser.feed(document.decode("utf-8"))
+        parser.feed(rendered_document)
         parser.close()
     except Exception as exc:
         if isinstance(exc, SourceEvidenceError):
@@ -1570,11 +1766,18 @@ class _VisibleArticleHTMLParser(HTMLParser):
         "track",
         "wbr",
     }
-    _ALWAYS_HIDDEN = {"script", "style", "noscript", "template"}
+    _HEAD_DOI_META_NAMES = {
+        "citation_doi",
+        "dc.identifier.doi",
+        "prism.doi",
+    }
 
-    def __init__(self, *, context):
+    def __init__(self, *, context, hidden_selectors=None):
         super().__init__(convert_charrefs=True)
         self.context = context
+        self.hidden_selectors = (
+            hidden_selectors or _NO_HIDDEN_STYLESHEET_SELECTORS
+        )
         self.frames = []
         self.root_seen = False
         self.root_closed = False
@@ -1611,23 +1814,19 @@ class _VisibleArticleHTMLParser(HTMLParser):
             )
 
         attributes = {str(key).casefold(): value for key, value in attrs}
-        style = str(attributes.get("style") or "").casefold()
         parent_hidden = self.frames[-1][1] if self.frames else False
-        hidden = parent_hidden or tag in self._ALWAYS_HIDDEN or (
-            "hidden" in attributes
-            or str(attributes.get("aria-hidden", "")).casefold() == "true"
-            or (
-                tag == "input"
-                and str(attributes.get("type", "")).casefold() == "hidden"
-            )
-            or re.search(r"(?:^|;)\s*display\s*:\s*none(?:\s*!important)?\s*(?:;|$)", style)
-            is not None
-            or re.search(r"(?:^|;)\s*visibility\s*:\s*hidden(?:\s*!important)?\s*(?:;|$)", style)
-            is not None
+        hidden = parent_hidden or _element_is_hidden(
+            tag,
+            attributes,
+            self.hidden_selectors,
         )
         parent_article = self.frames[-1][2] if self.frames else False
         parent_body = self.frames[-1][3] if self.frames else False
+        parent_head = self.frames[-1][4] if self.frames else False
+        parent_inert = self.frames[-1][5] if self.frames else False
         in_body = tag == "body" or parent_body
+        in_head = tag == "head" or parent_head
+        in_inert_content = parent_inert or tag in {"script", "noscript", "template"}
         class_names = set(str(attributes.get("class") or "").casefold().split())
         article_container = (
             in_body
@@ -1639,6 +1838,16 @@ class _VisibleArticleHTMLParser(HTMLParser):
         in_article = parent_article or (article_container and not hidden)
         if article_container and not hidden:
             self.article_seen = True
+        if (
+            in_head
+            and not in_inert_content
+            and tag == "meta"
+            and str(attributes.get("name", "")).casefold()
+            in self._HEAD_DOI_META_NAMES
+        ):
+            content = attributes.get("content")
+            if isinstance(content, str) and content.strip():
+                self.doi_metadata.append(unescape(content.strip()))
         if in_article and not hidden:
             if tag in _VISIBLE_BLOCK_ELEMENTS:
                 self.visible_text.boundary()
@@ -1656,7 +1865,9 @@ class _VisibleArticleHTMLParser(HTMLParser):
                 if isinstance(value, str) and value.strip():
                     self.doi_metadata.append(unescape(value.strip()))
         if tag not in self._VOID_ELEMENTS:
-            self.frames.append((tag, hidden, in_article, in_body))
+            self.frames.append(
+                (tag, hidden, in_article, in_body, in_head, in_inert_content)
+            )
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -1667,7 +1878,7 @@ class _VisibleArticleHTMLParser(HTMLParser):
         tag = tag.casefold()
         if not self.frames or self.frames[-1][0] != tag:
             raise SourceEvidenceError(f"{self.context} is malformed HTML nesting")
-        _, hidden, in_article, _ = self.frames[-1]
+        _, hidden, in_article, _, _, _ = self.frames[-1]
         if in_article and not hidden and tag in _VISIBLE_BLOCK_ELEMENTS:
             self.visible_text.boundary()
         self.frames.pop()
@@ -1683,7 +1894,7 @@ class _VisibleArticleHTMLParser(HTMLParser):
                     f"{self.context} has visible data outside the document root"
                 )
             return
-        _, hidden, in_article, _ = self.frames[-1]
+        _, hidden, in_article, _, _, _ = self.frames[-1]
         if hidden or not in_article:
             return
         self.visible_text.append(data)
@@ -1708,7 +1919,11 @@ def _html_visible_document(payload, *, context):
         document = payload.decode("utf-8")
     except (AttributeError, UnicodeDecodeError) as exc:
         raise SourceEvidenceError(f"{context} is not valid UTF-8") from exc
-    parser = _VisibleArticleHTMLParser(context=context)
+    hidden_selectors = _hidden_stylesheet_selectors(document, context=context)
+    parser = _VisibleArticleHTMLParser(
+        context=context,
+        hidden_selectors=hidden_selectors,
+    )
     try:
         parser.feed(document)
         parser.close()

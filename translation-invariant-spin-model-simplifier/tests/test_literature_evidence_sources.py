@@ -965,6 +965,62 @@ def test_structured_doi_author_rejects_invalid_resolver_href(invalid_href):
         _validate_author_garel_page(page)
 
 
+@pytest.mark.parametrize("carrier_kind", ("href", "citation-doi", "data-doi"))
+@pytest.mark.parametrize(
+    "malformed_resolver",
+    (
+        AUTHOR_GAREL_RESOLVER + b";",
+        AUTHOR_GAREL_RESOLVER + b"?",
+        AUTHOR_GAREL_RESOLVER + b"#",
+        AUTHOR_GAREL_RESOLVER + b";?",
+        AUTHOR_GAREL_RESOLVER + b";#",
+        b"https://doi.org:/" + AUTHOR_GAREL_DOI,
+    ),
+    ids=(
+        "path-semicolon",
+        "empty-query",
+        "empty-fragment",
+        "semicolon-empty-query",
+        "semicolon-empty-fragment",
+        "empty-port",
+    ),
+)
+def test_structured_doi_author_rejects_raw_resolver_syntax_edges(
+    carrier_kind,
+    malformed_resolver,
+):
+    if carrier_kind == "href":
+        page = _author_page_with_markup_before_pdf(
+            b'<a href="' + malformed_resolver + b'">identity DOI</a>'
+        )
+    elif carrier_kind == "citation-doi":
+        page = _author_page_with_markup_before_pdf(
+            b'<meta name="citation_doi" content="'
+            + malformed_resolver
+            + b'">'
+        )
+    else:
+        page = AUTHOR_GAREL_PAGE.replace(
+            b"  <article>",
+            b'  <article data-doi="' + malformed_resolver + b'">',
+            1,
+        )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+def test_structured_doi_author_rejects_visible_resolver_with_empty_port():
+    page = AUTHOR_GAREL_PAGE.replace(
+        AUTHOR_GAREL_RESOLVER,
+        b"https://doi.org:/" + AUTHOR_GAREL_DOI,
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
 @pytest.mark.parametrize(
     "valid_href",
     (
@@ -1070,6 +1126,176 @@ def test_structured_doi_author_accepts_legal_visible_presentation(presentation):
     )
     assert page != AUTHOR_GAREL_PAGE
     _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        b"(DOI: " + AUTHOR_GAREL_DOI + b").",
+        b"(" + AUTHOR_GAREL_RESOLVER + b").",
+        b"See (" + AUTHOR_GAREL_DOI + b").",
+    ),
+    ids=("parenthesized-label-period", "parenthesized-resolver-period", "prose-period"),
+)
+def test_structured_doi_author_accepts_iteratively_trimmed_presentation(
+    presentation,
+):
+    page = AUTHOR_GAREL_PAGE.replace(AUTHOR_GAREL_RESOLVER, presentation, 1)
+    assert page != AUTHOR_GAREL_PAGE
+    _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    (
+        b"evil_",
+        b"evil-",
+        b"evil.",
+        b"evil/",
+        "é".encode("utf-8"),
+        "汉".encode("utf-8"),
+        b"evil(",
+    ),
+    ids=(
+        "underscore",
+        "hyphen",
+        "period",
+        "slash",
+        "unicode-letter",
+        "unicode-cjk",
+        "opening-delimiter-without-boundary",
+    ),
+)
+def test_structured_doi_author_rejects_bare_doi_after_identifier_continuation(
+    prefix,
+):
+    suffix = b")" if prefix.endswith(b"(") else b""
+    page = AUTHOR_GAREL_PAGE.replace(
+        AUTHOR_GAREL_RESOLVER,
+        prefix + AUTHOR_GAREL_DOI + suffix,
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "style",
+    (
+        b"display:none ! important",
+        b"visibility:hidden ! important",
+        b"opacity:0",
+        b"font-size:0",
+        b"content-visibility:hidden",
+    ),
+    ids=(
+        "display-important-whitespace",
+        "visibility-important-whitespace",
+        "zero-opacity",
+        "zero-font-size",
+        "hidden-content-visibility",
+    ),
+)
+def test_structured_doi_author_rejects_inline_style_hidden_sole_doi(style):
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"    <p>" + AUTHOR_GAREL_RESOLVER + b"</p>",
+        b'    <p style="' + style + b'">' + AUTHOR_GAREL_RESOLVER + b"</p>",
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "style",
+    (
+        b"display:none ! important",
+        b"visibility:hidden ! important",
+        b"opacity:0",
+        b"font-size:0",
+        b"content-visibility:hidden",
+    ),
+)
+def test_structured_doi_author_ignores_inline_style_hidden_extra_doi(style):
+    page = _author_page_with_markup_before_pdf(
+        b'<p style="' + style + b'">' + EXTRA_DOI + b"</p>"
+    )
+    _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    ("selector", "doi_markup", "declaration"),
+    (
+        (b".hide-doi", b'<p class="hide-doi">', b"display:none"),
+        (b"#hidden-doi", b'<p id="hidden-doi">', b"visibility:hidden"),
+        (b"aside", b"<aside>", b"opacity:0"),
+    ),
+    ids=("class", "id", "tag"),
+)
+def test_structured_doi_author_stylesheet_hides_sole_doi_regardless_of_order(
+    selector,
+    doi_markup,
+    declaration,
+):
+    closing_tag = b"</aside>" if doi_markup == b"<aside>" else b"</p>"
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"    <p>" + AUTHOR_GAREL_RESOLVER + b"</p>",
+        b"    " + doi_markup + AUTHOR_GAREL_RESOLVER + closing_tag,
+        1,
+    )
+    page = page.replace(
+        b"</body>",
+        b"<style>" + selector + b" { " + declaration + b" }</style></body>",
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+def test_structured_doi_author_stylesheet_hidden_extra_doi_does_not_pollute():
+    page = _author_page_with_markup_before_pdf(
+        b'<p class="hide-doi">' + EXTRA_DOI + b"</p>"
+    )
+    page = page.replace(
+        b"</body>",
+        b"<style>.hide-doi { display:none }</style></body>",
+        1,
+    )
+    _validate_author_garel_page(page)
+
+
+def test_structured_doi_author_ordinary_stylesheet_class_remains_visible():
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"    <p>" + AUTHOR_GAREL_RESOLVER + b"</p>",
+        b'    <p class="show-doi">' + AUTHOR_GAREL_RESOLVER + b"</p>",
+        1,
+    )
+    page = page.replace(
+        b"</body>",
+        b"<style>.show-doi { color: red }</style></body>",
+        1,
+    )
+    _validate_author_garel_page(page)
+
+
+def test_author_stylesheet_prepass_fails_closed_above_character_bound(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_CHARACTERS",
+        1,
+    )
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"</body>",
+        b"<style>.show-doi { color: red }</style></body>",
+        1,
+    )
+    with pytest.raises(SourceEvidenceError, match="validation bound"):
+        _validate_author_garel_page(page)
 
 
 @pytest.mark.parametrize(
@@ -3380,6 +3606,28 @@ def _validate_oup_html_payload(payload):
     )
 
 
+def _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path):
+    if validation_mode == "download":
+        return _validate_oup_html_payload(payload)
+    assert validation_mode == "offline"
+    source_dir, source, route = _write_oup_html_source(tmp_path, payload=payload)
+    return load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+
+
+def _oup_html_with_head_meta(payload, name, value):
+    marker = b"  </head>"
+    assert marker in payload
+    return payload.replace(
+        marker,
+        b'    <meta name="' + name + b'" content="' + value + b'">\n' + marker,
+        1,
+    )
+
+
 @pytest.mark.parametrize(
     "fake_resolver",
     (
@@ -3393,6 +3641,75 @@ def test_structured_doi_oup_rejects_fake_visible_resolver(fake_resolver):
     assert payload != OUP_HTML
     with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("carrier_kind", ("href", "citation-doi", "data-doi"))
+@pytest.mark.parametrize(
+    "malformed_resolver",
+    (
+        OUP_RESOLVER + b";",
+        OUP_RESOLVER + b"?",
+        OUP_RESOLVER + b"#",
+        OUP_RESOLVER + b";?",
+        OUP_RESOLVER + b";#",
+        b"https://doi.org:/" + OUP_DOI,
+    ),
+    ids=(
+        "path-semicolon",
+        "empty-query",
+        "empty-fragment",
+        "semicolon-empty-query",
+        "semicolon-empty-fragment",
+        "empty-port",
+    ),
+)
+def test_structured_doi_oup_rejects_raw_resolver_syntax_edges(
+    tmp_path,
+    validation_mode,
+    carrier_kind,
+    malformed_resolver,
+):
+    if carrier_kind == "href":
+        payload = OUP_HTML.replace(
+            b"    </article>",
+            b'      <a href="'
+            + malformed_resolver
+            + b'">Canonical identity</a>\n    </article>',
+            1,
+        )
+    elif carrier_kind == "citation-doi":
+        payload = _oup_html_with_head_meta(
+            OUP_HTML,
+            b"citation_doi",
+            malformed_resolver,
+        )
+    else:
+        payload = OUP_HTML.replace(
+            b'<article data-private="attribute-hidden-sentinel">',
+            b'<article data-private="attribute-hidden-sentinel" data-doi="'
+            + malformed_resolver
+            + b'">',
+            1,
+        )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_structured_doi_oup_rejects_visible_resolver_with_empty_port(
+    tmp_path,
+    validation_mode,
+):
+    payload = OUP_HTML.replace(
+        OUP_RESOLVER,
+        b"https://doi.org:/" + OUP_DOI,
+        1,
+    )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -3464,6 +3781,68 @@ def test_structured_doi_oup_accepts_duplicate_canonical_attribute_carriers():
     assert _validate_oup_html_payload(payload) == "text/html"
 
 
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "meta_name",
+    (b"citation_doi", b"dc.identifier.doi", b"prism.doi"),
+)
+def test_structured_doi_oup_head_metadata_can_supply_canonical_identity(
+    tmp_path,
+    validation_mode,
+    meta_name,
+):
+    payload = OUP_HTML.replace(
+        b"      <p>" + OUP_RESOLVER + b"</p>\n",
+        b"",
+        1,
+    )
+    payload = _oup_html_with_head_meta(payload, meta_name, OUP_DOI.upper())
+    assert payload != OUP_HTML
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "meta_name",
+    (b"citation_doi", b"dc.identifier.doi", b"prism.doi"),
+)
+def test_structured_doi_oup_rejects_extra_head_metadata_doi(
+    tmp_path,
+    validation_mode,
+    meta_name,
+):
+    payload = _oup_html_with_head_meta(OUP_HTML, meta_name, EXTRA_DOI)
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_structured_doi_oup_ignores_arbitrary_head_metadata_doi(
+    tmp_path,
+    validation_mode,
+):
+    payload = _oup_html_with_head_meta(OUP_HTML, b"unrelated.identifier", EXTRA_DOI)
+    assert payload != OUP_HTML
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_structured_doi_oup_ignores_hidden_body_metadata_doi(
+    tmp_path,
+    validation_mode,
+):
+    payload = OUP_HTML.replace(
+        b"    </article>",
+        b'      <div hidden><meta name="citation_doi" content="'
+        + EXTRA_DOI
+        + b'"></div>\n    </article>',
+        1,
+    )
+    assert payload != OUP_HTML
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
 @pytest.mark.parametrize(
     "presentation",
     (
@@ -3479,6 +3858,212 @@ def test_structured_doi_oup_accepts_legal_visible_presentation(presentation):
     payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
     assert payload != OUP_HTML
     assert _validate_oup_html_payload(payload) == "text/html"
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        b"(DOI: " + OUP_DOI + b").",
+        b"(" + OUP_RESOLVER + b").",
+        b"See (" + OUP_DOI + b").",
+    ),
+    ids=("parenthesized-label-period", "parenthesized-resolver-period", "prose-period"),
+)
+def test_structured_doi_oup_accepts_iteratively_trimmed_presentation(
+    tmp_path,
+    validation_mode,
+    presentation,
+):
+    payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
+    assert payload != OUP_HTML
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "prefix",
+    (
+        b"evil_",
+        b"evil-",
+        b"evil.",
+        b"evil/",
+        "é".encode("utf-8"),
+        "汉".encode("utf-8"),
+        b"evil(",
+    ),
+    ids=(
+        "underscore",
+        "hyphen",
+        "period",
+        "slash",
+        "unicode-letter",
+        "unicode-cjk",
+        "opening-delimiter-without-boundary",
+    ),
+)
+def test_structured_doi_oup_rejects_bare_doi_after_identifier_continuation(
+    tmp_path,
+    validation_mode,
+    prefix,
+):
+    suffix = b")" if prefix.endswith(b"(") else b""
+    payload = OUP_HTML.replace(
+        OUP_RESOLVER,
+        prefix + OUP_DOI + suffix,
+        1,
+    )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "style",
+    (
+        b"display:none ! important",
+        b"visibility:hidden ! important",
+        b"opacity:0",
+        b"font-size:0",
+        b"content-visibility:hidden",
+    ),
+    ids=(
+        "display-important-whitespace",
+        "visibility-important-whitespace",
+        "zero-opacity",
+        "zero-font-size",
+        "hidden-content-visibility",
+    ),
+)
+def test_structured_doi_oup_rejects_inline_style_hidden_sole_doi(
+    tmp_path,
+    validation_mode,
+    style,
+):
+    payload = OUP_HTML.replace(
+        b"      <p>" + OUP_RESOLVER + b"</p>",
+        b'      <p style="' + style + b'">' + OUP_RESOLVER + b"</p>",
+        1,
+    )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "style",
+    (
+        b"display:none ! important",
+        b"visibility:hidden ! important",
+        b"opacity:0",
+        b"font-size:0",
+        b"content-visibility:hidden",
+    ),
+)
+def test_structured_doi_oup_ignores_inline_style_hidden_extra_doi(
+    tmp_path,
+    validation_mode,
+    style,
+):
+    payload = OUP_HTML.replace(
+        b"    </article>",
+        b'      <p style="'
+        + style
+        + b'">'
+        + EXTRA_DOI
+        + b"</p>\n    </article>",
+        1,
+    )
+    assert payload != OUP_HTML
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    ("selector", "doi_markup", "declaration"),
+    (
+        (b".hide-doi", b'<p class="hide-doi">', b"display:none"),
+        (b"#hidden-doi", b'<p id="hidden-doi">', b"visibility:hidden"),
+        (b"aside", b"<aside>", b"opacity:0"),
+    ),
+    ids=("class", "id", "tag"),
+)
+def test_structured_doi_oup_stylesheet_hides_sole_doi_regardless_of_order(
+    tmp_path,
+    validation_mode,
+    selector,
+    doi_markup,
+    declaration,
+):
+    closing_tag = b"</aside>" if doi_markup == b"<aside>" else b"</p>"
+    payload = OUP_HTML.replace(
+        b"      <p>" + OUP_RESOLVER + b"</p>",
+        b"      " + doi_markup + OUP_RESOLVER + closing_tag,
+        1,
+    )
+    payload = payload.replace(
+        b"</body>",
+        b"<style>" + selector + b" { " + declaration + b" }</style></body>",
+        1,
+    )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_structured_doi_oup_stylesheet_hidden_extra_doi_does_not_pollute(
+    tmp_path,
+    validation_mode,
+):
+    payload = OUP_HTML.replace(
+        b"    </article>",
+        b'      <p class="hide-doi">'
+        + EXTRA_DOI
+        + b"</p>\n    </article>",
+        1,
+    )
+    payload = payload.replace(
+        b"</body>",
+        b"<style>.hide-doi { display:none }</style></body>",
+        1,
+    )
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_structured_doi_oup_ordinary_stylesheet_class_remains_visible(
+    tmp_path,
+    validation_mode,
+):
+    payload = OUP_HTML.replace(
+        b"      <p>" + OUP_RESOLVER + b"</p>",
+        b'      <p class="show-doi">' + OUP_RESOLVER + b"</p>",
+        1,
+    )
+    payload = payload.replace(
+        b"</body>",
+        b"<style>.show-doi { color: red }</style></body>",
+        1,
+    )
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_oup_stylesheet_prepass_fails_closed_above_character_bound(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_CHARACTERS",
+        1,
+    )
+    with pytest.raises(SourceEvidenceError, match="validation bound"):
+        _validate_oup_html_payload_in_mode(OUP_HTML, validation_mode, tmp_path)
 
 
 def test_structured_doi_oup_accepts_duplicate_canonical_plain_value():
