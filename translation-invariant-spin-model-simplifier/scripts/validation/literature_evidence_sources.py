@@ -985,11 +985,20 @@ _NO_HIDDEN_STYLESHEET_SELECTORS = _HiddenStylesheetSelectors(
 _CSS_SIMPLE_CLASS = re.compile(r"\.[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
 _CSS_SIMPLE_ID = re.compile(r"#[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
 _CSS_SIMPLE_TAG = re.compile(r"[a-z][a-z0-9-]*\Z", flags=re.IGNORECASE)
-_CSS_ZERO = re.compile(r"(?:0+(?:\.0*)?|\.0+)\Z")
-_CSS_ZERO_LENGTH = re.compile(
-    r"(?:0+(?:\.0*)?|\.0+)(?:[a-z]+|%)?\Z",
+_CSS_NUMBER_PATTERN = (
+    r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
+)
+_CSS_NUMERIC_VALUE = re.compile(
+    rf"(?P<number>{_CSS_NUMBER_PATTERN})(?P<unit>[a-z]+|%)?\Z",
     flags=re.IGNORECASE,
 )
+_CSS_SIMPLE_CALC_VALUE = re.compile(
+    rf"calc\(\s*(?P<number>{_CSS_NUMBER_PATTERN})"
+    r"(?P<unit>[a-z]+|%)?\s*\)\Z",
+    flags=re.IGNORECASE,
+)
+_CSS_FUNCTION = re.compile(r"(?:^|[^a-z0-9_-])[a-z_-][a-z0-9_-]*\s*\(", re.I)
+_MAX_INLINE_STYLE_CHARACTERS = 65_536
 _MAX_LOCAL_STYLE_BLOCKS = 256
 _MAX_LOCAL_STYLESHEET_CHARACTERS = 1_000_000
 _MAX_LOCAL_STYLESHEET_RULES = 4096
@@ -1003,32 +1012,173 @@ def _css_value_without_important(value):
     ).strip()
 
 
+def _css_number_is_zero(number):
+    mantissa = re.split(r"[eE]", number.lstrip("+-"), maxsplit=1)[0]
+    return not any(character != "0" for character in mantissa if character.isdigit())
+
+
+def _css_numeric_value(value, *, allowed_units, allow_calc):
+    pattern = _CSS_SIMPLE_CALC_VALUE if allow_calc else _CSS_NUMERIC_VALUE
+    match = pattern.fullmatch(value)
+    if match is None:
+        return None
+    unit = (match.group("unit") or "").casefold()
+    if unit not in allowed_units and "<dimension>" not in allowed_units:
+        return None
+    if (
+        "<dimension>" in allowed_units
+        and unit
+        and unit != "%"
+        and re.fullmatch(r"[a-z]+", unit, flags=re.IGNORECASE) is None
+    ):
+        return None
+    return _css_number_is_zero(match.group("number"))
+
+
 def _style_declaration_hides(property_name, value):
     property_name = property_name.strip().casefold()
     value = _css_value_without_important(value)
     if property_name == "display":
-        return value == "none"
+        return value == "none" or _CSS_FUNCTION.search(value) is not None
     if property_name == "visibility":
-        return value == "hidden"
+        return value == "hidden" or _CSS_FUNCTION.search(value) is not None
     if property_name == "opacity":
-        return _CSS_ZERO.fullmatch(value) is not None
+        numeric = _css_numeric_value(
+            value,
+            allowed_units={"", "%"},
+            allow_calc=False,
+        )
+        if numeric is not None:
+            return numeric
+        if value.casefold().startswith("calc("):
+            calculated = _css_numeric_value(
+                value,
+                allowed_units={"", "%"},
+                allow_calc=True,
+            )
+            if calculated is not None:
+                return calculated
+        return _CSS_FUNCTION.search(value) is not None
     if property_name == "font-size":
-        return _CSS_ZERO_LENGTH.fullmatch(value) is not None
+        numeric = _css_numeric_value(
+            value,
+            allowed_units={"", "%", "<dimension>"},
+            allow_calc=False,
+        )
+        if numeric is not None:
+            return numeric
+        if value.casefold().startswith("calc("):
+            calculated = _css_numeric_value(
+                value,
+                allowed_units={"", "%", "<dimension>"},
+                allow_calc=True,
+            )
+            if calculated is not None:
+                return calculated
+        return _CSS_FUNCTION.search(value) is not None
     if property_name == "content-visibility":
-        return value == "hidden"
+        return value == "hidden" or _CSS_FUNCTION.search(value) is not None
+    return False
+
+
+def _css_without_comments(value):
+    parts = []
+    cursor = 0
+    segment_start = 0
+    quote = None
+    escaped = False
+    while cursor < len(value):
+        character = value[cursor]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            cursor += 1
+            continue
+        if character in {'"', "'"}:
+            quote = character
+            cursor += 1
+            continue
+        if value.startswith("*/", cursor):
+            return None
+        if not value.startswith("/*", cursor):
+            cursor += 1
+            continue
+        parts.append(value[segment_start:cursor])
+        comment_end = value.find("*/", cursor + 2)
+        if comment_end == -1:
+            return None
+        cursor = comment_end + 2
+        segment_start = cursor
+    parts.append(value[segment_start:])
+    return "".join(parts)
+
+
+def _css_top_level_segments(value, separator):
+    segments = []
+    start = 0
+    quote = None
+    escaped = False
+    parentheses = 0
+    for index, character in enumerate(value):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character == "(":
+            parentheses += 1
+        elif character == ")":
+            if not parentheses:
+                return None
+            parentheses -= 1
+        elif character in "{}":
+            return None
+        elif character == separator and not parentheses:
+            segments.append(value[start:index])
+            start = index + 1
+    if quote is not None or escaped or parentheses:
+        return None
+    segments.append(value[start:])
+    return segments
+
+
+def _normalized_style_hides(style):
+    declarations = _css_top_level_segments(style, ";")
+    if declarations is None:
+        return True
+    for declaration in declarations:
+        components = _css_top_level_segments(declaration, ":")
+        if components is None:
+            return True
+        if len(components) < 2:
+            if declaration.strip():
+                return True
+            continue
+        property_name = components[0]
+        value = ":".join(components[1:])
+        if _style_declaration_hides(property_name, value):
+            return True
     return False
 
 
 def _style_hides(style):
     if not isinstance(style, str):
         return False
-    for declaration in style.split(";"):
-        if ":" not in declaration:
-            continue
-        property_name, value = declaration.split(":", 1)
-        if _style_declaration_hides(property_name, value):
-            return True
-    return False
+    if len(style) > _MAX_INLINE_STYLE_CHARACTERS:
+        return True
+    normalized = _css_without_comments(style)
+    if normalized is None:
+        return True
+    return _normalized_style_hides(normalized)
 
 
 class _LocalStyleElementCollector(HTMLParser):
@@ -1071,6 +1221,45 @@ class _LocalStyleElementCollector(HTMLParser):
         self.parts.append(data)
 
 
+def _css_scan_to_top_level(value, start, terminators):
+    quote = None
+    escaped = False
+    parentheses = 0
+    cursor = start
+    while cursor < len(value):
+        character = value[cursor]
+        if escaped:
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif quote is not None:
+            if character == quote:
+                quote = None
+        elif character in {'"', "'"}:
+            quote = character
+        elif character == "(":
+            parentheses += 1
+        elif character == ")":
+            if not parentheses:
+                return None
+            parentheses -= 1
+        elif not parentheses and character in terminators:
+            return cursor, character
+        cursor += 1
+    if quote is not None or escaped or parentheses:
+        return None
+    return cursor, None
+
+
+def _stylesheet_rule_count(rule_count, *, context):
+    rule_count += 1
+    if rule_count > _MAX_LOCAL_STYLESHEET_RULES:
+        raise SourceEvidenceError(
+            f"{context} local stylesheets contain too many rules"
+        )
+    return rule_count
+
+
 def _hidden_stylesheet_selectors(document, *, context):
     collector = _LocalStyleElementCollector(context=context)
     try:
@@ -1085,25 +1274,86 @@ def _hidden_stylesheet_selectors(document, *, context):
     if not collector.parts:
         return _NO_HIDDEN_STYLESHEET_SELECTORS
 
-    stylesheet = re.sub(
-        r"/\*.*?\*/",
-        "",
-        "\n".join(collector.parts),
-        flags=re.DOTALL,
-    )
+    stylesheet = _css_without_comments("\n".join(collector.parts))
+    if stylesheet is None:
+        raise SourceEvidenceError(
+            f"{context} local stylesheet CSS is malformed"
+        )
     hidden_classes = set()
     hidden_ids = set()
     hidden_tags = set()
     rule_count = 0
-    for rule in re.finditer(r"([^{}]+)\{([^{}]*)\}", stylesheet):
-        rule_count += 1
-        if rule_count > _MAX_LOCAL_STYLESHEET_RULES:
-            raise SourceEvidenceError(
-                f"{context} local stylesheets contain too many rules"
-            )
-        if not _style_hides(rule.group(2)):
+    cursor = 0
+    while cursor < len(stylesheet):
+        while cursor < len(stylesheet) and stylesheet[cursor].isspace():
+            cursor += 1
+        if stylesheet.startswith("<!--", cursor):
+            cursor += 4
             continue
-        for raw_selector in rule.group(1).split(","):
+        if stylesheet.startswith("-->", cursor):
+            cursor += 3
+            continue
+        if cursor == len(stylesheet):
+            break
+
+        if stylesheet[cursor] == "@":
+            scanned = _css_scan_to_top_level(
+                stylesheet,
+                cursor,
+                ";{}",
+            )
+            if scanned is None:
+                raise SourceEvidenceError(
+                    f"{context} local stylesheet CSS is malformed"
+                )
+            rule_end, terminator = scanned
+            rule_count = _stylesheet_rule_count(rule_count, context=context)
+            if terminator != ";":
+                raise SourceEvidenceError(
+                    f"{context} local stylesheet has an unsupported at-rule"
+                )
+            cursor = rule_end + 1
+            continue
+
+        scanned = _css_scan_to_top_level(
+            stylesheet,
+            cursor,
+            ";{}",
+        )
+        if scanned is None:
+            raise SourceEvidenceError(
+                f"{context} local stylesheet CSS is malformed"
+            )
+        selector_end, terminator = scanned
+        if terminator != "{":
+            raise SourceEvidenceError(
+                f"{context} local stylesheet has ambiguous residual syntax"
+            )
+        selector_group = stylesheet[cursor:selector_end]
+        if not selector_group.strip():
+            raise SourceEvidenceError(
+                f"{context} local stylesheet CSS is malformed"
+            )
+        rule_count = _stylesheet_rule_count(rule_count, context=context)
+        scanned = _css_scan_to_top_level(
+            stylesheet,
+            selector_end + 1,
+            "{}",
+        )
+        if scanned is None:
+            raise SourceEvidenceError(
+                f"{context} local stylesheet CSS is malformed"
+            )
+        declaration_end, terminator = scanned
+        if terminator != "}":
+            raise SourceEvidenceError(
+                f"{context} local stylesheet has unsupported block syntax"
+            )
+        declarations = stylesheet[selector_end + 1 : declaration_end]
+        cursor = declaration_end + 1
+        if not _normalized_style_hides(declarations):
+            continue
+        for raw_selector in selector_group.split(","):
             selector = raw_selector.strip().casefold()
             if _CSS_SIMPLE_CLASS.fullmatch(selector):
                 hidden_classes.add(selector[1:])
@@ -1332,56 +1582,68 @@ def _text_token_bounds(text, start, end):
 def _trim_visible_url_presentation(token):
     rendered = token.strip()
     closing_delimiters = {"(": ")", "[": "]", "{": "}"}
-    while rendered:
-        previous = rendered
-        if rendered.endswith((",", ".")):
-            rendered = rendered[:-1]
-        elif (
-            len(rendered) >= 2
-            and rendered[0] in closing_delimiters
-            and rendered[-1] == closing_delimiters[rendered[0]]
-        ):
-            rendered = rendered[1:-1]
-        if rendered == previous:
-            break
+    if rendered.endswith((",", ".")):
+        rendered = rendered[:-1]
+    if (
+        len(rendered) >= 2
+        and rendered[0] in closing_delimiters
+        and rendered[-1] == closing_delimiters[rendered[0]]
+    ):
+        rendered = rendered[1:-1]
+    if not rendered or rendered.endswith((",", ".")):
+        return None
+    if (
+        len(rendered) >= 2
+        and rendered[0] in closing_delimiters
+        and rendered[-1] == closing_delimiters[rendered[0]]
+    ):
+        return None
     return rendered
 
 
-def _unmatched_open_delimiter(text, opener, closer):
-    depth = 0
-    for character in text:
-        if character == opener:
-            depth += 1
-        elif character == closer and depth:
-            depth -= 1
-    return depth > 0
+def _has_presentation_opener(text, start, opener):
+    if (
+        start > 0
+        and text[start - 1] == opener
+        and (start == 1 or text[start - 2].isspace())
+    ):
+        return True
+    label = _DOI_LABEL_BEFORE_VALUE.search(text[:start])
+    return bool(
+        label is not None
+        and label.start() > 0
+        and text[label.start() - 1] == opener
+        and (
+            label.start() == 1
+            or text[label.start() - 2].isspace()
+        )
+    )
+
+
+def _text_doi_has_removable_closer(text, match, value):
+    delimiters = {")": "(", "]": "[", "}": "{"}
+    if not value or value[-1] not in delimiters:
+        return False
+    closer = value[-1]
+    opener = delimiters[closer]
+    return (
+        value.count(closer) > value.count(opener)
+        and _has_presentation_opener(text, match.start(), opener)
+    )
 
 
 def _normalized_text_doi_value(text, match):
     value = match.group(0)
     following = text[match.end() :]
-    preceding = text[: match.start()]
-    delimiters = {")": "(", "]": "[", "}": "{"}
-    while value:
-        previous = value
-        if value.endswith(",") and (
-            not following or following[0].isspace()
-        ):
-            value = value[:-1]
-        elif value.endswith(".") and (
-            not following or following[0].isspace()
-        ):
-            value = value[:-1]
-        elif value[-1] in delimiters:
-            closer = value[-1]
-            opener = delimiters[closer]
-            if (
-                value.count(closer) > value.count(opener)
-                and _unmatched_open_delimiter(preceding, opener, closer)
-            ):
-                value = value[:-1]
-        if value == previous:
-            break
+    at_terminal_boundary = not following or following[0].isspace()
+    if value.endswith((",", ".")) and at_terminal_boundary:
+        value = value[:-1]
+    if _text_doi_has_removable_closer(text, match, value):
+        value = value[:-1]
+    if value.endswith((",", ".")) and at_terminal_boundary:
+        return None
+    if _text_doi_has_removable_closer(text, match, value):
+        return None
     return _plain_doi_value(value)
 
 
@@ -1402,16 +1664,7 @@ def _has_labelled_doi_boundary(text, start):
     )
 
 
-def _visible_doi_match_has_valid_boundary(text, match, value):
-    token_start, token_end = _text_token_bounds(
-        text,
-        match.start(),
-        match.end(),
-    )
-    token_prefix = text[token_start : match.start()]
-    if "://" in token_prefix or _DOI_RESOLVER_MARKER.search(token_prefix):
-        token = _trim_visible_url_presentation(text[token_start:token_end])
-        return _resolver_doi_value(token) == value
+def _visible_doi_match_has_valid_boundary(text, match):
     if _has_labelled_doi_boundary(text, match.start()):
         return True
     return _starts_at_visible_presentation_boundary(text, match.start())
@@ -1421,23 +1674,43 @@ def _visible_text_doi_values(blocks):
     values = set()
     valid_carriers = True
     for block in blocks:
+        resolver_carriers = []
+        seen_resolver_tokens = set()
         for marker in _DOI_RESOLVER_MARKER.finditer(block):
             token_start, token_end = _text_token_bounds(
                 block,
                 marker.start(),
                 marker.end(),
             )
+            token_bounds = (token_start, token_end)
+            if token_bounds in seen_resolver_tokens:
+                continue
+            seen_resolver_tokens.add(token_bounds)
             token = _trim_visible_url_presentation(
                 block[token_start:token_end]
             )
-            if _resolver_doi_value(token) is None:
+            value = _resolver_doi_value(token)
+            resolver_carriers.append((token_start, token_end))
+            if value is None:
                 valid_carriers = False
+            else:
+                values.add(value)
+        resolver_index = 0
         for match in _ANY_DOI_VALUE.finditer(block):
+            while (
+                resolver_index < len(resolver_carriers)
+                and resolver_carriers[resolver_index][1] <= match.start()
+            ):
+                resolver_index += 1
+            if resolver_index < len(resolver_carriers):
+                token_start, token_end = resolver_carriers[resolver_index]
+                if token_start <= match.start() < token_end:
+                    continue
             value = _normalized_text_doi_value(block, match)
             if value is None:
                 valid_carriers = False
                 continue
-            if not _visible_doi_match_has_valid_boundary(block, match, value):
+            if not _visible_doi_match_has_valid_boundary(block, match):
                 valid_carriers = False
                 continue
             values.add(value)

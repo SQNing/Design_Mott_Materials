@@ -819,6 +819,77 @@ AUTHOR_GAREL_PAGE = b"""<!doctype html>
 AUTHOR_GAREL_DOI = b"10.1088/0305-4470/16/10/023"
 AUTHOR_GAREL_RESOLVER = b"https://doi.org/" + AUTHOR_GAREL_DOI
 EXTRA_DOI = b"10.9999/other"
+ROUND5_HIDDEN_ZERO_AND_FUNCTION_STYLES = (
+    pytest.param(b"opacity:0%", id="opacity-zero-percent"),
+    pytest.param(b"opacity:+0", id="opacity-positive-zero"),
+    pytest.param(b"opacity:-0", id="opacity-negative-zero"),
+    pytest.param(b"opacity:+.0", id="opacity-positive-decimal-zero"),
+    pytest.param(b"opacity:-0.0", id="opacity-negative-decimal-zero"),
+    pytest.param(b"opacity:0e0", id="opacity-zero-exponent"),
+    pytest.param(b"opacity:-0E+7", id="opacity-signed-zero-exponent"),
+    pytest.param(b"font-size:0%", id="font-zero-percent"),
+    pytest.param(b"font-size:+0", id="font-positive-unitless-zero"),
+    pytest.param(b"font-size:-.0px", id="font-negative-decimal-zero-length"),
+    pytest.param(b"font-size:0e0em", id="font-zero-exponent-length"),
+    pytest.param(b"opacity:calc(0)", id="opacity-calc-zero"),
+    pytest.param(b"font-size:calc(0px)", id="font-calc-zero-length"),
+    pytest.param(b"display:var(--display)", id="display-ambiguous-function"),
+    pytest.param(
+        b"visibility:var(--visibility)",
+        id="visibility-ambiguous-function",
+    ),
+    pytest.param(b"opacity:var(--opacity)", id="opacity-ambiguous-function"),
+    pytest.param(b"font-size:var(--size)", id="font-ambiguous-function"),
+    pytest.param(
+        b"content-visibility:var(--content-visibility)",
+        id="content-visibility-ambiguous-function",
+    ),
+    pytest.param(b"opacity:min(1, 1)", id="opacity-other-ambiguous-function"),
+)
+ROUND5_VISIBLE_STYLE_CONTROLS = (
+    pytest.param(b"opacity:1", id="opacity-one"),
+    pytest.param(b"opacity:0.1", id="opacity-adjacent-nonzero"),
+    pytest.param(b"opacity:1e-9", id="opacity-nonzero-exponent"),
+    pytest.param(b"font-size:1px", id="font-positive-length"),
+    pytest.param(b"font-size:0.1px", id="font-adjacent-nonzero"),
+    pytest.param(b"font-size:1e-9em", id="font-nonzero-exponent"),
+    pytest.param(b"display:block", id="display-block"),
+    pytest.param(b"visibility:visible", id="visibility-visible"),
+    pytest.param(
+        b"content-visibility:visible",
+        id="content-visibility-visible",
+    ),
+    pytest.param(b"opacity:calc(1)", id="opacity-calc-one"),
+    pytest.param(b"font-size:calc(1px)", id="font-calc-positive-length"),
+)
+ROUND5_COMMENT_HIDDEN_STYLES = (
+    pytest.param(b"display/**/:none", id="comment-before-colon"),
+    pytest.param(b"display:/**/none", id="comment-before-value"),
+    pytest.param(
+        b"display:none/**/ ! important",
+        id="comment-before-important",
+    ),
+    pytest.param(b"opacity:/**/0", id="comment-before-opacity-zero"),
+    pytest.param(b"font-size:/**/0", id="comment-before-font-zero"),
+)
+ROUND5_STATEMENT_AT_RULES = (
+    pytest.param(b"@layer foo;", id="layer"),
+    pytest.param(
+        b'@import url("theme;v1.css") /* import; comment */;',
+        id="import-with-quoted-semicolon-parens-comment",
+    ),
+    pytest.param(b'@charset "UTF-8";', id="charset-with-quoted-string"),
+)
+ROUND5_UNSUPPORTED_PREFIX_RULES = (
+    pytest.param(
+        b".complex > .unused { display:none }",
+        id="complex-selector",
+    ),
+    pytest.param(
+        b".escaped\\2d selector { display:none }",
+        id="escaped-selector",
+    ),
+)
 
 
 def _author_garel_page_with_doi():
@@ -855,6 +926,40 @@ def _author_page_with_markup_before_pdf(markup):
     page = AUTHOR_GAREL_PAGE.replace(
         marker,
         b"    " + markup + b"\n" + marker,
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    return page
+
+
+def _author_page_with_inline_doi_style(style, *, extra_doi):
+    if extra_doi:
+        return _author_page_with_markup_before_pdf(
+            b'<p style="' + style + b'">' + EXTRA_DOI + b"</p>"
+        )
+    page = AUTHOR_GAREL_PAGE.replace(
+        b"    <p>" + AUTHOR_GAREL_RESOLVER + b"</p>",
+        b'    <p style="' + style + b'">' + AUTHOR_GAREL_RESOLVER + b"</p>",
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    return page
+
+
+def _author_page_with_local_stylesheet(stylesheet, *, extra_doi):
+    if extra_doi:
+        page = _author_page_with_markup_before_pdf(
+            b'<p class="hide-doi">' + EXTRA_DOI + b"</p>"
+        )
+    else:
+        page = AUTHOR_GAREL_PAGE.replace(
+            b"    <p>" + AUTHOR_GAREL_RESOLVER + b"</p>",
+            b'    <p class="hide-doi">' + AUTHOR_GAREL_RESOLVER + b"</p>",
+            1,
+        )
+    page = page.replace(
+        b"</body>",
+        b"<style>" + stylesheet + b"</style></body>",
         1,
     )
     assert page != AUTHOR_GAREL_PAGE
@@ -1146,6 +1251,147 @@ def test_structured_doi_author_accepts_iteratively_trimmed_presentation(
 
 
 @pytest.mark.parametrize(
+    "surplus_presentation",
+    (
+        AUTHOR_GAREL_DOI + b"..",
+        AUTHOR_GAREL_DOI + b",,",
+        AUTHOR_GAREL_DOI + b".,",
+        AUTHOR_GAREL_DOI + b",.",
+        AUTHOR_GAREL_RESOLVER + b"..",
+        AUTHOR_GAREL_RESOLVER + b",,",
+        AUTHOR_GAREL_RESOLVER + b".,",
+        AUTHOR_GAREL_RESOLVER + b",.",
+        b"(DOI: " + AUTHOR_GAREL_DOI + b")..",
+        b"(" + AUTHOR_GAREL_RESOLVER + b")..",
+        b"See (" + AUTHOR_GAREL_DOI + b").,",
+        b"((" + AUTHOR_GAREL_RESOLVER + b")).",
+    ),
+    ids=(
+        "bare-double-period",
+        "bare-double-comma",
+        "bare-period-comma",
+        "bare-comma-period",
+        "resolver-double-period",
+        "resolver-double-comma",
+        "resolver-period-comma",
+        "resolver-comma-period",
+        "labelled-wrapper-double-period",
+        "resolver-wrapper-double-period",
+        "prose-wrapper-mixed-punctuation",
+        "resolver-double-wrapper",
+    ),
+)
+def test_structured_doi_author_rejects_surplus_presentation_punctuation(
+    surplus_presentation,
+):
+    page = AUTHOR_GAREL_PAGE.replace(
+        AUTHOR_GAREL_RESOLVER,
+        surplus_presentation,
+        1,
+    )
+    assert page != AUTHOR_GAREL_PAGE
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        AUTHOR_GAREL_DOI + b".",
+        AUTHOR_GAREL_DOI + b", verified",
+        AUTHOR_GAREL_RESOLVER + b".",
+        AUTHOR_GAREL_RESOLVER + b", verified",
+        b"(" + AUTHOR_GAREL_DOI + b").",
+    ),
+    ids=(
+        "bare-period",
+        "bare-comma",
+        "resolver-period",
+        "resolver-comma",
+        "bare-wrapper-period",
+    ),
+)
+def test_structured_doi_author_accepts_single_presentation_layer(presentation):
+    page = AUTHOR_GAREL_PAGE.replace(AUTHOR_GAREL_RESOLVER, presentation, 1)
+    assert page != AUTHOR_GAREL_PAGE
+    _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    (
+        "10.1234/example.999",
+        "10.1234/example/999",
+        "10.1234/example-other",
+        "10.1234/example_other",
+        "10.1234/example;",
+        "10.1234/example(test)",
+        "10.1234/example[part]{version}",
+    ),
+    ids=(
+        "period-digits",
+        "slash-digits",
+        "hyphen-suffix",
+        "underscore-suffix",
+        "semicolon-suffix",
+        "balanced-parentheses",
+        "balanced-brackets-and-braces",
+    ),
+)
+@pytest.mark.parametrize("carrier", ("plain", "resolver"))
+def test_round5_visible_doi_normalization_preserves_identifier_content(
+    identifier,
+    carrier,
+):
+    rendered = (
+        identifier
+        if carrier == "plain"
+        else f"https://doi.org/{identifier}"
+    )
+    values, valid_carriers = evidence_sources._visible_text_doi_values(
+        (rendered,)
+    )
+    assert valid_carriers
+    assert values == {identifier}
+
+
+def test_round5_visible_doi_carriers_are_normalized_once(monkeypatch):
+    calls = {"resolver": 0, "text": 0}
+    original_resolver_normalizer = (
+        evidence_sources._trim_visible_url_presentation
+    )
+    original_text_normalizer = evidence_sources._normalized_text_doi_value
+
+    def count_resolver_normalization(token):
+        calls["resolver"] += 1
+        return original_resolver_normalizer(token)
+
+    def count_text_normalization(text, match):
+        calls["text"] += 1
+        return original_text_normalizer(text, match)
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_trim_visible_url_presentation",
+        count_resolver_normalization,
+    )
+    monkeypatch.setattr(
+        evidence_sources,
+        "_normalized_text_doi_value",
+        count_text_normalization,
+    )
+    values, valid_carriers = evidence_sources._visible_text_doi_values(
+        (
+            "(https://doi.org/10.1234/example). "
+            "(DOI: 10.1234/example).",
+        )
+    )
+    assert valid_carriers
+    assert values == {"10.1234/example"}
+    assert calls == {"resolver": 1, "text": 1}
+
+
+@pytest.mark.parametrize(
     "prefix",
     (
         b"evil_",
@@ -1295,6 +1541,243 @@ def test_author_stylesheet_prepass_fails_closed_above_character_bound(
         1,
     )
     with pytest.raises(SourceEvidenceError, match="validation bound"):
+        _validate_author_garel_page(page)
+
+
+def test_round5_author_stylesheet_comments_count_before_character_bound(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_CHARACTERS",
+        16,
+    )
+    page = _author_page_with_local_stylesheet(
+        b"/*" + (b"x" * 32) + b"*/ .hide-doi { opacity:1 }",
+        extra_doi=False,
+    )
+    with pytest.raises(SourceEvidenceError, match="validation bound"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND5_HIDDEN_ZERO_AND_FUNCTION_STYLES)
+def test_round5_author_zero_and_ambiguous_function_styles_hide_doi(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "declaration"),
+    (
+        ("class", b"opacity:+0"),
+        ("id", b"font-size:calc(0px)"),
+        ("tag", b"display:var(--display)"),
+    ),
+    ids=("class-zero", "id-calc-zero", "tag-ambiguous-function"),
+)
+def test_round5_author_simple_stylesheet_selectors_apply_hidden_values(
+    selector_kind,
+    declaration,
+    extra_doi,
+):
+    selector = {
+        "class": b".hide-doi",
+        "id": b"#hide-doi",
+        "tag": b"aside",
+    }[selector_kind]
+    page = _author_page_with_local_stylesheet(
+        selector + b" { " + declaration + b" }",
+        extra_doi=extra_doi,
+    )
+    value = EXTRA_DOI if extra_doi else AUTHOR_GAREL_RESOLVER
+    if selector_kind == "id":
+        page = page.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b'<p id="hide-doi">' + value + b"</p>",
+            1,
+        )
+    elif selector_kind == "tag":
+        page = page.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b"<aside>" + value + b"</aside>",
+            1,
+        )
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND5_VISIBLE_STYLE_CONTROLS)
+def test_round5_author_nonzero_and_ordinary_styles_remain_visible(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+    else:
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND5_COMMENT_HIDDEN_STYLES)
+def test_round5_author_inline_css_comments_preserve_hidden_declarations(
+    style,
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round5_author_unterminated_inline_css_comment_hides_fail_closed(
+    extra_doi,
+):
+    page = _author_page_with_inline_doi_style(
+        b"display:/*unterminated",
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round5_author_overlimit_inline_css_hides_fail_closed(
+    monkeypatch,
+    extra_doi,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_INLINE_STYLE_CHARACTERS",
+        8,
+        raising=False,
+    )
+    page = _author_page_with_inline_doi_style(
+        b"display:block;opacity:1",
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("at_rule", ROUND5_STATEMENT_AT_RULES)
+def test_round5_author_statement_at_rule_does_not_swallow_hidden_rule(
+    at_rule,
+    extra_doi,
+):
+    stylesheet = at_rule + b"\n.hide-doi { display:none }"
+    page = _author_page_with_local_stylesheet(stylesheet, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("unsupported_rule", ROUND5_UNSUPPORTED_PREFIX_RULES)
+def test_round5_author_unsupported_selector_does_not_swallow_hidden_rule(
+    unsupported_rule,
+    extra_doi,
+):
+    stylesheet = unsupported_rule + b"\n.hide-doi { display:none }"
+    page = _author_page_with_local_stylesheet(stylesheet, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round5_author_cdo_cdc_wrapper_preserves_hidden_rule(extra_doi):
+    page = _author_page_with_local_stylesheet(
+        b"<!--\n.hide-doi { display:none }\n-->",
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_author_garel_page(page)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("at_rule", ROUND5_STATEMENT_AT_RULES)
+def test_round5_author_statement_at_rule_preserves_visible_control(
+    at_rule,
+    extra_doi,
+):
+    stylesheet = at_rule + b"\n.hide-doi { opacity:1 }"
+    page = _author_page_with_local_stylesheet(stylesheet, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_author_garel_page(page)
+    else:
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize(
+    "ambiguous_stylesheet",
+    (
+        b"@media screen { .hide-doi { opacity:1 } }",
+        b"orphan-token; .hide-doi { opacity:1 }",
+        b"/* unterminated",
+        b'@import url("unterminated); .hide-doi { display:none }',
+    ),
+    ids=(
+        "unsupported-block-at-rule",
+        "ambiguous-residual-statement",
+        "unterminated-comment",
+        "unterminated-at-rule-string-paren",
+    ),
+)
+def test_round5_author_ambiguous_stylesheet_fails_closed(ambiguous_stylesheet):
+    page = _author_page_with_local_stylesheet(
+        ambiguous_stylesheet,
+        extra_doi=False,
+    )
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_author_garel_page(page)
+
+
+def test_round5_author_statement_at_rules_count_toward_stylesheet_bound(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_RULES",
+        1,
+    )
+    page = _author_page_with_local_stylesheet(
+        b"@layer one; @layer two; .hide-doi { opacity:1 }",
+        extra_doi=False,
+    )
+    with pytest.raises(SourceEvidenceError, match="too many"):
         _validate_author_garel_page(page)
 
 
@@ -3628,6 +4111,51 @@ def _oup_html_with_head_meta(payload, name, value):
     )
 
 
+def _oup_payload_with_inline_doi_style(style, *, extra_doi):
+    if extra_doi:
+        payload = OUP_HTML.replace(
+            b"    </article>",
+            b'      <p style="'
+            + style
+            + b'">'
+            + EXTRA_DOI
+            + b"</p>\n    </article>",
+            1,
+        )
+    else:
+        payload = OUP_HTML.replace(
+            b"      <p>" + OUP_RESOLVER + b"</p>",
+            b'      <p style="' + style + b'">' + OUP_RESOLVER + b"</p>",
+            1,
+        )
+    assert payload != OUP_HTML
+    return payload
+
+
+def _oup_payload_with_local_stylesheet(stylesheet, *, extra_doi):
+    if extra_doi:
+        payload = OUP_HTML.replace(
+            b"    </article>",
+            b'      <p class="hide-doi">'
+            + EXTRA_DOI
+            + b"</p>\n    </article>",
+            1,
+        )
+    else:
+        payload = OUP_HTML.replace(
+            b"      <p>" + OUP_RESOLVER + b"</p>",
+            b'      <p class="hide-doi">' + OUP_RESOLVER + b"</p>",
+            1,
+        )
+    payload = payload.replace(
+        b"</body>",
+        b"<style>" + stylesheet + b"</style></body>",
+        1,
+    )
+    assert payload != OUP_HTML
+    return payload
+
+
 @pytest.mark.parametrize(
     "fake_resolver",
     (
@@ -3882,6 +4410,77 @@ def test_structured_doi_oup_accepts_iteratively_trimmed_presentation(
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
 @pytest.mark.parametrize(
+    "surplus_presentation",
+    (
+        OUP_DOI + b"..",
+        OUP_DOI + b",,",
+        OUP_DOI + b".,",
+        OUP_DOI + b",.",
+        OUP_RESOLVER + b"..",
+        OUP_RESOLVER + b",,",
+        OUP_RESOLVER + b".,",
+        OUP_RESOLVER + b",.",
+        b"(DOI: " + OUP_DOI + b")..",
+        b"(" + OUP_RESOLVER + b")..",
+        b"See (" + OUP_DOI + b").,",
+        b"((" + OUP_RESOLVER + b")).",
+    ),
+    ids=(
+        "bare-double-period",
+        "bare-double-comma",
+        "bare-period-comma",
+        "bare-comma-period",
+        "resolver-double-period",
+        "resolver-double-comma",
+        "resolver-period-comma",
+        "resolver-comma-period",
+        "labelled-wrapper-double-period",
+        "resolver-wrapper-double-period",
+        "prose-wrapper-mixed-punctuation",
+        "resolver-double-wrapper",
+    ),
+)
+def test_structured_doi_oup_rejects_surplus_presentation_punctuation(
+    tmp_path,
+    validation_mode,
+    surplus_presentation,
+):
+    payload = OUP_HTML.replace(OUP_RESOLVER, surplus_presentation, 1)
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        OUP_DOI + b".",
+        OUP_DOI + b", verified",
+        OUP_RESOLVER + b".",
+        OUP_RESOLVER + b", verified",
+        b"(" + OUP_DOI + b").",
+    ),
+    ids=(
+        "bare-period",
+        "bare-comma",
+        "resolver-period",
+        "resolver-comma",
+        "bare-wrapper-period",
+    ),
+)
+def test_structured_doi_oup_accepts_single_presentation_layer(
+    tmp_path,
+    validation_mode,
+    presentation,
+):
+    payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
+    assert payload != OUP_HTML
+    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
     "prefix",
     (
         b"evil_",
@@ -4064,6 +4663,295 @@ def test_oup_stylesheet_prepass_fails_closed_above_character_bound(
     )
     with pytest.raises(SourceEvidenceError, match="validation bound"):
         _validate_oup_html_payload_in_mode(OUP_HTML, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_round5_oup_stylesheet_comments_count_before_character_bound(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_CHARACTERS",
+        16,
+    )
+    payload = _oup_payload_with_local_stylesheet(
+        b"/*" + (b"x" * 32) + b"*/ .hide-doi { opacity:1 }",
+        extra_doi=False,
+    )
+    with pytest.raises(SourceEvidenceError, match="validation bound"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND5_HIDDEN_ZERO_AND_FUNCTION_STYLES)
+def test_round5_oup_zero_and_ambiguous_function_styles_hide_doi(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize(
+    ("selector_kind", "declaration"),
+    (
+        ("class", b"opacity:+0"),
+        ("id", b"font-size:calc(0px)"),
+        ("tag", b"display:var(--display)"),
+    ),
+    ids=("class-zero", "id-calc-zero", "tag-ambiguous-function"),
+)
+def test_round5_oup_simple_stylesheet_selectors_apply_hidden_values(
+    tmp_path,
+    validation_mode,
+    selector_kind,
+    declaration,
+    extra_doi,
+):
+    selector = {
+        "class": b".hide-doi",
+        "id": b"#hide-doi",
+        "tag": b"aside",
+    }[selector_kind]
+    payload = _oup_payload_with_local_stylesheet(
+        selector + b" { " + declaration + b" }",
+        extra_doi=extra_doi,
+    )
+    value = EXTRA_DOI if extra_doi else OUP_RESOLVER
+    if selector_kind == "id":
+        payload = payload.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b'<p id="hide-doi">' + value + b"</p>",
+            1,
+        )
+    elif selector_kind == "tag":
+        payload = payload.replace(
+            b'<p class="hide-doi">' + value + b"</p>",
+            b"<aside>" + value + b"</aside>",
+            1,
+        )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND5_VISIBLE_STYLE_CONTROLS)
+def test_round5_oup_nonzero_and_ordinary_styles_remain_visible(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("style", ROUND5_COMMENT_HIDDEN_STYLES)
+def test_round5_oup_inline_css_comments_preserve_hidden_declarations(
+    tmp_path,
+    validation_mode,
+    style,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round5_oup_unterminated_inline_css_comment_hides_fail_closed(
+    tmp_path,
+    validation_mode,
+    extra_doi,
+):
+    payload = _oup_payload_with_inline_doi_style(
+        b"display:/*unterminated",
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round5_oup_overlimit_inline_css_hides_fail_closed(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+    extra_doi,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_INLINE_STYLE_CHARACTERS",
+        8,
+        raising=False,
+    )
+    payload = _oup_payload_with_inline_doi_style(
+        b"display:block;opacity:1",
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("at_rule", ROUND5_STATEMENT_AT_RULES)
+def test_round5_oup_statement_at_rule_does_not_swallow_hidden_rule(
+    tmp_path,
+    validation_mode,
+    at_rule,
+    extra_doi,
+):
+    stylesheet = at_rule + b"\n.hide-doi { display:none }"
+    payload = _oup_payload_with_local_stylesheet(
+        stylesheet,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("unsupported_rule", ROUND5_UNSUPPORTED_PREFIX_RULES)
+def test_round5_oup_unsupported_selector_does_not_swallow_hidden_rule(
+    tmp_path,
+    validation_mode,
+    unsupported_rule,
+    extra_doi,
+):
+    stylesheet = unsupported_rule + b"\n.hide-doi { display:none }"
+    payload = _oup_payload_with_local_stylesheet(
+        stylesheet,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+def test_round5_oup_cdo_cdc_wrapper_preserves_hidden_rule(
+    tmp_path,
+    validation_mode,
+    extra_doi,
+):
+    payload = _oup_payload_with_local_stylesheet(
+        b"<!--\n.hide-doi { display:none }\n-->",
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
+@pytest.mark.parametrize("at_rule", ROUND5_STATEMENT_AT_RULES)
+def test_round5_oup_statement_at_rule_preserves_visible_control(
+    tmp_path,
+    validation_mode,
+    at_rule,
+    extra_doi,
+):
+    stylesheet = at_rule + b"\n.hide-doi { opacity:1 }"
+    payload = _oup_payload_with_local_stylesheet(
+        stylesheet,
+        extra_doi=extra_doi,
+    )
+    if extra_doi:
+        with pytest.raises(SourceEvidenceError, match="DOI"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "ambiguous_stylesheet",
+    (
+        b"@media screen { .hide-doi { opacity:1 } }",
+        b"orphan-token; .hide-doi { opacity:1 }",
+        b"/* unterminated",
+        b'@import url("unterminated); .hide-doi { display:none }',
+    ),
+    ids=(
+        "unsupported-block-at-rule",
+        "ambiguous-residual-statement",
+        "unterminated-comment",
+        "unterminated-at-rule-string-paren",
+    ),
+)
+def test_round5_oup_ambiguous_stylesheet_fails_closed(
+    tmp_path,
+    validation_mode,
+    ambiguous_stylesheet,
+):
+    payload = _oup_payload_with_local_stylesheet(
+        ambiguous_stylesheet,
+        extra_doi=False,
+    )
+    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_round5_oup_statement_at_rules_count_toward_stylesheet_bound(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_LOCAL_STYLESHEET_RULES",
+        1,
+    )
+    payload = _oup_payload_with_local_stylesheet(
+        b"@layer one; @layer two; .hide-doi { opacity:1 }",
+        extra_doi=False,
+    )
+    with pytest.raises(SourceEvidenceError, match="too many"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 def test_structured_doi_oup_accepts_duplicate_canonical_plain_value():
