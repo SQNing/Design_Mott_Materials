@@ -762,7 +762,7 @@ def test_numeric_target_guard_only_allows_audited_input_paths():
     ) == [(("parameter_regime", "theta"), -math.pi / 4.0)]
 
 
-def test_takhtajan_babujian_contract_does_not_predeclare_theta_output(
+def test_takhtajan_babujian_contract_does_not_predeclare_selected_outputs(
     loaded_inventory,
 ):
     name = "takhtajan_babujian_spin1_critical_point"
@@ -784,11 +784,46 @@ def test_takhtajan_babujian_contract_does_not_predeclare_theta_output(
 
     assert theta_matches == []
     expected_regime = {
-        "coupling_point": "integrable_bilinear_biquadratic_critical_point"
+        "coupling_constraint": (
+            "positive_bilinear_and_equal_magnitude_negative_biquadratic"
+        )
     }
     assert registry_entry["parameters"] == expected_regime
     assert contract["parameter_regime"] == expected_regime
     assert contract["conditions"]["model_parameters"] == expected_regime
+    for input_surface in (
+        registry_entry["parameters"],
+        contract["parameter_regime"],
+        contract["conditions"]["model_parameters"],
+    ):
+        _assert_tb_input_surface_is_result_neutral(input_surface)
+
+    assert "is_integrable" in contract["observable"]["claim_fields"]
+    assert registry_entry["standard_result"] == {
+        "theta_radians": -math.pi / 4.0,
+        "is_integrable": True,
+    }
+
+
+def test_takhtajan_babujian_input_guard_rejects_result_bearing_mutations():
+    neutral_input = {
+        "coupling_constraint": (
+            "positive_bilinear_and_equal_magnitude_negative_biquadratic"
+        )
+    }
+    _assert_tb_input_surface_is_result_neutral(neutral_input)
+
+    result_bearing_mutations = (
+        {
+            "coupling_point": (
+                "integrable_bilinear_biquadratic_critical_point"
+            )
+        },
+        {"is_integrable": True},
+    )
+    for mutated_input in result_bearing_mutations:
+        with pytest.raises(AssertionError, match="predeclares selected result"):
+            _assert_tb_input_surface_is_result_neutral(mutated_input)
 
 
 def test_gtlg_contract_and_registry_parameters_exclude_observed_transition_outputs(
@@ -2236,6 +2271,19 @@ def _matching_numeric_target_leaves(
         )
         not in AUDITED_CANONICAL_NUMERIC_TARGET_INPUTS
     ]
+
+
+def _assert_tb_input_surface_is_result_neutral(input_surface):
+    serialized = json.dumps(input_surface, sort_keys=True).lower()
+    result_bearing_tokens = tuple(
+        token
+        for token in ("integrable", "true", "false", "result")
+        if token in serialized
+    )
+    assert result_bearing_tokens == (), (
+        "Takhtajan-Babujian input surface predeclares selected result via "
+        f"{result_bearing_tokens}: {input_surface}"
+    )
 
 
 def _bounded_target_token_pattern(target):

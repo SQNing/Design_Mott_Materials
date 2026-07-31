@@ -838,7 +838,9 @@ LITERATURE_STANDARD_RESULTS.extend(
             "hamiltonian": "cos(theta) Si.Sj + sin(theta)(Si.Sj)^2",
             "hamiltonian_terms": ["heisenberg", "biquadratic", "spin1", "critical"],
             "parameters": {
-                "coupling_point": "integrable_bilinear_biquadratic_critical_point"
+                "coupling_constraint": (
+                    "positive_bilinear_and_equal_magnitude_negative_biquadratic"
+                )
             },
             "observable": "critical_point",
             "comparison_kind": "exact_solution",
