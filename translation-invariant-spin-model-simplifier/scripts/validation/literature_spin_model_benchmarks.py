@@ -1512,7 +1512,10 @@ LITERATURE_STANDARD_RESULTS.extend(
             "standard_result": {"critical_j2_over_j1": 0.2411, "tolerance": 5.0e-4},
             "source": "Kumar_Ramasesha_Soos_2010",
             "source_url": "https://arxiv.org/abs/1006.5052",
-            "citation_locator": "critical-point analysis: J2/J1=0.2411 dimerization transition",
+            "citation_locator": (
+                "abstract and discussion citing Okamoto-Nomura: fluid-dimer "
+                "transition at J2/J1=0.2411 where the gap opens"
+            ),
         },
         {
             "name": "spin_peierls_chain_dimerization_reference",
@@ -2249,8 +2252,6 @@ LITERATURE_STANDARD_RESULTS.extend(
                 "nearest_neighbor_exchange_k": 0.126,
                 "dipolar_interaction_k": 0.045,
                 "dipolar_to_exchange_ratio": 0.36,
-                "ordering_temperature_k": 0.243,
-                "ordering_transition": "sharp_first_order_long_range_order",
             },
             "observable": "frustrated_garnet_with_first_order_long_range_order",
             "comparison_kind": "paper_numeric",

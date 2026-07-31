@@ -172,33 +172,239 @@ EXPECTED_REASSIGNED_SOURCE_IDENTITIES = {
 }
 
 
-EXPECTED_REASSIGNED_SOURCE_METADATA = {
-    "honeycomb_j1_j2_spiral_ring_reference": {
-        "source": "Mulder_Ganesh_Capriotti_Paramekanti_2010",
-        "canonical_source_identity": "arxiv:1004.1119",
-        "citation_locator": "classical spiral-contour equation for J2/J1>1/6",
-    },
-    "j1_j2_chain_bkt_transition_reference": {
-        "source": "Kumar_Ramasesha_Soos_2010",
-        "canonical_source_identity": "arxiv:1006.5052",
-        "citation_locator": (
-            "abstract and discussion citing Okamoto-Nomura: fluid-dimer "
-            "transition at J2/J1=0.2411 where the gap opens"
-        ),
-    },
-    "j1_j2_chain_okamoto_nomura_critical_point": {
-        "source": "Kumar_Ramasesha_Soos_2010",
-        "canonical_source_identity": "arxiv:1006.5052",
-        "citation_locator": (
-            "critical-point analysis: J2/J1=0.2411 dimerization transition"
-        ),
-    },
-    "xx_spin_half_chain_free_fermion_energy": {
-        "source": "Collura_Calabrese_Essler_2015",
-        "canonical_source_identity": "doi:10.1103/physrevb.92.125131",
-        "citation_locator": "XX-chain free-fermion ground-state energy at half filling",
-    },
-}
+EXPECTED_REASSIGNED_SOURCE_METADATA = {'blume_capel_spin1_zero_temperature_level_crossing': {'canonical_source_identity': 'arxiv:1204.5027',
+                                                       'citation_locator': 'model definition and '
+                                                                           'zero-temperature '
+                                                                           'ferromagnetic-to-nonmagnetic '
+                                                                           'crossing at D/J=2',
+                                                       'source': 'Yang_Xie_2012'},
+ 'checkerboard_heisenberg_afm_planar_pyrochlore_reference': {'canonical_source_identity': 'arxiv:cond-mat/0108070',
+                                                             'citation_locator': 'crossed-plaquette '
+                                                                                 'zero-total-spin '
+                                                                                 'classical '
+                                                                                 'constraint',
+                                                             'source': 'Fouet_et_al_arXiv_cond-mat_0108070'},
+ 'clinoatacamite_distorted_kagome_reference': {'canonical_source_identity': 'arxiv:2601.21024',
+                                               'citation_locator': 'exchange-network analysis of '
+                                                                   'distorted kagome '
+                                                                   'clinoatacamite',
+                                               'source': 'Stodter_et_al_2026'},
+ 'cubic_ising_critical_temperature_reference': {'canonical_source_identity': 'arxiv:cond-mat/9509016',
+                                                'citation_locator': 'simple-cubic Ising critical '
+                                                                    'coupling K_c=0.2216546',
+                                                'source': 'Blote_Luijten_Heringa_1995'},
+ 'edwardsite_kagome_antiferromagnet_reference': {'canonical_source_identity': 'arxiv:1305.2477',
+                                                 'citation_locator': 'abstract and exchange '
+                                                                     'analysis: hydrated spin-1/2 '
+                                                                     'deformed-kagome Edwardsite',
+                                                 'source': 'Ishikawa_Okamoto_Hiroi_2013'},
+ 'er2ti2o7_xy_pyrochlore_order_by_disorder_reference': {'canonical_source_identity': 'arxiv:1204.1320',
+                                                        'citation_locator': 'Eqs. (6)-(7) and '
+                                                                            'zero-point-energy '
+                                                                            'analysis: quantum '
+                                                                            'selection of psi2',
+                                                        'source': 'Savary_et_al_2012'},
+ 'fcc_j1_j2_heisenberg_type_order_reference': {'canonical_source_identity': 'arxiv:2007.00376',
+                                               'citation_locator': 'FCC J1-J2 phase diagram and '
+                                                                   'type-I, type-II, and type-III '
+                                                                   'order regions',
+                                               'source': 'Balla_Iqbal_Penc_2020'},
+ 'fe_ps3_honeycomb_ising_reference': {'canonical_source_identity': 'arxiv:2005.12031',
+                                      'citation_locator': 'abstract and Eq. (1): spin-2 Ising-like '
+                                                          'zigzag order in FePS3',
+                                      'source': 'Wildes_et_al_2020'},
+ 'gadolinium_gallium_garnet_hyperkagome_reference': {'canonical_source_identity': 'doi:10.1103/physrevlett.73.2500',
+                                                     'citation_locator': 'abstract, '
+                                                                         'exchange-dipole Monte '
+                                                                         'Carlo model, and '
+                                                                         'conclusion: strong GGG '
+                                                                         'frustration with '
+                                                                         'finite-field order',
+                                                     'source': 'Schiffer_Ramirez_Huse_Valentino_1994'},
+ 'gamma_li2iro3_3d_kitaev_reference': {'canonical_source_identity': 'doi:10.1103/physrevlett.113.197201',
+                                       'citation_locator': 'abstract and magnetic-structure '
+                                                           'results: incommensurate spiral order '
+                                                           'in gamma-Li2IrO3',
+                                       'source': 'Biffin_et_al_2014'},
+ 'garnet_gd3te2li3o12_hyperkagome_reference': {'canonical_source_identity': 'doi:10.1103/physrevb.87.174421',
+                                               'citation_locator': 'abstract, Hamiltonians, and '
+                                                                   'GTLG results: hyperkagome '
+                                                                   'frustration with a sharp '
+                                                                   'first-order 243 mK LRO '
+                                                                   'transition',
+                                               'source': 'Quilliam_et_al_2013'},
+ 'honeycomb_ising_ferromagnet_exact_tc': {'canonical_source_identity': 'doi:10.1143/ptp.5.2.177',
+                                          'citation_locator': 'dual-transformation critical-point '
+                                                              'equation for the honeycomb Ising '
+                                                              'lattice',
+                                          'source': 'Husimi_Syozi_1950'},
+ 'honeycomb_j1_j2_j3_classical_phase_diagram': {'canonical_source_identity': 'arxiv:1309.3744',
+                                                'citation_locator': 'honeycomb J1-J2-J3 classical '
+                                                                    'phase set',
+                                                'source': 'Mazin_arXiv_1309.3744'},
+ 'honeycomb_j1_j2_kitaev_material_na2iro3_reference': {'canonical_source_identity': 'arxiv:1209.5100',
+                                                       'citation_locator': 'full Kitaev-Heisenberg '
+                                                                           'phase diagram and '
+                                                                           'Na2IrO3 zigzag-order '
+                                                                           'discussion',
+                                                       'source': 'Chaloupka_Jackeli_Khaliullin_arXiv_1209.5100'},
+ 'honeycomb_j1_j2_spiral_ring_reference': {'canonical_source_identity': 'arxiv:1004.1119',
+                                           'citation_locator': 'classical spiral-contour equation '
+                                                               'for J2/J1>1/6',
+                                           'source': 'Mulder_Ganesh_Capriotti_Paramekanti_2010'},
+ 'honeycomb_kitaev_heisenberg_four_sublattice_phases': {'canonical_source_identity': 'arxiv:1209.5100',
+                                                        'citation_locator': 'full '
+                                                                            'Kitaev-Heisenberg '
+                                                                            'phase diagram: Neel, '
+                                                                            'stripy, '
+                                                                            'ferromagnetic, and '
+                                                                            'zigzag phases',
+                                                        'source': 'Chaloupka_Jackeli_Khaliullin_arXiv_1209.5100'},
+ 'j1_j2_chain_bkt_transition_reference': {'canonical_source_identity': 'arxiv:1006.5052',
+                                          'citation_locator': 'abstract and discussion citing '
+                                                              'Okamoto-Nomura: fluid-dimer '
+                                                              'transition at J2/J1=0.2411 where '
+                                                              'the gap opens',
+                                          'source': 'Kumar_Ramasesha_Soos_2010'},
+ 'j1_j2_chain_okamoto_nomura_critical_point': {'canonical_source_identity': 'arxiv:1006.5052',
+                                               'citation_locator': 'abstract and discussion citing '
+                                                                   'Okamoto-Nomura: fluid-dimer '
+                                                                   'transition at J2/J1=0.2411 '
+                                                                   'where the gap opens',
+                                               'source': 'Kumar_Ramasesha_Soos_2010'},
+ 'kagome_heisenberg_dmrg_spin_liquid_yan_reference': {'canonical_source_identity': 'arxiv:1205.4858',
+                                                      'citation_locator': 'abstract and '
+                                                                          'thermodynamic '
+                                                                          'extrapolation: energy '
+                                                                          '-0.4386(5) and triplet '
+                                                                          'gap 0.13(1)',
+                                                      'source': 'Depenbrock_McCulloch_Schollwoeck_2012'},
+ 'kagome_spin_half_heisenberg_energy_reference': {'canonical_source_identity': 'arxiv:1205.4858',
+                                                  'citation_locator': 'abstract and thermodynamic '
+                                                                      'extrapolation: energy per '
+                                                                      'site -0.4386(5)',
+                                                  'source': 'Depenbrock_McCulloch_Schollwoeck_2012'},
+ 'lieb_lattice_heisenberg_ferrimagnet_reference': {'canonical_source_identity': 'arxiv:2409.16715',
+                                                   'citation_locator': 'Lieb-lattice ground-state '
+                                                                       'spin per unit cell',
+                                                   'source': 'Furuchi_et_al_2024'},
+ 'majundar_ghosh_chain_exact_dimer_point': {'canonical_source_identity': 'doi:10.1088/0305-4470/17/13/020',
+                                            'citation_locator': 'exact twofold-degenerate dimer '
+                                                                'ground states at J2/J1=1/2',
+                                            'source': 'Caspers_Emmett_Magnus_1984'},
+ 'mn_ps3_honeycomb_antiferromagnet_reference': {'canonical_source_identity': 'doi:10.1103/physrevb.82.100408',
+                                                'citation_locator': 'neutron-diffraction '
+                                                                    'determination of the MnPS3 '
+                                                                    'Neel state',
+                                                'source': 'Ressouche_et_al_2010'},
+ 'nacuo2_triangular_heisenberg_material_reference': {'canonical_source_identity': 'arxiv:1405.6184',
+                                                     'citation_locator': 'abstract and '
+                                                                         'neutron-scattering '
+                                                                         'results: unconventional '
+                                                                         'dimensional-crossover '
+                                                                         'spin order in NaCrO2',
+                                                     'source': 'Hsieh_et_al_arXiv_1405.6184'},
+ 'pyrochlore_heisenberg_afm_coulomb_phase_reference': {'canonical_source_identity': 'arxiv:cond-mat/0407005',
+                                                       'citation_locator': 'tetrahedron zero-sum '
+                                                                           'constraint and '
+                                                                           'Coulomb-phase '
+                                                                           'pinch-point '
+                                                                           'correlations',
+                                                       'source': 'Henley_2005'},
+ 'ru_br3_kitaev_material_reference': {'canonical_source_identity': 'doi:10.1038/s41535-026-00868-6',
+                                      'citation_locator': 'abstract and competing-model analysis: '
+                                                          'Gamma or J3 interactions drive RuBr3 '
+                                                          'away from the ideal Kitaev limit',
+                                      'source': 'Nawa_Imai_Sato_2026'},
+ 'ruby_lattice_heisenberg_flat_band_reference': {'canonical_source_identity': 'arxiv:2512.14173',
+                                                 'citation_locator': 'Eqs. (4)-(5) and '
+                                                                     'localized-magnon section: '
+                                                                     'exact alternating-sign '
+                                                                     'one-magnon eigenstate, not a '
+                                                                     'plateau mechanism',
+                                                 'source': 'Ghosh_Mila_2025'},
+ 'shuriken_lattice_heisenberg_reference': {'canonical_source_identity': 'arxiv:cond-mat/0411673',
+                                           'citation_locator': 'abstract, Eq. (1), and conclusion: '
+                                                               'square-kagome spin-liquid-like '
+                                                               'state and localized magnons on '
+                                                               'squares',
+                                           'source': 'Richter_Schulenburg_Tomczak_Schmalfuss_2004'},
+ 'single_ion_spin1_anisotropy_levels': {'canonical_source_identity': 'arxiv:1204.5027',
+                                        'citation_locator': 'single-ion D(Sz)^2 spectrum and '
+                                                            'degeneracies',
+                                        'source': 'Yang_Xie_2012'},
+ 'square_fully_frustrated_ising_residual_entropy_reference': {'canonical_source_identity': 'doi:10.1088/0305-4470/16/10/023',
+                                                              'citation_locator': 'Villain fully '
+                                                                                  'frustrated '
+                                                                                  'square-lattice '
+                                                                                  'residual-entropy '
+                                                                                  'calculation',
+                                                              'source': 'Garel_Maillard_1983'},
+ 'square_heisenberg_spin_half_spin_stiffness_reference': {'canonical_source_identity': 'doi:10.1103/physrevb.83.155120',
+                                                          'citation_locator': 'combined '
+                                                                              'cubical-regime fit: '
+                                                                              'rho_s=0.18081(11) J',
+                                                          'source': 'Jiang_Wiese_2011'},
+ 'square_heisenberg_spin_half_staggered_magnetization_reference': {'canonical_source_identity': 'doi:10.1103/physrevb.83.155120',
+                                                                   'citation_locator': 'combined '
+                                                                                       'cubical-regime '
+                                                                                       'fit: '
+                                                                                       'M_s=0.30743(1)/a^2',
+                                                                   'source': 'Jiang_Wiese_2011'},
+ 'square_heisenberg_spin_wave_velocity_reference': {'canonical_source_identity': 'doi:10.1103/physrevb.83.155120',
+                                                    'citation_locator': 'winding-number '
+                                                                        'aspect-ratio '
+                                                                        'determination: '
+                                                                        'c=1.6586(3) J a',
+                                                    'source': 'Jiang_Wiese_2011'},
+ 'square_ring_exchange_neel_vbs_reference': {'canonical_source_identity': 'arxiv:cond-mat/0205270',
+                                             'citation_locator': 'abstract, Eqs. (1)-(3), '
+                                                                 'finite-size scaling, and '
+                                                                 'conclusion: striped '
+                                                                 'bond-plaquette/spin-Peierls '
+                                                                 'order',
+                                             'source': 'Sandvik_Daul_Singh_Scalapino_2002'},
+ 'star_lattice_heisenberg_spin_liquid_reference': {'canonical_source_identity': 'doi:10.1103/physrevb.70.174454',
+                                                   'citation_locator': 'abstract, Eq. (1), and '
+                                                                       'conclusion: gapped '
+                                                                       'dimerized valence-bond '
+                                                                       'crystal in the uniform '
+                                                                       'star model',
+                                                   'source': 'Richter_Schulenburg_Honecker_Schmalfuss_2004'},
+ 'takhtajan_babujian_spin1_critical_point': {'canonical_source_identity': 'arxiv:cond-mat/9811353',
+                                             'citation_locator': 'bilinear-biquadratic spin-1 '
+                                                                 'chain at the integrable '
+                                                                 'theta=-pi/4 point',
+                                             'source': 'Kitazawa_Nomura_1998'},
+ 'transverse_field_ising_chain_critical_point': {'canonical_source_identity': 'arxiv:cond-mat/0509490',
+                                                 'citation_locator': 'Hamiltonian and '
+                                                                     'critical-point discussion: '
+                                                                     'g_c=1',
+                                                 'source': 'Dziarmaga_2005'},
+ 'transverse_field_ising_chain_gap': {'canonical_source_identity': 'arxiv:cond-mat/0509490',
+                                      'citation_locator': 'Bogoliubov spectrum and thermodynamic '
+                                                          'gap Delta=2J|1-g|',
+                                      'source': 'Dziarmaga_2005'},
+ 'triangular_ising_ferromagnet_exact_tc': {'canonical_source_identity': 'doi:10.1143/ptp.5.2.177',
+                                           'citation_locator': 'dual-transformation critical-point '
+                                                               'equation for the triangular Ising '
+                                                               'lattice',
+                                           'source': 'Husimi_Syozi_1950'},
+ 'vesignieite_kagome_material_reference': {'canonical_source_identity': 'doi:10.1103/physrevlett.121.107203',
+                                           'citation_locator': 'abstract, Eq. (1), spin-wave fit, '
+                                                               'and conclusion: dominant J3 with '
+                                                               'less-than-one-percent distortion',
+                                           'source': 'Boldrin_Walker_Wills_2018'},
+ 'xx_spin_half_chain_free_fermion_energy': {'canonical_source_identity': 'doi:10.1103/physrevb.92.125131',
+                                            'citation_locator': 'XX-chain free-fermion '
+                                                                'ground-state energy at half '
+                                                                'filling',
+                                            'source': 'Collura_Calabrese_Essler_2015'},
+ 'xxz_spin_half_chain_phase_boundaries': {'canonical_source_identity': 'arxiv:cond-mat/9909290',
+                                          'citation_locator': 'Hamiltonian and phase diagram: '
+                                                              'Delta=-1 and Delta=1 boundaries '
+                                                              'with gapless interval',
+                                          'source': 'Hirata_Nomura_1999'}}
 
 
 def _exchange_matrix_eigenvalues(matrix):
@@ -428,7 +634,7 @@ def test_reviewed_reassigned_source_metadata_is_exact_and_all_42_rows_are_comple
     entries = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
 
     assert len(EXPECTED_REASSIGNED_SOURCE_IDENTITIES) == 42
-    assert len(EXPECTED_REASSIGNED_SOURCE_METADATA) == 4
+    assert len(EXPECTED_REASSIGNED_SOURCE_METADATA) == 42
     for name, expected in EXPECTED_REASSIGNED_SOURCE_METADATA.items():
         entry = entries[name]
         actual = {
@@ -820,8 +1026,6 @@ def test_scientific_corrections_for_jiang_ring_plateau_garnets_and_lattice_alias
                 "nearest_neighbor_exchange_k": 0.126,
                 "dipolar_interaction_k": 0.045,
                 "dipolar_to_exchange_ratio": 0.36,
-                "ordering_temperature_k": 0.243,
-                "ordering_transition": "sharp_first_order_long_range_order",
             },
             "observable": "frustrated_garnet_with_first_order_long_range_order",
             "comparison_kind": "paper_numeric",

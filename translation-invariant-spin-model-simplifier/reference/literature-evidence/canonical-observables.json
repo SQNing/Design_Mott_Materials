@@ -318,10 +318,9 @@
         "claim_fields": [
           "spin_liquid_candidate"
         ],
-        "identity": "local_source_parse_spin_liquid_candidate_for_ba3irti2o9_honeycomb_kitaev_reference_observable",
+        "identity": "site_diluted_triangular_spin_liquid_candidate_assessment_in_ba3irti2o9",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for ba3irti2o9_honeycomb_kitaev_reference: spin_liquid_candidate.",
-          "Source scope: site-diluted triangular-lattice Jeff=1/2 magnetism and the absence of long-range order down to 0.35 K; no honeycomb-Kitaev identification."
+          "Boolean assessment of the spin-liquid-candidate proposition for site-diluted triangular-lattice Ba3IrTi2O9."
         ]
       },
       "parameter_regime": {
@@ -604,10 +603,9 @@
         "claim_fields": [
           "square_lattice_d_over_j_crossing"
         ],
-        "identity": "local_recompute_square_lattice_d_over_j_crossing_for_blume_capel_spin1_zero_temperature_level_crossing_observable",
+        "identity": "square_lattice_d_over_j_crossing_in_spin_1_blume_capel",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for blume_capel_spin1_zero_temperature_level_crossing: square_lattice_d_over_j_crossing.",
-          "Published numerical square lattice d over j crossing for spin 1 blume capel, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: square lattice d over j crossing in spin 1 blume capel."
         ]
       },
       "parameter_regime": {
@@ -884,10 +882,9 @@
         "claim_fields": [
           "zero_total_spin_per_crossed_plaquette"
         ],
-        "identity": "local_recompute_zero_total_spin_per_crossed_plaquette_for_checkerboard_heisenberg_afm_planar_pyrochlore_reference_observable",
+        "identity": "zero_total_spin_per_crossed_plaquette_in_checkerboard_heisenberg_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for checkerboard_heisenberg_afm_planar_pyrochlore_reference: zero_total_spin_per_crossed_plaquette.",
-          "Truth value of the proposition 'zero total spin per crossed plaquette' for checkerboard heisenberg antiferromagnet, with source conditions matched explicitly."
+          "Canonical literature observable: zero total spin per crossed plaquette in checkerboard heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -998,10 +995,9 @@
         "claim_fields": [
           "distorted_kagome_reference"
         ],
-        "identity": "local_source_parse_distorted_kagome_reference_for_clinoatacamite_distorted_kagome_reference_observable",
+        "identity": "distorted_kagome_characterization_in_clinoatacamite_distorted_kagome",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for clinoatacamite_distorted_kagome_reference: distorted_kagome_reference.",
-          "Truth value of the proposition 'distorted kagome reference' for clinoatacamite distorted kagome, with source conditions matched explicitly."
+          "Canonical literature observable: distorted kagome characterization in clinoatacamite distorted kagome."
         ]
       },
       "parameter_regime": {
@@ -1054,10 +1050,9 @@
         "claim_fields": [
           "ferromagnetic_honeycomb_layers"
         ],
-        "identity": "local_source_parse_ferromagnetic_honeycomb_layers_for_crcl3_honeycomb_heisenberg_reference_observable",
+        "identity": "ferromagnetic_honeycomb_layers_in_crcl3_honeycomb_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for crcl3_honeycomb_heisenberg_reference: ferromagnetic_honeycomb_layers.",
-          "Truth value of the proposition 'ferromagnetic honeycomb layers' for crcl3 honeycomb heisenberg, with source conditions matched explicitly."
+          "Canonical literature observable: ferromagnetic honeycomb layers in crcl3 honeycomb heisenberg."
         ]
       },
       "parameter_regime": {
@@ -1111,10 +1106,9 @@
         "claim_fields": [
           "ferromagnetic_order"
         ],
-        "identity": "local_source_parse_ferromagnetic_order_for_crgete3_honeycomb_ferromagnet_reference_observable",
+        "identity": "ferromagnetic_order_in_crgete3_honeycomb_ferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for crgete3_honeycomb_ferromagnet_reference: ferromagnetic_order.",
-          "Truth value of the proposition 'ferromagnetic order' for crgete3 honeycomb ferromagnet, with source conditions matched explicitly."
+          "Canonical literature observable: ferromagnetic order in crgete3 honeycomb ferromagnet."
         ]
       },
       "parameter_regime": {
@@ -1278,10 +1272,9 @@
         "claim_fields": [
           "honeycomb_frustrated_iridate_identity"
         ],
-        "identity": "local_source_parse_honeycomb_frustrated_iridate_identity_for_cu2iro3_honeycomb_kitaev_reference_observable",
+        "identity": "honeycomb_frustrated_iridate_identity_of_cu2iro3",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for cu2iro3_honeycomb_kitaev_reference: honeycomb_frustrated_iridate_identity.",
-          "This contract does not infer generic Kitaev or Gamma projections from the material identity."
+          "published identification of Cu2IrO3 as a honeycomb frustrated iridate"
         ]
       },
       "parameter_regime": {
@@ -1334,10 +1327,9 @@
         "claim_fields": [
           "skyrmion_lattice_phase"
         ],
-        "identity": "local_source_parse_skyrmion_lattice_phase_for_cu2oseo3_skyrmion_lattice_reference_observable",
+        "identity": "skyrmion_lattice_phase_in_cu2oseo3_chiral_ferrimagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for cu2oseo3_skyrmion_lattice_reference: skyrmion_lattice_phase.",
-          "Truth value of the proposition 'skyrmion lattice phase' for cu2oseo3 chiral ferrimagnet, with source conditions matched explicitly."
+          "Canonical literature observable: skyrmion lattice phase in cu2oseo3 chiral ferrimagnet."
         ]
       },
       "parameter_regime": {
@@ -1388,10 +1380,9 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "local_recompute_tc_over_j_for_cubic_ising_critical_temperature_reference_observable",
+        "identity": "tc_over_j_in_classical_cubic_ising",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for cubic_ising_critical_temperature_reference: tc_over_j.",
-          "Published numerical tc over j for classical cubic ising, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: tc over j in classical cubic ising."
         ]
       },
       "parameter_regime": {
@@ -1553,10 +1544,9 @@
         "claim_fields": [
           "pauling_entropy_observed"
         ],
-        "identity": "local_source_parse_pauling_entropy_observed_for_dy2ti2o7_spin_ice_entropy_reference_observable",
+        "identity": "pauling_entropy_observed_in_dy2ti2o7_spin_ice",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for dy2ti2o7_spin_ice_entropy_reference: pauling_entropy_observed.",
-          "Truth value of the proposition 'pauling entropy observed' for dy2ti2o7 spin ice, with source conditions matched explicitly."
+          "Canonical literature observable: pauling entropy observed in dy2ti2o7 spin ice."
         ]
       },
       "parameter_regime": {
@@ -1609,10 +1599,9 @@
         "claim_fields": [
           "kagome_antiferromagnet_reference"
         ],
-        "identity": "local_source_parse_kagome_antiferromagnet_reference_for_edwardsite_kagome_antiferromagnet_reference_observable",
+        "identity": "deformed_kagome_antiferromagnet_classification_in_hydrated_edwardsite",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for edwardsite_kagome_antiferromagnet_reference: kagome_antiferromagnet_reference.",
-          "Source scope: hydrated spin-half deformed-kagome antiferromagnetism in edwardsite."
+          "Boolean classification proposition for hydrated spin-half edwardsite within a deformed-kagome antiferromagnet model."
         ]
       },
       "parameter_regime": {
@@ -1717,10 +1706,9 @@
         "claim_fields": [
           "psi2_order_selected"
         ],
-        "identity": "local_source_parse_psi2_order_selected_for_er2ti2o7_xy_pyrochlore_order_by_disorder_reference_observable",
+        "identity": "psi2_order_selected_in_xy_pyrochlore_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for er2ti2o7_xy_pyrochlore_order_by_disorder_reference: psi2_order_selected.",
-          "Truth value of the proposition 'psi2 order selected' for xy pyrochlore antiferromagnet, with source conditions matched explicitly."
+          "Canonical literature observable: psi2 order selected in xy pyrochlore antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -1772,10 +1760,9 @@
         "claim_fields": [
           "common_orders"
         ],
-        "identity": "local_recompute_common_orders_for_fcc_j1_j2_heisenberg_type_order_reference_observable",
+        "identity": "common_orders_in_fcc_j1_j2_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for fcc_j1_j2_heisenberg_type_order_reference: common_orders.",
-          "Published interval, set, or ordered sequence for common orders in fcc j1 j2 heisenberg, represented as ordered categorical phase labels with units not applicable."
+          "Canonical literature observable: common orders in fcc j1 j2 heisenberg."
         ]
       },
       "parameter_regime": {
@@ -1828,10 +1815,9 @@
         "claim_fields": [
           "macroscopic_quantum_tunneling_observed"
         ],
-        "identity": "local_source_parse_macroscopic_quantum_tunneling_observed_for_fe8_molecular_spin_tunneling_reference_observable",
+        "identity": "macroscopic_quantum_tunneling_observed_in_fe8_single_molecule_magnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for fe8_molecular_spin_tunneling_reference: macroscopic_quantum_tunneling_observed.",
-          "Truth value of the proposition 'macroscopic quantum tunneling observed' for fe8 single molecule magnet, with source conditions matched explicitly."
+          "Canonical literature observable: macroscopic quantum tunneling observed in fe8 single molecule magnet."
         ]
       },
       "parameter_regime": {
@@ -1885,10 +1871,9 @@
         "claim_fields": [
           "ising_like_zigzag_order"
         ],
-        "identity": "local_source_parse_ising_like_zigzag_order_for_fe_ps3_honeycomb_ising_reference_observable",
+        "identity": "ising_like_zigzag_order_in_feps3_honeycomb_ising",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for fe_ps3_honeycomb_ising_reference: ising_like_zigzag_order.",
-          "Truth value of the proposition 'ising like zigzag order' for feps3 honeycomb ising, with source conditions matched explicitly."
+          "Canonical literature observable: ising like zigzag order in feps3 honeycomb ising."
         ]
       },
       "parameter_regime": {
@@ -2008,10 +1993,9 @@
         "claim_fields": [
           "strong_frustration"
         ],
-        "identity": "local_source_parse_strong_frustration_for_gadolinium_gallium_garnet_hyperkagome_reference_observable",
+        "identity": "strong_geometric_frustration_assessment_in_gadolinium_gallium_garnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for gadolinium_gallium_garnet_hyperkagome_reference: strong_frustration.",
-          "Source scope: two interpenetrating corner-sharing-triangle garnet networks and strong finite-field frustration in Gd3Ga5O12."
+          "Boolean assessment of strong geometric frustration in the exchange-dipolar model of gadolinium gallium garnet."
         ]
       },
       "parameter_regime": {
@@ -2067,10 +2051,9 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "local_source_parse_incommensurate_spiral_order_for_gamma_li2iro3_3d_kitaev_reference_observable",
+        "identity": "incommensurate_spiral_order_in_gamma_li2iro3_3d_kitaev_gamma",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for gamma_li2iro3_3d_kitaev_reference: incommensurate_spiral_order.",
-          "Truth value of the proposition 'incommensurate spiral order' for gamma li2iro3 3d kitaev gamma, with source conditions matched explicitly."
+          "Canonical literature observable: incommensurate spiral order in gamma li2iro3 3d kitaev gamma."
         ]
       },
       "parameter_regime": {
@@ -2161,8 +2144,6 @@
           "dipolar_to_exchange_ratio": 0.36,
           "material": "Gd3Te2Li3O12",
           "nearest_neighbor_exchange_k": 0.126,
-          "ordering_temperature_k": 0.243,
-          "ordering_transition": "sharp_first_order_long_range_order",
           "spin": 3.5
         },
         "physical_regime": "published material conditions, to be resolved exactly from the authoritative source",
@@ -2183,10 +2164,9 @@
         "claim_fields": [
           "garnet_frustrated_magnet"
         ],
-        "identity": "local_source_parse_garnet_frustrated_magnet_for_garnet_gd3te2li3o12_hyperkagome_reference_observable",
+        "identity": "first_order_long_range_order_proposition_in_gd3te2li3o12_hyperkagome_garnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for garnet_gd3te2li3o12_hyperkagome_reference: garnet_frustrated_magnet.",
-          "Source scope: hyperkagome Gd3Te2Li3O12 and its first-order transition into long-range order at 243 mK."
+          "Boolean proposition for a first-order transition into long-range magnetic order in hyperkagome Gd3Te2Li3O12."
         ]
       },
       "parameter_regime": {
@@ -2194,8 +2174,6 @@
         "dipolar_to_exchange_ratio": 0.36,
         "material": "Gd3Te2Li3O12",
         "nearest_neighbor_exchange_k": 0.126,
-        "ordering_temperature_k": 0.243,
-        "ordering_transition": "sharp_first_order_long_range_order",
         "spin": 3.5
       },
       "representation": {
@@ -2299,10 +2277,9 @@
         "claim_fields": [
           "no_magnetic_order_reported"
         ],
-        "identity": "local_source_parse_no_magnetic_order_reported_for_h3liir2o6_kitaev_spin_liquid_candidate_reference_observable",
+        "identity": "no_magnetic_order_reported_in_h3liir2o6_honeycomb_kitaev",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for h3liir2o6_kitaev_spin_liquid_candidate_reference: no_magnetic_order_reported.",
-          "Truth value of the proposition 'no magnetic order reported' for h3liir2o6 honeycomb kitaev, with source conditions matched explicitly."
+          "Canonical literature observable: no magnetic order reported in h3liir2o6 honeycomb kitaev."
         ]
       },
       "parameter_regime": {
@@ -2678,10 +2655,9 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "local_recompute_tc_over_j_for_honeycomb_ising_ferromagnet_exact_tc_observable",
+        "identity": "tc_over_j_in_classical_honeycomb_ising",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for honeycomb_ising_ferromagnet_exact_tc: tc_over_j.",
-          "Published numerical tc over j for classical honeycomb ising, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: tc over j in classical honeycomb ising."
         ]
       },
       "parameter_regime": {
@@ -2734,10 +2710,9 @@
         "claim_fields": [
           "phases"
         ],
-        "identity": "local_source_parse_phases_for_honeycomb_j1_j2_j3_classical_phase_diagram_observable",
+        "identity": "phases_in_honeycomb_j1_j2_j3_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for honeycomb_j1_j2_j3_classical_phase_diagram: phases.",
-          "Published interval, set, or ordered sequence for phases in honeycomb j1 j2 j3 heisenberg, represented as categorical phase label set with units not applicable."
+          "Canonical literature observable: phases in honeycomb j1 j2 j3 heisenberg."
         ]
       },
       "parameter_regime": {
@@ -2789,10 +2764,9 @@
         "claim_fields": [
           "zigzag_order_relevant"
         ],
-        "identity": "local_source_parse_zigzag_order_relevant_for_honeycomb_j1_j2_kitaev_material_na2iro3_reference_observable",
+        "identity": "zigzag_order_relevant_in_na2iro3_honeycomb_kitaev_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for honeycomb_j1_j2_kitaev_material_na2iro3_reference: zigzag_order_relevant.",
-          "Truth value of the proposition 'zigzag order relevant' for na2iro3 honeycomb kitaev heisenberg, with source conditions matched explicitly."
+          "Canonical literature observable: zigzag order relevant in na2iro3 honeycomb kitaev heisenberg."
         ]
       },
       "parameter_regime": {
@@ -2844,10 +2818,9 @@
         "claim_fields": [
           "ring_condition"
         ],
-        "identity": "local_recompute_ring_condition_for_honeycomb_j1_j2_spiral_ring_reference_observable",
+        "identity": "ring_condition_in_honeycomb_j1_j2_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for honeycomb_j1_j2_spiral_ring_reference: ring_condition.",
-          "Published symbolic or categorical specification of ring condition for honeycomb j1 j2 heisenberg, interpreted as symbolic expression."
+          "Canonical literature observable: ring condition in honeycomb j1 j2 heisenberg."
         ]
       },
       "parameter_regime": {
@@ -2952,10 +2925,9 @@
         "claim_fields": [
           "ordered_phases"
         ],
-        "identity": "local_source_parse_ordered_phases_for_honeycomb_kitaev_heisenberg_four_sublattice_phases_observable",
+        "identity": "ordered_phases_in_honeycomb_kitaev_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for honeycomb_kitaev_heisenberg_four_sublattice_phases: ordered_phases.",
-          "Published interval, set, or ordered sequence for ordered phases in honeycomb kitaev heisenberg, represented as ordered categorical phase labels with units not applicable."
+          "Canonical literature observable: ordered phases in honeycomb kitaev heisenberg."
         ]
       },
       "parameter_regime": {
@@ -3114,10 +3086,9 @@
         "claim_fields": [
           "critical_j2_over_j1_approx"
         ],
-        "identity": "local_source_parse_critical_j2_over_j1_approx_for_j1_j2_chain_bkt_transition_reference_observable",
+        "identity": "critical_j2_over_j1_approx_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for j1_j2_chain_bkt_transition_reference: critical_j2_over_j1_approx.",
-          "Published numerical critical j2 over j1 approx for spin 1 2 j1 j2 chain, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: critical j2 over j1 approx in spin 1 2 j1 j2 chain."
         ]
       },
       "parameter_regime": {
@@ -3170,10 +3141,9 @@
         "claim_fields": [
           "critical_j2_over_j1"
         ],
-        "identity": "local_source_parse_critical_j2_over_j1_for_j1_j2_chain_okamoto_nomura_critical_point_observable",
+        "identity": "critical_j2_over_j1_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for j1_j2_chain_okamoto_nomura_critical_point: critical_j2_over_j1.",
-          "Published numerical critical j2 over j1 for spin 1 2 j1 j2 chain, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: critical j2 over j1 in spin 1 2 j1 j2 chain."
         ]
       },
       "parameter_regime": {
@@ -3662,11 +3632,9 @@
           "energy_per_site",
           "spin_gap_over_j"
         ],
-        "identity": "local_source_parse_energy_per_site_and_spin_gap_over_j_for_kagome_heisenberg_dmrg_spin_liquid_yan_reference_observable",
+        "identity": "energy_per_site_and_spin_gap_over_j_in_spin_1_2_kagome_heisenberg_afm",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for kagome_heisenberg_dmrg_spin_liquid_yan_reference: energy_per_site, spin_gap_over_j.",
-          "Published numerical energy per site for spin 1 2 kagome heisenberg afm, expressed in exchange energy per site using energy density.",
-          "Published numerical spin gap over j for spin 1 2 kagome heisenberg afm, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: energy per site, spin gap over j in spin 1 2 kagome heisenberg afm."
         ]
       },
       "parameter_regime": {
@@ -3782,10 +3750,9 @@
         "claim_fields": [
           "macroscopic_ground_state_degeneracy"
         ],
-        "identity": "local_recompute_macroscopic_ground_state_degeneracy_for_kagome_ising_antiferromagnet_residual_entropy_reference_observable",
+        "identity": "macroscopic_ground_state_degeneracy_in_classical_kagome_ising_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for kagome_ising_antiferromagnet_residual_entropy_reference: macroscopic_ground_state_degeneracy.",
-          "Truth value of the proposition 'macroscopic ground state degeneracy' for classical kagome ising antiferromagnet, with source conditions matched explicitly."
+          "Canonical literature observable: macroscopic ground state degeneracy in classical kagome ising antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -3837,10 +3804,9 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "local_recompute_tc_over_j_for_kagome_ising_ferromagnet_exact_tc_observable",
+        "identity": "tc_over_j_in_classical_kagome_ising",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for kagome_ising_ferromagnet_exact_tc: tc_over_j.",
-          "Published numerical tc over j for classical kagome ising, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: tc over j in classical kagome ising."
         ]
       },
       "parameter_regime": {
@@ -3999,10 +3965,9 @@
         "claim_fields": [
           "energy_per_site_approx"
         ],
-        "identity": "local_source_parse_energy_per_site_approx_for_kagome_spin_half_heisenberg_energy_reference_observable",
+        "identity": "energy_per_site_approx_in_spin_1_2_kagome_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for kagome_spin_half_heisenberg_energy_reference: energy_per_site_approx.",
-          "Published numerical energy per site approx for spin 1 2 kagome heisenberg, expressed in exchange energy per site using energy density."
+          "Canonical literature observable: energy per site approx in spin 1 2 kagome heisenberg."
         ]
       },
       "parameter_regime": {
@@ -4403,10 +4368,9 @@
         "claim_fields": [
           "incommensurate_spiral_order"
         ],
-        "identity": "local_source_parse_incommensurate_spiral_order_for_licuvo4_spiral_chain_reference_observable",
+        "identity": "incommensurate_spiral_order_in_licuvo4_j1_j2_chain",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for licuvo4_spiral_chain_reference: incommensurate_spiral_order.",
-          "Truth value of the proposition 'incommensurate spiral order' for licuvo4 j1 j2 chain, with source conditions matched explicitly."
+          "Canonical literature observable: incommensurate spiral order in licuvo4 j1 j2 chain."
         ]
       },
       "parameter_regime": {
@@ -4457,10 +4421,9 @@
         "claim_fields": [
           "ground_state_spin_per_unit_cell"
         ],
-        "identity": "local_source_parse_ground_state_spin_per_unit_cell_for_lieb_lattice_heisenberg_ferrimagnet_reference_observable",
+        "identity": "ground_state_spin_per_unit_cell_in_lieb_lattice_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for lieb_lattice_heisenberg_ferrimagnet_reference: ground_state_spin_per_unit_cell.",
-          "Published numerical ground state spin per unit cell for lieb lattice heisenberg, expressed in spin angular momentum hbar using total ground state spin per crystallographic unit cell."
+          "Canonical literature observable: ground state spin per unit cell in lieb lattice heisenberg."
         ]
       },
       "parameter_regime": {
@@ -4642,11 +4605,9 @@
           "energy_per_site",
           "degenerate_dimer_coverings"
         ],
-        "identity": "local_recompute_energy_per_site_and_degenerate_dimer_coverings_for_majundar_ghosh_chain_exact_dimer_point_observable",
+        "identity": "energy_per_site_and_degenerate_dimer_coverings_in_spin_1_2_j1_j2_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for majundar_ghosh_chain_exact_dimer_point: energy_per_site, degenerate_dimer_coverings.",
-          "Published numerical energy per site for spin 1 2 j1 j2 chain, expressed in exchange energy per site using energy density.",
-          "Published numerical degenerate dimer coverings for spin 1 2 j1 j2 chain, expressed in count using nonnegative integer number of exact dimer coverings."
+          "Canonical literature observable: energy per site, degenerate dimer coverings in spin 1 2 j1 j2 chain."
         ]
       },
       "parameter_regime": {
@@ -4758,10 +4719,9 @@
         "claim_fields": [
           "neel_order_reference"
         ],
-        "identity": "local_source_parse_neel_order_reference_for_mn_ps3_honeycomb_antiferromagnet_reference_observable",
+        "identity": "neel_order_characterization_in_mnps3_honeycomb_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for mn_ps3_honeycomb_antiferromagnet_reference: neel_order_reference.",
-          "Truth value of the proposition 'neel order reference' for mnps3 honeycomb antiferromagnet, with source conditions matched explicitly."
+          "Canonical literature observable: neel order characterization in mnps3 honeycomb antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -4813,10 +4773,9 @@
         "claim_fields": [
           "long_wavelength_helix"
         ],
-        "identity": "local_source_parse_long_wavelength_helix_for_mnsi_chiral_helimagnet_reference_observable",
+        "identity": "long_wavelength_helix_in_mnsi_chiral_helimagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for mnsi_chiral_helimagnet_reference: long_wavelength_helix.",
-          "Truth value of the proposition 'long wavelength helix' for mnsi chiral helimagnet, with source conditions matched explicitly."
+          "Canonical literature observable: long wavelength helix in mnsi chiral helimagnet."
         ]
       },
       "parameter_regime": {
@@ -4922,10 +4881,9 @@
         "claim_fields": [
           "unconventional_spin_order_reference"
         ],
-        "identity": "local_source_parse_unconventional_spin_order_reference_for_nacuo2_triangular_heisenberg_material_reference_observable",
+        "identity": "material_spin_order_reference_for_triangular_lattice_nacro2",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for nacuo2_triangular_heisenberg_material_reference: unconventional_spin_order_reference.",
-          "Source scope: NaCrO2 triangular-lattice Heisenberg antiferromagnetism and extended fluctuating behavior below the broad susceptibility maximum."
+          "published neutron-scattering reference for unconventional spin order in triangular-lattice NaCrO2"
         ]
       },
       "parameter_regime": {
@@ -5095,11 +5053,9 @@
           "finite_temperature_transition",
           "tc_over_j"
         ],
-        "identity": "local_recompute_finite_temperature_transition_and_tc_over_j_for_one_dimensional_classical_ising_no_finite_t_transition_observable",
+        "identity": "finite_temperature_transition_and_tc_over_j_in_classical_ising_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for one_dimensional_classical_ising_no_finite_t_transition: finite_temperature_transition, tc_over_j.",
-          "Truth value of the proposition 'finite temperature transition' for classical ising chain, with source conditions matched explicitly.",
-          "Published numerical tc over j for classical ising chain, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: finite temperature transition, tc over j in classical ising chain."
         ]
       },
       "parameter_regime": {
@@ -5323,11 +5279,9 @@
           "zero_total_spin_per_tetrahedron",
           "pinch_points"
         ],
-        "identity": "local_recompute_zero_total_spin_per_tetrahedron_and_pinch_points_for_pyrochlore_heisenberg_afm_coulomb_phase_reference_observable",
+        "identity": "zero_total_spin_per_tetrahedron_and_pinch_points_in_classical_pyrochlore_heisenberg_afm",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for pyrochlore_heisenberg_afm_coulomb_phase_reference: zero_total_spin_per_tetrahedron, pinch_points.",
-          "Truth value of the proposition 'zero total spin per tetrahedron' for classical pyrochlore heisenberg afm, with source conditions matched explicitly.",
-          "Truth value of the proposition 'pinch points' for classical pyrochlore heisenberg afm, with source conditions matched explicitly."
+          "Canonical literature observable: zero total spin per tetrahedron, pinch points in classical pyrochlore heisenberg afm."
         ]
       },
       "parameter_regime": {
@@ -5506,10 +5460,9 @@
         "claim_fields": [
           "ru_honeycomb_kitaev_candidate"
         ],
-        "identity": "local_source_parse_ru_honeycomb_kitaev_candidate_for_ru_br3_kitaev_material_reference_observable",
+        "identity": "ideal_kitaev_candidate_assessment_in_competing_exchange_rubr3",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for ru_br3_kitaev_material_reference: ru_honeycomb_kitaev_candidate.",
-          "Source scope: RuBr3 governed by competing Gamma and J3 interactions away from the ideal Kitaev limit."
+          "Boolean assessment of the ideal-Kitaev-candidate proposition for RuBr3 under a competing Gamma-J3 exchange description."
         ]
       },
       "parameter_regime": {
@@ -5563,10 +5516,9 @@
         "claim_fields": [
           "supports_localized_magnons"
         ],
-        "identity": "local_source_parse_supports_localized_magnons_for_ruby_lattice_heisenberg_flat_band_reference_observable",
+        "identity": "localized_one_magnon_support_in_ruby_lattice_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for ruby_lattice_heisenberg_flat_band_reference: supports_localized_magnons.",
-          "Source scope: exact localized one-magnon eigenstates and flat-band geometry on the ruby lattice; no plateau-mechanism claim."
+          "Boolean assessment of whether the ruby-lattice Heisenberg model supports an exact localized one-magnon eigenstate."
         ]
       },
       "parameter_regime": {
@@ -5729,11 +5681,9 @@
           "energy_per_dimer",
           "energy_per_spin"
         ],
-        "identity": "local_recompute_energy_per_dimer_and_energy_per_spin_for_shastry_sutherland_exact_dimer_product_observable",
+        "identity": "energy_per_dimer_and_energy_per_spin_in_shastry_sutherland",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for shastry_sutherland_exact_dimer_product: energy_per_dimer, energy_per_spin.",
-          "Published numerical energy per dimer for shastry sutherland, expressed in exchange energy per dimer using dimer energy.",
-          "Published numerical energy per spin for shastry sutherland, expressed in exchange energy per spin using energy density."
+          "Canonical literature observable: energy per dimer, energy per spin in shastry sutherland."
         ]
       },
       "parameter_regime": {
@@ -5849,10 +5799,9 @@
         "claim_fields": [
           "square_kagome_reference"
         ],
-        "identity": "local_source_parse_square_kagome_reference_for_shuriken_lattice_heisenberg_reference_observable",
+        "identity": "square_kagome_spin_liquid_like_and_localized_magnon_assessment",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for shuriken_lattice_heisenberg_reference: square_kagome_reference.",
-          "Source scope: square-kagome spin-half Heisenberg physics with spin-liquid-like behavior and localized magnons."
+          "Boolean source-classification proposition for spin-liquid-like and localized-magnon behavior in the uniform square-kagome Heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -5905,10 +5854,9 @@
         "claim_fields": [
           "neel_to_collinear_boundary_j2_over_j1"
         ],
-        "identity": "local_recompute_neel_to_collinear_boundary_j2_over_j1_for_simple_cubic_j1_j2_collinear_reference_observable",
+        "identity": "neel_to_collinear_boundary_j2_over_j1_in_simple_cubic_j1_j2_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for simple_cubic_j1_j2_collinear_reference: neel_to_collinear_boundary_j2_over_j1.",
-          "Published numerical neel to collinear boundary j2 over j1 for simple cubic j1 j2 heisenberg, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: neel to collinear boundary j2 over j1 in simple cubic j1 j2 heisenberg."
         ]
       },
       "parameter_regime": {
@@ -5961,11 +5909,9 @@
           "levels",
           "degeneracies"
         ],
-        "identity": "local_recompute_levels_and_degeneracies_for_single_ion_spin1_anisotropy_levels_observable",
+        "identity": "levels_and_degeneracies_in_spin_1_single_ion_anisotropy",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for single_ion_spin1_anisotropy_levels: levels, degeneracies.",
-          "Published interval, set, or ordered sequence for levels in spin 1 single ion anisotropy, represented as hamiltonian energy scale with units exchange energy unit.",
-          "Published interval, set, or ordered sequence for degeneracies in spin 1 single ion anisotropy, represented as ordered nonnegative integer degeneracies with units count."
+          "Canonical literature observable: levels, degeneracies in spin 1 single ion anisotropy."
         ]
       },
       "parameter_regime": {
@@ -6489,10 +6435,9 @@
         "claim_fields": [
           "macroscopic_ground_state_degeneracy"
         ],
-        "identity": "local_recompute_macroscopic_ground_state_degeneracy_for_square_fully_frustrated_ising_residual_entropy_reference_observable",
+        "identity": "macroscopic_ground_state_degeneracy_in_fully_frustrated_square_ising",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for square_fully_frustrated_ising_residual_entropy_reference: macroscopic_ground_state_degeneracy.",
-          "Truth value of the proposition 'macroscopic ground state degeneracy' for fully frustrated square ising, with source conditions matched explicitly."
+          "Canonical literature observable: macroscopic ground state degeneracy in fully frustrated square ising."
         ]
       },
       "parameter_regime": {
@@ -6545,10 +6490,9 @@
         "claim_fields": [
           "rho_s_over_j"
         ],
-        "identity": "local_source_parse_rho_s_over_j_for_square_heisenberg_spin_half_spin_stiffness_reference_observable",
+        "identity": "spin_stiffness_over_exchange_in_spin_half_square_heisenberg_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for square_heisenberg_spin_half_spin_stiffness_reference: rho_s_over_j.",
-          "Source scope: square-lattice spin-half Heisenberg antiferromagnet cubical-regime estimate rho_s = 0.18081 J."
+          "Spin stiffness rho_s/J of the thermodynamic spin-half square-lattice Heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -6602,10 +6546,9 @@
         "claim_fields": [
           "staggered_magnetization"
         ],
-        "identity": "local_source_parse_staggered_magnetization_for_square_heisenberg_spin_half_staggered_magnetization_reference_observable",
+        "identity": "staggered_magnetization_density_in_spin_half_square_heisenberg_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for square_heisenberg_spin_half_staggered_magnetization_reference: staggered_magnetization.",
-          "Source scope: square-lattice spin-half Heisenberg antiferromagnet cubical-regime estimate M_s = 0.30743 per area."
+          "Staggered magnetization density of the thermodynamic spin-half square-lattice Heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -6658,10 +6601,9 @@
         "claim_fields": [
           "renormalized_velocity_over_j_approx"
         ],
-        "identity": "local_source_parse_renormalized_velocity_over_j_approx_for_square_heisenberg_spin_wave_velocity_reference_observable",
+        "identity": "renormalized_spin_wave_velocity_in_spin_half_square_heisenberg_antiferromagnet",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for square_heisenberg_spin_wave_velocity_reference: renormalized_velocity_over_j_approx.",
-          "Source scope: square-lattice spin-half Heisenberg antiferromagnet winding-number estimate c = 1.6586 J a."
+          "Renormalized spin-wave velocity c/(Ja) of the thermodynamic spin-half square-lattice Heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -6887,10 +6829,9 @@
         "claim_fields": [
           "ring_exchange_drives_vbs_phase"
         ],
-        "identity": "local_source_parse_ring_exchange_drives_vbs_phase_for_square_ring_exchange_neel_vbs_reference_observable",
+        "identity": "bond_spin_peierls_order_proposition_in_square_xy_ring_exchange",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for square_ring_exchange_neel_vbs_reference: ring_exchange_drives_vbs_phase.",
-          "Source scope: competition between antiferromagnetic order and valence-bond order in the square-lattice XY model with four-spin ring exchange."
+          "Boolean phase-classification proposition for bond-plaquette or spin-Peierls order in the square-lattice spin-half XY model with four-spin ring exchange."
         ]
       },
       "parameter_regime": {
@@ -7167,10 +7108,9 @@
         "claim_fields": [
           "spin_liquid_or_valence_bond_reference"
         ],
-        "identity": "local_source_parse_spin_liquid_or_valence_bond_reference_for_star_lattice_heisenberg_spin_liquid_reference_observable",
+        "identity": "valence_bond_crystal_classification_in_uniform_star_lattice_heisenberg",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for star_lattice_heisenberg_spin_liquid_reference: spin_liquid_or_valence_bond_reference.",
-          "Source scope: the valence-bond-crystal branch of the spin-half Heisenberg antiferromagnet on the star lattice."
+          "Boolean phase-classification proposition for a valence-bond crystal in the uniform spin-half star-lattice Heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -7224,11 +7164,9 @@
           "theta_radians",
           "is_integrable"
         ],
-        "identity": "local_recompute_theta_radians_and_is_integrable_for_takhtajan_babujian_spin1_critical_point_observable",
+        "identity": "theta_radians_and_property_integrable_in_spin_1_bilinear_biquadratic_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for takhtajan_babujian_spin1_critical_point: theta_radians, is_integrable.",
-          "Published numerical theta radians for spin 1 bilinear biquadratic chain, expressed in radian using angular scalar.",
-          "Truth value of the proposition 'is integrable' for spin 1 bilinear biquadratic chain, with source conditions matched explicitly."
+          "Canonical literature observable: theta radians, property integrable in spin 1 bilinear biquadratic chain."
         ]
       },
       "parameter_regime": {
@@ -7340,10 +7278,9 @@
         "claim_fields": [
           "critical_field_over_exchange"
         ],
-        "identity": "local_recompute_critical_field_over_exchange_for_transverse_field_ising_chain_critical_point_observable",
+        "identity": "critical_field_over_exchange_in_spin_1_2_transverse_field_ising_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for transverse_field_ising_chain_critical_point: critical_field_over_exchange.",
-          "Published numerical critical field over exchange for spin 1 2 transverse field ising chain, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: critical field over exchange in spin 1 2 transverse field ising chain."
         ]
       },
       "parameter_regime": {
@@ -7398,11 +7335,9 @@
           "gap_formula",
           "gap_formula_at_g_0_6"
         ],
-        "identity": "local_recompute_gap_formula_and_gap_formula_at_g_0_6_for_transverse_field_ising_chain_gap_observable",
+        "identity": "gap_formula_and_gap_formula_at_g_0_6_in_spin_1_2_transverse_field_ising_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for transverse_field_ising_chain_gap: gap_formula, gap_formula_at_g_0_6.",
-          "Published symbolic or categorical specification of gap formula for spin 1 2 transverse field ising chain, interpreted as hamiltonian energy scale.",
-          "Published numerical gap formula at g 0 6 for spin 1 2 transverse field ising chain, expressed in exchange energy unit using hamiltonian energy scale."
+          "Canonical literature observable: gap formula, gap formula at g 0 6 in spin 1 2 transverse field ising chain."
         ]
       },
       "parameter_regime": {
@@ -7466,10 +7401,9 @@
         "claim_fields": [
           "one_third_plateau"
         ],
-        "identity": "local_source_parse_one_third_plateau_for_triangular_heisenberg_magnetization_plateau_reference_observable",
+        "identity": "one_third_magnetization_plateau_proposition_in_triangular_heisenberg_spin_wave_expansion",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for triangular_heisenberg_magnetization_plateau_reference: one_third_plateau.",
-          "Source scope: one-third magnetization plateau obtained from the spin-wave 1/S expansion of the triangular-lattice Heisenberg antiferromagnet."
+          "Boolean proposition for a one-third magnetization plateau over a finite field interval in the spin-wave expansion of the triangular-lattice Heisenberg antiferromagnet."
         ]
       },
       "parameter_regime": {
@@ -7632,10 +7566,9 @@
         "claim_fields": [
           "tc_over_j"
         ],
-        "identity": "local_recompute_tc_over_j_for_triangular_ising_ferromagnet_exact_tc_observable",
+        "identity": "tc_over_j_in_classical_triangular_ising",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for triangular_ising_ferromagnet_exact_tc: tc_over_j.",
-          "Published numerical tc over j for classical triangular ising, expressed in dimensionless ratio using ratio to named model scale."
+          "Canonical literature observable: tc over j in classical triangular ising."
         ]
       },
       "parameter_regime": {
@@ -8280,10 +8213,9 @@
         "claim_fields": [
           "distorted_kagome_relevant"
         ],
-        "identity": "local_source_parse_distorted_kagome_relevant_for_vesignieite_kagome_material_reference_observable",
+        "identity": "structural_distortion_relevance_in_dominant_j3_vesignieite",
         "semantics": [
-          "Authoritative-source contract (local_source_parse) for vesignieite_kagome_material_reference: distorted_kagome_relevant.",
-          "Source scope: nearly ideal kagome geometry, less than 1% distortion, and dominant third-neighbor exchange J3 in vesignieite."
+          "Boolean assessment of whether structural kagome distortion is the relevant mechanism in the dominant-J3 model of vesignieite."
         ]
       },
       "parameter_regime": {
@@ -8396,10 +8328,9 @@
         "claim_fields": [
           "energy_per_site"
         ],
-        "identity": "local_recompute_energy_per_site_for_xx_spin_half_chain_free_fermion_energy_observable",
+        "identity": "energy_per_site_in_spin_1_2_xx_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for xx_spin_half_chain_free_fermion_energy: energy_per_site.",
-          "Published numerical energy per site for spin 1 2 xx chain, expressed in exchange energy per site using energy density."
+          "Canonical literature observable: energy per site in spin 1 2 xx chain."
         ]
       },
       "parameter_regime": {
@@ -8508,12 +8439,9 @@
           "neel_boundary_delta",
           "gapless_interval"
         ],
-        "identity": "local_recompute_ferromagnetic_boundary_delta_and_neel_boundary_delta_and_gapless_interval_for_xxz_spin_half_chain_phase_boundaries_observable",
+        "identity": "ferromagnetic_boundary_delta_and_neel_boundary_delta_and_gapless_interval_in_spin_1_2_xxz_chain",
         "semantics": [
-          "Authoritative-source contract (local_recompute) for xxz_spin_half_chain_phase_boundaries: ferromagnetic_boundary_delta, neel_boundary_delta, gapless_interval.",
-          "Published numerical ferromagnetic boundary delta for spin 1 2 xxz chain, expressed in dimensionless ratio using ratio to named model scale.",
-          "Published numerical neel boundary delta for spin 1 2 xxz chain, expressed in dimensionless ratio using ratio to named model scale.",
-          "Published interval, set, or ordered sequence for gapless interval in spin 1 2 xxz chain, represented as closed anisotropy interval with units dimensionless anisotropy."
+          "Canonical literature observable: ferromagnetic boundary delta, neel boundary delta, gapless interval in spin 1 2 xxz chain."
         ]
       },
       "parameter_regime": {

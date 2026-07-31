@@ -2,6 +2,7 @@ import copy
 import ast
 import json
 import math
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -98,6 +99,334 @@ EXPECTED_CORRECTED_CANONICAL_CONTRACTS = {
     "xx_spin_half_chain_free_fermion_energy": ("local_recompute", ("energy_per_site",)),
     "xxz_spin_half_chain_phase_boundaries": ("local_recompute", ("ferromagnetic_boundary_delta", "neel_boundary_delta", "gapless_interval")),
 }
+
+
+EXPECTED_DOMAIN_CANONICAL_CONTRACTS = {'ba3irti2o9_honeycomb_kitaev_reference': {'identity': 'site_diluted_triangular_spin_liquid_candidate_assessment_in_ba3irti2o9',
+                                           'primary_semantic': 'Boolean assessment of the '
+                                                               'spin-liquid-candidate proposition '
+                                                               'for site-diluted '
+                                                               'triangular-lattice Ba3IrTi2O9.'},
+ 'blume_capel_spin1_zero_temperature_level_crossing': {'identity': 'square_lattice_d_over_j_crossing_in_spin_1_blume_capel',
+                                                       'primary_semantic': 'Canonical literature '
+                                                                           'observable: square '
+                                                                           'lattice d over j '
+                                                                           'crossing in spin 1 '
+                                                                           'blume capel.'},
+ 'checkerboard_heisenberg_afm_planar_pyrochlore_reference': {'identity': 'zero_total_spin_per_crossed_plaquette_in_checkerboard_heisenberg_antiferromagnet',
+                                                             'primary_semantic': 'Canonical '
+                                                                                 'literature '
+                                                                                 'observable: zero '
+                                                                                 'total spin per '
+                                                                                 'crossed '
+                                                                                 'plaquette in '
+                                                                                 'checkerboard '
+                                                                                 'heisenberg '
+                                                                                 'antiferromagnet.'},
+ 'clinoatacamite_distorted_kagome_reference': {'identity': 'distorted_kagome_characterization_in_clinoatacamite_distorted_kagome',
+                                               'primary_semantic': 'Canonical literature '
+                                                                   'observable: distorted kagome '
+                                                                   'characterization in '
+                                                                   'clinoatacamite distorted '
+                                                                   'kagome.'},
+ 'crcl3_honeycomb_heisenberg_reference': {'identity': 'ferromagnetic_honeycomb_layers_in_crcl3_honeycomb_heisenberg',
+                                          'primary_semantic': 'Canonical literature observable: '
+                                                              'ferromagnetic honeycomb layers in '
+                                                              'crcl3 honeycomb heisenberg.'},
+ 'crgete3_honeycomb_ferromagnet_reference': {'identity': 'ferromagnetic_order_in_crgete3_honeycomb_ferromagnet',
+                                             'primary_semantic': 'Canonical literature observable: '
+                                                                 'ferromagnetic order in crgete3 '
+                                                                 'honeycomb ferromagnet.'},
+ 'cu2iro3_honeycomb_kitaev_reference': {'identity': 'honeycomb_frustrated_iridate_identity_of_cu2iro3',
+                                        'primary_semantic': 'published identification of Cu2IrO3 '
+                                                            'as a honeycomb frustrated iridate'},
+ 'cu2oseo3_skyrmion_lattice_reference': {'identity': 'skyrmion_lattice_phase_in_cu2oseo3_chiral_ferrimagnet',
+                                         'primary_semantic': 'Canonical literature observable: '
+                                                             'skyrmion lattice phase in cu2oseo3 '
+                                                             'chiral ferrimagnet.'},
+ 'cubic_ising_critical_temperature_reference': {'identity': 'tc_over_j_in_classical_cubic_ising',
+                                                'primary_semantic': 'Canonical literature '
+                                                                    'observable: tc over j in '
+                                                                    'classical cubic ising.'},
+ 'dy2ti2o7_spin_ice_entropy_reference': {'identity': 'pauling_entropy_observed_in_dy2ti2o7_spin_ice',
+                                         'primary_semantic': 'Canonical literature observable: '
+                                                             'pauling entropy observed in dy2ti2o7 '
+                                                             'spin ice.'},
+ 'edwardsite_kagome_antiferromagnet_reference': {'identity': 'deformed_kagome_antiferromagnet_classification_in_hydrated_edwardsite',
+                                                 'primary_semantic': 'Boolean classification '
+                                                                     'proposition for hydrated '
+                                                                     'spin-half edwardsite within '
+                                                                     'a deformed-kagome '
+                                                                     'antiferromagnet model.'},
+ 'er2ti2o7_xy_pyrochlore_order_by_disorder_reference': {'identity': 'psi2_order_selected_in_xy_pyrochlore_antiferromagnet',
+                                                        'primary_semantic': 'Canonical literature '
+                                                                            'observable: psi2 '
+                                                                            'order selected in xy '
+                                                                            'pyrochlore '
+                                                                            'antiferromagnet.'},
+ 'fcc_j1_j2_heisenberg_type_order_reference': {'identity': 'common_orders_in_fcc_j1_j2_heisenberg',
+                                               'primary_semantic': 'Canonical literature '
+                                                                   'observable: common orders in '
+                                                                   'fcc j1 j2 heisenberg.'},
+ 'fe8_molecular_spin_tunneling_reference': {'identity': 'macroscopic_quantum_tunneling_observed_in_fe8_single_molecule_magnet',
+                                            'primary_semantic': 'Canonical literature observable: '
+                                                                'macroscopic quantum tunneling '
+                                                                'observed in fe8 single molecule '
+                                                                'magnet.'},
+ 'fe_ps3_honeycomb_ising_reference': {'identity': 'ising_like_zigzag_order_in_feps3_honeycomb_ising',
+                                      'primary_semantic': 'Canonical literature observable: ising '
+                                                          'like zigzag order in feps3 honeycomb '
+                                                          'ising.'},
+ 'gadolinium_gallium_garnet_hyperkagome_reference': {'identity': 'strong_geometric_frustration_assessment_in_gadolinium_gallium_garnet',
+                                                     'primary_semantic': 'Boolean assessment of '
+                                                                         'strong geometric '
+                                                                         'frustration in the '
+                                                                         'exchange-dipolar model '
+                                                                         'of gadolinium gallium '
+                                                                         'garnet.'},
+ 'gamma_li2iro3_3d_kitaev_reference': {'identity': 'incommensurate_spiral_order_in_gamma_li2iro3_3d_kitaev_gamma',
+                                       'primary_semantic': 'Canonical literature observable: '
+                                                           'incommensurate spiral order in gamma '
+                                                           'li2iro3 3d kitaev gamma.'},
+ 'garnet_gd3te2li3o12_hyperkagome_reference': {'identity': 'first_order_long_range_order_proposition_in_gd3te2li3o12_hyperkagome_garnet',
+                                               'primary_semantic': 'Boolean proposition for a '
+                                                                   'first-order transition into '
+                                                                   'long-range magnetic order in '
+                                                                   'hyperkagome Gd3Te2Li3O12.'},
+ 'h3liir2o6_kitaev_spin_liquid_candidate_reference': {'identity': 'no_magnetic_order_reported_in_h3liir2o6_honeycomb_kitaev',
+                                                      'primary_semantic': 'Canonical literature '
+                                                                          'observable: no magnetic '
+                                                                          'order reported in '
+                                                                          'h3liir2o6 honeycomb '
+                                                                          'kitaev.'},
+ 'honeycomb_ising_ferromagnet_exact_tc': {'identity': 'tc_over_j_in_classical_honeycomb_ising',
+                                          'primary_semantic': 'Canonical literature observable: tc '
+                                                              'over j in classical honeycomb '
+                                                              'ising.'},
+ 'honeycomb_j1_j2_j3_classical_phase_diagram': {'identity': 'phases_in_honeycomb_j1_j2_j3_heisenberg',
+                                                'primary_semantic': 'Canonical literature '
+                                                                    'observable: phases in '
+                                                                    'honeycomb j1 j2 j3 '
+                                                                    'heisenberg.'},
+ 'honeycomb_j1_j2_kitaev_material_na2iro3_reference': {'identity': 'zigzag_order_relevant_in_na2iro3_honeycomb_kitaev_heisenberg',
+                                                       'primary_semantic': 'Canonical literature '
+                                                                           'observable: zigzag '
+                                                                           'order relevant in '
+                                                                           'na2iro3 honeycomb '
+                                                                           'kitaev heisenberg.'},
+ 'honeycomb_j1_j2_spiral_ring_reference': {'identity': 'ring_condition_in_honeycomb_j1_j2_heisenberg',
+                                           'primary_semantic': 'Canonical literature observable: '
+                                                               'ring condition in honeycomb j1 j2 '
+                                                               'heisenberg.'},
+ 'honeycomb_kitaev_heisenberg_four_sublattice_phases': {'identity': 'ordered_phases_in_honeycomb_kitaev_heisenberg',
+                                                        'primary_semantic': 'Canonical literature '
+                                                                            'observable: ordered '
+                                                                            'phases in honeycomb '
+                                                                            'kitaev heisenberg.'},
+ 'j1_j2_chain_bkt_transition_reference': {'identity': 'critical_j2_over_j1_approx_in_spin_1_2_j1_j2_chain',
+                                          'primary_semantic': 'Canonical literature observable: '
+                                                              'critical j2 over j1 approx in spin '
+                                                              '1 2 j1 j2 chain.'},
+ 'j1_j2_chain_okamoto_nomura_critical_point': {'identity': 'critical_j2_over_j1_in_spin_1_2_j1_j2_chain',
+                                               'primary_semantic': 'Canonical literature '
+                                                                   'observable: critical j2 over '
+                                                                   'j1 in spin 1 2 j1 j2 chain.'},
+ 'kagome_heisenberg_dmrg_spin_liquid_yan_reference': {'identity': 'energy_per_site_and_spin_gap_over_j_in_spin_1_2_kagome_heisenberg_afm',
+                                                      'primary_semantic': 'Canonical literature '
+                                                                          'observable: energy per '
+                                                                          'site, spin gap over j '
+                                                                          'in spin 1 2 kagome '
+                                                                          'heisenberg afm.'},
+ 'kagome_ising_antiferromagnet_residual_entropy_reference': {'identity': 'macroscopic_ground_state_degeneracy_in_classical_kagome_ising_antiferromagnet',
+                                                             'primary_semantic': 'Canonical '
+                                                                                 'literature '
+                                                                                 'observable: '
+                                                                                 'macroscopic '
+                                                                                 'ground state '
+                                                                                 'degeneracy in '
+                                                                                 'classical kagome '
+                                                                                 'ising '
+                                                                                 'antiferromagnet.'},
+ 'kagome_ising_ferromagnet_exact_tc': {'identity': 'tc_over_j_in_classical_kagome_ising',
+                                       'primary_semantic': 'Canonical literature observable: tc '
+                                                           'over j in classical kagome ising.'},
+ 'kagome_spin_half_heisenberg_energy_reference': {'identity': 'energy_per_site_approx_in_spin_1_2_kagome_heisenberg',
+                                                  'primary_semantic': 'Canonical literature '
+                                                                      'observable: energy per site '
+                                                                      'approx in spin 1 2 kagome '
+                                                                      'heisenberg.'},
+ 'licuvo4_spiral_chain_reference': {'identity': 'incommensurate_spiral_order_in_licuvo4_j1_j2_chain',
+                                    'primary_semantic': 'Canonical literature observable: '
+                                                        'incommensurate spiral order in licuvo4 j1 '
+                                                        'j2 chain.'},
+ 'lieb_lattice_heisenberg_ferrimagnet_reference': {'identity': 'ground_state_spin_per_unit_cell_in_lieb_lattice_heisenberg',
+                                                   'primary_semantic': 'Canonical literature '
+                                                                       'observable: ground state '
+                                                                       'spin per unit cell in lieb '
+                                                                       'lattice heisenberg.'},
+ 'majundar_ghosh_chain_exact_dimer_point': {'identity': 'energy_per_site_and_degenerate_dimer_coverings_in_spin_1_2_j1_j2_chain',
+                                            'primary_semantic': 'Canonical literature observable: '
+                                                                'energy per site, degenerate dimer '
+                                                                'coverings in spin 1 2 j1 j2 '
+                                                                'chain.'},
+ 'mn_ps3_honeycomb_antiferromagnet_reference': {'identity': 'neel_order_characterization_in_mnps3_honeycomb_antiferromagnet',
+                                                'primary_semantic': 'Canonical literature '
+                                                                    'observable: neel order '
+                                                                    'characterization in mnps3 '
+                                                                    'honeycomb antiferromagnet.'},
+ 'mnsi_chiral_helimagnet_reference': {'identity': 'long_wavelength_helix_in_mnsi_chiral_helimagnet',
+                                      'primary_semantic': 'Canonical literature observable: long '
+                                                          'wavelength helix in mnsi chiral '
+                                                          'helimagnet.'},
+ 'nacuo2_triangular_heisenberg_material_reference': {'identity': 'material_spin_order_reference_for_triangular_lattice_nacro2',
+                                                     'primary_semantic': 'published '
+                                                                         'neutron-scattering '
+                                                                         'reference for '
+                                                                         'unconventional spin '
+                                                                         'order in '
+                                                                         'triangular-lattice '
+                                                                         'NaCrO2'},
+ 'one_dimensional_classical_ising_no_finite_t_transition': {'identity': 'finite_temperature_transition_and_tc_over_j_in_classical_ising_chain',
+                                                            'primary_semantic': 'Canonical '
+                                                                                'literature '
+                                                                                'observable: '
+                                                                                'finite '
+                                                                                'temperature '
+                                                                                'transition, tc '
+                                                                                'over j in '
+                                                                                'classical ising '
+                                                                                'chain.'},
+ 'pyrochlore_heisenberg_afm_coulomb_phase_reference': {'identity': 'zero_total_spin_per_tetrahedron_and_pinch_points_in_classical_pyrochlore_heisenberg_afm',
+                                                       'primary_semantic': 'Canonical literature '
+                                                                           'observable: zero total '
+                                                                           'spin per tetrahedron, '
+                                                                           'pinch points in '
+                                                                           'classical pyrochlore '
+                                                                           'heisenberg afm.'},
+ 'ru_br3_kitaev_material_reference': {'identity': 'ideal_kitaev_candidate_assessment_in_competing_exchange_rubr3',
+                                      'primary_semantic': 'Boolean assessment of the '
+                                                          'ideal-Kitaev-candidate proposition for '
+                                                          'RuBr3 under a competing Gamma-J3 '
+                                                          'exchange description.'},
+ 'ruby_lattice_heisenberg_flat_band_reference': {'identity': 'localized_one_magnon_support_in_ruby_lattice_heisenberg',
+                                                 'primary_semantic': 'Boolean assessment of '
+                                                                     'whether the ruby-lattice '
+                                                                     'Heisenberg model supports an '
+                                                                     'exact localized one-magnon '
+                                                                     'eigenstate.'},
+ 'shastry_sutherland_exact_dimer_product': {'identity': 'energy_per_dimer_and_energy_per_spin_in_shastry_sutherland',
+                                            'primary_semantic': 'Canonical literature observable: '
+                                                                'energy per dimer, energy per spin '
+                                                                'in shastry sutherland.'},
+    'shuriken_lattice_heisenberg_reference': {'identity': 'square_kagome_spin_liquid_like_and_localized_magnon_assessment',
+                                           'primary_semantic': 'Boolean source-classification '
+                                                               'proposition for spin-liquid-like '
+                                                               'and localized-magnon behavior in '
+                                                               'the uniform square-kagome '
+                                                               'Heisenberg antiferromagnet.'},
+ 'simple_cubic_j1_j2_collinear_reference': {'identity': 'neel_to_collinear_boundary_j2_over_j1_in_simple_cubic_j1_j2_heisenberg',
+                                            'primary_semantic': 'Canonical literature observable: '
+                                                                'neel to collinear boundary j2 '
+                                                                'over j1 in simple cubic j1 j2 '
+                                                                'heisenberg.'},
+ 'single_ion_spin1_anisotropy_levels': {'identity': 'levels_and_degeneracies_in_spin_1_single_ion_anisotropy',
+                                        'primary_semantic': 'Canonical literature observable: '
+                                                            'levels, degeneracies in spin 1 single '
+                                                            'ion anisotropy.'},
+ 'square_fully_frustrated_ising_residual_entropy_reference': {'identity': 'macroscopic_ground_state_degeneracy_in_fully_frustrated_square_ising',
+                                                              'primary_semantic': 'Canonical '
+                                                                                  'literature '
+                                                                                  'observable: '
+                                                                                  'macroscopic '
+                                                                                  'ground state '
+                                                                                  'degeneracy in '
+                                                                                  'fully '
+                                                                                  'frustrated '
+                                                                                  'square ising.'},
+ 'square_heisenberg_spin_half_spin_stiffness_reference': {'identity': 'spin_stiffness_over_exchange_in_spin_half_square_heisenberg_antiferromagnet',
+                                                          'primary_semantic': 'Spin stiffness '
+                                                                              'rho_s/J of the '
+                                                                              'thermodynamic '
+                                                                              'spin-half '
+                                                                              'square-lattice '
+                                                                              'Heisenberg '
+                                                                              'antiferromagnet.'},
+ 'square_heisenberg_spin_half_staggered_magnetization_reference': {'identity': 'staggered_magnetization_density_in_spin_half_square_heisenberg_antiferromagnet',
+                                                                   'primary_semantic': 'Staggered '
+                                                                                       'magnetization '
+                                                                                       'density of '
+                                                                                       'the '
+                                                                                       'thermodynamic '
+                                                                                       'spin-half '
+                                                                                       'square-lattice '
+                                                                                       'Heisenberg '
+                                                                                       'antiferromagnet.'},
+ 'square_heisenberg_spin_wave_velocity_reference': {'identity': 'renormalized_spin_wave_velocity_in_spin_half_square_heisenberg_antiferromagnet',
+                                                    'primary_semantic': 'Renormalized spin-wave '
+                                                                        'velocity c/(Ja) of the '
+                                                                        'thermodynamic spin-half '
+                                                                        'square-lattice Heisenberg '
+                                                                        'antiferromagnet.'},
+ 'square_ring_exchange_neel_vbs_reference': {'identity': 'bond_spin_peierls_order_proposition_in_square_xy_ring_exchange',
+                                             'primary_semantic': 'Boolean phase-classification '
+                                                                 'proposition for bond-plaquette '
+                                                                 'or spin-Peierls order in the '
+                                                                 'square-lattice spin-half XY '
+                                                                 'model with four-spin ring '
+                                                                 'exchange.'},
+ 'star_lattice_heisenberg_spin_liquid_reference': {'identity': 'valence_bond_crystal_classification_in_uniform_star_lattice_heisenberg',
+                                                   'primary_semantic': 'Boolean '
+                                                                       'phase-classification '
+                                                                       'proposition for a '
+                                                                       'valence-bond crystal in '
+                                                                       'the uniform spin-half '
+                                                                       'star-lattice Heisenberg '
+                                                                       'antiferromagnet.'},
+ 'takhtajan_babujian_spin1_critical_point': {'identity': 'theta_radians_and_property_integrable_in_spin_1_bilinear_biquadratic_chain',
+                                             'primary_semantic': 'Canonical literature observable: '
+                                                                 'theta radians, property '
+                                                                 'integrable in spin 1 bilinear '
+                                                                 'biquadratic chain.'},
+ 'transverse_field_ising_chain_critical_point': {'identity': 'critical_field_over_exchange_in_spin_1_2_transverse_field_ising_chain',
+                                                 'primary_semantic': 'Canonical literature '
+                                                                     'observable: critical field '
+                                                                     'over exchange in spin 1 2 '
+                                                                     'transverse field ising '
+                                                                     'chain.'},
+ 'transverse_field_ising_chain_gap': {'identity': 'gap_formula_and_gap_formula_at_g_0_6_in_spin_1_2_transverse_field_ising_chain',
+                                      'primary_semantic': 'Canonical literature observable: gap '
+                                                          'formula, gap formula at g 0 6 in spin 1 '
+                                                          '2 transverse field ising chain.'},
+ 'triangular_heisenberg_magnetization_plateau_reference': {'identity': 'one_third_magnetization_plateau_proposition_in_triangular_heisenberg_spin_wave_expansion',
+                                                           'primary_semantic': 'Boolean '
+                                                                               'proposition for a '
+                                                                               'one-third '
+                                                                               'magnetization '
+                                                                               'plateau over a '
+                                                                               'finite field '
+                                                                               'interval in the '
+                                                                               'spin-wave '
+                                                                               'expansion of the '
+                                                                               'triangular-lattice '
+                                                                               'Heisenberg '
+                                                                               'antiferromagnet.'},
+ 'triangular_ising_ferromagnet_exact_tc': {'identity': 'tc_over_j_in_classical_triangular_ising',
+                                           'primary_semantic': 'Canonical literature observable: '
+                                                               'tc over j in classical triangular '
+                                                               'ising.'},
+ 'vesignieite_kagome_material_reference': {'identity': 'structural_distortion_relevance_in_dominant_j3_vesignieite',
+                                           'primary_semantic': 'Boolean assessment of whether '
+                                                               'structural kagome distortion is '
+                                                               'the relevant mechanism in the '
+                                                               'dominant-J3 model of vesignieite.'},
+ 'xx_spin_half_chain_free_fermion_energy': {'identity': 'energy_per_site_in_spin_1_2_xx_chain',
+                                            'primary_semantic': 'Canonical literature observable: '
+                                                                'energy per site in spin 1 2 xx '
+                                                                'chain.'},
+ 'xxz_spin_half_chain_phase_boundaries': {'identity': 'ferromagnetic_boundary_delta_and_neel_boundary_delta_and_gapless_interval_in_spin_1_2_xxz_chain',
+                                          'primary_semantic': 'Canonical literature observable: '
+                                                              'ferromagnetic boundary delta, neel '
+                                                              'boundary delta, gapless interval in '
+                                                              'spin 1 2 xxz chain.'}}
 
 
 @pytest.fixture(scope="module")
@@ -220,19 +549,20 @@ def test_exact_58_scientific_correction_contracts_are_source_derived_and_target_
     }
 
     assert len(EXPECTED_CORRECTED_CANONICAL_CONTRACTS) == 58
+    assert len(EXPECTED_DOMAIN_CANONICAL_CONTRACTS) == 58
+    assert set(EXPECTED_DOMAIN_CANONICAL_CONTRACTS) == set(
+        EXPECTED_CORRECTED_CANONICAL_CONTRACTS
+    )
     assert set(EXPECTED_CORRECTED_CANONICAL_CONTRACTS) <= set(contracts)
     for name, (mode, fields) in EXPECTED_CORRECTED_CANONICAL_CONTRACTS.items():
         contract = contracts[name]
-        expected_identity = (
-            f"{mode}_{'_and_'.join(fields)}_for_{name}_observable"
-        )
-        expected_primary_semantic = (
-            f"Authoritative-source contract ({mode}) for {name}: "
-            f"{', '.join(fields)}."
-        )
+        expected_domain = EXPECTED_DOMAIN_CANONICAL_CONTRACTS[name]
 
-        assert contract.observable["identity"] == expected_identity
-        assert contract.observable["semantics"][0] == expected_primary_semantic
+        assert contract.observable["identity"] == expected_domain["identity"]
+        assert (
+            contract.observable["semantics"][0]
+            == expected_domain["primary_semantic"]
+        )
         assert contract.observable["claim_fields"] == fields
         assert tuple(
             field["id"] for field in contract.representation["fields"]
@@ -252,6 +582,87 @@ def test_exact_58_scientific_correction_contracts_are_source_derived_and_target_
             '"pass"',
         ):
             assert forbidden not in serialized
+
+
+def test_exact_58_domain_identities_exclude_execution_modes_and_legacy_keys(
+    loaded_inventory,
+):
+    contracts = {
+        contract.benchmark_name: contract
+        for contract in loaded_inventory.contracts
+    }
+
+    for name in EXPECTED_CORRECTED_CANONICAL_CONTRACTS:
+        contract = contracts[name]
+        identity = contract.observable["identity"]
+        primary_semantic = contract.observable["semantics"][0]
+        for execution_mode in ("local_source_parse", "local_recompute"):
+            assert execution_mode not in identity
+            assert execution_mode not in primary_semantic
+        assert name not in identity
+        assert name not in primary_semantic
+
+
+def test_jiang_canonical_contracts_do_not_embed_numeric_target_tokens(
+    loaded_inventory,
+):
+    contracts = {
+        contract.benchmark_name: contract.as_plain_data()
+        for contract in loaded_inventory.contracts
+    }
+    jiang_targets = {
+        "square_heisenberg_spin_half_spin_stiffness_reference": "0.18081",
+        "square_heisenberg_spin_half_staggered_magnetization_reference": "0.30743",
+        "square_heisenberg_spin_wave_velocity_reference": "1.6586",
+    }
+
+    for name, token in jiang_targets.items():
+        serialized = json.dumps(contracts[name], sort_keys=True)
+        bounded_token = rf"(?<![0-9A-Za-z_.]){re.escape(token)}(?![0-9A-Za-z_.])"
+        assert re.search(bounded_token, serialized) is None
+
+
+def test_exact_58_canonical_text_surfaces_do_not_embed_selected_target_tokens(
+    loaded_inventory,
+):
+    contracts = {
+        contract.benchmark_name: contract.as_plain_data()
+        for contract in loaded_inventory.contracts
+    }
+    registry = {
+        entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS
+    }
+
+    for name, (_, fields) in EXPECTED_CORRECTED_CANONICAL_CONTRACTS.items():
+        text_surface = "\n".join(_recursive_strings(contracts[name])).lower()
+        selected_targets = {
+            field: registry[name]["standard_result"][field]
+            for field in fields
+        }
+        for target in _recursive_leaves(selected_targets):
+            pattern = _bounded_target_token_pattern(target)
+            if pattern is not None:
+                assert re.search(pattern, text_surface) is None, (name, target)
+
+
+def test_gtlg_contract_and_registry_parameters_exclude_observed_transition_outputs(
+    loaded_inventory,
+):
+    name = "garnet_gd3te2li3o12_hyperkagome_reference"
+    contract = next(
+        item for item in loaded_inventory.contracts if item.benchmark_name == name
+    )
+    registry_entry = next(
+        item for item in LITERATURE_STANDARD_RESULTS if item["name"] == name
+    )
+    forbidden_output_fields = {"ordering_temperature_k", "ordering_transition"}
+    contract_data = contract.as_plain_data()
+    serialized = json.dumps(contract_data, sort_keys=True).lower()
+
+    assert forbidden_output_fields.isdisjoint(_recursive_keys(contract_data))
+    assert forbidden_output_fields.isdisjoint(registry_entry["parameters"])
+    assert re.search(r"(?<![0-9.])0\.243(?![0-9])", serialized) is None
+    assert re.search(r"(?<![0-9])243\s*m?k(?![a-z])", serialized) is None
 
 
 @pytest.mark.parametrize(
@@ -282,8 +693,8 @@ def test_representative_placeholder_fields_expand_to_scientific_observables(
     }
     expected = {
         "ba3irti2o9_honeycomb_kitaev_reference": (
-            "local_source_parse_spin_liquid_candidate_for_ba3irti2o9_honeycomb_kitaev_reference_observable",
-            "Authoritative-source contract (local_source_parse) for ba3irti2o9_honeycomb_kitaev_reference: spin_liquid_candidate.",
+            "site_diluted_triangular_spin_liquid_candidate_assessment_in_ba3irti2o9",
+            "Boolean assessment of the spin-liquid-candidate proposition for site-diluted triangular-lattice Ba3IrTi2O9.",
         ),
         "herbertsmithite_kagome_qsl_reference": (
             "assessment_of_quantum_spin_liquid_behavior_in_herbertsmithite",
@@ -1615,6 +2026,39 @@ def _recursive_leaves(value):
     if isinstance(value, (list, tuple)):
         return [leaf for item in value for leaf in _recursive_leaves(item)]
     return [value]
+
+
+def _recursive_strings(value):
+    if isinstance(value, dict):
+        return [
+            string
+            for key, item in value.items()
+            for string in (str(key), *_recursive_strings(item))
+        ]
+    if isinstance(value, (list, tuple)):
+        return [
+            string
+            for item in value
+            for string in _recursive_strings(item)
+        ]
+    if isinstance(value, str):
+        return [value]
+    return []
+
+
+def _bounded_target_token_pattern(target):
+    if isinstance(target, bool) or target is None:
+        return None
+    if isinstance(target, (int, float)):
+        numeric = float(target)
+        if numeric.is_integer():
+            return None
+        token = format(target, ".15g").lower()
+        return rf"(?<![0-9a-z_.]){re.escape(token)}(?![0-9a-z_.])"
+    if isinstance(target, str) and len(target) >= 4:
+        token = target.lower()
+        return rf"(?<![0-9a-z_]){re.escape(token)}(?![0-9a-z_])"
+    return None
 
 
 def _literal_registry_claim_fields():
