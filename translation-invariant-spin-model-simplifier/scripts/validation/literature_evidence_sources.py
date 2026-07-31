@@ -384,7 +384,7 @@ def validate_download_response(route, *, status, headers, body, final_url):
     expected = route.get("expected_media_type")
     if content_type != expected:
         raise SourceEvidenceError(
-            f"download media type {content_type or 'missing'} does not match {expected}"
+            "download media type does not match authoritative route"
         )
     if expected == "application/pdf":
         if not body.startswith(b"%PDF-"):
@@ -484,6 +484,11 @@ def load_verified_source(
     extracted_text = _extract_text(
         payload_path, payload, media_type, raw["text_extraction"]
     )
+    route_kind = provisioning_route.get("authoritative_retrieval_route", {}).get(
+        "kind"
+    )
+    if route_kind == "oup_minimal_html":
+        _validate_husimi_syozi_visible_text(extracted_text)
     _require_target_anchors(extracted_text, required_search_anchors)
 
     provenance_fields = {
@@ -887,18 +892,147 @@ def _validate_same_work_bibliographic_metadata(
         raise SourceEvidenceError("work identity bibliographic authors mismatch")
 
 
-class _HTMLLinkCollector(HTMLParser):
+class _VisiblePublicationRecordParser(HTMLParser):
+    _VOID_ELEMENTS = {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    }
+    _ALWAYS_HIDDEN = {"script", "style", "noscript", "template"}
+    _RECORD_TAGS = {"article", "li", "tr"}
+    _RECORD_CLASSES = {
+        "publication",
+        "publication-item",
+        "publication-record",
+    }
+    _DOI_META_NAMES = {
+        "citation_doi",
+        "dc.identifier",
+        "dc.identifier.doi",
+        "prism.doi",
+    }
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.hrefs = []
+        self.frames = []
+        self.records = []
 
     def handle_starttag(self, tag, attrs):
-        if tag.casefold() != "a":
-            return
+        tag = tag.casefold()
         attributes = {str(key).casefold(): value for key, value in attrs}
-        href = attributes.get("href")
-        if isinstance(href, str) and href.strip():
-            self.hrefs.append(unescape(href.strip()))
+        style = str(attributes.get("style") or "").casefold()
+        parent_hidden = self.frames[-1][1] if self.frames else False
+        hidden = parent_hidden or tag in self._ALWAYS_HIDDEN or (
+            "hidden" in attributes
+            or str(attributes.get("aria-hidden", "")).casefold() == "true"
+            or (
+                tag == "input"
+                and str(attributes.get("type", "")).casefold() == "hidden"
+            )
+            or re.search(
+                r"(?:^|;)\s*display\s*:\s*none(?:\s*!important)?\s*(?:;|$)",
+                style,
+            )
+            is not None
+            or re.search(
+                r"(?:^|;)\s*visibility\s*:\s*hidden(?:\s*!important)?\s*(?:;|$)",
+                style,
+            )
+            is not None
+        )
+        parent_record = self.frames[-1][2] if self.frames else None
+        parent_body = self.frames[-1][3] if self.frames else False
+        in_body = tag == "body" or parent_body
+        class_names = set(str(attributes.get("class") or "").casefold().split())
+        starts_record = (
+            in_body
+            and not hidden
+            and parent_record is None
+            and (
+                tag in self._RECORD_TAGS
+                or bool(class_names & self._RECORD_CLASSES)
+            )
+        )
+        if starts_record:
+            record_index = len(self.records)
+            self.records.append({"text": [], "hrefs": [], "doi_metadata": []})
+        else:
+            record_index = parent_record
+
+        if record_index is not None and not hidden:
+            record = self.records[record_index]
+            href = attributes.get("href")
+            if tag == "a" and isinstance(href, str) and href.strip():
+                record["hrefs"].append(unescape(href.strip()))
+            if tag == "meta" and str(
+                attributes.get("name", "")
+            ).casefold() in self._DOI_META_NAMES:
+                content = attributes.get("content")
+                if isinstance(content, str) and content.strip():
+                    record["doi_metadata"].append(unescape(content.strip()))
+            for name in ("data-doi", "doi"):
+                value = attributes.get(name)
+                if isinstance(value, str) and value.strip():
+                    record["doi_metadata"].append(unescape(value.strip()))
+
+        if tag not in self._VOID_ELEMENTS:
+            self.frames.append((tag, hidden, record_index, in_body))
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag.casefold() not in self._VOID_ELEMENTS:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        tag = tag.casefold()
+        if not self.frames or self.frames[-1][0] != tag:
+            raise SourceEvidenceError(
+                "work identity author publications HTML is malformed"
+            )
+        self.frames.pop()
+
+    def handle_data(self, data):
+        if not self.frames:
+            return
+        _, hidden, record_index, _ = self.frames[-1]
+        if hidden or record_index is None:
+            return
+        normalized = " ".join(unescape(data).split())
+        if normalized:
+            self.records[record_index]["text"].append(normalized)
+
+
+def _record_has_exact_doi(record, canonical_doi):
+    exact_pattern = re.compile(
+        rf"(?<![a-z0-9]){re.escape(canonical_doi)}(?![a-z0-9])",
+        flags=re.IGNORECASE,
+    )
+    visible_text = " ".join(record["text"])
+    if exact_pattern.search(visible_text):
+        return True
+    exact_url = f"https://doi.org/{canonical_doi}"
+    if any(href.casefold() == exact_url for href in record["hrefs"]):
+        return True
+    for value in record["doi_metadata"]:
+        normalized = value.strip().casefold()
+        for prefix in ("doi:", "https://doi.org/"):
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix) :]
+                break
+        if normalized == canonical_doi:
+            return True
+    return False
 
 
 def _validate_author_publications_same_work(
@@ -908,24 +1042,24 @@ def _validate_author_publications_same_work(
     authoritative_route,
     bibliographic_metadata,
 ):
-    visible_text = _html_visible_text(document, context="author publications work identity")
+    _html_visible_text(document, context="author publications work identity")
     _require_mapping(bibliographic_metadata, "work identity bibliographic metadata")
     if str(bibliographic_metadata.get("doi", "")).casefold() != canonical_doi:
         raise SourceEvidenceError("work identity DOI bibliographic metadata mismatch")
-    normalized_visible = _normalize_work_text(visible_text)
     expected_title = _normalize_work_text(bibliographic_metadata.get("title"))
-    if not expected_title or expected_title not in normalized_visible:
-        raise SourceEvidenceError("work identity author page title mismatch")
     authors = bibliographic_metadata.get("authors")
     if (
-        not isinstance(authors, Sequence)
+        not expected_title
+        or not isinstance(authors, Sequence)
         or isinstance(authors, (str, bytes, bytearray))
         or not authors
-        or any(_normalize_work_text(author) not in normalized_visible for author in authors)
+        or any(not _normalize_work_text(author) for author in authors)
     ):
-        raise SourceEvidenceError("work identity author page authors mismatch")
+        raise SourceEvidenceError(
+            "work identity author page bibliographic metadata is incomplete"
+        )
 
-    parser = _HTMLLinkCollector()
+    parser = _VisiblePublicationRecordParser()
     try:
         parser.feed(document.decode("utf-8"))
         parser.close()
@@ -936,11 +1070,30 @@ def _validate_author_publications_same_work(
             f"work identity author publications HTML is malformed: {exc}"
         ) from exc
     evidence_url = authoritative_route.get("work_identity_evidence", {}).get("url", "")
-    resolved_links = {urljoin(evidence_url, href) for href in parser.hrefs}
-    if authoritative_route.get("url") not in resolved_links:
+    retrieval_url = authoritative_route.get("url")
+    records_with_doi = [
+        record
+        for record in parser.records
+        if _record_has_exact_doi(record, canonical_doi)
+    ]
+    if not records_with_doi:
         raise SourceEvidenceError(
-            "work identity author page does not locate the retrieved artifact"
+            "work identity author page canonical DOI mismatch"
         )
+    expected_authors = [_normalize_work_text(author) for author in authors]
+    for record in records_with_doi:
+        normalized_text = _normalize_work_text(" ".join(record["text"]))
+        resolved_links = {urljoin(evidence_url, href) for href in record["hrefs"]}
+        if (
+            expected_title in normalized_text
+            and all(author in normalized_text for author in expected_authors)
+            and retrieval_url in resolved_links
+        ):
+            return
+    raise SourceEvidenceError(
+        "work identity author page has no single visible publication record "
+        "binding title, authors, DOI, and PDF"
+    )
 
 
 def _artifact_location_matches(artifact_identifier, retrieval_url, location_urls):
@@ -1160,6 +1313,8 @@ class _VisibleArticleHTMLParser(HTMLParser):
         self.frames = []
         self.root_seen = False
         self.root_closed = False
+        self.body_seen = False
+        self.body_closed = False
         self.article_seen = False
         self.visible_chunks = []
 
@@ -1173,6 +1328,20 @@ class _VisibleArticleHTMLParser(HTMLParser):
             self.root_seen = True
         elif tag == "html":
             raise SourceEvidenceError(f"{self.context} contains a nested document root")
+        if tag == "body":
+            if (
+                self.body_seen
+                or not self.frames
+                or self.frames[-1][0] != "html"
+            ):
+                raise SourceEvidenceError(
+                    f"{self.context} contains an invalid document body"
+                )
+            self.body_seen = True
+        elif self.body_closed:
+            raise SourceEvidenceError(
+                f"{self.context} is malformed after document body"
+            )
 
         attributes = {str(key).casefold(): value for key, value in attrs}
         style = str(attributes.get("style") or "").casefold()
@@ -1190,16 +1359,21 @@ class _VisibleArticleHTMLParser(HTMLParser):
             is not None
         )
         parent_article = self.frames[-1][2] if self.frames else False
+        parent_body = self.frames[-1][3] if self.frames else False
+        in_body = tag == "body" or parent_body
         class_names = set(str(attributes.get("class") or "").casefold().split())
         article_container = (
-            tag in {"article", "main"}
-            or "minimal-article-container" in class_names
+            in_body
+            and (
+                tag in {"article", "main"}
+                or "minimal-article-container" in class_names
+            )
         )
         in_article = parent_article or (article_container and not hidden)
         if article_container and not hidden:
             self.article_seen = True
         if tag not in self._VOID_ELEMENTS:
-            self.frames.append((tag, hidden, in_article))
+            self.frames.append((tag, hidden, in_article, in_body))
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -1211,6 +1385,8 @@ class _VisibleArticleHTMLParser(HTMLParser):
         if not self.frames or self.frames[-1][0] != tag:
             raise SourceEvidenceError(f"{self.context} is malformed HTML nesting")
         self.frames.pop()
+        if tag == "body":
+            self.body_closed = True
         if tag == "html":
             self.root_closed = True
 
@@ -1221,7 +1397,7 @@ class _VisibleArticleHTMLParser(HTMLParser):
                     f"{self.context} has visible data outside the document root"
                 )
             return
-        _, hidden, in_article = self.frames[-1]
+        _, hidden, in_article, _ = self.frames[-1]
         if hidden or not in_article:
             return
         normalized = " ".join(unescape(data).split())
@@ -1231,6 +1407,8 @@ class _VisibleArticleHTMLParser(HTMLParser):
     def result(self):
         if not self.root_seen or not self.root_closed:
             raise SourceEvidenceError(f"{self.context} has no complete document root")
+        if not self.body_seen or not self.body_closed:
+            raise SourceEvidenceError(f"{self.context} has no complete document body")
         if self.frames:
             raise SourceEvidenceError(f"{self.context} is malformed HTML")
         visible_text = " ".join(self.visible_chunks)
@@ -1261,7 +1439,7 @@ def _validate_husimi_syozi_visible_text(visible_text):
     normalized = " ".join(visible_text.split())
     if "The Statistics of Honeycomb and Triangular Lattice. I" not in normalized:
         raise SourceEvidenceError("OUP HTML is missing the exact article title")
-    if "10.1143/ptp/5.2.177" not in normalized.casefold():
+    if "10.1143/ptp.5.2.177" not in normalized.casefold():
         raise SourceEvidenceError("OUP HTML is missing the canonical DOI")
     if "Kodi Husimi" not in normalized or not re.search(
         r"Itiro\s+Sy(?:o|ô)zi", normalized, flags=re.IGNORECASE

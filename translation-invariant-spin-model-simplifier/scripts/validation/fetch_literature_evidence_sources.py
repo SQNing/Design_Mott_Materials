@@ -79,6 +79,18 @@ def _path_is_within(path, root):
     return True
 
 
+def _nearest_repository_root(start):
+    resolved_start = Path(start).resolve()
+    for candidate in (resolved_start, *resolved_start.parents):
+        try:
+            marker_stat = candidate.joinpath(".git").lstat()
+        except OSError:
+            continue
+        if stat.S_ISDIR(marker_stat.st_mode) or stat.S_ISREG(marker_stat.st_mode):
+            return candidate
+    raise SourceEvidenceError("containing Git repository root is unavailable")
+
+
 def _json_without_duplicate_keys(text):
     def reject_duplicates(pairs):
         result = {}
@@ -156,16 +168,43 @@ def _https_origin(url, *, origin_only=False):
     return origin
 
 
-def _validated_request_url(url):
+def _contains_sensitive(value, sensitive_values):
+    secrets = tuple(
+        str(secret).casefold()
+        for secret in sensitive_values
+        if isinstance(secret, str) and secret
+    )
+    if not secrets:
+        return False
+    if isinstance(value, dict):
+        return any(
+            _contains_sensitive(key, secrets) or _contains_sensitive(item, secrets)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple, set)):
+        return any(_contains_sensitive(item, secrets) for item in value)
+    if isinstance(value, bytes):
+        rendered = value.decode("utf-8", errors="ignore").casefold()
+    else:
+        rendered = str(value).casefold()
+    return any(secret in rendered for secret in secrets)
+
+
+def _validated_request_url(url, *, sensitive_values=()):
     _https_origin(url)
+    if _contains_sensitive(url, sensitive_values):
+        raise SourceEvidenceError("request URL contains sensitive data")
     return url
 
 
-def _sanitize_url_for_output(url):
-    _https_origin(url)
+def _sanitize_url_for_output(url, *, sensitive_values=()):
+    _validated_request_url(url, sensitive_values=sensitive_values)
     parsed = urlsplit(url)
     origin = _https_origin(url)
-    return origin + (parsed.path or "")
+    sanitized = origin + (parsed.path or "")
+    if _contains_sensitive(sanitized, sensitive_values):
+        raise SourceEvidenceError("request URL contains sensitive data")
+    return sanitized
 
 
 def _allowed_authorization_origins(route):
@@ -201,14 +240,14 @@ def _load_request_authorizations(
         return {}
 
     candidate = Path(os.path.abspath(os.fspath(path)))
-    project_root = PROJECT_ROOT.resolve()
+    repository_root = _nearest_repository_root(PROJECT_ROOT)
     cache_boundary = Path(cache_root).resolve(strict=False)
     if any(
         _path_is_within(candidate, boundary)
-        for boundary in (project_root, cache_boundary)
+        for boundary in (repository_root, cache_boundary)
     ):
         raise SourceEvidenceError(
-            "credential file must be outside the project and cache roots"
+            "credential file must be outside the repository and cache roots"
         )
     try:
         file_stat = candidate.lstat()
@@ -230,10 +269,10 @@ def _load_request_authorizations(
         raise SourceEvidenceError("credential file is unavailable") from None
     if any(
         _path_is_within(resolved, boundary)
-        for boundary in (project_root, cache_boundary)
+        for boundary in (repository_root, cache_boundary)
     ):
         raise SourceEvidenceError(
-            "credential file must be outside the project and cache roots"
+            "credential file must be outside the repository and cache roots"
         )
     document = _json_without_duplicate_keys(
         _read_checked_credential_file(candidate, file_stat)
@@ -465,6 +504,18 @@ def main(argv=None):
                 resume=args.resume,
                 credential_profile=credential_profile,
             )
+        status = outcome.get("status")
+        if status not in {"verified", "acquired", "resumed", "blocked", "failed"}:
+            status = "failed"
+            detail = "invalid internal acquisition outcome"
+        else:
+            detail = outcome.get("detail", "missing internal acquisition detail")
+        outcome = _outcome(
+            source_id,
+            status,
+            detail,
+            sensitive_values=sensitive_values,
+        )
         outcomes.append(outcome)
         print(json.dumps(outcome, sort_keys=True), flush=True)
 
@@ -615,7 +666,10 @@ def _verify_cached_source(cache_root, source, route):
 
 
 def _download(route, ssl_context, *, credential_profile=None):
-    request_url = _validated_request_url(route["url"])
+    credential_values = _credential_values(credential_profile)
+    request_url = _validated_request_url(
+        route["url"], sensitive_values=credential_values
+    )
     request = Request(
         request_url,
         headers={
@@ -643,7 +697,12 @@ def _download(route, ssl_context, *, credential_profile=None):
         raise SourceEvidenceError(
             f"payload request failed for route kind {route.get('kind', 'unknown')}"
         ) from None
-    final_url = _sanitize_url_for_output(final_url_in_memory)
+    final_url = _sanitize_url_for_output(
+        final_url_in_memory,
+        sensitive_values=credential_values,
+    )
+    if _contains_sensitive(body, credential_values):
+        raise SourceEvidenceError("downloaded payload contains sensitive data")
     media_type = validate_download_response(
         route,
         status=status,
@@ -651,13 +710,10 @@ def _download(route, ssl_context, *, credential_profile=None):
         body=body,
         final_url=final_url_in_memory,
     )
-    credential_values = _credential_values(credential_profile)
     safe_headers = {
         key: value
         for key, value in headers.items()
-        if not any(
-            secret and secret in str(value) for secret in credential_values
-        )
+        if not _contains_sensitive(value, credential_values)
     }
     return {
         "body": body,
@@ -683,12 +739,20 @@ def _fetch_work_identity_evidence(
     payload_name = (
         "work-identity.html" if media_type == "text/html" else "work-identity.json"
     )
+    request_url = _validated_request_url(evidence_route["url"])
     request = Request(
-        evidence_route["url"],
+        request_url,
         headers={"Accept": media_type, "User-Agent": USER_AGENT},
     )
-    with urlopen(request, context=ssl_context, timeout=30) as response:
+    opener = build_opener(
+        HTTPSHandler(context=ssl_context),
+        _CredentialRedirectHandler(None),
+    )
+    with opener.open(request, timeout=30) as response:
         payload = response.read()
+        payload_sha256 = hashlib.sha256(payload).hexdigest()
+        payload_byte_length = len(payload)
+        _validated_request_url(response.geturl())
         if response.status != 200:
             raise SourceEvidenceError(
                 f"work identity evidence returned HTTP status {response.status}"
@@ -727,11 +791,11 @@ def _fetch_work_identity_evidence(
         "payload": payload,
         "descriptor": {
             "kind": evidence_route["kind"],
-            "url": _sanitize_url_for_output(evidence_route["url"]),
+            "url": _sanitize_url_for_output(request_url),
             "media_type": media_type,
             "payload_relative_path": payload_name,
-            "payload_sha256": hashlib.sha256(payload).hexdigest(),
-            "payload_byte_length": len(payload),
+            "payload_sha256": payload_sha256,
+            "payload_byte_length": payload_byte_length,
         },
     }
 
@@ -862,7 +926,8 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
         }
     else:
         raise SourceEvidenceError("unsupported media type for provenance extraction")
-    return {
+    sensitive_values = response.get("credential_values", ())
+    provenance = {
         "schema_version": 1,
         "source_id": source["source_id"],
         "source_identity": {
@@ -872,7 +937,10 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
         },
         "bibliographic_metadata": bibliographic,
         "retrieval_metadata": {
-            "url": _sanitize_url_for_output(response["final_url"]),
+            "url": _sanitize_url_for_output(
+                response["final_url"],
+                sensitive_values=sensitive_values,
+            ),
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "method": retrieval_kind,
             "authoritative_origin": origin,
@@ -887,7 +955,8 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
                     "work_identity_evidence": {
                         **retrieval_route["work_identity_evidence"],
                         "url": _sanitize_url_for_output(
-                            retrieval_route["work_identity_evidence"]["url"]
+                            retrieval_route["work_identity_evidence"]["url"],
+                            sensitive_values=sensitive_values,
                         ),
                     }
                 }
@@ -916,6 +985,9 @@ def _build_provenance(source, route, response, bibliographic, *, payload_name):
         },
         "text_extraction": extraction,
     }
+    if _contains_sensitive(provenance, sensitive_values):
+        raise SourceEvidenceError("provenance contains sensitive data")
+    return provenance
 
 
 def _ssl_context(ca_bundle):
@@ -947,25 +1019,33 @@ def _stable_response_headers(headers, *, forbidden_values=()):
         key.lower(): str(value)
         for key, value in headers.items()
         if key.lower() in allowed
-        and not any(
-            secret and secret in str(value) for secret in forbidden_values
-        )
+        and not _contains_sensitive(value, forbidden_values)
     }
 
 
 def _sanitize_detail(detail, *, sensitive_values=()):
     rendered = str(detail)
-    for value in sensitive_values:
-        if value:
-            rendered = rendered.replace(value, "[redacted]")
+    if _contains_sensitive(rendered, sensitive_values):
+        return "sensitive acquisition detail redacted"
 
     def sanitize_match(match):
         try:
-            return _sanitize_url_for_output(match.group(0))
+            return _sanitize_url_for_output(
+                match.group(0),
+                sensitive_values=sensitive_values,
+            )
         except SourceEvidenceError:
             return "[redacted-url]"
 
-    return re.sub(r"https://[^\s\"'<>]+", sanitize_match, rendered)
+    sanitized = re.sub(
+        r"https://[^\s\"'<>]+",
+        sanitize_match,
+        rendered,
+        flags=re.IGNORECASE,
+    )
+    if _contains_sensitive(sanitized, sensitive_values):
+        return "sensitive acquisition detail redacted"
+    return sanitized
 
 
 def _outcome(source_id, status, detail, *, sensitive_values=()):
