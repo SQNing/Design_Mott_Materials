@@ -1,6 +1,7 @@
 import ast
 import sys
 import csv
+import hashlib
 import inspect
 import json
 import math
@@ -10119,6 +10120,15 @@ def test_ishikawa_parser_reconstructs_verified_two_column_page_order():
     assert trace["nonequivalent_cu_cu_bond_count"] == 6
     assert len(trace["matched_anchors"]) == 14
     assert len(trace["text_spans"]) == 14
+    assert trace["text_span_captures"][0].startswith(
+        "Magnetic Properties of the Spin-1/2 Deformed Kagome"
+    )
+    assert trace["text_span_captures"][9].startswith(
+        "heat capacity at zero magnetic field"
+    )
+    assert trace["text_span_captures"][11].startswith(
+        "All the magnetic interactions in edwardsite"
+    )
 
 
 @pytest.mark.parametrize(
@@ -14494,12 +14504,18 @@ def _exact_gap_positive_fixtures(parser_names):
     return fixtures
 
 
-def test_exact_gap_parser_traces_use_a_replayable_versioned_coordinate_view():
-    parser_names = _exact_gap_manifest_parser_names()
-    fixtures = _exact_gap_positive_fixtures(parser_names)
+def test_unmigrated_exact_gap_parser_traces_keep_the_temporary_coordinate_view():
+    parser_names = (
+        _exact_gap_manifest_parser_names()
+        - set(literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS)
+    )
+    fixtures = _exact_gap_positive_fixtures(
+        _exact_gap_manifest_parser_names()
+    )
     source_sha256 = "a" * 64
 
-    for parser_name, source_text in fixtures.items():
+    for parser_name in parser_names:
+        source_text = fixtures[parser_name]
         source_operand, trace = getattr(
             literature_runtime_evidence, parser_name
         )(source_text)
@@ -14544,3 +14560,459 @@ def test_exact_gap_parser_traces_use_a_replayable_versioned_coordinate_view():
             )
             == "strict_local_source_parsed"
         )
+
+
+PREPARED_TRACE_BATCH_A_BUILDERS = {
+    "parse_yang_xie_square_blume_capel_crossing": (
+        "yang_xie_extracted_text",
+        1,
+    ),
+    "parse_yang_xie_single_ion_spin1_anisotropy_levels": (
+        "yang_xie_extracted_text",
+        1,
+    ),
+    "parse_jiang_wiese_square_heisenberg_spin_stiffness": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_jiang_wiese_square_heisenberg_staggered_magnetization": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_jiang_wiese_square_heisenberg_spin_wave_velocity": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_depenbrock_kagome_heisenberg_energy": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_stodter_clinoatacamite_distorted_kagome_exchange": (
+        "stodter_pdf_layout_search_text",
+        1,
+    ),
+    "parse_ishikawa_edwardsite_spin_half_deformed_kagome": (
+        "ishikawa_pdf_layout_search_text",
+        1,
+    ),
+    "parse_nawa_rubr3_kitaev_candidate_and_competing_interactions": (
+        "nawa_pdf_layout_search_text",
+        1,
+    ),
+    "parse_schiffer_ggg_strong_frustration_correction": (
+        "schiffer_pdf_layout_search_text",
+        1,
+    ),
+    "parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction": (
+        "quilliam_pdf_layout_search_text",
+        1,
+    ),
+    "parse_boldrin_vesignieite_dominant_j3_correction": (
+        "boldrin_pdf_layout_search_text",
+        1,
+    ),
+}
+
+
+PREPARED_TRACE_BATCH_A_FIXTURES = {
+    "parse_yang_xie_square_blume_capel_crossing": (
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT
+    ),
+    "parse_yang_xie_single_ion_spin1_anisotropy_levels": (
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT
+    ),
+    "parse_jiang_wiese_square_heisenberg_spin_stiffness": (
+        JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT
+    ),
+    "parse_jiang_wiese_square_heisenberg_staggered_magnetization": (
+        JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT
+    ),
+    "parse_jiang_wiese_square_heisenberg_spin_wave_velocity": (
+        JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT
+    ),
+    "parse_depenbrock_kagome_heisenberg_energy": (
+        DEPENBROCK_KAGOME_HEISENBERG_SOURCE_TEXT
+    ),
+    "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap": (
+        DEPENBROCK_KAGOME_HEISENBERG_SOURCE_TEXT
+    ),
+    "parse_stodter_clinoatacamite_distorted_kagome_exchange": (
+        STODTER_CLINOATACAMITE_DISTORTED_KAGOME_SOURCE_TEXT
+    ),
+    "parse_ishikawa_edwardsite_spin_half_deformed_kagome": (
+        ISHIKAWA_EDWARDSITE_DEFORMED_KAGOME_SOURCE_TEXT
+    ),
+    "parse_nawa_rubr3_kitaev_candidate_and_competing_interactions": (
+        NAWA_RUBR3_MAGNETIC_EXCITATIONS_SOURCE_TEXT
+    ),
+    "parse_schiffer_ggg_strong_frustration_correction": (
+        SCHIFFER_GGG_STRONG_FRUSTRATION_SOURCE_TEXT
+    ),
+    "parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction": (
+        QUILLIAM_GTLG_FRUSTRATED_HYPERKAGOME_SOURCE_TEXT
+    ),
+    "parse_boldrin_vesignieite_dominant_j3_correction": (
+        BOLDRIN_VESIGNIEITE_DOMINANT_J3_SOURCE_TEXT
+    ),
+}
+
+
+def _prepared_trace_bundle(parser_name, source_text):
+    source_operand, trace = getattr(
+        literature_runtime_evidence, parser_name
+    )(source_text)
+    benchmark_name = f"prepared-trace-{parser_name}"
+    source_sha256 = "a" * 64
+    bundle = {
+        "runtime_evidence_record": {
+            "benchmark_name": benchmark_name,
+            "evidence_mode": "local_source_parse",
+            "source_id": "fixture-source",
+            "source_sha256": source_sha256,
+            "registry_selector": {
+                "path": ["standard_result"],
+                "fields": sorted(source_operand),
+            },
+            "source_operand": source_operand,
+            "registry_operand": source_operand,
+            "comparison": {"kind": "exact_field_map", "matched": True},
+        },
+        "extraction_trace": {
+            **trace,
+            "benchmark_name": benchmark_name,
+            "source_sha256": source_sha256,
+        },
+    }
+    return benchmark_name, bundle
+
+
+def test_batch_a_prepared_trace_registry_is_exact():
+    assert literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS == (
+        PREPARED_TRACE_BATCH_A_BUILDERS
+    )
+    assert set(PREPARED_TRACE_BATCH_A_FIXTURES) == set(
+        PREPARED_TRACE_BATCH_A_BUILDERS
+    )
+    assert len(PREPARED_TRACE_BATCH_A_BUILDERS) == 13
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_A_BUILDERS
+)
+def test_batch_a_trace_replays_exact_declared_prepared_view(parser_name):
+    source_text = PREPARED_TRACE_BATCH_A_FIXTURES[parser_name]
+    builder_id, version = PREPARED_TRACE_BATCH_A_BUILDERS[parser_name]
+    benchmark_name, bundle = _prepared_trace_bundle(
+        parser_name, source_text
+    )
+    trace = bundle["extraction_trace"]
+
+    prepared = literature_runtime_evidence._build_prepared_view(
+        source_text, builder_id=builder_id, version=version
+    )
+    assert trace["coordinate_space"] == "private_prepared_extracted_text"
+    assert trace["coordinate_builder"] == builder_id
+    assert type(trace["coordinate_contract_version"]) is int
+    assert trace["coordinate_contract_version"] == version
+    assert trace["coordinate_view_length"] == len(prepared.text)
+    assert trace["coordinate_view_sha256"] == hashlib.sha256(
+        prepared.text.encode("utf-8")
+    ).hexdigest()
+    assert len(trace["text_span_sha256"]) == len(trace["text_spans"])
+    assert len(trace["text_span_captures"]) == len(trace["text_spans"])
+    for span, digest, capture in zip(
+        trace["text_spans"],
+        trace["text_span_sha256"],
+        trace["text_span_captures"],
+    ):
+        start, end = span
+        independently_replayed_capture = prepared.text[start:end]
+        assert capture == independently_replayed_capture
+        assert digest == hashlib.sha256(
+            independently_replayed_capture.encode("utf-8")
+        ).hexdigest()
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        == "strict_local_source_parsed"
+    )
+
+
+def test_stodter_page_break_trace_keeps_dehyphenated_anchor_alignment():
+    source_text = STODTER_CLINOATACAMITE_DISTORTED_KAGOME_SOURCE_TEXT.replace(
+        "Our findings further",
+        "Our find-\n\f7\nings further",
+    ).replace("from Ref. [21]", "from Ref.\n\f[21]")
+
+    _, trace = (
+        literature_runtime_evidence
+        .parse_stodter_clinoatacamite_distorted_kagome_exchange(source_text)
+    )
+
+    assert trace["text_span_captures"][8].startswith("Our findings")
+    assert "Ref. [21]" in trace["text_span_captures"][8]
+    assert trace["text_span_captures"][9].startswith("[21]")
+    assert "[21] S.-H. Lee" in trace["text_span_captures"][9]
+
+
+def test_ishikawa_trace_anchors_are_exact_slices_of_derived_layout_view():
+    _, trace = (
+        literature_runtime_evidence
+        .parse_ishikawa_edwardsite_spin_half_deformed_kagome(
+            ISHIKAWA_EDWARDSITE_DEFORMED_KAGOME_SOURCE_TEXT
+        )
+    )
+
+    assert trace["text_span_captures"][0].startswith(
+        "Magnetic Properties of the Spin-1/2 Deformed Kagome"
+    )
+    assert trace["text_span_captures"][3].startswith(
+        "Edwardsite has a deformed kagome lattice"
+    )
+
+
+def test_yang_xie_plus_minus_variant_keeps_bibliography_alignment():
+    source_text = YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT.replace(
+        "+/-1 and 0", "±1 and 0"
+    )
+
+    _, trace = literature_runtime_evidence.parse_yang_xie_square_blume_capel_crossing(
+        source_text
+    )
+
+    assert trace["text_span_captures"][-1].startswith("[1] M. Blume")
+
+
+@pytest.mark.parametrize(
+    "parser_name,dependency_name,source_text",
+    [
+        (
+            "parse_yang_xie_single_ion_spin1_anisotropy_levels",
+            "parse_yang_xie_square_blume_capel_crossing",
+            YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+        ),
+        (
+            "parse_jiang_wiese_square_heisenberg_spin_stiffness",
+            "parse_jiang_wiese_square_heisenberg_low_energy_parameters",
+            JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT,
+        ),
+        (
+            "parse_jiang_wiese_square_heisenberg_staggered_magnetization",
+            "parse_jiang_wiese_square_heisenberg_low_energy_parameters",
+            JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT,
+        ),
+        (
+            "parse_jiang_wiese_square_heisenberg_spin_wave_velocity",
+            "parse_jiang_wiese_square_heisenberg_low_energy_parameters",
+            JIANG_WIESE_SQUARE_HEISENBERG_SOURCE_TEXT,
+        ),
+        (
+            "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap",
+            "parse_depenbrock_kagome_heisenberg_energy",
+            DEPENBROCK_KAGOME_HEISENBERG_SOURCE_TEXT,
+        ),
+    ],
+)
+def test_composed_batch_a_parsers_prepare_once_without_public_recursion(
+    monkeypatch, parser_name, dependency_name, source_text
+):
+    preparation_calls = []
+    original_builder = literature_runtime_evidence._build_prepared_view
+
+    def recording_builder(*args, **kwargs):
+        preparation_calls.append((args, kwargs))
+        return original_builder(*args, **kwargs)
+
+    def forbidden_public_recursion(*args, **kwargs):
+        raise AssertionError("composed parser recursed through public parser")
+
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        "_build_prepared_view",
+        recording_builder,
+    )
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        dependency_name,
+        forbidden_public_recursion,
+    )
+
+    getattr(literature_runtime_evidence, parser_name)(source_text)
+
+    assert len(preparation_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "version", [True, 1.0, "1", 2]
+)
+def test_prepared_trace_schema_rejects_nonexact_or_unsupported_version(version):
+    benchmark_name, bundle = _prepared_trace_bundle(
+        "parse_yang_xie_square_blume_capel_crossing",
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+    )
+    bundle["extraction_trace"]["coordinate_contract_version"] = version
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("coordinate_builder", "unknown_builder"),
+        ("coordinate_view_sha256", "not-a-sha256"),
+        ("coordinate_view_length", 0),
+        ("text_span_sha256", ["0" * 64] * 10),
+    ],
+)
+def test_prepared_trace_schema_rejects_bad_builder_hash_span_or_digest(
+    field, value
+):
+    benchmark_name, bundle = _prepared_trace_bundle(
+        "parse_yang_xie_square_blume_capel_crossing",
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+    )
+    bundle["extraction_trace"][field] = value
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+def test_prepared_trace_schema_rejects_out_of_range_span():
+    benchmark_name, bundle = _prepared_trace_bundle(
+        "parse_yang_xie_square_blume_capel_crossing",
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+    )
+    trace = bundle["extraction_trace"]
+    trace["text_spans"][0] = [0, trace["coordinate_view_length"] + 1]
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    [
+        "coordinate_builder",
+        "coordinate_contract_version",
+        "coordinate_view_sha256",
+        "coordinate_view_length",
+        "text_span_sha256",
+        "text_span_captures",
+    ],
+)
+def test_prepared_trace_schema_rejects_missing_coordinate_metadata(
+    missing_field
+):
+    benchmark_name, bundle = _prepared_trace_bundle(
+        "parse_yang_xie_square_blume_capel_crossing",
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+    )
+    bundle["extraction_trace"].pop(missing_field)
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+def test_prepared_trace_schema_rejects_extra_coordinate_metadata():
+    benchmark_name, bundle = _prepared_trace_bundle(
+        "parse_yang_xie_square_blume_capel_crossing",
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+    )
+    bundle["extraction_trace"]["coordinate_view_extra"] = "contradiction"
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "parser_label",
+    [
+        "parse_jiang_wiese_square_heisenberg_low_energy_parameters",
+        "unknown_prepared_trace_parser",
+        [],
+        {},
+    ],
+)
+def test_prepared_trace_schema_rejects_unregistered_parser_label(
+    parser_label,
+):
+    benchmark_name, bundle = _prepared_trace_bundle(
+        "parse_yang_xie_square_blume_capel_crossing",
+        YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+    )
+    bundle["extraction_trace"]["parser"] = parser_label
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("prepared", [False, True])
+@pytest.mark.parametrize("invalid_key", [1, b"coordinate_view_extra"])
+def test_structural_validator_rejects_non_string_trace_keys(
+    prepared, invalid_key
+):
+    if prepared:
+        benchmark_name, bundle = _prepared_trace_bundle(
+            "parse_yang_xie_square_blume_capel_crossing",
+            YANG_XIE_BLUME_CAPEL_CROSSING_SOURCE_TEXT,
+        )
+    else:
+        bundle = _source_parse_bundle()
+        benchmark_name = bundle["runtime_evidence_record"]["benchmark_name"]
+    bundle["extraction_trace"][invalid_key] = "malformed"
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("coordinate_builder", "yang_xie_extracted_text"),
+        ("coordinate_contract_version", 1),
+        ("coordinate_view_sha256", "a" * 64),
+        ("coordinate_view_length", 100),
+        ("text_span_sha256", ["a" * 64, "b" * 64]),
+        ("text_span_captures", ["honeycomb network", "order"]),
+    ],
+)
+def test_legacy_trace_schema_rejects_prepared_view_metadata(field, value):
+    bundle = _source_parse_bundle()
+    bundle["extraction_trace"][field] = value
+
+    assert _structural_label(bundle) == "no"

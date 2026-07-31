@@ -1,8 +1,11 @@
 """Runtime evidence extraction and comparison for literature benchmarks."""
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
+from types import MappingProxyType
+import hashlib
 import json
 import math
 import re
@@ -22,15 +25,672 @@ class RuntimeEvidenceError(ValueError):
 
 TRACE_COORDINATE_SPACE = "canonical_normalized_extracted_text_v1"
 TRACE_COORDINATE_CONTRACT_VERSION = 1
+_PREPARED_TRACE_COORDINATE_SPACE = "private_prepared_extracted_text"
+
+
+@dataclass(frozen=True)
+class _PreparedView:
+    builder_id: str
+    version: int
+    text: str
+    sha256: str
+
+
+@dataclass(frozen=True)
+class _PreparedViewSpec:
+    builder_id: str
+    version: int
+    builder: object
+
+
+def _normalize_with_replacements(text, replacements):
+    for old, new in replacements:
+        text = text.replace(old, new)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _dehyphenate_extracted_text(text, *, page_number_breaks=False):
+    if page_number_breaks:
+        text = re.sub(
+            r"(?<=[A-Za-z])-\s*\f\s*\d{1,2}\s*(?=[a-z])",
+            "",
+            text,
+        )
+    return re.sub(
+        r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
+        "",
+        text,
+    )
+
+
+def _build_page_column_search_text(
+    source_text,
+    *,
+    normalizer,
+    split_columns,
+    include_page_order,
+    separator,
+):
+    extraction_views = [normalizer(source_text)]
+    for split_column in split_columns:
+        left_pages = []
+        right_pages = []
+        page_order_fragments = []
+        for page in source_text.split("\f"):
+            lines = page.splitlines()
+            left_page = "\n".join(
+                line[:split_column] for line in lines
+            )
+            right_page = "\n".join(
+                line[split_column:] for line in lines
+            )
+            left_pages.append(left_page)
+            right_pages.append(right_page)
+            page_order_fragments.extend((left_page, right_page))
+        extraction_views.append(normalizer("\n".join(left_pages)))
+        extraction_views.append(normalizer("\n".join(right_pages)))
+        if include_page_order:
+            extraction_views.append(
+                normalizer("\n".join(page_order_fragments))
+            )
+    return separator.join(extraction_views)
+
+
+def _build_whitespace_normalized_extracted_text(source_text):
+    return re.sub(r"\s+", " ", source_text).strip()
+
+
+def _build_yang_xie_extracted_text(source_text):
+    return _normalize_with_replacements(
+        source_text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("〈", "<"),
+            ("〉", ">"),
+            ("±", "+/-"),
+            ("∗", "*"),
+            ("²", "2"),
+        ),
+    )
+
+
+def _normalize_stodter_extracted_text(text):
+    text = _dehyphenate_extracted_text(text, page_number_breaks=True)
+    return _normalize_with_replacements(
+        text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("≲", "<="),
+            ("≤", "<="),
+            ("∼", "~"),
+        ),
+    )
+
+
+def _build_stodter_pdf_layout_search_text(source_text):
+    return _build_page_column_search_text(
+        source_text,
+        normalizer=_normalize_stodter_extracted_text,
+        split_columns=(64, 68, 72, 76, 80),
+        include_page_order=False,
+        separator=" ",
+    )
+
+
+def _normalize_ishikawa_extracted_text(text):
+    text = _dehyphenate_extracted_text(text, page_number_breaks=True)
+    return _normalize_with_replacements(
+        text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("·", "*"),
+            ("⋅", "*"),
+            ("≲", "<="),
+            ("≤", "<="),
+            ("∼", "~"),
+        ),
+    )
+
+
+def _build_ishikawa_pdf_layout_search_text(source_text):
+    return _build_page_column_search_text(
+        source_text,
+        normalizer=_normalize_ishikawa_extracted_text,
+        split_columns=(60, 64, 68, 72, 76, 80, 96, 100, 102, 104, 108),
+        include_page_order=True,
+        separator="\n" + "#" * 5000 + "\n",
+    )
+
+
+def _normalize_nawa_extracted_text(text):
+    text = _dehyphenate_extracted_text(text)
+    text = _normalize_with_replacements(
+        text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("α", "alpha"),
+            ("Γ", "Gamma"),
+            ("γ", "gamma"),
+            ("μ", "mu"),
+            ("Å", "A"),
+            ("Å", "A"),
+            ("′", "'"),
+            ("’", "'"),
+            ("°", " degrees "),
+            ("◦", " degrees "),
+        ),
+    )
+    text = re.sub(r"-\s+(?=\d)", "-", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_nawa_pdf_layout_search_text(source_text):
+    return _build_page_column_search_text(
+        source_text,
+        normalizer=_normalize_nawa_extracted_text,
+        split_columns=(64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108),
+        include_page_order=True,
+        separator="\n" + "#" * 5000 + "\n",
+    )
+
+
+def _normalize_boldrin_extracted_text(text):
+    text = _dehyphenate_extracted_text(text)
+    text = _normalize_with_replacements(
+        text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("¼", "="),
+            ("ð", "("),
+            ("Þ", ")"),
+            ("þ", "+"),
+            ("θ", "theta"),
+            ("δ", "delta"),
+            ("≈", "approximately"),
+            ("≪", "<<"),
+            ("≲", "<="),
+            ("μ", "mu"),
+            ("Å", "A"),
+            ("Å", "A"),
+            ("˚", ""),
+            ("′", "'"),
+            ("’", "'"),
+            ("·", " dot "),
+            ("×", " cross "),
+            (";", ","),
+            ("_", " "),
+        ),
+    )
+    text = re.sub(
+        r"\bj\s*(J\s*(?:0\s*3|3\s*'|d|1|2))\s*j\b",
+        r"|\1|",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\bJ\s*(?:0\s*3|3\s*')\b",
+        "Jd",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\bT\s+N\b", "TN", text)
+    text = re.sub(r"\btheta\s*_?\s*W\b", "thetaW", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_boldrin_pdf_layout_search_text(source_text):
+    return _build_page_column_search_text(
+        source_text,
+        normalizer=_normalize_boldrin_extracted_text,
+        split_columns=(
+            60,
+            64,
+            68,
+            72,
+            76,
+            80,
+            84,
+            88,
+            92,
+            96,
+            100,
+            104,
+            108,
+        ),
+        include_page_order=True,
+        separator="\n" + "#" * 5000 + "\n",
+    )
+
+
+def _normalize_schiffer_extracted_text(text):
+    text = _dehyphenate_extracted_text(text)
+    text = _normalize_with_replacements(
+        text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("≈", " approximately "),
+            ("≃", " approximately "),
+            ("∼", " approximately "),
+            ("≪", " much less than "),
+            ("θ", "theta"),
+            ("χ", "chi"),
+            ("μ", "mu"),
+            ("·", " dot "),
+            ("_", " "),
+        ),
+    )
+    text = re.sub(r"\(\(\s*(?=\d)", "<", text)
+    text = re.sub(r"(?<=\d)\.\s+(?=\d)", ".", text)
+    text = re.sub(r"(?<![A-Za-z])-{2,}(?=\s*\d)", "-", text)
+    text = re.sub(
+        r"Gd\s*3\s*Ga\s*5\s*0\s*,\s*2",
+        "Gd3Ga5O12",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\bmagnetic\s+Gd\s+corner-sharing\s+trianguions\s+are\s+on\s+"
+        r"two\s+interpenetrating\s+lar\s+sublattices\b",
+        "magnetic Gd ions are on two interpenetrating corner-sharing "
+        "triangular sublattices",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\btv\s+o\b", "two", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b5\s*=\s*7\s*/\s*2\b", "S = 7/2", text)
+    text = re.sub(
+        r"\bOw[^\s]{0,8}\s*-+\s*2\s*K\b",
+        "thetaW approximately -2 K",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"(nearest neighbor dipole energy\s+is)\s*"
+        r"(?:approximately\s*)?-?\s*7\s*K",
+        r"\1 approximately 0.7 K",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"(nearest neighbor dipole energy\s+is)\s*-\s*0\.7\s*K",
+        r"\1 approximately 0.7 K",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"nearestexchange\s+interacneighbor\s+isotropic\s+"
+        r"antiferromagnetic\s+tions",
+        "nearest-neighbor isotropic antiferromagnetic exchange interactions",
+        text,
+        flags=re.IGNORECASE,
+    )
+    for joined, hyphenated in (
+        ("nearestneighbor", "nearest-neighbor"),
+        ("cornersharing", "corner-sharing"),
+        ("longrange", "long-range"),
+        ("firstorder", "first-order"),
+        ("threedimensional", "three-dimensional"),
+        ("finitetemperature", "finite-temperature"),
+    ):
+        text = re.sub(
+            rf"\b{joined}\b", hyphenated, text, flags=re.IGNORECASE
+        )
+    text = re.sub(r"\bAFM\b", "antiferromagnetic", text)
+    text = re.sub(r"\bLRO\b", "long-range order", text)
+    text = re.sub(r"\bGGG\b", "GGG", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_schiffer_pdf_layout_search_text(source_text):
+    return _build_page_column_search_text(
+        source_text,
+        normalizer=_normalize_schiffer_extracted_text,
+        split_columns=(
+            48,
+            52,
+            56,
+            60,
+            64,
+            68,
+            72,
+            76,
+            80,
+            84,
+            88,
+            92,
+            96,
+            100,
+            104,
+            108,
+            112,
+            116,
+        ),
+        include_page_order=True,
+        separator="\n" + "#" * 5000 + "\n",
+    )
+
+
+def _normalize_quilliam_extracted_text(text):
+    text = _dehyphenate_extracted_text(text)
+    text = _normalize_with_replacements(
+        text,
+        (
+            ("ﬁ", "fi"),
+            ("ﬂ", "fl"),
+            ("ﬀ", "ff"),
+            ("ﬃ", "ffi"),
+            ("ﬄ", "ffl"),
+            ("−", "-"),
+            ("–", "-"),
+            ("—", "-"),
+            ("≈", " approximately "),
+            ("≃", " approximately "),
+            ("∼", " approximately "),
+            ("\x05", " approximately "),
+            ("θ", "theta"),
+            ("∆", "Delta"),
+            ("Δ", "Delta"),
+            ("χ", "chi"),
+            ("μ", "mu"),
+            ("˚", ""),
+            ("Å", "A"),
+            ("¯", "-"),
+            ("·", " dot "),
+            ("〈", "<"),
+            ("〉", ">"),
+            ("_", " "),
+        ),
+    )
+    text = re.sub(r"(?<=\d)\.\s+(?=\d)", ".", text)
+    for pattern, replacement in (
+        (r"\bGd\s*3\s*Te\s*2\s*Li\s*3\s*O\s*12\b", "Gd3Te2Li3O12"),
+        (r"\bGd\s*3\s*Ga\s*5\s*O\s*12\b", "Gd3Ga5O12"),
+        (r"\bGd\s*3\s*Al\s*5\s*O\s*12\b", "Gd3Al5O12"),
+        (r"\bI\s*a\s*-?\s*3\s*d\b", "Ia-3d"),
+    ):
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    text = re.sub(r"\bH\s*Ex\b", "HEx", text)
+    text = re.sub(r"\bH\s*D\b", "HD", text)
+    text = re.sub(r"\btheta\s*C\s*W\b", "thetaCW", text)
+    text = re.sub(r"\bT\s*C\b", "TC", text)
+    text = re.sub(r"\bJ\s*1\b", "J1", text)
+    text = re.sub(r"\bGTLG\b", "GTLG", text)
+    text = re.sub(r"\bLRO\b", "long-range order", text)
+    for joined, hyphenated in (
+        ("nearestneighbor", "nearest-neighbor"),
+        ("cornersharing", "corner-sharing"),
+        ("longrange", "long-range"),
+        ("firstorder", "first-order"),
+        ("threedimensional", "three-dimensional"),
+        ("spinwave", "spin-wave"),
+        ("furtherneighbor", "further-neighbor"),
+    ):
+        text = re.sub(
+            rf"\b{joined}\b", hyphenated, text, flags=re.IGNORECASE
+        )
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_quilliam_pdf_layout_search_text(source_text):
+    return _build_page_column_search_text(
+        source_text,
+        normalizer=_normalize_quilliam_extracted_text,
+        split_columns=(
+            52,
+            56,
+            60,
+            64,
+            68,
+            72,
+            76,
+            80,
+            84,
+            88,
+            92,
+            96,
+            100,
+            104,
+            108,
+            112,
+            116,
+            120,
+        ),
+        include_page_order=True,
+        separator="\n" + "#" * 5000 + "\n",
+    )
+
+
+_PREPARED_VIEW_SPECS = MappingProxyType(
+    {
+        ("yang_xie_extracted_text", 1): _PreparedViewSpec(
+            "yang_xie_extracted_text", 1, _build_yang_xie_extracted_text
+        ),
+        (
+            "whitespace_normalized_extracted_text",
+            1,
+        ): _PreparedViewSpec(
+            "whitespace_normalized_extracted_text",
+            1,
+            _build_whitespace_normalized_extracted_text,
+        ),
+        ("stodter_pdf_layout_search_text", 1): _PreparedViewSpec(
+            "stodter_pdf_layout_search_text",
+            1,
+            _build_stodter_pdf_layout_search_text,
+        ),
+        ("ishikawa_pdf_layout_search_text", 1): _PreparedViewSpec(
+            "ishikawa_pdf_layout_search_text",
+            1,
+            _build_ishikawa_pdf_layout_search_text,
+        ),
+        ("nawa_pdf_layout_search_text", 1): _PreparedViewSpec(
+            "nawa_pdf_layout_search_text",
+            1,
+            _build_nawa_pdf_layout_search_text,
+        ),
+        ("schiffer_pdf_layout_search_text", 1): _PreparedViewSpec(
+            "schiffer_pdf_layout_search_text",
+            1,
+            _build_schiffer_pdf_layout_search_text,
+        ),
+        ("quilliam_pdf_layout_search_text", 1): _PreparedViewSpec(
+            "quilliam_pdf_layout_search_text",
+            1,
+            _build_quilliam_pdf_layout_search_text,
+        ),
+        ("boldrin_pdf_layout_search_text", 1): _PreparedViewSpec(
+            "boldrin_pdf_layout_search_text",
+            1,
+            _build_boldrin_pdf_layout_search_text,
+        ),
+    }
+)
+
+
+_PREPARED_TRACE_PARSER_BUILDERS = MappingProxyType(
+    {
+        "parse_yang_xie_square_blume_capel_crossing": (
+            "yang_xie_extracted_text",
+            1,
+        ),
+        "parse_yang_xie_single_ion_spin1_anisotropy_levels": (
+            "yang_xie_extracted_text",
+            1,
+        ),
+        "parse_jiang_wiese_square_heisenberg_spin_stiffness": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_jiang_wiese_square_heisenberg_staggered_magnetization": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_jiang_wiese_square_heisenberg_spin_wave_velocity": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_depenbrock_kagome_heisenberg_energy": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_stodter_clinoatacamite_distorted_kagome_exchange": (
+            "stodter_pdf_layout_search_text",
+            1,
+        ),
+        "parse_ishikawa_edwardsite_spin_half_deformed_kagome": (
+            "ishikawa_pdf_layout_search_text",
+            1,
+        ),
+        "parse_nawa_rubr3_kitaev_candidate_and_competing_interactions": (
+            "nawa_pdf_layout_search_text",
+            1,
+        ),
+        "parse_schiffer_ggg_strong_frustration_correction": (
+            "schiffer_pdf_layout_search_text",
+            1,
+        ),
+        "parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction": (
+            "quilliam_pdf_layout_search_text",
+            1,
+        ),
+        "parse_boldrin_vesignieite_dominant_j3_correction": (
+            "boldrin_pdf_layout_search_text",
+            1,
+        ),
+    }
+)
+
+
+_PREPARED_COORDINATE_METADATA_KEYS = frozenset(
+    {
+        "coordinate_space",
+        "coordinate_builder",
+        "coordinate_contract_version",
+        "coordinate_view_sha256",
+        "coordinate_view_length",
+        "text_span_sha256",
+        "text_span_captures",
+    }
+)
+
+
+def _build_prepared_view(source_text, *, builder_id, version):
+    if not isinstance(source_text, str):
+        raise RuntimeEvidenceError("prepared view requires text")
+    if type(version) is not int:
+        raise RuntimeEvidenceError(
+            "prepared view version must be an exact integer"
+        )
+    spec = _PREPARED_VIEW_SPECS.get((builder_id, version))
+    if spec is None:
+        raise RuntimeEvidenceError(
+            "prepared view builder/version is unsupported"
+        )
+    text = spec.builder(source_text)
+    return _PreparedView(
+        builder_id=spec.builder_id,
+        version=spec.version,
+        text=text,
+        sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+    )
+
+
+def _prepared_view_for_parser(source_text, parser_name):
+    builder_id, version = _PREPARED_TRACE_PARSER_BUILDERS[parser_name]
+    return _build_prepared_view(
+        source_text, builder_id=builder_id, version=version
+    )
+
+
+def _finalize_prepared_trace(parsed_and_trace, prepared):
+    parsed, source_trace = parsed_and_trace
+    trace = dict(source_trace)
+    contradictory = _PREPARED_COORDINATE_METADATA_KEYS.intersection(trace)
+    if contradictory:
+        raise RuntimeEvidenceError(
+            "prepared parser core returned coordinate metadata"
+        )
+    spans = trace.get("text_spans")
+    if not _is_valid_text_spans(spans):
+        raise RuntimeEvidenceError("prepared parser returned invalid text spans")
+    captures = []
+    span_sha256 = []
+    for start, end in spans:
+        if end > len(prepared.text):
+            raise RuntimeEvidenceError(
+                "prepared parser returned an out-of-range text span"
+            )
+        capture = prepared.text[start:end]
+        captures.append(capture)
+        span_sha256.append(
+            hashlib.sha256(capture.encode("utf-8")).hexdigest()
+        )
+    trace.update(
+        {
+            "coordinate_space": _PREPARED_TRACE_COORDINATE_SPACE,
+            "coordinate_builder": prepared.builder_id,
+            "coordinate_contract_version": prepared.version,
+            "coordinate_view_sha256": prepared.sha256,
+            "coordinate_view_length": len(prepared.text),
+            "text_span_sha256": span_sha256,
+            "text_span_captures": captures,
+        }
+    )
+    return parsed, trace
 
 
 def trace_coordinate_view(source_text):
-    """Return the sole version-1 coordinate view used by target parser traces.
+    """Return the temporary canonical view for unmigrated target traces.
 
-    Spans in a version-1 trace index this exact text, after the listed
-    deterministic Unicode repairs and whitespace normalization.  Target
-    parsers receive this view directly, so parser-local regex offsets cannot
-    drift from the trace coordinate system.
+    Parsers in ``_PREPARED_TRACE_PARSER_BUILDERS`` instead declare and index
+    their exact private prepared view.  This helper remains stable only while
+    the other target parsers are migrated in later batches.
     """
 
     if not isinstance(source_text, str):
@@ -102,25 +762,19 @@ def parse_yang_xie_square_blume_capel_crossing(source_text):
     error_prefix = "Yang-Xie Blume-Capel square-lattice crossing"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_yang_xie_square_blume_capel_crossing"
+    )
+    return _finalize_prepared_trace(
+        _parse_yang_xie_square_blume_capel_crossing_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    normalized = source_text
-    for old, new in (
-        ("ﬁ", "fi"),
-        ("ﬂ", "fl"),
-        ("ﬀ", "ff"),
-        ("ﬃ", "ffi"),
-        ("ﬄ", "ffl"),
-        ("−", "-"),
-        ("–", "-"),
-        ("—", "-"),
-        ("〈", "<"),
-        ("〉", ">"),
-        ("±", "+/-"),
-        ("∗", "*"),
-        ("²", "2"),
-    ):
-        normalized = normalized.replace(old, new)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+def _parse_yang_xie_square_blume_capel_crossing_prepared(normalized):
+    error_prefix = "Yang-Xie Blume-Capel square-lattice crossing"
 
     spin_i = r"S\s*_?\s*i"
     spin_j = r"S\s*_?\s*j"
@@ -459,8 +1113,28 @@ def parse_yang_xie_square_blume_capel_crossing(source_text):
 def parse_yang_xie_single_ion_spin1_anisotropy_levels(source_text):
     """Derive the spin-1 onsite spectrum from Yang-Xie Eq. (1)."""
 
-    _, source_trace = parse_yang_xie_square_blume_capel_crossing(
-        source_text
+    error_prefix = "Yang-Xie Blume-Capel square-lattice crossing"
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_yang_xie_single_ion_spin1_anisotropy_levels",
+    )
+    return _finalize_prepared_trace(
+        _parse_yang_xie_single_ion_spin1_anisotropy_levels_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_yang_xie_single_ion_spin1_anisotropy_levels_prepared(
+    prepared_text,
+):
+    _, source_trace = (
+        _parse_yang_xie_square_blume_capel_crossing_prepared(
+            prepared_text
+        )
     )
     spin = source_trace["spin"]
     if spin != 1:
@@ -2727,18 +3401,94 @@ def _is_valid_text_spans(value):
     return True
 
 
-def _is_valid_extraction_trace(trace, benchmark_name, source_sha256):
-    if not isinstance(trace, Mapping):
+def _coordinate_metadata_names(trace):
+    return {
+        key
+        for key in trace
+        if key == "coordinate_space"
+        or key.startswith("coordinate_builder")
+        or key.startswith("coordinate_contract")
+        or key.startswith("coordinate_view")
+        or key.startswith("text_span_sha")
+        or key.startswith("text_span_capture")
+    }
+
+
+def _is_valid_prepared_coordinate_trace(trace):
+    if _coordinate_metadata_names(trace) != (
+        _PREPARED_COORDINATE_METADATA_KEYS
+    ):
         return False
-    coordinate_space_is_valid = (
-        trace.get("coordinate_space")
-        == "whitespace_normalized_extracted_text"
-        or (
-            trace.get("coordinate_space") == TRACE_COORDINATE_SPACE
+    builder_id = trace.get("coordinate_builder")
+    version = trace.get("coordinate_contract_version")
+    if not isinstance(builder_id, str) or type(version) is not int:
+        return False
+    if (builder_id, version) not in _PREPARED_VIEW_SPECS:
+        return False
+    parser_name = trace.get("parser")
+    if not isinstance(parser_name, str):
+        return False
+    declared_builder = _PREPARED_TRACE_PARSER_BUILDERS.get(parser_name)
+    if declared_builder != (builder_id, version):
+        return False
+    if not _is_valid_sha256(trace.get("coordinate_view_sha256")):
+        return False
+    view_length = trace.get("coordinate_view_length")
+    if type(view_length) is not int or view_length <= 0:
+        return False
+    spans = trace.get("text_spans")
+    if not _is_valid_text_spans(spans):
+        return False
+    captures = trace.get("text_span_captures")
+    span_sha256 = trace.get("text_span_sha256")
+    if (
+        not isinstance(captures, Sequence)
+        or isinstance(captures, (str, bytes))
+        or not isinstance(span_sha256, Sequence)
+        or isinstance(span_sha256, (str, bytes))
+        or len(captures) != len(spans)
+        or len(span_sha256) != len(spans)
+    ):
+        return False
+    for span, capture, digest in zip(spans, captures, span_sha256):
+        start, end = span
+        if (
+            end > view_length
+            or not isinstance(capture, str)
+            or len(capture) != end - start
+            or not _is_valid_sha256(digest)
+            or hashlib.sha256(capture.encode("utf-8")).hexdigest()
+            != digest
+        ):
+            return False
+    return True
+
+
+def _is_valid_extraction_trace(trace, benchmark_name, source_sha256):
+    if not isinstance(trace, Mapping) or any(
+        not isinstance(key, str) for key in trace
+    ):
+        return False
+    coordinate_space = trace.get("coordinate_space")
+    coordinate_metadata = _coordinate_metadata_names(trace)
+    if coordinate_space == "whitespace_normalized_extracted_text":
+        coordinate_space_is_valid = coordinate_metadata == {
+            "coordinate_space"
+        }
+    elif coordinate_space == TRACE_COORDINATE_SPACE:
+        coordinate_space_is_valid = (
+            coordinate_metadata
+            == {"coordinate_space", "coordinate_contract_version"}
+            and type(trace.get("coordinate_contract_version")) is int
             and trace.get("coordinate_contract_version")
             == TRACE_COORDINATE_CONTRACT_VERSION
         )
-    )
+    elif coordinate_space == _PREPARED_TRACE_COORDINATE_SPACE:
+        coordinate_space_is_valid = _is_valid_prepared_coordinate_trace(
+            trace
+        )
+    else:
+        coordinate_space_is_valid = False
     return (
         trace.get("benchmark_name") == benchmark_name
         and trace.get("source_sha256") == source_sha256
@@ -9032,54 +9782,22 @@ def parse_stodter_clinoatacamite_distorted_kagome_exchange(source_text):
     error_prefix = "Stodter clinoatacamite distorted-kagome exchange"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_stodter_clinoatacamite_distorted_kagome_exchange",
+    )
+    return _finalize_prepared_trace(
+        _parse_stodter_clinoatacamite_distorted_kagome_exchange_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    def _normalize_extracted_text(text):
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\f\s*\d{1,2}\s*(?=[a-z])",
-            "",
-            text,
-        )
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
-            "",
-            text,
-        )
-        for old, new in (
-            ("ﬁ", "fi"),
-            ("ﬂ", "fl"),
-            ("ﬀ", "ff"),
-            ("ﬃ", "ffi"),
-            ("ﬄ", "ffl"),
-            ("−", "-"),
-            ("–", "-"),
-            ("—", "-"),
-            ("≲", "<="),
-            ("≤", "<="),
-            ("∼", "~"),
-        ):
-            text = text.replace(old, new)
-        return re.sub(r"\s+", " ", text).strip()
 
-    normalized = _normalize_extracted_text(source_text)
-    column_major_views = []
-    for split_column in (64, 68, 72, 76, 80):
-        left_pages = []
-        right_pages = []
-        for page in source_text.split("\f"):
-            lines = page.splitlines()
-            left_pages.append(
-                "\n".join(line[:split_column] for line in lines)
-            )
-            right_pages.append(
-                "\n".join(line[split_column:] for line in lines)
-            )
-        column_major_views.append(
-            _normalize_extracted_text("\n".join(left_pages))
-        )
-        column_major_views.append(
-            _normalize_extracted_text("\n".join(right_pages))
-        )
-    search_text = " ".join((normalized, *column_major_views))
+def _parse_stodter_clinoatacamite_distorted_kagome_exchange_prepared(
+    search_text,
+):
+    error_prefix = "Stodter clinoatacamite distorted-kagome exchange"
 
     material = r"Cu\s*2\s*Cl\s*\(\s*OH\s*\)\s*3"
     title_match = re.search(
@@ -9314,10 +10032,6 @@ def parse_stodter_clinoatacamite_distorted_kagome_exchange(source_text):
                 "promote the superseded VBS interpretation or claim exact "
                 "classical minima from the source text"
             ),
-            "coordinate_space": (
-                "concatenated_whitespace_normalized_pdf_text_and_"
-                "column_major_views"
-            ),
             "matched_anchors": [
                 "identified Stodter et al. clinoatacamite title",
                 "arXiv:2601.21024v2 identity and 19 June 2026 date",
@@ -9343,76 +10057,22 @@ def parse_ishikawa_edwardsite_spin_half_deformed_kagome(source_text):
     error_prefix = "Ishikawa Edwardsite deformed-kagome antiferromagnet"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_ishikawa_edwardsite_spin_half_deformed_kagome",
+    )
+    return _finalize_prepared_trace(
+        _parse_ishikawa_edwardsite_spin_half_deformed_kagome_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    def _normalize_extracted_text(text):
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\f\s*\d{1,2}\s*(?=[a-z])",
-            "",
-            text,
-        )
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
-            "",
-            text,
-        )
-        for old, new in (
-            ("ﬁ", "fi"),
-            ("ﬂ", "fl"),
-            ("ﬀ", "ff"),
-            ("ﬃ", "ffi"),
-            ("ﬄ", "ffl"),
-            ("−", "-"),
-            ("–", "-"),
-            ("—", "-"),
-            ("·", "*"),
-            ("⋅", "*"),
-            ("≲", "<="),
-            ("≤", "<="),
-            ("∼", "~"),
-        ):
-            text = text.replace(old, new)
-        return re.sub(r"\s+", " ", text).strip()
 
-    normalized = _normalize_extracted_text(source_text)
-    extraction_views = [normalized]
-    for split_column in (
-        60,
-        64,
-        68,
-        72,
-        76,
-        80,
-        96,
-        100,
-        102,
-        104,
-        108,
-    ):
-        left_pages = []
-        right_pages = []
-        page_order_fragments = []
-        for page in source_text.split("\f"):
-            lines = page.splitlines()
-            left_page = "\n".join(
-                line[:split_column] for line in lines
-            )
-            right_page = "\n".join(
-                line[split_column:] for line in lines
-            )
-            left_pages.append(left_page)
-            right_pages.append(right_page)
-            page_order_fragments.extend((left_page, right_page))
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(left_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(right_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(page_order_fragments))
-        )
-    view_separator = "\n" + "#" * 5000 + "\n"
-    search_text = view_separator.join(extraction_views)
+def _parse_ishikawa_edwardsite_spin_half_deformed_kagome_prepared(
+    search_text,
+):
+    error_prefix = "Ishikawa Edwardsite deformed-kagome antiferromagnet"
 
     formula = (
         r"Cd\s*2\s*Cu\s*3\s*\(\s*SO\s*4\s*\)\s*2"
@@ -9753,10 +10413,6 @@ def parse_ishikawa_edwardsite_spin_half_deformed_kagome(source_text):
                 "material, or an exact ideal-kagome classical 120-degree "
                 "manifold"
             ),
-            "coordinate_space": (
-                "concatenated_whitespace_normalized_pdf_text_and_"
-                "column_major_views"
-            ),
             "matched_anchors": [
                 "identified Ishikawa-Okamoto-Hiroi Edwardsite source",
                 "arXiv:1305.2477v1 identity and 11 May 2013 date",
@@ -9788,77 +10444,22 @@ def parse_nawa_rubr3_kitaev_candidate_and_competing_interactions(
     error_prefix = "Nawa RuBr3 magnetic-excitation source"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_nawa_rubr3_kitaev_candidate_and_competing_interactions",
+    )
+    return _finalize_prepared_trace(
+        _parse_nawa_rubr3_kitaev_candidate_and_competing_interactions_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    def _normalize_extracted_text(text):
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
-            "",
-            text,
-        )
-        for old, new in (
-            ("ﬁ", "fi"),
-            ("ﬂ", "fl"),
-            ("ﬀ", "ff"),
-            ("ﬃ", "ffi"),
-            ("ﬄ", "ffl"),
-            ("−", "-"),
-            ("–", "-"),
-            ("—", "-"),
-            ("α", "alpha"),
-            ("Γ", "Gamma"),
-            ("γ", "gamma"),
-            ("μ", "mu"),
-            ("Å", "A"),
-            ("Å", "A"),
-            ("′", "'"),
-            ("’", "'"),
-            ("°", " degrees "),
-            ("◦", " degrees "),
-        ):
-            text = text.replace(old, new)
-        text = re.sub(r"-\s+(?=\d)", "-", text)
-        return re.sub(r"\s+", " ", text).strip()
 
-    extraction_views = [_normalize_extracted_text(source_text)]
-    for split_column in (
-        64,
-        68,
-        72,
-        76,
-        80,
-        84,
-        88,
-        92,
-        96,
-        100,
-        104,
-        108,
-    ):
-        left_pages = []
-        right_pages = []
-        page_order_fragments = []
-        for page in source_text.split("\f"):
-            lines = page.splitlines()
-            left_page = "\n".join(
-                line[:split_column] for line in lines
-            )
-            right_page = "\n".join(
-                line[split_column:] for line in lines
-            )
-            left_pages.append(left_page)
-            right_pages.append(right_page)
-            page_order_fragments.extend((left_page, right_page))
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(left_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(right_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(page_order_fragments))
-        )
-    view_separator = "\n" + "#" * 5000 + "\n"
-    search_text = view_separator.join(extraction_views)
+def _parse_nawa_rubr3_kitaev_candidate_and_competing_interactions_prepared(
+    search_text,
+):
+    error_prefix = "Nawa RuBr3 magnetic-excitation source"
 
     identity_match = re.search(
         r"https?\s*:\s*//\s*doi\.org\s*/\s*"
@@ -10274,10 +10875,6 @@ def parse_nawa_rubr3_kitaev_candidate_and_competing_interactions(
                 "exchange Hamiltonian, exact bond eigenvalues, or an "
                 "independently recomputed classical zigzag energy"
             ),
-            "coordinate_space": (
-                "separated_whitespace_normalized_pdf_text_and_pagewise_"
-                "column_views"
-            ),
             "matched_anchors": [
                 "identified Nawa et al. 2026 RuBr3 source",
                 "powder INS on layered-honeycomb RuBr3",
@@ -10310,100 +10907,22 @@ def parse_boldrin_vesignieite_dominant_j3_correction(source_text):
     error_prefix = "Boldrin vesignieite dominant-J3 correction"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_boldrin_vesignieite_dominant_j3_correction",
+    )
+    return _finalize_prepared_trace(
+        _parse_boldrin_vesignieite_dominant_j3_correction_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    def _normalize_extracted_text(text):
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
-            "",
-            text,
-        )
-        for old, new in (
-            ("ﬁ", "fi"),
-            ("ﬂ", "fl"),
-            ("ﬀ", "ff"),
-            ("ﬃ", "ffi"),
-            ("ﬄ", "ffl"),
-            ("−", "-"),
-            ("–", "-"),
-            ("—", "-"),
-            ("¼", "="),
-            ("ð", "("),
-            ("Þ", ")"),
-            ("þ", "+"),
-            ("θ", "theta"),
-            ("δ", "delta"),
-            ("≈", "approximately"),
-            ("≪", "<<"),
-            ("≲", "<="),
-            ("μ", "mu"),
-            ("Å", "A"),
-            ("Å", "A"),
-            ("˚", ""),
-            ("′", "'"),
-            ("’", "'"),
-            ("·", " dot "),
-            ("×", " cross "),
-            (";", ","),
-            ("_", " "),
-        ):
-            text = text.replace(old, new)
-        text = re.sub(
-            r"\bj\s*(J\s*(?:0\s*3|3\s*'|d|1|2))\s*j\b",
-            r"|\1|",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"\bJ\s*(?:0\s*3|3\s*')\b",
-            "Jd",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(r"\bT\s+N\b", "TN", text)
-        text = re.sub(r"\btheta\s*_?\s*W\b", "thetaW", text)
-        return re.sub(r"\s+", " ", text).strip()
 
-    extraction_views = [_normalize_extracted_text(source_text)]
-    for split_column in (
-        60,
-        64,
-        68,
-        72,
-        76,
-        80,
-        84,
-        88,
-        92,
-        96,
-        100,
-        104,
-        108,
-    ):
-        left_pages = []
-        right_pages = []
-        page_order_fragments = []
-        for page in source_text.split("\f"):
-            lines = page.splitlines()
-            left_page = "\n".join(
-                line[:split_column] for line in lines
-            )
-            right_page = "\n".join(
-                line[split_column:] for line in lines
-            )
-            left_pages.append(left_page)
-            right_pages.append(right_page)
-            page_order_fragments.extend((left_page, right_page))
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(left_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(right_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(page_order_fragments))
-        )
-    view_separator = "\n" + "#" * 5000 + "\n"
-    search_text = view_separator.join(extraction_views)
+def _parse_boldrin_vesignieite_dominant_j3_correction_prepared(
+    search_text,
+):
+    error_prefix = "Boldrin vesignieite dominant-J3 correction"
 
     spin_half = r"(?:1\s*(?:/|=)?\s*2|12)"
     identity_spin = rf"(?:{spin_half}|2)"
@@ -10754,10 +11273,6 @@ def parse_boldrin_vesignieite_dominant_j3_correction(source_text):
                 "spectrum is governed by J3 and a weak symmetric exchange "
                 "anisotropy"
             ),
-            "coordinate_space": (
-                "separated_whitespace_normalized_pdf_text_and_pagewise_"
-                "column_views"
-            ),
             "matched_anchors": [
                 "identified Boldrin et al. 2018 vesignieite source",
                 "stoichiometric spin-half kagome neutron abstract",
@@ -10786,148 +11301,22 @@ def parse_schiffer_ggg_strong_frustration_correction(source_text):
     error_prefix = "Schiffer GGG strong-frustration correction"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_schiffer_ggg_strong_frustration_correction",
+    )
+    return _finalize_prepared_trace(
+        _parse_schiffer_ggg_strong_frustration_correction_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    def _normalize_extracted_text(text):
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
-            "",
-            text,
-        )
-        for old, new in (
-            ("ﬁ", "fi"),
-            ("ﬂ", "fl"),
-            ("ﬀ", "ff"),
-            ("ﬃ", "ffi"),
-            ("ﬄ", "ffl"),
-            ("−", "-"),
-            ("–", "-"),
-            ("—", "-"),
-            ("≈", " approximately "),
-            ("≃", " approximately "),
-            ("∼", " approximately "),
-            ("≪", " much less than "),
-            ("θ", "theta"),
-            ("χ", "chi"),
-            ("μ", "mu"),
-            ("·", " dot "),
-            ("_", " "),
-        ):
-            text = text.replace(old, new)
-        text = re.sub(r"\(\(\s*(?=\d)", "<", text)
-        text = re.sub(r"(?<=\d)\.\s+(?=\d)", ".", text)
-        text = re.sub(r"(?<![A-Za-z])-{2,}(?=\s*\d)", "-", text)
-        text = re.sub(
-            r"Gd\s*3\s*Ga\s*5\s*0\s*,\s*2",
-            "Gd3Ga5O12",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"\bmagnetic\s+Gd\s+corner-sharing\s+trianguions\s+are\s+on\s+"
-            r"two\s+interpenetrating\s+lar\s+sublattices\b",
-            "magnetic Gd ions are on two interpenetrating corner-sharing "
-            "triangular sublattices",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(r"\btv\s+o\b", "two", text, flags=re.IGNORECASE)
-        text = re.sub(
-            r"\b5\s*=\s*7\s*/\s*2\b",
-            "S = 7/2",
-            text,
-        )
-        text = re.sub(
-            r"\bOw[^\s]{0,8}\s*-+\s*2\s*K\b",
-            "thetaW approximately -2 K",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"(nearest neighbor dipole energy\s+is)\s*"
-            r"(?:approximately\s*)?-?\s*7\s*K",
-            r"\1 approximately 0.7 K",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"(nearest neighbor dipole energy\s+is)\s*-\s*0\.7\s*K",
-            r"\1 approximately 0.7 K",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"nearestexchange\s+interacneighbor\s+isotropic\s+"
-            r"antiferromagnetic\s+tions",
-            "nearest-neighbor isotropic antiferromagnetic exchange "
-            "interactions",
-            text,
-            flags=re.IGNORECASE,
-        )
-        for joined, hyphenated in (
-            ("nearestneighbor", "nearest-neighbor"),
-            ("cornersharing", "corner-sharing"),
-            ("longrange", "long-range"),
-            ("firstorder", "first-order"),
-            ("threedimensional", "three-dimensional"),
-            ("finitetemperature", "finite-temperature"),
-        ):
-            text = re.sub(
-                rf"\b{joined}\b",
-                hyphenated,
-                text,
-                flags=re.IGNORECASE,
-            )
-        text = re.sub(r"\bAFM\b", "antiferromagnetic", text)
-        text = re.sub(r"\bLRO\b", "long-range order", text)
-        text = re.sub(r"\bGGG\b", "GGG", text)
-        return re.sub(r"\s+", " ", text).strip()
 
-    extraction_views = [_normalize_extracted_text(source_text)]
-    for split_column in (
-        48,
-        52,
-        56,
-        60,
-        64,
-        68,
-        72,
-        76,
-        80,
-        84,
-        88,
-        92,
-        96,
-        100,
-        104,
-        108,
-        112,
-        116,
-    ):
-        left_pages = []
-        right_pages = []
-        page_order_fragments = []
-        for page in source_text.split("\f"):
-            lines = page.splitlines()
-            left_page = "\n".join(
-                line[:split_column] for line in lines
-            )
-            right_page = "\n".join(
-                line[split_column:] for line in lines
-            )
-            left_pages.append(left_page)
-            right_pages.append(right_page)
-            page_order_fragments.extend((left_page, right_page))
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(left_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(right_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(page_order_fragments))
-        )
-    view_separator = "\n" + "#" * 5000 + "\n"
-    search_text = view_separator.join(extraction_views)
+def _parse_schiffer_ggg_strong_frustration_correction_prepared(
+    search_text,
+):
+    error_prefix = "Schiffer GGG strong-frustration correction"
 
     identity_match = re.search(
         r"Investigation.{0,100}?of the Field Induced Antiferromagnetic Phase "
@@ -11151,10 +11540,6 @@ def parse_schiffer_ggg_strong_frustration_correction(source_text):
                 "low-temperature antiferromagnetic phase occurs only in "
                 "finite field"
             ),
-            "coordinate_space": (
-                "separated_whitespace_normalized_pdf_text_and_pagewise_"
-                "column_views"
-            ),
             "matched_anchors": [
                 "identified Schiffer et al. 1994 GGG source",
                 "finite-field specific-heat and susceptibility abstract",
@@ -11181,135 +11566,22 @@ def parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction(
     error_prefix = "Quilliam GTLG frustrated-hyperkagome correction"
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(f"{error_prefix} requires nonempty text")
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction",
+    )
+    return _finalize_prepared_trace(
+        _parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
 
-    def _normalize_extracted_text(text):
-        text = re.sub(
-            r"(?<=[A-Za-z])-\s*\r?\n\s*(?=[a-z])",
-            "",
-            text,
-        )
-        for old, new in (
-            ("ﬁ", "fi"),
-            ("ﬂ", "fl"),
-            ("ﬀ", "ff"),
-            ("ﬃ", "ffi"),
-            ("ﬄ", "ffl"),
-            ("−", "-"),
-            ("–", "-"),
-            ("—", "-"),
-            ("≈", " approximately "),
-            ("≃", " approximately "),
-            ("∼", " approximately "),
-            ("\x05", " approximately "),
-            ("θ", "theta"),
-            ("∆", "Delta"),
-            ("Δ", "Delta"),
-            ("χ", "chi"),
-            ("μ", "mu"),
-            ("˚", ""),
-            ("Å", "A"),
-            ("¯", "-"),
-            ("·", " dot "),
-            ("〈", "<"),
-            ("〉", ">"),
-            ("_", " "),
-        ):
-            text = text.replace(old, new)
-        text = re.sub(r"(?<=\d)\.\s+(?=\d)", ".", text)
-        text = re.sub(
-            r"\bGd\s*3\s*Te\s*2\s*Li\s*3\s*O\s*12\b",
-            "Gd3Te2Li3O12",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"\bGd\s*3\s*Ga\s*5\s*O\s*12\b",
-            "Gd3Ga5O12",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"\bGd\s*3\s*Al\s*5\s*O\s*12\b",
-            "Gd3Al5O12",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(
-            r"\bI\s*a\s*-?\s*3\s*d\b",
-            "Ia-3d",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(r"\bH\s*Ex\b", "HEx", text)
-        text = re.sub(r"\bH\s*D\b", "HD", text)
-        text = re.sub(r"\btheta\s*C\s*W\b", "thetaCW", text)
-        text = re.sub(r"\bT\s*C\b", "TC", text)
-        text = re.sub(r"\bJ\s*1\b", "J1", text)
-        text = re.sub(r"\bGTLG\b", "GTLG", text)
-        text = re.sub(r"\bLRO\b", "long-range order", text)
-        for joined, hyphenated in (
-            ("nearestneighbor", "nearest-neighbor"),
-            ("cornersharing", "corner-sharing"),
-            ("longrange", "long-range"),
-            ("firstorder", "first-order"),
-            ("threedimensional", "three-dimensional"),
-            ("spinwave", "spin-wave"),
-            ("furtherneighbor", "further-neighbor"),
-        ):
-            text = re.sub(
-                rf"\b{joined}\b",
-                hyphenated,
-                text,
-                flags=re.IGNORECASE,
-            )
-        return re.sub(r"\s+", " ", text).strip()
 
-    extraction_views = [_normalize_extracted_text(source_text)]
-    for split_column in (
-        52,
-        56,
-        60,
-        64,
-        68,
-        72,
-        76,
-        80,
-        84,
-        88,
-        92,
-        96,
-        100,
-        104,
-        108,
-        112,
-        116,
-        120,
-    ):
-        left_pages = []
-        right_pages = []
-        page_order_fragments = []
-        for page in source_text.split("\f"):
-            lines = page.splitlines()
-            left_page = "\n".join(
-                line[:split_column] for line in lines
-            )
-            right_page = "\n".join(
-                line[split_column:] for line in lines
-            )
-            left_pages.append(left_page)
-            right_pages.append(right_page)
-            page_order_fragments.extend((left_page, right_page))
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(left_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(right_pages))
-        )
-        extraction_views.append(
-            _normalize_extracted_text("\n".join(page_order_fragments))
-        )
-    view_separator = "\n" + "#" * 5000 + "\n"
-    search_text = view_separator.join(extraction_views)
+def _parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction_prepared(
+    search_text,
+):
+    error_prefix = "Quilliam GTLG frustrated-hyperkagome correction"
 
     identity_match = re.search(
         r"Juxtaposition of spin freezing and long range order in a "
@@ -11610,10 +11882,6 @@ def parse_quilliam_gtlg_frustrated_hyperkagome_garnet_correction(
                 "with strong evidence of long-range order, so this is not "
                 "evidence for a realized spin-liquid ground state or a "
                 "fully determined microscopic Hamiltonian"
-            ),
-            "coordinate_space": (
-                "separated_whitespace_normalized_pdf_text_and_pagewise_"
-                "column_views"
             ),
             "matched_anchors": [
                 "identified Quilliam et al. GTLG source",
@@ -14088,7 +14356,19 @@ def parse_jiang_wiese_square_heisenberg_low_energy_parameters(source_text):
         raise RuntimeEvidenceError(
             "Jiang-Wiese square-Heisenberg evidence requires nonempty text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _build_prepared_view(
+        source_text,
+        builder_id="whitespace_normalized_extracted_text",
+        version=1,
+    )
+    return _parse_jiang_wiese_square_heisenberg_low_energy_parameters_prepared(
+        prepared.text
+    )
+
+
+def _parse_jiang_wiese_square_heisenberg_low_energy_parameters_prepared(
+    normalized,
+):
     identity_match = re.search(
         r"PHYSICAL REVIEW B\s+83,\s*155120\s*\(\s*2011\s*\)"
         r".{0,300}?High-precision determination of low-energy effective "
@@ -14224,12 +14504,12 @@ def parse_jiang_wiese_square_heisenberg_low_energy_parameters(source_text):
     )
 
 
-def _parse_jiang_wiese_square_heisenberg_single_field(
-    source_text, *, field, parser_name
+def _parse_jiang_wiese_square_heisenberg_single_field_prepared(
+    prepared_text, *, field, parser_name
 ):
     joint_parameters, source_trace = (
-        parse_jiang_wiese_square_heisenberg_low_energy_parameters(
-            source_text
+        _parse_jiang_wiese_square_heisenberg_low_energy_parameters_prepared(
+            prepared_text
         )
     )
     if (
@@ -14260,12 +14540,19 @@ def _parse_jiang_wiese_square_heisenberg_single_field(
 def parse_jiang_wiese_square_heisenberg_spin_stiffness(source_text):
     """Project Jiang-Wiese's joint fit to the registered stiffness field."""
 
-    return _parse_jiang_wiese_square_heisenberg_single_field(
-        source_text,
-        field="rho_s_over_j",
-        parser_name=(
-            "parse_jiang_wiese_square_heisenberg_spin_stiffness"
+    parser_name = "parse_jiang_wiese_square_heisenberg_spin_stiffness"
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Jiang-Wiese square-Heisenberg evidence requires nonempty text"
+        )
+    prepared = _prepared_view_for_parser(source_text, parser_name)
+    return _finalize_prepared_trace(
+        _parse_jiang_wiese_square_heisenberg_single_field_prepared(
+            prepared.text,
+            field="rho_s_over_j",
+            parser_name=parser_name,
         ),
+        prepared,
     )
 
 
@@ -14274,24 +14561,40 @@ def parse_jiang_wiese_square_heisenberg_staggered_magnetization(
 ):
     """Project Jiang-Wiese's joint fit to the registered magnetization."""
 
-    return _parse_jiang_wiese_square_heisenberg_single_field(
-        source_text,
-        field="staggered_magnetization",
-        parser_name=(
-            "parse_jiang_wiese_square_heisenberg_staggered_magnetization"
+    parser_name = (
+        "parse_jiang_wiese_square_heisenberg_staggered_magnetization"
+    )
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Jiang-Wiese square-Heisenberg evidence requires nonempty text"
+        )
+    prepared = _prepared_view_for_parser(source_text, parser_name)
+    return _finalize_prepared_trace(
+        _parse_jiang_wiese_square_heisenberg_single_field_prepared(
+            prepared.text,
+            field="staggered_magnetization",
+            parser_name=parser_name,
         ),
+        prepared,
     )
 
 
 def parse_jiang_wiese_square_heisenberg_spin_wave_velocity(source_text):
     """Project Jiang-Wiese's winding result to the velocity field."""
 
-    return _parse_jiang_wiese_square_heisenberg_single_field(
-        source_text,
-        field="renormalized_velocity_over_j_approx",
-        parser_name=(
-            "parse_jiang_wiese_square_heisenberg_spin_wave_velocity"
+    parser_name = "parse_jiang_wiese_square_heisenberg_spin_wave_velocity"
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Jiang-Wiese square-Heisenberg evidence requires nonempty text"
+        )
+    prepared = _prepared_view_for_parser(source_text, parser_name)
+    return _finalize_prepared_trace(
+        _parse_jiang_wiese_square_heisenberg_single_field_prepared(
+            prepared.text,
+            field="renormalized_velocity_over_j_approx",
+            parser_name=parser_name,
         ),
+        prepared,
     )
 
 
@@ -14460,7 +14763,18 @@ def parse_depenbrock_kagome_heisenberg_energy(source_text):
         raise RuntimeEvidenceError(
             "Depenbrock kagome-Heisenberg energy requires nonempty text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_depenbrock_kagome_heisenberg_energy"
+    )
+    return _finalize_prepared_trace(
+        _parse_depenbrock_kagome_heisenberg_energy_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_depenbrock_kagome_heisenberg_energy_prepared(normalized):
     spin_half_pattern = (
         r"S\s*=\s*(?:1\s*/\s*2|1\s*2|2\s*1)"
     )
@@ -14632,10 +14946,28 @@ def parse_depenbrock_kagome_heisenberg_energy(source_text):
 def parse_depenbrock_kagome_heisenberg_energy_and_spin_gap(source_text):
     """Extract Depenbrock et al.'s kagome energy and bulk triplet gap."""
 
-    energy, energy_trace = parse_depenbrock_kagome_heisenberg_energy(
-        source_text
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Depenbrock kagome-Heisenberg energy requires nonempty text"
+        )
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_depenbrock_kagome_heisenberg_energy_and_spin_gap",
     )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    return _finalize_prepared_trace(
+        _parse_depenbrock_kagome_heisenberg_energy_and_spin_gap_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_depenbrock_kagome_heisenberg_energy_and_spin_gap_prepared(
+    normalized,
+):
+    energy, energy_trace = (
+        _parse_depenbrock_kagome_heisenberg_energy_prepared(normalized)
+    )
     abstract_gap_match = re.search(
         r"estimated per site energy of\s*[-−]\s*0\.4386\s*"
         r"\(\s*5\s*\)\s*,\s*a spin gap of\s*"
@@ -17284,8 +17616,8 @@ _EXACT_GAP_TRACE_PARSER_NAMES = (
 def _with_exact_gap_trace_coordinate_contract(parser):
     @wraps(parser)
     def wrapped(source_text):
-        # Preserve every parser's own fail-closed input diagnostic and any
-        # source-layout reconstruction before standardizing trace metadata.
+        # Temporary compatibility path for parsers not yet migrated to an
+        # explicit prepared-view boundary.  Migrated parsers bypass it.
         source_operand, trace = parser(source_text)
         trace = dict(trace)
         trace["coordinate_space"] = TRACE_COORDINATE_SPACE
@@ -17298,9 +17630,12 @@ def _with_exact_gap_trace_coordinate_contract(parser):
 
 
 for _exact_gap_trace_parser_name in _EXACT_GAP_TRACE_PARSER_NAMES:
-    globals()[_exact_gap_trace_parser_name] = _with_exact_gap_trace_coordinate_contract(
-        globals()[_exact_gap_trace_parser_name]
-    )
+    if _exact_gap_trace_parser_name not in _PREPARED_TRACE_PARSER_BUILDERS:
+        globals()[_exact_gap_trace_parser_name] = (
+            _with_exact_gap_trace_coordinate_contract(
+                globals()[_exact_gap_trace_parser_name]
+            )
+        )
 
 
 def collect_runtime_evidence(registry_entries, *, cache_root=DEFAULT_CACHE_ROOT):
