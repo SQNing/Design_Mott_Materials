@@ -776,7 +776,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_formula",
             "backend_needed": "glt",
             "standard_result": {"ring_condition": "|1+exp(iq1)+exp(iq2)|=|J1|/(2J2)"},
-            "source": "Mulder_Ganesh_Capraro_Damle_2010",
+            "source": "Mulder_Ganesh_Capriotti_Paramekanti_2010",
             "source_url": "https://arxiv.org/abs/1004.1119",
             "citation_locator": "classical spiral-contour equation for J2/J1>1/6",
         },
@@ -824,9 +824,12 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "dmrg_or_ed",
             "standard_result": {"critical_j2_over_j1_approx": 0.2411},
-            "source": "Kumar_Sen_Soos_2010",
+            "source": "Kumar_Ramasesha_Soos_2010",
             "source_url": "https://arxiv.org/abs/1006.5052",
-            "citation_locator": "abstract and level-spectroscopy analysis: BKT transition near J2/J1=0.2411",
+            "citation_locator": (
+                "abstract and discussion citing Okamoto-Nomura: fluid-dimer "
+                "transition at J2/J1=0.2411 where the gap opens"
+            ),
         },
         {
             "name": "takhtajan_babujian_spin1_critical_point",
@@ -1477,7 +1480,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "exact_solution",
             "backend_needed": "free_fermion_or_ed",
             "standard_result": {"energy_per_site": -1.0 / math.pi},
-            "source": "Collura_Essler_Groha_2015",
+            "source": "Collura_Calabrese_Essler_2015",
             "source_url": "https://doi.org/10.1103/physrevb.92.125131",
             "citation_locator": "XX-chain free-fermion ground-state energy at half filling",
         },
@@ -1507,7 +1510,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "comparison_kind": "paper_numeric",
             "backend_needed": "ed_or_dmrg",
             "standard_result": {"critical_j2_over_j1": 0.2411, "tolerance": 5.0e-4},
-            "source": "Kumar_Sen_Soos_2010",
+            "source": "Kumar_Ramasesha_Soos_2010",
             "source_url": "https://arxiv.org/abs/1006.5052",
             "citation_locator": "critical-point analysis: J2/J1=0.2411 dimerization transition",
         },

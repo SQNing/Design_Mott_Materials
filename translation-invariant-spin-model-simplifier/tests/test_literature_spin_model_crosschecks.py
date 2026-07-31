@@ -172,6 +172,35 @@ EXPECTED_REASSIGNED_SOURCE_IDENTITIES = {
 }
 
 
+EXPECTED_REASSIGNED_SOURCE_METADATA = {
+    "honeycomb_j1_j2_spiral_ring_reference": {
+        "source": "Mulder_Ganesh_Capriotti_Paramekanti_2010",
+        "canonical_source_identity": "arxiv:1004.1119",
+        "citation_locator": "classical spiral-contour equation for J2/J1>1/6",
+    },
+    "j1_j2_chain_bkt_transition_reference": {
+        "source": "Kumar_Ramasesha_Soos_2010",
+        "canonical_source_identity": "arxiv:1006.5052",
+        "citation_locator": (
+            "abstract and discussion citing Okamoto-Nomura: fluid-dimer "
+            "transition at J2/J1=0.2411 where the gap opens"
+        ),
+    },
+    "j1_j2_chain_okamoto_nomura_critical_point": {
+        "source": "Kumar_Ramasesha_Soos_2010",
+        "canonical_source_identity": "arxiv:1006.5052",
+        "citation_locator": (
+            "critical-point analysis: J2/J1=0.2411 dimerization transition"
+        ),
+    },
+    "xx_spin_half_chain_free_fermion_energy": {
+        "source": "Collura_Calabrese_Essler_2015",
+        "canonical_source_identity": "doi:10.1103/physrevb.92.125131",
+        "citation_locator": "XX-chain free-fermion ground-state energy at half filling",
+    },
+}
+
+
 def _exchange_matrix_eigenvalues(matrix):
     matrix = np.array(matrix, dtype=float)
     if np.allclose(matrix, np.diag(np.diag(matrix))):
@@ -393,6 +422,29 @@ def test_exact_source_identity_corrections_match_transition_manifest():
     assert canonical_source_identity(entries[ba3irti2o9]["source_url"]) == (
         "doi:10.1103/physrevb.86.140405"
     )
+
+
+def test_reviewed_reassigned_source_metadata_is_exact_and_all_42_rows_are_complete():
+    entries = {entry["name"]: entry for entry in LITERATURE_STANDARD_RESULTS}
+
+    assert len(EXPECTED_REASSIGNED_SOURCE_IDENTITIES) == 42
+    assert len(EXPECTED_REASSIGNED_SOURCE_METADATA) == 4
+    for name, expected in EXPECTED_REASSIGNED_SOURCE_METADATA.items():
+        entry = entries[name]
+        actual = {
+            "source": entry["source"],
+            "canonical_source_identity": canonical_source_identity(
+                entry["source_url"]
+            ),
+            "citation_locator": entry["citation_locator"],
+        }
+        assert actual == expected
+
+    for name, expected_identity in EXPECTED_REASSIGNED_SOURCE_IDENTITIES.items():
+        entry = entries[name]
+        assert entry["source"].strip()
+        assert entry["citation_locator"].strip()
+        assert canonical_source_identity(entry["source_url"]) == expected_identity
 
 
 def test_scientific_corrections_for_ba3_nacro2_vesignieite_ruby_and_edwardsite():
