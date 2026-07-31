@@ -100,6 +100,47 @@ def _build_whitespace_normalized_extracted_text(source_text):
     return re.sub(r"\s+", " ", source_text).strip()
 
 
+def _build_dash_normalized_extracted_text(source_text):
+    return (
+        _build_whitespace_normalized_extracted_text(source_text)
+        .replace("−", "-")
+        .replace("–", "-")
+        .replace("—", "-")
+    )
+
+
+def _build_collura_xx_extracted_text(source_text):
+    return _build_dash_normalized_extracted_text(source_text).replace(
+        "π", "pi"
+    )
+
+
+def _build_hirata_nomura_extracted_text(source_text):
+    return (
+        _build_whitespace_normalized_extracted_text(source_text)
+        .replace("−", "-")
+        .replace("–", "-")
+    )
+
+
+def _collapse_spaced_ocr_words(source_text):
+    spaced_word = re.compile(
+        r"(?<![A-Za-z])(?:[A-Za-z]\s+){3,}[A-Za-z](?![A-Za-z])"
+    )
+    return spaced_word.sub(
+        lambda match: re.sub(r"\s+", "", match.group(0)),
+        source_text,
+    )
+
+
+def _build_shastry_sutherland_dual_ocr_search_text(source_text):
+    whitespace_normalized = _build_whitespace_normalized_extracted_text(
+        source_text
+    )
+    collapsed = _collapse_spaced_ocr_words(whitespace_normalized)
+    return whitespace_normalized + "\n" + "#" * 5000 + "\n" + collapsed
+
+
 def _build_yang_xie_extracted_text(source_text):
     return _normalize_with_replacements(
         source_text,
@@ -515,6 +556,29 @@ _PREPARED_VIEW_SPECS = MappingProxyType(
             1,
             _build_whitespace_normalized_extracted_text,
         ),
+        ("dash_normalized_extracted_text", 1): _PreparedViewSpec(
+            "dash_normalized_extracted_text",
+            1,
+            _build_dash_normalized_extracted_text,
+        ),
+        ("collura_xx_extracted_text", 1): _PreparedViewSpec(
+            "collura_xx_extracted_text",
+            1,
+            _build_collura_xx_extracted_text,
+        ),
+        ("hirata_nomura_extracted_text", 1): _PreparedViewSpec(
+            "hirata_nomura_extracted_text",
+            1,
+            _build_hirata_nomura_extracted_text,
+        ),
+        (
+            "shastry_sutherland_dual_ocr_search_text",
+            1,
+        ): _PreparedViewSpec(
+            "shastry_sutherland_dual_ocr_search_text",
+            1,
+            _build_shastry_sutherland_dual_ocr_search_text,
+        ),
         ("stodter_pdf_layout_search_text", 1): _PreparedViewSpec(
             "stodter_pdf_layout_search_text",
             1,
@@ -601,6 +665,70 @@ _PREPARED_TRACE_PARSER_BUILDERS = MappingProxyType(
         ),
         "parse_boldrin_vesignieite_dominant_j3_correction": (
             "boldrin_pdf_layout_search_text",
+            1,
+        ),
+        "parse_dziarmaga_tfim_critical_point": (
+            "dash_normalized_extracted_text",
+            1,
+        ),
+        "parse_dziarmaga_tfim_gap": (
+            "dash_normalized_extracted_text",
+            1,
+        ),
+        "parse_collura_xx_chain_energy": (
+            "collura_xx_extracted_text",
+            1,
+        ),
+        "parse_pinettes_diep_simple_cubic_boundary": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_shastry_sutherland_exact_dimer_product": (
+            "shastry_sutherland_dual_ocr_search_text",
+            1,
+        ),
+        "parse_fouet_checkerboard_classical_constraint": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_kano_naya_kagome_ising_ferromagnet_tc": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_kano_naya_kagome_ising_antiferromagnet_entropy": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_garel_maillard_villain_entropy": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_husimi_syozi_honeycomb_ising_tc": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_husimi_syozi_triangular_ising_tc": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_ising_1925_linear_chain_no_transition": (
+            "whitespace_normalized_extracted_text",
+            1,
+        ),
+        "parse_hirata_nomura_xxz_phase_boundaries": (
+            "hirata_nomura_extracted_text",
+            1,
+        ),
+        "parse_kumar_j1_j2_critical_point": (
+            "dash_normalized_extracted_text",
+            1,
+        ),
+        "parse_kumar_j1_j2_bkt_reference": (
+            "dash_normalized_extracted_text",
             1,
         ),
     }
@@ -1700,21 +1828,12 @@ def parse_pfeuty_tfim_gap(source_text):
     )
 
 
-def _parse_dziarmaga_tfim_spectrum_anchors(source_text):
+def _parse_dziarmaga_tfim_spectrum_anchors_prepared(normalized):
     error_message = (
         "Dziarmaga TFIM source must establish arXiv:cond-mat/0509490v3, "
         "the Pauli-matrix Hamiltonian in Eq. (1), the exact g=1 critical "
         "point, the Jordan-Wigner and Bogoliubov transformations, and the "
         "quasiparticle dispersion in Eq. (16)"
-    )
-    if not isinstance(source_text, str) or not source_text.strip():
-        raise RuntimeEvidenceError(error_message)
-
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = (
-        normalized.replace("−", "-")
-        .replace("–", "-")
-        .replace("—", "-")
     )
     identity_match = re.search(
         r"Dynamics of quantum phase transition:\s*exact solution in "
@@ -1817,7 +1936,27 @@ def _dziarmaga_tfim_trace(parser_name, matches):
 def parse_dziarmaga_tfim_critical_point(source_text):
     """Extract the exactly normalized TFIM critical field from Dziarmaga."""
 
-    _, matches = _parse_dziarmaga_tfim_spectrum_anchors(source_text)
+    error_message = (
+        "Dziarmaga TFIM source must establish arXiv:cond-mat/0509490v3, "
+        "the Pauli-matrix Hamiltonian in Eq. (1), the exact g=1 critical "
+        "point, the Jordan-Wigner and Bogoliubov transformations, and the "
+        "quasiparticle dispersion in Eq. (16)"
+    )
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_dziarmaga_tfim_critical_point"
+    )
+    return _finalize_prepared_trace(
+        _parse_dziarmaga_tfim_critical_point_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_dziarmaga_tfim_critical_point_prepared(prepared_text):
+    _, matches = _parse_dziarmaga_tfim_spectrum_anchors_prepared(
+        prepared_text
+    )
     return (
         {"critical_field_over_exchange": 1.0},
         _dziarmaga_tfim_trace(
@@ -1829,7 +1968,26 @@ def parse_dziarmaga_tfim_critical_point(source_text):
 def parse_dziarmaga_tfim_gap(source_text):
     """Derive the registered TFIM gap from Dziarmaga's exact dispersion."""
 
-    _, matches = _parse_dziarmaga_tfim_spectrum_anchors(source_text)
+    error_message = (
+        "Dziarmaga TFIM source must establish arXiv:cond-mat/0509490v3, "
+        "the Pauli-matrix Hamiltonian in Eq. (1), the exact g=1 critical "
+        "point, the Jordan-Wigner and Bogoliubov transformations, and the "
+        "quasiparticle dispersion in Eq. (16)"
+    )
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_dziarmaga_tfim_gap"
+    )
+    return _finalize_prepared_trace(
+        _parse_dziarmaga_tfim_gap_prepared(prepared.text), prepared
+    )
+
+
+def _parse_dziarmaga_tfim_gap_prepared(prepared_text):
+    _, matches = _parse_dziarmaga_tfim_spectrum_anchors_prepared(
+        prepared_text
+    )
     field_over_exchange = 0.6
     gap = 2.0 * abs(1.0 - field_over_exchange)
     trace = _dziarmaga_tfim_trace("parse_dziarmaga_tfim_gap", matches)
@@ -1951,14 +2109,22 @@ def parse_collura_xx_chain_energy(source_text):
     )
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(error_message)
-
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = (
-        normalized.replace("−", "-")
-        .replace("–", "-")
-        .replace("—", "-")
-        .replace("π", "pi")
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_collura_xx_chain_energy"
     )
+    return _finalize_prepared_trace(
+        _parse_collura_xx_chain_energy_prepared(prepared.text), prepared
+    )
+
+
+def _parse_collura_xx_chain_energy_prepared(normalized):
+    error_message = (
+        "Collura-Calabrese-Essler XX source must establish DOI "
+        "10.1103/PhysRevB.92.125131, the spin-operator XXZ Hamiltonian in "
+        "Eq. (1), its Delta=0 XX limit, and the exact energy density "
+        "E_XX=-1/pi"
+    )
+
     spin_half_pattern = r"spin-\s*1\s*/?\s*2"
     identity_match = re.search(
         r"Quantum quench within the gapless phase of the "
@@ -2054,7 +2220,16 @@ def parse_pinettes_diep_simple_cubic_boundary(source_text):
         raise RuntimeEvidenceError(
             "Pinettes-Diep simple-cubic boundary requires nonempty source text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_pinettes_diep_simple_cubic_boundary"
+    )
+    return _finalize_prepared_trace(
+        _parse_pinettes_diep_simple_cubic_boundary_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_pinettes_diep_simple_cubic_boundary_prepared(normalized):
     identity_match = re.search(
         r"Phase transition and phase diagram.{0,160}?Heisenberg model"
         r".{0,120}?simple(?:-|\s+)cubic lattice",
@@ -2135,16 +2310,6 @@ def parse_pinettes_diep_simple_cubic_boundary(source_text):
     )
 
 
-def _collapse_spaced_ocr_words(source_text):
-    spaced_word = re.compile(
-        r"(?<![A-Za-z])(?:[A-Za-z]\s+){3,}[A-Za-z](?![A-Za-z])"
-    )
-    return spaced_word.sub(
-        lambda match: re.sub(r"\s+", "", match.group(0)),
-        source_text,
-    )
-
-
 def parse_shastry_sutherland_exact_dimer_product(source_text):
     """Derive the spin-half dimer energy from the rigorous product state."""
 
@@ -2152,8 +2317,18 @@ def parse_shastry_sutherland_exact_dimer_product(source_text):
         raise RuntimeEvidenceError(
             "Shastry-Sutherland exact dimer proof requires nonempty source text"
         )
-    original_normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = _collapse_spaced_ocr_words(original_normalized)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_shastry_sutherland_exact_dimer_product"
+    )
+    return _finalize_prepared_trace(
+        _parse_shastry_sutherland_exact_dimer_product_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_shastry_sutherland_exact_dimer_product_prepared(normalized):
     identity_match = re.search(
         r"EXACT GROUND\s*STATE OF A QUANTUM MECHANICAL ANTIFERROMAGNET",
         normalized,
@@ -2178,7 +2353,7 @@ def parse_shastry_sutherland_exact_dimer_product(source_text):
     singlet_match = re.search(
         r"notation.{0,120}?f\s*o\s*r\s+a\s+"
         r"s\s*i\s*n\s*g\s*l\s*e\s*t.{0,120}?of the spins",
-        original_normalized,
+        normalized,
         flags=re.IGNORECASE,
     )
     annihilation_match = re.search(
@@ -2246,7 +2421,18 @@ def parse_fouet_checkerboard_classical_constraint(source_text):
         raise RuntimeEvidenceError(
             "Fouet checkerboard constraint requires nonempty source text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_fouet_checkerboard_classical_constraint"
+    )
+    return _finalize_prepared_trace(
+        _parse_fouet_checkerboard_classical_constraint_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_fouet_checkerboard_classical_constraint_prepared(normalized):
     paper_match = re.search(
         r"The planar pyrochlore\s*:\s*a Valence Bond Crystal",
         normalized,
@@ -2423,12 +2609,7 @@ def parse_syozi_kagome_ising_ferromagnet_tc(source_text):
     )
 
 
-def _parse_kano_naya_kagome_identity(source_text):
-    if not isinstance(source_text, str) or not source_text.strip():
-        raise RuntimeEvidenceError(
-            "Kano-Naya kagome Ising evidence requires nonempty source text"
-        )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+def _parse_kano_naya_kagome_identity_prepared(normalized):
     identity_match = re.search(
         r"Progress of Theoretical Physics,\s*Vol\.?\s*10"
         r".{0,100}?(?:No\.?\s*2|August 1953)"
@@ -2454,8 +2635,24 @@ def _parse_kano_naya_kagome_identity(source_text):
 def parse_kano_naya_kagome_ising_ferromagnet_tc(source_text):
     """Derive the kagome Ising Curie temperature from Kano-Naya Eq. (32)."""
 
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Kano-Naya kagome Ising evidence requires nonempty source text"
+        )
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_kano_naya_kagome_ising_ferromagnet_tc"
+    )
+    return _finalize_prepared_trace(
+        _parse_kano_naya_kagome_ising_ferromagnet_tc_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_kano_naya_kagome_ising_ferromagnet_tc_prepared(normalized):
     normalized, identity_match, exact_solution_match = (
-        _parse_kano_naya_kagome_identity(source_text)
+        _parse_kano_naya_kagome_identity_prepared(normalized)
     )
     critical_match = re.search(
         r"equation determining the transition temperature.{0,1200}?"
@@ -2527,8 +2724,27 @@ def parse_kano_naya_kagome_ising_ferromagnet_tc(source_text):
 def parse_kano_naya_kagome_ising_antiferromagnet_entropy(source_text):
     """Establish macroscopic kagome-Ising degeneracy from Eq. (47)."""
 
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Kano-Naya kagome Ising evidence requires nonempty source text"
+        )
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_kano_naya_kagome_ising_antiferromagnet_entropy",
+    )
+    return _finalize_prepared_trace(
+        _parse_kano_naya_kagome_ising_antiferromagnet_entropy_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_kano_naya_kagome_ising_antiferromagnet_entropy_prepared(
+    normalized,
+):
     normalized, identity_match, exact_solution_match = (
-        _parse_kano_naya_kagome_identity(source_text)
+        _parse_kano_naya_kagome_identity_prepared(normalized)
     )
     disorder_entropy_match = re.search(
         r"(?:in the case of anti\s*ferromagnetism"
@@ -2615,7 +2831,16 @@ def parse_garel_maillard_villain_entropy(source_text):
         raise RuntimeEvidenceError(
             "Garel-Maillard Villain entropy evidence requires nonempty text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_garel_maillard_villain_entropy"
+    )
+    return _finalize_prepared_trace(
+        _parse_garel_maillard_villain_entropy_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_garel_maillard_villain_entropy_prepared(normalized):
 
     identity_match = re.search(
         r"Study of a two-dimensional fully frustrated model"
@@ -2738,12 +2963,7 @@ def parse_garel_maillard_villain_entropy(source_text):
     )
 
 
-def _parse_husimi_syozi_hexagonal_ising_anchors(source_text):
-    if not isinstance(source_text, str) or not source_text.strip():
-        raise RuntimeEvidenceError(
-            "Husimi-Syozi Ising critical conditions require nonempty source text"
-        )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+def _parse_husimi_syozi_hexagonal_ising_anchors_prepared(normalized):
     identity_match = re.search(
         r"The Statistics of Honeycomb and Triangular Lattice\.?\s*I"
         r".{0,420}?Kodi Husimi.{0,260}?Itiro Sy(?:o|ô)zi",
@@ -2830,7 +3050,23 @@ def _husimi_syozi_ising_trace(
 def parse_husimi_syozi_honeycomb_ising_tc(source_text):
     """Derive the honeycomb Ising Curie temperature from cosh(2H_c)=2."""
 
-    matches = _parse_husimi_syozi_hexagonal_ising_anchors(source_text)
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Husimi-Syozi Ising critical conditions require nonempty source text"
+        )
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_husimi_syozi_honeycomb_ising_tc"
+    )
+    return _finalize_prepared_trace(
+        _parse_husimi_syozi_honeycomb_ising_tc_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_husimi_syozi_honeycomb_ising_tc_prepared(prepared_text):
+    matches = _parse_husimi_syozi_hexagonal_ising_anchors_prepared(
+        prepared_text
+    )
     tc_over_j = 2.0 / math.log(2.0 + math.sqrt(3.0))
     return (
         {"tc_over_j": tc_over_j},
@@ -2850,7 +3086,23 @@ def parse_husimi_syozi_honeycomb_ising_tc(source_text):
 def parse_husimi_syozi_triangular_ising_tc(source_text):
     """Derive the triangular Ising Curie temperature from exp(4H_c)=3."""
 
-    matches = _parse_husimi_syozi_hexagonal_ising_anchors(source_text)
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(
+            "Husimi-Syozi Ising critical conditions require nonempty source text"
+        )
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_husimi_syozi_triangular_ising_tc"
+    )
+    return _finalize_prepared_trace(
+        _parse_husimi_syozi_triangular_ising_tc_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_husimi_syozi_triangular_ising_tc_prepared(prepared_text):
+    matches = _parse_husimi_syozi_hexagonal_ising_anchors_prepared(
+        prepared_text
+    )
     tc_over_j = 4.0 / math.log(3.0)
     return (
         {"tc_over_j": tc_over_j},
@@ -2876,7 +3128,21 @@ def parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states(
             "Caspers-Emmett-Magnus Majumdar-Ghosh proof requires "
             "nonempty source text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text,
+        "parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states",
+    )
+    return _finalize_prepared_trace(
+        _parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states_prepared(
+    normalized,
+):
     identity_match = re.search(
         r"The Majumdar(?:-|\s*)Ghosh chain[.:]?\s*Twofold ground state "
         r"and elementary excitations",
@@ -3172,7 +3438,18 @@ def parse_ising_1925_linear_chain_no_transition(source_text):
         raise RuntimeEvidenceError(
             "Ising 1925 linear chain result requires nonempty source text"
         )
-    normalized = re.sub(r"\s+", " ", source_text).strip()
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_ising_1925_linear_chain_no_transition"
+    )
+    return _finalize_prepared_trace(
+        _parse_ising_1925_linear_chain_no_transition_prepared(
+            prepared.text
+        ),
+        prepared,
+    )
+
+
+def _parse_ising_1925_linear_chain_no_transition_prepared(normalized):
     identity_match = re.search(
         r"Ernst Ising.{0,260}?Contribution to the "
         r"Theory of Ferromagnetism.{0,100}?1925",
@@ -3647,9 +3924,24 @@ def parse_hirata_nomura_xxz_phase_boundaries(source_text):
     )
     if not isinstance(source_text, str) or not source_text.strip():
         raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_hirata_nomura_xxz_phase_boundaries"
+    )
+    return _finalize_prepared_trace(
+        _parse_hirata_nomura_xxz_phase_boundaries_prepared(prepared.text),
+        prepared,
+    )
 
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = normalized.replace("−", "-").replace("–", "-")
+
+def _parse_hirata_nomura_xxz_phase_boundaries_prepared(normalized):
+    error_message = (
+        "Hirata-Nomura exact XXZ submodel source must establish the "
+        "identified cond-mat/9909290v1 preprint, its antiferromagnetic "
+        "spin-half J1-J2 XXZ Hamiltonian, the alpha=0 Bethe-ansatz "
+        "submodel, the Delta=-1 and Delta=1 ordered-phase boundaries, "
+        "and the closed [-1,1] gapless spin-fluid interval"
+    )
+
     alpha_pattern = r"(?:alpha|α)"
     delta_pattern = r"(?:Delta|∆)"
     less_equal_pattern = r"(?:<=|≤)"
@@ -4067,22 +4359,13 @@ def parse_okamoto_nomura_j1_j2_bkt_reference(source_text):
     return {"critical_j2_over_j1_approx": critical_ratio}, trace
 
 
-def _parse_kumar_j1_j2_critical_ratio(source_text):
+def _parse_kumar_j1_j2_critical_ratio_prepared(normalized):
     error_message = (
         "Kumar-Ramasesha-Soos J1-J2 source must establish "
         "arXiv:1006.5052v1, the antiferromagnetic spin-half first- and "
         "second-neighbor Hamiltonian in Eq. (1), the mapping "
         "J2/J1=x/(1-x), and the 0.2411 fluid-dimer transition where the "
         "magnetic gap opens"
-    )
-    if not isinstance(source_text, str) or not source_text.strip():
-        raise RuntimeEvidenceError(error_message)
-
-    normalized = re.sub(r"\s+", " ", source_text).strip()
-    normalized = (
-        normalized.replace("−", "-")
-        .replace("–", "-")
-        .replace("—", "-")
     )
     spin_half_pattern = r"spin-\s*1\s*/?\s*2"
     identity_match = re.search(
@@ -4176,7 +4459,28 @@ def _parse_kumar_j1_j2_critical_ratio(source_text):
 def parse_kumar_j1_j2_critical_point(source_text):
     """Extract the corroborated Okamoto-Nomura J2/J1 transition ratio."""
 
-    critical_ratio, trace = _parse_kumar_j1_j2_critical_ratio(source_text)
+    error_message = (
+        "Kumar-Ramasesha-Soos J1-J2 source must establish "
+        "arXiv:1006.5052v1, the antiferromagnetic spin-half first- and "
+        "second-neighbor Hamiltonian in Eq. (1), the mapping "
+        "J2/J1=x/(1-x), and the 0.2411 fluid-dimer transition where the "
+        "magnetic gap opens"
+    )
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_kumar_j1_j2_critical_point"
+    )
+    return _finalize_prepared_trace(
+        _parse_kumar_j1_j2_critical_point_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_kumar_j1_j2_critical_point_prepared(prepared_text):
+    critical_ratio, trace = _parse_kumar_j1_j2_critical_ratio_prepared(
+        prepared_text
+    )
     trace = dict(trace)
     trace["parser"] = "parse_kumar_j1_j2_critical_point"
     return {"critical_j2_over_j1": critical_ratio}, trace
@@ -4185,7 +4489,28 @@ def parse_kumar_j1_j2_critical_point(source_text):
 def parse_kumar_j1_j2_bkt_reference(source_text):
     """Map Kumar et al.'s fluid-dimer ratio to the approximate field."""
 
-    critical_ratio, trace = _parse_kumar_j1_j2_critical_ratio(source_text)
+    error_message = (
+        "Kumar-Ramasesha-Soos J1-J2 source must establish "
+        "arXiv:1006.5052v1, the antiferromagnetic spin-half first- and "
+        "second-neighbor Hamiltonian in Eq. (1), the mapping "
+        "J2/J1=x/(1-x), and the 0.2411 fluid-dimer transition where the "
+        "magnetic gap opens"
+    )
+    if not isinstance(source_text, str) or not source_text.strip():
+        raise RuntimeEvidenceError(error_message)
+    prepared = _prepared_view_for_parser(
+        source_text, "parse_kumar_j1_j2_bkt_reference"
+    )
+    return _finalize_prepared_trace(
+        _parse_kumar_j1_j2_bkt_reference_prepared(prepared.text),
+        prepared,
+    )
+
+
+def _parse_kumar_j1_j2_bkt_reference_prepared(prepared_text):
+    critical_ratio, trace = _parse_kumar_j1_j2_critical_ratio_prepared(
+        prepared_text
+    )
     trace = dict(trace)
     trace["parser"] = "parse_kumar_j1_j2_bkt_reference"
     return {"critical_j2_over_j1_approx": critical_ratio}, trace

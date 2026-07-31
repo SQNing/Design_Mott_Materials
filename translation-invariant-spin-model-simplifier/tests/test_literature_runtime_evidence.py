@@ -14661,6 +14661,119 @@ PREPARED_TRACE_BATCH_A_FIXTURES = {
 }
 
 
+PREPARED_TRACE_BATCH_B_BUILDERS = {
+    "parse_dziarmaga_tfim_critical_point": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_dziarmaga_tfim_gap": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_collura_xx_chain_energy": (
+        "collura_xx_extracted_text",
+        1,
+    ),
+    "parse_pinettes_diep_simple_cubic_boundary": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_shastry_sutherland_exact_dimer_product": (
+        "shastry_sutherland_dual_ocr_search_text",
+        1,
+    ),
+    "parse_fouet_checkerboard_classical_constraint": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_kano_naya_kagome_ising_ferromagnet_tc": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_kano_naya_kagome_ising_antiferromagnet_entropy": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_garel_maillard_villain_entropy": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_husimi_syozi_honeycomb_ising_tc": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_husimi_syozi_triangular_ising_tc": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_caspers_emmett_magnus_majumdar_ghosh_dimer_ground_states": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_ising_1925_linear_chain_no_transition": (
+        "whitespace_normalized_extracted_text",
+        1,
+    ),
+    "parse_hirata_nomura_xxz_phase_boundaries": (
+        "hirata_nomura_extracted_text",
+        1,
+    ),
+    "parse_kumar_j1_j2_critical_point": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+    "parse_kumar_j1_j2_bkt_reference": (
+        "dash_normalized_extracted_text",
+        1,
+    ),
+}
+
+
+PREPARED_TRACE_BATCH_B_FIXTURES = {
+    parser_name: _exact_gap_positive_fixtures(
+        _exact_gap_manifest_parser_names()
+    )[parser_name]
+    for parser_name in PREPARED_TRACE_BATCH_B_BUILDERS
+}
+
+
+PREPARED_TRACE_BATCH_B_CORES = {
+    parser_name: f"_{parser_name}_prepared"
+    for parser_name in PREPARED_TRACE_BATCH_B_BUILDERS
+}
+
+
+def _independently_rebuild_batch_b_view(source_text, builder_id):
+    whitespace_normalized = re.sub(r"\s+", " ", source_text).strip()
+    if builder_id == "whitespace_normalized_extracted_text":
+        return whitespace_normalized
+    if builder_id == "dash_normalized_extracted_text":
+        return (
+            whitespace_normalized.replace("−", "-")
+            .replace("–", "-")
+            .replace("—", "-")
+        )
+    if builder_id == "collura_xx_extracted_text":
+        return (
+            whitespace_normalized.replace("−", "-")
+            .replace("–", "-")
+            .replace("—", "-")
+            .replace("π", "pi")
+        )
+    if builder_id == "hirata_nomura_extracted_text":
+        return whitespace_normalized.replace("−", "-").replace("–", "-")
+    if builder_id == "shastry_sutherland_dual_ocr_search_text":
+        spaced_word = re.compile(
+            r"(?<![A-Za-z])(?:[A-Za-z]\s+){3,}[A-Za-z](?![A-Za-z])"
+        )
+        collapsed = spaced_word.sub(
+            lambda match: re.sub(r"\s+", "", match.group(0)),
+            whitespace_normalized,
+        )
+        return whitespace_normalized + "\n" + "#" * 5000 + "\n" + collapsed
+    raise AssertionError(f"unexpected Batch B builder: {builder_id}")
+
+
 def _prepared_trace_bundle(parser_name, source_text):
     source_operand, trace = getattr(
         literature_runtime_evidence, parser_name
@@ -14691,13 +14804,205 @@ def _prepared_trace_bundle(parser_name, source_text):
 
 
 def test_batch_a_prepared_trace_registry_is_exact():
-    assert literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS == (
-        PREPARED_TRACE_BATCH_A_BUILDERS
-    )
+    assert {
+        parser_name: literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS[
+            parser_name
+        ]
+        for parser_name in PREPARED_TRACE_BATCH_A_BUILDERS
+    } == PREPARED_TRACE_BATCH_A_BUILDERS
     assert set(PREPARED_TRACE_BATCH_A_FIXTURES) == set(
         PREPARED_TRACE_BATCH_A_BUILDERS
     )
     assert len(PREPARED_TRACE_BATCH_A_BUILDERS) == 13
+
+
+def test_batch_b_prepared_trace_registry_and_cumulative_set_are_exact():
+    registered = dict(
+        literature_runtime_evidence._PREPARED_TRACE_PARSER_BUILDERS
+    )
+    assert set(registered) - set(PREPARED_TRACE_BATCH_A_BUILDERS) == set(
+        PREPARED_TRACE_BATCH_B_BUILDERS
+    )
+    assert registered == {
+        **PREPARED_TRACE_BATCH_A_BUILDERS,
+        **PREPARED_TRACE_BATCH_B_BUILDERS,
+    }
+    assert set(PREPARED_TRACE_BATCH_B_FIXTURES) == set(
+        PREPARED_TRACE_BATCH_B_BUILDERS
+    )
+    assert len(PREPARED_TRACE_BATCH_B_BUILDERS) == 16
+    assert len(registered) == 29
+    assert len(_exact_gap_manifest_parser_names() - set(registered)) == 29
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_B_BUILDERS
+)
+def test_batch_b_trace_replays_independently_declared_prepared_view(
+    parser_name,
+):
+    source_text = PREPARED_TRACE_BATCH_B_FIXTURES[parser_name]
+    builder_id, version = PREPARED_TRACE_BATCH_B_BUILDERS[parser_name]
+    benchmark_name, bundle = _prepared_trace_bundle(parser_name, source_text)
+    trace = bundle["extraction_trace"]
+
+    independently_rebuilt = _independently_rebuild_batch_b_view(
+        source_text, builder_id
+    )
+    assert trace["coordinate_space"] == "private_prepared_extracted_text"
+    assert trace["coordinate_builder"] == builder_id
+    assert type(trace["coordinate_contract_version"]) is int
+    assert trace["coordinate_contract_version"] == version
+    assert trace["coordinate_view_length"] == len(independently_rebuilt)
+    assert trace["coordinate_view_sha256"] == hashlib.sha256(
+        independently_rebuilt.encode("utf-8")
+    ).hexdigest()
+    assert len(trace["text_span_sha256"]) == len(trace["text_spans"])
+    assert len(trace["text_span_captures"]) == len(trace["text_spans"])
+    for span, digest, capture in zip(
+        trace["text_spans"],
+        trace["text_span_sha256"],
+        trace["text_span_captures"],
+    ):
+        start, end = span
+        independently_replayed_capture = independently_rebuilt[start:end]
+        assert start < end <= len(independently_rebuilt)
+        assert capture == independently_replayed_capture
+        assert digest == hashlib.sha256(
+            independently_replayed_capture.encode("utf-8")
+        ).hexdigest()
+
+    assert (
+        literature_runtime_evidence.structurally_validate_runtime_evidence_bundle(
+            benchmark_name, bundle
+        )
+        == "strict_local_source_parsed"
+    )
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_B_BUILDERS
+)
+def test_batch_b_public_parsers_prepare_exactly_once(
+    monkeypatch, parser_name
+):
+    source_text = PREPARED_TRACE_BATCH_B_FIXTURES[parser_name]
+    preparation_calls = []
+    original_builder = literature_runtime_evidence._build_prepared_view
+
+    def recording_builder(*args, **kwargs):
+        preparation_calls.append((args, kwargs))
+        return original_builder(*args, **kwargs)
+
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        "_build_prepared_view",
+        recording_builder,
+    )
+
+    getattr(literature_runtime_evidence, parser_name)(source_text)
+
+    assert len(preparation_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "parser_name,sibling_name",
+    [
+        (
+            "parse_dziarmaga_tfim_gap",
+            "parse_dziarmaga_tfim_critical_point",
+        ),
+        (
+            "parse_kano_naya_kagome_ising_antiferromagnet_entropy",
+            "parse_kano_naya_kagome_ising_ferromagnet_tc",
+        ),
+        (
+            "parse_husimi_syozi_triangular_ising_tc",
+            "parse_husimi_syozi_honeycomb_ising_tc",
+        ),
+        (
+            "parse_kumar_j1_j2_bkt_reference",
+            "parse_kumar_j1_j2_critical_point",
+        ),
+    ],
+)
+def test_batch_b_related_pairs_do_not_recurse_through_public_sibling(
+    monkeypatch, parser_name, sibling_name
+):
+    def forbidden_public_recursion(*args, **kwargs):
+        raise AssertionError("related parser recursed through public sibling")
+
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        sibling_name,
+        forbidden_public_recursion,
+    )
+
+    getattr(literature_runtime_evidence, parser_name)(
+        PREPARED_TRACE_BATCH_B_FIXTURES[parser_name]
+    )
+
+
+@pytest.mark.parametrize(
+    "parser_name", PREPARED_TRACE_BATCH_B_BUILDERS
+)
+def test_batch_b_prepared_cores_do_not_prepare_or_normalize_again(
+    monkeypatch, parser_name
+):
+    source_text = PREPARED_TRACE_BATCH_B_FIXTURES[parser_name]
+    builder_id, version = PREPARED_TRACE_BATCH_B_BUILDERS[parser_name]
+    prepared = literature_runtime_evidence._build_prepared_view(
+        source_text, builder_id=builder_id, version=version
+    )
+    expected = getattr(literature_runtime_evidence, parser_name)(source_text)
+
+    def forbidden_preparation(*args, **kwargs):
+        raise AssertionError("prepared core rebuilt its input")
+
+    def forbidden_normalization(*args, **kwargs):
+        raise AssertionError("prepared core normalized its input again")
+
+    monkeypatch.setattr(
+        literature_runtime_evidence,
+        "_build_prepared_view",
+        forbidden_preparation,
+    )
+    monkeypatch.setattr(
+        literature_runtime_evidence.re,
+        "sub",
+        forbidden_normalization,
+    )
+    core_result = getattr(
+        literature_runtime_evidence,
+        PREPARED_TRACE_BATCH_B_CORES[parser_name],
+    )(prepared.text)
+
+    assert literature_runtime_evidence._finalize_prepared_trace(
+        core_result, prepared
+    ) == expected
+
+
+def test_shastry_sutherland_dual_ocr_view_traces_both_declared_halves():
+    source_text = SHASTRY_SUTHERLAND_EXACT_DIMER_SOURCE_TEXT.replace(
+        "ANTIFERROMAGNET", "A N T I F E R R O M A G N E T"
+    )
+    _, trace = (
+        literature_runtime_evidence.parse_shastry_sutherland_exact_dimer_product(
+            source_text
+        )
+    )
+
+    independently_rebuilt = _independently_rebuild_batch_b_view(
+        source_text, "shastry_sutherland_dual_ocr_search_text"
+    )
+    separator_start = independently_rebuilt.index("\n" + "#" * 5000 + "\n")
+    separator_end = separator_start + 5002
+    assert trace["text_spans"][3][1] <= separator_start
+    assert any(start >= separator_end for start, _ in trace["text_spans"])
+    assert all(
+        not (start < separator_end and end > separator_start)
+        for start, end in trace["text_spans"]
+    )
 
 
 @pytest.mark.parametrize(
