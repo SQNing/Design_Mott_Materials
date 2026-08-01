@@ -10,7 +10,7 @@ import re
 import ssl
 import stat
 import sys
-from urllib.parse import quote, unquote, unquote_plus, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 from urllib.request import (
     HTTPRedirectHandler,
     HTTPSHandler,
@@ -49,7 +49,7 @@ _CREDENTIAL_HEADER_NAMES_CASEFOLDED = {
     name.casefold() for name in _CREDENTIAL_HEADER_NAMES
 }
 _MAX_SENSITIVE_URL_QUERY_CHARACTERS = 16 * 1024
-_SENSITIVE_QUERY_FORM_DECODE_PASSES = 2
+_SENSITIVE_QUERY_NORMALIZATION_WORK_MULTIPLIER = 4
 _HEXADECIMAL_CHARACTERS = frozenset("0123456789abcdefABCDEF")
 _INSTITUTION_NETWORK_ACCESS_MODES = {
     "challenge_or_institutional",
@@ -213,31 +213,83 @@ def _bounded_percent_decoded_variants(value):
     return tuple(variants)
 
 
-def _collapse_nested_percent_byte_escapes(value):
-    collapsed = []
-    index = 0
-    while index < len(value):
-        if (
-            value[index] != "%"
-            or index + 2 >= len(value)
-            or value[index + 1] not in _HEXADECIMAL_CHARACTERS
-            or value[index + 2] not in _HEXADECIMAL_CHARACTERS
-        ):
-            collapsed.append(value[index])
-            index += 1
-            continue
+def _sensitive_query_percent_forest(query):
+    """Build every ASCII percent-decoding pass without repeatedly decoding."""
+    roots = []
+    maximum_stage = 0
+    for character in query:
+        roots.append((character, 0, ()))
+        if character == "+":
+            maximum_stage = max(maximum_stage, 1)
 
-        byte_index = index + 1
         while (
-            byte_index + 3 < len(value)
-            and value[byte_index : byte_index + 2].casefold() == "25"
-            and value[byte_index + 2] in _HEXADECIMAL_CHARACTERS
-            and value[byte_index + 3] in _HEXADECIMAL_CHARACTERS
+            len(roots) >= 3
+            and roots[-3][0] == "%"
+            and roots[-2][0] in _HEXADECIMAL_CHARACTERS
+            and roots[-1][0] in _HEXADECIMAL_CHARACTERS
         ):
-            byte_index += 2
-        collapsed.extend(("%", value[byte_index], value[byte_index + 1]))
-        index = byte_index + 2
-    return "".join(collapsed)
+            children = tuple(roots[-3:])
+            byte_value = int(children[1][0] + children[2][0], 16)
+            if byte_value >= 0x80:
+                return None, None
+            del roots[-3:]
+            birth_stage = max(child[1] for child in children) + 1
+            decoded = chr(byte_value)
+            roots.append((decoded, birth_stage, children))
+            visible_through_stage = birth_stage
+            if decoded == "+":
+                visible_through_stage += 1
+            maximum_stage = max(maximum_stage, visible_through_stage)
+    return tuple(roots), maximum_stage
+
+
+def _sensitive_query_frontier(
+    roots,
+    stage,
+    *,
+    remaining_work,
+):
+    """Render one synchronous form-decoding stage from an immutable forest."""
+    pending = list(reversed(roots))
+    characters = []
+    work = 0
+    while pending:
+        work += 1
+        if work > remaining_work:
+            return None, work
+        character, birth_stage, children = pending.pop()
+        if children and birth_stage > stage:
+            pending.extend(reversed(children))
+            continue
+        if character == "+" and stage > birth_stage:
+            character = " "
+        characters.append(character)
+    return "".join(characters), work
+
+
+def _query_form_frontier_contains_sensitive(query, secrets):
+    roots, maximum_stage = _sensitive_query_percent_forest(query)
+    if roots is None:
+        return True
+
+    remaining_work = (
+        len(query) * _SENSITIVE_QUERY_NORMALIZATION_WORK_MULTIPLIER
+    )
+    for stage in range(maximum_stage + 1):
+        # Expanded encodings have geometrically shrinking frontiers. Compact
+        # adversarial nesting exhausts this linear budget and fails closed.
+        frontier, work = _sensitive_query_frontier(
+            roots,
+            stage,
+            remaining_work=remaining_work,
+        )
+        if frontier is None:
+            return True
+        remaining_work -= work
+        folded = frontier.casefold()
+        if any(secret in folded for secret in secrets):
+            return True
+    return False
 
 
 def _request_url_contains_sensitive(url, sensitive_values):
@@ -259,23 +311,7 @@ def _request_url_contains_sensitive(url, sensitive_values):
         return True
     if _contains_sensitive(url, active_sensitive_values):
         return True
-
-    current = query
-    for _ in range(_SENSITIVE_QUERY_FORM_DECODE_PASSES):
-        decoded = unquote_plus(current, errors="replace")
-        folded = decoded.casefold()
-        if any(secret in folded for secret in secrets):
-            return True
-        if decoded == current:
-            return False
-        current = decoded
-
-    potential = unquote_plus(
-        _collapse_nested_percent_byte_escapes(current),
-        errors="replace",
-    ).replace("+", " ")
-    folded_potential = potential.casefold()
-    return any(secret in folded_potential for secret in secrets)
+    return _query_form_frontier_contains_sensitive(query, secrets)
 
 
 def _validated_request_url(url, *, sensitive_values=()):

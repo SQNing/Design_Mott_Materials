@@ -3,13 +3,14 @@ import copy
 import hashlib
 import json
 import os
+import random
 import re
 import socket
 import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, unquote_plus
 from urllib.request import Request
 
 import pytest
@@ -7607,3 +7608,600 @@ def test_round9_query_at_sixteen_kib_with_distinct_signature_is_allowed():
     )
 
     assert redirected.full_url == signed_url
+
+
+def _round10_credential_profile(secret):
+    return {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {"Authorization": secret},
+        },
+    }
+
+
+def _round10_redirect_handler(secret=ROUND9_SPACED_SECRET):
+    return source_fetcher._CredentialRedirectHandler(
+        _round10_credential_profile(secret)
+    )
+
+
+def _round10_initial_request(secret=ROUND9_SPACED_SECRET):
+    return Request(
+        "https://api.elsevier.com/content/article",
+        headers={"Authorization": secret},
+    )
+
+
+def _round10_expand_every_character(value, depth, *, lowercase_first=False):
+    current = value
+    for layer in range(depth):
+        format_code = "02x" if lowercase_first and layer == 0 else "02X"
+        current = "".join(
+            f"%{format(ord(character), format_code)}" for character in current
+        )
+    return current
+
+
+def _round10_reviewer_reflection(secret=ROUND9_SPACED_SECRET, *, depth=4):
+    encoded_space = _round10_expand_every_character("+", depth)
+    return secret.replace(" ", encoded_space)
+
+
+def _round10_reference_form_stages(value, *, maximum_passes=16):
+    stages = [value]
+    for _ in range(maximum_passes):
+        decoded = unquote_plus(stages[-1], errors="replace")
+        if decoded == stages[-1]:
+            return tuple(stages)
+        stages.append(decoded)
+    raise AssertionError("test fixture exceeds the finite reference depth")
+
+
+def _round10_reference_contains_secret(query, secret):
+    folded_secret = secret.casefold()
+    return any(
+        folded_secret in stage.casefold()
+        for stage in _round10_reference_form_stages(query)
+    )
+
+
+def _round10_assert_generic_rejection(caught, *, forbidden_values):
+    rendered = str(caught.value).casefold()
+    assert rendered == "request url contains sensitive data"
+    for value in forbidden_values:
+        assert value.casefold() not in rendered
+
+
+def test_round10_depth_four_expanded_cross_origin_secret_stops_before_super(
+    monkeypatch,
+):
+    super_calls = []
+
+    def forbidden_super(*args, **kwargs):
+        super_calls.append((args, kwargs))
+        raise AssertionError("redirect Request construction was reached")
+
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        forbidden_super,
+    )
+    reflected = _round10_reviewer_reflection()
+    query = "ref=" + reflected
+    target = "https://attacker.invalid/capture?" + query
+    stages = _round10_reference_form_stages(query)
+
+    assert len(query) == 274
+    assert ROUND9_SPACED_SECRET not in stages[:-1]
+    assert ROUND9_SPACED_SECRET in stages[-1]
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler().redirect_request(
+            _round10_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            target,
+        )
+
+    assert super_calls == []
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(ROUND9_SPACED_SECRET, reflected, query, target, *stages),
+    )
+
+
+def test_round10_depth_four_expanded_secret_stops_unsafe_second_redirect(
+    monkeypatch,
+):
+    issued_redirects = []
+    reflected = _round10_reviewer_reflection()
+    unsafe_query = "ref=" + reflected
+    unsafe_intermediate = (
+        "https://attacker.invalid/intermediate?" + unsafe_query
+    )
+
+    def opener_factory(*handlers):
+        redirect_handler = next(
+            handler
+            for handler in handlers
+            if isinstance(handler, source_fetcher._CredentialRedirectHandler)
+        )
+
+        class FixtureOpener:
+            def open(self, request, timeout):
+                first = redirect_handler.redirect_request(
+                    request,
+                    None,
+                    302,
+                    "Found",
+                    {},
+                    "https://redirect.example.invalid/safe-intermediate",
+                )
+                issued_redirects.append(first.full_url)
+                second = redirect_handler.redirect_request(
+                    first,
+                    None,
+                    302,
+                    "Found",
+                    {},
+                    unsafe_intermediate,
+                )
+                issued_redirects.append(second.full_url)
+                raise AssertionError("unsafe second redirect was issued")
+
+        return FixtureOpener()
+
+    monkeypatch.setattr(source_fetcher, "build_opener", opener_factory)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        source_fetcher._download(
+            {
+                "kind": "elsevier_article_api_xml",
+                "url": "https://api.elsevier.com/content/article",
+                "expected_media_type": "application/pdf",
+            },
+            object(),
+            credential_profile=_round10_credential_profile(
+                ROUND9_SPACED_SECRET
+            ),
+        )
+
+    assert issued_redirects == [
+        "https://redirect.example.invalid/safe-intermediate"
+    ]
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(
+            ROUND9_SPACED_SECRET,
+            reflected,
+            unsafe_query,
+            unsafe_intermediate,
+            *_round10_reference_form_stages(unsafe_query),
+        ),
+    )
+
+
+def test_round10_depth_four_expanded_same_origin_secret_is_rejected():
+    reflected = _round10_reviewer_reflection()
+    target = (
+        "https://api.elsevier.com/content/article?ref=" + reflected
+    )
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler().redirect_request(
+            _round10_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            target,
+        )
+
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(ROUND9_SPACED_SECRET, reflected, target),
+    )
+
+
+@pytest.mark.parametrize(
+    ("secret", "reflected"),
+    (
+        pytest.param(
+            ROUND9_SPACED_SECRET,
+            ROUND9_SPACED_SECRET.replace(
+                " ", _round10_expand_every_character("+", 4), 1
+            )
+            .replace(" ", "%25252B", 1)
+            .replace(" ", "%25%32%42", 1),
+            id="compact-expanded-mixed",
+        ),
+        pytest.param(
+            ROUND9_SPACED_SECRET,
+            ROUND9_SPACED_SECRET.replace(
+                " ",
+                _round10_expand_every_character(
+                    "+", 4, lowercase_first=True
+                ),
+            ),
+            id="mixed-hex-case-expanded",
+        ),
+        pytest.param(
+            "Bearer TOKEN",
+            "Bearer"
+            + _round10_expand_every_character("+", 4)
+            + "TOKEN",
+            id="minimal-one-space-bearer-token",
+        ),
+    ),
+)
+def test_round10_ascii_compact_expanded_and_case_mixtures_are_rejected(
+    secret,
+    reflected,
+):
+    query = "ref=" + reflected
+    assert _round10_reference_contains_secret(query, secret)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler(secret).redirect_request(
+            _round10_initial_request(secret),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?" + query,
+        )
+
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(secret, reflected, query),
+    )
+
+
+@pytest.mark.parametrize(
+    ("secret", "preimage", "depth"),
+    (
+        pytest.param("TOKEN+42", quote_plus("TOKEN+42", safe=""), 5,
+                     id="plus-secret-at-intermediate-stage"),
+        pytest.param("A + B", quote_plus("A + B", safe=""), 5,
+                     id="mixed-space-plus-intermediate-stage"),
+        pytest.param("%41%42", "%2541%2542", 5,
+                     id="percent-secret-at-intermediate-stage"),
+        pytest.param("41", "%41", 6,
+                     id="hex-only-secret-at-intermediate-stage"),
+    ),
+)
+def test_round10_every_sensitive_intermediate_frontier_is_rejected(
+    secret,
+    preimage,
+    depth,
+):
+    query = "value=" + _round10_expand_every_character(preimage, depth)
+    stages = _round10_reference_form_stages(query)
+    assert any(secret.casefold() in stage.casefold() for stage in stages)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler(secret).redirect_request(
+            _round10_initial_request(secret),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?" + query,
+        )
+
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(secret, query, *stages),
+    )
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        pytest.param("value=%C3%A9", id="valid-utf8-high-bytes"),
+        pytest.param("value=%FF", id="invalid-utf8-high-byte"),
+        pytest.param(
+            "value=" + _round10_expand_every_character("%C3%A9", 4),
+            id="deep-expanded-high-bytes",
+        ),
+    ),
+)
+def test_round10_percent_decoded_high_bytes_fail_closed_for_unicode_safe_semantics(
+    query,
+):
+    secret = "credential-contains-\ufffd-but-is-not-in-query"
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler(secret).redirect_request(
+            _round10_initial_request(secret),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?" + query,
+        )
+
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(secret, query),
+    )
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        pytest.param("value=distinct+signed", id="literal-plus"),
+        pytest.param("value=distinct%2Bsigned", id="percent-plus"),
+        pytest.param("value=distinct%20signed", id="percent-space"),
+        pytest.param("value=malformed%GGescape", id="malformed-percent"),
+        pytest.param("value=literal-é-safe", id="literal-unicode"),
+    ),
+)
+def test_round10_unrelated_common_query_forms_remain_allowed(query):
+    secret = "Authorization: Bearer OTHER 99"
+    target = "https://attacker.invalid/download?" + query
+    redirected = _round10_redirect_handler(secret).redirect_request(
+        _round10_initial_request(secret),
+        None,
+        302,
+        "Found",
+        {},
+        target,
+    )
+
+    assert redirected.full_url == target
+    assert not _CREDENTIAL_HEADER_CASEFOLDS.intersection(
+        _header_dict(redirected)
+    )
+
+
+def test_round10_different_active_secret_signed_query_remains_allowed():
+    secret = "Authorization: Bearer DIFFERENT 99"
+    query = (
+        "signature=Authorization%3A+Bearer+TOKEN+42"
+        "&ticket=distinct%2Bsigned%20value%252541"
+    )
+    assert not _round10_reference_contains_secret(query, secret)
+    target = "https://attacker.invalid/download?" + query
+
+    redirected = _round10_redirect_handler(secret).redirect_request(
+        _round10_initial_request(secret),
+        None,
+        302,
+        "Found",
+        {},
+        target,
+    )
+
+    assert redirected.full_url == target
+
+
+def test_round10_unrelated_deep_expanded_ascii_token_remains_allowed():
+    secret = ROUND9_SPACED_SECRET
+    token = _round10_expand_every_character(
+        quote_plus("distinct signed token", safe=""),
+        6,
+    )
+    query = "signature=" + token
+    assert len(query) < ROUND9_QUERY_LIMIT
+    assert not _round10_reference_contains_secret(query, secret)
+    target = "https://attacker.invalid/download?" + query
+
+    redirected = _round10_redirect_handler(secret).redirect_request(
+        _round10_initial_request(secret),
+        None,
+        302,
+        "Found",
+        {},
+        target,
+    )
+
+    assert redirected.full_url == target
+
+
+def test_round10_degenerate_compact_nesting_exhausts_work_and_fails_closed(
+    monkeypatch,
+):
+    super_calls = []
+
+    def forbidden_super(*args, **kwargs):
+        super_calls.append((args, kwargs))
+        raise AssertionError("redirect Request construction was reached")
+
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        forbidden_super,
+    )
+    prefix = "value="
+    compact = "%2B"
+    depth = (ROUND9_QUERY_LIMIT - len(prefix) - len(compact)) // 2
+    compact = "%" + "25" * depth + compact[1:]
+    query = prefix + compact
+    assert len(query) <= ROUND9_QUERY_LIMIT
+    assert depth > 8_000
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler().redirect_request(
+            _round10_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?" + query,
+        )
+
+    assert super_calls == []
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(ROUND9_SPACED_SECRET, query),
+    )
+
+
+def test_round10_path_literal_plus_stays_outside_form_normalization():
+    secret = ROUND9_SPACED_SECRET
+    path = "/capture/Authorization:+Bearer+TOKEN+42"
+    query = "signature=" + _round10_expand_every_character("safe+token", 3)
+    target = "https://attacker.invalid" + path + "?" + query
+
+    redirected = _round10_redirect_handler(secret).redirect_request(
+        _round10_initial_request(secret),
+        None,
+        302,
+        "Found",
+        {},
+        target,
+    )
+
+    assert redirected.full_url == target
+
+
+def test_round10_query_limit_is_checked_before_sensitive_scan_or_super(
+    monkeypatch,
+):
+    contains_calls = []
+    super_calls = []
+
+    def forbidden_contains(*args, **kwargs):
+        contains_calls.append((args, kwargs))
+        raise AssertionError("sensitive scan was reached before the query cap")
+
+    def forbidden_super(*args, **kwargs):
+        super_calls.append((args, kwargs))
+        raise AssertionError("redirect Request construction was reached")
+
+    monkeypatch.setattr(source_fetcher, "_contains_sensitive", forbidden_contains)
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        forbidden_super,
+    )
+    query = "signature=" + "x" * (ROUND9_QUERY_LIMIT + 1 - len("signature="))
+    assert len(query) == ROUND9_QUERY_LIMIT + 1
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round10_redirect_handler().redirect_request(
+            _round10_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/download?" + query,
+        )
+
+    assert contains_calls == []
+    assert super_calls == []
+    _round10_assert_generic_rejection(
+        caught,
+        forbidden_values=(ROUND9_SPACED_SECRET, query),
+    )
+
+
+def test_round10_query_at_limit_continues_sensitive_checks(monkeypatch):
+    calls = []
+    original_contains = source_fetcher._contains_sensitive
+
+    def recording_contains(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original_contains(*args, **kwargs)
+
+    monkeypatch.setattr(source_fetcher, "_contains_sensitive", recording_contains)
+    query = "signature=" + "x" * (ROUND9_QUERY_LIMIT - len("signature="))
+    target = "https://attacker.invalid/download?" + query
+
+    redirected = _round10_redirect_handler().redirect_request(
+        _round10_initial_request(),
+        None,
+        302,
+        "Found",
+        {},
+        target,
+    )
+
+    assert calls
+    assert redirected.full_url == target
+
+
+def test_round10_systematic_and_random_ascii_matrix_matches_finite_reference():
+    unsafe_cases = []
+    for secret in (
+        "Bearer TOKEN",
+        "TOKEN+42",
+        "A + B",
+        "%41%42",
+        "41",
+    ):
+        encoded = quote_plus(secret, safe="")
+        for depth in range(3, 6):
+            unsafe_cases.append(
+                (secret, _round10_expand_every_character(encoded, depth))
+            )
+
+    generator = random.Random(1009)
+    alphabet = "ABCDEFGH0123456789 +%"
+    for _ in range(32):
+        secret = "".join(
+            generator.choice(alphabet)
+            for _ in range(generator.randint(4, 10))
+        ).strip()
+        if not secret:
+            secret = "A 1%"
+        depth = generator.randint(3, 5)
+        unsafe_cases.append(
+            (
+                secret,
+                _round10_expand_every_character(
+                    quote_plus(secret, safe=""),
+                    depth,
+                    lowercase_first=bool(generator.getrandbits(1)),
+                ),
+            )
+        )
+
+    for secret, reflected in unsafe_cases:
+        query = "value=" + reflected
+        assert _round10_reference_contains_secret(query, secret)
+        with pytest.raises(SourceEvidenceError):
+            _round10_redirect_handler(secret).redirect_request(
+                _round10_initial_request(secret),
+                None,
+                302,
+                "Found",
+                {},
+                "https://attacker.invalid/capture?" + query,
+            )
+
+    safe_checked = 0
+    while safe_checked < 32:
+        secret = "secret-" + "".join(
+            generator.choice(alphabet)
+            for _ in range(generator.randint(4, 10))
+        )
+        signed_value = "signed-" + "".join(
+            generator.choice(alphabet.replace("%", ""))
+            for _ in range(generator.randint(4, 10))
+        )
+        reflected = _round10_expand_every_character(
+            quote_plus(signed_value, safe=""),
+            generator.randint(2, 5),
+            lowercase_first=bool(generator.getrandbits(1)),
+        )
+        query = "value=" + reflected
+        if (
+            len(query) > ROUND9_QUERY_LIMIT
+            or _round10_reference_contains_secret(query, secret)
+        ):
+            continue
+        target = "https://attacker.invalid/capture?" + query
+        redirected = _round10_redirect_handler(secret).redirect_request(
+            _round10_initial_request(secret),
+            None,
+            302,
+            "Found",
+            {},
+            target,
+        )
+        assert redirected.full_url == target
+        safe_checked += 1
