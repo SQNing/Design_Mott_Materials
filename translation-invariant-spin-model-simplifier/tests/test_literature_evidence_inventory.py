@@ -1,5 +1,6 @@
 import copy
 import ast
+from collections import Counter
 import json
 import math
 import re
@@ -24,6 +25,7 @@ from validation.literature_evidence_inventory import (
     resolve_registry_selector,
     validate_inventory,
 )
+from validation import literature_evidence_inventory as evidence_inventory
 from validation.literature_evidence_schema import (
     EvidenceSchemaError,
     EvidenceRecord,
@@ -37,6 +39,196 @@ from validation.literature_spin_model_benchmarks import (
     pitch_and_ordering_vector_verification_tasks,
     residual_projection_verification_tasks,
 )
+
+
+EXPECTED_ADDED_SOURCE_IDENTITIES = frozenset(
+    {
+        "arxiv:1004.1119",
+        "arxiv:1006.5052",
+        "arxiv:1204.1320",
+        "arxiv:1204.5027",
+        "arxiv:1205.4858",
+        "arxiv:1209.5100",
+        "arxiv:1305.2477",
+        "arxiv:1309.3744",
+        "arxiv:1405.6184",
+        "arxiv:2005.12031",
+        "arxiv:2007.00376",
+        "arxiv:2409.16715",
+        "arxiv:2512.14173",
+        "arxiv:2601.21024",
+        "arxiv:cond-mat/0108070",
+        "arxiv:cond-mat/0205270",
+        "arxiv:cond-mat/0407005",
+        "arxiv:cond-mat/0411673",
+        "arxiv:cond-mat/0509490",
+        "arxiv:cond-mat/9509016",
+        "arxiv:cond-mat/9811353",
+        "arxiv:cond-mat/9909290",
+        "doi:10.1038/s41535-026-00868-6",
+        "doi:10.1088/0305-4470/16/10/023",
+        "doi:10.1088/0305-4470/17/13/020",
+        "doi:10.1103/physrevb.82.100408",
+        "doi:10.1103/physrevb.83.155120",
+        "doi:10.1103/physrevb.87.174421",
+        "doi:10.1103/physrevb.92.125131",
+        "doi:10.1103/physrevlett.113.197201",
+        "doi:10.1103/physrevlett.121.107203",
+        "doi:10.1103/physrevlett.73.2500",
+        "doi:10.1143/ptp.5.2.177",
+    }
+)
+
+EXPECTED_REMOVED_SOURCE_IDENTITIES = frozenset(
+    {
+        "doi:10.1016/0003-4916(61)90115-4",
+        "doi:10.1016/0003-4916(70)90270-8",
+        "doi:10.1016/0031-8914(50)90130-3",
+        "doi:10.1016/0375-9601(82)90403-0",
+        "doi:10.1016/0375-9601(92)90823-5",
+        "doi:10.1016/0378-4363(79)90002-0",
+        "doi:10.1016/j.physb.2007.10.295",
+        "doi:10.1038/ncomms14113",
+        "doi:10.1038/ncomms5203",
+        "doi:10.1038/nmat1867",
+        "doi:10.1063/1.1664978",
+        "doi:10.1063/1.1724276",
+        "doi:10.1088/0022-3719/10/10/014",
+        "doi:10.1088/0953-8984/10/28/020",
+        "doi:10.1088/1361-648x/aa8cf5",
+        "doi:10.1103/physrev.131.546",
+        "doi:10.1103/physrev.141.517",
+        "doi:10.1103/physrev.150.321",
+        "doi:10.1103/physrevb.66.014418",
+        "doi:10.1103/physrevb.70.184414",
+        "doi:10.1103/physrevb.85.094422",
+        "doi:10.1103/physrevb.92.140407",
+        "doi:10.1103/physrevlett.105.027204",
+        "doi:10.1103/physrevlett.108.037202",
+        "doi:10.1103/physrevlett.69.3382",
+        "doi:10.1103/physrevlett.77.2085",
+        "doi:10.1103/physrevlett.80.2933",
+        "doi:10.1103/physrevlett.93.107206",
+        "doi:10.1126/science.1201080",
+        "doi:10.1143/jpsj.78.043704",
+    }
+)
+
+EXPECTED_CHANGED_SOURCE_MEMBERSHIPS = {
+    "blume_capel_spin1_zero_temperature_level_crossing": "arxiv:1204.5027",
+    "single_ion_spin1_anisotropy_levels": "arxiv:1204.5027",
+    "xxz_spin_half_chain_phase_boundaries": "arxiv:cond-mat/9909290",
+    "j1_j2_chain_bkt_transition_reference": "arxiv:1006.5052",
+    "j1_j2_chain_okamoto_nomura_critical_point": "arxiv:1006.5052",
+    "er2ti2o7_xy_pyrochlore_order_by_disorder_reference": "arxiv:1204.1320",
+    "star_lattice_heisenberg_spin_liquid_reference": "doi:10.1103/physrevb.70.174454",
+    "shuriken_lattice_heisenberg_reference": "arxiv:cond-mat/0411673",
+    "fe_ps3_honeycomb_ising_reference": "arxiv:2005.12031",
+    "ruby_lattice_heisenberg_flat_band_reference": "arxiv:2512.14173",
+    "gamma_li2iro3_3d_kitaev_reference": "doi:10.1103/physrevlett.113.197201",
+    "transverse_field_ising_chain_critical_point": "arxiv:cond-mat/0509490",
+    "transverse_field_ising_chain_gap": "arxiv:cond-mat/0509490",
+    "xx_spin_half_chain_free_fermion_energy": "doi:10.1103/physrevb.92.125131",
+    "honeycomb_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
+    "triangular_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
+    "majundar_ghosh_chain_exact_dimer_point": "doi:10.1088/0305-4470/17/13/020",
+    "square_fully_frustrated_ising_residual_entropy_reference": "doi:10.1088/0305-4470/16/10/023",
+    "honeycomb_j1_j2_spiral_ring_reference": "arxiv:1004.1119",
+    "fcc_j1_j2_heisenberg_type_order_reference": "arxiv:2007.00376",
+    "pyrochlore_heisenberg_afm_coulomb_phase_reference": "arxiv:cond-mat/0407005",
+    "checkerboard_heisenberg_afm_planar_pyrochlore_reference": "arxiv:cond-mat/0108070",
+    "takhtajan_babujian_spin1_critical_point": "arxiv:cond-mat/9811353",
+    "cubic_ising_critical_temperature_reference": "arxiv:cond-mat/9509016",
+    "kagome_spin_half_heisenberg_energy_reference": "arxiv:1205.4858",
+    "kagome_heisenberg_dmrg_spin_liquid_yan_reference": "arxiv:1205.4858",
+    "square_ring_exchange_neel_vbs_reference": "arxiv:cond-mat/0205270",
+    "honeycomb_j1_j2_kitaev_material_na2iro3_reference": "arxiv:1209.5100",
+    "honeycomb_kitaev_heisenberg_four_sublattice_phases": "arxiv:1209.5100",
+    "garnet_gd3te2li3o12_hyperkagome_reference": "doi:10.1103/physrevb.87.174421",
+    "gadolinium_gallium_garnet_hyperkagome_reference": "doi:10.1103/physrevlett.73.2500",
+    "mn_ps3_honeycomb_antiferromagnet_reference": "doi:10.1103/physrevb.82.100408",
+    "ru_br3_kitaev_material_reference": "doi:10.1038/s41535-026-00868-6",
+    "vesignieite_kagome_material_reference": "doi:10.1103/physrevlett.121.107203",
+    "square_heisenberg_spin_half_spin_stiffness_reference": "doi:10.1103/physrevb.83.155120",
+    "square_heisenberg_spin_half_staggered_magnetization_reference": "doi:10.1103/physrevb.83.155120",
+    "square_heisenberg_spin_wave_velocity_reference": "doi:10.1103/physrevb.83.155120",
+    "honeycomb_j1_j2_j3_classical_phase_diagram": "arxiv:1309.3744",
+    "nacuo2_triangular_heisenberg_material_reference": "arxiv:1405.6184",
+    "clinoatacamite_distorted_kagome_reference": "arxiv:2601.21024",
+    "edwardsite_kagome_antiferromagnet_reference": "arxiv:1305.2477",
+    "lieb_lattice_heisenberg_ferrimagnet_reference": "arxiv:2409.16715",
+}
+
+EXPECTED_SPECIAL_PROVISIONING = {
+    "doi_f334ed253565110358b3": {
+        "source_id": "doi_f334ed253565110358b3",
+        "authoritative_retrieval_route": {
+            "kind": "oup_minimal_html",
+            "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
+            "artifact_identifier": "doi:10.1143/ptp.5.2.177",
+            "work_identity_evidence": {
+                "kind": "canonical_identity",
+                "url": "https://doi.org/10.1143/ptp.5.2.177",
+            },
+        },
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "redistributability": "unresolved",
+        "local_cache_location": "source-cache/doi_f334ed253565110358b3/source.html",
+        "current_availability": "not_acquired",
+    },
+    "doi_e49cda761520424da334": {
+        "source_id": "doi_e49cda761520424da334",
+        "authoritative_retrieval_route": {
+            "kind": "institutional_repository_pdf",
+            "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+            "artifact_identifier": "core:572184419",
+            "work_identity_evidence": {
+                "kind": "core_same_work_output",
+                "url": "https://api.core.ac.uk/v3/outputs/572184419",
+            },
+        },
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "redistributability": "unresolved",
+        "local_cache_location": "source-cache/doi_e49cda761520424da334/source.pdf",
+        "current_availability": "not_acquired",
+    },
+    "doi_dba239926d673e54f80a": {
+        "source_id": "doi_dba239926d673e54f80a",
+        "authoritative_retrieval_route": {
+            "kind": "author_repository_pdf",
+            "url": "https://www.lptmc.jussieu.fr/files/maillard/PUB2/Frustrated_jav16i10p2257.pdf",
+            "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
+            "work_identity_evidence": {
+                "kind": "author_publications_same_work",
+                "url": "https://www.lptmc.jussieu.fr/users/maillard",
+            },
+        },
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "redistributability": "unresolved",
+        "local_cache_location": "source-cache/doi_dba239926d673e54f80a/source.pdf",
+        "current_availability": "not_acquired",
+    },
+    "doi_35bb82ba0a5814f69448": {
+        "source_id": "doi_35bb82ba0a5814f69448",
+        "authoritative_retrieval_route": {
+            "kind": "nature_open_article_pdf",
+            "url": "https://www.nature.com/articles/s41535-026-00868-6.pdf",
+            "artifact_identifier": "doi:10.1038/s41535-026-00868-6",
+            "work_identity_evidence": {
+                "kind": "canonical_identity",
+                "url": "https://doi.org/10.1038/s41535-026-00868-6",
+            },
+        },
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "redistributability": "unresolved",
+        "local_cache_location": "source-cache/doi_35bb82ba0a5814f69448/source.pdf",
+        "current_availability": "not_acquired",
+    },
+}
 
 
 EXPECTED_CORRECTED_CANONICAL_CONTRACTS = {
@@ -439,6 +631,190 @@ def loaded_inventory():
 
 def mutable_inventory(loaded_inventory):
     return copy.deepcopy(loaded_inventory.as_plain_data())
+
+
+def _source_identity_string(source):
+    identity = source["canonical_identity"]
+    return f"{identity['kind']}:{identity['value']}"
+
+
+def test_final_inventory_topology_is_exact_closed_and_target_free():
+    data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    registry_names = [entry["name"] for entry in LITERATURE_STANDARD_RESULTS]
+    expected_names = set(registry_names)
+    collection_names = {
+        "contracts": [item["benchmark_name"] for item in data["contracts"]],
+        "records": [item["benchmark_name"] for item in data["records"]],
+        "locator_inventory": [
+            item["benchmark_name"] for item in data["locator_inventory"]
+        ],
+    }
+
+    assert len(registry_names) == len(expected_names) == 155
+    for names in collection_names.values():
+        assert len(names) == 155
+        assert Counter(names) == Counter({name: 1 for name in expected_names})
+
+    sources = data["source_index"]
+    provisioning = data["source_provisioning"]
+    assert len(sources) == len(provisioning) == 137
+    source_ids = [source["source_id"] for source in sources]
+    route_ids = [route["source_id"] for route in provisioning]
+    identities = [_source_identity_string(source) for source in sources]
+    assert len(source_ids) == len(set(source_ids)) == 137
+    assert len(route_ids) == len(set(route_ids)) == 137
+    assert len(identities) == len(set(identities)) == 137
+    assert set(route_ids) == set(source_ids)
+
+    benchmark_memberships = [
+        name for source in sources for name in source["benchmark_names"]
+    ]
+    assert Counter(benchmark_memberships) == Counter(
+        {name: 1 for name in expected_names}
+    )
+    source_id_by_benchmark = {
+        name: source["source_id"]
+        for source in sources
+        for name in source["benchmark_names"]
+    }
+    record_source_ids = {
+        record["benchmark_name"]: record["source_id"] for record in data["records"]
+    }
+    locator_source_ids = {
+        locator["benchmark_name"]: locator["source_id"]
+        for locator in data["locator_inventory"]
+    }
+    assert source_id_by_benchmark == record_source_ids == locator_source_ids
+
+    cache_locations = [route["local_cache_location"] for route in provisioning]
+    assert len(cache_locations) == len(set(cache_locations)) == 137
+    forbidden_record_keys = {
+        "answer",
+        "expected_answer",
+        "excerpt",
+        "source_excerpt",
+        "target_excerpt",
+        "payload_hash",
+        "payload_sha256",
+        "source_sha256",
+        "acquired_status",
+        "acquisition_status",
+        "status",
+        "verdict",
+        "result",
+        "expected_value",
+        "parsed_target",
+        "copied_target",
+        "target_observable",
+    }
+    for record in data["records"]:
+        assert record["record_state"] == "unresolved"
+        assert record["unresolved_reason"].strip()
+        assert forbidden_record_keys.isdisjoint(_recursive_keys(record))
+
+
+def test_final_source_identity_transition_and_memberships_are_exact():
+    data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    final_identities = {
+        _source_identity_string(source) for source in data["source_index"]
+    }
+
+    assert len(EXPECTED_ADDED_SOURCE_IDENTITIES) == 33
+    assert len(EXPECTED_REMOVED_SOURCE_IDENTITIES) == 30
+    assert EXPECTED_ADDED_SOURCE_IDENTITIES.isdisjoint(
+        EXPECTED_REMOVED_SOURCE_IDENTITIES
+    )
+    assert EXPECTED_ADDED_SOURCE_IDENTITIES <= final_identities
+    assert EXPECTED_REMOVED_SOURCE_IDENTITIES.isdisjoint(final_identities)
+
+    assert len(EXPECTED_CHANGED_SOURCE_MEMBERSHIPS) == 42
+    registry_memberships = {
+        entry["name"]: canonical_source_identity(entry["source_url"])
+        for entry in LITERATURE_STANDARD_RESULTS
+        if entry["name"] in EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+    }
+    source_index_memberships = {
+        benchmark_name: _source_identity_string(source)
+        for source in data["source_index"]
+        for benchmark_name in source["benchmark_names"]
+        if benchmark_name in EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+    }
+    assert registry_memberships == EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+    assert source_index_memberships == EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+
+
+def test_final_special_provisioning_records_are_exact_field_by_field():
+    generated = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    provisioning_by_id = {
+        route["source_id"]: route for route in generated["source_provisioning"]
+    }
+
+    assert {
+        source_id: provisioning_by_id[source_id]
+        for source_id in EXPECTED_SPECIAL_PROVISIONING
+    } == EXPECTED_SPECIAL_PROVISIONING
+
+
+def test_final_provisioning_extension_topology_is_exact():
+    generated = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    routes = generated["source_provisioning"]
+
+    assert Counter(route["expected_media_type"] for route in routes) == {
+        "application/pdf": 134,
+        "application/xml": 2,
+        "text/html": 1,
+    }
+    assert Counter(
+        route["local_cache_location"].rsplit("/", 1)[-1] for route in routes
+    ) == {
+        "source.pdf": 134,
+        "source.xml": 2,
+        "source.html": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    ("source_id", "wrong_payload_name"),
+    [
+        ("doi_f334ed253565110358b3", "source.pdf"),
+        ("doi_35bb82ba0a5814f69448", "source.html"),
+    ],
+)
+def test_inventory_provisioning_extension_mutations_are_rejected(
+    source_id, wrong_payload_name
+):
+    data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    route = next(
+        item for item in data["source_provisioning"] if item["source_id"] == source_id
+    )
+    route["local_cache_location"] = f"source-cache/{source_id}/{wrong_payload_name}"
+
+    with pytest.raises(InventoryError, match="local cache location"):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+@pytest.mark.parametrize(
+    "invalid_media_type",
+    ["text/plain", "Application/Pdf", "TEXT/HTML", "", None],
+)
+def test_inventory_extension_mapping_rejects_unknown_media_before_provisioning(
+    monkeypatch, invalid_media_type
+):
+    original_route_for_identity = evidence_inventory.authoritative_route_for_identity
+
+    def route_with_invalid_media(identity):
+        route = copy.deepcopy(original_route_for_identity(identity))
+        if identity == {"kind": "doi", "value": "10.1143/ptp.5.2.177"}:
+            route["expected_media_type"] = invalid_media_type
+        return route
+
+    monkeypatch.setattr(
+        evidence_inventory,
+        "authoritative_route_for_identity",
+        route_with_invalid_media,
+    )
+    with pytest.raises(InventoryError, match="unsupported.*media type"):
+        build_inventory_data(LITERATURE_STANDARD_RESULTS)
 
 
 def test_inventory_has_exact_registry_contract_record_and_locator_name_sets(
@@ -1740,14 +2116,16 @@ def test_provisioning_has_one_publisher_specific_unacquired_route_per_source(
         assert route["authoritative_retrieval_route"]["kind"] != (
             "doi_content_negotiation"
         )
-        assert route["expected_media_type"] in {
-            "application/pdf",
-            "application/xml",
+        extension_by_media_type = {
+            "application/pdf": "pdf",
+            "application/xml": "xml",
+            "text/html": "html",
         }
+        assert route["expected_media_type"] in extension_by_media_type
         assert route["expected_media_type"] == expected["expected_media_type"]
         assert route["redistributability"] == "unresolved"
         assert route["current_availability"] == "not_acquired"
-        extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
+        extension = extension_by_media_type[route["expected_media_type"]]
         assert route["local_cache_location"] == (
             f"source-cache/{route['source_id']}/source.{extension}"
         )

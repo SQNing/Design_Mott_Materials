@@ -2589,9 +2589,13 @@ def test_payload_extension_mapping_is_closed(media_type, extension):
     assert evidence_sources.payload_extension_for_media_type(media_type) == extension
 
 
-def test_payload_extension_mapping_rejects_every_unknown_media_type():
+@pytest.mark.parametrize(
+    "media_type",
+    ["text/plain", "Application/Pdf", "TEXT/HTML", "", None],
+)
+def test_payload_extension_mapping_rejects_every_unknown_media_type(media_type):
     with pytest.raises(SourceEvidenceError, match="unsupported.*media type"):
-        evidence_sources.payload_extension_for_media_type("text/plain")
+        evidence_sources.payload_extension_for_media_type(media_type)
 
 
 def test_loader_rejects_payload_extension_that_disagrees_with_media_type(tmp_path):

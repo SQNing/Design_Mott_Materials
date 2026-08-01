@@ -191,6 +191,20 @@ def source_id_for_identity(identity):
     return f"{kind}_{digest}"
 
 
+def _cache_extension_for_media_type(media_type):
+    extensions = {
+        "application/pdf": "pdf",
+        "application/xml": "xml",
+        "text/html": "html",
+    }
+    try:
+        return extensions[media_type]
+    except (KeyError, TypeError) as exc:
+        raise InventoryError(
+            f"unsupported authoritative media type {media_type!r}"
+        ) from exc
+
+
 def resolve_registry_selector(registry_entry, selector):
     """Resolve a closed, target-free selector against one registry entry."""
 
@@ -465,7 +479,7 @@ def build_inventory_data(
             }
         )
         route = authoritative_route_for_identity({"kind": kind, "value": value})
-        extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
+        extension = _cache_extension_for_media_type(route["expected_media_type"])
         provisioning.append(
             {
                 "source_id": source_id,
@@ -931,6 +945,7 @@ def _validate_provisioning(routes, expected_sources):
         expected_route = authoritative_route_for_identity(
             {"kind": kind, "value": value}
         )
+        extension = _cache_extension_for_media_type(route["expected_media_type"])
         if retrieval != {
             "kind": expected_route["kind"],
             "url": expected_route["url"],
@@ -950,7 +965,6 @@ def _validate_provisioning(routes, expected_sources):
             raise InventoryError(
                 f"source availability must be not_acquired for {route['source_id']}"
             )
-        extension = "xml" if route["expected_media_type"] == "application/xml" else "pdf"
         expected_cache_location = (
             f"source-cache/{route['source_id']}/source.{extension}"
         )
