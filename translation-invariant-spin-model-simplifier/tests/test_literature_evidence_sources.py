@@ -8639,3 +8639,267 @@ def test_round11_invalid_downloaded_json_sidecar_fails_before_any_cache_write(
 
     assert outcome["status"] == "failed"
     assert not source_dir.exists()
+
+
+ROUND12_JSON_ACQUISITION_KINDS = (
+    "core_same_work_output",
+    "openalex_same_work_location",
+)
+
+
+def _round12_json_acquisition_fixture(evidence_kind):
+    if evidence_kind == "core_same_work_output":
+        fixture = _round7_signed_sidecar_roundtrip_fixture(evidence_kind)
+        return {
+            **fixture,
+            "sidecar_document": json.loads(
+                fixture["sidecar_payload"].decode("utf-8")
+            ),
+        }
+    if evidence_kind != "openalex_same_work_location":
+        raise AssertionError(f"unknown JSON evidence kind {evidence_kind}")
+
+    doi = "10.1016/j.aop.2005.10.005"
+    arxiv_id = "cond-mat/0506438"
+    identity = {"kind": "doi", "value": doi}
+    route_spec = authoritative_route_for_identity(identity)
+    source_id = "doi_" + hashlib.sha256(
+        f"doi:{doi}".encode("ascii")
+    ).hexdigest()[:20]
+    sidecar_document = {
+        "id": "https://openalex.org/W2141708961",
+        "doi": f"https://doi.org/{doi}",
+        "locations": [
+            {"pdf_url": f"https://arxiv.org/pdf/{arxiv_id}.pdf"}
+        ],
+    }
+    return {
+        "source": {
+            "source_id": source_id,
+            "canonical_identity": identity,
+            "canonical_url": f"https://doi.org/{doi}",
+            "benchmark_names": ["round12_openalex_acquisition_fixture"],
+        },
+        "route": {
+            "source_id": source_id,
+            "authoritative_retrieval_route": route_spec,
+            "expected_media_type": "application/pdf",
+            "access_mode": "unattended",
+        },
+        "bibliographic": {
+            "title": "Round twelve OpenAlex acquisition fixture",
+            "authors": ["Fixture Author"],
+            "venue": "Annals of Physics",
+            "publication_date": "2006-01-01",
+        },
+        "primary_payload": _minimal_pdf(
+            "Round twelve legacy OpenAlex acquisition fixture."
+        ),
+        "sidecar_document": sidecar_document,
+        "sidecar_payload": json.dumps(
+            sidecar_document,
+            sort_keys=True,
+        ).encode("utf-8"),
+        "sidecar_media_type": "application/json",
+        "sidecar_final_url": route_spec["work_identity_evidence"]["url"],
+    }
+
+
+def _round12_invalid_json_sidecar(valid_payload, mutation):
+    assert valid_payload.startswith(b"{")
+    injected = {
+        "duplicate-key": (
+            b'"ROUND12_DUPLICATE_KEY":1,',
+            b'"ROUND12_DUPLICATE_KEY":2,'
+        ),
+        "nan": (b'"ROUND12_NONFINITE_NAN":NaN,',),
+        "positive-infinity": (
+            b'"ROUND12_NONFINITE_POSITIVE_INFINITY":Infinity,',
+        ),
+        "negative-infinity": (
+            b'"ROUND12_NONFINITE_NEGATIVE_INFINITY":-Infinity,',
+        ),
+    }
+    if mutation in injected:
+        fragments = injected[mutation]
+        payload = b"{" + b"".join(fragments) + valid_payload[1:]
+        marker = fragments[0].split(b'"', 2)[1].decode("ascii")
+        return payload, marker
+    if mutation == "invalid-utf8":
+        return b'{"ROUND12_INVALID_UTF8":"\xff"}', "ROUND12_INVALID_UTF8"
+    if mutation == "malformed-json":
+        return (
+            b'{"ROUND12_MALFORMED_DOCUMENT":"ROUND12_DOCUMENT_CONTENT"',
+            "ROUND12_DOCUMENT_CONTENT",
+        )
+    raise AssertionError(f"unknown strict-JSON mutation {mutation}")
+
+
+def _round12_install_json_acquisition_boundary(
+    monkeypatch,
+    fixture,
+    sidecar_payload,
+):
+    requests = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            accept = _header_dict(request).get("accept")
+            requests.append((request.full_url, accept, timeout))
+            if accept == "application/pdf":
+                return _FixtureHTTPResponse(
+                    fixture["primary_payload"],
+                    content_type="application/pdf",
+                    final_url=fixture["route"][
+                        "authoritative_retrieval_route"
+                    ]["url"],
+                )
+            assert accept == "application/json"
+            return _FixtureHTTPResponse(
+                sidecar_payload,
+                content_type="application/json",
+                final_url=fixture["sidecar_final_url"],
+            )
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: dict(fixture["bibliographic"]),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    return requests
+
+
+@pytest.mark.parametrize(
+    "evidence_kind",
+    ROUND12_JSON_ACQUISITION_KINDS,
+    ids=("core-new", "openalex-legacy"),
+)
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "duplicate-key",
+        "nan",
+        "positive-infinity",
+        "negative-infinity",
+        "invalid-utf8",
+        "malformed-json",
+    ),
+)
+def test_round12_strict_invalid_json_acquisition_fails_before_cache_write(
+    tmp_path,
+    monkeypatch,
+    evidence_kind,
+    mutation,
+):
+    fixture = _round12_json_acquisition_fixture(evidence_kind)
+    payload, marker = _round12_invalid_json_sidecar(
+        fixture["sidecar_payload"],
+        mutation,
+    )
+    source = fixture["source"]
+    source_dir = tmp_path / source["source_id"]
+    validator_documents = []
+    cache_file_writes = []
+    real_validate = source_fetcher.validate_work_identity_document
+    real_path_open = Path.open
+
+    def recording_validate(document, **kwargs):
+        validator_documents.append(document)
+        return real_validate(document, **kwargs)
+
+    def recording_path_open(path, mode="r", *args, **kwargs):
+        try:
+            relative_path = path.relative_to(source_dir)
+        except ValueError:
+            relative_path = None
+        if relative_path is not None and any(flag in mode for flag in "wax+"):
+            cache_file_writes.append((relative_path.as_posix(), mode))
+        return real_path_open(path, mode, *args, **kwargs)
+
+    requests = _round12_install_json_acquisition_boundary(
+        monkeypatch,
+        fixture,
+        payload,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_work_identity_document",
+        recording_validate,
+    )
+    monkeypatch.setattr(Path, "open", recording_path_open)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed"
+    assert [accept for _url, accept, _timeout in requests] == [
+        "application/pdf",
+        "application/json",
+    ]
+    assert validator_documents == []
+    assert not source_dir.exists()
+    assert cache_file_writes == []
+    assert outcome["detail"] == (
+        f"new cache directory {source_dir} failed: "
+        "work identity evidence JSON is not valid strict JSON"
+    )
+    rendered = json.dumps(outcome, sort_keys=True)
+    assert marker not in rendered
+    assert payload.decode("utf-8", errors="ignore") not in rendered
+
+
+@pytest.mark.parametrize(
+    "evidence_kind",
+    ROUND12_JSON_ACQUISITION_KINDS,
+    ids=("core-new", "openalex-legacy"),
+)
+def test_round12_valid_json_acquisition_control(
+    tmp_path,
+    monkeypatch,
+    evidence_kind,
+):
+    fixture = _round12_json_acquisition_fixture(evidence_kind)
+    validator_documents = []
+    real_validate = source_fetcher.validate_work_identity_document
+
+    def recording_validate(document, **kwargs):
+        validator_documents.append(document)
+        return real_validate(document, **kwargs)
+
+    requests = _round12_install_json_acquisition_boundary(
+        monkeypatch,
+        fixture,
+        fixture["sidecar_payload"],
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_work_identity_document",
+        recording_validate,
+    )
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "acquired"
+    assert [accept for _url, accept, _timeout in requests] == [
+        "application/pdf",
+        "application/json",
+    ]
+    assert validator_documents == [fixture["sidecar_document"]]
+    assert (tmp_path / fixture["source"]["source_id"]).is_dir()

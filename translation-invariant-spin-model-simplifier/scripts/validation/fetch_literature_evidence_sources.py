@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ElementTree
 from validation.literature_evidence_inventory import load_and_validate_inventory
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
+    _load_json_bytes,
     _pdftotext_version,
     arxiv_atom_identifier_matches,
     authoritative_origin_for_route_kind,
@@ -881,12 +882,10 @@ def _fetch_work_identity_evidence(
             "work identity evidence response media type mismatch"
         )
     if media_type == "application/json":
-        try:
-            document = json.loads(payload.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise SourceEvidenceError(
-                f"work identity evidence is invalid JSON: {exc}"
-            ) from exc
+        document = _load_json_bytes(
+            payload,
+            context="work identity evidence JSON",
+        )
     else:
         document = payload
     stable_route_url = _sanitize_url_for_output(request_url)
