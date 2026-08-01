@@ -804,7 +804,14 @@ def _validate_work_identity_payload(
         raise SourceEvidenceError(
             "work identity evidence payload name disagrees with media type"
         )
-    document = payload if media_type == "text/html" else _load_json(evidence_path)
+    document = (
+        payload
+        if media_type == "text/html"
+        else _load_json_bytes(
+            payload,
+            context="work identity evidence JSON",
+        )
+    )
     validation_route = {
         **route,
         "work_identity_evidence": {
@@ -2413,37 +2420,49 @@ def _require_target_anchors(text, anchors):
         )
 
 
-def _load_json(path):
-    if Path(path).is_symlink():
-        raise SourceEvidenceError(f"JSON evidence path must not be a symlink: {path}")
+def _load_json_bytes(payload, *, context):
+    def reject_invalid(*args, **kwargs):
+        raise SourceEvidenceError(f"{context} is not valid strict JSON")
 
     def reject_duplicates(pairs):
         result = {}
         for key, value in pairs:
             if key in result:
-                raise SourceEvidenceError(f"duplicate JSON key {key!r} in {path}")
+                reject_invalid()
             result[key] = value
         return result
-
-    def reject_constant(value):
-        raise SourceEvidenceError(f"non-finite JSON number {value} in {path}")
 
     def parse_float(value):
         parsed = float(value)
         if not math.isfinite(parsed):
-            reject_constant(value)
+            reject_invalid()
         return parsed
 
     try:
-        with Path(path).open("r", encoding="utf-8") as handle:
-            return json.load(
-                handle,
-                object_pairs_hook=reject_duplicates,
-                parse_constant=reject_constant,
-                parse_float=parse_float,
-            )
-    except (OSError, json.JSONDecodeError) as exc:
+        text = payload.decode("utf-8", errors="strict")
+        return json.loads(
+            text,
+            object_pairs_hook=reject_duplicates,
+            parse_constant=reject_invalid,
+            parse_float=parse_float,
+        )
+    except SourceEvidenceError:
+        raise
+    except (AttributeError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+        raise SourceEvidenceError(
+            f"{context} is not valid strict JSON"
+        ) from None
+
+
+def _load_json(path):
+    path = Path(path)
+    if path.is_symlink():
+        raise SourceEvidenceError(f"JSON evidence path must not be a symlink: {path}")
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
         raise SourceEvidenceError(f"cannot load provenance JSON {path}: {exc}") from exc
+    return _load_json_bytes(payload, context=f"provenance JSON {path}")
 
 
 def _require_exact_fields(value, expected, label):

@@ -8205,3 +8205,437 @@ def test_round10_systematic_and_random_ascii_matrix_matches_finite_reference():
         )
         assert redirected.full_url == target
         safe_checked += 1
+
+
+ROUND11_CORE_SIDECAR_BYTES = json.dumps(
+    _core_mg_work_identity_document(),
+    sort_keys=True,
+).encode("utf-8")
+
+
+def _round11_replace_inline_sidecar_fingerprint(source_dir, payload):
+    provenance_path = source_dir / "provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    descriptor = provenance["retrieval_metadata"]["work_identity_evidence"]
+    descriptor["payload_sha256"] = hashlib.sha256(payload).hexdigest()
+    descriptor["payload_byte_length"] = len(payload)
+    provenance_path.write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize("legacy", (False, True), ids=("core-new", "openalex-legacy"))
+def test_round11_offline_json_sidecar_uses_exactly_one_path_read(
+    tmp_path,
+    monkeypatch,
+    legacy,
+):
+    if legacy:
+        source_dir, route = _repository_fixture(
+            tmp_path,
+            legacy_evidence_url=True,
+        )
+        source = _expected_source()
+    else:
+        source_dir, source, route, _descriptor = _special_sidecar_cache(
+            tmp_path,
+            "core_same_work_output",
+        )
+    sidecar_path = source_dir / "work-identity.json"
+    real_open = Path.open
+    sidecar_reads = []
+
+    def one_read_only(path, mode="r", *args, **kwargs):
+        if path == sidecar_path and "r" in mode:
+            sidecar_reads.append(mode)
+            if len(sidecar_reads) > 1:
+                raise AssertionError("JSON sidecar path was read twice")
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", one_read_only)
+
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+
+    assert verified.source_id == source["source_id"]
+    assert sidecar_reads == ["rb"]
+
+
+def test_round11_invalid_hashed_snapshot_cannot_be_replaced_by_valid_second_read(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, source, route, _descriptor = _special_sidecar_cache(
+        tmp_path,
+        "core_same_work_output",
+    )
+    sidecar_path = source_dir / "work-identity.json"
+    hashed_snapshot = b"{"
+    later_snapshot = ROUND11_CORE_SIDECAR_BYTES
+    _round11_replace_inline_sidecar_fingerprint(source_dir, hashed_snapshot)
+    real_read_bytes = Path.read_bytes
+    validator_documents = []
+
+    def swapping_read(path):
+        if path == sidecar_path:
+            sidecar_path.write_bytes(later_snapshot)
+            return hashed_snapshot
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", swapping_read)
+    monkeypatch.setattr(
+        evidence_sources,
+        "validate_work_identity_document",
+        lambda document, **kwargs: validator_documents.append(document),
+    )
+
+    with pytest.raises(SourceEvidenceError, match="JSON") as caught:
+        load_verified_source(
+            source_dir,
+            expected_source=source,
+            provisioning_route=route,
+        )
+
+    assert validator_documents == []
+    assert hashed_snapshot.decode("utf-8") not in str(caught.value)
+    assert later_snapshot.decode("utf-8") not in str(caught.value)
+
+
+def test_round11_valid_hashed_snapshot_ignores_invalid_later_path_contents(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, source, route, _descriptor = _special_sidecar_cache(
+        tmp_path,
+        "core_same_work_output",
+    )
+    sidecar_path = source_dir / "work-identity.json"
+    later_snapshot = b"{"
+    real_read_bytes = Path.read_bytes
+    real_validate = evidence_sources.validate_work_identity_document
+    validator_documents = []
+
+    def swapping_read(path):
+        if path == sidecar_path:
+            sidecar_path.write_bytes(later_snapshot)
+            return ROUND11_CORE_SIDECAR_BYTES
+        return real_read_bytes(path)
+
+    def recording_validate(document, **kwargs):
+        validator_documents.append(document)
+        return real_validate(document, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", swapping_read)
+    monkeypatch.setattr(
+        evidence_sources,
+        "validate_work_identity_document",
+        recording_validate,
+    )
+
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+
+    assert verified.source_id == source["source_id"]
+    assert validator_documents == [_core_mg_work_identity_document()]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (
+        pytest.param(b'{"LEAKY_KEY": 1, "LEAKY_KEY": 2}', id="duplicate-key"),
+        pytest.param(b'{"value": NaN}', id="nan"),
+        pytest.param(b'{"value": Infinity}', id="positive-infinity"),
+        pytest.param(b'{"value": -Infinity}', id="negative-infinity"),
+        pytest.param(b'{"value": "\xff"}', id="invalid-utf8"),
+        pytest.param(b'{"value":', id="malformed-json"),
+    ),
+)
+def test_round11_strict_json_bytes_parser_rejects_invalid_payloads_without_content(
+    payload,
+):
+    with pytest.raises(SourceEvidenceError) as caught:
+        evidence_sources._load_json_bytes(
+            payload,
+            context="work identity evidence JSON",
+        )
+
+    rendered = str(caught.value)
+    assert "LEAKY_KEY" not in rendered
+    assert payload.decode("utf-8", errors="ignore") not in rendered
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    (
+        pytest.param(b'{"value": [1, 2]}', {"value": [1, 2]}, id="mapping"),
+        pytest.param(b'[1, {"value": 2}]', [1, {"value": 2}], id="list"),
+        pytest.param(b'"scalar"', "scalar", id="string"),
+        pytest.param(b'null', None, id="null"),
+    ),
+)
+def test_round11_strict_json_bytes_parser_preserves_valid_top_levels(
+    payload,
+    expected,
+):
+    assert evidence_sources._load_json_bytes(
+        payload,
+        context="fixture JSON",
+    ) == expected
+
+
+def test_round11_path_json_loader_reads_once_and_delegates_to_bytes_parser(
+    tmp_path,
+    monkeypatch,
+):
+    path = tmp_path / "fixture.json"
+    payload = b'{"fixture": true}'
+    path.write_bytes(payload)
+    calls = []
+    sentinel = {"delegated": True}
+
+    def bytes_loader(value, *, context):
+        calls.append((value, context))
+        return sentinel
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_load_json_bytes",
+        bytes_loader,
+        raising=False,
+    )
+
+    assert evidence_sources._load_json(path) is sentinel
+    assert calls == [(payload, f"provenance JSON {path}")]
+
+
+def test_round11_sidecar_hash_and_length_precede_json_parse_and_validation(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, source, route, _descriptor = _special_sidecar_cache(
+        tmp_path,
+        "core_same_work_output",
+    )
+    sidecar_path = source_dir / "work-identity.json"
+    events = []
+
+    class TrackedPayload(bytes):
+        def __len__(self):
+            events.append("length")
+            return super().__len__()
+
+    payload = TrackedPayload(ROUND11_CORE_SIDECAR_BYTES)
+    real_read_bytes = Path.read_bytes
+    real_sha256 = evidence_sources.hashlib.sha256
+    real_load_json_bytes = evidence_sources._load_json_bytes
+    real_validate = evidence_sources.validate_work_identity_document
+
+    def tracked_read(path):
+        if path == sidecar_path:
+            return payload
+        return real_read_bytes(path)
+
+    def tracked_sha256(value, *args, **kwargs):
+        if value is payload:
+            events.append("sha256")
+        return real_sha256(value, *args, **kwargs)
+
+    def tracked_json_parse(value, *, context):
+        if value is payload:
+            events.append("json-parse")
+            return _core_mg_work_identity_document()
+        return real_load_json_bytes(value, context=context)
+
+    def tracked_validate(document, **kwargs):
+        events.append("validate")
+        return real_validate(document, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", tracked_read)
+    monkeypatch.setattr(evidence_sources.hashlib, "sha256", tracked_sha256)
+    monkeypatch.setattr(
+        evidence_sources,
+        "_load_json_bytes",
+        tracked_json_parse,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        evidence_sources,
+        "validate_work_identity_document",
+        tracked_validate,
+    )
+
+    load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+
+    parse_index = events.index("json-parse")
+    assert events.index("sha256") < parse_index
+    assert all(
+        index < parse_index
+        for index, event in enumerate(events)
+        if event == "length"
+    )
+    assert events.index("validate") > parse_index
+
+
+def test_round11_resume_verifies_json_sidecar_once_without_network_or_writes(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, source, route, _descriptor = _special_sidecar_cache(
+        tmp_path,
+        "core_same_work_output",
+    )
+    before = _round7_tree_snapshot(source_dir)
+    forbidden_events = _round7_forbid_resume_supplement(monkeypatch)
+    sidecar_path = source_dir / "work-identity.json"
+    real_open = Path.open
+    sidecar_reads = []
+
+    def one_read_only(path, mode="r", *args, **kwargs):
+        if path == sidecar_path and "r" in mode:
+            sidecar_reads.append(mode)
+            if len(sidecar_reads) > 1:
+                raise AssertionError("resume read JSON sidecar twice")
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", one_read_only)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=True,
+    )
+
+    assert outcome == {
+        "source_id": source["source_id"],
+        "status": "resumed",
+        "detail": "existing cache verified",
+    }
+    assert forbidden_events == []
+    assert sidecar_reads == ["rb"]
+    monkeypatch.undo()
+    assert _round7_tree_snapshot(source_dir) == before
+
+
+def test_round11_new_json_sidecar_write_immediately_replays_one_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _round7_signed_sidecar_roundtrip_fixture(
+        "core_same_work_output"
+    )
+    source = fixture["source"]
+    route = fixture["route"]
+    source_dir = tmp_path / source["source_id"]
+    sidecar_path = source_dir / "work-identity.json"
+    primary_final_url = route["authoritative_retrieval_route"]["url"]
+    real_open = Path.open
+    sidecar_reads = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            accept = _header_dict(request).get("accept")
+            if accept == "application/pdf":
+                return _FixtureHTTPResponse(
+                    fixture["primary_payload"],
+                    content_type="application/pdf",
+                    final_url=primary_final_url,
+                )
+            return _FixtureHTTPResponse(
+                fixture["sidecar_payload"],
+                content_type="application/json",
+                final_url=fixture["sidecar_final_url"],
+            )
+
+    def one_read_only(path, mode="r", *args, **kwargs):
+        if path == sidecar_path and "r" in mode:
+            sidecar_reads.append(mode)
+            if len(sidecar_reads) > 1:
+                raise AssertionError("immediate replay read JSON sidecar twice")
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: dict(fixture["bibliographic"]),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(Path, "open", one_read_only)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "acquired"
+    assert sidecar_reads == ["rb"]
+
+
+def test_round11_invalid_downloaded_json_sidecar_fails_before_any_cache_write(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _round7_signed_sidecar_roundtrip_fixture(
+        "core_same_work_output"
+    )
+    source = fixture["source"]
+    route = fixture["route"]
+    source_dir = tmp_path / source["source_id"]
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            accept = _header_dict(request).get("accept")
+            if accept == "application/pdf":
+                return _FixtureHTTPResponse(
+                    fixture["primary_payload"],
+                    content_type="application/pdf",
+                    final_url=route["authoritative_retrieval_route"]["url"],
+                )
+            return _FixtureHTTPResponse(
+                b"{",
+                content_type="application/json",
+                final_url=fixture["sidecar_final_url"],
+            )
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: dict(fixture["bibliographic"]),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed"
+    assert not source_dir.exists()
