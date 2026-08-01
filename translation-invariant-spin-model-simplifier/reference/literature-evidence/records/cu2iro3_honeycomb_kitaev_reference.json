@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "honeycomb_frustrated_iridate_identity",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "honeycomb_frustrated_iridate_identity",
         "type": "boolean",
         "units": "not_applicable"
@@ -56,6 +58,7 @@
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "honeycomb_frustrated_iridate_identity",
           "type": "boolean",
           "units": "not_applicable"

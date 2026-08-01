@@ -3,6 +3,109 @@
   "sources": [
     {
       "benchmark_names": [
+        "honeycomb_j1_j2_spiral_ring_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1004.1119"
+      },
+      "canonical_url": "https://arxiv.org/abs/1004.1119",
+      "source_id": "arxiv_2a82afb1051aa17b9405"
+    },
+    {
+      "benchmark_names": [
+        "j1_j2_chain_bkt_transition_reference",
+        "j1_j2_chain_okamoto_nomura_critical_point"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1006.5052"
+      },
+      "canonical_url": "https://arxiv.org/abs/1006.5052",
+      "source_id": "arxiv_f6b1bfbaa376158563e6"
+    },
+    {
+      "benchmark_names": [
+        "er2ti2o7_xy_pyrochlore_order_by_disorder_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1204.1320"
+      },
+      "canonical_url": "https://arxiv.org/abs/1204.1320",
+      "source_id": "arxiv_0e5321621b7258dea2db"
+    },
+    {
+      "benchmark_names": [
+        "blume_capel_spin1_zero_temperature_level_crossing",
+        "single_ion_spin1_anisotropy_levels"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1204.5027"
+      },
+      "canonical_url": "https://arxiv.org/abs/1204.5027",
+      "source_id": "arxiv_dbdd4b586780cd708b67"
+    },
+    {
+      "benchmark_names": [
+        "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
+        "kagome_spin_half_heisenberg_energy_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1205.4858"
+      },
+      "canonical_url": "https://arxiv.org/abs/1205.4858",
+      "source_id": "arxiv_85cd16736d43980e87ea"
+    },
+    {
+      "benchmark_names": [
+        "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
+        "honeycomb_kitaev_heisenberg_four_sublattice_phases"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1209.5100"
+      },
+      "canonical_url": "https://arxiv.org/abs/1209.5100",
+      "source_id": "arxiv_36e066e2b99129d0057f"
+    },
+    {
+      "benchmark_names": [
+        "edwardsite_kagome_antiferromagnet_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1305.2477"
+      },
+      "canonical_url": "https://arxiv.org/abs/1305.2477",
+      "source_id": "arxiv_57815717df98a77fdf43"
+    },
+    {
+      "benchmark_names": [
+        "honeycomb_j1_j2_j3_classical_phase_diagram"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1309.3744"
+      },
+      "canonical_url": "https://arxiv.org/abs/1309.3744",
+      "source_id": "arxiv_fc2347b67f4611c61958"
+    },
+    {
+      "benchmark_names": [
+        "nacuo2_triangular_heisenberg_material_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "1405.6184"
+      },
+      "canonical_url": "https://arxiv.org/abs/1405.6184",
+      "source_id": "arxiv_c119958c10a698757174"
+    },
+    {
+      "benchmark_names": [
         "j1_j2_square_spin_half_neel_collinear_transition_reference"
       ],
       "canonical_identity": {
@@ -36,8 +139,118 @@
     },
     {
       "benchmark_names": [
-        "diamond_j1_j2_spiral_surface_reference",
-        "honeycomb_j1_j2_spiral_ring_reference"
+        "fe_ps3_honeycomb_ising_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "2005.12031"
+      },
+      "canonical_url": "https://arxiv.org/abs/2005.12031",
+      "source_id": "arxiv_561a252c28acb461267e"
+    },
+    {
+      "benchmark_names": [
+        "fcc_j1_j2_heisenberg_type_order_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "2007.00376"
+      },
+      "canonical_url": "https://arxiv.org/abs/2007.00376",
+      "source_id": "arxiv_ffa588072c8fe0ab1cac"
+    },
+    {
+      "benchmark_names": [
+        "lieb_lattice_heisenberg_ferrimagnet_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "2409.16715"
+      },
+      "canonical_url": "https://arxiv.org/abs/2409.16715",
+      "source_id": "arxiv_1f254fb3984af33c5ec2"
+    },
+    {
+      "benchmark_names": [
+        "ruby_lattice_heisenberg_flat_band_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "2512.14173"
+      },
+      "canonical_url": "https://arxiv.org/abs/2512.14173",
+      "source_id": "arxiv_5d132154aee28ea4475e"
+    },
+    {
+      "benchmark_names": [
+        "clinoatacamite_distorted_kagome_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "2601.21024"
+      },
+      "canonical_url": "https://arxiv.org/abs/2601.21024",
+      "source_id": "arxiv_0a49fe8b4a8daeff1eb8"
+    },
+    {
+      "benchmark_names": [
+        "checkerboard_heisenberg_afm_planar_pyrochlore_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/0108070"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/0108070",
+      "source_id": "arxiv_93b970e76b4d7ebb32b8"
+    },
+    {
+      "benchmark_names": [
+        "square_ring_exchange_neel_vbs_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/0205270"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/0205270",
+      "source_id": "arxiv_9997d06bc7630b2a0091"
+    },
+    {
+      "benchmark_names": [
+        "pyrochlore_heisenberg_afm_coulomb_phase_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/0407005"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/0407005",
+      "source_id": "arxiv_f32fab13874ec5c0ec4a"
+    },
+    {
+      "benchmark_names": [
+        "shuriken_lattice_heisenberg_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/0411673"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/0411673",
+      "source_id": "arxiv_f1af74b7fd4b62174611"
+    },
+    {
+      "benchmark_names": [
+        "transverse_field_ising_chain_critical_point",
+        "transverse_field_ising_chain_gap"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/0509490"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/0509490",
+      "source_id": "arxiv_5bd1b8eb23d6c0ac2e87"
+    },
+    {
+      "benchmark_names": [
+        "diamond_j1_j2_spiral_surface_reference"
       ],
       "canonical_identity": {
         "kind": "arxiv",
@@ -45,6 +258,39 @@
       },
       "canonical_url": "https://arxiv.org/abs/cond-mat/0612001",
       "source_id": "arxiv_6d8189949f34733eb8b4"
+    },
+    {
+      "benchmark_names": [
+        "cubic_ising_critical_temperature_reference"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/9509016"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/9509016",
+      "source_id": "arxiv_e96482d150e3231eaa21"
+    },
+    {
+      "benchmark_names": [
+        "takhtajan_babujian_spin1_critical_point"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/9811353"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/9811353",
+      "source_id": "arxiv_4d77a787c497a62e0d7e"
+    },
+    {
+      "benchmark_names": [
+        "xxz_spin_half_chain_phase_boundaries"
+      ],
+      "canonical_identity": {
+        "kind": "arxiv",
+        "value": "cond-mat/9909290"
+      },
+      "canonical_url": "https://arxiv.org/abs/cond-mat/9909290",
+      "source_id": "arxiv_75995a2b249101ded246"
     },
     {
       "benchmark_names": [
@@ -70,29 +316,6 @@
     },
     {
       "benchmark_names": [
-        "xx_spin_half_chain_free_fermion_energy"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0003-4916(61)90115-4"
-      },
-      "canonical_url": "https://doi.org/10.1016/0003-4916(61)90115-4",
-      "source_id": "doi_bb9d8409dad06c02dae3"
-    },
-    {
-      "benchmark_names": [
-        "transverse_field_ising_chain_critical_point",
-        "transverse_field_ising_chain_gap"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0003-4916(70)90270-8"
-      },
-      "canonical_url": "https://doi.org/10.1016/0003-4916(70)90270-8",
-      "source_id": "doi_0dd199cedf8c6235b783"
-    },
-    {
-      "benchmark_names": [
         "crcl3_honeycomb_heisenberg_reference"
       ],
       "canonical_identity": {
@@ -101,52 +324,6 @@
       },
       "canonical_url": "https://doi.org/10.1016/0022-3697(61)90053-1",
       "source_id": "doi_aec03f65476f23115a77"
-    },
-    {
-      "benchmark_names": [
-        "honeycomb_ising_ferromagnet_exact_tc",
-        "triangular_ising_ferromagnet_exact_tc"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0031-8914(50)90130-3"
-      },
-      "canonical_url": "https://doi.org/10.1016/0031-8914(50)90130-3",
-      "source_id": "doi_54d369496b49144e511c"
-    },
-    {
-      "benchmark_names": [
-        "takhtajan_babujian_spin1_critical_point"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0375-9601(82)90403-0"
-      },
-      "canonical_url": "https://doi.org/10.1016/0375-9601(82)90403-0",
-      "source_id": "doi_9814f6955bf2fbad0268"
-    },
-    {
-      "benchmark_names": [
-        "j1_j2_chain_bkt_transition_reference",
-        "j1_j2_chain_okamoto_nomura_critical_point"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0375-9601(92)90823-5"
-      },
-      "canonical_url": "https://doi.org/10.1016/0375-9601(92)90823-5",
-      "source_id": "doi_7d48b95e16196d99b9b1"
-    },
-    {
-      "benchmark_names": [
-        "honeycomb_j1_j2_j3_classical_phase_diagram"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/0378-4363(79)90002-0"
-      },
-      "canonical_url": "https://doi.org/10.1016/0378-4363(79)90002-0",
-      "source_id": "doi_08576beddad416af9b0e"
     },
     {
       "benchmark_names": [
@@ -171,17 +348,6 @@
       },
       "canonical_url": "https://doi.org/10.1016/j.aop.2005.10.005",
       "source_id": "doi_735636355d51385c61be"
-    },
-    {
-      "benchmark_names": [
-        "nacuo2_triangular_heisenberg_material_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1016/j.physb.2007.10.295"
-      },
-      "canonical_url": "https://doi.org/10.1016/j.physb.2007.10.295",
-      "source_id": "doi_28f85cb05dabe4f5ef52"
     },
     {
       "benchmark_names": [
@@ -240,17 +406,6 @@
     },
     {
       "benchmark_names": [
-        "edwardsite_kagome_antiferromagnet_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1038/ncomms14113"
-      },
-      "canonical_url": "https://doi.org/10.1038/ncomms14113",
-      "source_id": "doi_998394301da8aab04b39"
-    },
-    {
-      "benchmark_names": [
         "pr2zr2o7_quantum_spin_ice_reference"
       ],
       "canonical_identity": {
@@ -273,17 +428,6 @@
     },
     {
       "benchmark_names": [
-        "gamma_li2iro3_3d_kitaev_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1038/ncomms5203"
-      },
-      "canonical_url": "https://doi.org/10.1038/ncomms5203",
-      "source_id": "doi_0e95cac63a568de62128"
-    },
-    {
-      "benchmark_names": [
         "kagome_chiral_spin_liquid_j1_j2_jchi_reference"
       ],
       "canonical_identity": {
@@ -292,17 +436,6 @@
       },
       "canonical_url": "https://doi.org/10.1038/ncomms6137",
       "source_id": "doi_6b6a567626db4d7194ce"
-    },
-    {
-      "benchmark_names": [
-        "clinoatacamite_distorted_kagome_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1038/nmat1867"
-      },
-      "canonical_url": "https://doi.org/10.1038/nmat1867",
-      "source_id": "doi_404f519ad628c5708818"
     },
     {
       "benchmark_names": [
@@ -317,6 +450,17 @@
     },
     {
       "benchmark_names": [
+        "ru_br3_kitaev_material_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1038/s41535-026-00868-6"
+      },
+      "canonical_url": "https://doi.org/10.1038/s41535-026-00868-6",
+      "source_id": "doi_35bb82ba0a5814f69448"
+    },
+    {
+      "benchmark_names": [
         "ybmggao4_triangular_spin_liquid_reference"
       ],
       "canonical_identity": {
@@ -325,28 +469,6 @@
       },
       "canonical_url": "https://doi.org/10.1038/srep16419",
       "source_id": "doi_d467f120b672ca322e8e"
-    },
-    {
-      "benchmark_names": [
-        "majundar_ghosh_chain_exact_dimer_point"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1063/1.1664978"
-      },
-      "canonical_url": "https://doi.org/10.1063/1.1664978",
-      "source_id": "doi_338d63a0924d74e024e4"
-    },
-    {
-      "benchmark_names": [
-        "lieb_lattice_heisenberg_ferrimagnet_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1063/1.1724276"
-      },
-      "canonical_url": "https://doi.org/10.1063/1.1724276",
-      "source_id": "doi_73b2515f2a4cc89196d3"
     },
     {
       "benchmark_names": [
@@ -361,17 +483,6 @@
     },
     {
       "benchmark_names": [
-        "square_fully_frustrated_ising_residual_entropy_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1088/0022-3719/10/10/014"
-      },
-      "canonical_url": "https://doi.org/10.1088/0022-3719/10/10/014",
-      "source_id": "doi_77ad76b09d88ce916ed8"
-    },
-    {
-      "benchmark_names": [
         "mnsi_chiral_helimagnet_reference"
       ],
       "canonical_identity": {
@@ -383,6 +494,28 @@
     },
     {
       "benchmark_names": [
+        "square_fully_frustrated_ising_residual_entropy_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1088/0305-4470/16/10/023"
+      },
+      "canonical_url": "https://doi.org/10.1088/0305-4470/16/10/023",
+      "source_id": "doi_dba239926d673e54f80a"
+    },
+    {
+      "benchmark_names": [
+        "majundar_ghosh_chain_exact_dimer_point"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1088/0305-4470/17/13/020"
+      },
+      "canonical_url": "https://doi.org/10.1088/0305-4470/17/13/020",
+      "source_id": "doi_e49cda761520424da334"
+    },
+    {
+      "benchmark_names": [
         "two_dimensional_xy_bkt_temperature_reference"
       ],
       "canonical_identity": {
@@ -391,17 +524,6 @@
       },
       "canonical_url": "https://doi.org/10.1088/0305-4470/38/26/003",
       "source_id": "doi_d9030016946221a0420c"
-    },
-    {
-      "benchmark_names": [
-        "mn_ps3_honeycomb_antiferromagnet_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1088/0953-8984/10/28/020"
-      },
-      "canonical_url": "https://doi.org/10.1088/0953-8984/10/28/020",
-      "source_id": "doi_680bd9719303d60f1392"
     },
     {
       "benchmark_names": [
@@ -427,17 +549,6 @@
     },
     {
       "benchmark_names": [
-        "ru_br3_kitaev_material_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1088/1361-648x/aa8cf5"
-      },
-      "canonical_url": "https://doi.org/10.1088/1361-648x/aa8cf5",
-      "source_id": "doi_983d905d88717d558737"
-    },
-    {
-      "benchmark_names": [
         "fecl3_honeycomb_antiferromagnet_reference"
       ],
       "canonical_identity": {
@@ -457,40 +568,6 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrev.130.1605",
       "source_id": "doi_4a885bb805afe8ada960"
-    },
-    {
-      "benchmark_names": [
-        "fcc_j1_j2_heisenberg_type_order_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrev.131.546"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrev.131.546",
-      "source_id": "doi_b2f31bfaab7509b45b2e"
-    },
-    {
-      "benchmark_names": [
-        "blume_capel_spin1_zero_temperature_level_crossing",
-        "single_ion_spin1_anisotropy_levels"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrev.141.517"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrev.141.517",
-      "source_id": "doi_2b2b97b695eeeeb1378a"
-    },
-    {
-      "benchmark_names": [
-        "xxz_spin_half_chain_phase_boundaries"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrev.150.321"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrev.150.321",
-      "source_id": "doi_99dc2b4658823c56a044"
     },
     {
       "benchmark_names": [
@@ -604,9 +681,6 @@
     },
     {
       "benchmark_names": [
-        "square_heisenberg_spin_half_spin_stiffness_reference",
-        "square_heisenberg_spin_half_staggered_magnetization_reference",
-        "square_heisenberg_spin_wave_velocity_reference",
         "square_spin_half_heisenberg_qmc_energy"
       ],
       "canonical_identity": {
@@ -662,17 +736,6 @@
     },
     {
       "benchmark_names": [
-        "square_ring_exchange_neel_vbs_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevb.66.014418"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevb.66.014418",
-      "source_id": "doi_b4ecc4050d7e6e010534"
-    },
-    {
-      "benchmark_names": [
         "checkerboard_heisenberg_plaquette_reference"
       ],
       "canonical_identity": {
@@ -717,7 +780,7 @@
     },
     {
       "benchmark_names": [
-        "shuriken_lattice_heisenberg_reference"
+        "star_lattice_heisenberg_spin_liquid_reference"
       ],
       "canonical_identity": {
         "kind": "doi",
@@ -725,17 +788,6 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.70.174454",
       "source_id": "doi_0561dc1ddfb83046e779"
-    },
-    {
-      "benchmark_names": [
-        "star_lattice_heisenberg_spin_liquid_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevb.70.184414"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevb.70.184414",
-      "source_id": "doi_62b7064141c85be36c19"
     },
     {
       "benchmark_names": [
@@ -783,6 +835,30 @@
     },
     {
       "benchmark_names": [
+        "mn_ps3_honeycomb_antiferromagnet_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.82.100408"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.82.100408",
+      "source_id": "doi_fb163b4dc967143dd3e5"
+    },
+    {
+      "benchmark_names": [
+        "square_heisenberg_spin_half_spin_stiffness_reference",
+        "square_heisenberg_spin_half_staggered_magnetization_reference",
+        "square_heisenberg_spin_wave_velocity_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.83.155120"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.83.155120",
+      "source_id": "doi_422f517c2d9549fef833"
+    },
+    {
+      "benchmark_names": [
         "maple_leaf_lattice_heisenberg_reference"
       ],
       "canonical_identity": {
@@ -794,17 +870,6 @@
     },
     {
       "benchmark_names": [
-        "fe_ps3_honeycomb_ising_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevb.85.094422"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevb.85.094422",
-      "source_id": "doi_80e63fcc6c4ffbc1bdd4"
-    },
-    {
-      "benchmark_names": [
         "ba3irti2o9_honeycomb_kitaev_reference"
       ],
       "canonical_identity": {
@@ -813,6 +878,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.86.140405",
       "source_id": "doi_1ef6a4cf65b6598edb8b"
+    },
+    {
+      "benchmark_names": [
+        "garnet_gd3te2li3o12_hyperkagome_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.87.174421"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.87.174421",
+      "source_id": "doi_a033e1bb29f7c9a51082"
     },
     {
       "benchmark_names": [
@@ -872,6 +948,17 @@
     },
     {
       "benchmark_names": [
+        "xx_spin_half_chain_free_fermion_energy"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevb.92.125131"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevb.92.125131",
+      "source_id": "doi_ec7bac11ef2a4fa52066"
+    },
+    {
+      "benchmark_names": [
         "j1_j2_triangular_spin_liquid_window_reference"
       ],
       "canonical_identity": {
@@ -880,17 +967,6 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevb.92.140403",
       "source_id": "doi_10f8d8a847e8ffd6e766"
-    },
-    {
-      "benchmark_names": [
-        "garnet_gd3te2li3o12_hyperkagome_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevb.92.140407"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevb.92.140407",
-      "source_id": "doi_44fc6738c4c3b3095202"
     },
     {
       "benchmark_names": [
@@ -971,29 +1047,6 @@
     },
     {
       "benchmark_names": [
-        "honeycomb_j1_j2_kitaev_material_na2iro3_reference",
-        "honeycomb_kitaev_heisenberg_four_sublattice_phases"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevlett.105.027204"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevlett.105.027204",
-      "source_id": "doi_cccc77107683d181386d"
-    },
-    {
-      "benchmark_names": [
-        "er2ti2o7_xy_pyrochlore_order_by_disorder_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevlett.108.037202"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevlett.108.037202",
-      "source_id": "doi_8be1a4614254bceb7a20"
-    },
-    {
-      "benchmark_names": [
         "ba3cosb2o9_triangular_plateau_reference"
       ],
       "canonical_identity": {
@@ -1049,6 +1102,17 @@
     },
     {
       "benchmark_names": [
+        "gamma_li2iro3_3d_kitaev_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevlett.113.197201"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevlett.113.197201",
+      "source_id": "doi_977dd2526b3afc0ed325"
+    },
+    {
+      "benchmark_names": [
         "barlowite_kagome_material_reference"
       ],
       "canonical_identity": {
@@ -1068,6 +1132,17 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevlett.114.077202",
       "source_id": "doi_20578e17910452318d7b"
+    },
+    {
+      "benchmark_names": [
+        "vesignieite_kagome_material_reference"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1103/physrevlett.121.107203"
+      },
+      "canonical_url": "https://doi.org/10.1103/physrevlett.121.107203",
+      "source_id": "doi_6da8d81e7ff23f395d98"
     },
     {
       "benchmark_names": [
@@ -1150,25 +1225,14 @@
     },
     {
       "benchmark_names": [
-        "cubic_ising_critical_temperature_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevlett.69.3382"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevlett.69.3382",
-      "source_id": "doi_62710597daaa584a9a40"
-    },
-    {
-      "benchmark_names": [
         "gadolinium_gallium_garnet_hyperkagome_reference"
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1103/physrevlett.77.2085"
+        "value": "10.1103/physrevlett.73.2500"
       },
-      "canonical_url": "https://doi.org/10.1103/physrevlett.77.2085",
-      "source_id": "doi_0c17290da9e1b554a547"
+      "canonical_url": "https://doi.org/10.1103/physrevlett.73.2500",
+      "source_id": "doi_4dd4b0d22b13ffc3709d"
     },
     {
       "benchmark_names": [
@@ -1183,7 +1247,6 @@
     },
     {
       "benchmark_names": [
-        "pyrochlore_heisenberg_afm_coulomb_phase_reference",
         "pyrochlore_heisenberg_coulomb_phase_flat_band"
       ],
       "canonical_identity": {
@@ -1192,17 +1255,6 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevlett.80.2929",
       "source_id": "doi_5b656dfc4b6b9ffc48f2"
-    },
-    {
-      "benchmark_names": [
-        "checkerboard_heisenberg_afm_planar_pyrochlore_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevlett.80.2933"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevlett.80.2933",
-      "source_id": "doi_451bbc661fb1baca5288"
     },
     {
       "benchmark_names": [
@@ -1259,17 +1311,6 @@
       },
       "canonical_url": "https://doi.org/10.1103/physrevlett.87.047205",
       "source_id": "doi_c733dda5b601f475f156"
-    },
-    {
-      "benchmark_names": [
-        "ruby_lattice_heisenberg_flat_band_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1103/physrevlett.93.107206"
-      },
-      "canonical_url": "https://doi.org/10.1103/physrevlett.93.107206",
-      "source_id": "doi_3b8910c1f58e139297ef"
     },
     {
       "benchmark_names": [
@@ -1384,18 +1425,6 @@
     },
     {
       "benchmark_names": [
-        "kagome_heisenberg_dmrg_spin_liquid_yan_reference",
-        "kagome_spin_half_heisenberg_energy_reference"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1126/science.1201080"
-      },
-      "canonical_url": "https://doi.org/10.1126/science.1201080",
-      "source_id": "doi_f95413c18507a37940f1"
-    },
-    {
-      "benchmark_names": [
         "cu2oseo3_skyrmion_lattice_reference"
       ],
       "canonical_identity": {
@@ -1464,14 +1493,15 @@
     },
     {
       "benchmark_names": [
-        "vesignieite_kagome_material_reference"
+        "honeycomb_ising_ferromagnet_exact_tc",
+        "triangular_ising_ferromagnet_exact_tc"
       ],
       "canonical_identity": {
         "kind": "doi",
-        "value": "10.1143/jpsj.78.043704"
+        "value": "10.1143/ptp.5.2.177"
       },
-      "canonical_url": "https://doi.org/10.1143/jpsj.78.043704",
-      "source_id": "doi_1c5a42de0551d2e2451c"
+      "canonical_url": "https://doi.org/10.1143/ptp.5.2.177",
+      "source_id": "doi_f334ed253565110358b3"
     },
     {
       "benchmark_names": [

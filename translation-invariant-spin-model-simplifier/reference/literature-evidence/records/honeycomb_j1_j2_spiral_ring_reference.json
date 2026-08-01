@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "symbolic_expression",
+        "derivation": "local_recompute",
         "id": "ring_condition",
         "type": "string",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "symbolic_expression",
+        "derivation": "local_recompute",
         "id": "ring_condition",
         "type": "string",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "arxiv_6d8189949f34733eb8b4",
+  "source_id": "arxiv_2a82afb1051aa17b9405",
   "target_locator_strategy": {
-    "canonical_source_identity": "arxiv:cond-mat/0612001",
+    "canonical_source_identity": "arxiv:1004.1119",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +47,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative arxiv:cond-mat/0612001 payload for the cited context and the declared spiral ring observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:1004.1119 payload for the cited context and the declared spiral ring observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "spiral ring",
       "ring condition",
-      "spin liquid",
-      "honeycomb spiral spin liquid ring condition"
+      "classical spiral-contour equation for J2/J1>1/6"
     ],
-    "source_context_hint": "honeycomb spiral spin liquid ring condition",
+    "source_context_hint": "classical spiral-contour equation for J2/J1>1/6",
     "target_representation": {
       "fields": [
         {
           "convention": "symbolic_expression",
+          "derivation": "local_recompute",
           "id": "ring_condition",
           "type": "string",
           "units": "not_applicable"

@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "distorted_kagome_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "distorted_kagome_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_404f519ad628c5708818",
+  "source_id": "arxiv_0a49fe8b4a8daeff1eb8",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1038/nmat1867",
+    "canonical_source_identity": "arxiv:2601.21024",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +47,19 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1038/nmat1867 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:2601.21024 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "Cu2(OH)3Cl",
       "material model reference",
       "distorted kagome reference",
-      "clinoatacamite frustrated magnetism reference"
+      "exchange-network analysis of distorted kagome clinoatacamite"
     ],
-    "source_context_hint": "clinoatacamite frustrated magnetism reference",
+    "source_context_hint": "exchange-network analysis of distorted kagome clinoatacamite",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "distorted_kagome_reference",
           "type": "boolean",
           "units": "not_applicable"

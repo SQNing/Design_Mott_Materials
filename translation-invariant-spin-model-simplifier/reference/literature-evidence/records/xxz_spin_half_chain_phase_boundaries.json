@@ -5,18 +5,21 @@
     "fields": [
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "ferromagnetic_boundary_delta",
         "type": "number",
         "units": "dimensionless_ratio"
       },
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "neel_boundary_delta",
         "type": "number",
         "units": "dimensionless_ratio"
       },
       {
         "convention": "closed_anisotropy_interval",
+        "derivation": "local_recompute",
         "id": "gapless_interval",
         "type": "list[number]",
         "units": "dimensionless_anisotropy"
@@ -30,18 +33,21 @@
     "output_fields": [
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "ferromagnetic_boundary_delta",
         "type": "number",
         "units": "dimensionless_ratio"
       },
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "neel_boundary_delta",
         "type": "number",
         "units": "dimensionless_ratio"
       },
       {
         "convention": "closed_anisotropy_interval",
+        "derivation": "local_recompute",
         "id": "gapless_interval",
         "type": "list[number]",
         "units": "dimensionless_anisotropy"
@@ -60,9 +66,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_99dc2b4658823c56a044",
+  "source_id": "arxiv_75995a2b249101ded246",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1103/physrev.150.321",
+    "canonical_source_identity": "arxiv:cond-mat/9909290",
     "expected_container": "numbered_or_displayed_equation",
     "locator_basis": [
       "citation_locator",
@@ -71,32 +77,35 @@
       "canonical_source_identity"
     ],
     "locator_class": "equation",
-    "rationale": "Search the authoritative doi:10.1103/physrev.150.321 payload for the cited context and the declared phase boundaries observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:cond-mat/9909290 payload for the cited context and the declared phase boundaries observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "phase boundaries",
       "ferromagnetic boundary delta",
       "neel boundary delta",
       "gapless interval",
       "phase diagram",
-      "XXZ Bethe-ansatz phase diagram"
+      "Hamiltonian and phase diagram: Delta=-1 and Delta=1 boundaries with gapless interval"
     ],
-    "source_context_hint": "XXZ Bethe-ansatz phase diagram",
+    "source_context_hint": "Hamiltonian and phase diagram: Delta=-1 and Delta=1 boundaries with gapless interval",
     "target_representation": {
       "fields": [
         {
           "convention": "ratio_to_named_model_scale",
+          "derivation": "local_recompute",
           "id": "ferromagnetic_boundary_delta",
           "type": "number",
           "units": "dimensionless_ratio"
         },
         {
           "convention": "ratio_to_named_model_scale",
+          "derivation": "local_recompute",
           "id": "neel_boundary_delta",
           "type": "number",
           "units": "dimensionless_ratio"
         },
         {
           "convention": "closed_anisotropy_interval",
+          "derivation": "local_recompute",
           "id": "gapless_interval",
           "type": "list[number]",
           "units": "dimensionless_anisotropy"

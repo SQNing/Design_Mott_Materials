@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "energy_density",
+        "derivation": "local_recompute",
         "id": "energy_per_site",
         "type": "number",
         "units": "exchange_energy_per_site"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "energy_density",
+        "derivation": "local_recompute",
         "id": "energy_per_site",
         "type": "number",
         "units": "exchange_energy_per_site"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_bb9d8409dad06c02dae3",
+  "source_id": "doi_ec7bac11ef2a4fa52066",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1016/0003-4916(61)90115-4",
+    "canonical_source_identity": "doi:10.1103/physrevb.92.125131",
     "expected_container": "numbered_or_displayed_equation",
     "locator_basis": [
       "citation_locator",
@@ -45,17 +47,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "equation",
-    "rationale": "Search the authoritative doi:10.1016/0003-4916(61)90115-4 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.92.125131 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "thermodynamic limit ground state energy",
       "energy per site",
-      "Jordan-Wigner free-fermion XX-chain benchmark"
+      "XX-chain free-fermion ground-state energy at half filling"
     ],
-    "source_context_hint": "Jordan-Wigner free-fermion XX-chain benchmark",
+    "source_context_hint": "XX-chain free-fermion ground-state energy at half filling",
     "target_representation": {
       "fields": [
         {
           "convention": "energy_density",
+          "derivation": "local_recompute",
           "id": "energy_per_site",
           "type": "number",
           "units": "exchange_energy_per_site"

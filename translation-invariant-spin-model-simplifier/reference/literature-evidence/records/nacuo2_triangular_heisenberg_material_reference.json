@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "unconventional_spin_order_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "unconventional_spin_order_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,29 +36,30 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_28f85cb05dabe4f5ef52",
+  "source_id": "arxiv_c119958c10a698757174",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1016/j.physb.2007.10.295",
-    "expected_container": "main_text_claim_statement",
+    "canonical_source_identity": "arxiv:1405.6184",
+    "expected_container": "abstract_claim_statement",
     "locator_basis": [
       "citation_locator",
       "benchmark_name",
       "observable_semantics",
       "canonical_source_identity"
     ],
-    "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1016/j.physb.2007.10.295 payload for the cited context and the declared material spin order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "locator_class": "abstract",
+    "rationale": "Search the authoritative arxiv:1405.6184 payload for the cited context and the declared material spin order reference observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "NaCrO2",
       "material spin order reference",
       "unconventional spin order reference",
-      "abstract: unconventional spin order in triangular-lattice NaCrO2"
+      "abstract and neutron-scattering results: unconventional dimensional-crossover spin order in NaCrO2"
     ],
-    "source_context_hint": "abstract: unconventional spin order in triangular-lattice NaCrO2",
+    "source_context_hint": "abstract and neutron-scattering results: unconventional dimensional-crossover spin order in NaCrO2",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "unconventional_spin_order_reference",
           "type": "boolean",
           "units": "not_applicable"

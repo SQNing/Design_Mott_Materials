@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "kagome_antiferromagnet_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "kagome_antiferromagnet_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_998394301da8aab04b39",
+  "source_id": "arxiv_57815717df98a77fdf43",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1038/ncomms14113",
+    "canonical_source_identity": "arxiv:1305.2477",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +47,19 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1038/ncomms14113 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:1305.2477 payload for the cited context and the declared hydrated spin half deformed kagome reference observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "Cd2Cu3(OH)6(SO4)2",
-      "material model reference",
+      "Cd2Cu3(SO4)2(OH)6\u00b74H2O",
+      "hydrated spin half deformed kagome reference",
       "kagome antiferromagnet reference",
-      "edwardsite kagome antiferromagnet reference"
+      "abstract and exchange analysis: hydrated spin-1/2 deformed-kagome Edwardsite"
     ],
-    "source_context_hint": "edwardsite kagome antiferromagnet reference",
+    "source_context_hint": "abstract and exchange analysis: hydrated spin-1/2 deformed-kagome Edwardsite",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "kagome_antiferromagnet_reference",
           "type": "boolean",
           "units": "not_applicable"

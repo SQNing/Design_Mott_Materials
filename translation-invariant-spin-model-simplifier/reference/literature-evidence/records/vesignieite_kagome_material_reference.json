@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "distorted_kagome_relevant",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "distorted_kagome_relevant",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_1c5a42de0551d2e2451c",
+  "source_id": "doi_6da8d81e7ff23f395d98",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1143/jpsj.78.043704",
+    "canonical_source_identity": "doi:10.1103/physrevlett.121.107203",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +47,19 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1143/jpsj.78.043704 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrevlett.121.107203 payload for the cited context and the declared dominant j3 not distortion assessment observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "BaCu3V2O8(OH)2",
-      "material model reference",
+      "BaCu3V2O8(OD)2",
+      "dominant j3 not distortion assessment",
       "distorted kagome relevant",
-      "vesignieite kagome antiferromagnet reference"
+      "abstract, Eq. (1), spin-wave fit, and conclusion: dominant J3 with less-than-one-percent distortion"
     ],
-    "source_context_hint": "vesignieite kagome antiferromagnet reference",
+    "source_context_hint": "abstract, Eq. (1), spin-wave fit, and conclusion: dominant J3 with less-than-one-percent distortion",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "distorted_kagome_relevant",
           "type": "boolean",
           "units": "not_applicable"

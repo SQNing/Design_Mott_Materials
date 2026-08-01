@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
+        "derivation": "local_source_parse",
         "id": "ground_state_spin_per_unit_cell",
         "type": "number",
         "units": "spin_angular_momentum_hbar"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
+        "derivation": "local_source_parse",
         "id": "ground_state_spin_per_unit_cell",
         "type": "number",
         "units": "spin_angular_momentum_hbar"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_73b2515f2a4cc89196d3",
+  "source_id": "arxiv_1f254fb3984af33c5ec2",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1063/1.1724276",
+    "canonical_source_identity": "arxiv:2409.16715",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,17 +47,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1063/1.1724276 payload for the cited context and the declared lieb mattis ferrimagnetism observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:2409.16715 payload for the cited context and the declared lieb mattis ferrimagnetism observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "lieb mattis ferrimagnetism",
       "ground state spin per unit cell",
-      "Lieb-Mattis bipartite ferrimagnetism theorem"
+      "Lieb-lattice ground-state spin per unit cell"
     ],
-    "source_context_hint": "Lieb-Mattis bipartite ferrimagnetism theorem",
+    "source_context_hint": "Lieb-lattice ground-state spin per unit cell",
     "target_representation": {
       "fields": [
         {
           "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
+          "derivation": "local_source_parse",
           "id": "ground_state_spin_per_unit_cell",
           "type": "number",
           "units": "spin_angular_momentum_hbar"

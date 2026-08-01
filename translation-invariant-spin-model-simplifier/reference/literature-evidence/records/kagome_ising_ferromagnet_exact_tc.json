@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "tc_over_j",
         "type": "number",
         "units": "dimensionless_ratio"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "tc_over_j",
         "type": "number",
         "units": "dimensionless_ratio"
@@ -56,6 +58,7 @@
       "fields": [
         {
           "convention": "ratio_to_named_model_scale",
+          "derivation": "local_recompute",
           "id": "tc_over_j",
           "type": "number",
           "units": "dimensionless_ratio"

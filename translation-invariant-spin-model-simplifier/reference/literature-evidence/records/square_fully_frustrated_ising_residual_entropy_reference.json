@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_recompute",
         "id": "macroscopic_ground_state_degeneracy",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_recompute",
         "id": "macroscopic_ground_state_degeneracy",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_77ad76b09d88ce916ed8",
+  "source_id": "doi_dba239926d673e54f80a",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1088/0022-3719/10/10/014",
+    "canonical_source_identity": "doi:10.1088/0305-4470/16/10/023",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,17 +47,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1088/0022-3719/10/10/014 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1088/0305-4470/16/10/023 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "residual entropy",
       "macroscopic ground state degeneracy",
-      "fully frustrated Ising model degeneracy reference"
+      "Villain fully frustrated square-lattice residual-entropy calculation"
     ],
-    "source_context_hint": "fully frustrated Ising model degeneracy reference",
+    "source_context_hint": "Villain fully frustrated square-lattice residual-entropy calculation",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_recompute",
           "id": "macroscopic_ground_state_degeneracy",
           "type": "boolean",
           "units": "not_applicable"

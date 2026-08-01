@@ -5,12 +5,14 @@
     "fields": [
       {
         "convention": "dimer_energy",
+        "derivation": "local_recompute",
         "id": "energy_per_dimer",
         "type": "number",
         "units": "exchange_energy_per_dimer"
       },
       {
         "convention": "energy_density",
+        "derivation": "local_recompute",
         "id": "energy_per_spin",
         "type": "number",
         "units": "exchange_energy_per_spin"
@@ -24,12 +26,14 @@
     "output_fields": [
       {
         "convention": "dimer_energy",
+        "derivation": "local_recompute",
         "id": "energy_per_dimer",
         "type": "number",
         "units": "exchange_energy_per_dimer"
       },
       {
         "convention": "energy_density",
+        "derivation": "local_recompute",
         "id": "energy_per_spin",
         "type": "number",
         "units": "exchange_energy_per_spin"
@@ -70,12 +74,14 @@
       "fields": [
         {
           "convention": "dimer_energy",
+          "derivation": "local_recompute",
           "id": "energy_per_dimer",
           "type": "number",
           "units": "exchange_energy_per_dimer"
         },
         {
           "convention": "energy_density",
+          "derivation": "local_recompute",
           "id": "energy_per_spin",
           "type": "number",
           "units": "exchange_energy_per_spin"

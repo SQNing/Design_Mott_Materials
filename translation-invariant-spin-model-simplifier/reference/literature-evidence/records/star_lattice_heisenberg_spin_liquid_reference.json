@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "spin_liquid_or_valence_bond_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "spin_liquid_or_valence_bond_reference",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,28 +36,29 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_62b7064141c85be36c19",
+  "source_id": "doi_0561dc1ddfb83046e779",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1103/physrevb.70.184414",
-    "expected_container": "figure_caption_claim_statement",
+    "canonical_source_identity": "doi:10.1103/physrevb.70.174454",
+    "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
       "benchmark_name",
       "observable_semantics",
       "canonical_source_identity"
     ],
-    "locator_class": "figure_caption",
-    "rationale": "Search the authoritative doi:10.1103/physrevb.70.184414 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "locator_class": "body_text",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.70.174454 payload for the cited context and the declared gapped valence bond crystal reference observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
-      "phase reference",
+      "gapped valence bond crystal reference",
       "spin liquid or valence bond reference",
-      "star-lattice Heisenberg antiferromagnet reference"
+      "abstract, Eq. (1), and conclusion: gapped dimerized valence-bond crystal in the uniform star model"
     ],
-    "source_context_hint": "star-lattice Heisenberg antiferromagnet reference",
+    "source_context_hint": "abstract, Eq. (1), and conclusion: gapped dimerized valence-bond crystal in the uniform star model",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "spin_liquid_or_valence_bond_reference",
           "type": "boolean",
           "units": "not_applicable"

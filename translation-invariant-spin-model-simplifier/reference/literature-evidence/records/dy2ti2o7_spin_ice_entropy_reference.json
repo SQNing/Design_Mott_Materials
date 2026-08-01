@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "pauling_entropy_observed",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "pauling_entropy_observed",
         "type": "boolean",
         "units": "not_applicable"
@@ -57,6 +59,7 @@
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "pauling_entropy_observed",
           "type": "boolean",
           "units": "not_applicable"

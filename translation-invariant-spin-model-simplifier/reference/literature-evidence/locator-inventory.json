@@ -274,18 +274,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.86.140405 payload for the cited context and the declared spin liquid candidate reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.86.140405 payload for the cited context and the declared triangular spin liquid candidate observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Ba3IrTi2O9",
-          "spin liquid candidate reference",
+          "triangular spin liquid candidate",
           "spin liquid candidate",
-          "Ba3IrTi2O9 honeycomb spin-orbit material reference"
+          "abstract and conclusion: site-diluted triangular J_eff=1/2 spin-liquid candidate"
         ],
-        "source_context_hint": "Ba3IrTi2O9 honeycomb spin-orbit material reference",
+        "source_context_hint": "abstract and conclusion: site-diluted triangular J_eff=1/2 spin-liquid candidate",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "spin_liquid_candidate",
               "type": "boolean",
               "units": "not_applicable"
@@ -299,6 +300,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "spin_liquid_candidate",
             "type": "boolean",
             "units": "not_applicable"
@@ -510,7 +512,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrev.141.517",
+        "canonical_source_identity": "arxiv:1204.5027",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -519,17 +521,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1103/physrev.141.517 payload for the cited context and the declared zero temperature level crossing observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1204.5027 payload for the cited context and the declared zero temperature level crossing observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "zero temperature level crossing",
           "square lattice d over j crossing",
-          "Blume-Capel spin-1 anisotropy competition"
+          "model definition and zero-temperature ferromagnetic-to-nonmagnetic crossing at D/J=2"
         ],
-        "source_context_hint": "Blume-Capel spin-1 anisotropy competition",
+        "source_context_hint": "model definition and zero-temperature ferromagnetic-to-nonmagnetic crossing at D/J=2",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "square_lattice_d_over_j_crossing",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -538,11 +541,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_2b2b97b695eeeeb1378a",
+      "source_id": "arxiv_dbdd4b586780cd708b67",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "square_lattice_d_over_j_crossing",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -756,7 +760,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.80.2933",
+        "canonical_source_identity": "arxiv:cond-mat/0108070",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -765,17 +769,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.80.2933 payload for the cited context and the declared ground state constraint observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/0108070 payload for the cited context and the declared ground state constraint observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "ground state constraint",
           "zero total spin per crossed plaquette",
-          "checkerboard/planar-pyrochlore Heisenberg antiferromagnet reference"
+          "crossed-plaquette zero-total-spin classical constraint"
         ],
-        "source_context_hint": "checkerboard/planar-pyrochlore Heisenberg antiferromagnet reference",
+        "source_context_hint": "crossed-plaquette zero-total-spin classical constraint",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "zero_total_spin_per_crossed_plaquette",
               "type": "boolean",
               "units": "not_applicable"
@@ -784,11 +789,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_451bbc661fb1baca5288",
+      "source_id": "arxiv_93b970e76b4d7ebb32b8",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "zero_total_spin_per_crossed_plaquette",
             "type": "boolean",
             "units": "not_applicable"
@@ -861,7 +867,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1038/nmat1867",
+        "canonical_source_identity": "arxiv:2601.21024",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -870,18 +876,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1038/nmat1867 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:2601.21024 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Cu2(OH)3Cl",
           "material model reference",
           "distorted kagome reference",
-          "clinoatacamite frustrated magnetism reference"
+          "exchange-network analysis of distorted kagome clinoatacamite"
         ],
-        "source_context_hint": "clinoatacamite frustrated magnetism reference",
+        "source_context_hint": "exchange-network analysis of distorted kagome clinoatacamite",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "distorted_kagome_reference",
               "type": "boolean",
               "units": "not_applicable"
@@ -890,11 +897,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_404f519ad628c5708818",
+      "source_id": "arxiv_0a49fe8b4a8daeff1eb8",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "distorted_kagome_reference",
             "type": "boolean",
             "units": "not_applicable"
@@ -929,6 +937,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "ferromagnetic_honeycomb_layers",
               "type": "boolean",
               "units": "not_applicable"
@@ -942,6 +951,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "ferromagnetic_honeycomb_layers",
             "type": "boolean",
             "units": "not_applicable"
@@ -976,6 +986,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "ferromagnetic_order",
               "type": "boolean",
               "units": "not_applicable"
@@ -989,6 +1000,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "ferromagnetic_order",
             "type": "boolean",
             "units": "not_applicable"
@@ -1116,6 +1128,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "honeycomb_frustrated_iridate_identity",
               "type": "boolean",
               "units": "not_applicable"
@@ -1129,6 +1142,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "honeycomb_frustrated_iridate_identity",
             "type": "boolean",
             "units": "not_applicable"
@@ -1162,6 +1176,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "skyrmion_lattice_phase",
               "type": "boolean",
               "units": "not_applicable"
@@ -1175,6 +1190,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "skyrmion_lattice_phase",
             "type": "boolean",
             "units": "not_applicable"
@@ -1188,7 +1204,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.69.3382",
+        "canonical_source_identity": "arxiv:cond-mat/9509016",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1197,17 +1213,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.69.3382 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/9509016 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical temperature",
           "tc over j",
-          "3D simple-cubic Ising critical temperature benchmark"
+          "simple-cubic Ising critical coupling K_c=0.2216546"
         ],
-        "source_context_hint": "3D simple-cubic Ising critical temperature benchmark",
+        "source_context_hint": "simple-cubic Ising critical coupling K_c=0.2216546",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "tc_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -1216,11 +1233,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_62710597daaa584a9a40",
+      "source_id": "arxiv_e96482d150e3231eaa21",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "tc_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -1348,6 +1366,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "pauling_entropy_observed",
               "type": "boolean",
               "units": "not_applicable"
@@ -1361,6 +1380,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "pauling_entropy_observed",
             "type": "boolean",
             "units": "not_applicable"
@@ -1374,7 +1394,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1038/ncomms14113",
+        "canonical_source_identity": "arxiv:1305.2477",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1383,18 +1403,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1038/ncomms14113 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1305.2477 payload for the cited context and the declared hydrated spin half deformed kagome reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "Cd2Cu3(OH)6(SO4)2",
-          "material model reference",
+          "Cd2Cu3(SO4)2(OH)6\u00b74H2O",
+          "hydrated spin half deformed kagome reference",
           "kagome antiferromagnet reference",
-          "edwardsite kagome antiferromagnet reference"
+          "abstract and exchange analysis: hydrated spin-1/2 deformed-kagome Edwardsite"
         ],
-        "source_context_hint": "edwardsite kagome antiferromagnet reference",
+        "source_context_hint": "abstract and exchange analysis: hydrated spin-1/2 deformed-kagome Edwardsite",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "kagome_antiferromagnet_reference",
               "type": "boolean",
               "units": "not_applicable"
@@ -1403,11 +1424,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_998394301da8aab04b39",
+      "source_id": "arxiv_57815717df98a77fdf43",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "kagome_antiferromagnet_reference",
             "type": "boolean",
             "units": "not_applicable"
@@ -1467,7 +1489,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.108.037202",
+        "canonical_source_identity": "arxiv:1204.1320",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1476,17 +1498,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.108.037202 payload for the cited context and the declared selected order observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1204.1320 payload for the cited context and the declared selected order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "selected order",
           "psi2 order selected",
-          "order by disorder in Er2Ti2O7 pyrochlore"
+          "Eqs. (6)-(7) and zero-point-energy analysis: quantum selection of psi2"
         ],
-        "source_context_hint": "order by disorder in Er2Ti2O7 pyrochlore",
+        "source_context_hint": "Eqs. (6)-(7) and zero-point-energy analysis: quantum selection of psi2",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "psi2_order_selected",
               "type": "boolean",
               "units": "not_applicable"
@@ -1495,11 +1518,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_8be1a4614254bceb7a20",
+      "source_id": "arxiv_0e5321621b7258dea2db",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "psi2_order_selected",
             "type": "boolean",
             "units": "not_applicable"
@@ -1513,7 +1537,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrev.131.546",
+        "canonical_source_identity": "arxiv:2007.00376",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1522,17 +1546,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrev.131.546 payload for the cited context and the declared ordering type observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:2007.00376 payload for the cited context and the declared ordering type observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "ordering type",
           "common orders",
-          "fcc Heisenberg antiferromagnet type orders"
+          "phase diagram",
+          "FCC J1-J2 phase diagram and type-I, type-II, and type-III order regions"
         ],
-        "source_context_hint": "fcc Heisenberg antiferromagnet type orders",
+        "source_context_hint": "FCC J1-J2 phase diagram and type-I, type-II, and type-III order regions",
         "target_representation": {
           "fields": [
             {
               "convention": "ordered_categorical_phase_labels",
+              "derivation": "local_recompute",
               "id": "common_orders",
               "type": "list[string]",
               "units": "not_applicable"
@@ -1541,11 +1567,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_b2f31bfaab7509b45b2e",
+      "source_id": "arxiv_ffa588072c8fe0ab1cac",
       "target_representation": {
         "fields": [
           {
             "convention": "ordered_categorical_phase_labels",
+            "derivation": "local_recompute",
             "id": "common_orders",
             "type": "list[string]",
             "units": "not_applicable"
@@ -1580,6 +1607,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "macroscopic_quantum_tunneling_observed",
               "type": "boolean",
               "units": "not_applicable"
@@ -1593,6 +1621,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "macroscopic_quantum_tunneling_observed",
             "type": "boolean",
             "units": "not_applicable"
@@ -1606,7 +1635,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.85.094422",
+        "canonical_source_identity": "arxiv:2005.12031",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1615,18 +1644,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.85.094422 payload for the cited context and the declared ising like order observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:2005.12031 payload for the cited context and the declared ising like order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "FePS3",
           "ising like order",
           "ising like zigzag order",
-          "FePS3 Ising-like honeycomb antiferromagnet reference"
+          "abstract and Eq. (1): spin-2 Ising-like zigzag order in FePS3"
         ],
-        "source_context_hint": "FePS3 Ising-like honeycomb antiferromagnet reference",
+        "source_context_hint": "abstract and Eq. (1): spin-2 Ising-like zigzag order in FePS3",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "ising_like_zigzag_order",
               "type": "boolean",
               "units": "not_applicable"
@@ -1635,11 +1665,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_80e63fcc6c4ffbc1bdd4",
+      "source_id": "arxiv_561a252c28acb461267e",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "ising_like_zigzag_order",
             "type": "boolean",
             "units": "not_applicable"
@@ -1713,7 +1744,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.77.2085",
+        "canonical_source_identity": "doi:10.1103/physrevlett.73.2500",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1722,18 +1753,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.77.2085 payload for the cited context and the declared frustrated garnet reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevlett.73.2500 payload for the cited context and the declared strong geometric frustration in ggg observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Gd3Ga5O12",
-          "frustrated garnet reference",
+          "strong geometric frustration in ggg",
           "strong frustration",
-          "gadolinium gallium garnet frustrated magnet reference"
+          "abstract, exchange-dipole Monte Carlo model, and conclusion: strong GGG frustration with finite-field order"
         ],
-        "source_context_hint": "gadolinium gallium garnet frustrated magnet reference",
+        "source_context_hint": "abstract, exchange-dipole Monte Carlo model, and conclusion: strong GGG frustration with finite-field order",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "strong_frustration",
               "type": "boolean",
               "units": "not_applicable"
@@ -1742,11 +1774,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_0c17290da9e1b554a547",
+      "source_id": "doi_4dd4b0d22b13ffc3709d",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "strong_frustration",
             "type": "boolean",
             "units": "not_applicable"
@@ -1760,7 +1793,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1038/ncomms5203",
+        "canonical_source_identity": "doi:10.1103/physrevlett.113.197201",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1769,18 +1802,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1038/ncomms5203 payload for the cited context and the declared spiral order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevlett.113.197201 payload for the cited context and the declared spiral order reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "gamma-Li2IrO3",
           "spiral order reference",
           "incommensurate spiral order",
-          "gamma-Li2IrO3 three-dimensional Kitaev material reference"
+          "abstract and magnetic-structure results: incommensurate spiral order in gamma-Li2IrO3"
         ],
-        "source_context_hint": "gamma-Li2IrO3 three-dimensional Kitaev material reference",
+        "source_context_hint": "abstract and magnetic-structure results: incommensurate spiral order in gamma-Li2IrO3",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "incommensurate_spiral_order",
               "type": "boolean",
               "units": "not_applicable"
@@ -1789,11 +1823,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_0e95cac63a568de62128",
+      "source_id": "doi_977dd2526b3afc0ed325",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "incommensurate_spiral_order",
             "type": "boolean",
             "units": "not_applicable"
@@ -1854,7 +1889,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.92.140407",
+        "canonical_source_identity": "doi:10.1103/physrevb.87.174421",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -1863,18 +1898,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.92.140407 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.87.174421 payload for the cited context and the declared frustrated garnet with first order long range order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Gd3Te2Li3O12",
-          "material model reference",
+          "frustrated garnet with first order long range order",
           "garnet frustrated magnet",
-          "Gd garnet frustrated magnet reference"
+          "abstract, Hamiltonians, and GTLG results: hyperkagome frustration with a sharp first-order 243 mK LRO transition"
         ],
-        "source_context_hint": "Gd garnet frustrated magnet reference",
+        "source_context_hint": "abstract, Hamiltonians, and GTLG results: hyperkagome frustration with a sharp first-order 243 mK LRO transition",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "garnet_frustrated_magnet",
               "type": "boolean",
               "units": "not_applicable"
@@ -1883,11 +1919,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_44fc6738c4c3b3095202",
+      "source_id": "doi_a033e1bb29f7c9a51082",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "garnet_frustrated_magnet",
             "type": "boolean",
             "units": "not_applicable"
@@ -1968,6 +2005,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "no_magnetic_order_reported",
               "type": "boolean",
               "units": "not_applicable"
@@ -1981,6 +2019,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "no_magnetic_order_reported",
             "type": "boolean",
             "units": "not_applicable"
@@ -2273,7 +2312,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0031-8914(50)90130-3",
+        "canonical_source_identity": "doi:10.1143/ptp.5.2.177",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -2282,17 +2321,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1016/0031-8914(50)90130-3 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1143/ptp.5.2.177 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical temperature",
           "tc over j",
-          "honeycomb-lattice Ising exact critical temperature"
+          "dual-transformation critical-point equation for the honeycomb Ising lattice"
         ],
-        "source_context_hint": "honeycomb-lattice Ising exact critical temperature",
+        "source_context_hint": "dual-transformation critical-point equation for the honeycomb Ising lattice",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "tc_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -2301,11 +2341,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_54d369496b49144e511c",
+      "source_id": "doi_f334ed253565110358b3",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "tc_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -2319,7 +2360,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0378-4363(79)90002-0",
+        "canonical_source_identity": "arxiv:1309.3744",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2328,17 +2369,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1016/0378-4363(79)90002-0 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1309.3744 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "phase diagram",
           "phases",
-          "honeycomb J1-J2-J3 classical phase diagram"
+          "honeycomb J1-J2-J3 classical phase set"
         ],
-        "source_context_hint": "honeycomb J1-J2-J3 classical phase diagram",
+        "source_context_hint": "honeycomb J1-J2-J3 classical phase set",
         "target_representation": {
           "fields": [
             {
               "convention": "categorical_phase_label_set",
+              "derivation": "local_source_parse",
               "id": "phases",
               "type": "list[string]",
               "units": "not_applicable"
@@ -2347,11 +2389,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_08576beddad416af9b0e",
+      "source_id": "arxiv_fc2347b67f4611c61958",
       "target_representation": {
         "fields": [
           {
             "convention": "categorical_phase_label_set",
+            "derivation": "local_source_parse",
             "id": "phases",
             "type": "list[string]",
             "units": "not_applicable"
@@ -2365,7 +2408,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.105.027204",
+        "canonical_source_identity": "arxiv:1209.5100",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2374,18 +2417,20 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.105.027204 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1209.5100 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "Na2IrO3",
           "material model reference",
           "zigzag order relevant",
-          "Na2IrO3 Kitaev-Heisenberg honeycomb material reference"
+          "phase diagram",
+          "full Kitaev-Heisenberg phase diagram and Na2IrO3 zigzag-order discussion"
         ],
-        "source_context_hint": "Na2IrO3 Kitaev-Heisenberg honeycomb material reference",
+        "source_context_hint": "full Kitaev-Heisenberg phase diagram and Na2IrO3 zigzag-order discussion",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "zigzag_order_relevant",
               "type": "boolean",
               "units": "not_applicable"
@@ -2394,11 +2439,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_cccc77107683d181386d",
+      "source_id": "arxiv_36e066e2b99129d0057f",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "zigzag_order_relevant",
             "type": "boolean",
             "units": "not_applicable"
@@ -2412,7 +2458,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "arxiv:cond-mat/0612001",
+        "canonical_source_identity": "arxiv:1004.1119",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2421,18 +2467,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative arxiv:cond-mat/0612001 payload for the cited context and the declared spiral ring observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1004.1119 payload for the cited context and the declared spiral ring observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "spiral ring",
           "ring condition",
-          "spin liquid",
-          "honeycomb spiral spin liquid ring condition"
+          "classical spiral-contour equation for J2/J1>1/6"
         ],
-        "source_context_hint": "honeycomb spiral spin liquid ring condition",
+        "source_context_hint": "classical spiral-contour equation for J2/J1>1/6",
         "target_representation": {
           "fields": [
             {
               "convention": "symbolic_expression",
+              "derivation": "local_recompute",
               "id": "ring_condition",
               "type": "string",
               "units": "not_applicable"
@@ -2441,11 +2487,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "arxiv_6d8189949f34733eb8b4",
+      "source_id": "arxiv_2a82afb1051aa17b9405",
       "target_representation": {
         "fields": [
           {
             "convention": "symbolic_expression",
+            "derivation": "local_recompute",
             "id": "ring_condition",
             "type": "string",
             "units": "not_applicable"
@@ -2505,7 +2552,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.105.027204",
+        "canonical_source_identity": "arxiv:1209.5100",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2514,17 +2561,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.105.027204 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1209.5100 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "phase diagram",
           "ordered phases",
-          "Kitaev-Heisenberg honeycomb phase diagram"
+          "full Kitaev-Heisenberg phase diagram: Neel, stripy, ferromagnetic, and zigzag phases"
         ],
-        "source_context_hint": "Kitaev-Heisenberg honeycomb phase diagram",
+        "source_context_hint": "full Kitaev-Heisenberg phase diagram: Neel, stripy, ferromagnetic, and zigzag phases",
         "target_representation": {
           "fields": [
             {
               "convention": "ordered_categorical_phase_labels",
+              "derivation": "local_source_parse",
               "id": "ordered_phases",
               "type": "list[string]",
               "units": "not_applicable"
@@ -2533,11 +2581,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_cccc77107683d181386d",
+      "source_id": "arxiv_36e066e2b99129d0057f",
       "target_representation": {
         "fields": [
           {
             "convention": "ordered_categorical_phase_labels",
+            "derivation": "local_source_parse",
             "id": "ordered_phases",
             "type": "list[string]",
             "units": "not_applicable"
@@ -2642,7 +2691,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0375-9601(92)90823-5",
+        "canonical_source_identity": "arxiv:1006.5052",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2651,17 +2700,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1016/0375-9601(92)90823-5 payload for the cited context and the declared dimerization transition observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1006.5052 payload for the cited context and the declared dimerization transition observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "dimerization transition",
           "critical j2 over j1 approx",
-          "J1-J2 spin-half chain dimerization transition"
+          "abstract and discussion citing Okamoto-Nomura: fluid-dimer transition at J2/J1=0.2411 where the gap opens"
         ],
-        "source_context_hint": "J1-J2 spin-half chain dimerization transition",
+        "source_context_hint": "abstract and discussion citing Okamoto-Nomura: fluid-dimer transition at J2/J1=0.2411 where the gap opens",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_source_parse",
               "id": "critical_j2_over_j1_approx",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -2670,11 +2720,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_7d48b95e16196d99b9b1",
+      "source_id": "arxiv_f6b1bfbaa376158563e6",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_source_parse",
             "id": "critical_j2_over_j1_approx",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -2688,7 +2739,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0375-9601(92)90823-5",
+        "canonical_source_identity": "arxiv:1006.5052",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -2697,17 +2748,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1016/0375-9601(92)90823-5 payload for the cited context and the declared dimerization transition observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1006.5052 payload for the cited context and the declared dimerization transition observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "dimerization transition",
           "critical j2 over j1",
-          "level spectroscopy critical frustration in the J1-J2 chain"
+          "abstract and discussion citing Okamoto-Nomura: fluid-dimer transition at J2/J1=0.2411 where the gap opens"
         ],
-        "source_context_hint": "level spectroscopy critical frustration in the J1-J2 chain",
+        "source_context_hint": "abstract and discussion citing Okamoto-Nomura: fluid-dimer transition at J2/J1=0.2411 where the gap opens",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_source_parse",
               "id": "critical_j2_over_j1",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -2716,11 +2768,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_7d48b95e16196d99b9b1",
+      "source_id": "arxiv_f6b1bfbaa376158563e6",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_source_parse",
             "id": "critical_j2_over_j1",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -3106,7 +3159,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1126/science.1201080",
+        "canonical_source_identity": "arxiv:1205.4858",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -3115,24 +3168,26 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1126/science.1201080 payload for the cited context and the declared ground state energy and gap observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1205.4858 payload for the cited context and the declared ground state energy and gap observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "ground state energy and gap",
           "energy per site",
           "spin gap over j",
-          "DMRG kagome spin-liquid energy and spin gap benchmark"
+          "abstract and thermodynamic extrapolation: energy -0.4386(5) and triplet gap 0.13(1)"
         ],
-        "source_context_hint": "DMRG kagome spin-liquid energy and spin gap benchmark",
+        "source_context_hint": "abstract and thermodynamic extrapolation: energy -0.4386(5) and triplet gap 0.13(1)",
         "target_representation": {
           "fields": [
             {
               "convention": "energy_density",
+              "derivation": "local_source_parse",
               "id": "energy_per_site",
               "type": "number",
               "units": "exchange_energy_per_site"
             },
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_source_parse",
               "id": "spin_gap_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -3141,17 +3196,19 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_f95413c18507a37940f1",
+      "source_id": "arxiv_85cd16736d43980e87ea",
       "target_representation": {
         "fields": [
           {
             "convention": "energy_density",
+            "derivation": "local_source_parse",
             "id": "energy_per_site",
             "type": "number",
             "units": "exchange_energy_per_site"
           },
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_source_parse",
             "id": "spin_gap_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -3230,6 +3287,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "macroscopic_ground_state_degeneracy",
               "type": "boolean",
               "units": "not_applicable"
@@ -3243,6 +3301,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "macroscopic_ground_state_degeneracy",
             "type": "boolean",
             "units": "not_applicable"
@@ -3276,6 +3335,7 @@
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "tc_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -3289,6 +3349,7 @@
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "tc_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -3394,7 +3455,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1126/science.1201080",
+        "canonical_source_identity": "arxiv:1205.4858",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -3403,17 +3464,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1126/science.1201080 payload for the cited context and the declared ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1205.4858 payload for the cited context and the declared ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "ground state energy",
           "energy per site approx",
-          "kagome spin-half DMRG energy benchmark"
+          "abstract and thermodynamic extrapolation: energy per site -0.4386(5)"
         ],
-        "source_context_hint": "kagome spin-half DMRG energy benchmark",
+        "source_context_hint": "abstract and thermodynamic extrapolation: energy per site -0.4386(5)",
         "target_representation": {
           "fields": [
             {
               "convention": "energy_density",
+              "derivation": "local_source_parse",
               "id": "energy_per_site_approx",
               "type": "number",
               "units": "exchange_energy_per_site"
@@ -3422,11 +3484,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_f95413c18507a37940f1",
+      "source_id": "arxiv_85cd16736d43980e87ea",
       "target_representation": {
         "fields": [
           {
             "convention": "energy_density",
+            "derivation": "local_source_parse",
             "id": "energy_per_site_approx",
             "type": "number",
             "units": "exchange_energy_per_site"
@@ -3765,6 +3828,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "incommensurate_spiral_order",
               "type": "boolean",
               "units": "not_applicable"
@@ -3778,6 +3842,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "incommensurate_spiral_order",
             "type": "boolean",
             "units": "not_applicable"
@@ -3791,7 +3856,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1063/1.1724276",
+        "canonical_source_identity": "arxiv:2409.16715",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -3800,17 +3865,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1063/1.1724276 payload for the cited context and the declared lieb mattis ferrimagnetism observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:2409.16715 payload for the cited context and the declared lieb mattis ferrimagnetism observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "lieb mattis ferrimagnetism",
           "ground state spin per unit cell",
-          "Lieb-Mattis bipartite ferrimagnetism theorem"
+          "Lieb-lattice ground-state spin per unit cell"
         ],
-        "source_context_hint": "Lieb-Mattis bipartite ferrimagnetism theorem",
+        "source_context_hint": "Lieb-lattice ground-state spin per unit cell",
         "target_representation": {
           "fields": [
             {
               "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
+              "derivation": "local_source_parse",
               "id": "ground_state_spin_per_unit_cell",
               "type": "number",
               "units": "spin_angular_momentum_hbar"
@@ -3819,11 +3885,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_73b2515f2a4cc89196d3",
+      "source_id": "arxiv_1f254fb3984af33c5ec2",
       "target_representation": {
         "fields": [
           {
             "convention": "total_ground_state_spin_per_crystallographic_unit_cell",
+            "derivation": "local_source_parse",
             "id": "ground_state_spin_per_unit_cell",
             "type": "number",
             "units": "spin_angular_momentum_hbar"
@@ -3942,7 +4009,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1063/1.1664978",
+        "canonical_source_identity": "doi:10.1088/0305-4470/17/13/020",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -3951,24 +4018,26 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1063/1.1664978 payload for the cited context and the declared ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1088/0305-4470/17/13/020 payload for the cited context and the declared ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "ground state energy",
           "energy per site",
           "degenerate dimer coverings",
-          "exact dimer ground state at J2/J1=1/2"
+          "exact twofold-degenerate dimer ground states at J2/J1=1/2"
         ],
-        "source_context_hint": "exact dimer ground state at J2/J1=1/2",
+        "source_context_hint": "exact twofold-degenerate dimer ground states at J2/J1=1/2",
         "target_representation": {
           "fields": [
             {
               "convention": "energy_density",
+              "derivation": "local_recompute",
               "id": "energy_per_site",
               "type": "number",
               "units": "exchange_energy_per_site"
             },
             {
               "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
+              "derivation": "local_recompute",
               "id": "degenerate_dimer_coverings",
               "type": "number",
               "units": "count"
@@ -3977,17 +4046,19 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_338d63a0924d74e024e4",
+      "source_id": "doi_e49cda761520424da334",
       "target_representation": {
         "fields": [
           {
             "convention": "energy_density",
+            "derivation": "local_recompute",
             "id": "energy_per_site",
             "type": "number",
             "units": "exchange_energy_per_site"
           },
           {
             "convention": "nonnegative_integer_number_of_exact_dimer_coverings",
+            "derivation": "local_recompute",
             "id": "degenerate_dimer_coverings",
             "type": "number",
             "units": "count"
@@ -4047,7 +4118,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/0953-8984/10/28/020",
+        "canonical_source_identity": "doi:10.1103/physrevb.82.100408",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4056,18 +4127,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/0953-8984/10/28/020 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.82.100408 payload for the cited context and the declared classical order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "MnPS3",
           "classical order",
           "neel order reference",
-          "MnPS3 honeycomb antiferromagnet reference"
+          "neutron-diffraction determination of the MnPS3 Neel state"
         ],
-        "source_context_hint": "MnPS3 honeycomb antiferromagnet reference",
+        "source_context_hint": "neutron-diffraction determination of the MnPS3 Neel state",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "neel_order_reference",
               "type": "boolean",
               "units": "not_applicable"
@@ -4076,11 +4148,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_680bd9719303d60f1392",
+      "source_id": "doi_fb163b4dc967143dd3e5",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "neel_order_reference",
             "type": "boolean",
             "units": "not_applicable"
@@ -4115,6 +4188,7 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "long_wavelength_helix",
               "type": "boolean",
               "units": "not_applicable"
@@ -4128,6 +4202,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "long_wavelength_helix",
             "type": "boolean",
             "units": "not_applicable"
@@ -4185,30 +4260,31 @@
     },
     {
       "benchmark_name": "nacuo2_triangular_heisenberg_material_reference",
-      "expected_container": "main_text_claim_statement",
-      "locator_class": "body_text",
+      "expected_container": "abstract_claim_statement",
+      "locator_class": "abstract",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/j.physb.2007.10.295",
-        "expected_container": "main_text_claim_statement",
+        "canonical_source_identity": "arxiv:1405.6184",
+        "expected_container": "abstract_claim_statement",
         "locator_basis": [
           "citation_locator",
           "benchmark_name",
           "observable_semantics",
           "canonical_source_identity"
         ],
-        "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1016/j.physb.2007.10.295 payload for the cited context and the declared material spin order reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "locator_class": "abstract",
+        "rationale": "Search the authoritative arxiv:1405.6184 payload for the cited context and the declared material spin order reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "NaCrO2",
           "material spin order reference",
           "unconventional spin order reference",
-          "abstract: unconventional spin order in triangular-lattice NaCrO2"
+          "abstract and neutron-scattering results: unconventional dimensional-crossover spin order in NaCrO2"
         ],
-        "source_context_hint": "abstract: unconventional spin order in triangular-lattice NaCrO2",
+        "source_context_hint": "abstract and neutron-scattering results: unconventional dimensional-crossover spin order in NaCrO2",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "unconventional_spin_order_reference",
               "type": "boolean",
               "units": "not_applicable"
@@ -4217,11 +4293,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_28f85cb05dabe4f5ef52",
+      "source_id": "arxiv_c119958c10a698757174",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "unconventional_spin_order_reference",
             "type": "boolean",
             "units": "not_applicable"
@@ -4363,12 +4440,14 @@
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "finite_temperature_transition",
               "type": "boolean",
               "units": "not_applicable"
             },
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "tc_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -4382,12 +4461,14 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "finite_temperature_transition",
             "type": "boolean",
             "units": "not_applicable"
           },
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "tc_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -4540,7 +4621,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.80.2929",
+        "canonical_source_identity": "arxiv:cond-mat/0407005",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4549,24 +4630,26 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.80.2929 payload for the cited context and the declared ground state constraint observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/0407005 payload for the cited context and the declared ground state constraint observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "ground state constraint",
           "zero total spin per tetrahedron",
           "pinch points",
-          "pyrochlore Heisenberg antiferromagnet Coulomb phase"
+          "tetrahedron zero-sum constraint and Coulomb-phase pinch-point correlations"
         ],
-        "source_context_hint": "pyrochlore Heisenberg antiferromagnet Coulomb phase",
+        "source_context_hint": "tetrahedron zero-sum constraint and Coulomb-phase pinch-point correlations",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "zero_total_spin_per_tetrahedron",
               "type": "boolean",
               "units": "not_applicable"
             },
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "pinch_points",
               "type": "boolean",
               "units": "not_applicable"
@@ -4575,17 +4658,19 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_5b656dfc4b6b9ffc48f2",
+      "source_id": "arxiv_f32fab13874ec5c0ec4a",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "zero_total_spin_per_tetrahedron",
             "type": "boolean",
             "units": "not_applicable"
           },
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "pinch_points",
             "type": "boolean",
             "units": "not_applicable"
@@ -4705,7 +4790,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/1361-648x/aa8cf5",
+        "canonical_source_identity": "doi:10.1038/s41535-026-00868-6",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4714,18 +4799,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/1361-648x/aa8cf5 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1038/s41535-026-00868-6 payload for the cited context and the declared kitaev candidate with competing interactions observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "RuBr3",
-          "material model reference",
+          "kitaev candidate with competing interactions",
           "ru honeycomb kitaev candidate",
-          "Kitaev materials exchange-model review reference"
+          "abstract and competing-model analysis: Gamma or J3 interactions drive RuBr3 away from the ideal Kitaev limit"
         ],
-        "source_context_hint": "Kitaev materials exchange-model review reference",
+        "source_context_hint": "abstract and competing-model analysis: Gamma or J3 interactions drive RuBr3 away from the ideal Kitaev limit",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "ru_honeycomb_kitaev_candidate",
               "type": "boolean",
               "units": "not_applicable"
@@ -4734,11 +4820,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_983d905d88717d558737",
+      "source_id": "doi_35bb82ba0a5814f69448",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "ru_honeycomb_kitaev_candidate",
             "type": "boolean",
             "units": "not_applicable"
@@ -4752,7 +4839,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevlett.93.107206",
+        "canonical_source_identity": "arxiv:2512.14173",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -4761,17 +4848,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevlett.93.107206 payload for the cited context and the declared localized magnon observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:2512.14173 payload for the cited context and the declared exact localized one magnon eigenstate observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "localized magnon",
+          "exact localized one magnon eigenstate",
           "supports localized magnons",
-          "localized magnons on frustrated lattices"
+          "Eqs. (4)-(5) and localized-magnon section: exact alternating-sign one-magnon eigenstate, not a plateau mechanism"
         ],
-        "source_context_hint": "localized magnons on frustrated lattices",
+        "source_context_hint": "Eqs. (4)-(5) and localized-magnon section: exact alternating-sign one-magnon eigenstate, not a plateau mechanism",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "supports_localized_magnons",
               "type": "boolean",
               "units": "not_applicable"
@@ -4780,11 +4868,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_3b8910c1f58e139297ef",
+      "source_id": "arxiv_5d132154aee28ea4475e",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "supports_localized_magnons",
             "type": "boolean",
             "units": "not_applicable"
@@ -4912,12 +5001,14 @@
           "fields": [
             {
               "convention": "dimer_energy",
+              "derivation": "local_recompute",
               "id": "energy_per_dimer",
               "type": "number",
               "units": "exchange_energy_per_dimer"
             },
             {
               "convention": "energy_density",
+              "derivation": "local_recompute",
               "id": "energy_per_spin",
               "type": "number",
               "units": "exchange_energy_per_spin"
@@ -4931,12 +5022,14 @@
         "fields": [
           {
             "convention": "dimer_energy",
+            "derivation": "local_recompute",
             "id": "energy_per_dimer",
             "type": "number",
             "units": "exchange_energy_per_dimer"
           },
           {
             "convention": "energy_density",
+            "derivation": "local_recompute",
             "id": "energy_per_spin",
             "type": "number",
             "units": "exchange_energy_per_spin"
@@ -4994,29 +5087,30 @@
     },
     {
       "benchmark_name": "shuriken_lattice_heisenberg_reference",
-      "expected_container": "figure_caption_claim_statement",
-      "locator_class": "figure_caption",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.70.174454",
-        "expected_container": "figure_caption_claim_statement",
+        "canonical_source_identity": "arxiv:cond-mat/0411673",
+        "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
           "benchmark_name",
           "observable_semantics",
           "canonical_source_identity"
         ],
-        "locator_class": "figure_caption",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.70.174454 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "locator_class": "body_text",
+        "rationale": "Search the authoritative arxiv:cond-mat/0411673 payload for the cited context and the declared square kagome quantum paramagnet reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "phase reference",
+          "square kagome quantum paramagnet reference",
           "square kagome reference",
-          "square-kagome/shuriken Heisenberg model reference"
+          "abstract, Eq. (1), and conclusion: square-kagome spin-liquid-like state and localized magnons on squares"
         ],
-        "source_context_hint": "square-kagome/shuriken Heisenberg model reference",
+        "source_context_hint": "abstract, Eq. (1), and conclusion: square-kagome spin-liquid-like state and localized magnons on squares",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "square_kagome_reference",
               "type": "boolean",
               "units": "not_applicable"
@@ -5025,11 +5119,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_0561dc1ddfb83046e779",
+      "source_id": "arxiv_f1af74b7fd4b62174611",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "square_kagome_reference",
             "type": "boolean",
             "units": "not_applicable"
@@ -5063,6 +5158,7 @@
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "neel_to_collinear_boundary_j2_over_j1",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -5076,6 +5172,7 @@
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "neel_to_collinear_boundary_j2_over_j1",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -5089,7 +5186,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrev.141.517",
+        "canonical_source_identity": "arxiv:1204.5027",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -5098,24 +5195,26 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1103/physrev.141.517 payload for the cited context and the declared onsite levels observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:1204.5027 payload for the cited context and the declared onsite levels observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "onsite levels",
           "levels",
           "degeneracies",
-          "single-ion anisotropy term in spin-1 models"
+          "single-ion D(Sz)^2 spectrum and degeneracies"
         ],
-        "source_context_hint": "single-ion anisotropy term in spin-1 models",
+        "source_context_hint": "single-ion D(Sz)^2 spectrum and degeneracies",
         "target_representation": {
           "fields": [
             {
               "convention": "hamiltonian_energy_scale",
+              "derivation": "local_recompute",
               "id": "levels",
               "type": "list[number]",
               "units": "exchange_energy_unit"
             },
             {
               "convention": "ordered_nonnegative_integer_degeneracies",
+              "derivation": "local_recompute",
               "id": "degeneracies",
               "type": "list[number]",
               "units": "count"
@@ -5124,17 +5223,19 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_2b2b97b695eeeeb1378a",
+      "source_id": "arxiv_dbdd4b586780cd708b67",
       "target_representation": {
         "fields": [
           {
             "convention": "hamiltonian_energy_scale",
+            "derivation": "local_recompute",
             "id": "levels",
             "type": "list[number]",
             "units": "exchange_energy_unit"
           },
           {
             "convention": "ordered_nonnegative_integer_degeneracies",
+            "derivation": "local_recompute",
             "id": "degeneracies",
             "type": "list[number]",
             "units": "count"
@@ -5568,7 +5669,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1088/0022-3719/10/10/014",
+        "canonical_source_identity": "doi:10.1088/0305-4470/16/10/023",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5577,17 +5678,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/0022-3719/10/10/014 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1088/0305-4470/16/10/023 payload for the cited context and the declared residual entropy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "residual entropy",
           "macroscopic ground state degeneracy",
-          "fully frustrated Ising model degeneracy reference"
+          "Villain fully frustrated square-lattice residual-entropy calculation"
         ],
-        "source_context_hint": "fully frustrated Ising model degeneracy reference",
+        "source_context_hint": "Villain fully frustrated square-lattice residual-entropy calculation",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "macroscopic_ground_state_degeneracy",
               "type": "boolean",
               "units": "not_applicable"
@@ -5596,11 +5698,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_77ad76b09d88ce916ed8",
+      "source_id": "doi_dba239926d673e54f80a",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "macroscopic_ground_state_degeneracy",
             "type": "boolean",
             "units": "not_applicable"
@@ -5614,7 +5717,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.56.11678",
+        "canonical_source_identity": "doi:10.1103/physrevb.83.155120",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5623,17 +5726,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.56.11678 payload for the cited context and the declared spin stiffness observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.83.155120 payload for the cited context and the declared spin stiffness observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "spin stiffness",
           "rho s over j",
-          "square-lattice S=1/2 Heisenberg stiffness benchmark"
+          "combined cubical-regime fit: rho_s=0.18081(11) J"
         ],
-        "source_context_hint": "square-lattice S=1/2 Heisenberg stiffness benchmark",
+        "source_context_hint": "combined cubical-regime fit: rho_s=0.18081(11) J",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_source_parse",
               "id": "rho_s_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -5642,11 +5746,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_ebcdccab3f81a5059936",
+      "source_id": "doi_422f517c2d9549fef833",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_source_parse",
             "id": "rho_s_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -5660,7 +5765,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.56.11678",
+        "canonical_source_identity": "doi:10.1103/physrevb.83.155120",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5669,16 +5774,17 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.56.11678 payload for the cited context and the declared staggered magnetization observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.83.155120 payload for the cited context and the declared staggered magnetization observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "staggered magnetization",
-          "square-lattice S=1/2 Heisenberg staggered magnetization benchmark"
+          "combined cubical-regime fit: M_s=0.30743(1)/a^2"
         ],
-        "source_context_hint": "square-lattice S=1/2 Heisenberg staggered magnetization benchmark",
+        "source_context_hint": "combined cubical-regime fit: M_s=0.30743(1)/a^2",
         "target_representation": {
           "fields": [
             {
               "convention": "fraction_of_saturation",
+              "derivation": "local_source_parse",
               "id": "staggered_magnetization",
               "type": "number",
               "units": "normalized_magnetization"
@@ -5687,11 +5793,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_ebcdccab3f81a5059936",
+      "source_id": "doi_422f517c2d9549fef833",
       "target_representation": {
         "fields": [
           {
             "convention": "fraction_of_saturation",
+            "derivation": "local_source_parse",
             "id": "staggered_magnetization",
             "type": "number",
             "units": "normalized_magnetization"
@@ -5705,7 +5812,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.56.11678",
+        "canonical_source_identity": "doi:10.1103/physrevb.83.155120",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5714,17 +5821,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.56.11678 payload for the cited context and the declared spin wave velocity observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.83.155120 payload for the cited context and the declared spin wave velocity observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "spin wave velocity",
           "renormalized velocity over j approx",
-          "square Heisenberg QMC spin-wave velocity reference"
+          "winding-number aspect-ratio determination: c=1.6586(3) J a"
         ],
-        "source_context_hint": "square Heisenberg QMC spin-wave velocity reference",
+        "source_context_hint": "winding-number aspect-ratio determination: c=1.6586(3) J a",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_source_parse",
               "id": "renormalized_velocity_over_j_approx",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -5733,11 +5841,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_ebcdccab3f81a5059936",
+      "source_id": "doi_422f517c2d9549fef833",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_source_parse",
             "id": "renormalized_velocity_over_j_approx",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -5902,7 +6011,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.66.014418",
+        "canonical_source_identity": "arxiv:cond-mat/0205270",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -5911,17 +6020,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.66.014418 payload for the cited context and the declared neel vbs competition observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/0205270 payload for the cited context and the declared ring exchange driven bond spin peierls order observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "neel vbs competition",
+          "ring exchange driven bond spin peierls order",
           "ring exchange drives vbs phase",
-          "square-lattice ring-exchange Neel to VBS benchmark"
+          "abstract, Eqs. (1)-(3), finite-size scaling, and conclusion: striped bond-plaquette/spin-Peierls order"
         ],
-        "source_context_hint": "square-lattice ring-exchange Neel to VBS benchmark",
+        "source_context_hint": "abstract, Eqs. (1)-(3), finite-size scaling, and conclusion: striped bond-plaquette/spin-Peierls order",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "ring_exchange_drives_vbs_phase",
               "type": "boolean",
               "units": "not_applicable"
@@ -5930,11 +6040,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_b4ecc4050d7e6e010534",
+      "source_id": "arxiv_9997d06bc7630b2a0091",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "ring_exchange_drives_vbs_phase",
             "type": "boolean",
             "units": "not_applicable"
@@ -6143,29 +6254,30 @@
     },
     {
       "benchmark_name": "star_lattice_heisenberg_spin_liquid_reference",
-      "expected_container": "figure_caption_claim_statement",
-      "locator_class": "figure_caption",
+      "expected_container": "main_text_claim_statement",
+      "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrevb.70.184414",
-        "expected_container": "figure_caption_claim_statement",
+        "canonical_source_identity": "doi:10.1103/physrevb.70.174454",
+        "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
           "benchmark_name",
           "observable_semantics",
           "canonical_source_identity"
         ],
-        "locator_class": "figure_caption",
-        "rationale": "Search the authoritative doi:10.1103/physrevb.70.184414 payload for the cited context and the declared phase reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "locator_class": "body_text",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.70.174454 payload for the cited context and the declared gapped valence bond crystal reference observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "phase reference",
+          "gapped valence bond crystal reference",
           "spin liquid or valence bond reference",
-          "star-lattice Heisenberg antiferromagnet reference"
+          "abstract, Eq. (1), and conclusion: gapped dimerized valence-bond crystal in the uniform star model"
         ],
-        "source_context_hint": "star-lattice Heisenberg antiferromagnet reference",
+        "source_context_hint": "abstract, Eq. (1), and conclusion: gapped dimerized valence-bond crystal in the uniform star model",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "spin_liquid_or_valence_bond_reference",
               "type": "boolean",
               "units": "not_applicable"
@@ -6174,11 +6286,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_62b7064141c85be36c19",
+      "source_id": "doi_0561dc1ddfb83046e779",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "spin_liquid_or_valence_bond_reference",
             "type": "boolean",
             "units": "not_applicable"
@@ -6192,7 +6305,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0375-9601(82)90403-0",
+        "canonical_source_identity": "arxiv:cond-mat/9811353",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -6201,24 +6314,26 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1016/0375-9601(82)90403-0 payload for the cited context and the declared critical point observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/9811353 payload for the cited context and the declared critical point observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical point",
           "theta radians",
           "is integrable",
-          "Takhtajan-Babujian spin-1 critical point"
+          "bilinear-biquadratic spin-1 chain at the integrable theta=-pi/4 point"
         ],
-        "source_context_hint": "Takhtajan-Babujian spin-1 critical point",
+        "source_context_hint": "bilinear-biquadratic spin-1 chain at the integrable theta=-pi/4 point",
         "target_representation": {
           "fields": [
             {
               "convention": "angular_scalar",
+              "derivation": "local_recompute",
               "id": "theta_radians",
               "type": "number",
               "units": "radian"
             },
             {
               "convention": "boolean_claim",
+              "derivation": "local_recompute",
               "id": "is_integrable",
               "type": "boolean",
               "units": "not_applicable"
@@ -6227,17 +6342,19 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_9814f6955bf2fbad0268",
+      "source_id": "arxiv_4d77a787c497a62e0d7e",
       "target_representation": {
         "fields": [
           {
             "convention": "angular_scalar",
+            "derivation": "local_recompute",
             "id": "theta_radians",
             "type": "number",
             "units": "radian"
           },
           {
             "convention": "boolean_claim",
+            "derivation": "local_recompute",
             "id": "is_integrable",
             "type": "boolean",
             "units": "not_applicable"
@@ -6298,7 +6415,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0003-4916(70)90270-8",
+        "canonical_source_identity": "arxiv:cond-mat/0509490",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -6307,17 +6424,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1016/0003-4916(70)90270-8 payload for the cited context and the declared quantum critical point observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/0509490 payload for the cited context and the declared quantum critical point observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "quantum critical point",
           "critical field over exchange",
-          "1D transverse-field Ising exact critical point"
+          "Hamiltonian and critical-point discussion: g_c=1"
         ],
-        "source_context_hint": "1D transverse-field Ising exact critical point",
+        "source_context_hint": "Hamiltonian and critical-point discussion: g_c=1",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "critical_field_over_exchange",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -6326,11 +6444,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_0dd199cedf8c6235b783",
+      "source_id": "arxiv_5bd1b8eb23d6c0ac2e87",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "critical_field_over_exchange",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -6344,7 +6463,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0003-4916(70)90270-8",
+        "canonical_source_identity": "arxiv:cond-mat/0509490",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -6353,24 +6472,26 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1016/0003-4916(70)90270-8 payload for the cited context and the declared excitation gap observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/0509490 payload for the cited context and the declared excitation gap observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "excitation gap",
           "gap formula",
           "gap formula at g 0 6",
-          "free-fermion TFIM gap"
+          "Bogoliubov spectrum and thermodynamic gap Delta=2J|1-g|"
         ],
-        "source_context_hint": "free-fermion TFIM gap",
+        "source_context_hint": "Bogoliubov spectrum and thermodynamic gap Delta=2J|1-g|",
         "target_representation": {
           "fields": [
             {
               "convention": "hamiltonian_energy_scale",
+              "derivation": "local_recompute",
               "id": "gap_formula",
               "type": "string",
               "units": "exchange_energy_unit"
             },
             {
               "convention": "hamiltonian_energy_scale",
+              "derivation": "local_recompute",
               "id": "gap_formula_at_g_0_6",
               "type": "number",
               "units": "exchange_energy_unit"
@@ -6379,17 +6500,19 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_0dd199cedf8c6235b783",
+      "source_id": "arxiv_5bd1b8eb23d6c0ac2e87",
       "target_representation": {
         "fields": [
           {
             "convention": "hamiltonian_energy_scale",
+            "derivation": "local_recompute",
             "id": "gap_formula",
             "type": "string",
             "units": "exchange_energy_unit"
           },
           {
             "convention": "hamiltonian_energy_scale",
+            "derivation": "local_recompute",
             "id": "gap_formula_at_g_0_6",
             "type": "number",
             "units": "exchange_energy_unit"
@@ -6412,17 +6535,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1088/0953-8984/3/1/005 payload for the cited context and the declared magnetization plateau observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1088/0953-8984/3/1/005 payload for the cited context and the declared one third plateau from spin wave expansion observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "magnetization plateau",
+          "one third plateau from spin wave expansion",
           "one third plateau",
-          "triangular antiferromagnet one-third plateau reference"
+          "isotropic case, spin-wave 1/S calculation, Fig. 3, and summary: finite one-third plateau"
         ],
-        "source_context_hint": "triangular antiferromagnet one-third plateau reference",
+        "source_context_hint": "isotropic case, spin-wave 1/S calculation, Fig. 3, and summary: finite one-third plateau",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "one_third_plateau",
               "type": "boolean",
               "units": "not_applicable"
@@ -6436,6 +6560,7 @@
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "one_third_plateau",
             "type": "boolean",
             "units": "not_applicable"
@@ -6541,7 +6666,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0031-8914(50)90130-3",
+        "canonical_source_identity": "doi:10.1143/ptp.5.2.177",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -6550,17 +6675,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1016/0031-8914(50)90130-3 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1143/ptp.5.2.177 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical temperature",
           "tc over j",
-          "triangular-lattice Ising exact critical temperature"
+          "dual-transformation critical-point equation for the triangular Ising lattice"
         ],
-        "source_context_hint": "triangular-lattice Ising exact critical temperature",
+        "source_context_hint": "dual-transformation critical-point equation for the triangular Ising lattice",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "tc_over_j",
               "type": "number",
               "units": "dimensionless_ratio"
@@ -6569,11 +6695,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_54d369496b49144e511c",
+      "source_id": "doi_f334ed253565110358b3",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "tc_over_j",
             "type": "number",
             "units": "dimensionless_ratio"
@@ -7112,7 +7239,7 @@
       "expected_container": "main_text_claim_statement",
       "locator_class": "body_text",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1143/jpsj.78.043704",
+        "canonical_source_identity": "doi:10.1103/physrevlett.121.107203",
         "expected_container": "main_text_claim_statement",
         "locator_basis": [
           "citation_locator",
@@ -7121,18 +7248,19 @@
           "canonical_source_identity"
         ],
         "locator_class": "body_text",
-        "rationale": "Search the authoritative doi:10.1143/jpsj.78.043704 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevlett.121.107203 payload for the cited context and the declared dominant j3 not distortion assessment observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
-          "BaCu3V2O8(OH)2",
-          "material model reference",
+          "BaCu3V2O8(OD)2",
+          "dominant j3 not distortion assessment",
           "distorted kagome relevant",
-          "vesignieite kagome antiferromagnet reference"
+          "abstract, Eq. (1), spin-wave fit, and conclusion: dominant J3 with less-than-one-percent distortion"
         ],
-        "source_context_hint": "vesignieite kagome antiferromagnet reference",
+        "source_context_hint": "abstract, Eq. (1), spin-wave fit, and conclusion: dominant J3 with less-than-one-percent distortion",
         "target_representation": {
           "fields": [
             {
               "convention": "boolean_claim",
+              "derivation": "local_source_parse",
               "id": "distorted_kagome_relevant",
               "type": "boolean",
               "units": "not_applicable"
@@ -7141,11 +7269,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_1c5a42de0551d2e2451c",
+      "source_id": "doi_6da8d81e7ff23f395d98",
       "target_representation": {
         "fields": [
           {
             "convention": "boolean_claim",
+            "derivation": "local_source_parse",
             "id": "distorted_kagome_relevant",
             "type": "boolean",
             "units": "not_applicable"
@@ -7206,7 +7335,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1016/0003-4916(61)90115-4",
+        "canonical_source_identity": "doi:10.1103/physrevb.92.125131",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -7215,17 +7344,18 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1016/0003-4916(61)90115-4 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1103/physrevb.92.125131 payload for the cited context and the declared thermodynamic limit ground state energy observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "thermodynamic limit ground state energy",
           "energy per site",
-          "Jordan-Wigner free-fermion XX-chain benchmark"
+          "XX-chain free-fermion ground-state energy at half filling"
         ],
-        "source_context_hint": "Jordan-Wigner free-fermion XX-chain benchmark",
+        "source_context_hint": "XX-chain free-fermion ground-state energy at half filling",
         "target_representation": {
           "fields": [
             {
               "convention": "energy_density",
+              "derivation": "local_recompute",
               "id": "energy_per_site",
               "type": "number",
               "units": "exchange_energy_per_site"
@@ -7234,11 +7364,12 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_bb9d8409dad06c02dae3",
+      "source_id": "doi_ec7bac11ef2a4fa52066",
       "target_representation": {
         "fields": [
           {
             "convention": "energy_density",
+            "derivation": "local_recompute",
             "id": "energy_per_site",
             "type": "number",
             "units": "exchange_energy_per_site"
@@ -7298,7 +7429,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1103/physrev.150.321",
+        "canonical_source_identity": "arxiv:cond-mat/9909290",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -7307,32 +7438,35 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1103/physrev.150.321 payload for the cited context and the declared phase boundaries observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative arxiv:cond-mat/9909290 payload for the cited context and the declared phase boundaries observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "phase boundaries",
           "ferromagnetic boundary delta",
           "neel boundary delta",
           "gapless interval",
           "phase diagram",
-          "XXZ Bethe-ansatz phase diagram"
+          "Hamiltonian and phase diagram: Delta=-1 and Delta=1 boundaries with gapless interval"
         ],
-        "source_context_hint": "XXZ Bethe-ansatz phase diagram",
+        "source_context_hint": "Hamiltonian and phase diagram: Delta=-1 and Delta=1 boundaries with gapless interval",
         "target_representation": {
           "fields": [
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "ferromagnetic_boundary_delta",
               "type": "number",
               "units": "dimensionless_ratio"
             },
             {
               "convention": "ratio_to_named_model_scale",
+              "derivation": "local_recompute",
               "id": "neel_boundary_delta",
               "type": "number",
               "units": "dimensionless_ratio"
             },
             {
               "convention": "closed_anisotropy_interval",
+              "derivation": "local_recompute",
               "id": "gapless_interval",
               "type": "list[number]",
               "units": "dimensionless_anisotropy"
@@ -7341,23 +7475,26 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_99dc2b4658823c56a044",
+      "source_id": "arxiv_75995a2b249101ded246",
       "target_representation": {
         "fields": [
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "ferromagnetic_boundary_delta",
             "type": "number",
             "units": "dimensionless_ratio"
           },
           {
             "convention": "ratio_to_named_model_scale",
+            "derivation": "local_recompute",
             "id": "neel_boundary_delta",
             "type": "number",
             "units": "dimensionless_ratio"
           },
           {
             "convention": "closed_anisotropy_interval",
+            "derivation": "local_recompute",
             "id": "gapless_interval",
             "type": "list[number]",
             "units": "dimensionless_anisotropy"

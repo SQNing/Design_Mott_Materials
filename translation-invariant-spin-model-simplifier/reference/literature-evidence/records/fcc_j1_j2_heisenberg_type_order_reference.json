@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "ordered_categorical_phase_labels",
+        "derivation": "local_recompute",
         "id": "common_orders",
         "type": "list[string]",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "ordered_categorical_phase_labels",
+        "derivation": "local_recompute",
         "id": "common_orders",
         "type": "list[string]",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_b2f31bfaab7509b45b2e",
+  "source_id": "arxiv_ffa588072c8fe0ab1cac",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1103/physrev.131.546",
+    "canonical_source_identity": "arxiv:2007.00376",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,17 +47,19 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1103/physrev.131.546 payload for the cited context and the declared ordering type observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:2007.00376 payload for the cited context and the declared ordering type observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "ordering type",
       "common orders",
-      "fcc Heisenberg antiferromagnet type orders"
+      "phase diagram",
+      "FCC J1-J2 phase diagram and type-I, type-II, and type-III order regions"
     ],
-    "source_context_hint": "fcc Heisenberg antiferromagnet type orders",
+    "source_context_hint": "FCC J1-J2 phase diagram and type-I, type-II, and type-III order regions",
     "target_representation": {
       "fields": [
         {
           "convention": "ordered_categorical_phase_labels",
+          "derivation": "local_recompute",
           "id": "common_orders",
           "type": "list[string]",
           "units": "not_applicable"

@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "ordered_categorical_phase_labels",
+        "derivation": "local_source_parse",
         "id": "ordered_phases",
         "type": "list[string]",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "ordered_categorical_phase_labels",
+        "derivation": "local_source_parse",
         "id": "ordered_phases",
         "type": "list[string]",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_cccc77107683d181386d",
+  "source_id": "arxiv_36e066e2b99129d0057f",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1103/physrevlett.105.027204",
+    "canonical_source_identity": "arxiv:1209.5100",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,17 +47,18 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1103/physrevlett.105.027204 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:1209.5100 payload for the cited context and the declared phase diagram observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "phase diagram",
       "ordered phases",
-      "Kitaev-Heisenberg honeycomb phase diagram"
+      "full Kitaev-Heisenberg phase diagram: Neel, stripy, ferromagnetic, and zigzag phases"
     ],
-    "source_context_hint": "Kitaev-Heisenberg honeycomb phase diagram",
+    "source_context_hint": "full Kitaev-Heisenberg phase diagram: Neel, stripy, ferromagnetic, and zigzag phases",
     "target_representation": {
       "fields": [
         {
           "convention": "ordered_categorical_phase_labels",
+          "derivation": "local_source_parse",
           "id": "ordered_phases",
           "type": "list[string]",
           "units": "not_applicable"

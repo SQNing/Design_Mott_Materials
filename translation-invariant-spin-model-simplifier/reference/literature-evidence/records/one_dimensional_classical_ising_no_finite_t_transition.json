@@ -5,12 +5,14 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_recompute",
         "id": "finite_temperature_transition",
         "type": "boolean",
         "units": "not_applicable"
       },
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "tc_over_j",
         "type": "number",
         "units": "dimensionless_ratio"
@@ -24,12 +26,14 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_recompute",
         "id": "finite_temperature_transition",
         "type": "boolean",
         "units": "not_applicable"
       },
       {
         "convention": "ratio_to_named_model_scale",
+        "derivation": "local_recompute",
         "id": "tc_over_j",
         "type": "number",
         "units": "dimensionless_ratio"
@@ -70,12 +74,14 @@
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_recompute",
           "id": "finite_temperature_transition",
           "type": "boolean",
           "units": "not_applicable"
         },
         {
           "convention": "ratio_to_named_model_scale",
+          "derivation": "local_recompute",
           "id": "tc_over_j",
           "type": "number",
           "units": "dimensionless_ratio"

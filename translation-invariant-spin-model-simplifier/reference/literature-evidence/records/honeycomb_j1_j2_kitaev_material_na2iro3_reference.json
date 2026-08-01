@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "zigzag_order_relevant",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "zigzag_order_relevant",
         "type": "boolean",
         "units": "not_applicable"
@@ -34,9 +36,9 @@
     ]
   },
   "schema_version": 1,
-  "source_id": "doi_cccc77107683d181386d",
+  "source_id": "arxiv_36e066e2b99129d0057f",
   "target_locator_strategy": {
-    "canonical_source_identity": "doi:10.1103/physrevlett.105.027204",
+    "canonical_source_identity": "arxiv:1209.5100",
     "expected_container": "main_text_claim_statement",
     "locator_basis": [
       "citation_locator",
@@ -45,18 +47,20 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1103/physrevlett.105.027204 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative arxiv:1209.5100 payload for the cited context and the declared material model reference observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "Na2IrO3",
       "material model reference",
       "zigzag order relevant",
-      "Na2IrO3 Kitaev-Heisenberg honeycomb material reference"
+      "phase diagram",
+      "full Kitaev-Heisenberg phase diagram and Na2IrO3 zigzag-order discussion"
     ],
-    "source_context_hint": "Na2IrO3 Kitaev-Heisenberg honeycomb material reference",
+    "source_context_hint": "full Kitaev-Heisenberg phase diagram and Na2IrO3 zigzag-order discussion",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "zigzag_order_relevant",
           "type": "boolean",
           "units": "not_applicable"

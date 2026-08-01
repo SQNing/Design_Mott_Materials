@@ -5,6 +5,7 @@
     "fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "spin_liquid_candidate",
         "type": "boolean",
         "units": "not_applicable"
@@ -18,6 +19,7 @@
     "output_fields": [
       {
         "convention": "boolean_claim",
+        "derivation": "local_source_parse",
         "id": "spin_liquid_candidate",
         "type": "boolean",
         "units": "not_applicable"
@@ -45,18 +47,19 @@
       "canonical_source_identity"
     ],
     "locator_class": "body_text",
-    "rationale": "Search the authoritative doi:10.1103/physrevb.86.140405 payload for the cited context and the declared spin liquid candidate reference observable; Task 5 must replace this forecast with exact source coordinates.",
+    "rationale": "Search the authoritative doi:10.1103/physrevb.86.140405 payload for the cited context and the declared triangular spin liquid candidate observable; Task 5 must replace this forecast with exact source coordinates.",
     "search_anchors": [
       "Ba3IrTi2O9",
-      "spin liquid candidate reference",
+      "triangular spin liquid candidate",
       "spin liquid candidate",
-      "Ba3IrTi2O9 honeycomb spin-orbit material reference"
+      "abstract and conclusion: site-diluted triangular J_eff=1/2 spin-liquid candidate"
     ],
-    "source_context_hint": "Ba3IrTi2O9 honeycomb spin-orbit material reference",
+    "source_context_hint": "abstract and conclusion: site-diluted triangular J_eff=1/2 spin-liquid candidate",
     "target_representation": {
       "fields": [
         {
           "convention": "boolean_claim",
+          "derivation": "local_source_parse",
           "id": "spin_liquid_candidate",
           "type": "boolean",
           "units": "not_applicable"
