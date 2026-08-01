@@ -41,6 +41,330 @@ from validation.literature_spin_model_benchmarks import (
 )
 
 
+EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK = {'aklt_spin1_chain_projector_ground_state': 'doi:10.1103/physrevlett.59.799',
+ 'alpha_rucl3_kitaev_gamma_zigzag_reference': 'doi:10.1103/physrevb.93.214431',
+ 'azurite_diamond_chain_plateau_reference': 'doi:10.1103/physrevlett.100.117202',
+ 'ba2cugeo7_dm_spiral_reference': 'doi:10.1103/physrevb.57.2968',
+ 'ba3cosb2o9_triangular_plateau_reference': 'doi:10.1103/physrevlett.108.057205',
+ 'ba3irti2o9_honeycomb_kitaev_reference': 'doi:10.1103/physrevb.86.140405',
+ 'barlowite_kagome_material_reference': 'doi:10.1103/physrevlett.113.227203',
+ 'bcc_j1_j2_heisenberg_collinear_reference': 'doi:10.1140/epjb/e2015-60113-7',
+ 'beta_li2iro3_spiral_kitaev_gamma_reference': 'doi:10.1103/physrevb.90.205116',
+ 'bilinear_biquadratic_spin1_chain_aklt_angle': 'doi:10.1103/physrevlett.59.799',
+ 'blume_capel_spin1_zero_temperature_level_crossing': 'arxiv:1204.5027',
+ 'bpcb_spin_ladder_field_induced_order_reference': 'doi:10.1103/physrevb.79.020408',
+ 'breathing_kagome_heisenberg_reference': 'doi:10.1103/physrevb.96.205124',
+ 'ca10cr7o28_bilayer_breathing_kagome_reference': 'doi:10.1038/nphys3826',
+ 'cacu2o3_spin_ladder_reference': 'doi:10.1103/physrevb.63.144418',
+ 'checkerboard_heisenberg_afm_planar_pyrochlore_reference': 'arxiv:cond-mat/0108070',
+ 'checkerboard_heisenberg_plaquette_reference': 'doi:10.1103/physrevb.67.054411',
+ 'clinoatacamite_distorted_kagome_reference': 'arxiv:2601.21024',
+ 'crcl3_honeycomb_heisenberg_reference': 'doi:10.1016/0022-3697(61)90053-1',
+ 'crgete3_honeycomb_ferromagnet_reference': 'doi:10.1088/0953-8984/7/1/008',
+ 'cri3_honeycomb_ferromagnet_reference': 'doi:10.1021/cm504242t',
+ 'cs2cucl4_anisotropic_triangular_spiral_reference': 'doi:10.1103/physrevb.68.134424',
+ 'cu2iro3_honeycomb_kitaev_reference': 'doi:10.1021/jacs.7b06911',
+ 'cu2oseo3_skyrmion_lattice_reference': 'doi:10.1126/science.1214143',
+ 'cubic_ising_critical_temperature_reference': 'arxiv:cond-mat/9509016',
+ 'diamond_chain_localized_magnon_flat_band': 'doi:10.1140/epjb/e2006-00273-y',
+ 'diamond_j1_j2_spiral_surface_reference': 'arxiv:cond-mat/0612001',
+ 'dy2ti2o7_spin_ice_entropy_reference': 'doi:10.1038/20619',
+ 'edwardsite_kagome_antiferromagnet_reference': 'arxiv:1305.2477',
+ 'eight_vertex_zero_field_exact_solution_status': 'doi:10.1103/physrevlett.26.832',
+ 'er2ti2o7_xy_pyrochlore_order_by_disorder_reference': 'arxiv:1204.1320',
+ 'fcc_j1_j2_heisenberg_type_order_reference': 'arxiv:2007.00376',
+ 'fe8_molecular_spin_tunneling_reference': 'doi:10.1126/science.284.5411.133',
+ 'fe_ps3_honeycomb_ising_reference': 'arxiv:2005.12031',
+ 'fecl3_honeycomb_antiferromagnet_reference': 'doi:10.1103/physrev.127.714',
+ 'gadolinium_gallium_garnet_hyperkagome_reference': 'doi:10.1103/physrevlett.73.2500',
+ 'gamma_li2iro3_3d_kitaev_reference': 'doi:10.1103/physrevlett.113.197201',
+ 'garnet_gd3ga5o12_spin_liquid_reference': 'doi:10.1103/physrevlett.80.4570',
+ 'garnet_gd3te2li3o12_hyperkagome_reference': 'doi:10.1103/physrevb.87.174421',
+ 'gaudin_yang_spin_half_fermion_bethe_reference': 'doi:10.1103/physrevlett.19.1312',
+ 'h3liir2o6_kitaev_spin_liquid_candidate_reference': 'doi:10.1038/nature25482',
+ 'haldane_shastry_chain_exact_ground_state': 'doi:10.1103/physrevlett.60.635',
+ 'haldane_spin1_chain_gap_reference': 'doi:10.1103/physrevb.48.3844',
+ 'haydeeite_ferromagnetic_kagome_reference': 'doi:10.1103/physrevb.91.220408',
+ 'herbertsmithite_kagome_qsl_reference': 'doi:10.1103/physrevlett.98.107204',
+ 'ho2ti2o7_spin_ice_neutron_reference': 'doi:10.1103/physrevlett.87.047205',
+ 'honeycomb_haldane_kane_mele_hubbard_spin_model_reference': 'doi:10.1103/physrevb.82.075106',
+ 'honeycomb_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp.5.2.177',
+ 'honeycomb_j1_j2_j3_classical_phase_diagram': 'arxiv:1309.3744',
+ 'honeycomb_j1_j2_kitaev_material_na2iro3_reference': 'arxiv:1209.5100',
+ 'honeycomb_j1_j2_spiral_ring_reference': 'arxiv:1004.1119',
+ 'honeycomb_kitaev_gamma_phase_diagram_reference': 'doi:10.1103/physrevlett.112.077204',
+ 'honeycomb_kitaev_heisenberg_four_sublattice_phases': 'arxiv:1209.5100',
+ 'honeycomb_spin_half_j1_j2_quantum_phase_reference': 'doi:10.1103/physrevb.88.165138',
+ 'hyperkagome_heisenberg_spin_liquid_reference': 'doi:10.1103/physrevlett.101.197202',
+ 'j1_j2_chain_bkt_transition_reference': 'arxiv:1006.5052',
+ 'j1_j2_chain_okamoto_nomura_critical_point': 'arxiv:1006.5052',
+ 'j1_j2_honeycomb_neel_spin_liquid_transition_reference': 'doi:10.1103/physrevb.88.165138',
+ 'j1_j2_j3_square_quantum_phase_reference': 'doi:10.1103/physrevb.109.235116',
+ 'j1_j2_square_dqcp_columnar_vbs_reference': 'doi:10.1103/physrevlett.113.027201',
+ 'j1_j2_square_spin_half_neel_collinear_transition_reference': 'arxiv:1409.0193',
+ 'j1_j2_triangular_spin_liquid_window_reference': 'doi:10.1103/physrevb.92.140403',
+ 'jarosite_kagome_dzyaloshinskii_moriya_reference': 'doi:10.1103/physrevlett.96.247201',
+ 'kagome_chiral_spin_liquid_j1_j2_jchi_reference': 'doi:10.1038/ncomms6137',
+ 'kagome_dzyaloshinskii_moriya_critical_reference': 'doi:10.1103/physrevb.78.140405',
+ 'kagome_heisenberg_dmrg_spin_liquid_yan_reference': 'arxiv:1205.4858',
+ 'kagome_heisenberg_topological_entanglement_reference': 'doi:10.1103/physrevlett.109.067201',
+ 'kagome_ising_antiferromagnet_residual_entropy_reference': 'doi:10.1143/ptp/10.2.158',
+ 'kagome_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp/10.2.158',
+ 'kagome_j1_j2_heisenberg_phase_diagram_reference': 'doi:10.1103/physrevb.91.104418',
+ 'kagome_one_third_magnetization_plateau_reference': 'doi:10.1038/ncomms3287',
+ 'kagome_spin_half_heisenberg_energy_reference': 'arxiv:1205.4858',
+ 'kapellasite_kagome_j1_jd_reference': 'doi:10.1103/physrevlett.109.037208',
+ 'kitaev_honeycomb_abelian_nonabelian_field_gap_reference': 'doi:10.1016/j.aop.2005.10.005',
+ 'kitaev_honeycomb_exact_spin_liquid_limit': 'doi:10.1016/j.aop.2005.10.005',
+ 'kitaev_honeycomb_gapless_triangle_condition': 'doi:10.1016/j.aop.2005.10.005',
+ 'li2cuo2_frustrated_ferromagnetic_chain_reference': 'doi:10.1103/physrevb.57.5326',
+ 'li2iro3_hyperhoneycomb_kitaev_reference': 'doi:10.1103/physrevlett.114.077202',
+ 'licuvo4_spiral_chain_reference': 'doi:10.1209/epl/i2004-10484-x',
+ 'lieb_lattice_heisenberg_ferrimagnet_reference': 'arxiv:2409.16715',
+ 'lieb_liniger_delta_bose_gas_bethe_reference': 'doi:10.1103/physrev.130.1605',
+ 'lieb_schultz_mattis_half_integer_constraint': 'doi:10.1007/s10955-017-1946-0',
+ 'majundar_ghosh_chain_exact_dimer_point': 'doi:10.1088/0305-4470/17/13/020',
+ 'maple_leaf_lattice_heisenberg_reference': 'doi:10.1103/physrevb.84.104406',
+ 'mn_ps3_honeycomb_antiferromagnet_reference': 'doi:10.1103/physrevb.82.100408',
+ 'mnsi_chiral_helimagnet_reference': 'doi:10.1088/0022-3719/13/31/002',
+ 'na4ir3o8_hyperkagome_material_reference': 'doi:10.1103/physrevlett.99.137207',
+ 'nacuo2_triangular_heisenberg_material_reference': 'arxiv:1405.6184',
+ 'ni_ps3_honeycomb_antiferromagnet_reference': 'doi:10.1103/physrevb.92.224408',
+ 'one_dimensional_classical_ising_correlation_length': 'arxiv:2001.01693',
+ 'one_dimensional_classical_ising_no_finite_t_transition': 'doi:10.1007/bf02980577',
+ 'pr2zr2o7_quantum_spin_ice_reference': 'doi:10.1038/ncomms2914',
+ 'pyrochlore_anisotropic_exchange_jzz_jpm_reference': 'doi:10.1103/physrevx.1.021002',
+ 'pyrochlore_dipolar_spin_ice_pauling_entropy': 'doi:10.1126/science.1064761',
+ 'pyrochlore_heisenberg_afm_coulomb_phase_reference': 'arxiv:cond-mat/0407005',
+ 'pyrochlore_heisenberg_coulomb_phase_flat_band': 'doi:10.1103/physrevlett.80.2929',
+ 'quantum_spin_ice_u1_qsl_reference': 'doi:10.1103/physrevb.69.064404',
+ 'ru_br3_kitaev_material_reference': 'doi:10.1038/s41535-026-00868-6',
+ 'ruby_lattice_heisenberg_flat_band_reference': 'arxiv:2512.14173',
+ 'sawtooth_chain_localized_magnon_flat_band': 'doi:10.1140/epjb/e2006-00273-y',
+ 'scgo_kagome_bilayer_spin_liquid_reference': 'doi:10.1103/physrevlett.64.2070',
+ 'shastry_sutherland_exact_dimer_product': 'doi:10.1016/0378-4363(81)90838-x',
+ 'shastry_sutherland_magnetization_plateaus_reference': 'doi:10.1103/physrevlett.82.3168',
+ 'shuriken_lattice_heisenberg_reference': 'arxiv:cond-mat/0411673',
+ 'simple_cubic_j1_j2_collinear_reference': 'doi:10.1063/1.367729',
+ 'single_ion_spin1_anisotropy_levels': 'arxiv:1204.5027',
+ 'spin1_chain_large_d_transition_reference': 'doi:10.1103/physrevb.67.104401',
+ 'spin_ice_tetrahedron_nn_ice_rule': 'doi:10.1103/physrevlett.79.2554',
+ 'spin_ladder_rung_singlet_gap_reference': 'doi:10.1126/science.271.5249.618',
+ 'spin_peierls_chain_dimerization_reference': 'doi:10.1103/physrevb.19.402',
+ 'square_ashkin_teller_exact_critical_line': 'doi:10.1103/physrevlett.26.832',
+ 'square_clock_q5_two_bkt_transitions': 'doi:10.1103/physrevlett.96.140603',
+ 'square_compass_model_directional_exchange_degeneracy': 'doi:10.1103/revmodphys.87.1',
+ 'square_dimerized_heisenberg_critical_reference': 'doi:10.1103/physrevb.65.014407',
+ 'square_fully_frustrated_ising_residual_entropy_reference': 'doi:10.1088/0305-4470/16/10/023',
+ 'square_heisenberg_spin_half_spin_stiffness_reference': 'doi:10.1103/physrevb.83.155120',
+ 'square_heisenberg_spin_half_staggered_magnetization_reference': 'doi:10.1103/physrevb.83.155120',
+ 'square_heisenberg_spin_wave_velocity_reference': 'doi:10.1103/physrevb.83.155120',
+ 'square_j1_j3_classical_lifshitz_reference': 'arxiv:1804.04308',
+ 'square_jq_model_deconfined_critical_reference': 'doi:10.1103/physrevlett.98.227202',
+ 'square_potts_exact_critical_point': 'doi:10.1103/revmodphys.54.235',
+ 'square_ring_exchange_neel_vbs_reference': 'arxiv:cond-mat/0205270',
+ 'square_six_vertex_ice_exact_solution_status': 'doi:10.1103/physrev.162.162',
+ 'square_spin_half_heisenberg_qmc_energy': 'doi:10.1103/physrevb.56.11678',
+ 'square_toric_code_exact_topological_degeneracy': 'doi:10.1016/s0003-4916(02)00018-0',
+ 'sr_cu2_bo3_2_shastry_sutherland_material_reference': 'doi:10.1103/physrevlett.82.3168',
+ 'star_lattice_heisenberg_spin_liquid_reference': 'doi:10.1103/physrevb.70.174454',
+ 'takhtajan_babujian_spin1_critical_point': 'arxiv:cond-mat/9811353',
+ 'tb2ti2o7_pyrochlore_spin_liquid_reference': 'doi:10.1103/physrevlett.82.1012',
+ 'transverse_field_ising_chain_critical_point': 'arxiv:cond-mat/0509490',
+ 'transverse_field_ising_chain_gap': 'arxiv:cond-mat/0509490',
+ 'triangular_heisenberg_magnetization_plateau_reference': 'doi:10.1088/0953-8984/3/1/005',
+ 'triangular_heisenberg_spin_half_energy_reference': 'doi:10.1103/physrevlett.82.3899',
+ 'triangular_ising_antiferromagnet_residual_entropy': 'doi:10.1103/physrev.79.357',
+ 'triangular_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp.5.2.177',
+ 'triangular_j1_j2_spin_half_phase_diagram_reference': 'doi:10.1103/physrevb.92.041105',
+ 'triangular_nn_classical_120_reference': 'doi:10.1103/physrevlett.60.2531',
+ 'triangular_ring_exchange_spin_liquid_reference': 'doi:10.1103/physrevb.72.045105',
+ 'triangular_xxz_supersolid_phase_reference': 'doi:10.1103/physrevlett.95.127205',
+ 'two_dimensional_square_ising_onsager_tc': 'doi:10.1103/physrev.65.117',
+ 'two_dimensional_square_ising_spontaneous_magnetization': 'doi:10.1103/physrev.85.808',
+ 'two_dimensional_xy_bkt_temperature_reference': 'doi:10.1088/0305-4470/38/26/003',
+ 'two_dimensional_xy_bkt_universal_jump': 'doi:10.1103/physrevlett.39.1201',
+ 'two_leg_ladder_strong_rung_exact_limit': 'doi:10.1126/science.271.5249.618',
+ 'uimin_lai_sutherland_spin1_su3_point': 'doi:10.1103/physrevb.12.3795',
+ 'vesignieite_kagome_material_reference': 'doi:10.1103/physrevlett.121.107203',
+ 'volborthite_kagome_distorted_reference': 'doi:10.1143/jpsj.70.3377',
+ 'xx_spin_half_chain_free_fermion_energy': 'doi:10.1103/physrevb.92.125131',
+ 'xxx_spin_half_chain_bethe_ground_state': 'doi:10.1103/physrev.150.327',
+ 'xxz_spin_half_chain_phase_boundaries': 'arxiv:cond-mat/9909290',
+ 'xy_spin_half_chain_anisotropic_critical_line': 'doi:10.1103/physreva.3.786',
+ 'yb2ti2o7_pyrochlore_exchange_reference': 'doi:10.1103/physrevx.1.021002',
+ 'ybmggao4_triangular_spin_liquid_reference': 'doi:10.1038/srep16419',
+ 'zn_barlowite_kagome_qsl_reference': 'doi:10.1103/physrevb.94.125136',
+ 'zncu3oh6cl2_kagome_dzyaloshinskii_moriya_reference': 'doi:10.1103/physrevlett.101.026405'}
+
+EXPECTED_PRE_TRANSITION_SOURCE_IDENTITIES = frozenset(
+{'arxiv:1409.0193',
+ 'arxiv:1804.04308',
+ 'arxiv:2001.01693',
+ 'arxiv:cond-mat/0612001',
+ 'doi:10.1007/bf02980577',
+ 'doi:10.1007/s10955-017-1946-0',
+ 'doi:10.1016/0003-4916(61)90115-4',
+ 'doi:10.1016/0003-4916(70)90270-8',
+ 'doi:10.1016/0022-3697(61)90053-1',
+ 'doi:10.1016/0031-8914(50)90130-3',
+ 'doi:10.1016/0375-9601(82)90403-0',
+ 'doi:10.1016/0375-9601(92)90823-5',
+ 'doi:10.1016/0378-4363(79)90002-0',
+ 'doi:10.1016/0378-4363(81)90838-x',
+ 'doi:10.1016/j.aop.2005.10.005',
+ 'doi:10.1016/j.physb.2007.10.295',
+ 'doi:10.1016/s0003-4916(02)00018-0',
+ 'doi:10.1021/cm504242t',
+ 'doi:10.1021/jacs.7b06911',
+ 'doi:10.1038/20619',
+ 'doi:10.1038/nature25482',
+ 'doi:10.1038/ncomms14113',
+ 'doi:10.1038/ncomms2914',
+ 'doi:10.1038/ncomms3287',
+ 'doi:10.1038/ncomms5203',
+ 'doi:10.1038/ncomms6137',
+ 'doi:10.1038/nmat1867',
+ 'doi:10.1038/nphys3826',
+ 'doi:10.1038/srep16419',
+ 'doi:10.1063/1.1664978',
+ 'doi:10.1063/1.1724276',
+ 'doi:10.1063/1.367729',
+ 'doi:10.1088/0022-3719/10/10/014',
+ 'doi:10.1088/0022-3719/13/31/002',
+ 'doi:10.1088/0305-4470/38/26/003',
+ 'doi:10.1088/0953-8984/10/28/020',
+ 'doi:10.1088/0953-8984/3/1/005',
+ 'doi:10.1088/0953-8984/7/1/008',
+ 'doi:10.1088/1361-648x/aa8cf5',
+ 'doi:10.1103/physrev.127.714',
+ 'doi:10.1103/physrev.130.1605',
+ 'doi:10.1103/physrev.131.546',
+ 'doi:10.1103/physrev.141.517',
+ 'doi:10.1103/physrev.150.321',
+ 'doi:10.1103/physrev.150.327',
+ 'doi:10.1103/physrev.162.162',
+ 'doi:10.1103/physrev.65.117',
+ 'doi:10.1103/physrev.79.357',
+ 'doi:10.1103/physrev.85.808',
+ 'doi:10.1103/physreva.3.786',
+ 'doi:10.1103/physrevb.109.235116',
+ 'doi:10.1103/physrevb.12.3795',
+ 'doi:10.1103/physrevb.19.402',
+ 'doi:10.1103/physrevb.48.3844',
+ 'doi:10.1103/physrevb.56.11678',
+ 'doi:10.1103/physrevb.57.2968',
+ 'doi:10.1103/physrevb.57.5326',
+ 'doi:10.1103/physrevb.63.144418',
+ 'doi:10.1103/physrevb.65.014407',
+ 'doi:10.1103/physrevb.66.014418',
+ 'doi:10.1103/physrevb.67.054411',
+ 'doi:10.1103/physrevb.67.104401',
+ 'doi:10.1103/physrevb.68.134424',
+ 'doi:10.1103/physrevb.69.064404',
+ 'doi:10.1103/physrevb.70.174454',
+ 'doi:10.1103/physrevb.70.184414',
+ 'doi:10.1103/physrevb.72.045105',
+ 'doi:10.1103/physrevb.78.140405',
+ 'doi:10.1103/physrevb.79.020408',
+ 'doi:10.1103/physrevb.82.075106',
+ 'doi:10.1103/physrevb.84.104406',
+ 'doi:10.1103/physrevb.85.094422',
+ 'doi:10.1103/physrevb.86.140405',
+ 'doi:10.1103/physrevb.88.165138',
+ 'doi:10.1103/physrevb.90.205116',
+ 'doi:10.1103/physrevb.91.104418',
+ 'doi:10.1103/physrevb.91.220408',
+ 'doi:10.1103/physrevb.92.041105',
+ 'doi:10.1103/physrevb.92.140403',
+ 'doi:10.1103/physrevb.92.140407',
+ 'doi:10.1103/physrevb.92.224408',
+ 'doi:10.1103/physrevb.93.214431',
+ 'doi:10.1103/physrevb.94.125136',
+ 'doi:10.1103/physrevb.96.205124',
+ 'doi:10.1103/physrevlett.100.117202',
+ 'doi:10.1103/physrevlett.101.026405',
+ 'doi:10.1103/physrevlett.101.197202',
+ 'doi:10.1103/physrevlett.105.027204',
+ 'doi:10.1103/physrevlett.108.037202',
+ 'doi:10.1103/physrevlett.108.057205',
+ 'doi:10.1103/physrevlett.109.037208',
+ 'doi:10.1103/physrevlett.109.067201',
+ 'doi:10.1103/physrevlett.112.077204',
+ 'doi:10.1103/physrevlett.113.027201',
+ 'doi:10.1103/physrevlett.113.227203',
+ 'doi:10.1103/physrevlett.114.077202',
+ 'doi:10.1103/physrevlett.19.1312',
+ 'doi:10.1103/physrevlett.26.832',
+ 'doi:10.1103/physrevlett.39.1201',
+ 'doi:10.1103/physrevlett.59.799',
+ 'doi:10.1103/physrevlett.60.2531',
+ 'doi:10.1103/physrevlett.60.635',
+ 'doi:10.1103/physrevlett.64.2070',
+ 'doi:10.1103/physrevlett.69.3382',
+ 'doi:10.1103/physrevlett.77.2085',
+ 'doi:10.1103/physrevlett.79.2554',
+ 'doi:10.1103/physrevlett.80.2929',
+ 'doi:10.1103/physrevlett.80.2933',
+ 'doi:10.1103/physrevlett.80.4570',
+ 'doi:10.1103/physrevlett.82.1012',
+ 'doi:10.1103/physrevlett.82.3168',
+ 'doi:10.1103/physrevlett.82.3899',
+ 'doi:10.1103/physrevlett.87.047205',
+ 'doi:10.1103/physrevlett.93.107206',
+ 'doi:10.1103/physrevlett.95.127205',
+ 'doi:10.1103/physrevlett.96.140603',
+ 'doi:10.1103/physrevlett.96.247201',
+ 'doi:10.1103/physrevlett.98.107204',
+ 'doi:10.1103/physrevlett.98.227202',
+ 'doi:10.1103/physrevlett.99.137207',
+ 'doi:10.1103/physrevx.1.021002',
+ 'doi:10.1103/revmodphys.54.235',
+ 'doi:10.1103/revmodphys.87.1',
+ 'doi:10.1126/science.1064761',
+ 'doi:10.1126/science.1201080',
+ 'doi:10.1126/science.1214143',
+ 'doi:10.1126/science.271.5249.618',
+ 'doi:10.1126/science.284.5411.133',
+ 'doi:10.1140/epjb/e2006-00273-y',
+ 'doi:10.1140/epjb/e2015-60113-7',
+ 'doi:10.1143/jpsj.70.3377',
+ 'doi:10.1143/jpsj.78.043704',
+ 'doi:10.1143/ptp/10.2.158',
+ 'doi:10.1209/epl/i2004-10484-x'}
+)
+
+
+FORBIDDEN_ARTIFACT_ALIASES = (
+    "answer",
+    "expected_answer",
+    "excerpt",
+    "source_excerpt",
+    "target_excerpt",
+    "copied_target",
+    "target",
+    "target_value",
+    "target_observable",
+    "parsed_target",
+    "expected_value",
+    "hash",
+    "payload_hash",
+    "payload_sha256",
+    "source_hash",
+    "source_sha256",
+    "acquired",
+    "acquired_status",
+    "acquisition_status",
+    "status",
+    "pass",
+    "strict",
+    "strict_match",
+    "strict_literature_match",
+    "verdict",
+    "result",
+)
+
+
 EXPECTED_ADDED_SOURCE_IDENTITIES = frozenset(
     {
         "arxiv:1004.1119",
@@ -638,6 +962,18 @@ def _source_identity_string(source):
     return f"{identity['kind']}:{identity['value']}"
 
 
+def _source_identity_by_benchmark(source_index):
+    return {
+        benchmark_name: _source_identity_string(source)
+        for source in source_index
+        for benchmark_name in source["benchmark_names"]
+    }
+
+
+def _assert_exact_final_source_memberships(actual):
+    assert actual == EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK
+
+
 def test_final_inventory_topology_is_exact_closed_and_target_free():
     data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
     registry_names = [entry["name"] for entry in LITERATURE_STANDARD_RESULTS]
@@ -715,32 +1051,120 @@ def test_final_inventory_topology_is_exact_closed_and_target_free():
 
 def test_final_source_identity_transition_and_memberships_are_exact():
     data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
-    final_identities = {
-        _source_identity_string(source) for source in data["source_index"]
+    expected_final_identities = set(
+        EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK.values()
+    )
+    registry_memberships = {
+        entry["name"]: canonical_source_identity(entry["source_url"])
+        for entry in LITERATURE_STANDARD_RESULTS
     }
+    source_index_memberships = _source_identity_by_benchmark(data["source_index"])
 
+    assert len(EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK) == 155
+    assert len(expected_final_identities) == 137
+    assert len(EXPECTED_PRE_TRANSITION_SOURCE_IDENTITIES) == 134
     assert len(EXPECTED_ADDED_SOURCE_IDENTITIES) == 33
     assert len(EXPECTED_REMOVED_SOURCE_IDENTITIES) == 30
     assert EXPECTED_ADDED_SOURCE_IDENTITIES.isdisjoint(
         EXPECTED_REMOVED_SOURCE_IDENTITIES
     )
-    assert EXPECTED_ADDED_SOURCE_IDENTITIES <= final_identities
-    assert EXPECTED_REMOVED_SOURCE_IDENTITIES.isdisjoint(final_identities)
+    assert (
+        expected_final_identities - EXPECTED_PRE_TRANSITION_SOURCE_IDENTITIES
+        == EXPECTED_ADDED_SOURCE_IDENTITIES
+    )
+    assert (
+        EXPECTED_PRE_TRANSITION_SOURCE_IDENTITIES - expected_final_identities
+        == EXPECTED_REMOVED_SOURCE_IDENTITIES
+    )
+    assert expected_final_identities == (
+        EXPECTED_PRE_TRANSITION_SOURCE_IDENTITIES
+        - EXPECTED_REMOVED_SOURCE_IDENTITIES
+    ) | EXPECTED_ADDED_SOURCE_IDENTITIES
+    _assert_exact_final_source_memberships(registry_memberships)
+    _assert_exact_final_source_memberships(source_index_memberships)
 
     assert len(EXPECTED_CHANGED_SOURCE_MEMBERSHIPS) == 42
-    registry_memberships = {
-        entry["name"]: canonical_source_identity(entry["source_url"])
-        for entry in LITERATURE_STANDARD_RESULTS
-        if entry["name"] in EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+    assert {
+        name: EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK[name]
+        for name in EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+    } == EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
+
+
+def test_full_source_membership_mapping_rejects_unlisted_benchmark_swap():
+    data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    left = "aklt_spin1_chain_projector_ground_state"
+    right = "alpha_rucl3_kitaev_gamma_zigzag_reference"
+    assert {left, right}.isdisjoint(EXPECTED_CHANGED_SOURCE_MEMBERSHIPS)
+    left_source = next(
+        source for source in data["source_index"] if left in source["benchmark_names"]
+    )
+    right_source = next(
+        source for source in data["source_index"] if right in source["benchmark_names"]
+    )
+    assert _source_identity_string(left_source) != _source_identity_string(right_source)
+    left_source["benchmark_names"].remove(left)
+    right_source["benchmark_names"].remove(right)
+    left_source["benchmark_names"].append(right)
+    right_source["benchmark_names"].append(left)
+
+    with pytest.raises(AssertionError):
+        _assert_exact_final_source_memberships(
+            _source_identity_by_benchmark(data["source_index"])
+        )
+
+
+_ARTIFACT_ALIAS_MUTATION_PATHS = {
+    "contracts": (("conditions",), ("observable",), ("representation",)),
+    "records": (
+        ("target_locator_strategy",),
+        ("parser_strategy",),
+        ("comparator",),
+    ),
+    "locator_inventory": (("locator_strategy",), ("target_representation",)),
+    "source_index": ((), ("canonical_identity",)),
+    "source_provisioning": (
+        (),
+        ("authoritative_retrieval_route",),
+        ("authoritative_retrieval_route", "work_identity_evidence"),
+    ),
+}
+
+
+@pytest.mark.parametrize("artifact_name", tuple(_ARTIFACT_ALIAS_MUTATION_PATHS))
+@pytest.mark.parametrize("forbidden_alias", FORBIDDEN_ARTIFACT_ALIASES)
+def test_every_artifact_rejects_every_forbidden_alias_recursively(
+    loaded_inventory, artifact_name, forbidden_alias
+):
+    data = mutable_inventory(loaded_inventory)
+    paths = _ARTIFACT_ALIAS_MUTATION_PATHS[artifact_name]
+    path = paths[FORBIDDEN_ARTIFACT_ALIASES.index(forbidden_alias) % len(paths)]
+    mutated = data[artifact_name][0]
+    for key in path:
+        mutated = mutated[key]
+    mutated[forbidden_alias] = "quality-review-leak"
+
+    with pytest.raises(
+        InventoryError,
+        match=rf"forbidden field {re.escape(forbidden_alias)}$",
+    ):
+        validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+
+def test_generated_inventory_preserves_only_legal_state_and_route_fields():
+    data = build_inventory_data(LITERATURE_STANDARD_RESULTS)
+    validated = validate_inventory(data, LITERATURE_STANDARD_RESULTS)
+
+    assert validated.records[0].record_state == "unresolved"
+    assert validated.records[0].unresolved_reason
+    assert validated.source_index[0]["canonical_identity"]["value"]
+    assert validated.source_provisioning[0]["current_availability"] == (
+        "not_acquired"
+    )
+    assert validated.source_provisioning[0]["expected_media_type"] in {
+        "application/pdf",
+        "application/xml",
+        "text/html",
     }
-    source_index_memberships = {
-        benchmark_name: _source_identity_string(source)
-        for source in data["source_index"]
-        for benchmark_name in source["benchmark_names"]
-        if benchmark_name in EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
-    }
-    assert registry_memberships == EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
-    assert source_index_memberships == EXPECTED_CHANGED_SOURCE_MEMBERSHIPS
 
 
 def test_final_special_provisioning_records_are_exact_field_by_field():

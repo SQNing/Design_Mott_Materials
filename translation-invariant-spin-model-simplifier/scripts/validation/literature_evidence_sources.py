@@ -459,6 +459,7 @@ def load_verified_source(
     if raw["schema_version"] != 1:
         raise SourceEvidenceError("unsupported provenance schema_version")
     _validate_expected_source(raw, expected_source, provisioning_route)
+    media_type = _validate_canonical_payload_contract(raw, provisioning_route)
     _validate_bibliographic_metadata(raw["bibliographic_metadata"])
     _validate_retrieval_metadata(raw["retrieval_metadata"], raw["source_identity"], provisioning_route)
     _validate_work_identity_payload(
@@ -484,12 +485,6 @@ def load_verified_source(
         raise SourceEvidenceError("payload byte length does not match provenance")
     _validate_coordinates(raw["artifact_coordinates"], len(payload))
 
-    media_type = raw["media_type"]
-    if media_type != provisioning_route.get("expected_media_type"):
-        raise SourceEvidenceError("payload media type disagrees with provisioning route")
-    expected_suffix = "." + payload_extension_for_media_type(media_type)
-    if payload_path.suffix.casefold() != expected_suffix:
-        raise SourceEvidenceError("payload extension disagrees with payload media type")
     extracted_text = _extract_text(
         payload_path, payload, media_type, raw["text_extraction"]
     )
@@ -550,6 +545,28 @@ def _validate_expected_source(raw, expected_source, provisioning_route):
         or identity.get("canonical_url") != expected_url
     ):
         raise SourceEvidenceError("source identity disagrees with canonical source index")
+
+
+def _validate_canonical_payload_contract(raw, provisioning_route):
+    media_type = raw["media_type"]
+    if media_type != provisioning_route.get("expected_media_type"):
+        raise SourceEvidenceError("payload media type disagrees with provisioning route")
+    extension = payload_extension_for_media_type(media_type)
+    canonical_filename = f"source.{extension}"
+    canonical_location = (
+        f"source-cache/{raw['source_id']}/{canonical_filename}"
+    )
+    if provisioning_route.get("local_cache_location") != canonical_location:
+        raise SourceEvidenceError(
+            "provisioning local_cache_location must be the exact canonical "
+            f"payload cache location {canonical_location}"
+        )
+    if raw.get("payload_relative_path") != canonical_filename:
+        raise SourceEvidenceError(
+            "payload_relative_path must be the exact canonical payload filename "
+            f"and extension {canonical_filename}"
+        )
+    return media_type
 
 
 def _validate_bibliographic_metadata(metadata):

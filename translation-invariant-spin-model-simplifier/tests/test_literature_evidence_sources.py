@@ -123,7 +123,7 @@ def _provenance(payload=PAYLOAD):
         "media_type": "application/xml",
         "raw_payload_sha256": hashlib.sha256(payload).hexdigest(),
         "raw_payload_byte_length": len(payload),
-        "payload_relative_path": "payload.xml",
+        "payload_relative_path": "source.xml",
         "artifact_coordinates": {
             "kind": "whole_payload",
             "start_byte": 0,
@@ -164,7 +164,7 @@ def _provisioning():
         },
         "expected_media_type": "application/xml",
         "redistributability": "unresolved",
-        "local_cache_location": f"source-cache/{SOURCE_ID}/source.pdf",
+        "local_cache_location": f"source-cache/{SOURCE_ID}/source.xml",
         "current_availability": "not_acquired",
     }
 
@@ -172,7 +172,7 @@ def _provisioning():
 def _write_source(tmp_path, provenance=None, payload=PAYLOAD):
     source_dir = tmp_path / SOURCE_ID
     source_dir.mkdir(parents=True)
-    source_dir.joinpath("payload.xml").write_bytes(payload)
+    source_dir.joinpath("source.xml").write_bytes(payload)
     source_dir.joinpath("provenance.json").write_text(
         json.dumps(provenance or _provenance(payload), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -396,7 +396,7 @@ def test_loader_rejects_empty_or_hash_mismatched_payload(tmp_path):
         )
 
     source_dir = _write_source(tmp_path / "hash", provenance=_provenance())
-    source_dir.joinpath("payload.xml").write_bytes(PAYLOAD + b"mutated")
+    source_dir.joinpath("source.xml").write_bytes(PAYLOAD + b"mutated")
     with pytest.raises(SourceEvidenceError, match="SHA-256"):
         load_verified_source(
             source_dir,
@@ -452,7 +452,7 @@ def test_pdf_loader_runs_recorded_pdftotext_version_and_finds_target(tmp_path):
     payload = _minimal_pdf("Target observable appears on PDF page one.")
     provenance = _provenance(payload)
     provenance["media_type"] = "application/pdf"
-    provenance["payload_relative_path"] = "payload.pdf"
+    provenance["payload_relative_path"] = "source.pdf"
     provenance["retrieval_metadata"]["response_headers"] = {
         "content-type": "application/pdf"
     }
@@ -464,8 +464,9 @@ def test_pdf_loader_runs_recorded_pdftotext_version_and_finds_target(tmp_path):
     }
     provisioning = _provisioning()
     provisioning["expected_media_type"] = "application/pdf"
+    provisioning["local_cache_location"] = f"source-cache/{SOURCE_ID}/source.pdf"
     source_dir = _write_source(tmp_path, provenance=provenance, payload=payload)
-    source_dir.joinpath("payload.xml").rename(source_dir / "payload.pdf")
+    source_dir.joinpath("source.xml").rename(source_dir / "source.pdf")
 
     verified = load_verified_source(
         source_dir,
@@ -483,7 +484,7 @@ def test_pdf_loader_rejects_unrecorded_extractor_version(tmp_path):
     payload = _minimal_pdf("Target observable appears on PDF page one.")
     provenance = _provenance(payload)
     provenance["media_type"] = "application/pdf"
-    provenance["payload_relative_path"] = "payload.pdf"
+    provenance["payload_relative_path"] = "source.pdf"
     provenance["retrieval_metadata"]["response_headers"] = {
         "content-type": "application/pdf"
     }
@@ -495,8 +496,9 @@ def test_pdf_loader_rejects_unrecorded_extractor_version(tmp_path):
     }
     provisioning = _provisioning()
     provisioning["expected_media_type"] = "application/pdf"
+    provisioning["local_cache_location"] = f"source-cache/{SOURCE_ID}/source.pdf"
     source_dir = _write_source(tmp_path, provenance=provenance, payload=payload)
-    source_dir.joinpath("payload.xml").rename(source_dir / "payload.pdf")
+    source_dir.joinpath("source.xml").rename(source_dir / "source.pdf")
 
     with pytest.raises(SourceEvidenceError, match="pdftotext version"):
         load_verified_source(
@@ -504,6 +506,155 @@ def test_pdf_loader_rejects_unrecorded_extractor_version(tmp_path):
             expected_source=_expected_source(),
             provisioning_route=provisioning,
             required_search_anchors=("target observable",),
+        )
+
+
+def _canonical_payload_loader_fixture(tmp_path, media_type):
+    if media_type == "application/xml":
+        return _write_source(tmp_path), _expected_source(), _provisioning()
+    if media_type == "text/html":
+        return _write_oup_html_source(tmp_path)
+    assert media_type == "application/pdf"
+    payload = _minimal_pdf("Canonical PDF payload for exact filename validation.")
+    provenance = _provenance(payload)
+    provenance["media_type"] = "application/pdf"
+    provenance["payload_relative_path"] = "source.pdf"
+    provenance["retrieval_metadata"]["response_headers"] = {
+        "content-type": "application/pdf"
+    }
+    provenance["text_extraction"] = {
+        "tool": "pdftotext",
+        "version": _pdftotext_version(),
+        "deterministic": True,
+        "arguments": ["-layout", "-enc", "UTF-8"],
+    }
+    provisioning = _provisioning()
+    provisioning["expected_media_type"] = "application/pdf"
+    provisioning["local_cache_location"] = f"source-cache/{SOURCE_ID}/source.pdf"
+    source_dir = _write_source(tmp_path, provenance=provenance, payload=payload)
+    source_dir.joinpath("source.xml").rename(source_dir / "source.pdf")
+    return source_dir, _expected_source(), provisioning
+
+
+@pytest.mark.parametrize(
+    "media_type",
+    ["application/pdf", "application/xml", "text/html"],
+)
+def test_loader_accepts_exact_canonical_payload_filename(tmp_path, media_type):
+    source_dir, source, provisioning = _canonical_payload_loader_fixture(
+        tmp_path, media_type
+    )
+
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=provisioning,
+    )
+
+    extension = evidence_sources.payload_extension_for_media_type(media_type)
+    assert verified.payload_path.name == f"source.{extension}"
+
+
+_CANONICAL_PAYLOAD_MUTATIONS = (
+    "wrong_same_extension_basename",
+    "upper_or_mixed_extension",
+    "wrong_extension",
+    "empty",
+    "none",
+    "media_and_filename",
+)
+
+
+def _mutated_media_and_filename(media_type, mutation):
+    extensions = {
+        "application/pdf": "pdf",
+        "application/xml": "xml",
+        "text/html": "html",
+    }
+    extension = extensions[media_type]
+    if mutation == "wrong_same_extension_basename":
+        return media_type, f"payload.{extension}"
+    if mutation == "upper_or_mixed_extension":
+        return media_type, f"source.{extension.upper()}"
+    if mutation == "wrong_extension":
+        wrong_extension = {"pdf": "xml", "xml": "html", "html": "pdf"}[extension]
+        return media_type, f"source.{wrong_extension}"
+    if mutation == "empty":
+        return media_type, ""
+    if mutation == "none":
+        return media_type, None
+    assert mutation == "media_and_filename"
+    wrong_media = {
+        "application/pdf": "application/xml",
+        "application/xml": "text/html",
+        "text/html": "application/pdf",
+    }[media_type]
+    return wrong_media, f"payload.{extensions[wrong_media]}"
+
+
+@pytest.mark.parametrize(
+    "media_type",
+    ["application/pdf", "application/xml", "text/html"],
+)
+@pytest.mark.parametrize("mutation", _CANONICAL_PAYLOAD_MUTATIONS)
+def test_loader_rejects_every_noncanonical_provenance_payload_filename_before_read(
+    tmp_path, media_type, mutation
+):
+    source_dir, source, provisioning = _canonical_payload_loader_fixture(
+        tmp_path, media_type
+    )
+    provenance_path = source_dir / "provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    original_name = provenance["payload_relative_path"]
+    mutated_media, mutated_name = _mutated_media_and_filename(media_type, mutation)
+    provenance["media_type"] = mutated_media
+    provenance["payload_relative_path"] = mutated_name
+    if isinstance(mutated_name, str) and mutated_name:
+        source_dir.joinpath(original_name).rename(source_dir / mutated_name)
+    provenance_path.write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        SourceEvidenceError,
+        match="canonical payload filename|payload media type disagrees",
+    ):
+        load_verified_source(
+            source_dir,
+            expected_source=source,
+            provisioning_route=provisioning,
+        )
+
+
+@pytest.mark.parametrize(
+    "media_type",
+    ["application/pdf", "application/xml", "text/html"],
+)
+@pytest.mark.parametrize("mutation", _CANONICAL_PAYLOAD_MUTATIONS)
+def test_loader_rejects_every_noncanonical_provisioning_payload_location_before_read(
+    tmp_path, media_type, mutation
+):
+    source_dir, source, provisioning = _canonical_payload_loader_fixture(
+        tmp_path, media_type
+    )
+    source_id = provisioning["source_id"]
+    mutated_media, mutated_name = _mutated_media_and_filename(media_type, mutation)
+    provisioning["expected_media_type"] = mutated_media
+    provisioning["local_cache_location"] = (
+        f"source-cache/{source_id}/{mutated_name}"
+        if isinstance(mutated_name, str) and mutated_name
+        else mutated_name
+    )
+
+    with pytest.raises(
+        SourceEvidenceError,
+        match="canonical payload cache location|payload media type disagrees",
+    ):
+        load_verified_source(
+            source_dir,
+            expected_source=source,
+            provisioning_route=provisioning,
         )
 
 
@@ -2261,6 +2412,7 @@ def _special_sidecar_cache(tmp_path, evidence_kind, *, write_sidecar=True):
         "authoritative_retrieval_route": route_spec,
         "expected_media_type": "application/pdf",
         "access_mode": "unattended",
+        "local_cache_location": f"source-cache/{source_id}/source.pdf",
     }
     descriptor = {
         "kind": evidence_kind,
@@ -4331,6 +4483,7 @@ def _write_oup_html_source(tmp_path, payload=OUP_HTML):
         "authoritative_retrieval_route": route_spec,
         "expected_media_type": "text/html",
         "access_mode": "unattended",
+        "local_cache_location": f"source-cache/{source_id}/source.html",
     }
     provenance = _provenance(payload)
     provenance.update(
@@ -6654,15 +6807,15 @@ def _round7_invalid_resume_cache(tmp_path, mutation):
     elif mutation == "identity":
         provenance["source_identity"]["value"] = "10.1234/different"
     elif mutation == "path":
-        provenance["payload_relative_path"] = "../payload.xml"
+        provenance["payload_relative_path"] = "../source.xml"
     elif mutation == "provenance":
-        source_dir.joinpath("payload.xml").write_bytes(payload)
+        source_dir.joinpath("source.xml").write_bytes(payload)
         source_dir.joinpath("provenance.json").write_bytes(b"{not-json")
         return source_dir
     elif mutation == "payload-symlink":
         target = tmp_path / "user-owned-payload.xml"
         target.write_bytes(payload)
-        source_dir.joinpath("payload.xml").symlink_to(target)
+        source_dir.joinpath("source.xml").symlink_to(target)
         source_dir.joinpath("provenance.json").write_text(
             json.dumps(provenance, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
@@ -6670,7 +6823,7 @@ def _round7_invalid_resume_cache(tmp_path, mutation):
         return source_dir
     else:
         raise AssertionError(f"unknown resume mutation {mutation}")
-    source_dir.joinpath("payload.xml").write_bytes(payload)
+    source_dir.joinpath("source.xml").write_bytes(payload)
     source_dir.joinpath("provenance.json").write_text(
         json.dumps(provenance, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -6890,6 +7043,7 @@ def _round7_signed_sidecar_roundtrip_fixture(evidence_kind):
         "authoritative_retrieval_route": route_spec,
         "expected_media_type": "application/pdf",
         "access_mode": "unattended",
+        "local_cache_location": f"source-cache/{source_id}/source.pdf",
     }
     return {
         "source": source,
@@ -8689,6 +8843,7 @@ def _round12_json_acquisition_fixture(evidence_kind):
             "authoritative_retrieval_route": route_spec,
             "expected_media_type": "application/pdf",
             "access_mode": "unattended",
+            "local_cache_location": f"source-cache/{source_id}/source.pdf",
         },
         "bibliographic": {
             "title": "Round twelve OpenAlex acquisition fixture",

@@ -17,7 +17,11 @@ from validation.literature_evidence_schema import (
     EvidenceSchemaError,
     ProvisionalEvidenceRecord,
 )
-from validation.literature_evidence_sources import authoritative_route_for_identity
+from validation.literature_evidence_sources import (
+    SourceEvidenceError,
+    authoritative_route_for_identity,
+    payload_extension_for_media_type,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -101,7 +105,36 @@ _FORBIDDEN_INVENTORY_KEYS = frozenset(
         "verdict",
     }
 )
-_FORBIDDEN_ARTIFACT_KEYS = _FORBIDDEN_INVENTORY_KEYS - {"value"}
+_FORBIDDEN_ARTIFACT_KEYS = frozenset(
+    {
+        "answer",
+        "expected_answer",
+        "excerpt",
+        "source_excerpt",
+        "target_excerpt",
+        "copied_target",
+        "target",
+        "target_value",
+        "target_observable",
+        "parsed_target",
+        "expected_value",
+        "hash",
+        "payload_hash",
+        "payload_sha256",
+        "source_hash",
+        "source_sha256",
+        "acquired",
+        "acquired_status",
+        "acquisition_status",
+        "status",
+        "pass",
+        "strict",
+        "strict_match",
+        "strict_literature_match",
+        "verdict",
+        "result",
+    }
+)
 _DOI_HOSTS = frozenset({"doi.org", "dx.doi.org"})
 _ARXIV_ID_RE = re.compile(
     r"^(?:[a-z-]+(?:\.[A-Z]{2})?/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?$",
@@ -192,17 +225,10 @@ def source_id_for_identity(identity):
 
 
 def _cache_extension_for_media_type(media_type):
-    extensions = {
-        "application/pdf": "pdf",
-        "application/xml": "xml",
-        "text/html": "html",
-    }
     try:
-        return extensions[media_type]
-    except (KeyError, TypeError) as exc:
-        raise InventoryError(
-            f"unsupported authoritative media type {media_type!r}"
-        ) from exc
+        return payload_extension_for_media_type(media_type)
+    except SourceEvidenceError as exc:
+        raise InventoryError(str(exc)) from exc
 
 
 def resolve_registry_selector(registry_entry, selector):
