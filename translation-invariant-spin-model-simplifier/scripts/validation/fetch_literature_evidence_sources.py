@@ -10,7 +10,7 @@ import re
 import ssl
 import stat
 import sys
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote, unquote_plus, urlsplit
 from urllib.request import (
     HTTPRedirectHandler,
     HTTPSHandler,
@@ -48,6 +48,9 @@ _CREDENTIAL_HEADER_NAMES = {
 _CREDENTIAL_HEADER_NAMES_CASEFOLDED = {
     name.casefold() for name in _CREDENTIAL_HEADER_NAMES
 }
+_MAX_SENSITIVE_URL_QUERY_CHARACTERS = 16 * 1024
+_SENSITIVE_QUERY_FORM_DECODE_PASSES = 2
+_HEXADECIMAL_CHARACTERS = frozenset("0123456789abcdefABCDEF")
 _INSTITUTION_NETWORK_ACCESS_MODES = {
     "challenge_or_institutional",
     "api_key_or_entitlement",
@@ -210,9 +213,74 @@ def _bounded_percent_decoded_variants(value):
     return tuple(variants)
 
 
+def _collapse_nested_percent_byte_escapes(value):
+    collapsed = []
+    index = 0
+    while index < len(value):
+        if (
+            value[index] != "%"
+            or index + 2 >= len(value)
+            or value[index + 1] not in _HEXADECIMAL_CHARACTERS
+            or value[index + 2] not in _HEXADECIMAL_CHARACTERS
+        ):
+            collapsed.append(value[index])
+            index += 1
+            continue
+
+        byte_index = index + 1
+        while (
+            byte_index + 3 < len(value)
+            and value[byte_index : byte_index + 2].casefold() == "25"
+            and value[byte_index + 2] in _HEXADECIMAL_CHARACTERS
+            and value[byte_index + 3] in _HEXADECIMAL_CHARACTERS
+        ):
+            byte_index += 2
+        collapsed.extend(("%", value[byte_index], value[byte_index + 1]))
+        index = byte_index + 2
+    return "".join(collapsed)
+
+
+def _request_url_contains_sensitive(url, sensitive_values):
+    active_sensitive_values = tuple(
+        secret
+        for secret in sensitive_values
+        if isinstance(secret, str) and secret
+    )
+    secrets = tuple(
+        variant
+        for secret in active_sensitive_values
+        for variant in _bounded_percent_decoded_variants(secret)
+    )
+    if not secrets:
+        return False
+
+    query = urlsplit(url).query
+    if len(query) > _MAX_SENSITIVE_URL_QUERY_CHARACTERS:
+        return True
+    if _contains_sensitive(url, active_sensitive_values):
+        return True
+
+    current = query
+    for _ in range(_SENSITIVE_QUERY_FORM_DECODE_PASSES):
+        decoded = unquote_plus(current, errors="replace")
+        folded = decoded.casefold()
+        if any(secret in folded for secret in secrets):
+            return True
+        if decoded == current:
+            return False
+        current = decoded
+
+    potential = unquote_plus(
+        _collapse_nested_percent_byte_escapes(current),
+        errors="replace",
+    ).replace("+", " ")
+    folded_potential = potential.casefold()
+    return any(secret in folded_potential for secret in secrets)
+
+
 def _validated_request_url(url, *, sensitive_values=()):
     _https_origin(url)
-    if _contains_sensitive(url, sensitive_values):
+    if _request_url_contains_sensitive(url, sensitive_values):
         raise SourceEvidenceError("request URL contains sensitive data")
     return url
 

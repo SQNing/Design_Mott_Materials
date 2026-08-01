@@ -9,6 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import quote_plus
 from urllib.request import Request
 
 import pytest
@@ -7305,3 +7306,304 @@ def test_round8_d_normal_response_headers_remain_available_control(monkeypatch):
         response,
         (ROUND8_HEADER_NAME_SECRET,),
     )
+
+
+ROUND9_SPACED_SECRET = "Authorization: Bearer TOKEN 42"
+ROUND9_QUERY_LIMIT = 16 * 1024
+
+
+def _round9_credential_profile():
+    return {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+                "Authorization": ROUND9_SPACED_SECRET,
+            },
+        },
+    }
+
+
+def _round9_redirect_handler():
+    return source_fetcher._CredentialRedirectHandler(
+        _round9_credential_profile()
+    )
+
+
+def _round9_initial_request():
+    return Request(
+        "https://api.elsevier.com/content/article",
+        headers={"Authorization": ROUND9_SPACED_SECRET},
+    )
+
+
+def test_round9_cross_origin_quote_plus_secret_rejected_before_request_construction(
+    monkeypatch,
+):
+    super_calls = []
+
+    def forbidden_super(*args, **kwargs):
+        super_calls.append((args, kwargs))
+        raise AssertionError("redirect Request construction was reached")
+
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        forbidden_super,
+    )
+    reflected = quote_plus(ROUND9_SPACED_SECRET, safe="")
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round9_redirect_handler().redirect_request(
+            _round9_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?ref=" + reflected,
+        )
+
+    assert super_calls == []
+    assert ROUND9_SPACED_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round9_two_redirects_stop_before_form_secret_second_request(monkeypatch):
+    issued_redirects = []
+    unsafe_intermediate = (
+        "https://attacker.invalid/intermediate?ref="
+        + quote_plus(ROUND9_SPACED_SECRET, safe="")
+    )
+
+    def opener_factory(*handlers):
+        redirect_handler = next(
+            handler
+            for handler in handlers
+            if isinstance(handler, source_fetcher._CredentialRedirectHandler)
+        )
+
+        class FixtureOpener:
+            def open(self, request, timeout):
+                first = redirect_handler.redirect_request(
+                    request,
+                    None,
+                    302,
+                    "Found",
+                    {},
+                    "https://redirect.example.invalid/safe-intermediate",
+                )
+                issued_redirects.append(first.full_url)
+                second = redirect_handler.redirect_request(
+                    first,
+                    None,
+                    302,
+                    "Found",
+                    {},
+                    unsafe_intermediate,
+                )
+                issued_redirects.append(second.full_url)
+                raise AssertionError("unsafe second redirect was issued")
+
+        return FixtureOpener()
+
+    monkeypatch.setattr(source_fetcher, "build_opener", opener_factory)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        source_fetcher._download(
+            {
+                "kind": "elsevier_article_api_xml",
+                "url": "https://api.elsevier.com/content/article",
+                "expected_media_type": "application/pdf",
+            },
+            object(),
+            credential_profile=_round9_credential_profile(),
+        )
+
+    assert issued_redirects == [
+        "https://redirect.example.invalid/safe-intermediate"
+    ]
+    assert ROUND9_SPACED_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round9_same_origin_quote_plus_secret_is_rejected():
+    reflected = quote_plus(ROUND9_SPACED_SECRET, safe="")
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round9_redirect_handler().redirect_request(
+            _round9_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://api.elsevier.com/content/article?ref=" + reflected,
+        )
+
+    assert ROUND9_SPACED_SECRET.casefold() not in str(caught.value).casefold()
+
+
+@pytest.mark.parametrize(
+    "reflected",
+    (
+        pytest.param(
+            quote_plus(ROUND9_SPACED_SECRET, safe=""),
+            id="literal-plus",
+        ),
+        pytest.param(
+            quote_plus(ROUND9_SPACED_SECRET, safe="").replace("+", "%2B"),
+            id="percent-plus",
+        ),
+        pytest.param(
+            quote_plus(ROUND9_SPACED_SECRET, safe="").replace("+", "%252B"),
+            id="double-percent-plus",
+        ),
+        pytest.param(
+            quote_plus(ROUND9_SPACED_SECRET, safe="").replace(
+                "+", "%25252B"
+            ),
+            id="deep-percent-plus",
+        ),
+        pytest.param(
+            quote_plus(ROUND9_SPACED_SECRET, safe="")
+            .replace("+", "%2B", 1)
+            .replace("+", "%252B", 1),
+            id="mixed-plus-percent-double-percent",
+        ),
+    ),
+)
+def test_round9_query_form_and_mixed_bounded_variants_are_rejected(reflected):
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round9_redirect_handler().redirect_request(
+            _round9_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?ref=" + reflected,
+        )
+
+    assert ROUND9_SPACED_SECRET.casefold() not in str(caught.value).casefold()
+
+
+@pytest.mark.parametrize(
+    "reflected",
+    (
+        pytest.param(ROUND9_SPACED_SECRET, id="raw"),
+        pytest.param(ROUND9_SPACED_SECRET.swapcase(), id="case-variant"),
+        pytest.param(
+            source_fetcher.quote(ROUND9_SPACED_SECRET, safe=""),
+            id="percent-space",
+        ),
+        pytest.param(
+            source_fetcher.quote(
+                source_fetcher.quote(ROUND9_SPACED_SECRET, safe=""),
+                safe="",
+            ),
+            id="double-percent-space",
+        ),
+    ),
+)
+def test_round9_existing_raw_case_and_percent_secret_checks_remain(reflected):
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round9_redirect_handler().redirect_request(
+            _round9_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/capture?ref=" + reflected,
+        )
+
+    assert ROUND9_SPACED_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round9_distinct_signed_query_with_common_encodings_is_allowed():
+    signed_url = (
+        "https://attacker.invalid/download"
+        "?signature=distinct+signed%2Btoken%20value%252541"
+        "&ticket=unrelated%20credential"
+    )
+
+    redirected = _round9_redirect_handler().redirect_request(
+        _round9_initial_request(),
+        None,
+        302,
+        "Found",
+        {},
+        signed_url,
+    )
+
+    assert redirected.full_url == signed_url
+    assert not _CREDENTIAL_HEADER_CASEFOLDS.intersection(
+        _header_dict(redirected)
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        pytest.param(
+            "/capture/Authorization:+Bearer+TOKEN+42",
+            id="secret-space-form-is-not-path-space",
+        ),
+        pytest.param(
+            "/files/distinct+signed+path",
+            id="unrelated-literal-plus",
+        ),
+    ),
+)
+def test_round9_literal_plus_in_path_is_not_given_form_query_semantics(path):
+    redirected = _round9_redirect_handler().redirect_request(
+        _round9_initial_request(),
+        None,
+        302,
+        "Found",
+        {},
+        "https://attacker.invalid" + path + "?signature=distinct%20value",
+    )
+
+    assert redirected.full_url.startswith("https://attacker.invalid" + path)
+    assert not _CREDENTIAL_HEADER_CASEFOLDS.intersection(
+        _header_dict(redirected)
+    )
+
+
+def test_round9_query_over_sixteen_kib_fails_closed_before_request(monkeypatch):
+    super_calls = []
+
+    def forbidden_super(*args, **kwargs):
+        super_calls.append((args, kwargs))
+        raise AssertionError("redirect Request construction was reached")
+
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        forbidden_super,
+    )
+    oversized_query = "signature=" + "x" * ROUND9_QUERY_LIMIT
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _round9_redirect_handler().redirect_request(
+            _round9_initial_request(),
+            None,
+            302,
+            "Found",
+            {},
+            "https://attacker.invalid/download?" + oversized_query,
+        )
+
+    assert super_calls == []
+    assert ROUND9_SPACED_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round9_query_at_sixteen_kib_with_distinct_signature_is_allowed():
+    query = "signature=" + "x" * (ROUND9_QUERY_LIMIT - len("signature="))
+    signed_url = "https://attacker.invalid/download?" + query
+
+    redirected = _round9_redirect_handler().redirect_request(
+        _round9_initial_request(),
+        None,
+        302,
+        "Found",
+        {},
+        signed_url,
+    )
+
+    assert redirected.full_url == signed_url
