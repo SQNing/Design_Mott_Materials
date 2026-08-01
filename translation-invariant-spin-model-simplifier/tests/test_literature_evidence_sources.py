@@ -180,6 +180,48 @@ def _write_source(tmp_path, provenance=None, payload=PAYLOAD):
     return source_dir
 
 
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        pytest.param("../source.xml", id="parent-traversal"),
+        pytest.param("nested/source.xml", id="nested-subdirectory"),
+        pytest.param("/source.xml", id="absolute-path"),
+        pytest.param(".", id="dot"),
+        pytest.param("..", id="dotdot"),
+    ),
+)
+def test_payload_path_rejects_every_nonlocal_filename(tmp_path, relative_path):
+    with pytest.raises(
+        SourceEvidenceError,
+        match=r"^payload_relative_path must name one local payload file$",
+    ):
+        evidence_sources._payload_path(tmp_path, relative_path)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        pytest.param("", id="empty"),
+        pytest.param("   ", id="whitespace"),
+        pytest.param(None, id="none"),
+        pytest.param(17, id="integer"),
+        pytest.param(["source.xml"], id="list"),
+    ),
+)
+def test_payload_path_rejects_nontext_or_empty_filename(tmp_path, relative_path):
+    with pytest.raises(
+        SourceEvidenceError,
+        match=r"^payload_relative_path must be nonempty text$",
+    ):
+        evidence_sources._payload_path(tmp_path, relative_path)
+
+
+def test_payload_path_accepts_canonical_single_local_filename(tmp_path):
+    assert evidence_sources._payload_path(tmp_path, "source.xml") == (
+        tmp_path / "source.xml"
+    )
+
+
 def _repository_fixture(
     tmp_path,
     *,
