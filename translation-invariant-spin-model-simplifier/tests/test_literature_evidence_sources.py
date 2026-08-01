@@ -7064,3 +7064,244 @@ def test_round7_f_serialized_route_identity_rejects_all_secret_bearing_forms(
             unsafe_url,
             "round7 stable route identity",
         )
+
+
+ROUND8_CLOSED_BASE_TAGS = (
+    pytest.param(b"<base>", id="no-attributes"),
+    pytest.param(b'<base id="round8-base">', id="no-href"),
+    pytest.param(b'<base target="_blank">', id="target-only"),
+    pytest.param(b"<base/>", id="self-closing"),
+    pytest.param(b"<BASE>", id="uppercase"),
+)
+
+
+@pytest.mark.parametrize("base_tag", ROUND8_CLOSED_BASE_TAGS)
+def test_round8_c_author_rejects_every_base_tag_in_closed_html_subset(base_tag):
+    page = _round7_author_page_with_head_markup(base_tag)
+
+    with pytest.raises(SourceEvidenceError, match="base|HTML|validation"):
+        _validate_author_garel_page(page)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("base_tag", ROUND8_CLOSED_BASE_TAGS)
+def test_round8_c_oup_rejects_every_base_tag_in_closed_html_subset(
+    tmp_path,
+    validation_mode,
+    base_tag,
+):
+    payload = _round7_oup_page_with_head_markup(base_tag)
+
+    with pytest.raises(SourceEvidenceError, match="base|HTML|validation"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+ROUND8_HEADER_NAME_SECRET = "Round8!HeaderTokenA9z"
+ROUND8_HEADER_SECRET_VARIANTS = (
+    pytest.param(ROUND8_HEADER_NAME_SECRET, id="raw"),
+    pytest.param(ROUND8_HEADER_NAME_SECRET.casefold(), id="casefold"),
+    pytest.param(
+        source_fetcher.quote(ROUND8_HEADER_NAME_SECRET, safe=""),
+        id="percent-encoded",
+    ),
+    pytest.param(
+        source_fetcher.quote(
+            source_fetcher.quote(ROUND8_HEADER_NAME_SECRET, safe=""),
+            safe="",
+        ),
+        id="double-percent-encoded",
+    ),
+)
+
+
+def _round8_header_credential_profile():
+    return {
+        "authorization_mode": "request_headers",
+        "request_headers_by_origin": {
+            "https://api.elsevier.com": {
+                "X-ELS-APIKey": ROUND8_HEADER_NAME_SECRET
+            }
+        },
+    }
+
+
+def _round8_download_route():
+    return {
+        "kind": "elsevier_article_api_xml",
+        "url": "https://api.elsevier.com/content/article",
+        "expected_media_type": "application/pdf",
+    }
+
+
+def _round8_install_download_response(monkeypatch, headers):
+    payload = _minimal_pdf("Round eight response-boundary fixture.")
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            response = _SignedFixtureResponse(
+                payload,
+                "https://api.elsevier.com/content/article",
+            )
+            response.headers = headers
+            return response
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    return payload
+
+
+@pytest.mark.parametrize("reflected_name", ROUND8_HEADER_SECRET_VARIANTS)
+def test_round8_d_download_fails_closed_on_secret_response_header_name(
+    monkeypatch,
+    reflected_name,
+):
+    _round8_install_download_response(
+        monkeypatch,
+        {
+            "Content-Type": "application/pdf",
+            "X-Reflected-" + reflected_name: "safe-value",
+        },
+    )
+    returned = []
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        returned.append(
+            source_fetcher._download(
+                _round8_download_route(),
+                object(),
+                credential_profile=_round8_header_credential_profile(),
+            )
+        )
+
+    assert returned == []
+    rendered = str(caught.value).casefold()
+    assert ROUND8_HEADER_NAME_SECRET.casefold() not in rendered
+    assert reflected_name.casefold() not in rendered
+
+
+@pytest.mark.parametrize("reflected_value", ROUND8_HEADER_SECRET_VARIANTS)
+def test_round8_d_download_omits_encoded_secret_header_values_from_mapping(
+    monkeypatch,
+    reflected_value,
+):
+    _round8_install_download_response(
+        monkeypatch,
+        {
+            "Content-Type": "application/pdf",
+            "ETag": "reflected-" + reflected_value,
+        },
+    )
+
+    response = source_fetcher._download(
+        _round8_download_route(),
+        object(),
+        credential_profile=_round8_header_credential_profile(),
+    )
+
+    assert "ETag" not in response["headers"]
+    assert not source_fetcher._contains_sensitive(
+        response,
+        (ROUND8_HEADER_NAME_SECRET,),
+    )
+
+
+def test_round8_d_download_response_mapping_has_recursive_secret_postcondition(
+    monkeypatch,
+):
+    _round8_install_download_response(
+        monkeypatch,
+        {"Content-Type": "application/pdf"},
+    )
+    reflected_media_type = "application/" + source_fetcher.quote(
+        source_fetcher.quote(ROUND8_HEADER_NAME_SECRET, safe=""),
+        safe="",
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_download_response",
+        lambda *args, **kwargs: reflected_media_type,
+    )
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        source_fetcher._download(
+            _round8_download_route(),
+            object(),
+            credential_profile=_round8_header_credential_profile(),
+        )
+
+    assert ROUND8_HEADER_NAME_SECRET.casefold() not in str(caught.value).casefold()
+
+
+def test_round8_d_secret_header_name_stops_fetch_before_artifact_generation(
+    tmp_path,
+    monkeypatch,
+):
+    source, route, bibliographic = _round7_provenance_fixture()
+    cache_root = tmp_path / "cache"
+    source_dir = cache_root / source["source_id"]
+    events = []
+    _round8_install_download_response(
+        monkeypatch,
+        {
+            "Content-Type": "application/pdf",
+            "X-Reflected-" + ROUND8_HEADER_NAME_SECRET.swapcase(): "safe-value",
+        },
+    )
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda ca_bundle: object())
+
+    def tracked_bibliographic(*args, **kwargs):
+        events.append("bibliographic")
+        return bibliographic
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        tracked_bibliographic,
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+        credential_profile=_round8_header_credential_profile(),
+    )
+
+    assert outcome["status"] == "failed"
+    assert events == []
+    assert not source_dir.exists()
+    assert not source_fetcher._contains_sensitive(
+        outcome,
+        (ROUND8_HEADER_NAME_SECRET,),
+    )
+
+
+def test_round8_d_normal_response_headers_remain_available_control(monkeypatch):
+    _round8_install_download_response(
+        monkeypatch,
+        {
+            "Content-Type": "application/pdf",
+            "ETag": "round8-safe-etag",
+            "Last-Modified": "Sat, 01 Aug 2026 00:00:00 GMT",
+        },
+    )
+
+    response = source_fetcher._download(
+        _round8_download_route(),
+        object(),
+        credential_profile=_round8_header_credential_profile(),
+    )
+
+    assert response["headers"] == {
+        "Content-Type": "application/pdf",
+        "ETag": "round8-safe-etag",
+        "Last-Modified": "Sat, 01 Aug 2026 00:00:00 GMT",
+    }
+    assert not source_fetcher._contains_sensitive(
+        response,
+        (ROUND8_HEADER_NAME_SECRET,),
+    )

@@ -1289,9 +1289,9 @@ class _LocalStyleElementCollector(HTMLParser):
         normalized_attributes = {
             str(name).casefold(): value for name, value in attrs
         }
-        if tag == "base" and "href" in normalized_attributes:
+        if tag == "base":
             raise SourceEvidenceError(
-                f"{self.context} must not declare an HTML base URL"
+                f"{self.context} must not declare an HTML base element"
             )
         if tag == "link" and "stylesheet" in str(
             normalized_attributes.get("rel") or ""

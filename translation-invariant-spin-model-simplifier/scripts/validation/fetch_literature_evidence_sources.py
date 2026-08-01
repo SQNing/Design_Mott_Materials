@@ -712,18 +712,24 @@ def _download(route, ssl_context, *, credential_profile=None):
         body=body,
         final_url=final_url_in_memory,
     )
-    safe_headers = {
-        key: value
-        for key, value in headers.items()
-        if not _contains_sensitive(value, credential_values)
-    }
-    return {
+    safe_headers = {}
+    for key, value in headers.items():
+        if _contains_sensitive(key, credential_values):
+            raise SourceEvidenceError(
+                "response header name contains sensitive data"
+            )
+        if not _contains_sensitive(value, credential_values):
+            safe_headers[key] = value
+    response_mapping = {
         "body": body,
         "status": status,
         "headers": safe_headers,
         "final_url": final_url,
         "media_type": media_type,
     }
+    if _contains_sensitive(response_mapping, credential_values):
+        raise SourceEvidenceError("download response contains sensitive data")
+    return response_mapping
 
 
 def _fetch_work_identity_evidence(
