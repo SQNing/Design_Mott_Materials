@@ -12719,6 +12719,112 @@ def test_task5a_first_staging_identity_failure_cleans_created_candidate(
     assert _task5a_cache_manifest(cache_root) == before
 
 
+@pytest.mark.parametrize("failure_stage", ("staging-open", "staging-fstat"))
+def test_task5a_post_mkdir_staging_allocation_failure_cleans_created_candidate(
+    tmp_path,
+    monkeypatch,
+    failure_stage,
+):
+    cache_root = tmp_path / "source-cache"
+    existing = cache_root / "existing"
+    existing.mkdir(parents=True)
+    existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before = _task5a_cache_manifest(cache_root)
+    fixture = _task5a_lifecycle_fixture()
+    real_open = os.open
+    real_fstat = os.fstat
+    staging_descriptors = set()
+    faults = []
+
+    def is_staging_name(path):
+        return Path(os.fsdecode(path)).name.startswith(
+            ".literature-evidence-staging-"
+        )
+
+    def faulting_open(path, flags, mode=0o777, *, dir_fd=None):
+        if (
+            failure_stage == "staging-open"
+            and not faults
+            and dir_fd is not None
+            and is_staging_name(path)
+            and flags & os.O_DIRECTORY
+        ):
+            faults.append("staging-open")
+            raise OSError(errno.EIO, os.strerror(errno.EIO), path)
+        descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+        if (
+            dir_fd is not None
+            and is_staging_name(path)
+            and flags & os.O_DIRECTORY
+        ):
+            staging_descriptors.add(descriptor)
+        return descriptor
+
+    def faulting_fstat(descriptor):
+        if (
+            failure_stage == "staging-fstat"
+            and not faults
+            and descriptor in staging_descriptors
+        ):
+            faults.append("staging-fstat")
+            raise OSError(errno.EIO, os.strerror(errno.EIO), descriptor)
+        return real_fstat(descriptor)
+
+    monkeypatch.setattr(os, "open", faulting_open)
+    monkeypatch.setattr(os, "fstat", faulting_fstat)
+    target, outcome = _task5a_run_lifecycle(cache_root, monkeypatch, fixture)
+
+    assert faults == [failure_stage]
+    assert outcome["status"] == "failed", outcome
+    assert os.strerror(errno.EIO) in outcome["detail"]
+    assert not os.path.lexists(target)
+    assert not any(cache_root.glob(".literature-evidence-staging-*"))
+    assert _task5a_cache_manifest(cache_root) == before
+
+
+def test_task5a_cleanup_rejects_nested_child_replacement_before_traversal(
+    tmp_path,
+    monkeypatch,
+):
+    candidate = tmp_path / "owned-candidate"
+    owned_child = candidate / "nested-child"
+    owned_child.mkdir(parents=True)
+    owned_child.joinpath("owned-sentinel").write_bytes(b"OWNED")
+    displaced_child = tmp_path / "displaced-owned-child"
+    foreign_child = tmp_path / "foreign-child"
+    foreign_child.mkdir()
+    foreign_child.joinpath("foreign-sentinel").write_bytes(b"FOREIGN")
+    directory_fd = os.open(
+        candidate,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+    )
+    real_open = os.open
+    swaps = []
+
+    def swapping_open(path, flags, mode=0o777, *, dir_fd=None):
+        if (
+            not swaps
+            and dir_fd == directory_fd
+            and os.fsdecode(path) == owned_child.name
+            and flags & os.O_DIRECTORY
+        ):
+            owned_child.rename(displaced_child)
+            foreign_child.rename(owned_child)
+            swaps.append(owned_child)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", swapping_open)
+    try:
+        with pytest.raises(SourceEvidenceError, match="staging child changed"):
+            source_fetcher._remove_directory_contents_fd(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+    assert swaps == [owned_child]
+    assert owned_child.joinpath("foreign-sentinel").read_bytes() == b"FOREIGN"
+    assert displaced_child.joinpath("owned-sentinel").read_bytes() == b"OWNED"
+
+
 def test_task5a_cache_root_swap_after_real_directory_check_is_fail_closed(
     tmp_path,
     monkeypatch,
@@ -12838,7 +12944,8 @@ def test_task5a_cleanup_does_not_traverse_same_name_foreign_replacement(
     foreign.mkdir()
     foreign.joinpath("sentinel").write_bytes(b"FOREIGN")
     displaced = tmp_path / "owned-cleanup-directory"
-    real_rmtree = source_fetcher.shutil.rmtree
+    source_shutil = getattr(source_fetcher, "shutil", None)
+    real_rmtree = source_shutil.rmtree if source_shutil is not None else None
     real_unlink = os.unlink
     swaps = []
 
@@ -12857,7 +12964,8 @@ def test_task5a_cleanup_does_not_traverse_same_name_foreign_replacement(
         swap_replacement()
         return real_unlink(path, *args, **kwargs)
 
-    monkeypatch.setattr(source_fetcher.shutil, "rmtree", swapping_rmtree)
+    if source_shutil is not None:
+        monkeypatch.setattr(source_shutil, "rmtree", swapping_rmtree)
     monkeypatch.setattr(os, "unlink", swapping_unlink)
     outcome = source_fetcher._fetch_source(
         cache_root,
@@ -13052,6 +13160,152 @@ def test_task5a_cleanup_failure_preserves_primary_exception_and_existing_chain(
     assert sum(error is cleanup for error in cleanup_errors) == 1
     assert not os.path.lexists(target)
     assert not any(cache_root.glob(".literature-evidence-staging-*"))
+
+
+def _task5a_install_directory_close_fault(monkeypatch, cache_root):
+    cache_root = Path(os.path.abspath(cache_root))
+    real_open = os.open
+    real_close = os.close
+    real_fstat = os.fstat
+    close_error = OSError(errno.EIO, "injected directory close failure")
+    state = {
+        "root_fd": None,
+        "staging_fd": None,
+        "close_attempts": [],
+        "close_errors": [],
+    }
+
+    def recording_open(path, flags, mode=0o777, *, dir_fd=None):
+        descriptor = real_open(path, flags, mode, dir_fd=dir_fd)
+        rendered = Path(os.fsdecode(path))
+        if flags & os.O_DIRECTORY:
+            if dir_fd is None and Path(os.path.abspath(rendered)) == cache_root:
+                state["root_fd"] = descriptor
+            elif (
+                dir_fd == state["root_fd"]
+                and rendered.name.startswith(".literature-evidence-staging-")
+            ):
+                state["staging_fd"] = descriptor
+        return descriptor
+
+    def faulting_close(descriptor):
+        if descriptor == state["staging_fd"]:
+            state["close_attempts"].append("staging")
+            if not state["close_errors"]:
+                state["close_errors"].append(close_error)
+                raise close_error
+        elif descriptor == state["root_fd"]:
+            state["close_attempts"].append("root")
+        return real_close(descriptor)
+
+    def reap_injected_descriptors():
+        for key in ("staging_fd", "root_fd"):
+            descriptor = state[key]
+            if descriptor is None:
+                continue
+            try:
+                real_fstat(descriptor)
+            except OSError as error:
+                if error.errno != errno.EBADF:
+                    raise
+            else:
+                real_close(descriptor)
+
+    monkeypatch.setattr(os, "open", recording_open)
+    monkeypatch.setattr(os, "close", faulting_close)
+    return state, close_error, reap_injected_descriptors
+
+
+def test_task5a_prepublication_close_failure_preserves_primary_and_closes_all_fds(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _task5a_lifecycle_fixture()
+    cache_root = tmp_path / "source-cache"
+    target = cache_root / fixture["source"]["source_id"]
+    primary = SourceEvidenceError("injected pre-publication primary")
+    prior_cause = RuntimeError("preexisting close-test cause")
+    prior_context = RuntimeError("preexisting close-test context")
+    primary.__cause__ = prior_cause
+    primary.__context__ = prior_context
+    real_write = source_fetcher._exclusive_write_bytes
+
+    def fail_primary_write(path, payload):
+        if Path(path).name == "source.pdf":
+            raise primary
+        return real_write(path, payload)
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_exclusive_write_bytes",
+        fail_primary_write,
+    )
+    state, close_error, reap = _task5a_install_directory_close_fault(
+        monkeypatch,
+        cache_root,
+    )
+    try:
+        with pytest.raises(SourceEvidenceError) as raised:
+            source_fetcher._install_verified_cache_candidate(
+                cache_root,
+                target,
+                **_task5a_install_arguments(fixture),
+            )
+    finally:
+        reap()
+
+    assert raised.value is primary
+    assert primary.__cause__ is prior_cause
+    assert primary.__context__ is prior_context
+    cleanup_errors = getattr(primary, "cache_cleanup_errors", ())
+    assert sum(error is close_error for error in cleanup_errors) == 1
+    assert state["close_attempts"] == ["staging", "root"]
+    assert not os.path.lexists(target)
+    assert not any(cache_root.glob(".literature-evidence-staging-*"))
+
+
+def test_task5a_postpublication_close_failure_keeps_acquired_outcome(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    existing = cache_root / "existing"
+    existing.mkdir(parents=True)
+    existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    fixture = _task5a_lifecycle_fixture()
+    events = []
+    target = cache_root / fixture["source"]["source_id"]
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+        target=target,
+        target_visibility=[],
+    )
+    state, close_error, reap = _task5a_install_directory_close_fault(
+        monkeypatch,
+        cache_root,
+    )
+    try:
+        outcome = source_fetcher._fetch_source(
+            cache_root,
+            fixture["source"],
+            fixture["route"],
+            ca_bundle=Path("/unused"),
+            resume=False,
+        )
+    finally:
+        reap()
+
+    assert state["close_errors"] == [close_error]
+    assert state["close_attempts"] == ["staging", "root"]
+    assert outcome["status"] == "acquired", outcome
+    assert target.is_dir() and not target.is_symlink()
+    _task5a_assert_complete_hal_candidate(target, fixture)
+    assert {path.name for path in cache_root.iterdir()} == {
+        "existing",
+        fixture["source"]["source_id"],
+    }
 
 
 def _task5a_crossref_document(doi=TASK5A_GAREL_IDENTITY["value"]):
