@@ -9748,13 +9748,13 @@ def _task5a_assert_strace_single_directory_publication(records, cache_root, targ
 
     publication_line = publication["line_number"]
     for record in records:
-        if record["line_number"] >= publication_line or not record["success"]:
+        if record is publication or not record["success"]:
             continue
         for mutated_path in _task5a_strace_mutated_paths(record):
             assert not _task5a_path_is_target_or_descendant(
                 mutated_path,
                 target,
-            ), "successful target mutation occurred before publication"
+            ), "successful target mutation occurred outside atomic publication"
     return staging.name, publication_line
 
 
@@ -10194,8 +10194,10 @@ def test_task5a_strace_oracle_rejects_non_noreplace_publication_primitives(
     "mutation_kind",
     ("link", "symlink", "unlink", "rmdir", "truncate-open", "chmod"),
 )
-def test_task5a_strace_oracle_rejects_each_successful_prepublication_target_mutation(
+@pytest.mark.parametrize("mutation_timing", ("before", "after"))
+def test_task5a_strace_oracle_rejects_each_successful_target_mutation_outside_publication(
     mutation_kind,
+    mutation_timing,
 ):
     cache_root = Path("/tmp/task5a-parser-control/source-cache")
     staging = cache_root / ".task5a-observer-control"
@@ -10212,17 +10214,20 @@ def test_task5a_strace_oracle_rejects_each_successful_prepublication_target_muta
         ),
         "chmod": f'417 chmod("{target_child}", 0600) = 0',
     }
-    payload = "\n".join(
-        (
-            mutation_calls[mutation_kind],
-            f'417 renameat2(AT_FDCWD, "{staging}", AT_FDCWD, '
-            f'"{target}", RENAME_NOREPLACE) = 0',
-        )
+    publication_call = (
+        f'417 renameat2(AT_FDCWD, "{staging}", AT_FDCWD, '
+        f'"{target}", RENAME_NOREPLACE) = 0'
     )
+    ordered_calls = (
+        (mutation_calls[mutation_kind], publication_call)
+        if mutation_timing == "before"
+        else (publication_call, mutation_calls[mutation_kind])
+    )
+    payload = "\n".join(ordered_calls)
 
     with pytest.raises(
         AssertionError,
-        match="successful target mutation occurred before publication",
+        match="successful target mutation occurred outside atomic publication",
     ):
         _task5a_assert_strace_single_directory_publication(
             _task5a_parse_strace_payload(payload),
@@ -10679,6 +10684,7 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     events = []
     target_visibility = []
     replayed = []
+    replayed_candidates = []
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
         fixture,
@@ -10689,12 +10695,11 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     real_loader = source_fetcher.load_verified_source
 
     def replay_candidate(candidate, **kwargs):
-        candidate = Path(candidate)
+        candidate = Path(os.path.abspath(candidate))
         events.append("offline-replay-enter")
         target_visible_before_replay = target.exists() or target.is_symlink()
         _task5a_assert_complete_hal_candidate(candidate, fixture)
         verified = real_loader(candidate, **kwargs)
-        events.append("offline-replay-complete")
         assert candidate != target
         assert candidate.parent == cache_root
         assert target_visible_before_replay is False
@@ -10703,6 +10708,19 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
         assert candidate.joinpath("work-identity.json").is_file()
         assert candidate.joinpath("work-identity.provenance.json").is_file()
         assert not target.exists() and not target.is_symlink()
+        candidate_status = candidate.lstat()
+        replayed_candidates.append(
+            {
+                "path": candidate,
+                "directory_identity": (
+                    candidate_status.st_dev,
+                    candidate_status.st_ino,
+                ),
+                "root_mode": candidate_status.st_mode,
+                "manifest": _task5a_cache_manifest(candidate),
+            }
+        )
+        events.append("offline-replay-complete")
         replayed.append(verified)
         return verified
 
@@ -10739,6 +10757,7 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
         "offline-replay-complete",
     )
     assert len(replayed) == 1
+    assert len(replayed_candidates) == 1
     assert replayed[0].source_id == source["source_id"]
     assert not any(visible for _event, visible in target_visibility)
     if visibility_observation is not None:
@@ -10756,12 +10775,35 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
         )
     )
     assert publication_proof != 0
+    replayed_candidate = replayed_candidates[0]
+    publication_record = next(
+        record
+        for record in publication_observation["records"]
+        if record["line_number"] == publication_proof
+    )
+    publication_source, publication_target = _task5a_strace_rename_paths(
+        publication_record
+    )
+    if publication_source != replayed_candidate["path"]:
+        pytest.fail("published directory was not the replay-validated candidate")
+    if publication_target != target:
+        pytest.fail("validated candidate was published to an unexpected target")
     if visibility_observation is not None:
         assert visible_staging_name == staging_name
         assert visibility_cookie != 0
     assert staging_name != foreign_staging.name
     assert not os.path.lexists(cache_root / staging_name)
+    assert not os.path.lexists(replayed_candidate["path"])
     assert target.is_dir() and not target.is_symlink()
+    target_status = target.lstat()
+    if (target_status.st_dev, target_status.st_ino) != replayed_candidate[
+        "directory_identity"
+    ]:
+        pytest.fail("published target is not the replay-validated directory object")
+    if target_status.st_mode != replayed_candidate["root_mode"]:
+        pytest.fail("published target root mode changed after offline replay")
+    if _task5a_cache_manifest(target) != replayed_candidate["manifest"]:
+        pytest.fail("published target differs from the replay-validated candidate")
     assert {path.name for path in cache_root.iterdir()} == {
         ".foreign-operation-staging",
         "preexisting_source",
