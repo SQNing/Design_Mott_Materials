@@ -59,6 +59,7 @@ _HAL_GAREL_QUERY_PAIRS = (
     ("start", "0"),
     ("wt", "json"),
 )
+_RENAME_NOREPLACE = 1
 _CREDENTIAL_HEADER_NAMES = {
     "Cookie",
     "Authorization",
@@ -584,6 +585,13 @@ class _CredentialRedirectHandler(HTTPRedirectHandler):
         return redirected
 
 
+class _HALNoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise SourceEvidenceError(
+            "HAL work identity evidence redirect rejected"
+        )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     selection = parser.add_mutually_exclusive_group(required=True)
@@ -786,9 +794,166 @@ def _serialized_json_bytes(document):
     return (rendered + "\n").encode("utf-8")
 
 
+class _AnchoredStagingPath:
+    def __init__(self, path, directory_fd):
+        self.path = Path(path)
+        self.directory_fd = directory_fd
+
+    def __fspath__(self):
+        return os.fspath(self.path)
+
+
+class _OwnedStagingDirectory:
+    def __init__(
+        self,
+        *,
+        cache_root,
+        root_fd,
+        root_identity,
+        name,
+        staging_fd,
+        staging_identity,
+    ):
+        self.cache_root = Path(cache_root)
+        self.root_fd = root_fd
+        self.root_identity = root_identity
+        self.name = name
+        self.path = self.cache_root / name
+        self.staging_fd = staging_fd
+        self.staging_identity = staging_identity
+        self.owned = True
+
+    def __fspath__(self):
+        return os.fspath(self.path)
+
+    def destination(self, name):
+        return _AnchoredStagingPath(self.path / name, self.staging_fd)
+
+    def close(self):
+        for attribute in ("staging_fd", "root_fd"):
+            descriptor = getattr(self, attribute)
+            if descriptor is not None:
+                os.close(descriptor)
+                setattr(self, attribute, None)
+
+
 def _exclusive_write_bytes(path, payload):
-    with Path(path).open("xb") as handle:
-        handle.write(payload)
+    directory_fd = getattr(path, "directory_fd", None)
+    if directory_fd is None:
+        with Path(path).open("xb") as handle:
+            handle.write(payload)
+        return
+    descriptor = os.open(
+        Path(path).name,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+        0o666,
+        dir_fd=directory_fd,
+    )
+    try:
+        with os.fdopen(descriptor, "wb", closefd=False) as handle:
+            handle.write(payload)
+    finally:
+        os.close(descriptor)
+
+
+def _directory_identity(status):
+    return status.st_dev, status.st_ino
+
+
+def _require_real_directory(status, message):
+    if not stat.S_ISDIR(status.st_mode) or stat.S_ISLNK(status.st_mode):
+        raise SourceEvidenceError(message)
+
+
+def _revalidate_cache_root(staging):
+    descriptor_status = os.fstat(staging.root_fd)
+    _require_real_directory(
+        descriptor_status,
+        "source cache root directory descriptor changed",
+    )
+    if _directory_identity(descriptor_status) != staging.root_identity:
+        raise SourceEvidenceError(
+            "source cache root directory descriptor changed"
+        )
+    try:
+        path_status = os.stat(staging.cache_root, follow_symlinks=False)
+    except OSError as exc:
+        raise SourceEvidenceError(
+            f"source cache root pathname changed: {exc}"
+        ) from exc
+    _require_real_directory(
+        path_status,
+        "source cache root pathname changed",
+    )
+    if _directory_identity(path_status) != staging.root_identity:
+        raise SourceEvidenceError("source cache root pathname changed")
+
+
+def _revalidate_owned_staging_directory(staging):
+    _revalidate_cache_root(staging)
+    descriptor_status = os.fstat(staging.staging_fd)
+    _require_real_directory(
+        descriptor_status,
+        "invocation-owned staging directory changed",
+    )
+    if _directory_identity(descriptor_status) != staging.staging_identity:
+        raise SourceEvidenceError(
+            "invocation-owned staging directory changed"
+        )
+    try:
+        name_status = os.stat(
+            staging.name,
+            dir_fd=staging.root_fd,
+            follow_symlinks=False,
+        )
+    except OSError as exc:
+        raise SourceEvidenceError(
+            f"invocation-owned staging directory changed: {exc}"
+        ) from exc
+    _require_real_directory(
+        name_status,
+        "invocation-owned staging directory changed",
+    )
+    if _directory_identity(name_status) != staging.staging_identity:
+        raise SourceEvidenceError(
+            "invocation-owned staging directory changed"
+        )
+
+
+def _remove_directory_contents_fd(directory_fd):
+    with os.scandir(directory_fd) as entries:
+        names = [
+            (entry.name, entry.is_dir(follow_symlinks=False))
+            for entry in entries
+        ]
+    for name, is_directory in names:
+        if not is_directory:
+            os.unlink(name, dir_fd=directory_fd)
+            continue
+        child_fd = os.open(
+            name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=directory_fd,
+        )
+        try:
+            child_identity = _directory_identity(os.fstat(child_fd))
+            _remove_directory_contents_fd(child_fd)
+            child_status = os.stat(
+                name,
+                dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+            if (
+                not stat.S_ISDIR(child_status.st_mode)
+                or stat.S_ISLNK(child_status.st_mode)
+                or _directory_identity(child_status) != child_identity
+            ):
+                raise SourceEvidenceError(
+                    "invocation-owned staging child changed before cleanup"
+                )
+            os.rmdir(name, dir_fd=directory_fd)
+        finally:
+            os.close(child_fd)
 
 
 def _owned_staging_directory(cache_root):
@@ -803,29 +968,78 @@ def _owned_staging_directory(cache_root):
             )
     else:
         cache_root.mkdir(parents=True, exist_ok=False)
-    staging = Path(
-        tempfile.mkdtemp(
-            prefix=".literature-evidence-staging-",
-            dir=cache_root,
+    root_fd = None
+    staging_fd = None
+    staging = None
+    try:
+        root_fd = os.open(
+            cache_root,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
         )
-    )
-    status = staging.lstat()
-    return staging, (status.st_dev, status.st_ino)
+        descriptor_status = os.fstat(root_fd)
+        _require_real_directory(
+            descriptor_status,
+            "source cache root must be a real directory",
+        )
+        root_identity = _directory_identity(descriptor_status)
+        path_status = os.stat(cache_root, follow_symlinks=False)
+        _require_real_directory(
+            path_status,
+            "source cache root must be a real directory",
+        )
+        if _directory_identity(path_status) != root_identity:
+            raise SourceEvidenceError("source cache root pathname changed")
+        for candidate in tempfile._get_candidate_names():
+            name = ".literature-evidence-staging-" + candidate
+            try:
+                os.mkdir(name, mode=0o700, dir_fd=root_fd)
+            except FileExistsError:
+                continue
+            break
+        else:
+            raise SourceEvidenceError(
+                "could not allocate invocation-owned staging directory"
+            )
+        staging_fd = os.open(
+            name,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=root_fd,
+        )
+        staging_identity = _directory_identity(os.fstat(staging_fd))
+        staging = _OwnedStagingDirectory(
+            cache_root=cache_root,
+            root_fd=root_fd,
+            root_identity=root_identity,
+            name=name,
+            staging_fd=staging_fd,
+            staging_identity=staging_identity,
+        )
+        _revalidate_owned_staging_directory(staging)
+        return staging
+    except BaseException as primary_error:
+        if staging is not None:
+            try:
+                _remove_owned_staging_directory(staging)
+            except BaseException as cleanup_error:
+                _attach_cleanup_error(primary_error, cleanup_error)
+            finally:
+                staging.close()
+        else:
+            if staging_fd is not None:
+                os.close(staging_fd)
+            if root_fd is not None:
+                os.close(root_fd)
+        raise
 
 
-def _remove_owned_staging_directory(staging, directory_identity):
-    if not os.path.lexists(staging):
+def _remove_owned_staging_directory(staging, directory_identity=None):
+    if not staging.owned:
         return
-    status = staging.lstat()
-    if (
-        not stat.S_ISDIR(status.st_mode)
-        or stat.S_ISLNK(status.st_mode)
-        or (status.st_dev, status.st_ino) != directory_identity
-    ):
-        raise SourceEvidenceError(
-            "invocation-owned staging directory changed before cleanup"
-        )
-    shutil.rmtree(staging)
+    _revalidate_owned_staging_directory(staging)
+    _remove_directory_contents_fd(staging.staging_fd)
+    _revalidate_owned_staging_directory(staging)
+    os.rmdir(staging.name, dir_fd=staging.root_fd)
+    staging.owned = False
 
 
 def _publish_directory_noreplace(staging, target):
@@ -835,14 +1049,16 @@ def _publish_directory_noreplace(staging, target):
         )
     libc = ctypes.CDLL(None, use_errno=True)
     renameat2 = getattr(libc, "renameat2", None)
+    target = Path(target)
+    if target.parent != staging.cache_root or target.name in {"", ".", ".."}:
+        raise SourceEvidenceError("cache publication target is invalid")
     arguments = (
-        -100,
-        os.fsencode(staging),
-        -100,
-        os.fsencode(target),
-        1,
+        staging.root_fd,
+        os.fsencode(staging.name),
+        staging.root_fd,
+        os.fsencode(target.name),
+        _RENAME_NOREPLACE,
     )
-    ctypes.set_errno(0)
     if renameat2 is not None:
         renameat2.argtypes = [
             ctypes.c_int,
@@ -852,6 +1068,8 @@ def _publish_directory_noreplace(staging, target):
             ctypes.c_uint,
         ]
         renameat2.restype = ctypes.c_int
+        _revalidate_owned_staging_directory(staging)
+        ctypes.set_errno(0)
         result = renameat2(*arguments)
     else:
         syscall_number = {
@@ -864,8 +1082,11 @@ def _publish_directory_noreplace(staging, target):
                 "Linux renameat2 no-replace publication is unavailable"
             )
         syscall.restype = ctypes.c_long
+        _revalidate_owned_staging_directory(staging)
+        ctypes.set_errno(0)
         result = syscall(syscall_number, *arguments)
     if result == 0:
+        staging.owned = False
         return
     error_number = ctypes.get_errno()
     if error_number in {errno.EEXIST, errno.ENOTEMPTY}:
@@ -888,25 +1109,69 @@ def _install_verified_cache_candidate(
     evidence,
 ):
     staging = None
-    directory_identity = None
+    primary_error = None
     try:
-        staging, directory_identity = _owned_staging_directory(cache_root)
-        _exclusive_write_bytes(staging / payload_name, payload)
+        staging = _owned_staging_directory(cache_root)
+        _exclusive_write_bytes(staging.destination(payload_name), payload)
         _exclusive_write_bytes(
-            staging / "provenance.json",
+            staging.destination("provenance.json"),
             provenance_payload,
         )
         if evidence is not None:
-            _write_work_identity_sidecars(staging, evidence)
+            _exclusive_write_bytes(
+                staging.destination(
+                    evidence["descriptor"]["payload_relative_path"]
+                ),
+                evidence["payload"],
+            )
+            _exclusive_write_bytes(
+                staging.destination("work-identity.provenance.json"),
+                _serialized_json_bytes(evidence["descriptor"]),
+            )
+        _revalidate_owned_staging_directory(staging)
         load_verified_source(
-            staging,
+            staging.path,
             expected_source=source,
             provisioning_route=route,
         )
+        _revalidate_owned_staging_directory(staging)
         _publish_directory_noreplace(staging, source_dir)
+    except BaseException as exc:
+        primary_error = exc
+        raise
     finally:
-        if staging is not None and directory_identity is not None:
-            _remove_owned_staging_directory(staging, directory_identity)
+        if staging is not None:
+            try:
+                if staging.owned:
+                    _remove_owned_staging_directory(staging)
+            except BaseException as cleanup_error:
+                if primary_error is None:
+                    raise
+                _attach_cleanup_error(primary_error, cleanup_error)
+            finally:
+                staging.close()
+
+
+def _exception_identity_graph(error):
+    pending = [error]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        pending.extend((current.__cause__, current.__context__))
+        pending.extend(getattr(current, "cache_cleanup_errors", ()))
+    return seen
+
+
+def _attach_cleanup_error(primary_error, cleanup_error):
+    if id(cleanup_error) in _exception_identity_graph(primary_error):
+        return
+    retained = list(getattr(primary_error, "cache_cleanup_errors", ()))
+    if not any(error is cleanup_error for error in retained):
+        retained.append(cleanup_error)
+    primary_error.cache_cleanup_errors = tuple(retained)
 
 
 def _verify_cached_source(cache_root, source, route):
@@ -1021,9 +1286,14 @@ def _fetch_work_identity_evidence(
         request_url,
         headers={"Accept": media_type, "User-Agent": USER_AGENT},
     )
+    redirect_handler = (
+        _HALNoRedirectHandler()
+        if evidence_route["kind"] == "hal_same_work_bibliographic_payload"
+        else _CredentialRedirectHandler(None)
+    )
     opener = build_opener(
         HTTPSHandler(context=ssl_context),
-        _CredentialRedirectHandler(None),
+        redirect_handler,
     )
     with opener.open(request, timeout=30) as response:
         payload = response.read()
@@ -1127,7 +1397,10 @@ def _crossref_metadata(doi, ssl_context):
     url = f"https://api.crossref.org/works/{quote(doi, safe='')}"
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     with urlopen(request, context=ssl_context, timeout=30) as response:
-        document = json.loads(response.read().decode("utf-8"))
+        document = _load_json_bytes(
+            response.read(),
+            context="Crossref metadata JSON",
+        )
     message = document.get("message", {})
     if str(message.get("DOI", "")).lower() != doi.lower():
         raise SourceEvidenceError("Crossref DOI metadata disagrees with source identity")

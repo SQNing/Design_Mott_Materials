@@ -883,6 +883,13 @@ def _validate_work_identity_payload(
                 "work identity sidecar provenance has invalid fields"
             )
         sidecar_route_reference = stored
+    if (
+        descriptor.get("kind") == _HAL_GAREL_EVIDENCE_KIND
+        and "media_type" not in descriptor
+    ):
+        raise SourceEvidenceError(
+            "HAL work identity sidecar provenance missing media_type"
+        )
     _validate_serialized_https_url(
         descriptor.get("url"), "work identity sidecar URL"
     )
