@@ -1,13 +1,20 @@
+import builtins
 from collections import Counter
 import copy
+import ctypes
+import errno
 import hashlib
+import io
 import json
 import os
 import random
 import re
+import signal
 import socket
+import struct
 import subprocess
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import quote_plus, unquote_plus, urlencode
@@ -9239,6 +9246,439 @@ def _task5a_cache_manifest(cache_root):
     return tuple(manifest)
 
 
+TASK5A_IN_CREATE = 0x00000100
+TASK5A_IN_DELETE = 0x00000200
+TASK5A_IN_MOVED_FROM = 0x00000040
+TASK5A_IN_MOVED_TO = 0x00000080
+TASK5A_IN_ISDIR = 0x40000000
+TASK5A_INOTIFY_EVENT = struct.Struct("iIII")
+
+
+def _task5a_parse_inotify_payload(payload):
+    events = []
+    offset = 0
+    while offset < len(payload):
+        assert offset + TASK5A_INOTIFY_EVENT.size <= len(payload)
+        wd, mask, cookie, name_length = TASK5A_INOTIFY_EVENT.unpack_from(
+            payload,
+            offset,
+        )
+        offset += TASK5A_INOTIFY_EVENT.size
+        name_end = offset + name_length
+        assert name_end <= len(payload)
+        name_bytes = bytes(payload[offset:name_end]).split(b"\0", 1)[0]
+        offset = name_end
+        events.append(
+            {
+                "wd": wd,
+                "mask": mask,
+                "cookie": cookie,
+                "name": os.fsdecode(name_bytes),
+            }
+        )
+    assert offset == len(payload)
+    return events
+
+
+class _Task5AInotifyWatch:
+    def __init__(self, root):
+        self.root = Path(root)
+        self.libc = ctypes.CDLL(None, use_errno=True)
+        self.libc.inotify_init1.argtypes = [ctypes.c_int]
+        self.libc.inotify_init1.restype = ctypes.c_int
+        self.libc.inotify_add_watch.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint32,
+        ]
+        self.libc.inotify_add_watch.restype = ctypes.c_int
+        self.libc.inotify_rm_watch.argtypes = [ctypes.c_int, ctypes.c_int]
+        self.libc.inotify_rm_watch.restype = ctypes.c_int
+        self.fd = self.libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
+        if self.fd < 0:
+            error = ctypes.get_errno()
+            raise OSError(error, os.strerror(error))
+        mask = (
+            TASK5A_IN_CREATE
+            | TASK5A_IN_DELETE
+            | TASK5A_IN_MOVED_FROM
+            | TASK5A_IN_MOVED_TO
+        )
+        self.wd = self.libc.inotify_add_watch(
+            self.fd,
+            os.fsencode(self.root),
+            mask,
+        )
+        if self.wd < 0:
+            error = ctypes.get_errno()
+            os.close(self.fd)
+            self.fd = -1
+            raise OSError(error, os.strerror(error), self.root)
+
+    def read_events(self):
+        payload = bytearray()
+        while True:
+            try:
+                chunk = os.read(self.fd, 64 * 1024)
+            except BlockingIOError:
+                break
+            if not chunk:
+                break
+            payload.extend(chunk)
+        return _task5a_parse_inotify_payload(payload)
+
+    def finish(self):
+        events = self.read_events()
+        self.close()
+        return {"backend": "inotify", "events": events}
+
+    def close(self):
+        if self.fd < 0:
+            return
+        result = self.libc.inotify_rm_watch(self.fd, self.wd)
+        if result < 0:
+            error = ctypes.get_errno()
+            if error != errno.EINVAL:
+                os.close(self.fd)
+                self.fd = -1
+                raise OSError(error, os.strerror(error), self.root)
+        os.close(self.fd)
+        self.fd = -1
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.close()
+
+
+TASK5A_STRACE_SYSCALLS = (
+    "rename,renameat,renameat2,mkdir,mkdirat,open,openat,unlink,unlinkat,"
+    "rmdir,symlink,symlinkat,link,linkat"
+)
+TASK5A_STRACE_CALL = re.compile(
+    r"^(?:(?:\[pid\s+\d+\]|\d+)\s+)?"
+    r"(?P<operation>rename|renameat|renameat2|mkdir|mkdirat|open|openat|"
+    r"unlink|unlinkat|rmdir|symlink|symlinkat|link|linkat)"
+    r"\((?P<arguments>.*)\)\s+=\s+(?P<result>-?\d+)(?:\s|$)"
+)
+TASK5A_STRACE_QUOTED_PATH = re.compile(r'"(?:\\.|[^"\\])*"')
+
+
+def _task5a_parse_strace_payload(payload):
+    records = []
+    for line_number, line in enumerate(payload.splitlines(), start=1):
+        match = TASK5A_STRACE_CALL.match(line.strip())
+        if match is None:
+            continue
+        arguments = match.group("arguments")
+        paths = tuple(
+            Path(json.loads(token))
+            for token in TASK5A_STRACE_QUOTED_PATH.findall(arguments)
+        )
+        result = int(match.group("result"))
+        records.append(
+            {
+                "line_number": line_number,
+                "operation": match.group("operation"),
+                "arguments": arguments,
+                "paths": paths,
+                "result": result,
+                "success": result >= 0,
+                "line": line,
+            }
+        )
+    return records
+
+
+def _task5a_tracer_pid():
+    for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+        if line.startswith("TracerPid:"):
+            return int(line.split(":", 1)[1].strip())
+    raise AssertionError("/proc/self/status omitted TracerPid")
+
+
+class _Task5AStraceWatch:
+    def __init__(self, root, trace_path):
+        self.root = Path(root)
+        self.trace_path = Path(trace_path)
+        self.process = subprocess.Popen(
+            [
+                "/usr/bin/strace",
+                "-qq",
+                "-f",
+                "-s",
+                "4096",
+                "-e",
+                f"trace={TASK5A_STRACE_SYSCALLS}",
+                "-p",
+                str(os.getpid()),
+                "-o",
+                str(self.trace_path),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            if _task5a_tracer_pid() == self.process.pid:
+                break
+            return_code = self.process.poll()
+            if return_code is not None:
+                _stdout, stderr = self.process.communicate()
+                raise OSError(
+                    errno.EPERM,
+                    f"strace attach failed ({return_code}): {stderr.strip()}",
+                )
+            time.sleep(0.01)
+        else:
+            self.process.send_signal(signal.SIGINT)
+            _stdout, stderr = self.process.communicate(timeout=5)
+            raise OSError(
+                errno.ETIMEDOUT,
+                f"strace did not attach before timeout: {stderr.strip()}",
+            )
+
+    def finish(self):
+        if self.process.poll() is None:
+            self.process.send_signal(signal.SIGINT)
+        _stdout, stderr = self.process.communicate(timeout=5)
+        deadline = time.monotonic() + 5.0
+        while _task5a_tracer_pid() != 0 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert _task5a_tracer_pid() == 0, "strace failed to detach from pytest"
+        assert self.trace_path.is_file(), stderr
+        payload = self.trace_path.read_text(encoding="utf-8")
+        return {
+            "backend": "strace",
+            "records": _task5a_parse_strace_payload(payload),
+            "payload": payload,
+        }
+
+
+def _task5a_publication_observer_or_skip(root, trace_path):
+    if sys.platform != "linux":
+        pytest.skip("atomic publication observer requires Linux")
+    try:
+        return _Task5AInotifyWatch(root)
+    except OSError as exc:
+        if exc.errno not in {errno.ENOSPC, errno.EMFILE, errno.ENFILE}:
+            raise
+        inotify_error = exc
+    try:
+        return _Task5AStraceWatch(root, trace_path)
+    except (OSError, subprocess.SubprocessError) as strace_error:
+        pytest.skip(
+            "atomic publication observer unavailable: "
+            f"inotify errno {inotify_error.errno}; strace: {strace_error}"
+        )
+
+
+def _task5a_assert_single_directory_publication(events, target_name):
+    target_events = [event for event in events if event["name"] == target_name]
+    assert not any(
+        event["mask"] & TASK5A_IN_CREATE for event in target_events
+    ), target_events
+    moved_to = [
+        event
+        for event in target_events
+        if event["mask"] & TASK5A_IN_MOVED_TO
+        and event["mask"] & TASK5A_IN_ISDIR
+    ]
+    assert len(moved_to) == 1, target_events
+    cookie = moved_to[0]["cookie"]
+    assert cookie != 0
+    moved_from = [
+        event
+        for event in events
+        if event["cookie"] == cookie
+        and event["mask"] & TASK5A_IN_MOVED_FROM
+        and event["mask"] & TASK5A_IN_ISDIR
+    ]
+    assert len(moved_from) == 1, events
+    staging_name = moved_from[0]["name"]
+    assert staging_name.startswith(".")
+    assert staging_name != target_name
+    return staging_name, cookie
+
+
+def _task5a_strace_rename_paths(record):
+    operation = record["operation"]
+    if operation == "rename":
+        assert len(record["paths"]) == 2, record
+        return record["paths"]
+    if operation in {"renameat", "renameat2"}:
+        assert len(record["paths"]) == 2, record
+        return record["paths"]
+    raise AssertionError(record)
+
+
+def _task5a_assert_strace_single_directory_publication(records, cache_root, target):
+    cache_root = Path(os.path.abspath(cache_root))
+    target = Path(os.path.abspath(target))
+    moves_to_target = []
+    for record in records:
+        if record["operation"] not in {"rename", "renameat", "renameat2"}:
+            continue
+        source_path, destination_path = _task5a_strace_rename_paths(record)
+        if destination_path == target:
+            moves_to_target.append((record, source_path))
+    assert len(moves_to_target) == 1, moves_to_target
+    publication, staging = moves_to_target[0]
+    assert publication["success"], publication
+    assert staging.parent == cache_root, publication
+    assert staging.name.startswith("."), publication
+    assert staging != target, publication
+
+    publication_line = publication["line_number"]
+    for record in records:
+        if record["line_number"] >= publication_line or not record["success"]:
+            continue
+        if record["operation"] in {"mkdir", "mkdirat"}:
+            assert target not in record["paths"], record
+        if record["operation"] in {"open", "openat"} and re.search(
+            r"\b(?:O_WRONLY|O_RDWR|O_CREAT|O_TRUNC|O_APPEND)\b",
+            record["arguments"],
+        ):
+            for opened_path in record["paths"]:
+                assert opened_path != target and target not in opened_path.parents, record
+    return staging.name, publication_line
+
+
+def _task5a_assert_successful_publication(observation, cache_root, target):
+    if observation["backend"] == "inotify":
+        return _task5a_assert_single_directory_publication(
+            observation["events"],
+            target.name,
+        )
+    assert observation["backend"] == "strace", observation
+    return _task5a_assert_strace_single_directory_publication(
+        observation["records"],
+        cache_root,
+        target,
+    )
+
+
+def _task5a_assert_failed_collision_publication(
+    observation,
+    cache_root,
+    target,
+    *,
+    foreign_staging,
+):
+    cache_root = Path(os.path.abspath(cache_root))
+    target = Path(os.path.abspath(target))
+    if observation["backend"] == "inotify":
+        target_moves = [
+            event
+            for event in observation["events"]
+            if event["name"] == target.name
+            and event["mask"] & TASK5A_IN_MOVED_TO
+        ]
+        assert target_moves == [], target_moves
+        staging_creates = [
+            event
+            for event in observation["events"]
+            if event["name"].startswith(".")
+            and event["name"] != foreign_staging.name
+            and event["mask"] & TASK5A_IN_CREATE
+            and event["mask"] & TASK5A_IN_ISDIR
+        ]
+        assert len(staging_creates) == 1, observation["events"]
+        staging = cache_root / staging_creates[0]["name"]
+    else:
+        assert observation["backend"] == "strace", observation
+        moves_to_target = []
+        for record in observation["records"]:
+            if record["operation"] not in {"rename", "renameat", "renameat2"}:
+                continue
+            staging, destination = _task5a_strace_rename_paths(record)
+            if (
+                destination == target
+                and staging.parent == cache_root
+                and staging.name.startswith(".")
+            ):
+                moves_to_target.append((record, staging))
+        assert len(moves_to_target) == 1, moves_to_target
+        publication, staging = moves_to_target[0]
+        assert not publication["success"], publication
+        assert not any(record["success"] for record, _path in moves_to_target)
+    assert staging != foreign_staging
+    assert not os.path.lexists(staging)
+    return staging.name
+
+
+def _task5a_resolve_open_path(path, *, dir_fd=None):
+    resolved = Path(os.fsdecode(path))
+    if dir_fd is not None and not resolved.is_absolute():
+        resolved = Path(os.readlink(f"/proc/self/fd/{dir_fd}")) / resolved
+    return Path(os.path.abspath(resolved))
+
+
+def _task5a_install_exclusive_write_fault(
+    monkeypatch,
+    *,
+    cache_root,
+    basename,
+    error_number,
+    event_name,
+    events,
+):
+    cache_root = Path(os.path.abspath(cache_root))
+    real_io_open = io.open
+    real_builtin_open = builtins.open
+    real_os_open = os.open
+    faults = []
+
+    def inject(operation, path, *, mode=None, flags=None, dir_fd=None):
+        resolved = _task5a_resolve_open_path(path, dir_fd=dir_fd)
+        try:
+            relative = resolved.relative_to(cache_root)
+        except ValueError:
+            return
+        if (
+            len(relative.parts) == 2
+            and relative.parts[0].startswith(".")
+            and relative.parts[1] == basename
+        ):
+            faults.append(
+                {
+                    "operation": operation,
+                    "path": resolved,
+                    "mode": mode,
+                    "flags": flags,
+                    "errno": error_number,
+                }
+            )
+            events.append(event_name)
+            raise OSError(error_number, os.strerror(error_number), resolved)
+
+    def faulting_io_open(path, mode="r", *args, **kwargs):
+        if "x" in mode:
+            inject("io.open", path, mode=mode)
+        return real_io_open(path, mode, *args, **kwargs)
+
+    def faulting_builtin_open(path, mode="r", *args, **kwargs):
+        if "x" in mode:
+            inject("builtins.open", path, mode=mode)
+        return real_builtin_open(path, mode, *args, **kwargs)
+
+    def faulting_os_open(path, flags, mode=0o777, *, dir_fd=None):
+        exclusive_create = (
+            flags & os.O_CREAT == os.O_CREAT
+            and flags & os.O_EXCL == os.O_EXCL
+        )
+        if exclusive_create:
+            inject("os.open", path, flags=flags, dir_fd=dir_fd)
+        return real_os_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(io, "open", faulting_io_open)
+    monkeypatch.setattr(builtins, "open", faulting_builtin_open)
+    monkeypatch.setattr(os, "open", faulting_os_open)
+    return faults
+
+
 def _task5a_assert_complete_hal_candidate(candidate, fixture):
     candidate = Path(candidate)
     assert candidate.joinpath("source.pdf").read_bytes() == fixture[
@@ -9366,7 +9806,7 @@ def _task5a_assert_event_order(events, *ordered_events):
     assert positions == sorted(positions), events
 
 
-def _task5a_assert_inputs_complete_before(events, terminal_event):
+def _task5a_assert_inputs_complete(events):
     prerequisites = (
         "primary-response-bytes",
         "primary-response-media-validated",
@@ -9375,16 +9815,189 @@ def _task5a_assert_inputs_complete_before(events, terminal_event):
         "live-hal-crossref-validator-enter",
         "live-hal-crossref-validator-complete",
     )
-    assert events.count(terminal_event) == 1, events
     assert all(events.count(event) == 1 for event in prerequisites), events
-    terminal_position = events.index(terminal_event)
-    assert all(events.index(event) < terminal_position for event in prerequisites), events
     _task5a_assert_event_order(
         events,
         "hal-raw-sidecar-response-bytes",
         "live-hal-crossref-validator-enter",
         "live-hal-crossref-validator-complete",
     )
+
+
+def _task5a_assert_inputs_complete_before(events, terminal_event):
+    _task5a_assert_inputs_complete(events)
+    assert events.count(terminal_event) == 1, events
+    terminal_position = events.index(terminal_event)
+    prerequisites = (
+        "primary-response-media-validated",
+        "crossref-bibliographic-metadata",
+        "live-hal-crossref-validator-complete",
+    )
+    assert all(events.index(event) < terminal_position for event in prerequisites), events
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux inotify")
+def test_task5a_inotify_event_parser_preserves_masks_names_and_move_cookie():
+    cookie = 0x5A51
+
+    def encode(mask, name):
+        encoded_name = name.encode("utf-8") + b"\0"
+        encoded_name += b"\0" * (-len(encoded_name) % 4)
+        return TASK5A_INOTIFY_EVENT.pack(
+            7,
+            mask,
+            cookie,
+            len(encoded_name),
+        ) + encoded_name
+
+    payload = b"".join(
+        (
+            encode(
+                TASK5A_IN_MOVED_FROM | TASK5A_IN_ISDIR,
+                ".invocation-owned-staging",
+            ),
+            encode(
+                TASK5A_IN_MOVED_TO | TASK5A_IN_ISDIR,
+                "doi_dba239926d673e54f80a",
+            ),
+        )
+    )
+    events = _task5a_parse_inotify_payload(payload)
+
+    staging_name, parsed_cookie = _task5a_assert_single_directory_publication(
+        events,
+        "doi_dba239926d673e54f80a",
+    )
+    assert staging_name == ".invocation-owned-staging"
+    assert parsed_cookie == cookie
+
+
+def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes():
+    cache_root = Path("/tmp/task5a-parser-control/source-cache")
+    staging = cache_root / ".task5a-observer-control"
+    target = cache_root / "published-control"
+    payload = "\n".join(
+        (
+            f'417 openat(AT_FDCWD, "{staging}/source.pdf", '
+            "O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 9",
+            f'417 renameat2(AT_FDCWD, "{staging}", AT_FDCWD, '
+            f'"{target}", RENAME_NOREPLACE) = 0',
+        )
+    )
+    records = _task5a_parse_strace_payload(payload)
+
+    staging_name, publication_line = (
+        _task5a_assert_strace_single_directory_publication(
+            records,
+            cache_root,
+            target,
+        )
+    )
+    assert [record["operation"] for record in records] == ["openat", "renameat2"]
+    assert staging_name == staging.name
+    assert publication_line == 2
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
+def test_task5a_publication_observer_pairs_one_hidden_directory_move(tmp_path):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    staging = cache_root / ".task5a-observer-control"
+    staging.mkdir()
+    target = cache_root / "published-control"
+
+    observer = _task5a_publication_observer_or_skip(
+        cache_root,
+        tmp_path / "task5a-observer-control.strace",
+    )
+    try:
+        os.rename(staging, target)
+    finally:
+        observation = observer.finish()
+
+    staging_name, publication_proof = _task5a_assert_successful_publication(
+        observation,
+        cache_root,
+        target,
+    )
+    assert staging_name == ".task5a-observer-control"
+    assert publication_proof != 0
+    assert target.is_dir() and not target.is_symlink()
+
+
+@pytest.mark.parametrize(
+    "operation",
+    ("io.open", "builtins.open", "os.open"),
+)
+def test_task5a_exclusive_write_fault_harness_accepts_low_level_writer(
+    tmp_path,
+    monkeypatch,
+    operation,
+):
+    cache_root = tmp_path / "source-cache"
+    staging = cache_root / ".invocation-owned-staging"
+    staging.mkdir(parents=True)
+    destination = staging / "source.pdf"
+    events = []
+    faults = _task5a_install_exclusive_write_fault(
+        monkeypatch,
+        cache_root=cache_root,
+        basename=destination.name,
+        error_number=errno.EIO,
+        event_name="exclusive-payload-write-fault",
+        events=events,
+    )
+
+    with pytest.raises(OSError) as raised:
+        if operation == "io.open":
+            io.open(destination, "xb")
+        elif operation == "builtins.open":
+            builtins.open(destination, "xb")
+        else:
+            os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+
+    assert raised.value.errno == errno.EIO
+    assert events == ["exclusive-payload-write-fault"]
+    assert len(faults) == 1
+    assert faults[0]["operation"] == operation
+    assert faults[0]["path"] == destination
+    assert not os.path.lexists(destination)
+
+
+def test_task5a_nonserializable_bibliographic_structure_reaches_real_provenance():
+    fixture = _task5a_lifecycle_fixture()
+    bibliographic = copy.deepcopy(fixture["bibliographic"])
+    nonserializable_probe = object()
+    bibliographic["task5a_nonserializable_probe"] = nonserializable_probe
+    route = fixture["route"]
+    response = {
+        "body": fixture["primary_payload"],
+        "final_url": route["authoritative_retrieval_route"]["url"],
+        "headers": {"content-type": "application/pdf"},
+        "media_type": "application/pdf",
+        "status": 200,
+    }
+
+    provenance = source_fetcher._build_provenance(
+        fixture["source"],
+        route,
+        response,
+        bibliographic,
+        payload_name="source.pdf",
+    )
+
+    assert provenance["bibliographic_metadata"] is bibliographic
+    assert (
+        provenance["bibliographic_metadata"]["task5a_nonserializable_probe"]
+        is nonserializable_probe
+    )
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        json.dumps(
+            provenance,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=True,
+        )
 
 
 @pytest.mark.parametrize(
@@ -9418,6 +10031,7 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     failure = SourceEvidenceError(f"injected {failure_stage} failure")
     events = []
     target_visibility = []
+    filesystem_faults = None
     sidecar_payload = fixture["sidecar_payload"]
     bibliographic = fixture["bibliographic"]
     primary_content_type = "application/pdf"
@@ -9432,6 +10046,9 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     elif failure_stage == "hal-crossref-agreement":
         bibliographic = copy.deepcopy(bibliographic)
         bibliographic["title"] = "A different HAL work"
+    elif failure_stage == "provenance-serialization":
+        bibliographic = copy.deepcopy(bibliographic)
+        bibliographic["task5a_nonserializable_probe"] = object()
 
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
@@ -9464,53 +10081,44 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
             "_build_provenance",
             fail_provenance_build,
         )
-    elif failure_stage == "exclusive-payload-write":
-        real_open = Path.open
-
-        def fail_candidate_payload(path, mode="r", *args, **kwargs):
-            if path.name == "source.pdf" and "x" in mode:
-                events.append("exclusive-payload-write-enter")
-                raise failure
-            return real_open(path, mode, *args, **kwargs)
-
-        monkeypatch.setattr(Path, "open", fail_candidate_payload)
-    elif failure_stage == "provenance-serialization":
-        def fail_provenance_serialization(*args, **kwargs):
-            events.append("provenance-serialization-enter")
-            raise failure
-
-        monkeypatch.setattr(
-            source_fetcher.json,
-            "dump",
-            fail_provenance_serialization,
+    elif failure_stage in {"exclusive-payload-write", "exclusive-sidecar-write"}:
+        basename, error_number, event_name = {
+            "exclusive-payload-write": (
+                "source.pdf",
+                errno.EIO,
+                "exclusive-payload-write-fault",
+            ),
+            "exclusive-sidecar-write": (
+                "work-identity.json",
+                errno.ENOSPC,
+                "exclusive-sidecar-write-fault",
+            ),
+        }[failure_stage]
+        filesystem_faults = _task5a_install_exclusive_write_fault(
+            monkeypatch,
+            cache_root=cache_root,
+            basename=basename,
+            error_number=error_number,
+            event_name=event_name,
+            events=events,
         )
-    elif failure_stage == "exclusive-sidecar-write":
-        real_open = Path.open
-
-        def fail_candidate_sidecar(path, mode="r", *args, **kwargs):
-            if path.name == "work-identity.json" and "x" in mode:
-                events.append("exclusive-sidecar-write-enter")
-                raise failure
-            return real_open(path, mode, *args, **kwargs)
-
-        monkeypatch.setattr(Path, "open", fail_candidate_sidecar)
     elif failure_stage == "offline-candidate-replay":
-        real_read_bytes = Path.read_bytes
         real_loader = source_fetcher.load_verified_source
 
         def replay_candidate(candidate, **kwargs):
+            candidate = Path(candidate)
             events.append("offline-replay-enter")
+            _task5a_assert_complete_hal_candidate(candidate, fixture)
+            payload_path = candidate / "source.pdf"
+            original_payload = payload_path.read_bytes()
+            payload_path.write_bytes(
+                original_payload + b"INJECTED-OFFLINE-REPLAY-MUTATION"
+            )
+            assert payload_path.read_bytes() != original_payload
+            events.append("offline-primary-payload-mutated")
             return real_loader(candidate, **kwargs)
 
-        def corrupt_candidate_payload_read(path):
-            data = real_read_bytes(path)
-            if path.name == "source.pdf" and path.parent != existing:
-                events.append("offline-primary-payload-read")
-                return data + b"INJECTED-OFFLINE-REPLAY-MUTATION"
-            return data
-
         monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
-        monkeypatch.setattr(Path, "read_bytes", corrupt_candidate_payload_read)
 
     outcome = source_fetcher._fetch_source(
         cache_root,
@@ -9537,23 +10145,35 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
         assert "live-hal-crossref-validator-complete" not in events
         assert "title" in outcome["detail"]
     else:
-        terminal_event = {
-            "provenance-build": "provenance-build-enter",
-            "exclusive-payload-write": "exclusive-payload-write-enter",
-            "provenance-serialization": "provenance-serialization-enter",
-            "exclusive-sidecar-write": "exclusive-sidecar-write-enter",
-            "offline-candidate-replay": "offline-replay-enter",
-        }[failure_stage]
-        _task5a_assert_inputs_complete_before(events, terminal_event)
-        if failure_stage != "offline-candidate-replay":
+        if failure_stage == "provenance-serialization":
+            _task5a_assert_inputs_complete(events)
+            assert "not JSON serializable" in outcome["detail"]
+        else:
+            terminal_event = {
+                "provenance-build": "provenance-build-enter",
+                "exclusive-payload-write": "exclusive-payload-write-fault",
+                "exclusive-sidecar-write": "exclusive-sidecar-write-fault",
+                "offline-candidate-replay": "offline-replay-enter",
+            }[failure_stage]
+            _task5a_assert_inputs_complete_before(events, terminal_event)
+        if failure_stage == "provenance-build":
             assert str(failure) in outcome["detail"]
+        elif failure_stage in {"exclusive-payload-write", "exclusive-sidecar-write"}:
+            assert filesystem_faults is not None
+            assert len(filesystem_faults) == 1
+            fault = filesystem_faults[0]
+            assert fault["operation"] in {"io.open", "builtins.open", "os.open"}
+            assert fault["path"].name in {"source.pdf", "work-identity.json"}
+            assert fault["path"].parent.parent == cache_root
+            assert fault["path"].parent.name.startswith(".")
+            assert os.strerror(fault["errno"]) in outcome["detail"]
     if failure_stage == "offline-candidate-replay":
         _task5a_assert_event_order(
             events,
             "offline-replay-enter",
+            "offline-primary-payload-mutated",
             "offline-hal-crossref-validator-enter",
             "offline-hal-crossref-validator-complete",
-            "offline-primary-payload-read",
         )
         assert "payload SHA-256" in outcome["detail"]
     assert not target.exists() and not target.is_symlink()
@@ -9610,13 +10230,20 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
 
     monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
 
-    outcome = source_fetcher._fetch_source(
+    observer = _task5a_publication_observer_or_skip(
         cache_root,
-        source,
-        route,
-        ca_bundle=Path("/unused"),
-        resume=False,
+        tmp_path / "task5a-success-publication.strace",
     )
+    try:
+        outcome = source_fetcher._fetch_source(
+            cache_root,
+            source,
+            route,
+            ca_bundle=Path("/unused"),
+            resume=False,
+        )
+    finally:
+        publication_observation = observer.finish()
 
     assert outcome["status"] == "acquired", outcome
     _task5a_assert_inputs_complete_before(events, "offline-replay-enter")
@@ -9630,6 +10257,16 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     assert len(replayed) == 1
     assert replayed[0].source_id == source["source_id"]
     assert not any(visible for _event, visible in target_visibility)
+    staging_name, publication_proof = (
+        _task5a_assert_successful_publication(
+            publication_observation,
+            cache_root,
+            target,
+        )
+    )
+    assert publication_proof != 0
+    assert staging_name != foreign_staging.name
+    assert not os.path.lexists(cache_root / staging_name)
     assert target.is_dir() and not target.is_symlink()
     assert {path.name for path in cache_root.iterdir()} == {
         ".foreign-operation-staging",
@@ -9640,7 +10277,15 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     assert _task5a_cache_manifest(foreign_staging) == before_foreign_staging
 
 
-@pytest.mark.parametrize("collision_kind", ("empty", "nonempty"))
+@pytest.mark.parametrize(
+    "collision_kind",
+    (
+        "empty-directory",
+        "nonempty-directory",
+        "regular-file",
+        "dangling-symlink",
+    ),
+)
 def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_target(
     tmp_path,
     monkeypatch,
@@ -9662,7 +10307,7 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
     target = cache_root / source["source_id"]
     events = []
     target_visibility = []
-    collision_manifest = []
+    collision_snapshots = []
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
         fixture,
@@ -9682,14 +10327,20 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
         assert candidate != target
         assert target_visible_before_replay is False
         assert not target.exists() and not target.is_symlink()
-        target.mkdir()
-        if collision_kind == "nonempty":
+        if collision_kind in {"empty-directory", "nonempty-directory"}:
+            target.mkdir()
+        elif collision_kind == "regular-file":
+            target.write_bytes(b"CONCURRENT-REGULAR-FILE")
+        else:
+            assert collision_kind == "dangling-symlink"
+            target.symlink_to("missing-concurrent-target")
+        if collision_kind == "nonempty-directory":
             target.joinpath("sentinel").write_bytes(b"CONCURRENT-TARGET")
             target.joinpath("nested").mkdir()
             target.joinpath("nested", "payload").write_bytes(
                 b"CONCURRENT-NESTED-PAYLOAD"
             )
-        collision_manifest.append(_task5a_cache_manifest(target))
+        collision_snapshots.append(_round7_tree_snapshot(target))
         events.append(f"concurrent-{collision_kind}-target-created")
         return verified
 
@@ -9698,13 +10349,20 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
         "load_verified_source",
         replay_then_create_collision,
     )
-    outcome = source_fetcher._fetch_source(
+    observer = _task5a_publication_observer_or_skip(
         cache_root,
-        source,
-        route,
-        ca_bundle=Path("/unused"),
-        resume=False,
+        tmp_path / f"task5a-{collision_kind}-collision.strace",
     )
+    try:
+        outcome = source_fetcher._fetch_source(
+            cache_root,
+            source,
+            route,
+            ca_bundle=Path("/unused"),
+            resume=False,
+        )
+    finally:
+        publication_observation = observer.finish()
 
     assert outcome["status"] == "failed", outcome
     _task5a_assert_inputs_complete_before(events, "offline-replay-enter")
@@ -9716,9 +10374,16 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
         "offline-replay-complete",
         f"concurrent-{collision_kind}-target-created",
     )
-    assert len(collision_manifest) == 1
-    assert target.is_dir() and not target.is_symlink()
-    assert _task5a_cache_manifest(target) == collision_manifest[0]
+    assert len(collision_snapshots) == 1
+    assert os.path.lexists(target)
+    assert _round7_tree_snapshot(target) == collision_snapshots[0]
+    staging_name = _task5a_assert_failed_collision_publication(
+        publication_observation,
+        cache_root,
+        target,
+        foreign_staging=foreign_staging,
+    )
+    assert staging_name != foreign_staging.name
     assert not any(visible for _event, visible in target_visibility)
     assert _task5a_cache_manifest(existing) == before_existing
     assert _task5a_cache_manifest(foreign_staging) == before_foreign_staging
