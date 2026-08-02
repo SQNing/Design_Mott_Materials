@@ -9141,24 +9141,85 @@ def test_round12_valid_json_acquisition_control(
     assert (tmp_path / fixture["source"]["source_id"]).is_dir()
 
 
-# Task 5A.1 mutation-first contracts.  The fixture preserves the exact CORE
-# response bytes; individual tests mutate one lower boundary while invoking
-# both the real online sidecar validator and the real offline loader.
+# Task 5A.1 mutation-first contracts.  The common install lifecycle uses the
+# exact HAL/Garel route and response bytes; dedicated CORE ordering contracts
+# remain below for Task 5A.3.
+
+
+def _task5a_hal_lifecycle_pdf_payload():
+    rendered = " ".join(TASK5A_GAREL_PDF_TEXT.split())
+    payload = _minimal_pdf(rendered)
+    font_marker = b"BT /F1 12 Tf"
+    assert payload.count(font_marker) == 1
+    return payload.replace(font_marker, b"BT /F1 04 Tf", 1)
 
 
 def _task5a_lifecycle_fixture():
-    fixture = copy.deepcopy(
-        _round12_json_acquisition_fixture("core_same_work_output")
-    )
-    assert fixture["sidecar_document"]["authors"] == [
-        {"name": "Caspers, W.J."},
-        {"name": "Emmett, K.M."},
-        {"name": "Magnus, W."},
-    ]
-    assert json.loads(fixture["sidecar_payload"].decode("utf-8")) == fixture[
-        "sidecar_document"
-    ]
-    return fixture
+    source_id = "doi_dba239926d673e54f80a"
+    source = {
+        "source_id": source_id,
+        "canonical_identity": copy.deepcopy(TASK5A_GAREL_IDENTITY),
+        "canonical_url": (
+            "https://doi.org/" + TASK5A_GAREL_IDENTITY["value"]
+        ),
+        "benchmark_names": ["task5a_hal_garel_lifecycle_fixture"],
+    }
+    authoritative_route = {
+        "kind": "author_repository_pdf",
+        "url": (
+            "https://www.lptmc.jussieu.fr/files/maillard/PUB2/"
+            "Frustrated_jav16i10p2257.pdf"
+        ),
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": (
+            "author-repository:Frustrated_jav16i10p2257.pdf"
+        ),
+        "work_identity_evidence": {
+            "kind": "hal_same_work_bibliographic_payload",
+            "url": TASK5A_HAL_BASE,
+            "record_identifier": TASK5A_HAL_STABLE_ID,
+            "stable_document_url": TASK5A_HAL_STABLE_URL,
+        },
+    }
+    route = {
+        "source_id": source_id,
+        "authoritative_retrieval_route": authoritative_route,
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "local_cache_location": f"source-cache/{source_id}/source.pdf",
+    }
+    sidecar_document = _task5a_hal_document()
+    sidecar_payload = json.dumps(
+        sidecar_document,
+        separators=(",", ":"),
+        sort_keys=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    assert evidence_sources._load_json_bytes(
+        sidecar_payload,
+        context="Task 5A HAL lifecycle fixture",
+    ) == sidecar_document
+    sidecar_descriptor = {
+        "kind": "hal_same_work_bibliographic_payload",
+        "url": TASK5A_HAL_BASE,
+        "document_base_url": TASK5A_HAL_STABLE_URL,
+        "media_type": "application/json",
+        "payload_relative_path": "work-identity.json",
+        "payload_sha256": hashlib.sha256(sidecar_payload).hexdigest(),
+        "payload_byte_length": len(sidecar_payload),
+    }
+    return {
+        "source": source,
+        "route": route,
+        "bibliographic": copy.deepcopy(TASK5A_GAREL_CROSSREF),
+        "primary_payload": _task5a_hal_lifecycle_pdf_payload(),
+        "sidecar_document": sidecar_document,
+        "sidecar_payload": sidecar_payload,
+        "sidecar_media_type": "application/json",
+        "sidecar_final_url": TASK5A_HAL_REQUEST_URL,
+        "sidecar_descriptor": sidecar_descriptor,
+    }
 
 
 def _task5a_cache_manifest(cache_root):
@@ -9176,6 +9237,26 @@ def _task5a_cache_manifest(cache_root):
         else:
             manifest.append((relative, "directory", status.st_mode, None))
     return tuple(manifest)
+
+
+def _task5a_assert_complete_hal_candidate(candidate, fixture):
+    candidate = Path(candidate)
+    assert candidate.joinpath("source.pdf").read_bytes() == fixture[
+        "primary_payload"
+    ]
+    assert candidate.joinpath("provenance.json").is_file()
+    assert candidate.joinpath("work-identity.json").read_bytes() == fixture[
+        "sidecar_payload"
+    ]
+    descriptor_path = candidate / "work-identity.provenance.json"
+    assert json.loads(descriptor_path.read_text(encoding="utf-8")) == fixture[
+        "sidecar_descriptor"
+    ]
+    serialized_provenance = candidate.joinpath("provenance.json").read_text(
+        encoding="utf-8"
+    )
+    assert TASK5A_HAL_QUERY not in serialized_provenance
+    assert TASK5A_HAL_REQUEST_URL not in serialized_provenance
 
 
 def _task5a_install_real_lifecycle_boundary(
@@ -9199,9 +9280,9 @@ def _task5a_install_real_lifecycle_boundary(
         if bibliographic is None
         else bibliographic
     )
+    real_primary_validator = source_fetcher.validate_download_response
     real_live_validator = source_fetcher.validate_work_identity_document
     real_offline_validator = evidence_sources.validate_work_identity_document
-    real_request = source_fetcher.Request
 
     def record_event(name):
         events.append(name)
@@ -9209,12 +9290,6 @@ def _task5a_install_real_lifecycle_boundary(
             target_visibility.append(
                 (name, target.exists() or target.is_symlink())
             )
-
-    def recording_request(*args, **kwargs):
-        request = real_request(*args, **kwargs)
-        if _header_dict(request).get("accept") == "application/pdf":
-            record_event("first-PDF-request-constructed")
-        return request
 
     class FixtureOpener:
         def open(self, request, timeout):
@@ -9229,7 +9304,7 @@ def _task5a_install_real_lifecycle_boundary(
                     ]["url"],
                 )
             assert accept == "application/json"
-            record_event("sidecar-response-bytes")
+            record_event("hal-raw-sidecar-response-bytes")
             return _FixtureHTTPResponse(
                 sidecar_payload,
                 content_type="application/json",
@@ -9240,20 +9315,24 @@ def _task5a_install_real_lifecycle_boundary(
         record_event("crossref-bibliographic-metadata")
         return copy.deepcopy(bibliographic)
 
+    def primary_validator(*args, **kwargs):
+        result = real_primary_validator(*args, **kwargs)
+        record_event("primary-response-media-validated")
+        return result
+
     def live_validator(document, **kwargs):
-        record_event("live-sidecar-agreement-validator-enter")
+        record_event("live-hal-crossref-validator-enter")
         result = real_live_validator(document, **kwargs)
-        record_event("live-sidecar-agreement-validator-complete")
+        record_event("live-hal-crossref-validator-complete")
         return result
 
     def offline_validator(document, **kwargs):
-        record_event("offline-sidecar-agreement-validator-enter")
+        record_event("offline-hal-crossref-validator-enter")
         result = real_offline_validator(document, **kwargs)
-        record_event("offline-sidecar-agreement-validator-complete")
+        record_event("offline-hal-crossref-validator-complete")
         return result
 
     monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
-    monkeypatch.setattr(source_fetcher, "Request", recording_request)
     monkeypatch.setattr(
         source_fetcher,
         "build_opener",
@@ -9263,6 +9342,11 @@ def _task5a_install_real_lifecycle_boundary(
         source_fetcher,
         "_fetch_bibliographic_metadata",
         fetch_bibliographic,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_download_response",
+        primary_validator,
     )
     monkeypatch.setattr(
         source_fetcher,
@@ -9282,13 +9366,34 @@ def _task5a_assert_event_order(events, *ordered_events):
     assert positions == sorted(positions), events
 
 
+def _task5a_assert_inputs_complete_before(events, terminal_event):
+    prerequisites = (
+        "primary-response-bytes",
+        "primary-response-media-validated",
+        "crossref-bibliographic-metadata",
+        "hal-raw-sidecar-response-bytes",
+        "live-hal-crossref-validator-enter",
+        "live-hal-crossref-validator-complete",
+    )
+    assert events.count(terminal_event) == 1, events
+    assert all(events.count(event) == 1 for event in prerequisites), events
+    terminal_position = events.index(terminal_event)
+    assert all(events.index(event) < terminal_position for event in prerequisites), events
+    _task5a_assert_event_order(
+        events,
+        "hal-raw-sidecar-response-bytes",
+        "live-hal-crossref-validator-enter",
+        "live-hal-crossref-validator-complete",
+    )
+
+
 @pytest.mark.parametrize(
     "failure_stage",
     (
         "primary-response-media",
         "crossref-metadata",
         "raw-sidecar-validation",
-        "bibliographic-agreement",
+        "hal-crossref-agreement",
         "provenance-build",
         "exclusive-payload-write",
         "provenance-serialization",
@@ -9324,9 +9429,9 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
             sidecar_payload,
             "duplicate-key",
         )
-    elif failure_stage == "bibliographic-agreement":
+    elif failure_stage == "hal-crossref-agreement":
         bibliographic = copy.deepcopy(bibliographic)
-        bibliographic["title"] = "A different CORE work"
+        bibliographic["title"] = "A different HAL work"
 
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
@@ -9340,43 +9445,62 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     )
 
     if failure_stage == "crossref-metadata":
+        def fail_crossref_metadata(*args, **kwargs):
+            events.append("crossref-bibliographic-metadata-failure")
+            raise failure
+
         monkeypatch.setattr(
             source_fetcher,
             "_fetch_bibliographic_metadata",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+            fail_crossref_metadata,
         )
     elif failure_stage == "provenance-build":
+        def fail_provenance_build(*args, **kwargs):
+            events.append("provenance-build-enter")
+            raise failure
+
         monkeypatch.setattr(
             source_fetcher,
             "_build_provenance",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+            fail_provenance_build,
         )
     elif failure_stage == "exclusive-payload-write":
         real_open = Path.open
 
         def fail_candidate_payload(path, mode="r", *args, **kwargs):
             if path.name == "source.pdf" and "x" in mode:
+                events.append("exclusive-payload-write-enter")
                 raise failure
             return real_open(path, mode, *args, **kwargs)
 
         monkeypatch.setattr(Path, "open", fail_candidate_payload)
     elif failure_stage == "provenance-serialization":
+        def fail_provenance_serialization(*args, **kwargs):
+            events.append("provenance-serialization-enter")
+            raise failure
+
         monkeypatch.setattr(
             source_fetcher.json,
             "dump",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+            fail_provenance_serialization,
         )
     elif failure_stage == "exclusive-sidecar-write":
         real_open = Path.open
 
         def fail_candidate_sidecar(path, mode="r", *args, **kwargs):
             if path.name == "work-identity.json" and "x" in mode:
+                events.append("exclusive-sidecar-write-enter")
                 raise failure
             return real_open(path, mode, *args, **kwargs)
 
         monkeypatch.setattr(Path, "open", fail_candidate_sidecar)
     elif failure_stage == "offline-candidate-replay":
         real_read_bytes = Path.read_bytes
+        real_loader = source_fetcher.load_verified_source
+
+        def replay_candidate(candidate, **kwargs):
+            events.append("offline-replay-enter")
+            return real_loader(candidate, **kwargs)
 
         def corrupt_candidate_payload_read(path):
             data = real_read_bytes(path)
@@ -9385,6 +9509,7 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
                 return data + b"INJECTED-OFFLINE-REPLAY-MUTATION"
             return data
 
+        monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
         monkeypatch.setattr(Path, "read_bytes", corrupt_candidate_payload_read)
 
     outcome = source_fetcher._fetch_source(
@@ -9396,33 +9521,41 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     )
 
     assert outcome["status"] == "failed", outcome
-    if failure_stage != "crossref-metadata":
-        assert "sidecar-response-bytes" in events
-    if failure_stage == "raw-sidecar-validation":
-        assert "live-sidecar-agreement-validator-enter" not in events
-        assert "first-PDF-request-constructed" not in events
-        assert "primary-response-bytes" not in events
-    elif failure_stage == "bibliographic-agreement":
-        assert "live-sidecar-agreement-validator-enter" in events
-        assert "live-sidecar-agreement-validator-complete" not in events
-        assert "first-PDF-request-constructed" not in events
-        assert "primary-response-bytes" not in events
-    elif failure_stage != "crossref-metadata":
-        _task5a_assert_event_order(
-            events,
-            "sidecar-response-bytes",
-            "live-sidecar-agreement-validator-enter",
-            "live-sidecar-agreement-validator-complete",
-            "first-PDF-request-constructed",
-            "primary-response-bytes",
-        )
+    if failure_stage == "primary-response-media":
+        assert "primary-response-bytes" in events
+        assert "primary-response-media-validated" not in events
+        assert "media type" in outcome["detail"]
+    elif failure_stage == "crossref-metadata":
+        assert "crossref-bibliographic-metadata-failure" in events
+        assert str(failure) in outcome["detail"]
+    elif failure_stage == "raw-sidecar-validation":
+        assert "hal-raw-sidecar-response-bytes" in events
+        assert "live-hal-crossref-validator-enter" not in events
+        assert "strict JSON" in outcome["detail"]
+    elif failure_stage == "hal-crossref-agreement":
+        assert "live-hal-crossref-validator-enter" in events
+        assert "live-hal-crossref-validator-complete" not in events
+        assert "title" in outcome["detail"]
+    else:
+        terminal_event = {
+            "provenance-build": "provenance-build-enter",
+            "exclusive-payload-write": "exclusive-payload-write-enter",
+            "provenance-serialization": "provenance-serialization-enter",
+            "exclusive-sidecar-write": "exclusive-sidecar-write-enter",
+            "offline-candidate-replay": "offline-replay-enter",
+        }[failure_stage]
+        _task5a_assert_inputs_complete_before(events, terminal_event)
+        if failure_stage != "offline-candidate-replay":
+            assert str(failure) in outcome["detail"]
     if failure_stage == "offline-candidate-replay":
         _task5a_assert_event_order(
             events,
-            "offline-sidecar-agreement-validator-enter",
-            "offline-sidecar-agreement-validator-complete",
+            "offline-replay-enter",
+            "offline-hal-crossref-validator-enter",
+            "offline-hal-crossref-validator-complete",
             "offline-primary-payload-read",
         )
+        assert "payload SHA-256" in outcome["detail"]
     assert not target.exists() and not target.is_symlink()
     assert not any(visible for _event, visible in target_visibility)
     assert _task5a_cache_manifest(cache_root) == before
@@ -9461,6 +9594,7 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
         candidate = Path(candidate)
         events.append("offline-replay-enter")
         target_visible_before_replay = target.exists() or target.is_symlink()
+        _task5a_assert_complete_hal_candidate(candidate, fixture)
         verified = real_loader(candidate, **kwargs)
         events.append("offline-replay-complete")
         assert candidate != target
@@ -9485,17 +9619,12 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     )
 
     assert outcome["status"] == "acquired", outcome
-    assert events.count("crossref-bibliographic-metadata") == 1
+    _task5a_assert_inputs_complete_before(events, "offline-replay-enter")
     _task5a_assert_event_order(
         events,
-        "sidecar-response-bytes",
-        "live-sidecar-agreement-validator-enter",
-        "live-sidecar-agreement-validator-complete",
-        "first-PDF-request-constructed",
-        "primary-response-bytes",
         "offline-replay-enter",
-        "offline-sidecar-agreement-validator-enter",
-        "offline-sidecar-agreement-validator-complete",
+        "offline-hal-crossref-validator-enter",
+        "offline-hal-crossref-validator-complete",
         "offline-replay-complete",
     )
     assert len(replayed) == 1
@@ -9545,9 +9674,11 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
 
     def replay_then_create_collision(candidate, **kwargs):
         candidate = Path(candidate)
+        events.append("offline-replay-enter")
         target_visible_before_replay = target.exists() or target.is_symlink()
+        _task5a_assert_complete_hal_candidate(candidate, fixture)
         verified = real_loader(candidate, **kwargs)
-        events.append("real-offline-replay-complete")
+        events.append("offline-replay-complete")
         assert candidate != target
         assert target_visible_before_replay is False
         assert not target.exists() and not target.is_symlink()
@@ -9576,16 +9707,13 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
     )
 
     assert outcome["status"] == "failed", outcome
+    _task5a_assert_inputs_complete_before(events, "offline-replay-enter")
     _task5a_assert_event_order(
         events,
-        "sidecar-response-bytes",
-        "live-sidecar-agreement-validator-enter",
-        "live-sidecar-agreement-validator-complete",
-        "first-PDF-request-constructed",
-        "primary-response-bytes",
-        "offline-sidecar-agreement-validator-enter",
-        "offline-sidecar-agreement-validator-complete",
-        "real-offline-replay-complete",
+        "offline-replay-enter",
+        "offline-hal-crossref-validator-enter",
+        "offline-hal-crossref-validator-complete",
+        "offline-replay-complete",
         f"concurrent-{collision_kind}-target-created",
     )
     assert len(collision_manifest) == 1
