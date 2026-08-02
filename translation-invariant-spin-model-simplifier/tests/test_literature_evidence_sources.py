@@ -12611,6 +12611,517 @@ def test_task5a_hal_fetch_uses_exact_ordered_query_but_serializes_only_stable_ur
     assert "?" not in serialized
 
 
+# Task 5A.2 review controls: close the HAL cache publication boundary without
+# changing the compatibility contract for older, non-HAL evidence sidecars.
+
+
+def _task5a_run_lifecycle(cache_root, monkeypatch, fixture):
+    events = []
+    target = cache_root / fixture["source"]["source_id"]
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+        target=target,
+        target_visibility=[],
+    )
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+    return target, outcome
+
+
+def test_task5a_hal_offline_candidate_requires_descriptor_media_type(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    existing = cache_root / "existing"
+    existing.mkdir(parents=True)
+    existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before = _task5a_cache_manifest(cache_root)
+    fixture = _task5a_lifecycle_fixture()
+    real_fetch = source_fetcher._fetch_work_identity_evidence
+
+    def fetch_without_media_type(*args, **kwargs):
+        evidence = real_fetch(*args, **kwargs)
+        evidence["descriptor"].pop("media_type")
+        return evidence
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_work_identity_evidence",
+        fetch_without_media_type,
+    )
+    target, outcome = _task5a_run_lifecycle(cache_root, monkeypatch, fixture)
+
+    assert outcome["status"] == "failed", outcome
+    assert "media_type" in outcome["detail"]
+    assert not os.path.lexists(target)
+    assert _task5a_cache_manifest(cache_root) == before
+
+
+def test_task5a_legacy_json_sidecar_without_media_type_remains_accepted(tmp_path):
+    source_dir, route = _repository_fixture(tmp_path)
+    descriptor = json.loads(
+        source_dir.joinpath("provenance.json").read_text(encoding="utf-8")
+    )["retrieval_metadata"]["work_identity_evidence"]
+    assert "media_type" not in descriptor
+    verified = load_verified_source(
+        source_dir,
+        expected_source=_expected_source(),
+        provisioning_route=route,
+    )
+    assert verified.source_id == SOURCE_ID
+
+
+def test_task5a_first_staging_identity_failure_cleans_created_candidate(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    existing = cache_root / "existing"
+    existing.mkdir(parents=True)
+    existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before = _task5a_cache_manifest(cache_root)
+    fixture = _task5a_lifecycle_fixture()
+    real_path_lstat = Path.lstat
+    real_os_stat = os.stat
+    faults = []
+
+    def is_staging(path):
+        return Path(path).name.startswith(".literature-evidence-staging-")
+
+    def faulting_path_lstat(path, *args, **kwargs):
+        if not faults and is_staging(path):
+            faults.append("Path.lstat")
+            raise OSError(errno.EIO, os.strerror(errno.EIO), path)
+        return real_path_lstat(path, *args, **kwargs)
+
+    def faulting_os_stat(path, *args, **kwargs):
+        if not faults and is_staging(path):
+            faults.append("os.stat")
+            raise OSError(errno.EIO, os.strerror(errno.EIO), path)
+        return real_os_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", faulting_path_lstat)
+    monkeypatch.setattr(os, "stat", faulting_os_stat)
+    target, outcome = _task5a_run_lifecycle(cache_root, monkeypatch, fixture)
+
+    assert len(faults) == 1
+    assert outcome["status"] == "failed", outcome
+    assert os.strerror(errno.EIO) in outcome["detail"]
+    assert not os.path.lexists(target)
+    assert _task5a_cache_manifest(cache_root) == before
+
+
+def test_task5a_cache_root_swap_after_real_directory_check_is_fail_closed(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    cache_root.joinpath("sentinel").write_bytes(b"ORIGINAL")
+    displaced_root = tmp_path / "displaced-cache-root"
+    foreign_root = tmp_path / "foreign-cache-root"
+    foreign_root.mkdir()
+    foreign_root.joinpath("sentinel").write_bytes(b"FOREIGN")
+    before_original = _task5a_cache_manifest(cache_root)
+    before_foreign = _task5a_cache_manifest(foreign_root)
+    fixture = _task5a_lifecycle_fixture()
+    real_lstat = Path.lstat
+    swaps = []
+
+    def swapping_lstat(path, *args, **kwargs):
+        status = real_lstat(path, *args, **kwargs)
+        if not swaps and Path(path) == cache_root:
+            cache_root.rename(displaced_root)
+            cache_root.symlink_to(foreign_root, target_is_directory=True)
+            swaps.append((status.st_dev, status.st_ino))
+        return status
+
+    monkeypatch.setattr(Path, "lstat", swapping_lstat)
+    target, outcome = _task5a_run_lifecycle(cache_root, monkeypatch, fixture)
+
+    assert len(swaps) == 1
+    assert outcome["status"] == "failed", outcome
+    assert cache_root.is_symlink()
+    assert not os.path.lexists(displaced_root / fixture["source"]["source_id"])
+    assert not os.path.lexists(foreign_root / fixture["source"]["source_id"])
+    assert _task5a_cache_manifest(displaced_root) == before_original
+    assert _task5a_cache_manifest(foreign_root) == before_foreign
+    assert not os.path.lexists(target)
+
+
+@pytest.mark.parametrize("replacement_kind", ("directory", "symlink"))
+def test_task5a_publish_rejects_same_name_replacement_after_offline_replay(
+    tmp_path,
+    monkeypatch,
+    replacement_kind,
+):
+    cache_root = tmp_path / "source-cache"
+    fixture = _task5a_lifecycle_fixture()
+    events = []
+    target = cache_root / fixture["source"]["source_id"]
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+        target=target,
+        target_visibility=[],
+    )
+    foreign = tmp_path / "foreign-candidate"
+    foreign.mkdir()
+    foreign.joinpath("sentinel").write_bytes(b"FOREIGN")
+    displaced = tmp_path / "validated-candidate"
+    replacement = []
+    real_loader = source_fetcher.load_verified_source
+
+    def replace_after_replay(candidate, **kwargs):
+        candidate = Path(candidate)
+        verified = real_loader(candidate, **kwargs)
+        status = candidate.lstat()
+        candidate.rename(displaced)
+        if replacement_kind == "directory":
+            foreign.rename(candidate)
+        else:
+            candidate.symlink_to(foreign, target_is_directory=True)
+        replacement.append((candidate, (status.st_dev, status.st_ino)))
+        return verified
+
+    monkeypatch.setattr(source_fetcher, "load_verified_source", replace_after_replay)
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert len(replacement) == 1
+    assert outcome["status"] == "failed", outcome
+    assert not os.path.lexists(target)
+    assert displaced.is_dir()
+    replacement_path = replacement[0][0]
+    assert replacement_path.is_dir()
+    assert replacement_path.joinpath("sentinel").read_bytes() == b"FOREIGN"
+
+
+def test_task5a_cleanup_does_not_traverse_same_name_foreign_replacement(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    fixture = _task5a_lifecycle_fixture()
+    events = []
+    target = cache_root / fixture["source"]["source_id"]
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+        target=target,
+        target_visibility=[],
+    )
+    primary = SourceEvidenceError("injected replay failure")
+    staging_paths = []
+
+    def fail_replay(candidate, **kwargs):
+        staging_paths.append(Path(candidate))
+        raise primary
+
+    monkeypatch.setattr(source_fetcher, "load_verified_source", fail_replay)
+    foreign = tmp_path / "foreign-cleanup-directory"
+    foreign.mkdir()
+    foreign.joinpath("sentinel").write_bytes(b"FOREIGN")
+    displaced = tmp_path / "owned-cleanup-directory"
+    real_rmtree = source_fetcher.shutil.rmtree
+    real_unlink = os.unlink
+    swaps = []
+
+    def swap_replacement():
+        if swaps or not staging_paths:
+            return
+        staging_paths[0].rename(displaced)
+        foreign.rename(staging_paths[0])
+        swaps.append(staging_paths[0])
+
+    def swapping_rmtree(path, *args, **kwargs):
+        swap_replacement()
+        return real_rmtree(path, *args, **kwargs)
+
+    def swapping_unlink(path, *args, **kwargs):
+        swap_replacement()
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(source_fetcher.shutil, "rmtree", swapping_rmtree)
+    monkeypatch.setattr(os, "unlink", swapping_unlink)
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert len(swaps) == 1
+    assert outcome["status"] == "failed", outcome
+    assert swaps[0].joinpath("sentinel").read_bytes() == b"FOREIGN"
+    assert not os.path.lexists(target)
+
+
+def test_task5a_hal_redirect_is_rejected_before_second_request_or_body_read(
+    tmp_path,
+    monkeypatch,
+    caplog,
+    capsys,
+):
+    query = "hal-redirect-secret=DO-NOT-LEAK"
+    redirect_url = "https://api.archives-ouvertes.fr/search/?" + query
+    requests = []
+    body_reads = []
+
+    class RedirectOpener:
+        def __init__(self, handlers):
+            self.redirect_handler = next(
+                handler for handler in handlers
+                if hasattr(handler, "redirect_request")
+            )
+
+        def open(self, request, timeout):
+            requests.append(request.full_url)
+            redirected = self.redirect_handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {},
+                redirect_url,
+            )
+            requests.append(redirected.full_url)
+
+            class TrackingResponse(_FixtureHTTPResponse):
+                def read(self):
+                    body_reads.append(True)
+                    return super().read()
+
+            return TrackingResponse(
+                json.dumps(_task5a_hal_document()).encode("utf-8"),
+                content_type="application/json",
+                final_url=redirected.full_url,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: RedirectOpener(handlers),
+    )
+    fixture = _task5a_lifecycle_fixture()
+    exposed = None
+    try:
+        source_fetcher._fetch_work_identity_evidence(
+            fixture["source"],
+            fixture["route"],
+            object(),
+            bibliographic_metadata=fixture["bibliographic"],
+        )
+    except Exception as error:
+        exposed = error
+    else:
+        pytest.fail("HAL redirect was accepted")
+
+    assert len(requests) == 1
+    assert body_reads == []
+    assert isinstance(exposed, SourceEvidenceError)
+    assert "HAL" in str(exposed) and "redirect" in str(exposed).casefold()
+    _task5a_assert_no_forbidden_query_channels(
+        forbidden=(query, quote_plus(query, safe=""), "DO-NOT-LEAK"),
+        exception=exposed,
+        caplog=caplog,
+        capsys=capsys,
+        cache_root=tmp_path / "source-cache",
+    )
+
+
+def test_task5a_generic_redirect_handler_still_follows_safe_redirects():
+    request = Request("https://example.invalid/start")
+    redirected = source_fetcher._CredentialRedirectHandler(None).redirect_request(
+        request,
+        None,
+        302,
+        "Found",
+        {},
+        "https://example.invalid/final",
+    )
+    assert redirected.full_url == "https://example.invalid/final"
+
+
+def _task5a_install_arguments(fixture):
+    route = fixture["route"]
+    response = {
+        "body": fixture["primary_payload"],
+        "final_url": route["authoritative_retrieval_route"]["url"],
+        "headers": {"content-type": "application/pdf"},
+        "media_type": "application/pdf",
+        "status": 200,
+    }
+    provenance = source_fetcher._build_provenance(
+        fixture["source"],
+        route,
+        response,
+        fixture["bibliographic"],
+        payload_name="source.pdf",
+    )
+    return {
+        "source": fixture["source"],
+        "route": route,
+        "payload_name": "source.pdf",
+        "payload": fixture["primary_payload"],
+        "provenance_payload": source_fetcher._serialized_json_bytes(provenance),
+        "evidence": {
+            "payload": fixture["sidecar_payload"],
+            "descriptor": fixture["sidecar_descriptor"],
+        },
+    }
+
+
+@pytest.mark.parametrize("primary_stage", ("write", "replay", "publish"))
+def test_task5a_cleanup_failure_preserves_primary_exception_and_existing_chain(
+    tmp_path,
+    monkeypatch,
+    primary_stage,
+):
+    fixture = _task5a_lifecycle_fixture()
+    cache_root = tmp_path / "source-cache"
+    target = cache_root / fixture["source"]["source_id"]
+    primary = SourceEvidenceError("injected primary failure")
+    prior_cause = RuntimeError("preexisting cause")
+    prior_context = RuntimeError("preexisting context")
+    primary.__cause__ = prior_cause
+    primary.__context__ = prior_context
+    cleanup = OSError(errno.EIO, "injected cleanup failure")
+
+    if primary_stage == "write":
+        real_write = source_fetcher._exclusive_write_bytes
+
+        def fail_write(path, payload):
+            if Path(path).name == "source.pdf":
+                raise primary
+            return real_write(path, payload)
+
+        monkeypatch.setattr(source_fetcher, "_exclusive_write_bytes", fail_write)
+    elif primary_stage == "replay":
+        monkeypatch.setattr(
+            source_fetcher,
+            "load_verified_source",
+            lambda *args, **kwargs: (_ for _ in ()).throw(primary),
+        )
+    else:
+        monkeypatch.setattr(
+            source_fetcher,
+            "_publish_directory_noreplace",
+            lambda *args, **kwargs: (_ for _ in ()).throw(primary),
+        )
+
+    real_cleanup = source_fetcher._remove_owned_staging_directory
+
+    def fail_after_cleanup(*args, **kwargs):
+        real_cleanup(*args, **kwargs)
+        raise cleanup
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_remove_owned_staging_directory",
+        fail_after_cleanup,
+    )
+
+    with pytest.raises(SourceEvidenceError) as raised:
+        source_fetcher._install_verified_cache_candidate(
+            cache_root,
+            target,
+            **_task5a_install_arguments(fixture),
+        )
+
+    assert raised.value is primary
+    assert primary.__cause__ is prior_cause
+    assert primary.__context__ is prior_context
+    cleanup_errors = getattr(primary, "cache_cleanup_errors", ())
+    assert sum(error is cleanup for error in cleanup_errors) == 1
+    assert not os.path.lexists(target)
+    assert not any(cache_root.glob(".literature-evidence-staging-*"))
+
+
+def _task5a_crossref_document(doi=TASK5A_GAREL_IDENTITY["value"]):
+    return {
+        "message": {
+            "DOI": doi,
+            "title": [TASK5A_GAREL_CROSSREF["title"]],
+            "container-title": [TASK5A_GAREL_CROSSREF["venue"]],
+            "author": [
+                {"given": "T.", "family": "Garel"},
+                {"given": "J.-M.", "family": "Maillard"},
+            ],
+            "published-print": {"date-parts": [[1983, 7, 11]]},
+            "volume": "16",
+            "issue": "10",
+            "page": "2257-2265",
+        }
+    }
+
+
+@pytest.mark.parametrize("mutation", ("duplicate-key", "nonfinite"))
+def test_task5a_garel_crossref_raw_json_is_strict(mutation, monkeypatch):
+    raw = json.dumps(_task5a_crossref_document(), separators=(",", ":")).encode(
+        "utf-8"
+    )
+    if mutation == "duplicate-key":
+        doi_field = b'"DOI":"10.1088/0305-4470/16/10/023"'
+        raw = raw.replace(doi_field, doi_field + b"," + doi_field, 1)
+    else:
+        raw = raw[:-1] + b',"review_control":NaN}'
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: _FixtureHTTPResponse(
+            raw,
+            content_type="application/json",
+        ),
+    )
+    with pytest.raises(SourceEvidenceError, match="strict JSON"):
+        source_fetcher._crossref_metadata(
+            TASK5A_GAREL_IDENTITY["value"],
+            object(),
+        )
+
+
+def test_task5a_other_crossref_route_accepts_valid_json(monkeypatch):
+    doi = "10.1234/task5a-generic-control"
+    raw = json.dumps(
+        _task5a_crossref_document(doi),
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: _FixtureHTTPResponse(
+            raw,
+            content_type="application/json",
+        ),
+    )
+    metadata = source_fetcher._crossref_metadata(doi, object())
+    assert metadata == {
+        "title": TASK5A_GAREL_CROSSREF["title"],
+        "authors": ["T. Garel", "J.-M. Maillard"],
+        "venue": TASK5A_GAREL_CROSSREF["venue"],
+        "publication_date": "1983-07-11",
+    }
+
+
 TASK5A_CORE_INITIAL_URL = "https://core.ac.uk/download/572184419.pdf"
 TASK5A_CORE_SECOND_URL = (
     "https://fileserver-az.core.ac.uk/download/572184419.pdf"
