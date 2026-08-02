@@ -9287,6 +9287,22 @@ def _task5a_parse_inotify_payload(payload):
     return events
 
 
+def _task5a_observer_teardown_cause(*errors):
+    retained_errors = []
+    for error in errors:
+        if error is None or any(
+            error is retained_error
+            for retained_error in retained_errors
+        ):
+            continue
+        retained_errors.append(error)
+    if len(retained_errors) == 1:
+        return retained_errors[0]
+    aggregate_error = AssertionError("multiple observer teardown failures")
+    aggregate_error.observer_teardown_errors = tuple(retained_errors)
+    return aggregate_error
+
+
 class _Task5AInotifyWatch:
     def __init__(self, root):
         self.root = Path(root)
@@ -9338,10 +9354,16 @@ class _Task5AInotifyWatch:
         try:
             events = self.read_events()
         except BaseException as read_error:
+            existing_read_cause = read_error.__cause__
+            existing_read_context = read_error.__context__
             try:
                 self.close()
             except BaseException as close_error:
-                raise read_error from close_error
+                raise read_error from _task5a_observer_teardown_cause(
+                    existing_read_cause,
+                    close_error,
+                    existing_read_context,
+                )
             raise
         self.close()
         return {"backend": "inotify", "events": events}
@@ -9377,6 +9399,8 @@ def _task5a_unwatched_inotify_finish_control(root):
     watch.fd = watch.libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
     if watch.fd < 0:
         error = ctypes.get_errno()
+        if error in {errno.ENOSPC, errno.EMFILE, errno.ENFILE}:
+            pytest.skip("inotify finish control unavailable")
         raise OSError(error, os.strerror(error))
     watch.wd = -1
     return watch
@@ -9905,30 +9929,11 @@ def _task5a_finish_strace_then_optional_inotify(
             try:
                 inotify_observer.finish()
             except BaseException as inotify_error:
-                retained_errors = []
-                for retained_error in (
+                raise strace_error from _task5a_observer_teardown_cause(
                     existing_strace_cause,
                     inotify_error,
                     existing_strace_context,
-                ):
-                    if retained_error is None or any(
-                        retained_error is existing_error
-                        for existing_error in retained_errors
-                    ):
-                        continue
-                    retained_errors.append(retained_error)
-                if (
-                    len(retained_errors) == 1
-                    and retained_errors[0] is inotify_error
-                ):
-                    raise strace_error from inotify_error
-                aggregate_error = AssertionError(
-                    "multiple observer teardown failures"
                 )
-                aggregate_error.observer_teardown_errors = tuple(
-                    retained_errors
-                )
-                raise strace_error from aggregate_error
         raise
     if inotify_observer is not None:
         inotify_observation = inotify_observer.finish()
@@ -10393,6 +10398,58 @@ def test_task5a_inotify_event_parser_preserves_masks_names_and_move_cookie():
     assert parsed_cookie == cookie
 
 
+def _task5a_install_raw_inotify_init_failure(monkeypatch, error_number):
+    class FailingCFunction:
+        def __init__(self, return_value):
+            self.return_value = return_value
+            self.argtypes = None
+            self.restype = None
+
+        def __call__(self, *_args):
+            return self.return_value
+
+    class FailingInotifyLibc:
+        def __init__(self):
+            self.inotify_init1 = FailingCFunction(-1)
+            self.inotify_rm_watch = FailingCFunction(-1)
+
+    monkeypatch.setattr(
+        ctypes,
+        "CDLL",
+        lambda *_args, **_kwargs: FailingInotifyLibc(),
+    )
+    monkeypatch.setattr(ctypes, "get_errno", lambda: error_number)
+
+
+@pytest.mark.parametrize(
+    "error_number",
+    (errno.ENOSPC, errno.EMFILE, errno.ENFILE),
+)
+def test_task5a_unwatched_inotify_control_skips_optional_resource_exhaustion(
+    tmp_path,
+    monkeypatch,
+    error_number,
+):
+    _task5a_install_raw_inotify_init_failure(monkeypatch, error_number)
+
+    with pytest.raises(pytest.skip.Exception) as exception_info:
+        _task5a_unwatched_inotify_finish_control(tmp_path)
+
+    assert str(exception_info.value) == "inotify finish control unavailable"
+
+
+def test_task5a_unwatched_inotify_control_rejects_unexpected_init_errno(
+    tmp_path,
+    monkeypatch,
+):
+    _task5a_install_raw_inotify_init_failure(monkeypatch, errno.EIO)
+
+    with pytest.raises(OSError) as exception_info:
+        _task5a_unwatched_inotify_finish_control(tmp_path)
+
+    assert exception_info.value.errno == errno.EIO
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux inotify")
 def test_task5a_inotify_finish_preserves_read_error_when_close_also_fails(
     tmp_path,
@@ -10421,6 +10478,64 @@ def test_task5a_inotify_finish_preserves_read_error_when_close_also_fails(
             watch.finish()
         assert isinstance(exception_info.value.__cause__, OSError)
         assert exception_info.value.__cause__.errno == errno.EIO
+        assert not hasattr(
+            exception_info.value.__cause__,
+            "observer_teardown_errors",
+        )
+        assert watch.fd == -1
+        with pytest.raises(OSError) as fd_error:
+            os.fstat(original_fd)
+        assert fd_error.value.errno == errno.EBADF
+    finally:
+        if watch.fd >= 0:
+            real_close()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux inotify")
+def test_task5a_inotify_finish_preserves_precaused_read_body_and_close_failures(
+    tmp_path,
+    monkeypatch,
+):
+    watch_root = tmp_path / "inotify-aggregate-failure"
+    watch_root.mkdir()
+    watch = _task5a_unwatched_inotify_finish_control(watch_root)
+    original_fd = watch.fd
+    real_close = watch.close
+
+    def failing_read_events():
+        raise RuntimeError(
+            "precaused inotify read control"
+        ) from ValueError("preexisting inotify read cause control")
+
+    def close_then_fail():
+        real_close()
+        raise OSError(errno.EIO, "inotify aggregate close control")
+
+    monkeypatch.setattr(watch, "read_events", failing_read_events)
+    monkeypatch.setattr(watch, "close", close_then_fail)
+    try:
+        with pytest.raises(
+            RuntimeError,
+            match=r"\Aprecaused inotify read control\Z",
+        ) as exception_info:
+            try:
+                raise LookupError("inotify body control")
+            finally:
+                watch.finish()
+        _task5a_assert_observer_teardown_failures_reachable(
+            exception_info.value,
+            {
+                (
+                    "ValueError",
+                    "preexisting inotify read cause control",
+                ),
+                (
+                    "OSError",
+                    f"[Errno {errno.EIO}] inotify aggregate close control",
+                ),
+                ("LookupError", "inotify body control"),
+            },
+        )
         assert watch.fd == -1
         with pytest.raises(OSError) as fd_error:
             os.fstat(original_fd)
