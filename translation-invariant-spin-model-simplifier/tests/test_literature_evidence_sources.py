@@ -10394,6 +10394,91 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
     }
 
 
+def _task5a_assert_no_forbidden_query_channels(
+    *,
+    forbidden,
+    outcome=None,
+    exception=None,
+    caplog,
+    capsys,
+    cache_root,
+):
+    def exception_tree(error, seen=None):
+        if error is None:
+            return None
+        seen = set() if seen is None else seen
+        if id(error) in seen:
+            return {"cycle": type(error).__name__}
+        seen.add(id(error))
+        return {
+            "type": type(error).__name__,
+            "str": str(error),
+            "repr": repr(error),
+            "args": error.args,
+            "attributes": vars(error),
+            "cause": exception_tree(error.__cause__, seen),
+            "context": exception_tree(error.__context__, seen),
+        }
+
+    cache_root = Path(cache_root)
+    cache_entries = []
+    if os.path.lexists(cache_root):
+        for path in sorted(cache_root.rglob("*")):
+            entry = {"path": path.relative_to(cache_root).as_posix()}
+            if path.is_symlink():
+                entry.update({"kind": "symlink", "target": os.readlink(path)})
+            elif path.is_file():
+                entry.update({"kind": "file", "payload": path.read_bytes()})
+            else:
+                entry["kind"] = "directory"
+            cache_entries.append(entry)
+    captured = capsys.readouterr()
+    channels = {
+        "exception": exception_tree(exception),
+        "outcome": outcome,
+        "outcome_json": (
+            json.dumps(outcome, sort_keys=True, ensure_ascii=True)
+            if outcome is not None
+            else None
+        ),
+        "logs": {
+            "rendered": caplog.text,
+            "records": [
+                {
+                    "message": record.getMessage(),
+                    "raw_message": record.msg,
+                    "args": record.args,
+                    "attributes": record.__dict__,
+                    "exception": exception_tree(
+                        record.exc_info[1] if record.exc_info else None
+                    ),
+                }
+                for record in caplog.records
+            ],
+        },
+        "stdout": captured.out,
+        "stderr": captured.err,
+        "cache": cache_entries,
+    }
+    assert "1" not in forbidden
+    leaking_channels = {
+        channel_name
+        for channel_name, channel in channels.items()
+        if any(
+            secret.casefold() in rendered.casefold()
+            for rendered in _recursive_strings(channel)
+            for secret in forbidden
+        )
+    }
+    assert not leaking_channels, (
+        "forbidden query material leaked through external channels: "
+        + ", ".join(sorted(leaking_channels))
+    )
+    if outcome is not None:
+        assert outcome["status"] == "failed"
+        assert isinstance(outcome["detail"], str) and outcome["detail"].strip()
+
+
 TASK5A_GAREL_IDENTITY = {
     "kind": "doi",
     "value": "10.1088/0305-4470/16/10/023",
@@ -10415,6 +10500,89 @@ TASK5A_HAL_QUERY_PAIRS = (
 )
 TASK5A_HAL_QUERY = urlencode(TASK5A_HAL_QUERY_PAIRS)
 TASK5A_HAL_REQUEST_URL = TASK5A_HAL_BASE + "?" + TASK5A_HAL_QUERY
+
+
+def _task5a_hal_forbidden_query_material():
+    q_expression = dict(TASK5A_HAL_QUERY_PAIRS)["q"]
+    return (
+        TASK5A_HAL_REQUEST_URL,
+        TASK5A_HAL_QUERY,
+        unquote_plus(TASK5A_HAL_QUERY),
+        q_expression,
+        quote_plus(q_expression, safe=""),
+        TASK5A_HAL_FIELD_PROJECTION,
+        quote_plus(TASK5A_HAL_FIELD_PROJECTION, safe=""),
+    )
+
+
+def test_task5a_hal_sidecar_open_failure_redacts_every_external_channel(
+    tmp_path,
+    monkeypatch,
+    caplog,
+    capsys,
+):
+    cache_root = tmp_path / "source-cache"
+    preexisting = cache_root / "preexisting_source"
+    preexisting.mkdir(parents=True)
+    preexisting.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before = _task5a_cache_manifest(cache_root)
+    fixture = _task5a_lifecycle_fixture()
+    source = fixture["source"]
+    route = copy.deepcopy(fixture["route"])
+    route["authoritative_retrieval_route"]["work_identity_evidence"][
+        "url"
+    ] = TASK5A_HAL_REQUEST_URL
+    target = cache_root / source["source_id"]
+    requests = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append(request.full_url)
+            if _header_dict(request).get("accept") == "application/pdf":
+                return _FixtureHTTPResponse(
+                    fixture["primary_payload"],
+                    content_type="application/pdf",
+                    final_url=route["authoritative_retrieval_route"]["url"],
+                )
+            raise OSError(
+                "HAL sidecar transport failed at "
+                + request.full_url
+                + "; query material "
+                + TASK5A_HAL_QUERY
+            )
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: copy.deepcopy(fixture["bibliographic"]),
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert TASK5A_HAL_REQUEST_URL in requests
+    assert "HAL sidecar transport failed" in outcome["detail"]
+    _task5a_assert_no_forbidden_query_channels(
+        forbidden=_task5a_hal_forbidden_query_material(),
+        outcome=outcome,
+        caplog=caplog,
+        capsys=capsys,
+        cache_root=cache_root,
+    )
+    assert not os.path.lexists(target)
+    assert not any(path.name.startswith(".") for path in cache_root.iterdir())
+    assert _task5a_cache_manifest(cache_root) == before
 TASK5A_GAREL_CROSSREF = {
     "doi": TASK5A_GAREL_IDENTITY["value"],
     "title": "Study of a two-dimensional fully frustrated model",
@@ -10756,6 +10924,210 @@ TASK5A_CORE_FINAL_BASE = (
     "https://pdf.core.ac.uk/corefilesystem/pdf/363/572184419.pdf"
 )
 TASK5A_CORE_SIGNED_QUERY = "download-token=TASK5A_CORE_MEMORY_ONLY_SIGNATURE"
+
+
+def _task5a_core_forbidden_query_material():
+    token = TASK5A_CORE_SIGNED_QUERY.split("=", 1)[1]
+    signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
+    fully_percent_encoded_token = "".join(
+        f"%{byte:02X}" for byte in token.encode("ascii")
+    )
+    return (
+        signed_final,
+        TASK5A_CORE_SIGNED_QUERY,
+        quote_plus(TASK5A_CORE_SIGNED_QUERY, safe=""),
+        token,
+        fully_percent_encoded_token,
+        fully_percent_encoded_token.casefold(),
+    )
+
+
+def test_task5a_core_direct_download_failure_redacts_signed_final_exception(
+    tmp_path,
+    monkeypatch,
+    caplog,
+    capsys,
+):
+    cache_root = tmp_path / "source-cache"
+    preexisting = cache_root / "preexisting_source"
+    preexisting.mkdir(parents=True)
+    preexisting.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before = _task5a_cache_manifest(cache_root)
+    route = copy.deepcopy(_core_mg_route())
+    route["url"] = TASK5A_CORE_INITIAL_URL
+    route["expected_media_type"] = "application/pdf"
+    signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
+    opener_requests = []
+    validator_receipts = []
+    real_validator = source_fetcher.validate_download_response
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            opener_requests.append(request.full_url)
+            return _FixtureHTTPResponse(
+                _minimal_pdf("CORE direct signed-final exception fixture."),
+                content_type="application/pdf",
+                final_url=signed_final,
+            )
+
+    def fail_after_real_media_validation(route_spec, **response):
+        media_type = real_validator(route_spec, **response)
+        assert media_type == "application/pdf"
+        validator_receipts.append(response["final_url"])
+        raise SourceEvidenceError(
+            "CORE media validation failed after signed-final receipt at "
+            + response["final_url"]
+            + "; signed query "
+            + TASK5A_CORE_SIGNED_QUERY
+        )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_download_response",
+        fail_after_real_media_validation,
+    )
+
+    exposed_exception = None
+    try:
+        source_fetcher._download(route, object())
+    except Exception as error:
+        exposed_exception = error
+    else:
+        pytest.fail("CORE direct signed-final failure was not propagated")
+
+    assert opener_requests == [TASK5A_CORE_INITIAL_URL]
+    assert validator_receipts == [signed_final]
+    assert isinstance(exposed_exception, SourceEvidenceError)
+    _task5a_assert_no_forbidden_query_channels(
+        forbidden=_task5a_core_forbidden_query_material(),
+        exception=exposed_exception,
+        caplog=caplog,
+        capsys=capsys,
+        cache_root=cache_root,
+    )
+    assert "CORE media validation failed after signed-final receipt" in str(
+        exposed_exception
+    )
+    assert _task5a_cache_manifest(cache_root) == before
+
+
+def test_task5a_core_provenance_failure_redacts_signed_final_url_everywhere(
+    tmp_path,
+    monkeypatch,
+    caplog,
+    capsys,
+):
+    cache_root = tmp_path / "source-cache"
+    preexisting = cache_root / "preexisting_source"
+    preexisting.mkdir(parents=True)
+    preexisting.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before = _task5a_cache_manifest(cache_root)
+    source_id = "doi_e49cda761520424da334"
+    source = {
+        "source_id": source_id,
+        "canonical_identity": {
+            "kind": "doi",
+            "value": CORE_MG_BIBLIOGRAPHIC_METADATA["doi"],
+        },
+        "canonical_url": (
+            "https://doi.org/" + CORE_MG_BIBLIOGRAPHIC_METADATA["doi"]
+        ),
+        "benchmark_names": ["task5a_core_redaction_fixture"],
+    }
+    authoritative_route = copy.deepcopy(_core_mg_route())
+    authoritative_route["url"] = TASK5A_CORE_INITIAL_URL
+    authoritative_route["expected_media_type"] = "application/pdf"
+    route = {
+        "source_id": source_id,
+        "authoritative_retrieval_route": authoritative_route,
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "local_cache_location": f"source-cache/{source_id}/source.pdf",
+    }
+    signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
+    requests = []
+    validated_sidecars = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append(request.full_url)
+            accept = _header_dict(request).get("accept")
+            if accept == "application/pdf":
+                redirected = Request(signed_final)
+                requests.append(redirected.full_url)
+                return _FixtureHTTPResponse(
+                    _minimal_pdf("CORE signed final redaction fixture."),
+                    content_type="application/pdf",
+                    final_url=redirected.full_url,
+                )
+            assert accept == "application/json"
+            return _FixtureHTTPResponse(
+                json.dumps(
+                    _core_mg_work_identity_document(),
+                    separators=(",", ":"),
+                ).encode("utf-8"),
+                content_type="application/json",
+                final_url=authoritative_route["work_identity_evidence"]["url"],
+            )
+
+    def validate_exact_sidecar(document, **kwargs):
+        assert document == _core_mg_work_identity_document()
+        assert kwargs["evidence_kind"] == "core_same_work_output"
+        assert kwargs["identity"] == source["canonical_identity"]
+        validated_sidecars.append(copy.deepcopy(document))
+
+    def fail_provenance(*args, **kwargs):
+        assert validated_sidecars == [_core_mg_work_identity_document()]
+        raise SourceEvidenceError(
+            "CORE provenance failed after "
+            + signed_final
+            + "; signing token "
+            + TASK5A_CORE_SIGNED_QUERY.split("=", 1)[1]
+        )
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: copy.deepcopy(CORE_MG_BIBLIOGRAPHIC_METADATA),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_work_identity_document",
+        validate_exact_sidecar,
+    )
+    monkeypatch.setattr(source_fetcher, "_build_provenance", fail_provenance)
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert signed_final in requests
+    assert "CORE provenance failed after" in outcome["detail"]
+    _task5a_assert_no_forbidden_query_channels(
+        forbidden=_task5a_core_forbidden_query_material(),
+        outcome=outcome,
+        caplog=caplog,
+        capsys=capsys,
+        cache_root=cache_root,
+    )
+    assert not os.path.lexists(cache_root / source_id)
+    assert not any(path.name.startswith(".") for path in cache_root.iterdir())
+    assert _task5a_cache_manifest(cache_root) == before
 
 
 def test_task5a_core_sidecar_requires_exact_raw_authors_and_canonical_tuples():
