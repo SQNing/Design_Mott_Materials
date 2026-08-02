@@ -442,11 +442,19 @@ PY
   not invoke or weaken the author-page HTML validator.
 - [ ] Run the focused HAL tests and all existing author-sidecar/CSS/redirect
   non-regression tests; obtain GREEN.
-- [ ] Create and retain a fresh external cache directory with
-  `mktemp -d /tmp/literature-evidence-task5a-pycache.XXXXXX`, then run
-  `PYTHONPYCACHEPREFIX=<that-directory> PYTHONDONTWRITEBYTECODE=1 python -m
-  py_compile` on both source modules and the test module. Confirm that no
-  repository `.pyc` path changed.
+- [ ] Run this complete HAL-stage syntax gate in one shell invocation. Retain
+  the external pycache directory and confirm that no repository `.pyc` path
+  changed:
+
+      task5a_hal_pycache="$(
+        mktemp -d /tmp/literature-evidence-task5a-hal-pycache.XXXXXX
+      )"
+      realpath -- "$task5a_hal_pycache"
+      PYTHONPYCACHEPREFIX="$task5a_hal_pycache" \
+        PYTHONDONTWRITEBYTECODE=1 python -m py_compile \
+          scripts/validation/literature_evidence_sources.py \
+          scripts/validation/fetch_literature_evidence_sources.py \
+          tests/test_literature_evidence_sources.py
 - [ ] Commit only the two production modules with message
   `fix: bind Garel source through HAL metadata` (the RED-test commit remains its
   own parent).
@@ -562,17 +570,24 @@ PY
 - Modify `translation-invariant-spin-model-simplifier/reference/literature-evidence/records/honeycomb_ising_ferromagnet_exact_tc.json`
 - Modify `translation-invariant-spin-model-simplifier/reference/literature-evidence/records/triangular_ising_ferromagnet_exact_tc.json`
 
-- [ ] From the project root, create and retain the first external generation
-  root and run the generator only against it. Never invoke the module's default
+- [ ] From the project root, assert the following fixed external path is absent,
+  create it with one exclusive `mkdir`, print its absolute path, and retain
+  it. If it already exists, stop; never delete, empty, or reuse it. Run the
+  generator only against this root and never invoke the module's default
   in-place `__main__`:
 
-      task5a_generation_root_1="$(
-        mktemp -d /tmp/literature-evidence-task5a-generation-1.XXXXXX
-      )"
+      test ! -e \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1
+      test ! -L \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1
+      mkdir -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1
+      realpath -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1
       cp --no-clobber -- \
         reference/literature-evidence/canonical-observables.json \
-        "$task5a_generation_root_1/canonical-observables.json"
-      TASK5A_GENERATION_ROOT="$task5a_generation_root_1" \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1/canonical-observables.json
+      TASK5A_GENERATION_ROOT=/tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1 \
         PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
         python - <<'PY'
       import os
@@ -600,12 +615,12 @@ PY
       )
       PY
 
-  Require `records=155 sources=137 locators=155`. Retain and record the exact
-  printed temporary path; do not delete or reuse it.
+  Require `records=155 sources=137 locators=155` and record the exact printed
+  path; do not delete or reuse it.
 - [ ] Compare the first generated tree to the real inventory with this exact
   read-only path/byte/semantic gate:
 
-      TASK5A_GENERATION_ROOT="$task5a_generation_root_1" \
+      TASK5A_GENERATION_ROOT=/tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1 \
         PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
       import json
       import os
@@ -658,17 +673,20 @@ PY
   these user-approved exact generated files. The bulk deterministic rewrite is
   the only permitted overwrite; never copy the whole tree:
 
-      cp -- "$task5a_generation_root_1/source-index.json" \
+      cp -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1/source-index.json \
         reference/literature-evidence/source-index.json
-      cp -- "$task5a_generation_root_1/source-provisioning.json" \
+      cp -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1/source-provisioning.json \
         reference/literature-evidence/source-provisioning.json
-      cp -- "$task5a_generation_root_1/locator-inventory.json" \
+      cp -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1/locator-inventory.json \
         reference/literature-evidence/locator-inventory.json
       cp -- \
-        "$task5a_generation_root_1/records/honeycomb_ising_ferromagnet_exact_tc.json" \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1/records/honeycomb_ising_ferromagnet_exact_tc.json \
         reference/literature-evidence/records/honeycomb_ising_ferromagnet_exact_tc.json
       cp -- \
-        "$task5a_generation_root_1/records/triangular_ising_ferromagnet_exact_tc.json" \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1/records/triangular_ising_ferromagnet_exact_tc.json \
         reference/literature-evidence/records/triangular_ising_ferromagnet_exact_tc.json
 
 - [ ] Prove the Garel and CORE static effect is confined to their provisioning
@@ -683,16 +701,22 @@ PY
           tests/test_literature_evidence_inventory.py \
           tests/test_literature_spin_model_crosschecks.py
 
-- [ ] Create, populate, validate, and retain the second root with these exact
-  commands:
+- [ ] Assert the second fixed external path is absent, create it exclusively,
+  print it, populate it, validate it, and retain it. Stop rather than deleting,
+  emptying, or reusing any existing entry:
 
-      task5a_generation_root_2="$(
-        mktemp -d /tmp/literature-evidence-task5a-generation-2.XXXXXX
-      )"
+      test ! -e \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2
+      test ! -L \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2
+      mkdir -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2
+      realpath -- \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2
       cp --no-clobber -- \
         reference/literature-evidence/canonical-observables.json \
-        "$task5a_generation_root_2/canonical-observables.json"
-      TASK5A_GENERATION_ROOT="$task5a_generation_root_2" \
+        /tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2/canonical-observables.json
+      TASK5A_GENERATION_ROOT=/tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2 \
         PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
         python - <<'PY'
       import os
@@ -722,8 +746,8 @@ PY
 
   Require the same 155/137/155 counts. Then run this exact full-tree gate:
 
-      TASK5A_GENERATION_ROOT_1="$task5a_generation_root_1" \
-        TASK5A_GENERATION_ROOT_2="$task5a_generation_root_2" \
+      TASK5A_GENERATION_ROOT_1=/tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-1 \
+        TASK5A_GENERATION_ROOT_2=/tmp/literature-evidence-task6-audit.Z4uIC2bC/task5a-static-generation-2 \
         PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
       import json
       import os
