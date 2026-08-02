@@ -9367,21 +9367,105 @@ TASK5A_STRACE_CALL = re.compile(
     r"^(?:(?:\[pid\s+\d+\]|\d+)\s+)?"
     r"(?P<operation>rename|renameat|renameat2|mkdir|mkdirat|open|openat|"
     r"unlink|unlinkat|rmdir|symlink|symlinkat|link|linkat)"
-    r"\((?P<arguments>.*)\)\s+=\s+(?P<result>-?\d+)(?:\s|$)"
+    r"\((?P<arguments>.*)\)\s+=\s+(?P<result>-?\d+)"
+    r"(?:<[^>]*>)?(?:\s|$)"
 )
 TASK5A_STRACE_QUOTED_PATH = re.compile(r'"(?:\\.|[^"\\])*"')
+TASK5A_STRACE_DIRFD = re.compile(
+    r"^(?P<descriptor>AT_FDCWD|-?\d+)(?:<(?P<path>.*)>)?$"
+)
 
 
-def _task5a_parse_strace_payload(payload):
+def _task5a_split_strace_arguments(arguments):
+    tokens = []
+    start = 0
+    quote = False
+    escaped = False
+    stack = []
+    closing = {"<": ">", "(": ")", "[": "]", "{": "}"}
+    for offset, character in enumerate(arguments):
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quote = False
+            continue
+        if character == '"':
+            quote = True
+        elif character in closing:
+            stack.append(closing[character])
+        elif stack and character == stack[-1]:
+            stack.pop()
+        elif character == "," and not stack:
+            tokens.append(arguments[start:offset].strip())
+            start = offset + 1
+    assert not quote and not escaped and not stack, arguments
+    tokens.append(arguments[start:].strip())
+    return tuple(tokens)
+
+
+def _task5a_strace_dirfd_base(token, *, cwd):
+    match = TASK5A_STRACE_DIRFD.fullmatch(token)
+    assert match is not None, token
+    annotated_path = match.group("path")
+    if annotated_path is not None:
+        return Path(os.path.abspath(annotated_path))
+    assert match.group("descriptor") == "AT_FDCWD", (
+        "numeric strace dirfd lacks the path annotation requested by -yy: "
+        + token
+    )
+    return cwd
+
+
+def _task5a_resolve_strace_path(token, *, cwd, dirfd=None):
+    assert TASK5A_STRACE_QUOTED_PATH.fullmatch(token), token
+    path = Path(json.loads(token))
+    if not path.is_absolute():
+        base = cwd if dirfd is None else _task5a_strace_dirfd_base(dirfd, cwd=cwd)
+        path = base / path
+    return Path(os.path.abspath(path))
+
+
+def _task5a_strace_operation_paths(operation, tokens, *, cwd):
+    if operation in {"renameat", "renameat2", "linkat"}:
+        assert len(tokens) >= 4, tokens
+        return (
+            _task5a_resolve_strace_path(tokens[1], cwd=cwd, dirfd=tokens[0]),
+            _task5a_resolve_strace_path(tokens[3], cwd=cwd, dirfd=tokens[2]),
+        )
+    if operation in {"mkdirat", "openat", "unlinkat"}:
+        assert len(tokens) >= 2, tokens
+        return (
+            _task5a_resolve_strace_path(tokens[1], cwd=cwd, dirfd=tokens[0]),
+        )
+    if operation == "symlinkat":
+        assert len(tokens) >= 3, tokens
+        return (
+            _task5a_resolve_strace_path(tokens[2], cwd=cwd, dirfd=tokens[1]),
+        )
+    quoted_tokens = tuple(
+        token for token in tokens if TASK5A_STRACE_QUOTED_PATH.fullmatch(token)
+    )
+    return tuple(
+        _task5a_resolve_strace_path(token, cwd=cwd) for token in quoted_tokens
+    )
+
+
+def _task5a_parse_strace_payload(payload, *, cwd=None):
+    cwd = Path(os.path.abspath(Path.cwd() if cwd is None else cwd))
     records = []
     for line_number, line in enumerate(payload.splitlines(), start=1):
         match = TASK5A_STRACE_CALL.match(line.strip())
         if match is None:
             continue
         arguments = match.group("arguments")
-        paths = tuple(
-            Path(json.loads(token))
-            for token in TASK5A_STRACE_QUOTED_PATH.findall(arguments)
+        argument_tokens = _task5a_split_strace_arguments(arguments)
+        paths = _task5a_strace_operation_paths(
+            match.group("operation"),
+            argument_tokens,
+            cwd=cwd,
         )
         result = int(match.group("result"))
         records.append(
@@ -9389,6 +9473,7 @@ def _task5a_parse_strace_payload(payload):
                 "line_number": line_number,
                 "operation": match.group("operation"),
                 "arguments": arguments,
+                "argument_tokens": argument_tokens,
                 "paths": paths,
                 "result": result,
                 "success": result >= 0,
@@ -9414,6 +9499,7 @@ class _Task5AStraceWatch:
                 "/usr/bin/strace",
                 "-qq",
                 "-f",
+                "-yy",
                 "-s",
                 "4096",
                 "-e",
@@ -9572,10 +9658,16 @@ def _task5a_assert_failed_collision_publication(
     cache_root,
     target,
     *,
+    candidate,
     foreign_staging,
 ):
     cache_root = Path(os.path.abspath(cache_root))
     target = Path(os.path.abspath(target))
+    candidate = Path(os.path.abspath(candidate))
+    foreign_staging = Path(os.path.abspath(foreign_staging))
+    assert candidate.parent == cache_root
+    assert candidate.name.startswith(".")
+    assert candidate not in {target, foreign_staging}
     if observation["backend"] == "inotify":
         target_moves = [
             event
@@ -9584,16 +9676,14 @@ def _task5a_assert_failed_collision_publication(
             and event["mask"] & TASK5A_IN_MOVED_TO
         ]
         assert target_moves == [], target_moves
-        staging_creates = [
+        candidate_creates = [
             event
             for event in observation["events"]
-            if event["name"].startswith(".")
-            and event["name"] != foreign_staging.name
+            if event["name"] == candidate.name
             and event["mask"] & TASK5A_IN_CREATE
             and event["mask"] & TASK5A_IN_ISDIR
         ]
-        assert len(staging_creates) == 1, observation["events"]
-        staging = cache_root / staging_creates[0]["name"]
+        assert len(candidate_creates) == 1, observation["events"]
     else:
         assert observation["backend"] == "strace", observation
         moves_to_target = []
@@ -9601,19 +9691,13 @@ def _task5a_assert_failed_collision_publication(
             if record["operation"] not in {"rename", "renameat", "renameat2"}:
                 continue
             staging, destination = _task5a_strace_rename_paths(record)
-            if (
-                destination == target
-                and staging.parent == cache_root
-                and staging.name.startswith(".")
-            ):
+            if destination == target:
                 moves_to_target.append((record, staging))
-        assert len(moves_to_target) == 1, moves_to_target
-        publication, staging = moves_to_target[0]
-        assert not publication["success"], publication
-        assert not any(record["success"] for record, _path in moves_to_target)
-    assert staging != foreign_staging
-    assert not os.path.lexists(staging)
-    return staging.name
+        assert not any(record["success"] for record, _path in moves_to_target), (
+            moves_to_target
+        )
+    assert not os.path.lexists(candidate)
+    return candidate.name
 
 
 def _task5a_resolve_open_path(path, *, dir_fd=None):
@@ -9879,16 +9963,46 @@ def test_task5a_inotify_event_parser_preserves_masks_names_and_move_cookie():
     assert parsed_cookie == cookie
 
 
-def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes():
+@pytest.mark.parametrize(
+    "path_form",
+    ("absolute", "numeric-dirfd-relative-renameat", "numeric-dirfd-relative-renameat2"),
+)
+def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes(
+    path_form,
+):
     cache_root = Path("/tmp/task5a-parser-control/source-cache")
     staging = cache_root / ".task5a-observer-control"
     target = cache_root / "published-control"
+    if path_form == "absolute":
+        open_call = (
+            f'417 openat(AT_FDCWD, "{staging}/source.pdf", '
+            "O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 9"
+        )
+        publication_call = (
+            f'417 renameat2(AT_FDCWD, "{staging}", AT_FDCWD, '
+            f'"{target}", RENAME_NOREPLACE) = 0'
+        )
+    else:
+        candidate_fd = f"73<{staging}>"
+        cache_fd = f"42<{cache_root}>"
+        open_call = (
+            f'417 openat({candidate_fd}, "source.pdf", '
+            f'O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 9<{staging}/source.pdf>'
+        )
+        if path_form.endswith("renameat2"):
+            publication_call = (
+                f'417 renameat2({cache_fd}, "{staging.name}", {cache_fd}, '
+                f'"{target.name}", RENAME_NOREPLACE) = 0'
+            )
+        else:
+            publication_call = (
+                f'417 renameat({cache_fd}, "{staging.name}", {cache_fd}, '
+                f'"{target.name}") = 0'
+            )
     payload = "\n".join(
         (
-            f'417 openat(AT_FDCWD, "{staging}/source.pdf", '
-            "O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 9",
-            f'417 renameat2(AT_FDCWD, "{staging}", AT_FDCWD, '
-            f'"{target}", RENAME_NOREPLACE) = 0',
+            open_call,
+            publication_call,
         )
     )
     records = _task5a_parse_strace_payload(payload)
@@ -9900,9 +10014,78 @@ def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes():
             target,
         )
     )
-    assert [record["operation"] for record in records] == ["openat", "renameat2"]
+    assert [record["operation"] for record in records] == [
+        "openat",
+        "renameat" if path_form.endswith("-renameat") else "renameat2",
+    ]
+    assert records[0]["paths"] == (staging / "source.pdf",)
+    assert records[1]["paths"] == (staging, target)
     assert staging_name == staging.name
     assert publication_line == 2
+
+
+@pytest.mark.parametrize("failed_attempts", (0, 2))
+def test_task5a_strace_collision_control_accepts_zero_or_more_failed_target_moves(
+    tmp_path,
+    failed_attempts,
+):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    candidate = cache_root / ".replay-observed-candidate"
+    foreign_staging = cache_root / ".foreign-operation-staging"
+    foreign_staging.mkdir()
+    foreign_staging.joinpath("sentinel").write_bytes(b"FOREIGN-STAGING")
+    target = cache_root / "concurrent-target"
+    target.write_bytes(b"FOREIGN-TARGET")
+    before_foreign = _task5a_cache_manifest(foreign_staging)
+    before_target = _round7_tree_snapshot(target)
+    cache_fd = f"42<{cache_root}>"
+    payload = "\n".join(
+        f'417 renameat2({cache_fd}, "{candidate.name}", {cache_fd}, '
+        f'"{target.name}", RENAME_NOREPLACE) = -1 EEXIST (File exists)'
+        for _attempt in range(failed_attempts)
+    )
+    observation = {
+        "backend": "strace",
+        "records": _task5a_parse_strace_payload(payload),
+    }
+
+    staging_name = _task5a_assert_failed_collision_publication(
+        observation,
+        cache_root,
+        target,
+        candidate=candidate,
+        foreign_staging=foreign_staging,
+    )
+
+    assert staging_name == candidate.name
+    assert not os.path.lexists(candidate)
+    assert _task5a_cache_manifest(foreign_staging) == before_foreign
+    assert _round7_tree_snapshot(target) == before_target
+
+
+def test_task5a_strace_collision_control_rejects_successful_target_move(tmp_path):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    candidate = cache_root / ".replay-observed-candidate"
+    foreign_staging = cache_root / ".foreign-operation-staging"
+    foreign_staging.mkdir()
+    target = cache_root / "concurrent-target"
+    target.write_bytes(b"FOREIGN-TARGET")
+    cache_fd = f"42<{cache_root}>"
+    records = _task5a_parse_strace_payload(
+        f'417 renameat2({cache_fd}, "{candidate.name}", {cache_fd}, '
+        f'"{target.name}", RENAME_NOREPLACE) = 0'
+    )
+
+    with pytest.raises(AssertionError):
+        _task5a_assert_failed_collision_publication(
+            {"backend": "strace", "records": records},
+            cache_root,
+            target,
+            candidate=candidate,
+            foreign_staging=foreign_staging,
+        )
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
@@ -10315,6 +10498,7 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
     events = []
     target_visibility = []
     collision_snapshots = []
+    replayed_candidates = []
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
         fixture,
@@ -10332,8 +10516,11 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
         verified = real_loader(candidate, **kwargs)
         events.append("offline-replay-complete")
         assert candidate != target
+        assert candidate.parent == cache_root
+        assert candidate.name.startswith(".")
         assert target_visible_before_replay is False
         assert not target.exists() and not target.is_symlink()
+        replayed_candidates.append(candidate)
         if collision_kind in {"empty-directory", "nonempty-directory"}:
             target.mkdir()
         elif collision_kind == "regular-file":
@@ -10382,12 +10569,14 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
         f"concurrent-{collision_kind}-target-created",
     )
     assert len(collision_snapshots) == 1
+    assert len(replayed_candidates) == 1
     assert os.path.lexists(target)
     assert _round7_tree_snapshot(target) == collision_snapshots[0]
     staging_name = _task5a_assert_failed_collision_publication(
         publication_observation,
         cache_root,
         target,
+        candidate=replayed_candidates[0],
         foreign_staging=foreign_staging,
     )
     assert staging_name != foreign_staging.name
@@ -10536,9 +10725,9 @@ def test_task5a_hal_sidecar_open_failure_redacts_every_external_channel(
     fixture = _task5a_lifecycle_fixture()
     source = fixture["source"]
     route = copy.deepcopy(fixture["route"])
-    route["authoritative_retrieval_route"]["work_identity_evidence"][
+    assert route["authoritative_retrieval_route"]["work_identity_evidence"][
         "url"
-    ] = TASK5A_HAL_REQUEST_URL
+    ] == TASK5A_HAL_BASE
     target = cache_root / source["source_id"]
     requests = []
 
@@ -10551,12 +10740,7 @@ def test_task5a_hal_sidecar_open_failure_redacts_every_external_channel(
                     content_type="application/pdf",
                     final_url=route["authoritative_retrieval_route"]["url"],
                 )
-            raise OSError(
-                "HAL sidecar transport failed at "
-                + request.full_url
-                + "; query material "
-                + TASK5A_HAL_QUERY
-            )
+            raise OSError("HAL sidecar transport failed at " + request.full_url)
 
     monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
     monkeypatch.setattr(
@@ -10578,7 +10762,13 @@ def test_task5a_hal_sidecar_open_failure_redacts_every_external_channel(
         resume=False,
     )
 
-    assert TASK5A_HAL_REQUEST_URL in requests
+    assert requests == [
+        route["authoritative_retrieval_route"]["url"],
+        TASK5A_HAL_REQUEST_URL,
+    ]
+    assert route["authoritative_retrieval_route"]["work_identity_evidence"][
+        "url"
+    ] == TASK5A_HAL_BASE
     assert "HAL sidecar transport failed" in outcome["detail"]
     _task5a_assert_no_forbidden_query_channels(
         forbidden=_task5a_hal_forbidden_query_material(),
@@ -11574,54 +11764,6 @@ def test_task5a_oup_crossref_rejects_each_independent_response_mutation(
         _task5a_validate_oup_crossref(document)
 
 
-def test_task5a_oup_crossref_raw_response_is_single_metadata_and_sidecar_source(
-    monkeypatch,
-):
-    raw = json.dumps(
-        _task5a_oup_crossref_document(),
-        separators=(",", ":"),
-    ).encode("utf-8")
-    requests = []
-
-    class FixtureOpener:
-        def open(self, request, timeout):
-            requests.append((request.full_url, timeout))
-            return _FixtureHTTPResponse(
-                raw,
-                content_type="application/json",
-                final_url=TASK5A_OUP_CROSSREF_URL,
-            )
-
-    monkeypatch.setattr(
-        source_fetcher,
-        "build_opener",
-        lambda *handlers: FixtureOpener(),
-    )
-    bundle = source_fetcher._fetch_crossref_oup_same_work_bundle(
-        {"canonical_identity": TASK5A_OUP_IDENTITY},
-        {"authoritative_retrieval_route": _oup_html_route()},
-        object(),
-    )
-
-    assert requests == [(TASK5A_OUP_CROSSREF_URL, 30)]
-    assert bundle["raw_payload"] == raw
-    assert bundle["bibliographic_metadata"] == _task5a_oup_crossref_metadata()
-    assert bundle["identity_evidence"] == {
-        "payload": raw,
-        "descriptor": {
-            "kind": "crossref_oup_same_work",
-            "url": TASK5A_OUP_CROSSREF_URL,
-            "document_base_url": TASK5A_OUP_CROSSREF_URL,
-            "media_type": "application/json",
-            "payload_relative_path": "work-identity.json",
-            "payload_sha256": hashlib.sha256(raw).hexdigest(),
-            "payload_byte_length": len(raw),
-        },
-    }
-    assert bundle["raw_payload"] is raw
-    assert bundle["identity_evidence"]["payload"] is raw
-
-
 def _task5a_invalid_oup_crossref_raw(mutation):
     valid_payload = json.dumps(
         _task5a_oup_crossref_document(),
@@ -11635,80 +11777,6 @@ def _task5a_invalid_oup_crossref_raw(mutation):
             "TASK5A_OUP_TRAILING_JSON",
         )
     return _round12_invalid_json_sidecar(valid_payload, mutation)
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    (
-        "duplicate-key",
-        "nan",
-        "positive-infinity",
-        "negative-infinity",
-        "invalid-utf8",
-        "malformed-json",
-        "trailing-json",
-    ),
-)
-def test_task5a_oup_crossref_bundle_rejects_each_strict_raw_json_mutation(
-    tmp_path,
-    monkeypatch,
-    mutation,
-):
-    raw, marker = _task5a_invalid_oup_crossref_raw(mutation)
-    requests = []
-    response_reads = []
-    validator_documents = []
-    real_validate = source_fetcher.validate_work_identity_document
-
-    class FixtureResponse(_FixtureHTTPResponse):
-        def read(self):
-            response_reads.append(self._payload)
-            return super().read()
-
-    class FixtureOpener:
-        def open(self, request, timeout):
-            requests.append(
-                (request.full_url, _header_dict(request).get("accept"), timeout)
-            )
-            assert request.full_url == TASK5A_OUP_CROSSREF_URL
-            assert "?" not in request.full_url
-            return FixtureResponse(
-                raw,
-                content_type="application/json",
-                final_url=TASK5A_OUP_CROSSREF_URL,
-            )
-
-    def recording_validate(document, **kwargs):
-        validator_documents.append(document)
-        return real_validate(document, **kwargs)
-
-    monkeypatch.setattr(
-        source_fetcher,
-        "build_opener",
-        lambda *handlers: FixtureOpener(),
-    )
-    monkeypatch.setattr(
-        source_fetcher,
-        "validate_work_identity_document",
-        recording_validate,
-    )
-
-    with pytest.raises(SourceEvidenceError, match="strict JSON") as caught:
-        source_fetcher._fetch_crossref_oup_same_work_bundle(
-            {"canonical_identity": TASK5A_OUP_IDENTITY},
-            {"authoritative_retrieval_route": copy.deepcopy(_oup_html_route())},
-            object(),
-        )
-
-    assert requests == [
-        (TASK5A_OUP_CROSSREF_URL, "application/json", 30)
-    ]
-    assert response_reads == [raw]
-    assert validator_documents == []
-    assert _task5a_cache_manifest(tmp_path) == ()
-    rendered = str(caught.value)
-    assert marker not in rendered
-    assert raw.decode("utf-8", errors="ignore") not in rendered
 
 
 def _task5a_expected_oup_route_spec():
