@@ -9428,6 +9428,13 @@ TASK5A_STRACE_FD_MUTATIONS = {
     "fsetxattr",
     "fremovexattr",
 }
+TASK5A_STRACE_EARLY_DEATH = (
+    "strace observer died before controlled teardown"
+)
+TASK5A_STRACE_INCOMPLETE = (
+    "strace observer did not record a completed teardown checkpoint"
+)
+TASK5A_STRACE_CHECKPOINT_PREFIX = ".task5a-strace-checkpoint-"
 
 
 def _task5a_split_strace_arguments(arguments):
@@ -9615,15 +9622,86 @@ class _Task5AStraceWatch:
                 f"strace did not attach before timeout: {stderr.strip()}",
             )
 
+    def _await_completed_checkpoint(self):
+        checkpoint_path = Path(os.path.abspath(self.root)) / (
+            f"{TASK5A_STRACE_CHECKPOINT_PREFIX}{self.process.pid}-"
+            f"{time.monotonic_ns()}"
+        )
+        try:
+            descriptor = os.open(
+                checkpoint_path,
+                os.O_RDONLY | os.O_CLOEXEC,
+            )
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return False
+        else:
+            os.close(descriptor)
+        encoded_path = json.dumps(os.fspath(checkpoint_path))
+        deadline = time.monotonic() + 5.0
+        while self.process.poll() is None and time.monotonic() < deadline:
+            if self.trace_path.is_file():
+                try:
+                    payload = self.trace_path.read_text(encoding="utf-8")
+                except (OSError, UnicodeError):
+                    return False
+                for line in payload.splitlines():
+                    match = TASK5A_STRACE_CALL.match(line.strip())
+                    if (
+                        match is not None
+                        and match.group("operation") in {"open", "openat"}
+                        and encoded_path in match.group("arguments")
+                        and "ENOSYS" not in line
+                    ):
+                        return True
+            time.sleep(0.01)
+        return False
+
     def finish(self):
-        if self.process.poll() is None:
-            self.process.send_signal(signal.SIGINT)
-        _stdout, stderr = self.process.communicate(timeout=5)
+        alive_at_teardown_start = self.process.poll() is None
+        attached_at_teardown_start = (
+            _task5a_tracer_pid() == self.process.pid
+        )
+        checkpoint_complete = False
+        if alive_at_teardown_start and attached_at_teardown_start:
+            checkpoint_complete = self._await_completed_checkpoint()
+        alive_before_controlled_sigint = self.process.poll() is None
+        attached_before_controlled_sigint = (
+            _task5a_tracer_pid() == self.process.pid
+        )
+        sent_controlled_sigint = False
+        timed_out = False
+        if alive_before_controlled_sigint:
+            try:
+                self.process.send_signal(signal.SIGINT)
+                sent_controlled_sigint = True
+            except ProcessLookupError:
+                alive_before_controlled_sigint = False
+        try:
+            self.process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            self.process.kill()
+            self.process.communicate()
         deadline = time.monotonic() + 5.0
         while _task5a_tracer_pid() != 0 and time.monotonic() < deadline:
             time.sleep(0.01)
         assert _task5a_tracer_pid() == 0, "strace failed to detach from pytest"
-        assert self.trace_path.is_file(), stderr
+        if (
+            not alive_at_teardown_start
+            or not attached_at_teardown_start
+            or not alive_before_controlled_sigint
+            or not attached_before_controlled_sigint
+        ):
+            raise AssertionError(TASK5A_STRACE_EARLY_DEATH)
+        assert sent_controlled_sigint, TASK5A_STRACE_EARLY_DEATH
+        assert not timed_out, "strace observer did not stop after controlled SIGINT"
+        assert self.process.returncode == 0, (
+            "strace observer returned an unexpected controlled-SIGINT status"
+        )
+        assert checkpoint_complete, TASK5A_STRACE_INCOMPLETE
+        assert self.trace_path.is_file(), "strace observer did not write its trace"
         payload = self.trace_path.read_text(encoding="utf-8")
         return {
             "backend": "strace",
@@ -10301,6 +10379,96 @@ def test_task5a_strace_collision_control_rejects_successful_target_move(tmp_path
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
+@pytest.mark.parametrize(
+    "failure_stage",
+    ("optional-observer-acquisition", "directory-fd-acquisition", "strace-finish"),
+)
+def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observer(
+    tmp_path,
+    monkeypatch,
+    failure_stage,
+):
+    events = []
+    opened_directory_fds = []
+    closed_directory_fds = []
+
+    class RequiredStraceControl:
+        def finish(self):
+            events.append("strace-finish")
+            if failure_stage == "strace-finish":
+                raise AssertionError("strace finish control")
+            return {"backend": "strace", "records": [], "payload": ""}
+
+    class OptionalInotifyControl:
+        def finish(self):
+            events.append("inotify-finish")
+            return {"backend": "inotify", "events": []}
+
+    def required_strace_control(_root, _trace_path):
+        events.append("strace-acquired")
+        return RequiredStraceControl()
+
+    def optional_inotify_control(_root):
+        events.append("inotify-acquisition")
+        if failure_stage == "optional-observer-acquisition":
+            raise OSError(errno.EIO, "optional observer acquisition control")
+        return OptionalInotifyControl()
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_task5a_required_success_strace_observer",
+        required_strace_control,
+    )
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_task5a_optional_inotify_observer",
+        optional_inotify_control,
+    )
+    if failure_stage == "directory-fd-acquisition":
+        def failing_directory_open(*_args, **_kwargs):
+            raise OSError(errno.EMFILE, "directory fd acquisition control")
+
+        monkeypatch.setattr(os, "open", failing_directory_open)
+    elif failure_stage == "strace-finish":
+        real_open = os.open
+        real_close = os.close
+
+        def recording_directory_open(*args, **kwargs):
+            descriptor = real_open(*args, **kwargs)
+            opened_directory_fds.append(descriptor)
+            return descriptor
+
+        def recording_directory_close(descriptor):
+            if descriptor in opened_directory_fds:
+                closed_directory_fds.append(descriptor)
+            real_close(descriptor)
+
+        monkeypatch.setattr(os, "open", recording_directory_open)
+        monkeypatch.setattr(os, "close", recording_directory_close)
+
+    expected_error = {
+        "optional-observer-acquisition": "optional observer acquisition control",
+        "directory-fd-acquisition": "directory fd acquisition control",
+        "strace-finish": "strace finish control",
+    }[failure_stage]
+    with pytest.raises((OSError, AssertionError), match=expected_error):
+        test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
+            tmp_path
+        )
+
+    expected_events = [
+        "strace-acquired",
+        "inotify-acquisition",
+        "strace-finish",
+    ]
+    if failure_stage != "optional-observer-acquisition":
+        expected_events.append("inotify-finish")
+    assert events == expected_events
+    assert opened_directory_fds == closed_directory_fds
+    assert _task5a_tracer_pid() == 0
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
 def test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
     tmp_path,
 ):
@@ -10310,55 +10478,71 @@ def test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
     staging.mkdir()
     target = cache_root / "published-control"
 
-    visibility_observer = _task5a_optional_inotify_observer(cache_root)
     observer = _task5a_required_success_strace_observer(
         cache_root,
         tmp_path / "task5a-observer-control.strace",
     )
-    directory_fd = os.open(
-        cache_root,
-        os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC,
-    )
+    visibility_observer = None
+    visibility_observation = None
+    directory_fd = None
     try:
-        libc = ctypes.CDLL(None, use_errno=True)
-        renameat2 = getattr(libc, "renameat2", None)
-        rename_arguments = (
-            directory_fd,
-            os.fsencode(staging.name),
-            directory_fd,
-            os.fsencode(target.name),
-            1,
-        )
-        if renameat2 is not None:
-            renameat2.argtypes = [
-                ctypes.c_int,
-                ctypes.c_char_p,
-                ctypes.c_int,
-                ctypes.c_char_p,
-                ctypes.c_uint,
-            ]
-            renameat2.restype = ctypes.c_int
-            result = renameat2(*rename_arguments)
-        else:
-            syscall_number = {
-                "x86_64": 316,
-                "aarch64": 276,
-            }.get(os.uname().machine)
-            if syscall_number is None:
-                pytest.fail("live Linux renameat2 control is unavailable")
-            libc.syscall.restype = ctypes.c_long
-            result = libc.syscall(syscall_number, *rename_arguments)
-        if result != 0:
-            pytest.fail("live Linux renameat2 no-replace control failed")
+        try:
+            visibility_observer = _task5a_optional_inotify_observer(cache_root)
+            directory_fd = os.open(
+                cache_root,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC,
+            )
+            libc = ctypes.CDLL(None, use_errno=True)
+            renameat2 = getattr(libc, "renameat2", None)
+            rename_arguments = (
+                directory_fd,
+                os.fsencode(staging.name),
+                directory_fd,
+                os.fsencode(target.name),
+                1,
+            )
+            if renameat2 is not None:
+                renameat2.argtypes = [
+                    ctypes.c_int,
+                    ctypes.c_char_p,
+                    ctypes.c_int,
+                    ctypes.c_char_p,
+                    ctypes.c_uint,
+                ]
+                renameat2.restype = ctypes.c_int
+                result = renameat2(*rename_arguments)
+            else:
+                syscall_number = {
+                    "x86_64": 316,
+                    "aarch64": 276,
+                }.get(os.uname().machine)
+                if syscall_number is None:
+                    pytest.fail("live Linux renameat2 control is unavailable")
+                libc.syscall.restype = ctypes.c_long
+                result = libc.syscall(syscall_number, *rename_arguments)
+            if result != 0:
+                pytest.fail("live Linux renameat2 no-replace control failed")
+        finally:
+            if directory_fd is not None:
+                os.close(directory_fd)
     finally:
-        os.close(directory_fd)
-        visibility_observation = (
-            visibility_observer.finish()
-            if visibility_observer is not None
-            else None
-        )
-        observation = observer.finish()
+        try:
+            observation = observer.finish()
+        finally:
+            if visibility_observer is not None:
+                visibility_observation = visibility_observer.finish()
 
+    checkpoint_records = [
+        record
+        for record in observation["records"]
+        if record["operation"] in {"open", "openat"}
+        and any(
+            path.name.startswith(TASK5A_STRACE_CHECKPOINT_PREFIX)
+            for path in record["paths"]
+        )
+    ]
+    assert len(checkpoint_records) == 1, checkpoint_records
+    assert "ENOSYS" not in checkpoint_records[0]["line"]
     if visibility_observation is not None:
         visible_staging_name, visibility_cookie = (
             _task5a_assert_single_directory_publication(
@@ -10726,12 +10910,14 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
 
     monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
 
-    visibility_observer = _task5a_optional_inotify_observer(cache_root)
     observer = _task5a_required_success_strace_observer(
         cache_root,
         tmp_path / "task5a-success-publication.strace",
     )
+    visibility_observer = None
+    visibility_observation = None
     try:
+        visibility_observer = _task5a_optional_inotify_observer(cache_root)
         outcome = source_fetcher._fetch_source(
             cache_root,
             source,
@@ -10740,12 +10926,11 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
             resume=False,
         )
     finally:
-        visibility_observation = (
-            visibility_observer.finish()
-            if visibility_observer is not None
-            else None
-        )
-        publication_observation = observer.finish()
+        try:
+            publication_observation = observer.finish()
+        finally:
+            if visibility_observer is not None:
+                visibility_observation = visibility_observer.finish()
 
     assert outcome["status"] == "acquired", outcome
     _task5a_assert_inputs_complete_before(events, "offline-replay-enter")
@@ -10811,6 +10996,76 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     }
     assert _task5a_cache_manifest(existing) == before_existing
     assert _task5a_cache_manifest(foreign_staging) == before_foreign_staging
+
+
+@pytest.mark.parametrize(
+    "failure_stage",
+    ("optional-observer-acquisition", "strace-finish"),
+)
+def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observer(
+    tmp_path,
+    monkeypatch,
+    failure_stage,
+):
+    events = []
+
+    class RequiredStraceControl:
+        def finish(self):
+            events.append("strace-finish")
+            if failure_stage == "strace-finish":
+                raise AssertionError("public success strace finish control")
+            return {"backend": "strace", "records": [], "payload": ""}
+
+    class OptionalInotifyControl:
+        def finish(self):
+            events.append("inotify-finish")
+            return {"backend": "inotify", "events": []}
+
+    def required_strace_control(_root, _trace_path):
+        events.append("strace-acquired")
+        return RequiredStraceControl()
+
+    def optional_inotify_control(_root):
+        events.append("inotify-acquisition")
+        if failure_stage == "optional-observer-acquisition":
+            raise OSError(
+                errno.EIO,
+                "public success optional observer acquisition control",
+            )
+        return OptionalInotifyControl()
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_task5a_required_success_strace_observer",
+        required_strace_control,
+    )
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_task5a_optional_inotify_observer",
+        optional_inotify_control,
+    )
+
+    expected_error = {
+        "optional-observer-acquisition": (
+            "public success optional observer acquisition control"
+        ),
+        "strace-finish": "public success strace finish control",
+    }[failure_stage]
+    with pytest.raises((OSError, AssertionError), match=expected_error):
+        test_task5a_success_publishes_complete_target_only_after_real_offline_replay(
+            tmp_path,
+            monkeypatch,
+        )
+
+    expected_events = [
+        "strace-acquired",
+        "inotify-acquisition",
+        "strace-finish",
+    ]
+    if failure_stage == "strace-finish":
+        expected_events.append("inotify-finish")
+    assert events == expected_events
+    assert _task5a_tracer_pid() == 0
 
 
 @pytest.mark.parametrize(
@@ -10934,6 +11189,89 @@ def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_ta
         "preexisting_source",
         source["source_id"],
     }
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
+def test_task5a_live_strace_observer_rejects_early_death_and_detaches(tmp_path):
+    read_fd, write_fd = os.pipe()
+    child_pid = os.fork()
+    if child_pid == 0:
+        os.close(read_fd)
+        child_result = {}
+        child_exit_code = 0
+        try:
+            cache_root = tmp_path / "early-death-child-source-cache"
+            cache_root.mkdir()
+            observer = _task5a_required_success_strace_observer(
+                cache_root,
+                tmp_path / "task5a-observer-early-death.strace",
+            )
+            if not observer._await_completed_checkpoint():
+                raise AssertionError("early-death partial trace control was incomplete")
+            observer.process.kill()
+            observer.process.communicate(timeout=5)
+            deadline = time.monotonic() + 5.0
+            while _task5a_tracer_pid() != 0 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            try:
+                observer.finish()
+            except AssertionError as error:
+                partial_records = _task5a_parse_strace_payload(
+                    observer.trace_path.read_text(encoding="utf-8")
+                )
+                child_result = {
+                    "error": str(error),
+                    "partial_trace_parsed": bool(partial_records),
+                    "returncode": observer.process.returncode,
+                    "tracer_pid": _task5a_tracer_pid(),
+                }
+            else:
+                child_result = {"unexpected": "early death was accepted"}
+                child_exit_code = 1
+        except BaseException as error:
+            child_result = {
+                "unexpected_type": type(error).__name__,
+                "unexpected_error": str(error),
+            }
+            child_exit_code = 1
+        encoded_result = json.dumps(child_result, sort_keys=True).encode("utf-8")
+        try:
+            os.write(write_fd, encoded_result)
+        finally:
+            os.close(write_fd)
+        os._exit(child_exit_code)
+
+    os.close(write_fd)
+    child_payload = bytearray()
+    try:
+        while True:
+            chunk = os.read(read_fd, 4096)
+            if not chunk:
+                break
+            child_payload.extend(chunk)
+    finally:
+        os.close(read_fd)
+    waited_pid, child_status = os.waitpid(child_pid, 0)
+    assert waited_pid == child_pid
+    assert os.WIFEXITED(child_status)
+    assert os.WEXITSTATUS(child_status) == 0
+    assert json.loads(child_payload) == {
+        "error": TASK5A_STRACE_EARLY_DEATH,
+        "partial_trace_parsed": True,
+        "returncode": -signal.SIGKILL,
+        "tracer_pid": 0,
+    }
+
+    normal_root = tmp_path / "post-early-death-normal-source-cache"
+    normal_root.mkdir()
+    normal_observer = _task5a_required_success_strace_observer(
+        normal_root,
+        tmp_path / "task5a-post-early-death-normal.strace",
+    )
+    normal_observation = normal_observer.finish()
+    assert TASK5A_STRACE_CHECKPOINT_PREFIX in normal_observation["payload"]
+    assert normal_observer.process.returncode == 0
+    assert _task5a_tracer_pid() == 0
 
 
 def _task5a_assert_no_forbidden_query_channels(
@@ -13026,6 +13364,12 @@ def _task5a_oup_dom_mutation(mutation):
             + b'\n        <div class="ww-citation-primary"></div>',
             1,
         )
+    elif mutation == "missing-citation":
+        payload = payload.replace(
+            b'class="ww-citation-primary"',
+            b'class="task5a-citation-class-removed"',
+            1,
+        )
     elif mutation == "missing-ref-list":
         payload = payload.replace(
             ref_list_subtree,
@@ -13124,6 +13468,7 @@ def _task5a_oup_dom_carrier_counts(payload):
         ("duplicate-header", "class:article-header", 1),
         ("missing-content", "class:article-content", -1),
         ("duplicate-content", "class:article-content", 1),
+        ("missing-citation", "class:ww-citation-primary", -1),
         ("duplicate-citation", "class:ww-citation-primary", 1),
         ("missing-ref-list", "class:ref-list", -1),
         ("duplicate-ref-list", "class:ref-list", 1),
@@ -13149,29 +13494,55 @@ def test_task5a_oup_cardinality_fixtures_change_only_the_intended_class(
         pytest.fail("OUP cardinality fixture changed the wrong class amount")
 
 
+def _task5a_oup_exactly_one_class_diagnostic(class_name):
+    class_pattern = re.escape(class_name)
+    exactly_one_pattern = r"exactly\s+one"
+    return (
+        rf"(?:{exactly_one_pattern}[^\n]{{0,160}}{class_pattern}"
+        rf"|{class_pattern}[^\n]{{0,160}}{exactly_one_pattern})"
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "class_name"),
+    (
+        ("missing-container", "minimal-article-container"),
+        ("duplicate-container", "minimal-article-container"),
+        ("missing-header", "article-header"),
+        ("duplicate-header", "article-header"),
+        ("missing-content", "article-content"),
+        ("duplicate-content", "article-content"),
+        ("missing-citation", "ww-citation-primary"),
+        ("duplicate-citation", "ww-citation-primary"),
+        ("missing-ref-list", "ref-list"),
+        ("duplicate-ref-list", "ref-list"),
+    ),
+)
+def test_task5a_oup_rejects_each_dom_cardinality_mutation_with_exact_diagnostic(
+    mutation,
+    class_name,
+):
+    with pytest.raises(
+        SourceEvidenceError,
+        match=_task5a_oup_exactly_one_class_diagnostic(class_name),
+    ):
+        _validate_oup_html_payload(_task5a_oup_dom_mutation(mutation))
+
+
 @pytest.mark.parametrize(
     "mutation",
     (
-        "missing-container",
-        "duplicate-container",
-        "missing-header",
-        "duplicate-header",
-        "missing-content",
-        "duplicate-content",
         "header-outside-container",
         "content-outside-container",
         "content-before-header",
         "citation-outside-header",
         "citation-inside-content",
-        "duplicate-citation",
-        "missing-ref-list",
-        "duplicate-ref-list",
         "ref-list-in-header",
         "ref-list-container-sibling",
         "extra-ref-list-token-outside-body",
     ),
 )
-def test_task5a_oup_rejects_each_dom_hierarchy_and_cardinality_mutation(
+def test_task5a_oup_rejects_each_dom_hierarchy_mutation(
     mutation,
 ):
     with pytest.raises(SourceEvidenceError):
@@ -13267,7 +13638,9 @@ def test_task5a_oup_identity_anchor_requires_exact_matching_href_and_visible_tex
             1,
         )
     else:
-        payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1)
+        payload = payload.replace(exact_anchor, b"", 1)
+        assert payload.count(b'class="ww-citation-primary"') == 1
+        assert b'<div class="ww-citation-primary">' in payload
         mutated_anchor = None
     if mutated_anchor is not None:
         payload = payload.replace(exact_anchor, mutated_anchor, 1)
