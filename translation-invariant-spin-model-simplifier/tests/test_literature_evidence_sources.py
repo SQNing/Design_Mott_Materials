@@ -39,6 +39,7 @@ from validation.literature_evidence_sources import (
 )
 from validation.literature_evidence_inventory import (
     canonical_source_identity,
+    source_id_for_identity,
 )
 from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESULTS
 
@@ -4548,12 +4549,18 @@ def _oup_html_route():
 
 
 def _write_oup_html_source(tmp_path, payload=OUP_HTML):
-    source_id = "doi_457c49167653440059e9"
+    canonical_url = "https://doi.org/10.1143/ptp/5.2.177"
+    identity_string = canonical_source_identity(canonical_url)
+    identity_kind, identity_value = identity_string.split(":", 1)
+    source_id = source_id_for_identity(identity_string)
     route_spec = _oup_html_route()
     source = {
         "source_id": source_id,
-        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp/5.2.177"},
-        "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
+        "canonical_identity": {
+            "kind": identity_kind,
+            "value": identity_value,
+        },
+        "canonical_url": canonical_url,
         "benchmark_names": [
             "honeycomb_ising_ferromagnet_exact_tc",
             "triangular_ising_ferromagnet_exact_tc",
@@ -11410,8 +11417,16 @@ def test_task5a_core_sidecar_validation_precedes_even_first_pdf_request_construc
     assert not (tmp_path / source["source_id"]).exists()
 
 
-TASK5A_OUP_IDENTITY = {"kind": "doi", "value": "10.1143/ptp/5.2.177"}
-TASK5A_OUP_SOURCE_ID = "doi_457c49167653440059e9"
+TASK5A_OUP_CANONICAL_URL = "https://doi.org/10.1143/ptp/5.2.177"
+TASK5A_OUP_IDENTITY_STRING = canonical_source_identity(TASK5A_OUP_CANONICAL_URL)
+TASK5A_OUP_IDENTITY_KIND, TASK5A_OUP_IDENTITY_VALUE = (
+    TASK5A_OUP_IDENTITY_STRING.split(":", 1)
+)
+TASK5A_OUP_IDENTITY = {
+    "kind": TASK5A_OUP_IDENTITY_KIND,
+    "value": TASK5A_OUP_IDENTITY_VALUE,
+}
+TASK5A_OUP_SOURCE_ID = source_id_for_identity(TASK5A_OUP_IDENTITY_STRING)
 TASK5A_OUP_CROSSREF_URL = (
     "https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177"
 )
@@ -11486,12 +11501,17 @@ def test_task5a_oup_route_uses_slash_identity_new_source_artifact_and_crossref_s
 
 
 def test_task5a_oup_source_id_and_cache_path_are_deterministic(tmp_path):
+    expected_identity = canonical_source_identity(TASK5A_OUP_CANONICAL_URL)
+    expected_source_id = source_id_for_identity(expected_identity)
+    assert expected_identity == "doi:10.1143/ptp/5.2.177"
+    assert expected_source_id == "doi_457c49167653440059e9"
     source_dir, source, route = _write_oup_html_source(tmp_path)
-    assert source_dir == tmp_path / TASK5A_OUP_SOURCE_ID
+    assert source_dir == tmp_path / expected_source_id
+    assert source["source_id"] == route["source_id"] == expected_source_id
     assert source["canonical_identity"] == TASK5A_OUP_IDENTITY
-    assert source["canonical_url"] == "https://doi.org/10.1143/ptp/5.2.177"
+    assert source["canonical_url"] == TASK5A_OUP_CANONICAL_URL
     assert route["local_cache_location"] == (
-        "source-cache/doi_457c49167653440059e9/source.html"
+        f"source-cache/{expected_source_id}/source.html"
     )
 
 
@@ -11598,29 +11618,847 @@ def test_task5a_oup_crossref_raw_response_is_single_metadata_and_sidecar_source(
             "payload_byte_length": len(raw),
         },
     }
+    assert bundle["raw_payload"] is raw
+    assert bundle["identity_evidence"]["payload"] is raw
+
+
+def _task5a_invalid_oup_crossref_raw(mutation):
+    valid_payload = json.dumps(
+        _task5a_oup_crossref_document(),
+        separators=(",", ":"),
+        sort_keys=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    if mutation == "trailing-json":
+        return (
+            valid_payload + b'{"TASK5A_OUP_TRAILING_JSON":true}',
+            "TASK5A_OUP_TRAILING_JSON",
+        )
+    return _round12_invalid_json_sidecar(valid_payload, mutation)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "duplicate-key",
+        "nan",
+        "positive-infinity",
+        "negative-infinity",
+        "invalid-utf8",
+        "malformed-json",
+        "trailing-json",
+    ),
+)
+def test_task5a_oup_crossref_bundle_rejects_each_strict_raw_json_mutation(
+    tmp_path,
+    monkeypatch,
+    mutation,
+):
+    raw, marker = _task5a_invalid_oup_crossref_raw(mutation)
+    requests = []
+    response_reads = []
+    validator_documents = []
+    real_validate = source_fetcher.validate_work_identity_document
+
+    class FixtureResponse(_FixtureHTTPResponse):
+        def read(self):
+            response_reads.append(self._payload)
+            return super().read()
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append(
+                (request.full_url, _header_dict(request).get("accept"), timeout)
+            )
+            assert request.full_url == TASK5A_OUP_CROSSREF_URL
+            assert "?" not in request.full_url
+            return FixtureResponse(
+                raw,
+                content_type="application/json",
+                final_url=TASK5A_OUP_CROSSREF_URL,
+            )
+
+    def recording_validate(document, **kwargs):
+        validator_documents.append(document)
+        return real_validate(document, **kwargs)
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_work_identity_document",
+        recording_validate,
+    )
+
+    with pytest.raises(SourceEvidenceError, match="strict JSON") as caught:
+        source_fetcher._fetch_crossref_oup_same_work_bundle(
+            {"canonical_identity": TASK5A_OUP_IDENTITY},
+            {"authoritative_retrieval_route": copy.deepcopy(_oup_html_route())},
+            object(),
+        )
+
+    assert requests == [
+        (TASK5A_OUP_CROSSREF_URL, "application/json", 30)
+    ]
+    assert response_reads == [raw]
+    assert validator_documents == []
+    assert _task5a_cache_manifest(tmp_path) == ()
+    rendered = str(caught.value)
+    assert marker not in rendered
+    assert raw.decode("utf-8", errors="ignore") not in rendered
+
+
+def _task5a_expected_oup_route_spec():
+    return {
+        "kind": "oup_minimal_html",
+        "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "artifact_identifier": "oup-silverchair-article-minimal:1942776",
+        "work_identity_evidence": {
+            "kind": "crossref_oup_same_work",
+            "url": TASK5A_OUP_CROSSREF_URL,
+        },
+    }
+
+
+def _task5a_oup_acquisition_fixture():
+    route_spec = _task5a_expected_oup_route_spec()
+    source = {
+        "source_id": TASK5A_OUP_SOURCE_ID,
+        "canonical_identity": copy.deepcopy(TASK5A_OUP_IDENTITY),
+        "canonical_url": TASK5A_OUP_CANONICAL_URL,
+        "benchmark_names": [
+            "honeycomb_ising_ferromagnet_exact_tc",
+            "triangular_ising_ferromagnet_exact_tc",
+        ],
+    }
+    route = {
+        "source_id": TASK5A_OUP_SOURCE_ID,
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "local_cache_location": (
+            f"source-cache/{TASK5A_OUP_SOURCE_ID}/source.html"
+        ),
+    }
+    crossref_document = _task5a_oup_crossref_document()
+    crossref_raw = json.dumps(
+        crossref_document,
+        separators=(",", ":"),
+        sort_keys=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    assert evidence_sources._load_json_bytes(
+        crossref_raw,
+        context="Task 5A OUP Crossref fixture",
+    ) == crossref_document
+    sidecar_descriptor = {
+        "kind": "crossref_oup_same_work",
+        "url": TASK5A_OUP_CROSSREF_URL,
+        "document_base_url": TASK5A_OUP_CROSSREF_URL,
+        "media_type": "application/json",
+        "payload_relative_path": "work-identity.json",
+        "payload_sha256": hashlib.sha256(crossref_raw).hexdigest(),
+        "payload_byte_length": len(crossref_raw),
+    }
+    return {
+        "source": source,
+        "route": route,
+        "primary_payload": OUP_HTML,
+        "crossref_document": crossref_document,
+        "crossref_raw": crossref_raw,
+        "bibliographic": _task5a_oup_crossref_metadata(),
+        "sidecar_descriptor": sidecar_descriptor,
+    }
+
+
+def _task5a_write_oup_snapshot_cache(tmp_path, *, descriptor_mutation=None):
+    fixture = _task5a_oup_acquisition_fixture()
+    source = fixture["source"]
+    route_spec = fixture["route"]["authoritative_retrieval_route"]
+    source_dir = tmp_path / source["source_id"]
+    provenance = _provenance(fixture["primary_payload"])
+    provenance.update(
+        {
+            "source_id": source["source_id"],
+            "source_identity": {
+                **source["canonical_identity"],
+                "canonical_url": source["canonical_url"],
+            },
+            "bibliographic_metadata": {
+                key: copy.deepcopy(fixture["bibliographic"][key])
+                for key in (
+                    "title",
+                    "authors",
+                    "venue",
+                    "publication_date",
+                )
+            },
+            "media_type": "text/html",
+            "payload_relative_path": "source.html",
+            "text_extraction": {
+                "tool": "stdlib_html_visible_text",
+                "version": 2,
+                "deterministic": True,
+                "arguments": [],
+            },
+        }
+    )
+    provenance["retrieval_metadata"].update(
+        {
+            "url": route_spec["url"],
+            "method": route_spec["kind"],
+            "authoritative_origin": "publisher",
+            "response_headers": {"content-type": "text/html"},
+            "immutable_artifact_identifier": route_spec[
+                "artifact_identifier"
+            ],
+            "work_identity_evidence": copy.deepcopy(
+                route_spec["work_identity_evidence"]
+            ),
+        }
+    )
+    descriptor = copy.deepcopy(fixture["sidecar_descriptor"])
+    if descriptor_mutation == "sha256":
+        descriptor["payload_sha256"] = "0" * 64
+    elif descriptor_mutation == "byte-length":
+        descriptor["payload_byte_length"] += 1
+    elif descriptor_mutation is not None:
+        raise AssertionError(
+            f"unknown OUP sidecar descriptor mutation {descriptor_mutation}"
+        )
+    source_dir.mkdir()
+    source_dir.joinpath("source.html").write_bytes(fixture["primary_payload"])
+    source_dir.joinpath("provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    source_dir.joinpath("work-identity.json").write_bytes(
+        fixture["crossref_raw"]
+    )
+    source_dir.joinpath("work-identity.provenance.json").write_text(
+        json.dumps(descriptor, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return source_dir, fixture
+
+
+def _task5a_install_oup_memory_opener(
+    monkeypatch,
+    fixture,
+    *,
+    crossref_raw=None,
+):
+    crossref_raw = (
+        fixture["crossref_raw"] if crossref_raw is None else crossref_raw
+    )
+    requests = []
+    response_reads = []
+
+    class FixtureResponse(_FixtureHTTPResponse):
+        def read(self):
+            response_reads.append((self._final_url, self._payload))
+            return super().read()
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            url = request.full_url
+            accept = _header_dict(request).get("accept")
+            requests.append((url, accept, timeout))
+            if url == TASK5A_OUP_CROSSREF_URL:
+                assert "?" not in url
+                assert accept == "application/json"
+                assert timeout == 30
+                return FixtureResponse(
+                    crossref_raw,
+                    content_type="application/json",
+                    final_url=TASK5A_OUP_CROSSREF_URL,
+                )
+            primary_url = fixture["route"]["authoritative_retrieval_route"][
+                "url"
+            ]
+            assert url == primary_url
+            assert "?" not in url
+            assert accept == "text/html"
+            assert timeout == 60
+            return FixtureResponse(
+                fixture["primary_payload"],
+                content_type="text/html",
+                final_url=primary_url,
+            )
+
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    return requests, response_reads
+
+
+def _task5a_install_snapshot_read_recorder(monkeypatch, cache_root):
+    cache_root = Path(os.path.abspath(cache_root))
+    real_io_open = io.open
+    real_builtin_open = builtins.open
+    real_os_open = os.open
+    reads = []
+
+    def record(operation, path, *, mode=None, flags=None, dir_fd=None):
+        try:
+            resolved = _task5a_resolve_open_path(path, dir_fd=dir_fd)
+            relative = resolved.relative_to(cache_root)
+        except (OSError, TypeError, ValueError):
+            return
+        if relative.name == "work-identity.json":
+            reads.append((operation, resolved, mode, flags))
+
+    def recording_io_open(path, mode="r", *args, **kwargs):
+        if "r" in mode and not any(flag in mode for flag in "wax+"):
+            record("io.open", path, mode=mode)
+        return real_io_open(path, mode, *args, **kwargs)
+
+    def recording_builtin_open(path, mode="r", *args, **kwargs):
+        if "r" in mode and not any(flag in mode for flag in "wax+"):
+            record("builtins.open", path, mode=mode)
+        return real_builtin_open(path, mode, *args, **kwargs)
+
+    def recording_os_open(path, flags, mode=0o777, *, dir_fd=None):
+        if flags & os.O_ACCMODE == os.O_RDONLY:
+            record(
+                "os.open",
+                path,
+                flags=flags,
+                dir_fd=dir_fd,
+            )
+        return real_os_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(io, "open", recording_io_open)
+    monkeypatch.setattr(builtins, "open", recording_builtin_open)
+    monkeypatch.setattr(os, "open", recording_os_open)
+    return reads, real_io_open
+
+
+def _task5a_install_cache_write_recorder(monkeypatch, cache_root):
+    cache_root = Path(os.path.abspath(cache_root))
+    real_io_open = io.open
+    real_builtin_open = builtins.open
+    real_os_open = os.open
+    writes = []
+
+    def record(operation, path, *, mode=None, flags=None, dir_fd=None):
+        try:
+            resolved = _task5a_resolve_open_path(path, dir_fd=dir_fd)
+            relative = resolved.relative_to(cache_root)
+        except (OSError, TypeError, ValueError):
+            return
+        writes.append((operation, relative.as_posix(), mode, flags))
+
+    def recording_io_open(path, mode="r", *args, **kwargs):
+        if any(flag in mode for flag in "wax+"):
+            record("io.open", path, mode=mode)
+        return real_io_open(path, mode, *args, **kwargs)
+
+    def recording_builtin_open(path, mode="r", *args, **kwargs):
+        if any(flag in mode for flag in "wax+"):
+            record("builtins.open", path, mode=mode)
+        return real_builtin_open(path, mode, *args, **kwargs)
+
+    def recording_os_open(path, flags, mode=0o777, *, dir_fd=None):
+        if flags & os.O_ACCMODE != os.O_RDONLY or flags & os.O_CREAT:
+            record(
+                "os.open",
+                path,
+                flags=flags,
+                dir_fd=dir_fd,
+            )
+        return real_os_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(io, "open", recording_io_open)
+    monkeypatch.setattr(builtins, "open", recording_builtin_open)
+    monkeypatch.setattr(os, "open", recording_os_open)
+    return writes
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "duplicate-key",
+        "nan",
+        "positive-infinity",
+        "negative-infinity",
+        "invalid-utf8",
+        "malformed-json",
+        "trailing-json",
+    ),
+)
+def test_task5a_oup_fetch_source_rejects_strict_crossref_raw_before_primary_or_cache(
+    tmp_path,
+    monkeypatch,
+    mutation,
+):
+    fixture = _task5a_oup_acquisition_fixture()
+    raw, marker = _task5a_invalid_oup_crossref_raw(mutation)
+    cache_root = tmp_path / "source-cache"
+    requests, response_reads = _task5a_install_oup_memory_opener(
+        monkeypatch,
+        fixture,
+        crossref_raw=raw,
+    )
+    metadata_calls = []
+
+    def forbidden_separate_metadata(*args, **kwargs):
+        metadata_calls.append((args, kwargs))
+        raise AssertionError("separate OUP metadata request was attempted")
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        forbidden_separate_metadata,
+    )
+    cache_writes = _task5a_install_cache_write_recorder(
+        monkeypatch,
+        cache_root,
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed", outcome
+    assert requests == [
+        (TASK5A_OUP_CROSSREF_URL, "application/json", 30)
+    ]
+    assert response_reads == [(TASK5A_OUP_CROSSREF_URL, raw)]
+    assert metadata_calls == []
+    assert cache_writes == []
+    assert _task5a_cache_manifest(cache_root) == ()
+    assert not os.path.lexists(cache_root / TASK5A_OUP_SOURCE_ID)
+    rendered = json.dumps(outcome, sort_keys=True)
+    assert "strict JSON" in rendered
+    assert marker not in rendered
+    assert raw.decode("utf-8", errors="ignore") not in rendered
+
+
+@pytest.mark.parametrize(
+    ("descriptor_mutation", "match"),
+    (
+        ("sha256", "SHA-256"),
+        ("byte-length", "byte length"),
+    ),
+)
+def test_task5a_oup_offline_hash_and_length_precede_strict_parse_and_validator(
+    tmp_path,
+    monkeypatch,
+    descriptor_mutation,
+    match,
+):
+    source_dir, fixture = _task5a_write_oup_snapshot_cache(
+        tmp_path,
+        descriptor_mutation=descriptor_mutation,
+    )
+    parse_calls = []
+    validator_calls = []
+    network_calls = []
+    real_parser = evidence_sources._load_json_bytes
+    real_validator = evidence_sources.validate_work_identity_document
+
+    def recording_parser(payload, *, context):
+        if context == "work identity evidence JSON":
+            parse_calls.append(payload)
+        return real_parser(payload, context=context)
+
+    def recording_validator(document, **kwargs):
+        validator_calls.append(document)
+        return real_validator(document, **kwargs)
+
+    monkeypatch.setattr(evidence_sources, "_load_json_bytes", recording_parser)
+    monkeypatch.setattr(
+        evidence_sources,
+        "validate_work_identity_document",
+        recording_validator,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *args, **kwargs: network_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: network_calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(SourceEvidenceError, match=match):
+        load_verified_source(
+            source_dir,
+            expected_source=fixture["source"],
+            provisioning_route=fixture["route"],
+        )
+
+    assert parse_calls == []
+    assert validator_calls == []
+    assert network_calls == []
+
+
+def test_task5a_oup_offline_replay_reads_one_hashed_snapshot_then_real_validator(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, fixture = _task5a_write_oup_snapshot_cache(tmp_path)
+    events = []
+    parsed_snapshots = []
+    validator_documents = []
+    network_calls = []
+    sidecar_reads, _real_io_open = _task5a_install_snapshot_read_recorder(
+        monkeypatch,
+        tmp_path,
+    )
+    real_parser = evidence_sources._load_json_bytes
+    real_validator = evidence_sources.validate_work_identity_document
+
+    def recording_parser(payload, *, context):
+        if context == "work identity evidence JSON":
+            events.append("strict-parse")
+            parsed_snapshots.append(payload)
+        return real_parser(payload, context=context)
+
+    def recording_validator(document, **kwargs):
+        events.append("real-oup-validator-enter")
+        validator_documents.append(document)
+        result = real_validator(document, **kwargs)
+        events.append("real-oup-validator-complete")
+        return result
+
+    monkeypatch.setattr(evidence_sources, "_load_json_bytes", recording_parser)
+    monkeypatch.setattr(
+        evidence_sources,
+        "validate_work_identity_document",
+        recording_validator,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *args, **kwargs: network_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: network_calls.append((args, kwargs)),
+    )
+
+    verified = load_verified_source(
+        source_dir,
+        expected_source=fixture["source"],
+        provisioning_route=fixture["route"],
+    )
+
+    assert verified.source_id == TASK5A_OUP_SOURCE_ID
+    assert parsed_snapshots == [fixture["crossref_raw"]]
+    assert validator_documents == [fixture["crossref_document"]]
+    assert events == [
+        "strict-parse",
+        "real-oup-validator-enter",
+        "real-oup-validator-complete",
+    ]
+    assert len(sidecar_reads) == 1
+    assert sidecar_reads[0][0] in {"io.open", "builtins.open", "os.open"}
+    assert sidecar_reads[0][1] == source_dir / "work-identity.json"
+    assert network_calls == []
+
+
+def test_task5a_oup_fetch_source_publishes_one_raw_snapshot_after_real_offline_replay(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _task5a_oup_acquisition_fixture()
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    target = cache_root / TASK5A_OUP_SOURCE_ID
+    requests, response_reads = _task5a_install_oup_memory_opener(
+        monkeypatch,
+        fixture,
+    )
+    separate_metadata_calls = []
+    online_validator_documents = []
+    offline_validator_documents = []
+    offline_parsed_snapshots = []
+    replayed_candidates = []
+    events = []
+    sidecar_reads, real_io_open = _task5a_install_snapshot_read_recorder(
+        monkeypatch,
+        cache_root,
+    )
+    real_online_validator = source_fetcher.validate_work_identity_document
+    real_offline_validator = evidence_sources.validate_work_identity_document
+    real_offline_parser = evidence_sources._load_json_bytes
+    real_loader = source_fetcher.load_verified_source
+
+    def forbidden_separate_metadata(*args, **kwargs):
+        separate_metadata_calls.append((args, kwargs))
+        raise AssertionError("separate OUP metadata request was attempted")
+
+    def online_validator(document, **kwargs):
+        online_validator_documents.append(document)
+        return real_online_validator(document, **kwargs)
+
+    def offline_parser(payload, *, context):
+        if context == "work identity evidence JSON":
+            events.append("offline-strict-parse")
+            offline_parsed_snapshots.append(payload)
+        return real_offline_parser(payload, context=context)
+
+    def offline_validator(document, **kwargs):
+        events.append("offline-real-oup-validator-enter")
+        offline_validator_documents.append(document)
+        result = real_offline_validator(document, **kwargs)
+        events.append("offline-real-oup-validator-complete")
+        return result
+
+    def replay_candidate(candidate, **kwargs):
+        candidate = Path(candidate)
+        events.append("offline-candidate-replay-enter")
+        assert candidate != target
+        assert candidate.parent == cache_root
+        assert candidate.name.startswith(".")
+        assert not os.path.lexists(target)
+        assert {
+            "provenance.json",
+            "source.html",
+            "work-identity.json",
+            "work-identity.provenance.json",
+        } <= {path.name for path in candidate.iterdir()}
+        verified = real_loader(candidate, **kwargs)
+        events.append("offline-candidate-replay-complete")
+        replayed_candidates.append(candidate)
+        return verified
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        forbidden_separate_metadata,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_work_identity_document",
+        online_validator,
+    )
+    monkeypatch.setattr(evidence_sources, "_load_json_bytes", offline_parser)
+    monkeypatch.setattr(
+        evidence_sources,
+        "validate_work_identity_document",
+        offline_validator,
+    )
+    monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "acquired", outcome
+    assert requests == [
+        (TASK5A_OUP_CROSSREF_URL, "application/json", 30),
+        (
+            fixture["route"]["authoritative_retrieval_route"]["url"],
+            "text/html",
+            60,
+        ),
+    ]
+    assert response_reads == [
+        (TASK5A_OUP_CROSSREF_URL, fixture["crossref_raw"]),
+        (
+            fixture["route"]["authoritative_retrieval_route"]["url"],
+            fixture["primary_payload"],
+        ),
+    ]
+    assert separate_metadata_calls == []
+    assert online_validator_documents == [fixture["crossref_document"]]
+    assert offline_parsed_snapshots == [fixture["crossref_raw"]]
+    assert offline_validator_documents == [fixture["crossref_document"]]
+    assert len(replayed_candidates) == 1
+    assert events == [
+        "offline-candidate-replay-enter",
+        "offline-strict-parse",
+        "offline-real-oup-validator-enter",
+        "offline-real-oup-validator-complete",
+        "offline-candidate-replay-complete",
+    ]
+    assert len(sidecar_reads) == 1
+    assert sidecar_reads[0][0] in {"io.open", "builtins.open", "os.open"}
+    assert target.is_dir() and not target.is_symlink()
+    assert {path.name for path in cache_root.iterdir()} == {
+        TASK5A_OUP_SOURCE_ID
+    }
+    with real_io_open(target / "work-identity.json", "rb") as handle:
+        assert handle.read() == fixture["crossref_raw"]
+    with real_io_open(
+        target / "work-identity.provenance.json",
+        "r",
+        encoding="utf-8",
+    ) as handle:
+        assert json.load(handle) == fixture["sidecar_descriptor"]
+
+
+def test_task5a_oup_offline_candidate_sidecar_failure_leaves_no_target_or_staging(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _task5a_oup_acquisition_fixture()
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    target = cache_root / TASK5A_OUP_SOURCE_ID
+    requests, _response_reads = _task5a_install_oup_memory_opener(
+        monkeypatch,
+        fixture,
+    )
+    real_loader = source_fetcher.load_verified_source
+    parsed_snapshots = []
+    real_parser = evidence_sources._load_json_bytes
+
+    def forbidden_separate_metadata(*args, **kwargs):
+        raise AssertionError("separate OUP metadata request was attempted")
+
+    def recording_parser(payload, *, context):
+        if context == "work identity evidence JSON":
+            parsed_snapshots.append(payload)
+        return real_parser(payload, context=context)
+
+    def corrupt_then_replay(candidate, **kwargs):
+        candidate = Path(candidate)
+        assert candidate != target
+        assert candidate.parent == cache_root
+        descriptor_path = candidate / "work-identity.provenance.json"
+        descriptor = json.loads(descriptor_path.read_text(encoding="utf-8"))
+        descriptor["payload_sha256"] = "0" * 64
+        descriptor_path.write_text(
+            json.dumps(descriptor, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return real_loader(candidate, **kwargs)
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        forbidden_separate_metadata,
+    )
+    monkeypatch.setattr(evidence_sources, "_load_json_bytes", recording_parser)
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_verified_source",
+        corrupt_then_replay,
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed", outcome
+    assert requests == [
+        (TASK5A_OUP_CROSSREF_URL, "application/json", 30),
+        (
+            fixture["route"]["authoritative_retrieval_route"]["url"],
+            "text/html",
+            60,
+        ),
+    ]
+    assert "SHA-256" in outcome["detail"]
+    assert parsed_snapshots == []
+    assert not os.path.lexists(target)
+    assert _task5a_cache_manifest(cache_root) == ()
 
 
 def _task5a_oup_dom_mutation(mutation):
     payload = OUP_HTML
+    container_start = payload.index(
+        b'    <article class="minimal-article-container"'
+    )
+    container_end = payload.index(b"    </article>", container_start) + len(
+        b"    </article>"
+    )
+    container_subtree = payload[container_start:container_end]
+    header_start = payload.index(b'      <header class="article-header">')
+    header_end = payload.index(b"</header>", header_start) + len(b"</header>")
+    header_subtree = payload[header_start:header_end]
+    content_start = payload.index(
+        b'      <section class="article-content">', header_end
+    )
+    content_end = payload.index(b"</section>", content_start) + len(
+        b"</section>"
+    )
+    content_subtree = payload[content_start:content_end]
+    citation_start = payload.index(
+        b'        <div class="ww-citation-primary">',
+        header_start,
+    )
+    citation_end = payload.index(b"</div>", citation_start) + len(b"</div>")
+    citation_subtree = payload[citation_start:citation_end]
+    ref_list_start = payload.index(
+        b'        <div class="ref-list">',
+        content_start,
+    )
+    ref_list_end = payload.index(b"</div>", ref_list_start) + len(b"</div>")
+    ref_list_subtree = payload[ref_list_start:ref_list_end]
     if mutation == "duplicate-container":
-        payload = payload.replace(b"</body>", OUP_HTML.split(b"<body>", 1)[1].split(b"</body>", 1)[0] + b"</body>", 1)
+        payload = payload.replace(
+            b"  </body>",
+            container_subtree + b"\n  </body>",
+            1,
+        )
     elif mutation == "missing-header":
-        payload = payload.replace(b'class="article-header"', b'class="removed-header"', 1)
+        payload = payload.replace(
+            header_subtree,
+            header_subtree.split(b">", 1)[1].rsplit(b"</header>", 1)[0],
+            1,
+        )
     elif mutation == "duplicate-header":
-        header = payload.split(b'<header class="article-header">', 1)[1].split(b"</header>", 1)[0]
-        payload = payload.replace(b"</header>", b"</header><header class=\"article-header\">" + header + b"</header>", 1)
+        payload = payload.replace(
+            header_subtree,
+            header_subtree + b"\n" + header_subtree,
+            1,
+        )
+    elif mutation == "missing-content":
+        payload = payload.replace(
+            content_subtree,
+            content_subtree.split(b">", 1)[1].rsplit(b"</section>", 1)[0],
+            1,
+        )
+    elif mutation == "duplicate-content":
+        payload = payload.replace(
+            content_subtree,
+            content_subtree + b"\n" + content_subtree,
+            1,
+        )
+    elif mutation == "header-outside-container":
+        payload = payload.replace(header_subtree, b"", 1).replace(
+            b"    </article>",
+            b"    </article>\n" + header_subtree,
+            1,
+        )
+        assert payload.index(header_subtree) > payload.index(b"    </article>")
+    elif mutation == "content-outside-container":
+        payload = payload.replace(content_subtree, b"", 1).replace(
+            b"    </article>",
+            b"    </article>\n" + content_subtree,
+            1,
+        )
+        assert payload.index(content_subtree) > payload.index(b"    </article>")
     elif mutation == "content-before-header":
-        header_start = payload.index(b'      <header class="article-header">')
-        header_end = payload.index(b"</header>", header_start) + len(b"</header>")
-        content_start = payload.index(
-            b'      <section class="article-content">', header_end
-        )
-        content_end = payload.index(b"</section>", content_start) + len(
-            b"</section>"
-        )
-        header_subtree = payload[header_start:header_end]
         separator = payload[header_end:content_start]
-        content_subtree = payload[content_start:content_end]
         payload = (
             payload[:header_start]
             + content_subtree
@@ -11631,20 +12469,80 @@ def _task5a_oup_dom_mutation(mutation):
         assert header_subtree in payload and content_subtree in payload
         assert payload.index(content_subtree) < payload.index(header_subtree)
     elif mutation == "citation-outside-header":
-        payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1).replace(b"</section>", b'<div class="ww-citation-primary">citation</div></section>', 1)
+        payload = payload.replace(citation_subtree, b"", 1).replace(
+            b'      <section class="article-content">',
+            citation_subtree + b'\n      <section class="article-content">',
+            1,
+        )
+        assert payload.index(b"</header>") < payload.index(citation_subtree)
+        assert payload.index(citation_subtree) < payload.index(content_subtree)
     elif mutation == "citation-inside-content":
-        payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1).replace(b'<section class="article-content">', b'<section class="article-content"><div class="ww-citation-primary">citation</div>', 1)
+        payload = payload.replace(citation_subtree, b"", 1).replace(
+            b'      <section class="article-content">',
+            b'      <section class="article-content">\n' + citation_subtree,
+            1,
+        )
+        assert payload.index(citation_subtree) > payload.index(
+            b'      <section class="article-content">'
+        )
     elif mutation == "duplicate-citation":
-        payload = payload.replace(b"</header>", b'<div class="ww-citation-primary">duplicate</div></header>', 1)
+        payload = payload.replace(
+            citation_subtree,
+            citation_subtree + b"\n" + citation_subtree,
+            1,
+        )
     elif mutation == "missing-ref-list":
-        payload = payload.replace(b'class="ref-list"', b'class="removed-ref-list"', 1)
+        payload = payload.replace(
+            ref_list_subtree,
+            ref_list_subtree.split(b">", 1)[1].rsplit(b"</div>", 1)[0],
+            1,
+        )
     elif mutation == "duplicate-ref-list":
-        payload = payload.replace(b"</section>", b'<div class="ref-list">duplicate</div></section>', 1)
+        payload = payload.replace(
+            ref_list_subtree,
+            ref_list_subtree + b"\n" + ref_list_subtree,
+            1,
+        )
     elif mutation == "ref-list-in-header":
-        payload = payload.replace(b'class="ref-list"', b'class="removed-ref-list"', 1).replace(b"</header>", b'<div class="ref-list">wrong region</div></header>', 1)
+        payload = payload.replace(ref_list_subtree, b"", 1).replace(
+            b"</header>",
+            ref_list_subtree + b"\n      </header>",
+            1,
+        )
+        assert payload.index(ref_list_subtree) < payload.index(b"</header>")
+    elif mutation == "ref-list-container-sibling":
+        payload = payload.replace(ref_list_subtree, b"", 1).replace(
+            b"    </article>",
+            ref_list_subtree + b"\n    </article>",
+            1,
+        )
+        assert payload.index(b"</section>") < payload.index(ref_list_subtree)
+        assert payload.index(ref_list_subtree) < payload.index(b"    </article>")
+    elif mutation == "extra-ref-list-token-outside-body":
+        extra_ref_list = (
+            b'<aside class="task5a-unrelated ref-list token">'
+            b"unrelated navigation</aside>"
+        )
+        payload = payload.replace(
+            b"</html>",
+            extra_ref_list + b"\n</html>",
+            1,
+        )
+        assert ref_list_subtree in payload
+        assert payload.index(extra_ref_list) > payload.index(b"</body>")
     else:
         raise AssertionError(f"unknown OUP DOM mutation {mutation}")
     assert payload != OUP_HTML
+    for unchanged_scientific_anchor in (
+        b"The Statistics of Honeycomb and Triangular Lattice. I",
+        b"Kodi Husimi",
+        b"Itiro Sy&#244;zi",
+        OUP_RESOLVER,
+        b"Summary",
+        b"ch 2H = 2",
+        b"exp(4H) = 3",
+    ):
+        assert unchanged_scientific_anchor in payload
     return payload
 
 
@@ -11654,6 +12552,10 @@ def _task5a_oup_dom_mutation(mutation):
         ("duplicate-container", "container|one"),
         ("missing-header", "header"),
         ("duplicate-header", "header|one"),
+        ("missing-content", "content"),
+        ("duplicate-content", "content|one"),
+        ("header-outside-container", "header|container"),
+        ("content-outside-container", "content|container"),
         ("content-before-header", "order|header|content"),
         ("citation-outside-header", "citation|header"),
         ("citation-inside-content", "citation|content|header"),
@@ -11661,6 +12563,14 @@ def _task5a_oup_dom_mutation(mutation):
         ("missing-ref-list", "reference|ref-list"),
         ("duplicate-ref-list", "reference|ref-list|one"),
         ("ref-list-in-header", "reference|ref-list|header|content"),
+        (
+            "ref-list-container-sibling",
+            "reference|ref-list|header|content",
+        ),
+        (
+            "extra-ref-list-token-outside-body",
+            "reference|ref-list|one|container|body",
+        ),
     ),
 )
 def test_task5a_oup_rejects_each_dom_hierarchy_and_cardinality_mutation(
