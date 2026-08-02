@@ -9,11 +9,10 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
+import secrets
 import ssl
 import stat
 import sys
-import tempfile
 from urllib.parse import quote, unquote, urlencode, urlsplit
 from urllib.request import (
     HTTPRedirectHandler,
@@ -830,11 +829,19 @@ class _OwnedStagingDirectory:
         return _AnchoredStagingPath(self.path / name, self.staging_fd)
 
     def close(self):
+        close_errors = []
         for attribute in ("staging_fd", "root_fd"):
             descriptor = getattr(self, attribute)
             if descriptor is not None:
-                os.close(descriptor)
                 setattr(self, attribute, None)
+                try:
+                    os.close(descriptor)
+                except BaseException as error:
+                    close_errors.append(error)
+        _raise_cleanup_errors(
+            "multiple staging directory descriptor close failures",
+            close_errors,
+        )
 
 
 def _exclusive_write_bytes(path, payload):
@@ -865,18 +872,32 @@ def _require_real_directory(status, message):
         raise SourceEvidenceError(message)
 
 
-def _revalidate_cache_root(staging):
-    descriptor_status = os.fstat(staging.root_fd)
+def _raise_cleanup_errors(message, errors):
+    retained = []
+    for error in errors:
+        if error is not None and not any(error is item for item in retained):
+            retained.append(error)
+    if not retained:
+        return
+    if len(retained) == 1:
+        raise retained[0]
+    aggregate = SourceEvidenceError(message)
+    aggregate.cache_cleanup_errors = tuple(retained)
+    raise aggregate
+
+
+def _revalidate_cache_root_binding(cache_root, root_fd, root_identity):
+    descriptor_status = os.fstat(root_fd)
     _require_real_directory(
         descriptor_status,
         "source cache root directory descriptor changed",
     )
-    if _directory_identity(descriptor_status) != staging.root_identity:
+    if _directory_identity(descriptor_status) != root_identity:
         raise SourceEvidenceError(
             "source cache root directory descriptor changed"
         )
     try:
-        path_status = os.stat(staging.cache_root, follow_symlinks=False)
+        path_status = os.stat(cache_root, follow_symlinks=False)
     except OSError as exc:
         raise SourceEvidenceError(
             f"source cache root pathname changed: {exc}"
@@ -885,8 +906,16 @@ def _revalidate_cache_root(staging):
         path_status,
         "source cache root pathname changed",
     )
-    if _directory_identity(path_status) != staging.root_identity:
+    if _directory_identity(path_status) != root_identity:
         raise SourceEvidenceError("source cache root pathname changed")
+
+
+def _revalidate_cache_root(staging):
+    _revalidate_cache_root_binding(
+        staging.cache_root,
+        staging.root_fd,
+        staging.root_identity,
+    )
 
 
 def _revalidate_owned_staging_directory(staging):
@@ -923,11 +952,16 @@ def _revalidate_owned_staging_directory(staging):
 def _remove_directory_contents_fd(directory_fd):
     with os.scandir(directory_fd) as entries:
         names = [
-            (entry.name, entry.is_dir(follow_symlinks=False))
+            (
+                entry.name,
+                entry.stat(follow_symlinks=False),
+            )
             for entry in entries
         ]
-    for name, is_directory in names:
-        if not is_directory:
+    for name, observed_status in names:
+        if not stat.S_ISDIR(observed_status.st_mode) or stat.S_ISLNK(
+            observed_status.st_mode
+        ):
             os.unlink(name, dir_fd=directory_fd)
             continue
         child_fd = os.open(
@@ -936,7 +970,16 @@ def _remove_directory_contents_fd(directory_fd):
             dir_fd=directory_fd,
         )
         try:
-            child_identity = _directory_identity(os.fstat(child_fd))
+            child_status = os.fstat(child_fd)
+            _require_real_directory(
+                child_status,
+                "invocation-owned staging child changed before cleanup",
+            )
+            child_identity = _directory_identity(child_status)
+            if child_identity != _directory_identity(observed_status):
+                raise SourceEvidenceError(
+                    "invocation-owned staging child changed before cleanup"
+                )
             _remove_directory_contents_fd(child_fd)
             child_status = os.stat(
                 name,
@@ -956,6 +999,77 @@ def _remove_directory_contents_fd(directory_fd):
             os.close(child_fd)
 
 
+def _remove_preowner_staging_directory(
+    *,
+    cache_root,
+    root_fd,
+    root_identity,
+    name,
+    expected_identity,
+    staging_fd,
+):
+    cleanup_fd = staging_fd
+    close_cleanup_fd = False
+    cleanup_error = None
+    try:
+        _revalidate_cache_root_binding(cache_root, root_fd, root_identity)
+        if cleanup_fd is None:
+            cleanup_fd = os.open(
+                name,
+                os.O_RDONLY
+                | os.O_DIRECTORY
+                | os.O_NOFOLLOW
+                | os.O_CLOEXEC,
+                dir_fd=root_fd,
+            )
+            close_cleanup_fd = True
+        descriptor_status = os.fstat(cleanup_fd)
+        _require_real_directory(
+            descriptor_status,
+            "new staging directory changed before allocation cleanup",
+        )
+        descriptor_identity = _directory_identity(descriptor_status)
+        if (
+            expected_identity is not None
+            and descriptor_identity != expected_identity
+        ):
+            raise SourceEvidenceError(
+                "new staging directory changed before allocation cleanup"
+            )
+        name_status = os.stat(
+            name,
+            dir_fd=root_fd,
+            follow_symlinks=False,
+        )
+        _require_real_directory(
+            name_status,
+            "new staging directory changed before allocation cleanup",
+        )
+        if _directory_identity(name_status) != descriptor_identity:
+            raise SourceEvidenceError(
+                "new staging directory changed before allocation cleanup"
+            )
+        with os.scandir(cleanup_fd) as entries:
+            if next(entries, None) is not None:
+                raise SourceEvidenceError(
+                    "new staging directory is not empty during allocation cleanup"
+                )
+        os.rmdir(name, dir_fd=root_fd)
+    except BaseException as error:
+        cleanup_error = error
+    finally:
+        if close_cleanup_fd and cleanup_fd is not None:
+            try:
+                os.close(cleanup_fd)
+            except BaseException as error:
+                if cleanup_error is None:
+                    cleanup_error = error
+                else:
+                    _attach_cleanup_error(cleanup_error, error)
+    if cleanup_error is not None:
+        raise cleanup_error
+
+
 def _owned_staging_directory(cache_root):
     cache_root = Path(cache_root)
     if os.path.lexists(cache_root):
@@ -971,6 +1085,8 @@ def _owned_staging_directory(cache_root):
     root_fd = None
     staging_fd = None
     staging = None
+    created_name = None
+    created_identity = None
     try:
         root_fd = os.open(
             cache_root,
@@ -989,46 +1105,86 @@ def _owned_staging_directory(cache_root):
         )
         if _directory_identity(path_status) != root_identity:
             raise SourceEvidenceError("source cache root pathname changed")
-        for candidate in tempfile._get_candidate_names():
-            name = ".literature-evidence-staging-" + candidate
+        for _attempt in range(128):
+            name = ".literature-evidence-staging-" + secrets.token_hex(16)
             try:
                 os.mkdir(name, mode=0o700, dir_fd=root_fd)
             except FileExistsError:
                 continue
+            created_name = name
             break
         else:
             raise SourceEvidenceError(
                 "could not allocate invocation-owned staging directory"
             )
+        created_status = os.stat(
+            created_name,
+            dir_fd=root_fd,
+            follow_symlinks=False,
+        )
+        _require_real_directory(
+            created_status,
+            "new staging directory changed during allocation",
+        )
+        created_identity = _directory_identity(created_status)
         staging_fd = os.open(
-            name,
+            created_name,
             os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
             dir_fd=root_fd,
         )
-        staging_identity = _directory_identity(os.fstat(staging_fd))
+        staging_status = os.fstat(staging_fd)
+        _require_real_directory(
+            staging_status,
+            "new staging directory changed during allocation",
+        )
+        staging_identity = _directory_identity(staging_status)
+        if staging_identity != created_identity:
+            raise SourceEvidenceError(
+                "new staging directory changed during allocation"
+            )
         staging = _OwnedStagingDirectory(
             cache_root=cache_root,
             root_fd=root_fd,
             root_identity=root_identity,
-            name=name,
+            name=created_name,
             staging_fd=staging_fd,
             staging_identity=staging_identity,
         )
         _revalidate_owned_staging_directory(staging)
         return staging
     except BaseException as primary_error:
+        cleanup_errors = []
         if staging is not None:
             try:
                 _remove_owned_staging_directory(staging)
             except BaseException as cleanup_error:
-                _attach_cleanup_error(primary_error, cleanup_error)
-            finally:
+                cleanup_errors.append(cleanup_error)
+            try:
                 staging.close()
+            except BaseException as cleanup_error:
+                cleanup_errors.append(cleanup_error)
         else:
-            if staging_fd is not None:
-                os.close(staging_fd)
-            if root_fd is not None:
-                os.close(root_fd)
+            if created_name is not None:
+                try:
+                    _remove_preowner_staging_directory(
+                        cache_root=cache_root,
+                        root_fd=root_fd,
+                        root_identity=root_identity,
+                        name=created_name,
+                        expected_identity=created_identity,
+                        staging_fd=staging_fd,
+                    )
+                except BaseException as cleanup_error:
+                    cleanup_errors.append(cleanup_error)
+            for descriptor in (staging_fd, root_fd):
+                if descriptor is None:
+                    continue
+                try:
+                    os.close(descriptor)
+                except BaseException as cleanup_error:
+                    cleanup_errors.append(cleanup_error)
+        for cleanup_error in cleanup_errors:
+            _attach_cleanup_error(primary_error, cleanup_error)
         raise
 
 
@@ -1141,15 +1297,25 @@ def _install_verified_cache_candidate(
         raise
     finally:
         if staging is not None:
+            cleanup_errors = []
+            published = primary_error is None and not staging.owned
             try:
                 if staging.owned:
                     _remove_owned_staging_directory(staging)
             except BaseException as cleanup_error:
-                if primary_error is None:
-                    raise
-                _attach_cleanup_error(primary_error, cleanup_error)
-            finally:
+                cleanup_errors.append(cleanup_error)
+            try:
                 staging.close()
+            except BaseException as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+            if primary_error is not None:
+                for cleanup_error in cleanup_errors:
+                    _attach_cleanup_error(primary_error, cleanup_error)
+            elif cleanup_errors and not published:
+                _raise_cleanup_errors(
+                    "multiple staging candidate cleanup failures",
+                    cleanup_errors,
+                )
 
 
 def _exception_identity_graph(error):
