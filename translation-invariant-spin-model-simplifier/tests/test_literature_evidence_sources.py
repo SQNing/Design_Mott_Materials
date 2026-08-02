@@ -13494,37 +13494,112 @@ def test_task5a_oup_cardinality_fixtures_change_only_the_intended_class(
         pytest.fail("OUP cardinality fixture changed the wrong class amount")
 
 
-def _task5a_oup_exactly_one_class_diagnostic(class_name):
-    class_pattern = re.escape(class_name)
-    exactly_one_pattern = r"exactly\s+one"
-    return (
-        rf"(?:{exactly_one_pattern}[^\n]{{0,160}}{class_pattern}"
-        rf"|{class_pattern}[^\n]{{0,160}}{exactly_one_pattern})"
+def _task5a_oup_exactly_one_class_diagnostic(class_name, actual_count):
+    canonical_diagnostic = (
+        'OUP DOM cardinality: expected exactly one element with class "'
+        f'{class_name}"; found {actual_count}'
     )
+    return rf"\A{re.escape(canonical_diagnostic)}\Z"
 
 
 @pytest.mark.parametrize(
-    ("mutation", "class_name"),
+    ("class_name", "actual_count"),
     (
-        ("missing-container", "minimal-article-container"),
-        ("duplicate-container", "minimal-article-container"),
-        ("missing-header", "article-header"),
-        ("duplicate-header", "article-header"),
-        ("missing-content", "article-content"),
-        ("duplicate-content", "article-content"),
-        ("missing-citation", "ww-citation-primary"),
-        ("duplicate-citation", "ww-citation-primary"),
-        ("missing-ref-list", "ref-list"),
-        ("duplicate-ref-list", "ref-list"),
+        ("minimal-article-container", 0),
+        ("minimal-article-container", 2),
+        ("article-header", 0),
+        ("article-header", 2),
+        ("article-content", 0),
+        ("article-content", 2),
+        ("ww-citation-primary", 0),
+        ("ww-citation-primary", 2),
+        ("ref-list", 0),
+        ("ref-list", 2),
+    ),
+)
+def test_task5a_oup_class_cardinality_diagnostic_accepts_only_canonical_count(
+    class_name,
+    actual_count,
+):
+    canonical_diagnostic = (
+        'OUP DOM cardinality: expected exactly one element with class "'
+        f'{class_name}"; found {actual_count}'
+    )
+    pattern = _task5a_oup_exactly_one_class_diagnostic(
+        class_name,
+        actual_count,
+    )
+    assert re.search(pattern, canonical_diagnostic) is not None
+    assert re.search(pattern, "prefix " + canonical_diagnostic) is None
+    assert re.search(pattern, canonical_diagnostic + "; suffix") is None
+
+
+@pytest.mark.parametrize(
+    ("class_name", "unrelated_diagnostic"),
+    (
+        (
+            "minimal-article-container",
+            "OUP DOM cardinality: expected exactly one article-header "
+            "descendant of minimal-article-container; found 0",
+        ),
+        (
+            "article-header",
+            "OUP DOM cardinality: article-header must contain exactly one h1; "
+            "found 0",
+        ),
+        (
+            "article-content",
+            "OUP DOM cardinality: article-content must contain exactly one "
+            "Summary; found 0",
+        ),
+        (
+            "ww-citation-primary",
+            "OUP DOM cardinality: ww-citation-primary must contain exactly one "
+            "DOI anchor; found 0",
+        ),
+        (
+            "ref-list",
+            "OUP DOM cardinality: ref-list must contain exactly one citation; "
+            "found 0",
+        ),
+    ),
+)
+def test_task5a_oup_class_cardinality_diagnostic_rejects_descendant_counts(
+    class_name,
+    unrelated_diagnostic,
+):
+    assert re.search(
+        _task5a_oup_exactly_one_class_diagnostic(class_name, 0),
+        unrelated_diagnostic,
+    ) is None
+
+
+@pytest.mark.parametrize(
+    ("mutation", "class_name", "actual_count"),
+    (
+        ("missing-container", "minimal-article-container", 0),
+        ("duplicate-container", "minimal-article-container", 2),
+        ("missing-header", "article-header", 0),
+        ("duplicate-header", "article-header", 2),
+        ("missing-content", "article-content", 0),
+        ("duplicate-content", "article-content", 2),
+        ("missing-citation", "ww-citation-primary", 0),
+        ("duplicate-citation", "ww-citation-primary", 2),
+        ("missing-ref-list", "ref-list", 0),
+        ("duplicate-ref-list", "ref-list", 2),
     ),
 )
 def test_task5a_oup_rejects_each_dom_cardinality_mutation_with_exact_diagnostic(
     mutation,
     class_name,
+    actual_count,
 ):
     with pytest.raises(
         SourceEvidenceError,
-        match=_task5a_oup_exactly_one_class_diagnostic(class_name),
+        match=_task5a_oup_exactly_one_class_diagnostic(
+            class_name,
+            actual_count,
+        ),
     ):
         _validate_oup_html_payload(_task5a_oup_dom_mutation(mutation))
 
