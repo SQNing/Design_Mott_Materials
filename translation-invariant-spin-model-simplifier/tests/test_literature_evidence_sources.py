@@ -10421,6 +10421,7 @@ def _task5a_install_raw_inotify_init_failure(monkeypatch, error_number):
     monkeypatch.setattr(ctypes, "get_errno", lambda: error_number)
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux inotify")
 @pytest.mark.parametrize(
     "error_number",
     (errno.ENOSPC, errno.EMFILE, errno.ENFILE),
@@ -10438,6 +10439,7 @@ def test_task5a_unwatched_inotify_control_skips_optional_resource_exhaustion(
     assert str(exception_info.value) == "inotify finish control unavailable"
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux inotify")
 def test_task5a_unwatched_inotify_control_rejects_unexpected_init_errno(
     tmp_path,
     monkeypatch,
