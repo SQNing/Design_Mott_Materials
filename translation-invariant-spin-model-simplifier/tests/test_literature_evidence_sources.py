@@ -9141,27 +9141,23 @@ def test_round12_valid_json_acquisition_control(
     assert (tmp_path / fixture["source"]["source_id"]).is_dir()
 
 
-# Task 5A.1 mutation-first contracts.  The fixture is already accepted by the
-# real online sidecar validator and the real offline loader; individual tests
-# mutate exactly one lower boundary instead of replacing either validator.
+# Task 5A.1 mutation-first contracts.  The fixture preserves the exact CORE
+# response bytes; individual tests mutate one lower boundary while invoking
+# both the real online sidecar validator and the real offline loader.
 
 
 def _task5a_lifecycle_fixture():
     fixture = copy.deepcopy(
         _round12_json_acquisition_fixture("core_same_work_output")
     )
-    document = copy.deepcopy(fixture["sidecar_document"])
-    document["authors"] = [
-        {"name": author} for author in fixture["bibliographic"]["authors"]
+    assert fixture["sidecar_document"]["authors"] == [
+        {"name": "Caspers, W.J."},
+        {"name": "Emmett, K.M."},
+        {"name": "Magnus, W."},
     ]
-    document["downloadUrl"] = fixture["route"][
-        "authoritative_retrieval_route"
-    ]["url"]
-    fixture["sidecar_document"] = document
-    fixture["sidecar_payload"] = json.dumps(
-        document,
-        sort_keys=True,
-    ).encode("utf-8")
+    assert json.loads(fixture["sidecar_payload"].decode("utf-8")) == fixture[
+        "sidecar_document"
+    ]
     return fixture
 
 
@@ -9187,6 +9183,8 @@ def _task5a_install_real_lifecycle_boundary(
     fixture,
     *,
     events,
+    target=None,
+    target_visibility=None,
     sidecar_payload=None,
     bibliographic=None,
     primary_content_type="application/pdf",
@@ -9203,12 +9201,26 @@ def _task5a_install_real_lifecycle_boundary(
     )
     real_live_validator = source_fetcher.validate_work_identity_document
     real_offline_validator = evidence_sources.validate_work_identity_document
+    real_request = source_fetcher.Request
+
+    def record_event(name):
+        events.append(name)
+        if target is not None and target_visibility is not None:
+            target_visibility.append(
+                (name, target.exists() or target.is_symlink())
+            )
+
+    def recording_request(*args, **kwargs):
+        request = real_request(*args, **kwargs)
+        if _header_dict(request).get("accept") == "application/pdf":
+            record_event("first-PDF-request-constructed")
+        return request
 
     class FixtureOpener:
         def open(self, request, timeout):
             accept = _header_dict(request).get("accept")
             if accept == "application/pdf":
-                events.append("primary-response-bytes")
+                record_event("primary-response-bytes")
                 return _FixtureHTTPResponse(
                     fixture["primary_payload"],
                     content_type=primary_content_type,
@@ -9217,7 +9229,7 @@ def _task5a_install_real_lifecycle_boundary(
                     ]["url"],
                 )
             assert accept == "application/json"
-            events.append("sidecar-response-bytes")
+            record_event("sidecar-response-bytes")
             return _FixtureHTTPResponse(
                 sidecar_payload,
                 content_type="application/json",
@@ -9225,18 +9237,23 @@ def _task5a_install_real_lifecycle_boundary(
             )
 
     def fetch_bibliographic(*args, **kwargs):
-        events.append("crossref-bibliographic-metadata")
+        record_event("crossref-bibliographic-metadata")
         return copy.deepcopy(bibliographic)
 
     def live_validator(document, **kwargs):
-        events.append("live-sidecar-agreement-validator")
-        return real_live_validator(document, **kwargs)
+        record_event("live-sidecar-agreement-validator-enter")
+        result = real_live_validator(document, **kwargs)
+        record_event("live-sidecar-agreement-validator-complete")
+        return result
 
     def offline_validator(document, **kwargs):
-        events.append("offline-sidecar-agreement-validator")
-        return real_offline_validator(document, **kwargs)
+        record_event("offline-sidecar-agreement-validator-enter")
+        result = real_offline_validator(document, **kwargs)
+        record_event("offline-sidecar-agreement-validator-complete")
+        return result
 
     monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(source_fetcher, "Request", recording_request)
     monkeypatch.setattr(
         source_fetcher,
         "build_opener",
@@ -9257,6 +9274,12 @@ def _task5a_install_real_lifecycle_boundary(
         "validate_work_identity_document",
         offline_validator,
     )
+
+
+def _task5a_assert_event_order(events, *ordered_events):
+    assert all(events.count(event) == 1 for event in ordered_events), events
+    positions = [events.index(event) for event in ordered_events]
+    assert positions == sorted(positions), events
 
 
 @pytest.mark.parametrize(
@@ -9289,6 +9312,7 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     target = cache_root / source["source_id"]
     failure = SourceEvidenceError(f"injected {failure_stage} failure")
     events = []
+    target_visibility = []
     sidecar_payload = fixture["sidecar_payload"]
     bibliographic = fixture["bibliographic"]
     primary_content_type = "application/pdf"
@@ -9308,6 +9332,8 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
         monkeypatch,
         fixture,
         events=events,
+        target=target,
+        target_visibility=target_visibility,
         sidecar_payload=sidecar_payload,
         bibliographic=bibliographic,
         primary_content_type=primary_content_type,
@@ -9370,20 +9396,39 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     )
 
     assert outcome["status"] == "failed", outcome
-    if failure_stage not in {"primary-response-media", "crossref-metadata"}:
+    if failure_stage != "crossref-metadata":
         assert "sidecar-response-bytes" in events
     if failure_stage == "raw-sidecar-validation":
-        assert "live-sidecar-agreement-validator" not in events
-    elif failure_stage not in {"primary-response-media", "crossref-metadata"}:
-        assert "live-sidecar-agreement-validator" in events
+        assert "live-sidecar-agreement-validator-enter" not in events
+        assert "first-PDF-request-constructed" not in events
+        assert "primary-response-bytes" not in events
+    elif failure_stage == "bibliographic-agreement":
+        assert "live-sidecar-agreement-validator-enter" in events
+        assert "live-sidecar-agreement-validator-complete" not in events
+        assert "first-PDF-request-constructed" not in events
+        assert "primary-response-bytes" not in events
+    elif failure_stage != "crossref-metadata":
+        _task5a_assert_event_order(
+            events,
+            "sidecar-response-bytes",
+            "live-sidecar-agreement-validator-enter",
+            "live-sidecar-agreement-validator-complete",
+            "first-PDF-request-constructed",
+            "primary-response-bytes",
+        )
     if failure_stage == "offline-candidate-replay":
-        assert "offline-sidecar-agreement-validator" in events
-        assert "offline-primary-payload-read" in events
+        _task5a_assert_event_order(
+            events,
+            "offline-sidecar-agreement-validator-enter",
+            "offline-sidecar-agreement-validator-complete",
+            "offline-primary-payload-read",
+        )
     assert not target.exists() and not target.is_symlink()
+    assert not any(visible for _event, visible in target_visibility)
     assert _task5a_cache_manifest(cache_root) == before
 
 
-def test_task5a_success_publishes_once_only_after_complete_offline_candidate_replay(
+def test_task5a_success_publishes_complete_target_only_after_real_offline_replay(
     tmp_path,
     monkeypatch,
 ):
@@ -9391,16 +9436,24 @@ def test_task5a_success_publishes_once_only_after_complete_offline_candidate_rep
     existing = cache_root / "preexisting_source"
     existing.mkdir(parents=True)
     existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    foreign_staging = cache_root / ".foreign-operation-staging"
+    foreign_staging.mkdir()
+    foreign_staging.joinpath("sentinel").write_bytes(b"FOREIGN-STAGING")
     before_existing = _task5a_cache_manifest(existing)
+    before_foreign_staging = _task5a_cache_manifest(foreign_staging)
     fixture = _task5a_lifecycle_fixture()
     source = fixture["source"]
     route = fixture["route"]
     target = cache_root / source["source_id"]
     events = []
+    target_visibility = []
+    replayed = []
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
         fixture,
         events=events,
+        target=target,
+        target_visibility=target_visibility,
     )
     real_loader = source_fetcher.load_verified_source
 
@@ -9418,6 +9471,7 @@ def test_task5a_success_publishes_once_only_after_complete_offline_candidate_rep
         assert candidate.joinpath("work-identity.json").is_file()
         assert candidate.joinpath("work-identity.provenance.json").is_file()
         assert not target.exists() and not target.is_symlink()
+        replayed.append(verified)
         return verified
 
     monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
@@ -9431,87 +9485,61 @@ def test_task5a_success_publishes_once_only_after_complete_offline_candidate_rep
     )
 
     assert outcome["status"] == "acquired", outcome
-    assert events == [
-        "primary-response-bytes",
-        "crossref-bibliographic-metadata",
+    assert events.count("crossref-bibliographic-metadata") == 1
+    _task5a_assert_event_order(
+        events,
         "sidecar-response-bytes",
-        "live-sidecar-agreement-validator",
+        "live-sidecar-agreement-validator-enter",
+        "live-sidecar-agreement-validator-complete",
+        "first-PDF-request-constructed",
+        "primary-response-bytes",
         "offline-replay-enter",
-        "offline-sidecar-agreement-validator",
+        "offline-sidecar-agreement-validator-enter",
+        "offline-sidecar-agreement-validator-complete",
         "offline-replay-complete",
-    ]
+    )
+    assert len(replayed) == 1
+    assert replayed[0].source_id == source["source_id"]
+    assert not any(visible for _event, visible in target_visibility)
     assert target.is_dir() and not target.is_symlink()
     assert {path.name for path in cache_root.iterdir()} == {
+        ".foreign-operation-staging",
         "preexisting_source",
         source["source_id"],
     }
     assert _task5a_cache_manifest(existing) == before_existing
-    verified = real_loader(
-        target,
-        expected_source=source,
-        provisioning_route=route,
-    )
-    assert verified.source_id == source["source_id"]
+    assert _task5a_cache_manifest(foreign_staging) == before_foreign_staging
 
 
-def test_task5a_atomic_no_replace_publication_helper_black_box_success(tmp_path):
-    cache_root = tmp_path / "source-cache"
-    cache_root.mkdir()
-    candidate = cache_root / ".task5a-owned-candidate"
-    candidate.mkdir()
-    candidate.joinpath("source.pdf").write_bytes(b"CANDIDATE-BYTES")
-    candidate.joinpath("nested").mkdir()
-    candidate.joinpath("nested", "sidecar").write_bytes(b"SIDECAR-BYTES")
-    target = cache_root / "published-source"
-
-    source_fetcher._publish_candidate_directory_no_replace(candidate, target)
-
-    assert not candidate.exists() and not candidate.is_symlink()
-    assert target.is_dir() and not target.is_symlink()
-    assert target.joinpath("source.pdf").read_bytes() == b"CANDIDATE-BYTES"
-    assert target.joinpath("nested", "sidecar").read_bytes() == b"SIDECAR-BYTES"
-    assert list(cache_root.iterdir()) == [target]
-
-
-def test_task5a_atomic_no_replace_publication_helper_black_box_empty_collision(
-    tmp_path,
-):
-    cache_root = tmp_path / "source-cache"
-    cache_root.mkdir()
-    candidate = cache_root / ".task5a-owned-candidate"
-    candidate.mkdir()
-    candidate.joinpath("source.pdf").write_bytes(b"CANDIDATE-BYTES")
-    target = cache_root / "concurrent-target"
-    target.mkdir()
-
-    with pytest.raises(FileExistsError):
-        source_fetcher._publish_candidate_directory_no_replace(candidate, target)
-
-    assert target.is_dir() and not target.is_symlink()
-    assert list(target.iterdir()) == []
-    assert not candidate.exists() and not candidate.is_symlink()
-    assert list(cache_root.iterdir()) == [target]
-
-
-def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candidate(
+@pytest.mark.parametrize("collision_kind", ("empty", "nonempty"))
+def test_task5a_concurrent_target_collision_never_enters_replaces_or_modifies_target(
     tmp_path,
     monkeypatch,
+    collision_kind,
 ):
     cache_root = tmp_path / "source-cache"
     cache_root.mkdir()
     existing = cache_root / "preexisting_source"
     existing.mkdir()
     existing.joinpath("sentinel").write_bytes(b"PREEXISTING-BYTES")
+    foreign_staging = cache_root / ".foreign-operation-staging"
+    foreign_staging.mkdir()
+    foreign_staging.joinpath("sentinel").write_bytes(b"FOREIGN-STAGING")
     before_existing = _task5a_cache_manifest(existing)
+    before_foreign_staging = _task5a_cache_manifest(foreign_staging)
     fixture = _task5a_lifecycle_fixture()
     source = fixture["source"]
     route = fixture["route"]
     target = cache_root / source["source_id"]
     events = []
+    target_visibility = []
+    collision_manifest = []
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
         fixture,
         events=events,
+        target=target,
+        target_visibility=target_visibility,
     )
     real_loader = source_fetcher.load_verified_source
 
@@ -9524,7 +9552,14 @@ def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candid
         assert target_visible_before_replay is False
         assert not target.exists() and not target.is_symlink()
         target.mkdir()
-        events.append("concurrent-empty-target-created")
+        if collision_kind == "nonempty":
+            target.joinpath("sentinel").write_bytes(b"CONCURRENT-TARGET")
+            target.joinpath("nested").mkdir()
+            target.joinpath("nested", "payload").write_bytes(
+                b"CONCURRENT-NESTED-PAYLOAD"
+            )
+        collision_manifest.append(_task5a_cache_manifest(target))
+        events.append(f"concurrent-{collision_kind}-target-created")
         return verified
 
     monkeypatch.setattr(
@@ -9541,14 +9576,26 @@ def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candid
     )
 
     assert outcome["status"] == "failed", outcome
-    assert events[-2:] == [
+    _task5a_assert_event_order(
+        events,
+        "sidecar-response-bytes",
+        "live-sidecar-agreement-validator-enter",
+        "live-sidecar-agreement-validator-complete",
+        "first-PDF-request-constructed",
+        "primary-response-bytes",
+        "offline-sidecar-agreement-validator-enter",
+        "offline-sidecar-agreement-validator-complete",
         "real-offline-replay-complete",
-        "concurrent-empty-target-created",
-    ]
+        f"concurrent-{collision_kind}-target-created",
+    )
+    assert len(collision_manifest) == 1
     assert target.is_dir() and not target.is_symlink()
-    assert list(target.iterdir()) == []
+    assert _task5a_cache_manifest(target) == collision_manifest[0]
+    assert not any(visible for _event, visible in target_visibility)
     assert _task5a_cache_manifest(existing) == before_existing
+    assert _task5a_cache_manifest(foreign_staging) == before_foreign_staging
     assert {path.name for path in cache_root.iterdir()} == {
+        ".foreign-operation-staging",
         "preexisting_source",
         source["source_id"],
     }
