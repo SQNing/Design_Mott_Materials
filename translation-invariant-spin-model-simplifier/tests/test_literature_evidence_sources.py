@@ -9579,6 +9579,16 @@ def _task5a_tracer_pid():
     raise AssertionError("/proc/self/status omitted TracerPid")
 
 
+def _task5a_strace_cleanup_error(cleanup_errors):
+    if not cleanup_errors:
+        return None
+    error = AssertionError("strace observer cleanup failed")
+    error.cleanup_errors = tuple(cleanup_errors)
+    error.__cause__ = cleanup_errors[0]
+    error.__suppress_context__ = True
+    return error
+
+
 class _Task5AStraceWatch:
     def __init__(self, root, trace_path):
         self.root = Path(root)
@@ -9602,25 +9612,147 @@ class _Task5AStraceWatch:
             stderr=subprocess.PIPE,
             text=True,
         )
-        deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline:
-            if _task5a_tracer_pid() == self.process.pid:
-                break
-            return_code = self.process.poll()
-            if return_code is not None:
-                _stdout, stderr = self.process.communicate()
+        self._shutdown_complete = False
+        self._shutdown_state = None
+        self._shutdown_error = None
+        try:
+            deadline = time.monotonic() + 5.0
+            while time.monotonic() < deadline:
+                if _task5a_tracer_pid() == self.process.pid:
+                    break
+                return_code = self.process.poll()
+                if return_code is not None:
+                    raise OSError(
+                        errno.EPERM,
+                        f"strace attach failed ({return_code})",
+                    )
+                time.sleep(0.01)
+            else:
                 raise OSError(
-                    errno.EPERM,
-                    f"strace attach failed ({return_code}): {stderr.strip()}",
+                    errno.ETIMEDOUT,
+                    "strace did not attach before timeout",
                 )
-            time.sleep(0.01)
-        else:
-            self.process.send_signal(signal.SIGINT)
-            _stdout, stderr = self.process.communicate(timeout=5)
-            raise OSError(
-                errno.ETIMEDOUT,
-                f"strace did not attach before timeout: {stderr.strip()}",
+        except BaseException as setup_error:
+            _shutdown_state, cleanup_error = self._shutdown_process(
+                attempt_controlled_sigint=True
             )
+            if cleanup_error is not None:
+                raise setup_error from cleanup_error
+            raise
+
+    def _shutdown_process(self, *, attempt_controlled_sigint):
+        if self._shutdown_complete:
+            return self._shutdown_state, self._shutdown_error
+
+        cleanup_errors = []
+        state = {
+            "alive_before_shutdown": None,
+            "communicate_timed_out": False,
+            "detached": False,
+            "forced_kill": False,
+            "returncode": None,
+            "sent_controlled_sigint": False,
+        }
+
+        def record_cleanup_error(error):
+            cleanup_errors.append(error)
+
+        def process_is_alive():
+            try:
+                return self.process.poll() is None
+            except BaseException as error:
+                record_cleanup_error(error)
+                return None
+
+        def force_kill_if_alive():
+            if process_is_alive() is False:
+                return
+            try:
+                self.process.kill()
+            except ProcessLookupError:
+                return
+            except BaseException as error:
+                record_cleanup_error(error)
+            else:
+                state["forced_kill"] = True
+
+        state["alive_before_shutdown"] = process_is_alive()
+        signal_failed = False
+        if (
+            attempt_controlled_sigint
+            and state["alive_before_shutdown"] is not False
+        ):
+            try:
+                self.process.send_signal(signal.SIGINT)
+            except ProcessLookupError:
+                pass
+            except BaseException as error:
+                record_cleanup_error(error)
+                signal_failed = True
+            else:
+                state["sent_controlled_sigint"] = True
+        if signal_failed:
+            force_kill_if_alive()
+
+        communicate_failed = False
+        try:
+            self.process.communicate(timeout=5)
+        except subprocess.TimeoutExpired as error:
+            state["communicate_timed_out"] = True
+            record_cleanup_error(error)
+            communicate_failed = True
+        except BaseException as error:
+            record_cleanup_error(error)
+            communicate_failed = True
+        if communicate_failed:
+            force_kill_if_alive()
+            try:
+                self.process.communicate(timeout=5)
+            except BaseException as error:
+                record_cleanup_error(error)
+
+        if process_is_alive() is not False:
+            force_kill_if_alive()
+            try:
+                self.process.communicate(timeout=5)
+            except BaseException as error:
+                record_cleanup_error(error)
+
+        try:
+            self.process.wait(timeout=5)
+        except subprocess.TimeoutExpired as error:
+            record_cleanup_error(error)
+            force_kill_if_alive()
+            try:
+                self.process.wait(timeout=5)
+            except BaseException as wait_error:
+                record_cleanup_error(wait_error)
+        except BaseException as error:
+            record_cleanup_error(error)
+
+        try:
+            state["returncode"] = self.process.returncode
+        except BaseException as error:
+            record_cleanup_error(error)
+
+        try:
+            deadline = time.monotonic() + 5.0
+            while time.monotonic() < deadline:
+                if _task5a_tracer_pid() == 0:
+                    state["detached"] = True
+                    break
+                time.sleep(0.01)
+            if not state["detached"]:
+                record_cleanup_error(
+                    AssertionError("strace failed to detach from pytest")
+                )
+        except BaseException as error:
+            record_cleanup_error(error)
+
+        self._shutdown_state = state
+        self._shutdown_error = _task5a_strace_cleanup_error(cleanup_errors)
+        self._shutdown_complete = True
+        return self._shutdown_state, self._shutdown_error
 
     def _await_completed_checkpoint(self):
         checkpoint_path = Path(os.path.abspath(self.root)) / (
@@ -9659,48 +9791,54 @@ class _Task5AStraceWatch:
         return False
 
     def finish(self):
-        alive_at_teardown_start = self.process.poll() is None
-        attached_at_teardown_start = (
-            _task5a_tracer_pid() == self.process.pid
-        )
-        checkpoint_complete = False
-        if alive_at_teardown_start and attached_at_teardown_start:
-            checkpoint_complete = self._await_completed_checkpoint()
-        alive_before_controlled_sigint = self.process.poll() is None
-        attached_before_controlled_sigint = (
-            _task5a_tracer_pid() == self.process.pid
-        )
-        sent_controlled_sigint = False
-        timed_out = False
-        if alive_before_controlled_sigint:
-            try:
-                self.process.send_signal(signal.SIGINT)
-                sent_controlled_sigint = True
-            except ProcessLookupError:
-                alive_before_controlled_sigint = False
         try:
-            self.process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            self.process.kill()
-            self.process.communicate()
-        deadline = time.monotonic() + 5.0
-        while _task5a_tracer_pid() != 0 and time.monotonic() < deadline:
-            time.sleep(0.01)
-        assert _task5a_tracer_pid() == 0, "strace failed to detach from pytest"
+            alive_at_teardown_start = self.process.poll() is None
+            attached_at_teardown_start = (
+                _task5a_tracer_pid() == self.process.pid
+            )
+            checkpoint_complete = False
+            if alive_at_teardown_start and attached_at_teardown_start:
+                checkpoint_complete = self._await_completed_checkpoint()
+            alive_before_controlled_sigint = self.process.poll() is None
+            attached_before_controlled_sigint = (
+                _task5a_tracer_pid() == self.process.pid
+            )
+        except BaseException as observation_error:
+            _shutdown_state, cleanup_error = self._shutdown_process(
+                attempt_controlled_sigint=True
+            )
+            if cleanup_error is not None:
+                raise observation_error from cleanup_error
+            raise
+
+        shutdown_state, cleanup_error = self._shutdown_process(
+            attempt_controlled_sigint=True
+        )
+        observation_error = None
         if (
             not alive_at_teardown_start
             or not attached_at_teardown_start
             or not alive_before_controlled_sigint
             or not attached_before_controlled_sigint
+            or not shutdown_state["sent_controlled_sigint"]
         ):
-            raise AssertionError(TASK5A_STRACE_EARLY_DEATH)
-        assert sent_controlled_sigint, TASK5A_STRACE_EARLY_DEATH
-        assert not timed_out, "strace observer did not stop after controlled SIGINT"
-        assert self.process.returncode == 0, (
-            "strace observer returned an unexpected controlled-SIGINT status"
-        )
-        assert checkpoint_complete, TASK5A_STRACE_INCOMPLETE
+            observation_error = AssertionError(TASK5A_STRACE_EARLY_DEATH)
+        elif shutdown_state["communicate_timed_out"]:
+            observation_error = AssertionError(
+                "strace observer did not stop after controlled SIGINT"
+            )
+        elif shutdown_state["returncode"] != 0:
+            observation_error = AssertionError(
+                "strace observer returned an unexpected controlled-SIGINT status"
+            )
+        elif not checkpoint_complete:
+            observation_error = AssertionError(TASK5A_STRACE_INCOMPLETE)
+        if observation_error is not None:
+            if cleanup_error is not None:
+                raise observation_error from cleanup_error
+            raise observation_error
+        if cleanup_error is not None:
+            raise cleanup_error
         assert self.trace_path.is_file(), "strace observer did not write its trace"
         payload = self.trace_path.read_text(encoding="utf-8")
         return {
@@ -9728,6 +9866,25 @@ def _task5a_optional_inotify_observer(root):
         if error.errno not in {errno.ENOSPC, errno.EMFILE, errno.ENFILE}:
             raise
         return None
+
+
+def _task5a_finish_strace_then_optional_inotify(
+    strace_observer,
+    inotify_observer,
+):
+    inotify_observation = None
+    try:
+        strace_observation = strace_observer.finish()
+    except BaseException as strace_error:
+        if inotify_observer is not None:
+            try:
+                inotify_observer.finish()
+            except BaseException as inotify_error:
+                raise strace_error from inotify_error
+        raise
+    if inotify_observer is not None:
+        inotify_observation = inotify_observer.finish()
+    return strace_observation, inotify_observation
 
 
 def _task5a_publication_observer_or_skip(root, trace_path):
@@ -10378,10 +10535,248 @@ def test_task5a_strace_collision_control_rejects_successful_target_move(tmp_path
         )
 
 
+def _task5a_run_fork_isolated_control(control):
+    read_fd, write_fd = os.pipe()
+    child_pid = os.fork()
+    if child_pid == 0:
+        os.close(read_fd)
+        child_exit_code = 0
+        try:
+            child_result = control()
+        except BaseException as error:
+            child_result = {
+                "harness_error": str(error),
+                "harness_error_type": type(error).__name__,
+            }
+            child_exit_code = 1
+        encoded_result = json.dumps(child_result, sort_keys=True).encode("utf-8")
+        try:
+            os.write(write_fd, encoded_result)
+        finally:
+            os.close(write_fd)
+        os._exit(child_exit_code)
+
+    os.close(write_fd)
+    child_payload = bytearray()
+    try:
+        while True:
+            chunk = os.read(read_fd, 4096)
+            if not chunk:
+                break
+            child_payload.extend(chunk)
+    finally:
+        os.close(read_fd)
+    waited_pid, child_status = os.waitpid(child_pid, 0)
+    assert waited_pid == child_pid
+    assert os.WIFEXITED(child_status)
+    assert os.WEXITSTATUS(child_status) == 0, child_payload
+    return json.loads(child_payload)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
+def test_task5a_constructor_communicate_timeout_reaps_and_detaches(tmp_path):
+    def constructor_timeout_control():
+        real_popen = subprocess.Popen
+        real_tracer_pid = _task5a_tracer_pid
+        captured_processes = []
+        tracer_pid_calls = 0
+
+        class CommunicateTimeoutProcess:
+            def __init__(self, *args, **kwargs):
+                self.process = real_popen(*args, **kwargs)
+                self.communicate_calls = 0
+                self.controlled_sigint_calls = 0
+                self.kill_calls = 0
+                captured_processes.append(self)
+
+            def __getattr__(self, name):
+                return getattr(self.process, name)
+
+            def send_signal(self, signal_number):
+                if signal_number == signal.SIGINT:
+                    self.controlled_sigint_calls += 1
+                    return None
+                return self.process.send_signal(signal_number)
+
+            def communicate(self, *args, **kwargs):
+                self.communicate_calls += 1
+                if self.communicate_calls == 1:
+                    timeout = kwargs.get("timeout")
+                    if timeout is None and args:
+                        timeout = args[0]
+                    raise subprocess.TimeoutExpired("strace-control", timeout)
+                return self.process.communicate(*args, **kwargs)
+
+            def kill(self):
+                self.kill_calls += 1
+                return self.process.kill()
+
+        def fail_first_tracer_pid_read():
+            nonlocal tracer_pid_calls
+            tracer_pid_calls += 1
+            if tracer_pid_calls == 1:
+                raise RuntimeError("constructor state control")
+            return real_tracer_pid()
+
+        subprocess.Popen = CommunicateTimeoutProcess
+        globals()["_task5a_tracer_pid"] = fail_first_tracer_pid_read
+        try:
+            try:
+                _Task5AStraceWatch(
+                    tmp_path,
+                    tmp_path / "constructor-timeout.strace",
+                )
+            except BaseException as error:
+                process = captured_processes[0]
+                cause = error.__cause__
+                result = {
+                    "cause": type(cause).__name__ if cause is not None else None,
+                    "cleanup_error_types": [
+                        type(cleanup_error).__name__
+                        for cleanup_error in getattr(cause, "cleanup_errors", ())
+                    ],
+                    "communicate_calls": process.communicate_calls,
+                    "controlled_sigint_calls": process.controlled_sigint_calls,
+                    "error": str(error),
+                    "error_type": type(error).__name__,
+                    "kill_calls": process.kill_calls,
+                    "reaped": process.poll() is not None,
+                    "tracer_pid": real_tracer_pid(),
+                }
+            else:
+                result = {"unexpected": "constructor failure was accepted"}
+        finally:
+            globals()["_task5a_tracer_pid"] = real_tracer_pid
+            subprocess.Popen = real_popen
+            for process in captured_processes:
+                if process.process.poll() is None:
+                    process.process.kill()
+                process.process.communicate(timeout=5)
+            deadline = time.monotonic() + 5.0
+            while real_tracer_pid() != 0 and time.monotonic() < deadline:
+                time.sleep(0.01)
+        return result
+
+    result = _task5a_run_fork_isolated_control(constructor_timeout_control)
+    assert result["error_type"] == "RuntimeError"
+    assert result["error"] == "constructor state control"
+    assert result["cause"] == "AssertionError"
+    assert "TimeoutExpired" in result["cleanup_error_types"]
+    assert result["controlled_sigint_calls"] == 1
+    assert result["communicate_calls"] >= 2
+    assert result["kill_calls"] >= 1
+    assert result["reaped"] is True
+    assert result["tracer_pid"] == 0
+    assert _task5a_tracer_pid() == 0
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
+def test_task5a_finish_proc_read_failure_reaps_and_detaches(tmp_path):
+    def finish_proc_failure_control():
+        real_tracer_pid = _task5a_tracer_pid
+        cache_root = tmp_path / "finish-proc-failure-source-cache"
+        cache_root.mkdir()
+        observer = _task5a_required_success_strace_observer(
+            cache_root,
+            tmp_path / "finish-proc-failure.strace",
+        )
+        tracer_pid_calls = 0
+
+        def fail_first_tracer_pid_read():
+            nonlocal tracer_pid_calls
+            tracer_pid_calls += 1
+            if tracer_pid_calls == 1:
+                raise RuntimeError("finish proc read control")
+            return real_tracer_pid()
+
+        globals()["_task5a_tracer_pid"] = fail_first_tracer_pid_read
+        try:
+            try:
+                observer.finish()
+            except BaseException as error:
+                result = {
+                    "cause": (
+                        type(error.__cause__).__name__
+                        if error.__cause__ is not None
+                        else None
+                    ),
+                    "error": str(error),
+                    "error_type": type(error).__name__,
+                    "reaped": observer.process.poll() is not None,
+                    "tracer_pid": real_tracer_pid(),
+                }
+            else:
+                result = {"unexpected": "finish proc failure was accepted"}
+        finally:
+            globals()["_task5a_tracer_pid"] = real_tracer_pid
+            if observer.process.poll() is None:
+                observer.process.kill()
+            observer.process.communicate(timeout=5)
+            deadline = time.monotonic() + 5.0
+            while real_tracer_pid() != 0 and time.monotonic() < deadline:
+                time.sleep(0.01)
+        return result
+
+    result = _task5a_run_fork_isolated_control(finish_proc_failure_control)
+    assert result == {
+        "cause": None,
+        "error": "finish proc read control",
+        "error_type": "RuntimeError",
+        "reaped": True,
+        "tracer_pid": 0,
+    }
+    assert _task5a_tracer_pid() == 0
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
+def test_task5a_strace_process_shutdown_is_idempotent_after_finish(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "idempotent-shutdown-source-cache"
+    cache_root.mkdir()
+    observer = _task5a_required_success_strace_observer(
+        cache_root,
+        tmp_path / "idempotent-shutdown.strace",
+    )
+    observer.finish()
+
+    extra_process_calls = []
+
+    def forbidden_process_call(*_args, **_kwargs):
+        extra_process_calls.append("called")
+        raise AssertionError("idempotent shutdown repeated a process operation")
+
+    for method_name in ("poll", "send_signal", "communicate", "kill", "wait"):
+        monkeypatch.setattr(
+            observer.process,
+            method_name,
+            forbidden_process_call,
+        )
+    first_state, first_error = observer._shutdown_process(
+        attempt_controlled_sigint=True
+    )
+    second_state, second_error = observer._shutdown_process(
+        attempt_controlled_sigint=True
+    )
+
+    assert first_state == second_state
+    assert first_error is second_error is None
+    assert first_state["returncode"] == 0
+    assert first_state["detached"] is True
+    assert extra_process_calls == []
+    assert _task5a_tracer_pid() == 0
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
 @pytest.mark.parametrize(
     "failure_stage",
-    ("optional-observer-acquisition", "directory-fd-acquisition", "strace-finish"),
+    (
+        "optional-observer-acquisition",
+        "directory-fd-acquisition",
+        "strace-finish",
+        "both-finishes",
+    ),
 )
 def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observer(
     tmp_path,
@@ -10395,13 +10790,15 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
     class RequiredStraceControl:
         def finish(self):
             events.append("strace-finish")
-            if failure_stage == "strace-finish":
+            if failure_stage in {"strace-finish", "both-finishes"}:
                 raise AssertionError("strace finish control")
             return {"backend": "strace", "records": [], "payload": ""}
 
     class OptionalInotifyControl:
         def finish(self):
             events.append("inotify-finish")
+            if failure_stage == "both-finishes":
+                raise AssertionError("inotify finish control")
             return {"backend": "inotify", "events": []}
 
     def required_strace_control(_root, _trace_path):
@@ -10450,11 +10847,17 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
         "optional-observer-acquisition": "optional observer acquisition control",
         "directory-fd-acquisition": "directory fd acquisition control",
         "strace-finish": "strace finish control",
+        "both-finishes": "strace finish control",
     }[failure_stage]
-    with pytest.raises((OSError, AssertionError), match=expected_error):
+    with pytest.raises(
+        (OSError, AssertionError),
+        match=expected_error,
+    ) as exception_info:
         test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
             tmp_path
         )
+    if failure_stage == "both-finishes":
+        assert str(exception_info.value.__cause__) == "inotify finish control"
 
     expected_events = [
         "strace-acquired",
@@ -10526,11 +10929,12 @@ def test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
             if directory_fd is not None:
                 os.close(directory_fd)
     finally:
-        try:
-            observation = observer.finish()
-        finally:
-            if visibility_observer is not None:
-                visibility_observation = visibility_observer.finish()
+        observation, visibility_observation = (
+            _task5a_finish_strace_then_optional_inotify(
+                observer,
+                visibility_observer,
+            )
+        )
 
     checkpoint_records = [
         record
@@ -10926,11 +11330,12 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
             resume=False,
         )
     finally:
-        try:
-            publication_observation = observer.finish()
-        finally:
-            if visibility_observer is not None:
-                visibility_observation = visibility_observer.finish()
+        publication_observation, visibility_observation = (
+            _task5a_finish_strace_then_optional_inotify(
+                observer,
+                visibility_observer,
+            )
+        )
 
     assert outcome["status"] == "acquired", outcome
     _task5a_assert_inputs_complete_before(events, "offline-replay-enter")
@@ -11000,7 +11405,7 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
 
 @pytest.mark.parametrize(
     "failure_stage",
-    ("optional-observer-acquisition", "strace-finish"),
+    ("optional-observer-acquisition", "strace-finish", "both-finishes"),
 )
 def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observer(
     tmp_path,
@@ -11012,13 +11417,15 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
     class RequiredStraceControl:
         def finish(self):
             events.append("strace-finish")
-            if failure_stage == "strace-finish":
+            if failure_stage in {"strace-finish", "both-finishes"}:
                 raise AssertionError("public success strace finish control")
             return {"backend": "strace", "records": [], "payload": ""}
 
     class OptionalInotifyControl:
         def finish(self):
             events.append("inotify-finish")
+            if failure_stage == "both-finishes":
+                raise AssertionError("public success inotify finish control")
             return {"backend": "inotify", "events": []}
 
     def required_strace_control(_root, _trace_path):
@@ -11050,11 +11457,19 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
             "public success optional observer acquisition control"
         ),
         "strace-finish": "public success strace finish control",
+        "both-finishes": "public success strace finish control",
     }[failure_stage]
-    with pytest.raises((OSError, AssertionError), match=expected_error):
+    with pytest.raises(
+        (OSError, AssertionError),
+        match=expected_error,
+    ) as exception_info:
         test_task5a_success_publishes_complete_target_only_after_real_offline_replay(
             tmp_path,
             monkeypatch,
+        )
+    if failure_stage == "both-finishes":
+        assert str(exception_info.value.__cause__) == (
+            "public success inotify finish control"
         )
 
     expected_events = [
@@ -11062,7 +11477,7 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
         "inotify-acquisition",
         "strace-finish",
     ]
-    if failure_stage == "strace-finish":
+    if failure_stage in {"strace-finish", "both-finishes"}:
         expected_events.append("inotify-finish")
     assert events == expected_events
     assert _task5a_tracer_pid() == 0
