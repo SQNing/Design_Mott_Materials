@@ -39,7 +39,7 @@ from validation.literature_spin_model_benchmarks import LITERATURE_STANDARD_RESU
 SOURCE_ID = "doi_fixture_source"
 DOI = "10.1234/example.1"
 CANONICAL_URL = f"https://doi.org/{DOI}"
-OUP_DOI = b"10.1143/ptp.5.2.177"
+OUP_DOI = b"10.1143/ptp/5.2.177"
 OUP_RESOLVER = b"https://doi.org/" + OUP_DOI
 PAYLOAD = (
     b"<article><title>Exact observable study</title>"
@@ -54,15 +54,21 @@ OUP_HTML = b"""<!doctype html>
   </head>
   <body>
     <!-- comment-hidden-sentinel -->
-    <article data-private="attribute-hidden-sentinel">
-      <h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>
-      <p class="authors">Kodi Husimi and Itiro Syozi</p>
-      <p>https://doi.org/10.1143/ptp.5.2.177</p>
-      <section><h2>Summary</h2>
+    <article class="minimal-article-container" data-private="attribute-hidden-sentinel">
+      <header class="article-header">
+        <h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>
+        <p class="authors">Kodi Husimi and Itiro Sy&#244;zi</p>
+        <p>Volume 5, Issue 2, March 1950, Pages 177-186</p>
+        <div class="ww-citation-primary">
+          <a href="https://doi.org/10.1143/ptp/5.2.177"><p>https://doi.org/10.1143/ptp/5.2.177</p></a>
+        </div>
+      </header>
+      <section class="article-content"><h2>Summary</h2>
         <p>We applied the matrix method to the honeycomb lattice and obtained
         its exact solution and the triangular-net dual.</p>
         <p>The Curie point occurs at ch 2H = 2 in the honeycomb lattice and at
         exp(4H) = 3 in the triangular net.</p>
+        <div class="ref-list"><a href="https://doi.org/10.1000/cited-work">10.1000/cited-work</a></div>
       </section>
       <p hidden>hidden-attribute-sentinel</p>
       <p aria-hidden="true">aria-hidden-sentinel</p>
@@ -81,13 +87,15 @@ OUP_MINIMAL_DIV_HTML = b"""<!doctype html>
       <div class="article-header">
         <h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>
         <p>Kodi Husimi and Itiro Sy&#244;zi</p>
-        <p>https://doi.org/10.1143/ptp.5.2.177</p>
+        <p>Volume 5, Issue 2, March 1950, Pages 177-186</p>
+        <div class="ww-citation-primary"><a href="https://doi.org/10.1143/ptp/5.2.177"><p>https://doi.org/10.1143/ptp/5.2.177</p></a></div>
       </div>
       <div class="article-content">
         <h2>Summary</h2>
         <section class="abstract">
           <p>The Curie point occurs at ch 2H = 2 in the honeycomb lattice and
           at exp (4H) = 3 in the triangular net.</p>
+          <div class="ref-list"><a href="https://doi.org/10.1000/cited-work">10.1000/cited-work</a></div>
         </section>
       </div>
     </div>
@@ -753,16 +761,16 @@ def test_final_authoritative_route_distribution_covers_exact_registry_sources():
     ("identity", "expected"),
     [
         (
-            "doi:10.1143/ptp.5.2.177",
+            "doi:10.1143/ptp/5.2.177",
             {
                 "kind": "oup_minimal_html",
                 "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
                 "expected_media_type": "text/html",
                 "access_mode": "unattended",
-                "artifact_identifier": "doi:10.1143/ptp.5.2.177",
+                "artifact_identifier": "oup-silverchair-article-minimal:1942776",
                 "work_identity_evidence": {
-                    "kind": "canonical_identity",
-                    "url": "https://doi.org/10.1143/ptp.5.2.177",
+                    "kind": "crossref_oup_same_work",
+                    "url": "https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177",
                 },
             },
         ),
@@ -770,7 +778,7 @@ def test_final_authoritative_route_distribution_covers_exact_registry_sources():
             "doi:10.1088/0305-4470/17/13/020",
             {
                 "kind": "institutional_repository_pdf",
-                "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+                "url": "https://core.ac.uk/download/572184419.pdf",
                 "expected_media_type": "application/pdf",
                 "access_mode": "unattended",
                 "artifact_identifier": "core:572184419",
@@ -789,8 +797,10 @@ def test_final_authoritative_route_distribution_covers_exact_registry_sources():
                 "access_mode": "unattended",
                 "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
                 "work_identity_evidence": {
-                    "kind": "author_publications_same_work",
-                    "url": "https://www.lptmc.jussieu.fr/users/maillard",
+                    "kind": "hal_same_work_bibliographic_payload",
+                    "url": "https://api.archives-ouvertes.fr/search/",
+                    "record_identifier": "hal-02340631v1",
+                    "stable_document_url": "https://hal.science/hal-02340631v1",
                 },
             },
         ),
@@ -933,7 +943,7 @@ def test_osti_identity_document_rejects_wrong_fulltext_url():
 
 CORE_MG_BIBLIOGRAPHIC_METADATA = {
     "doi": "10.1088/0305-4470/17/13/020",
-    "title": "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
+    "title": "The Majumdar-Ghosh chain:Twofold ground state and elementary excitations",
     "authors": ["W. J. Caspers", "K. M. Emmett", "W. Magnus"],
 }
 
@@ -942,13 +952,14 @@ def _core_mg_work_identity_document():
     return {
         "id": 572184419,
         "doi": "10.1088/0305-4470/17/13/020",
-        "title": "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
+        "title": "The Majumdar-Ghosh chain:Twofold ground state and elementary excitations",
+        "fulltextStatus": "enabled",
         "authors": [
-            {"name": "W J Caspers"},
-            {"name": "K M Emmett"},
-            {"name": "W Magnus"},
+            {"name": "Caspers, W.J."},
+            {"name": "Emmett, K.M."},
+            {"name": "Magnus, W."},
         ],
-        "downloadUrl": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+        "downloadUrl": "https://core.ac.uk/download/572184419.pdf",
     }
 
 
@@ -970,7 +981,7 @@ def test_core_same_work_output_binds_exact_doi_output_title_authors_and_pdf():
 
 @pytest.mark.parametrize(
     "perturbation",
-    ("doi", "output_id", "title", "authors", "pdf_location"),
+    ("doi", "output_id", "title", "fulltext_status", "authors", "pdf_location"),
 )
 def test_core_same_work_output_rejects_each_independent_mismatch(perturbation):
     document = _core_mg_work_identity_document()
@@ -980,10 +991,12 @@ def test_core_same_work_output_rejects_each_independent_mismatch(perturbation):
         document["id"] = 572184418
     elif perturbation == "title":
         document["title"] = "A different spin-chain paper"
+    elif perturbation == "fulltext_status":
+        document["fulltextStatus"] = "disabled"
     elif perturbation == "authors":
         document["authors"][-1] = {"name": "A Different Author"}
     else:
-        document["downloadUrl"] = "https://files01.core.ac.uk/download/pdf/572184418.pdf"
+        document["downloadUrl"] = "https://core.ac.uk/download/572184418.pdf"
 
     with pytest.raises(SourceEvidenceError, match="work identity"):
         validate_work_identity_document(
@@ -1258,6 +1271,25 @@ def _author_garel_page_with_doi():
 
 
 def _author_garel_route():
+    # The author-page parser remains a generic non-regression surface, but the
+    # corrected Garel route below must no longer select it.
+    return {
+        "kind": "author_repository_pdf",
+        "url": (
+            "https://www.lptmc.jussieu.fr/files/maillard/PUB2/"
+            "Frustrated_jav16i10p2257.pdf"
+        ),
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
+        "work_identity_evidence": {
+            "kind": "author_publications_same_work",
+            "url": "https://www.lptmc.jussieu.fr/users/maillard",
+        },
+    }
+
+
+def _task5a_garel_route():
     return authoritative_route_for_identity(
         {"kind": "doi", "value": "10.1088/0305-4470/16/10/023"}
     )
@@ -4504,17 +4536,17 @@ def test_download_validation_rejects_html_challenge_even_with_status_200():
 
 def _oup_html_route():
     return authoritative_route_for_identity(
-        {"kind": "doi", "value": "10.1143/ptp.5.2.177"}
+        {"kind": "doi", "value": "10.1143/ptp/5.2.177"}
     )
 
 
 def _write_oup_html_source(tmp_path, payload=OUP_HTML):
-    source_id = "doi_f334ed253565110358b3"
+    source_id = "doi_457c49167653440059e9"
     route_spec = _oup_html_route()
     source = {
         "source_id": source_id,
-        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp.5.2.177"},
-        "canonical_url": "https://doi.org/10.1143/ptp.5.2.177",
+        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp/5.2.177"},
+        "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
         "benchmark_names": [
             "honeycomb_ising_ferromagnet_exact_tc",
             "triangular_ising_ferromagnet_exact_tc",
@@ -4539,7 +4571,7 @@ def _write_oup_html_source(tmp_path, payload=OUP_HTML):
             "payload_relative_path": "source.html",
             "text_extraction": {
                 "tool": "stdlib_html_visible_text",
-                "version": 1,
+                "version": 2,
                 "deterministic": True,
                 "arguments": [],
             },
@@ -4583,12 +4615,12 @@ def test_html_download_and_offline_visible_text_are_deterministic(tmp_path):
 
     assert verified.extraction_tool == {
         "tool": "stdlib_html_visible_text",
-        "version": 1,
+        "version": 2,
         "deterministic": True,
         "arguments": [],
     }
     assert "The Statistics of Honeycomb and Triangular Lattice. I" in verified.extracted_text
-    assert "Kodi Husimi and Itiro Syozi" in verified.extracted_text
+    assert "Kodi Husimi and Itiro Syôzi" in verified.extracted_text
     assert "ch 2H = 2" in verified.extracted_text
     assert "exp(4H) = 3" in verified.extracted_text
     for hidden in (
@@ -4605,18 +4637,13 @@ def test_html_download_and_offline_visible_text_are_deterministic(tmp_path):
         assert hidden not in verified.extracted_text
 
 
-def test_oup_html_accepts_exact_canonical_dotted_doi():
+def test_oup_html_accepts_exact_canonical_slash_doi_anchor_href_and_text():
     route_spec = _oup_html_route()
-    canonical_payload = OUP_HTML.replace(
-        b"https://doi.org/10.1143/ptp.5.2.177",
-        b"DOI: 10.1143/PTP.5.2.177",
-    )
-    assert canonical_payload != OUP_HTML
     assert validate_download_response(
         route_spec,
         status=200,
         headers={"content-type": "text/html"},
-        body=canonical_payload,
+        body=OUP_HTML,
         final_url=route_spec["url"],
     ) == "text/html"
 
@@ -4788,8 +4815,8 @@ def test_structured_doi_oup_rejects_raw_resolver_syntax_edges(
         )
     else:
         payload = OUP_HTML.replace(
-            b'<article data-private="attribute-hidden-sentinel">',
-            b'<article data-private="attribute-hidden-sentinel" data-doi="'
+            b'<article class="minimal-article-container" data-private="attribute-hidden-sentinel">',
+            b'<article class="minimal-article-container" data-private="attribute-hidden-sentinel" data-doi="'
             + malformed_resolver
             + b'">',
             1,
@@ -4853,8 +4880,8 @@ def test_structured_doi_oup_rejects_extra_attribute_carrier(carrier_kind):
         )
     else:
         payload = OUP_HTML.replace(
-            b'<article data-private="attribute-hidden-sentinel">',
-            b'<article data-private="attribute-hidden-sentinel" data-doi="'
+            b'<article class="minimal-article-container" data-private="attribute-hidden-sentinel">',
+            b'<article class="minimal-article-container" data-private="attribute-hidden-sentinel" data-doi="'
             + EXTRA_DOI
             + b'">',
             1,
@@ -4864,10 +4891,10 @@ def test_structured_doi_oup_rejects_extra_attribute_carrier(carrier_kind):
         _validate_oup_html_payload(payload)
 
 
-def test_structured_doi_oup_accepts_duplicate_canonical_attribute_carriers():
+def test_structured_doi_oup_rejects_duplicate_canonical_attribute_carriers():
     payload = OUP_HTML.replace(
-        b'<article data-private="attribute-hidden-sentinel">',
-        b'<article data-private="attribute-hidden-sentinel" data-doi="DOI: '
+        b'<article class="minimal-article-container" data-private="attribute-hidden-sentinel">',
+        b'<article class="minimal-article-container" data-private="attribute-hidden-sentinel" data-doi="DOI: '
         + OUP_DOI.upper()
         + b'">',
         1,
@@ -4880,7 +4907,8 @@ def test_structured_doi_oup_accepts_duplicate_canonical_attribute_carriers():
         1,
     )
     assert payload != OUP_HTML
-    assert _validate_oup_html_payload(payload) == "text/html"
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
+        _validate_oup_html_payload(payload)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -4888,7 +4916,7 @@ def test_structured_doi_oup_accepts_duplicate_canonical_attribute_carriers():
     "meta_name",
     (b"citation_doi", b"dc.identifier.doi", b"prism.doi"),
 )
-def test_structured_doi_oup_head_metadata_can_supply_canonical_identity(
+def test_structured_doi_oup_head_metadata_cannot_supply_canonical_identity(
     tmp_path,
     validation_mode,
     meta_name,
@@ -4900,7 +4928,8 @@ def test_structured_doi_oup_head_metadata_can_supply_canonical_identity(
     )
     payload = _oup_html_with_head_meta(payload, meta_name, OUP_DOI.upper())
     assert payload != OUP_HTML
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|anchor"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -4920,17 +4949,18 @@ def test_structured_doi_oup_rejects_extra_head_metadata_doi(
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
-def test_structured_doi_oup_ignores_arbitrary_head_metadata_doi(
+def test_structured_doi_oup_rejects_arbitrary_head_metadata_doi_outside_ref_list(
     tmp_path,
     validation_mode,
 ):
     payload = _oup_html_with_head_meta(OUP_HTML, b"unrelated.identifier", EXTRA_DOI)
     assert payload != OUP_HTML
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
-def test_structured_doi_oup_ignores_hidden_body_metadata_doi(
+def test_structured_doi_oup_rejects_hidden_body_metadata_doi_outside_ref_list(
     tmp_path,
     validation_mode,
 ):
@@ -4942,7 +4972,8 @@ def test_structured_doi_oup_ignores_hidden_body_metadata_doi(
         1,
     )
     assert payload != OUP_HTML
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -4956,10 +4987,11 @@ def test_structured_doi_oup_ignores_hidden_body_metadata_doi(
     ),
     ids=("inline-split", "standalone", "terminal-period", "comma-text", "parenthesized"),
 )
-def test_structured_doi_oup_accepts_legal_visible_presentation(presentation):
+def test_structured_doi_oup_rejects_nonexact_visible_identity_presentation(presentation):
     payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
     assert payload != OUP_HTML
-    assert _validate_oup_html_payload(payload) == "text/html"
+    with pytest.raises(SourceEvidenceError, match="DOI|anchor"):
+        _validate_oup_html_payload(payload)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -4972,14 +5004,15 @@ def test_structured_doi_oup_accepts_legal_visible_presentation(presentation):
     ),
     ids=("parenthesized-label-period", "parenthesized-resolver-period", "prose-period"),
 )
-def test_structured_doi_oup_accepts_iteratively_trimmed_presentation(
+def test_structured_doi_oup_rejects_iteratively_trimmed_identity_presentation(
     tmp_path,
     validation_mode,
     presentation,
 ):
     payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
     assert payload != OUP_HTML
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|anchor"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5043,14 +5076,15 @@ def test_structured_doi_oup_rejects_surplus_presentation_punctuation(
         "bare-wrapper-period",
     ),
 )
-def test_structured_doi_oup_accepts_single_presentation_layer(
+def test_structured_doi_oup_rejects_single_nonexact_presentation_layer(
     tmp_path,
     validation_mode,
     presentation,
 ):
     payload = OUP_HTML.replace(OUP_RESOLVER, presentation, 1)
     assert payload != OUP_HTML
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|anchor"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5699,22 +5733,23 @@ def test_round5_oup_statement_at_rules_count_toward_stylesheet_bound(
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
-def test_structured_doi_oup_accepts_duplicate_canonical_plain_value():
+def test_structured_doi_oup_rejects_duplicate_canonical_plain_value():
     payload = OUP_HTML.replace(
         b"    </article>",
         b"      <p>" + OUP_DOI.upper() + b"</p>\n    </article>",
         1,
     )
     assert payload != OUP_HTML
-    assert _validate_oup_html_payload(payload) == "text/html"
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
+        _validate_oup_html_payload(payload)
 
 
 @pytest.mark.parametrize("suffix", (b".999", b"/999", b"-other", b"_other"))
 def test_oup_html_rejects_longer_doi_with_canonical_prefix(suffix):
     route_spec = _oup_html_route()
     longer_doi_payload = OUP_HTML.replace(
-        b"10.1143/ptp.5.2.177",
-        b"10.1143/ptp.5.2.177" + suffix,
+        b"10.1143/ptp/5.2.177",
+        b"10.1143/ptp/5.2.177" + suffix,
     )
     with pytest.raises(SourceEvidenceError, match="DOI"):
         validate_download_response(
@@ -5726,18 +5761,18 @@ def test_oup_html_rejects_longer_doi_with_canonical_prefix(suffix):
         )
 
 
-def test_oup_html_rejects_slash_substitute_for_canonical_doi():
+def test_oup_html_rejects_dotted_hybrid_substitute_for_canonical_doi():
     route_spec = _oup_html_route()
-    slash_substitute = OUP_HTML.replace(
-        b"10.1143/ptp.5.2.177",
+    dotted_substitute = OUP_HTML.replace(
         b"10.1143/ptp/5.2.177",
+        b"10.1143/ptp.5.2.177",
     )
     with pytest.raises(SourceEvidenceError, match="DOI"):
         validate_download_response(
             route_spec,
             status=200,
             headers={"content-type": "text/html"},
-            body=slash_substitute,
+            body=dotted_substitute,
             final_url=route_spec["url"],
         )
 
@@ -5747,17 +5782,17 @@ def test_oup_html_rejects_slash_substitute_for_canonical_doi():
     (
         b"<html><head><article>"
         b"The Statistics of Honeycomb and Triangular Lattice. I; "
-        b"Kodi Husimi and Itiro Syozi; 10.1143/ptp.5.2.177; Summary; "
+        b"Kodi Husimi and Itiro Syozi; 10.1143/ptp/5.2.177; Summary; "
         b"ch 2H = 2; exp(4H) = 3"
         b"</article></head></html>",
         b"<html><head></head><main>"
         b"The Statistics of Honeycomb and Triangular Lattice. I; "
-        b"Kodi Husimi and Itiro Syozi; 10.1143/ptp.5.2.177; Summary; "
+        b"Kodi Husimi and Itiro Syozi; 10.1143/ptp/5.2.177; Summary; "
         b"ch 2H = 2; exp(4H) = 3"
         b"</main><body></body></html>",
         b"<html><head><div class='minimal-article-container'>"
         b"The Statistics of Honeycomb and Triangular Lattice. I; "
-        b"Kodi Husimi and Itiro Syozi; 10.1143/ptp.5.2.177; Summary; "
+        b"Kodi Husimi and Itiro Syozi; 10.1143/ptp/5.2.177; Summary; "
         b"ch 2H = 2; exp(4H) = 3"
         b"</div></head><body></body></html>",
     ),
@@ -5782,7 +5817,7 @@ def test_html_article_bearing_content_must_be_inside_complete_body(payload):
             b"A different article title",
             "title",
         ),
-        (b"10.1143/ptp.5.2.177", b"10.1143/wrong", "DOI"),
+        (b"10.1143/ptp/5.2.177", b"10.1143/wrong", "DOI"),
         (b"Kodi Husimi", b"Unknown Author", "author"),
         (b"Summary", b"Overview unavailable", "summary"),
         (b"ch 2H = 2", b"first condition unavailable", "equation"),
@@ -5832,9 +5867,9 @@ def test_oup_minimal_div_container_is_article_bearing_for_download_and_offline(
 def test_fetcher_records_exact_deterministic_html_extraction_contract():
     route_spec = _oup_html_route()
     source = {
-        "source_id": "doi_f334ed253565110358b3",
-        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp.5.2.177"},
-        "canonical_url": "https://doi.org/10.1143/ptp.5.2.177",
+        "source_id": "doi_457c49167653440059e9",
+        "canonical_identity": {"kind": "doi", "value": "10.1143/ptp/5.2.177"},
+        "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
     }
     route = {"authoritative_retrieval_route": route_spec}
     response = {
@@ -5858,7 +5893,7 @@ def test_fetcher_records_exact_deterministic_html_extraction_contract():
     )
     assert provenance["text_extraction"] == {
         "tool": "stdlib_html_visible_text",
-        "version": 1,
+        "version": 2,
         "deterministic": True,
         "arguments": [],
     }
@@ -5882,14 +5917,14 @@ def test_fetcher_records_exact_deterministic_html_extraction_contract():
             "text/html",
             b"<html><body><article><script>"
             b"The Statistics of Honeycomb and Triangular Lattice. I; "
-            b"Kodi Husimi and Itiro Syozi; 10.1143/ptp.5.2.177; Summary; "
+            b"Kodi Husimi and Itiro Syozi; 10.1143/ptp/5.2.177; Summary; "
             b"ch 2H = 2; exp(4H) = 3"
             b"</script><p>Visible shell.</p></article></body></html>",
             "title",
         ),
         (200, "text/html", b"<html><body><article>   </article></body></html>", "article"),
         (200, "text/html", OUP_HTML.replace(b"The Statistics of Honeycomb and Triangular Lattice. I", b"Different title"), "title"),
-        (200, "text/html", OUP_HTML.replace(b"10.1143/ptp.5.2.177", b"10.1143/wrong"), "DOI"),
+        (200, "text/html", OUP_HTML.replace(b"10.1143/ptp/5.2.177", b"10.1143/wrong"), "DOI"),
         (200, "text/html", OUP_HTML.replace(b"Kodi Husimi", b"Unknown Author"), "author"),
         (200, "text/html", OUP_HTML.replace(b"ch 2H = 2", b"condition unavailable"), "equation"),
         (200, "text/html", OUP_HTML.replace(b"exp(4H) = 3", b"condition unavailable"), "equation"),
@@ -9104,3 +9139,1442 @@ def test_round12_valid_json_acquisition_control(
     ]
     assert validator_documents == [fixture["sidecar_document"]]
     assert (tmp_path / fixture["source"]["source_id"]).is_dir()
+
+
+# Task 5A.1 mutation-first contracts.  These tests deliberately describe the
+# candidate-directory lifecycle before the production installer implements it.
+TASK5A_LIFECYCLE_SOURCE_ID = "doi_task5a_atomic_candidate"
+
+
+def _task5a_lifecycle_fixture():
+    source = {
+        "source_id": TASK5A_LIFECYCLE_SOURCE_ID,
+        "canonical_identity": {"kind": "doi", "value": "10.1234/task5a.atomic"},
+        "canonical_url": "https://doi.org/10.1234/task5a.atomic",
+        "benchmark_names": ["task5a_atomic_candidate_fixture"],
+    }
+    route_spec = {
+        "kind": "institutional_repository_pdf",
+        "url": "https://repository.example.invalid/task5a/source.pdf",
+        "artifact_identifier": "repository:task5a-atomic-candidate",
+        "work_identity_evidence": {
+            "kind": "core_same_work_output",
+            "url": "https://repository.example.invalid/task5a/identity.json",
+        },
+    }
+    route = {
+        "source_id": source["source_id"],
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "local_cache_location": (
+            f"source-cache/{source['source_id']}/source.pdf"
+        ),
+    }
+    response = {
+        "body": _minimal_pdf("Task 5A atomic candidate payload."),
+        "status": 200,
+        "headers": {"Content-Type": "application/pdf"},
+        "final_url": route_spec["url"],
+        "media_type": "application/pdf",
+    }
+    bibliographic = {
+        "title": "Task 5A atomic candidate",
+        "authors": ["A. Candidate", "B. Verifier"],
+        "venue": "Repository Test Journal",
+        "publication_date": "2026-08-02",
+    }
+    sidecar = b'{"strict":"raw-sidecar"}'
+    evidence = {
+        "payload": sidecar,
+        "descriptor": {
+            "kind": "core_same_work_output",
+            "url": route_spec["work_identity_evidence"]["url"],
+            "media_type": "application/json",
+            "payload_relative_path": "work-identity.json",
+            "payload_sha256": hashlib.sha256(sidecar).hexdigest(),
+            "payload_byte_length": len(sidecar),
+        },
+    }
+    provenance = {
+        "task5a_fixture": True,
+        "raw_payload_sha256": hashlib.sha256(response["body"]).hexdigest(),
+    }
+    return source, route, response, bibliographic, evidence, provenance
+
+
+def _task5a_cache_manifest(cache_root):
+    cache_root = Path(cache_root)
+    if not cache_root.exists():
+        return ()
+    manifest = []
+    for path in sorted(cache_root.rglob("*")):
+        relative = path.relative_to(cache_root).as_posix()
+        status = path.lstat()
+        if path.is_symlink():
+            manifest.append((relative, "symlink", status.st_mode, os.readlink(path)))
+        elif path.is_file():
+            manifest.append((relative, "file", status.st_mode, path.read_bytes()))
+        else:
+            manifest.append((relative, "directory", status.st_mode, None))
+    return tuple(manifest)
+
+
+def _task5a_install_lifecycle_stubs(monkeypatch):
+    source, route, response, bibliographic, evidence, provenance = (
+        _task5a_lifecycle_fixture()
+    )
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "_download",
+        lambda *args, **kwargs: copy.deepcopy(response),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: copy.deepcopy(bibliographic),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_work_identity_evidence",
+        lambda *args, **kwargs: copy.deepcopy(evidence),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_build_provenance",
+        lambda *args, **kwargs: copy.deepcopy(provenance),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_verified_source",
+        lambda *args, **kwargs: SimpleNamespace(payload_sha256="verified"),
+    )
+    return source, route
+
+
+@pytest.mark.parametrize(
+    "failure_stage",
+    (
+        "primary-response-media",
+        "crossref-metadata",
+        "raw-sidecar-validation",
+        "bibliographic-agreement",
+        "provenance-build",
+        "exclusive-payload-write",
+        "provenance-serialization",
+        "exclusive-sidecar-write",
+        "offline-candidate-replay",
+        "atomic-publication",
+    ),
+)
+def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates_tree(
+    tmp_path,
+    monkeypatch,
+    failure_stage,
+):
+    cache_root = tmp_path / "source-cache"
+    existing = cache_root / "preexisting_source"
+    existing.mkdir(parents=True)
+    existing.joinpath("source.pdf").write_bytes(b"PREEXISTING-BYTES")
+    before = _task5a_cache_manifest(cache_root)
+    source, route = _task5a_install_lifecycle_stubs(monkeypatch)
+    target = cache_root / source["source_id"]
+    failure = SourceEvidenceError(f"injected {failure_stage} failure")
+
+    if failure_stage == "primary-response-media":
+        monkeypatch.setattr(
+            source_fetcher,
+            "_download",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    elif failure_stage == "crossref-metadata":
+        monkeypatch.setattr(
+            source_fetcher,
+            "_fetch_bibliographic_metadata",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    elif failure_stage in {"raw-sidecar-validation", "bibliographic-agreement"}:
+        monkeypatch.setattr(
+            source_fetcher,
+            "_fetch_work_identity_evidence",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    elif failure_stage == "provenance-build":
+        monkeypatch.setattr(
+            source_fetcher,
+            "_build_provenance",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    elif failure_stage == "exclusive-payload-write":
+        real_open = Path.open
+
+        def fail_candidate_payload(path, mode="r", *args, **kwargs):
+            if path.name == "source.pdf" and "x" in mode:
+                raise failure
+            return real_open(path, mode, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", fail_candidate_payload)
+    elif failure_stage == "provenance-serialization":
+        monkeypatch.setattr(
+            source_fetcher.json,
+            "dump",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    elif failure_stage == "exclusive-sidecar-write":
+        monkeypatch.setattr(
+            source_fetcher,
+            "_write_work_identity_sidecars",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    elif failure_stage == "offline-candidate-replay":
+        monkeypatch.setattr(
+            source_fetcher,
+            "load_verified_source",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        )
+    else:
+        monkeypatch.setattr(
+            source_fetcher,
+            "_publish_candidate_directory_no_replace",
+            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+            raising=False,
+        )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed"
+    assert not target.exists() and not target.is_symlink()
+    assert _task5a_cache_manifest(cache_root) == before
+
+
+def test_task5a_success_publishes_once_only_after_complete_offline_candidate_replay(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    existing = cache_root / "preexisting_source"
+    existing.mkdir(parents=True)
+    existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
+    before_existing = _task5a_cache_manifest(existing)
+    source, route = _task5a_install_lifecycle_stubs(monkeypatch)
+    target = cache_root / source["source_id"]
+    events = []
+
+    def replay_candidate(candidate, **kwargs):
+        candidate = Path(candidate)
+        events.append(("offline-replay", candidate, target.exists()))
+        assert candidate != target
+        assert candidate.parent == cache_root
+        assert not target.exists() and not target.is_symlink()
+        assert candidate.joinpath("source.pdf").is_file()
+        assert candidate.joinpath("provenance.json").is_file()
+        assert candidate.joinpath("work-identity.json").is_file()
+        assert candidate.joinpath("work-identity.provenance.json").is_file()
+        return SimpleNamespace(payload_sha256="verified")
+
+    def publish(candidate, destination):
+        candidate = Path(candidate)
+        destination = Path(destination)
+        events.append(("publish", candidate, destination.exists()))
+        assert destination == target
+        assert not destination.exists() and not destination.is_symlink()
+        candidate.rename(destination)
+
+    monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
+    monkeypatch.setattr(
+        source_fetcher,
+        "_publish_candidate_directory_no_replace",
+        publish,
+        raising=False,
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "acquired"
+    assert [event[0] for event in events] == ["offline-replay", "publish"]
+    assert all(not event[-1] for event in events)
+    assert target.is_dir() and not target.is_symlink()
+    assert {path.name for path in cache_root.iterdir()} == {
+        "preexisting_source",
+        source["source_id"],
+    }
+    assert _task5a_cache_manifest(existing) == before_existing
+
+
+def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candidate(
+    tmp_path,
+    monkeypatch,
+):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    source, route = _task5a_install_lifecycle_stubs(monkeypatch)
+    target = cache_root / source["source_id"]
+    collision_bytes = b"CONCURRENT-OWNER-BYTES"
+
+    def replay_then_create_collision(candidate, **kwargs):
+        assert Path(candidate) != target
+        target.mkdir()
+        target.joinpath("owner-sentinel").write_bytes(collision_bytes)
+        return SimpleNamespace(payload_sha256="verified")
+
+    def publish_no_replace(candidate, destination):
+        assert Path(destination) == target
+        raise FileExistsError("concurrent target publication collision")
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "load_verified_source",
+        replay_then_create_collision,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_publish_candidate_directory_no_replace",
+        publish_no_replace,
+        raising=False,
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed"
+    assert target.joinpath("owner-sentinel").read_bytes() == collision_bytes
+    assert list(target.iterdir()) == [target / "owner-sentinel"]
+    assert {path.name for path in cache_root.iterdir()} == {source["source_id"]}
+
+
+TASK5A_GAREL_IDENTITY = {
+    "kind": "doi",
+    "value": "10.1088/0305-4470/16/10/023",
+}
+TASK5A_HAL_BASE = "https://api.archives-ouvertes.fr/search/"
+TASK5A_HAL_STABLE_ID = "hal-02340631v1"
+TASK5A_HAL_STABLE_URL = "https://hal.science/hal-02340631v1"
+TASK5A_HAL_FIELD_PROJECTION = (
+    "docid,linkExtId_s,linkExtUrl_s,title_s,journalTitle_s,authFullName_s,"
+    "halId_s,uri_s,version_i,submitType_s,docType_s,issue_s,page_s,volume_s,"
+    "doiId_s,producedDateY_i,publicationDate_s"
+)
+TASK5A_HAL_QUERY = (
+    "q=halId_s%3Ahal-02340631+AND+version_i%3A1&"
+    f"fl={TASK5A_HAL_FIELD_PROJECTION}&rows=1&start=0&wt=json"
+)
+TASK5A_HAL_REQUEST_URL = TASK5A_HAL_BASE + "?" + TASK5A_HAL_QUERY
+TASK5A_GAREL_CROSSREF = {
+    "doi": TASK5A_GAREL_IDENTITY["value"],
+    "title": "Study of a two-dimensional fully frustrated model",
+    "authors": ["T. Garel", "J.-M. Maillard"],
+    "venue": "Journal of Physics A: Mathematical and General",
+    "volume": "16",
+    "issue": "10",
+    "pages": "2257-2265",
+    "publication_date": "1983-07-11",
+}
+TASK5A_GAREL_PDF_TEXT = """
+Study of a two-dimensional fully frustrated model
+T Garel
+J M Maillard
+J. Phys. A : Math. Gen. 16 (1983) 2257-2265. Printed in Great Britain
+The model exhibits the exact target-bearing frustrated phase discussed below.
+"""
+
+
+def _task5a_hal_document():
+    return {
+        "response": {
+            "numFound": 1,
+            "start": 0,
+            "numFoundExact": True,
+            "docs": [
+                {
+                    "docid": "2340631",
+                    "linkExtId_s": "istex",
+                    "linkExtUrl_s": (
+                        "https://api.istex.fr/document/"
+                        "315C04C1B2CFE6FA0DE1A3BAA04E06FA586E5893/"
+                        "fulltext/pdf?sid=hal"
+                    ),
+                    "title_s": [
+                        "Study of a two-dimensional fully frustrated model"
+                    ],
+                    "journalTitle_s": (
+                        "Journal of Physics A: Mathematical and General "
+                        "(1975 - 2006)"
+                    ),
+                    "authFullName_s": ["T. Garel", "J-M. Maillard"],
+                    "halId_s": "hal-02340631",
+                    "uri_s": TASK5A_HAL_STABLE_URL,
+                    "version_i": 1,
+                    "submitType_s": "notice",
+                    "docType_s": "ART",
+                    "issue_s": ["10"],
+                    "page_s": "2257-2265",
+                    "volume_s": "16",
+                    "doiId_s": TASK5A_GAREL_IDENTITY["value"],
+                    "producedDateY_i": 1983,
+                    "publicationDate_s": "1983-07-11",
+                }
+            ],
+        }
+    }
+
+
+def _task5a_validate_hal(document, *, crossref=None):
+    return validate_work_identity_document(
+        document,
+        identity=TASK5A_GAREL_IDENTITY,
+        authoritative_route=_task5a_garel_route(),
+        evidence_kind="hal_same_work_bibliographic_payload",
+        bibliographic_metadata=(
+            TASK5A_GAREL_CROSSREF if crossref is None else crossref
+        ),
+    )
+
+
+def test_task5a_garel_route_pins_query_free_hal_base_stable_id_and_document_url():
+    route = _task5a_garel_route()
+    assert route == {
+        "kind": "author_repository_pdf",
+        "url": (
+            "https://www.lptmc.jussieu.fr/files/maillard/PUB2/"
+            "Frustrated_jav16i10p2257.pdf"
+        ),
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
+        "work_identity_evidence": {
+            "kind": "hal_same_work_bibliographic_payload",
+            "url": TASK5A_HAL_BASE,
+            "record_identifier": TASK5A_HAL_STABLE_ID,
+            "stable_document_url": TASK5A_HAL_STABLE_URL,
+        },
+    }
+
+
+def test_task5a_hal_strict_positive_requires_the_complete_fixed_record():
+    _task5a_validate_hal(_task5a_hal_document())
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    (
+        ("numFound", "numFound"),
+        ("start", "start"),
+        ("numFoundExact", "numFoundExact"),
+        ("docs-cardinality", "one.*document|docs"),
+        ("docid", "docid"),
+        ("halId_s", "HAL|halId"),
+        ("version_i", "version"),
+        ("uri_s", "URI|uri"),
+        ("submitType_s", "submitType|notice"),
+        ("docType_s", "docType|ART"),
+        ("doiId_s", "DOI"),
+        ("title_s", "title"),
+        ("authFullName_s", "author"),
+        ("author-order", "author|order"),
+        ("journalTitle_s", "journal|venue"),
+        ("volume_s", "volume"),
+        ("issue_s", "issue"),
+        ("page_s", "page"),
+        ("producedDateY_i", "year|date"),
+        ("publicationDate_s", "publication|date"),
+        ("linkExtId_s", "ISTEX|linkExtId"),
+        ("linkExtUrl_s", "ISTEX|linkExtUrl"),
+    ),
+)
+def test_task5a_hal_rejects_each_independently_mutated_fixed_field(
+    mutation,
+    match,
+):
+    document = _task5a_hal_document()
+    response = document["response"]
+    record = response["docs"][0]
+    if mutation == "numFound":
+        response[mutation] = 2
+    elif mutation == "start":
+        response[mutation] = 1
+    elif mutation == "numFoundExact":
+        response[mutation] = False
+    elif mutation == "docs-cardinality":
+        response["docs"].append(copy.deepcopy(record))
+    elif mutation == "author-order":
+        record["authFullName_s"].reverse()
+    elif mutation in {"version_i", "producedDateY_i"}:
+        record[mutation] += 1
+    elif mutation == "issue_s":
+        record[mutation] = ["11"]
+    elif mutation == "title_s":
+        record[mutation] = ["A different frustrated model"]
+    elif mutation == "authFullName_s":
+        record[mutation][1] = "J. Different"
+    else:
+        record[mutation] = str(record[mutation]) + "-mutated"
+    with pytest.raises(SourceEvidenceError, match=match):
+        _task5a_validate_hal(document)
+
+
+def test_task5a_hal_rejects_duplicate_json_key_before_record_validation():
+    raw = json.dumps(_task5a_hal_document(), separators=(",", ":")).encode("utf-8")
+    raw = raw.replace(
+        b'"docid":"2340631"',
+        b'"docid":"2340631","docid":"2340631"',
+        1,
+    )
+    with pytest.raises(SourceEvidenceError, match="strict JSON"):
+        document = evidence_sources._load_json_bytes(
+            raw,
+            context="HAL work identity evidence JSON",
+        )
+        _task5a_validate_hal(document)
+
+
+@pytest.mark.parametrize(
+    ("field", "mutated", "match"),
+    (
+        ("doi", "10.1088/0305-4470/16/10/999", "DOI"),
+        ("title", "A different paper", "title"),
+        ("authors", ["J.-M. Maillard", "T. Garel"], "author|order"),
+        ("authors", ["T. Garel"], "author|cardinality"),
+        ("venue", "Journal of Physics B", "venue|journal"),
+        ("volume", "17", "volume"),
+        ("issue", "11", "issue"),
+        ("pages", "2257-2266", "page"),
+        ("publication_date", "1983-07-12", "date"),
+    ),
+)
+def test_task5a_hal_crossref_agreement_rejects_each_field_mutation(
+    field,
+    mutated,
+    match,
+):
+    crossref = copy.deepcopy(TASK5A_GAREL_CROSSREF)
+    crossref[field] = mutated
+    with pytest.raises(SourceEvidenceError, match=match):
+        _task5a_validate_hal(_task5a_hal_document(), crossref=crossref)
+
+
+def test_task5a_garel_hal_crossref_and_doi_absent_pdf_agree_transitively():
+    evidence_sources._validate_garel_hal_crossref_pdf_agreement(
+        _task5a_hal_document(),
+        crossref_metadata=TASK5A_GAREL_CROSSREF,
+        extracted_pdf_text=TASK5A_GAREL_PDF_TEXT,
+        identity=TASK5A_GAREL_IDENTITY,
+        authoritative_route=_task5a_garel_route(),
+    )
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "match"),
+    (
+        (
+            "Study of a two-dimensional fully frustrated model",
+            "Study of a different model",
+            "title",
+        ),
+        ("T Garel", "A Different", "author"),
+        ("J M Maillard", "J Different", "author"),
+        (
+            "J. Phys. A : Math. Gen. 16 (1983) 2257-2265. Printed in Great Britain",
+            "J. Phys. A : Math. Gen. 17 (1984) 2257-2265. Printed in Great Britain",
+            "header|journal|volume|year",
+        ),
+    ),
+)
+def test_task5a_garel_pdf_rejects_each_bibliographic_fingerprint_mutation(
+    old,
+    new,
+    match,
+):
+    with pytest.raises(SourceEvidenceError, match=match):
+        evidence_sources._validate_garel_hal_crossref_pdf_agreement(
+            _task5a_hal_document(),
+            crossref_metadata=TASK5A_GAREL_CROSSREF,
+            extracted_pdf_text=TASK5A_GAREL_PDF_TEXT.replace(old, new),
+            identity=TASK5A_GAREL_IDENTITY,
+            authoritative_route=_task5a_garel_route(),
+        )
+
+
+@pytest.mark.parametrize("route_mutation", ("different-doi", "different-kind", "different-sidecar"))
+def test_task5a_pdf_doi_absence_exception_is_closed_to_exact_garel_hal_route(
+    route_mutation,
+):
+    identity = copy.deepcopy(TASK5A_GAREL_IDENTITY)
+    route = copy.deepcopy(_task5a_garel_route())
+    if route_mutation == "different-doi":
+        identity["value"] = "10.1088/0305-4470/16/10/999"
+    elif route_mutation == "different-kind":
+        route["kind"] = "institutional_repository_pdf"
+    else:
+        route["work_identity_evidence"]["kind"] = "core_same_work_output"
+    with pytest.raises(SourceEvidenceError, match="DOI|Garel|HAL|route"):
+        evidence_sources._validate_garel_hal_crossref_pdf_agreement(
+            _task5a_hal_document(),
+            crossref_metadata=TASK5A_GAREL_CROSSREF,
+            extracted_pdf_text=TASK5A_GAREL_PDF_TEXT,
+            identity=identity,
+            authoritative_route=route,
+        )
+
+
+def test_task5a_hal_fetch_uses_exact_ordered_query_but_serializes_only_stable_urls(
+    monkeypatch,
+):
+    raw = json.dumps(_task5a_hal_document(), separators=(",", ":")).encode("utf-8")
+    requests = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append((request.full_url, dict(request.header_items()), timeout))
+            return _FixtureHTTPResponse(
+                raw,
+                content_type="application/json",
+                final_url=request.full_url,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_work_identity_document",
+        lambda *args, **kwargs: None,
+    )
+    route = {"authoritative_retrieval_route": _task5a_garel_route()}
+    evidence = source_fetcher._fetch_work_identity_evidence(
+        {"canonical_identity": TASK5A_GAREL_IDENTITY},
+        route,
+        object(),
+        bibliographic_metadata=TASK5A_GAREL_CROSSREF,
+    )
+
+    assert requests == [
+        (
+            TASK5A_HAL_REQUEST_URL,
+            {"Accept": "application/json", "User-agent": source_fetcher.USER_AGENT},
+            30,
+        )
+    ]
+    assert evidence["payload"] == raw
+    assert evidence["descriptor"] == {
+        "kind": "hal_same_work_bibliographic_payload",
+        "url": TASK5A_HAL_BASE,
+        "document_base_url": TASK5A_HAL_STABLE_URL,
+        "media_type": "application/json",
+        "payload_relative_path": "work-identity.json",
+        "payload_sha256": hashlib.sha256(raw).hexdigest(),
+        "payload_byte_length": len(raw),
+    }
+    serialized = json.dumps(evidence["descriptor"], sort_keys=True)
+    assert TASK5A_HAL_QUERY not in serialized
+    assert "?" not in serialized
+
+
+TASK5A_CORE_INITIAL_URL = "https://core.ac.uk/download/572184419.pdf"
+TASK5A_CORE_SECOND_URL = (
+    "https://fileserver-az.core.ac.uk/download/572184419.pdf"
+)
+TASK5A_CORE_FINAL_BASE = (
+    "https://pdf.core.ac.uk/corefilesystem/pdf/363/572184419.pdf"
+)
+TASK5A_CORE_SIGNED_QUERY = "download-token=TASK5A_CORE_MEMORY_ONLY_SIGNATURE"
+
+
+def test_task5a_core_sidecar_requires_exact_raw_authors_and_canonical_tuples():
+    document = _core_mg_work_identity_document()
+    validate_work_identity_document(
+        document,
+        identity={"kind": "doi", "value": CORE_MG_BIBLIOGRAPHIC_METADATA["doi"]},
+        authoritative_route=_core_mg_route(),
+        evidence_kind="core_same_work_output",
+        bibliographic_metadata=CORE_MG_BIBLIOGRAPHIC_METADATA,
+    )
+    assert evidence_sources._ordered_bibliographic_author_tuples(
+        [author["name"] for author in document["authors"]],
+        source_kind="core",
+    ) == [
+        ("caspers", "wj"),
+        ("emmett", "km"),
+        ("magnus", "w"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    (
+        ("missing", "author|cardinality"),
+        ("extra", "author|cardinality"),
+        ("reordered", "author|order"),
+        ("duplicate", "author|duplicate|collision"),
+        ("ambiguous", "author|ambiguous"),
+        ("colliding", "author|collision|duplicate"),
+        ("wrong-initial-order", "author|initial"),
+    ),
+)
+def test_task5a_core_rejects_every_ordered_raw_author_tuple_mutation(
+    mutation,
+    match,
+):
+    document = _core_mg_work_identity_document()
+    authors = document["authors"]
+    if mutation == "missing":
+        authors.pop()
+    elif mutation == "extra":
+        authors.append({"name": "Additional, A."})
+    elif mutation == "reordered":
+        authors[0], authors[1] = authors[1], authors[0]
+    elif mutation == "duplicate":
+        authors[1] = copy.deepcopy(authors[0])
+    elif mutation == "ambiguous":
+        authors[0] = {"name": "W.J. Caspers, Jr."}
+    elif mutation == "colliding":
+        authors[:] = [{"name": "Caspers, W.J."}, {"name": "W J Caspers"}, authors[2]]
+    else:
+        authors[0] = {"name": "Caspers, J.W."}
+    with pytest.raises(SourceEvidenceError, match=match):
+        validate_work_identity_document(
+            document,
+            identity={
+                "kind": "doi",
+                "value": CORE_MG_BIBLIOGRAPHIC_METADATA["doi"],
+            },
+            authoritative_route=_core_mg_route(),
+            evidence_kind="core_same_work_output",
+            bibliographic_metadata=CORE_MG_BIBLIOGRAPHIC_METADATA,
+        )
+
+
+def _task5a_core_redirect_handler():
+    return source_fetcher._CoreFullTextRedirectHandler(None)
+
+
+def _task5a_redirect_request(handler, request, new_url):
+    return handler.redirect_request(
+        request,
+        None,
+        302,
+        "Found",
+        {},
+        new_url,
+    )
+
+
+def test_task5a_core_redirects_follow_only_exact_three_hop_sequence_and_two_redirects(
+    monkeypatch,
+):
+    constructed = []
+
+    def construct_after_validation(_handler, request, _fp, _code, _msg, _headers, new_url):
+        constructed.append(new_url)
+        return Request(new_url, headers=dict(request.header_items()))
+
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        construct_after_validation,
+    )
+    handler = _task5a_core_redirect_handler()
+    first = Request(TASK5A_CORE_INITIAL_URL)
+    second = _task5a_redirect_request(handler, first, TASK5A_CORE_SECOND_URL)
+    signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
+    third = _task5a_redirect_request(handler, second, signed_final)
+
+    assert second.full_url == TASK5A_CORE_SECOND_URL
+    assert third.full_url == signed_final
+    assert constructed == [TASK5A_CORE_SECOND_URL, signed_final]
+    with pytest.raises(SourceEvidenceError, match="redirect|two|depth"):
+        _task5a_redirect_request(handler, third, signed_final)
+    assert constructed == [TASK5A_CORE_SECOND_URL, signed_final]
+
+
+@pytest.mark.parametrize(
+    ("stage", "unsafe_url"),
+    (
+        ("first", "https://evil.invalid/download/572184419.pdf"),
+        ("first", "https://fileserver-az.core.ac.uk/download/572184418.pdf"),
+        ("first", "https://user:password@fileserver-az.core.ac.uk/download/572184419.pdf"),
+        ("first", TASK5A_CORE_SECOND_URL + "?too-early=TASK5A_SECRET"),
+        ("first", TASK5A_CORE_SECOND_URL + "#fragment"),
+        ("final", "https://evil.invalid/corefilesystem/pdf/363/572184419.pdf"),
+        ("final", "https://pdf.core.ac.uk/corefilesystem/pdf/364/572184419.pdf"),
+        ("final", "https://user@pdf.core.ac.uk/corefilesystem/pdf/363/572184419.pdf"),
+        ("final", TASK5A_CORE_FINAL_BASE + "#fragment"),
+    ),
+)
+def test_task5a_core_rejects_unsafe_redirect_before_request_construction_or_issue(
+    monkeypatch,
+    stage,
+    unsafe_url,
+):
+    constructed = []
+
+    def forbidden_super(*args, **kwargs):
+        constructed.append((args, kwargs))
+        raise AssertionError("unsafe CORE request was constructed")
+
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        forbidden_super,
+    )
+    handler = _task5a_core_redirect_handler()
+    initial = Request(TASK5A_CORE_INITIAL_URL)
+    if stage == "first":
+        previous = initial
+    else:
+        monkeypatch.setattr(
+            source_fetcher.HTTPRedirectHandler,
+            "redirect_request",
+            lambda _handler, request, _fp, _code, _msg, _headers, new_url: Request(
+                new_url,
+                headers=dict(request.header_items()),
+            ),
+        )
+        previous = _task5a_redirect_request(
+            handler,
+            initial,
+            TASK5A_CORE_SECOND_URL,
+        )
+        monkeypatch.setattr(
+            source_fetcher.HTTPRedirectHandler,
+            "redirect_request",
+            forbidden_super,
+        )
+    with pytest.raises(SourceEvidenceError, match="CORE|redirect|userinfo|query|fragment"):
+        _task5a_redirect_request(handler, previous, unsafe_url)
+    assert constructed == []
+
+
+def test_task5a_core_redirect_rejects_credential_bearing_request_before_super(
+    monkeypatch,
+):
+    super_calls = []
+    monkeypatch.setattr(
+        source_fetcher.HTTPRedirectHandler,
+        "redirect_request",
+        lambda *args, **kwargs: super_calls.append((args, kwargs)),
+    )
+    request = Request(
+        TASK5A_CORE_INITIAL_URL,
+        headers={"Authorization": "TASK5A_FORBIDDEN_CORE_CREDENTIAL"},
+    )
+    with pytest.raises(SourceEvidenceError, match="credential|header"):
+        _task5a_redirect_request(
+            _task5a_core_redirect_handler(),
+            request,
+            TASK5A_CORE_SECOND_URL,
+        )
+    assert super_calls == []
+
+
+def test_task5a_core_final_signed_query_is_used_in_memory_but_never_serialized(
+    monkeypatch,
+):
+    route = copy.deepcopy(_core_mg_route())
+    route["expected_media_type"] = "application/pdf"
+    signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
+    requested = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requested.append(request.full_url)
+            return _FixtureHTTPResponse(
+                _minimal_pdf("CORE signed query in-memory control."),
+                content_type="application/pdf",
+                final_url=signed_final,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    response = source_fetcher._download(route, object())
+
+    assert requested == [TASK5A_CORE_INITIAL_URL]
+    assert response["final_url"] == TASK5A_CORE_FINAL_BASE
+    assert TASK5A_CORE_SIGNED_QUERY not in json.dumps(response, sort_keys=True)
+
+
+def test_task5a_core_sidecar_validation_precedes_even_first_pdf_request_construction(
+    tmp_path,
+    monkeypatch,
+):
+    source = {
+        "source_id": "doi_e49cda761520424da334",
+        "canonical_identity": {
+            "kind": "doi",
+            "value": CORE_MG_BIBLIOGRAPHIC_METADATA["doi"],
+        },
+        "canonical_url": (
+            "https://doi.org/" + CORE_MG_BIBLIOGRAPHIC_METADATA["doi"]
+        ),
+        "benchmark_names": ["task5a_core_order_fixture"],
+    }
+    route = {
+        "source_id": source["source_id"],
+        "authoritative_retrieval_route": _core_mg_route(),
+        "expected_media_type": "application/pdf",
+        "access_mode": "unattended",
+        "local_cache_location": f"source-cache/{source['source_id']}/source.pdf",
+    }
+    events = []
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_bibliographic_metadata",
+        lambda *args, **kwargs: copy.deepcopy(CORE_MG_BIBLIOGRAPHIC_METADATA),
+    )
+
+    def validated_sidecar(*args, **kwargs):
+        events.append("CORE-sidecar-fetched-hashed-and-validated")
+        return {
+            "payload": json.dumps(_core_mg_work_identity_document()).encode("utf-8"),
+            "descriptor": {"payload_relative_path": "work-identity.json"},
+        }
+
+    def construct_first_pdf_request(*args, **kwargs):
+        events.append("first-PDF-request-constructed")
+        raise SourceEvidenceError("stop after request-construction ordering probe")
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "_fetch_work_identity_evidence",
+        validated_sidecar,
+    )
+    monkeypatch.setattr(source_fetcher, "_download", construct_first_pdf_request)
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path,
+        source,
+        route,
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed"
+    assert events == [
+        "CORE-sidecar-fetched-hashed-and-validated",
+        "first-PDF-request-constructed",
+    ]
+    assert not (tmp_path / source["source_id"]).exists()
+
+
+TASK5A_OUP_IDENTITY = {"kind": "doi", "value": "10.1143/ptp/5.2.177"}
+TASK5A_OUP_SOURCE_ID = "doi_457c49167653440059e9"
+TASK5A_OUP_CROSSREF_URL = (
+    "https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177"
+)
+TASK5A_OUP_PRIMARY_RESOURCE_URL = (
+    "https://academic.oup.com/ptp/article-lookup/doi/10.1143/ptp/5.2.177"
+)
+
+
+def _task5a_oup_crossref_document():
+    return {
+        "status": "ok",
+        "message-type": "work",
+        "message-version": "1.0.0",
+        "message": {
+            "DOI": TASK5A_OUP_IDENTITY["value"],
+            "title": ["The Statistics of Honeycomb and Triangular Lattice. I"],
+            "author": [
+                {"given": "Kodi", "family": "Husimi"},
+                {"given": "Itiro", "family": "Syozi"},
+            ],
+            "publisher": "Oxford University Press (OUP)",
+            "member": "286",
+            "type": "journal-article",
+            "volume": "5",
+            "issue": "2",
+            "page": "177-186",
+            "resource": {"primary": {"URL": TASK5A_OUP_PRIMARY_RESOURCE_URL}},
+        },
+    }
+
+
+def _task5a_oup_crossref_metadata():
+    return {
+        "doi": TASK5A_OUP_IDENTITY["value"],
+        "title": "The Statistics of Honeycomb and Triangular Lattice. I",
+        "authors": ["Kodi Husimi", "Itiro Syozi"],
+        "venue": "Progress of Theoretical Physics",
+        "publication_date": "1950-03-01",
+        "volume": "5",
+        "issue": "2",
+        "pages": "177-186",
+    }
+
+
+def _task5a_validate_oup_crossref(document):
+    return validate_work_identity_document(
+        document,
+        identity=TASK5A_OUP_IDENTITY,
+        authoritative_route=_oup_html_route(),
+        evidence_kind="crossref_oup_same_work",
+        bibliographic_metadata=_task5a_oup_crossref_metadata(),
+    )
+
+
+def test_task5a_oup_route_uses_slash_identity_new_source_artifact_and_crossref_sidecar(
+    tmp_path,
+):
+    assert _oup_html_route() == {
+        "kind": "oup_minimal_html",
+        "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "artifact_identifier": "oup-silverchair-article-minimal:1942776",
+        "work_identity_evidence": {
+            "kind": "crossref_oup_same_work",
+            "url": TASK5A_OUP_CROSSREF_URL,
+        },
+    }
+    source_dir, source, route = _write_oup_html_source(tmp_path)
+    assert source_dir.name == TASK5A_OUP_SOURCE_ID
+    assert source["source_id"] == route["source_id"] == TASK5A_OUP_SOURCE_ID
+
+
+def test_task5a_oup_source_id_and_cache_path_are_deterministic(tmp_path):
+    source_dir, source, route = _write_oup_html_source(tmp_path)
+    assert source_dir == tmp_path / TASK5A_OUP_SOURCE_ID
+    assert source["canonical_identity"] == TASK5A_OUP_IDENTITY
+    assert source["canonical_url"] == "https://doi.org/10.1143/ptp/5.2.177"
+    assert route["local_cache_location"] == (
+        "source-cache/doi_457c49167653440059e9/source.html"
+    )
+
+
+def test_task5a_oup_crossref_strict_positive_requires_complete_fixed_work_record():
+    _task5a_validate_oup_crossref(_task5a_oup_crossref_document())
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    (
+        ("status", "status"),
+        ("message-type", "message.?type|work"),
+        ("message-shape", "message|response"),
+        ("doi", "DOI"),
+        ("title", "title"),
+        ("author-family", "author|family"),
+        ("author-initial", "author|initial"),
+        ("author-order", "author|order"),
+        ("author-cardinality", "author|cardinality"),
+        ("publisher", "publisher"),
+        ("member", "member"),
+        ("type", "type|journal"),
+        ("volume", "volume"),
+        ("issue", "issue"),
+        ("pages", "page"),
+        ("primary-resource", "resource|URL|origin|path"),
+    ),
+)
+def test_task5a_oup_crossref_rejects_each_independent_response_mutation(
+    mutation,
+    match,
+):
+    document = _task5a_oup_crossref_document()
+    message = document["message"]
+    if mutation == "status":
+        document["status"] = "failed"
+    elif mutation == "message-type":
+        document["message-type"] = "member"
+    elif mutation == "message-shape":
+        document["message"] = [message]
+    elif mutation == "doi":
+        message["DOI"] = "10.1143/ptp/5.2.178"
+    elif mutation == "title":
+        message["title"] = ["A different lattice paper"]
+    elif mutation == "author-family":
+        message["author"][0]["family"] = "Different"
+    elif mutation == "author-initial":
+        message["author"][0]["given"] = "Taro"
+    elif mutation == "author-order":
+        message["author"].reverse()
+    elif mutation == "author-cardinality":
+        message["author"].pop()
+    elif mutation == "primary-resource":
+        message["resource"]["primary"]["URL"] += "?download=1"
+    elif mutation == "pages":
+        message["page"] = "177-187"
+    else:
+        message[mutation] = str(message[mutation]) + "-mutated"
+    with pytest.raises(SourceEvidenceError, match=match):
+        _task5a_validate_oup_crossref(document)
+
+
+def test_task5a_oup_crossref_raw_response_is_single_metadata_and_sidecar_source(
+    monkeypatch,
+):
+    raw = json.dumps(
+        _task5a_oup_crossref_document(),
+        separators=(",", ":"),
+    ).encode("utf-8")
+    requests = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append((request.full_url, timeout))
+            return _FixtureHTTPResponse(
+                raw,
+                content_type="application/json",
+                final_url=TASK5A_OUP_CROSSREF_URL,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    bundle = source_fetcher._fetch_crossref_oup_same_work_bundle(
+        {"canonical_identity": TASK5A_OUP_IDENTITY},
+        {"authoritative_retrieval_route": _oup_html_route()},
+        object(),
+    )
+
+    assert requests == [(TASK5A_OUP_CROSSREF_URL, 30)]
+    assert bundle["raw_payload"] == raw
+    assert bundle["bibliographic_metadata"] == _task5a_oup_crossref_metadata()
+    assert bundle["identity_evidence"] == {
+        "payload": raw,
+        "descriptor": {
+            "kind": "crossref_oup_same_work",
+            "url": TASK5A_OUP_CROSSREF_URL,
+            "document_base_url": TASK5A_OUP_CROSSREF_URL,
+            "media_type": "application/json",
+            "payload_relative_path": "work-identity.json",
+            "payload_sha256": hashlib.sha256(raw).hexdigest(),
+            "payload_byte_length": len(raw),
+        },
+    }
+
+
+def _task5a_oup_dom_mutation(mutation):
+    payload = OUP_HTML
+    if mutation == "duplicate-container":
+        payload = payload.replace(b"</body>", OUP_HTML.split(b"<body>", 1)[1].split(b"</body>", 1)[0] + b"</body>", 1)
+    elif mutation == "missing-header":
+        payload = payload.replace(b'class="article-header"', b'class="removed-header"', 1)
+    elif mutation == "duplicate-header":
+        header = payload.split(b'<header class="article-header">', 1)[1].split(b"</header>", 1)[0]
+        payload = payload.replace(b"</header>", b"</header><header class=\"article-header\">" + header + b"</header>", 1)
+    elif mutation == "content-before-header":
+        payload = payload.replace(
+            b'class="article-header"', b'class="task5a-swap-temporary"', 1
+        )
+        payload = payload.replace(
+            b'class="article-content"', b'class="article-header"', 1
+        )
+        payload = payload.replace(
+            b'class="task5a-swap-temporary"', b'class="article-content"', 1
+        )
+    elif mutation == "citation-outside-header":
+        payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1).replace(b"</section>", b'<div class="ww-citation-primary">citation</div></section>', 1)
+    elif mutation == "citation-inside-content":
+        payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1).replace(b'<section class="article-content">', b'<section class="article-content"><div class="ww-citation-primary">citation</div>', 1)
+    elif mutation == "duplicate-citation":
+        payload = payload.replace(b"</header>", b'<div class="ww-citation-primary">duplicate</div></header>', 1)
+    elif mutation == "missing-ref-list":
+        payload = payload.replace(b'class="ref-list"', b'class="removed-ref-list"', 1)
+    elif mutation == "duplicate-ref-list":
+        payload = payload.replace(b"</section>", b'<div class="ref-list">duplicate</div></section>', 1)
+    elif mutation == "ref-list-in-header":
+        payload = payload.replace(b'class="ref-list"', b'class="removed-ref-list"', 1).replace(b"</header>", b'<div class="ref-list">wrong region</div></header>', 1)
+    else:
+        raise AssertionError(f"unknown OUP DOM mutation {mutation}")
+    assert payload != OUP_HTML
+    return payload
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    (
+        ("duplicate-container", "container|one"),
+        ("missing-header", "header"),
+        ("duplicate-header", "header|one"),
+        ("content-before-header", "order|header|content"),
+        ("citation-outside-header", "citation|header"),
+        ("citation-inside-content", "citation|content|header"),
+        ("duplicate-citation", "citation|one"),
+        ("missing-ref-list", "reference|ref-list"),
+        ("duplicate-ref-list", "reference|ref-list|one"),
+        ("ref-list-in-header", "reference|ref-list|header|content"),
+    ),
+)
+def test_task5a_oup_rejects_each_dom_hierarchy_and_cardinality_mutation(
+    mutation,
+    match,
+):
+    with pytest.raises(SourceEvidenceError, match=match):
+        _validate_oup_html_payload(_task5a_oup_dom_mutation(mutation))
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "match"),
+    (
+        (b"The Statistics of Honeycomb and Triangular Lattice. I", b"Different title", "title"),
+        (b"Kodi Husimi", b"Taro Husimi", "author"),
+        (b"Itiro Sy&#244;zi", b"Itiro Different", "author"),
+        (b"Volume 5", b"Volume 6", "volume"),
+        (b"Issue 2", b"Issue 3", "issue"),
+        (b"March 1950", b"April 1950", "date|March"),
+        (b"Pages 177-186", b"Pages 177-187", "page"),
+        (b"Summary", b"Overview", "Summary|summary"),
+        (b"ch 2H = 2", b"ch 2H = 3", "equation"),
+        (b"exp(4H) = 3", b"exp(4H) = 4", "equation"),
+    ),
+)
+def test_task5a_oup_rejects_each_visible_identity_bibliographic_and_equation_mutation(
+    old,
+    new,
+    match,
+):
+    payload = OUP_HTML.replace(old, new, 1)
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match=match):
+        _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    (
+        ("href", "href|DOI|anchor"),
+        ("text", "text|DOI|anchor"),
+        ("href-query", "query|DOI|anchor"),
+        ("missing", "DOI|anchor"),
+    ),
+)
+def test_task5a_oup_identity_anchor_requires_exact_matching_href_and_visible_text(
+    mutation,
+    match,
+):
+    payload = OUP_HTML
+    if mutation == "href":
+        payload = payload.replace(OUP_RESOLVER, b"https://doi.org/10.1143/ptp/5.2.178", 1)
+    elif mutation == "text":
+        payload = payload.replace(OUP_RESOLVER, b"10.1143/ptp/5.2.177", 1)
+    elif mutation == "href-query":
+        payload = payload.replace(OUP_RESOLVER, OUP_RESOLVER + b"?download=1", 1)
+    else:
+        payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1)
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match=match):
+        _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize("carrier_kind", ("plain", "element", "canonical-anchor"))
+def test_task5a_oup_rejects_every_second_identity_carrier_outside_exact_ref_list(
+    carrier_kind,
+):
+    carrier = {
+        "plain": OUP_DOI,
+        "element": b"<span>" + OUP_DOI + b"</span>",
+        "canonical-anchor": b'<a href="' + OUP_RESOLVER + b'">' + OUP_DOI + b"</a>",
+    }[carrier_kind]
+    payload = OUP_HTML.replace(b"</header>", carrier + b"</header>", 1)
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
+        _validate_oup_html_payload(payload)
+
+
+def test_task5a_oup_excludes_only_cited_dois_inside_structurally_exact_ref_list():
+    assert _validate_oup_html_payload(OUP_HTML) == "text/html"
+    payload = OUP_HTML.replace(
+        b'class="ref-list"',
+        b'class="lookalike-reference-list"',
+        1,
+    )
+    with pytest.raises(SourceEvidenceError, match="DOI|reference|ref-list"):
+        _validate_oup_html_payload(payload)
+
+
+TASK5A_OUP_LIVE_HIDING_SELECTORS = (
+    b".article-header > .task5a-header-hidden",
+    b".article-content > .task5a-content-hidden",
+    b".minimal-article-container .task5a-container-hidden",
+)
+
+
+def _task5a_oup_css_v2_payload(stylesheet):
+    header_hidden = (
+        b'<span class="task5a-header-hidden">10.2000/header-extra</span>'
+    )
+    content_hidden = (
+        b'<span class="task5a-content-hidden">10.2000/content-extra</span>'
+        b'<div class="task5a-container-hidden"><span>10.2000/nested-extra</span></div>'
+    )
+    payload = OUP_HTML.replace(b"</header>", header_hidden + b"</header>", 1)
+    payload = payload.replace(b"</section>", content_hidden + b"</section>", 1)
+    payload = payload.replace(
+        b"</head>",
+        b"<style>" + stylesheet + b"</style></head>",
+        1,
+    )
+    return payload
+
+
+def test_task5a_oup_css_v2_matches_three_live_child_and_descendant_selectors_with_ancestor_hiding():
+    stylesheet = b"\n".join(
+        selector + b" { display:none }"
+        for selector in TASK5A_OUP_LIVE_HIDING_SELECTORS
+    )
+    assert _validate_oup_html_payload(
+        _task5a_oup_css_v2_payload(stylesheet)
+    ) == "text/html"
+
+
+@pytest.mark.parametrize(
+    "selector",
+    (
+        b".minimal-article-container .article-header > .task5a-header-hidden",
+        b".article-header + .task5a-header-hidden",
+        b".article-header ~ .task5a-header-hidden",
+        b".article-header[data-kind]",
+        b".article-header:first-child",
+        b"* > .task5a-header-hidden",
+        b"svg|a > .task5a-header-hidden",
+        b".article\\2d header > .task5a-header-hidden",
+        b".article-header >",
+    ),
+)
+def test_task5a_oup_css_v2_rejects_every_prohibited_hiding_selector_grammar(
+    selector,
+):
+    payload = _task5a_oup_css_v2_payload(selector + b" { display:none }")
+    with pytest.raises(SourceEvidenceError, match="CSS|selector|style"):
+        _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize(
+    "stylesheet",
+    (
+        b"@media print { .task5a-header-hidden { display:none } }",
+        b"@supports (display:block) { .task5a-header-hidden { display:none } }",
+        b'@import url("https://styles.invalid/oup.css");',
+        b"@namespace svg url(http://www.w3.org/2000/svg);",
+        b"/* unterminated",
+        b".task5a-header-hidden { display:none ",
+    ),
+)
+def test_task5a_oup_css_v2_rejects_block_external_other_at_rules_and_malformed_css(
+    stylesheet,
+):
+    with pytest.raises(SourceEvidenceError, match="CSS|style|at-rule|malformed"):
+        _validate_oup_html_payload(_task5a_oup_css_v2_payload(stylesheet))
+
+
+def test_task5a_oup_css_v2_preserves_nonhiding_complex_selectors_and_statement_at_rules():
+    stylesheet = (
+        b'@charset "UTF-8"; @layer task5a; '
+        b".complex > *[data-anything]:first-child { color:red } "
+        + b" ".join(
+            selector + b" { display:none }"
+            for selector in TASK5A_OUP_LIVE_HIDING_SELECTORS
+        )
+    )
+    assert _validate_oup_html_payload(
+        _task5a_oup_css_v2_payload(stylesheet)
+    ) == "text/html"
+
+
+def test_task5a_oup_css_v2_rejects_external_stylesheet_without_fetch(monkeypatch):
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("external CSS fetch attempted")
+        ),
+    )
+    payload = OUP_HTML.replace(
+        b"</head>",
+        b'<link rel="stylesheet" href="https://styles.invalid/oup.css"></head>',
+        1,
+    )
+    with pytest.raises(SourceEvidenceError, match="style|external|CSS"):
+        _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize("limit_kind", ("characters", "rules"))
+def test_task5a_oup_css_v2_enforces_stylesheet_limits(
+    monkeypatch,
+    limit_kind,
+):
+    if limit_kind == "characters":
+        monkeypatch.setattr(evidence_sources, "_MAX_LOCAL_STYLESHEET_CHARACTERS", 8)
+    else:
+        monkeypatch.setattr(evidence_sources, "_MAX_LOCAL_STYLESHEET_RULES", 1)
+    stylesheet = b" ".join(
+        selector + b" { display:none }"
+        for selector in TASK5A_OUP_LIVE_HIDING_SELECTORS
+    )
+    with pytest.raises(SourceEvidenceError, match="too many|too large|limit|CSS"):
+        _validate_oup_html_payload(_task5a_oup_css_v2_payload(stylesheet))
+
+
+def test_task5a_html_extraction_descriptor_v2_is_exact_route_scoped(monkeypatch):
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "unused")
+    corrected_source = {
+        "source_id": TASK5A_OUP_SOURCE_ID,
+        "canonical_identity": TASK5A_OUP_IDENTITY,
+        "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
+    }
+    corrected_route = {"authoritative_retrieval_route": _oup_html_route()}
+    response = {
+        "body": OUP_HTML,
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "final_url": _oup_html_route()["url"],
+        "media_type": "text/html",
+    }
+    corrected = source_fetcher._build_provenance(
+        corrected_source,
+        corrected_route,
+        response,
+        _task5a_oup_crossref_metadata(),
+        payload_name="source.html",
+    )
+    other_source = copy.deepcopy(corrected_source)
+    other_source["source_id"] = "doi_other_html_route"
+    other_source["canonical_identity"]["value"] = "10.1234/other.html"
+    other_source["canonical_url"] = "https://doi.org/10.1234/other.html"
+    other_route = copy.deepcopy(corrected_route)
+    other_route["authoritative_retrieval_route"]["kind"] = "author_repository_pdf"
+    other_route["authoritative_retrieval_route"]["artifact_identifier"] = "other:html"
+    other = source_fetcher._build_provenance(
+        other_source,
+        other_route,
+        response,
+        _task5a_oup_crossref_metadata(),
+        payload_name="source.html",
+    )
+    assert corrected["text_extraction"] == {
+        "tool": "stdlib_html_visible_text",
+        "version": 2,
+        "deterministic": True,
+        "arguments": [],
+    }
+    assert other["text_extraction"] == {
+        "tool": "stdlib_html_visible_text",
+        "version": 1,
+        "deterministic": True,
+        "arguments": [],
+    }

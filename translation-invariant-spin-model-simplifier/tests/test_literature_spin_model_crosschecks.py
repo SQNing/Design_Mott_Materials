@@ -141,8 +141,8 @@ EXPECTED_REASSIGNED_SOURCE_IDENTITIES = {
     "transverse_field_ising_chain_critical_point": "arxiv:cond-mat/0509490",
     "transverse_field_ising_chain_gap": "arxiv:cond-mat/0509490",
     "xx_spin_half_chain_free_fermion_energy": "doi:10.1103/physrevb.92.125131",
-    "honeycomb_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
-    "triangular_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
+    "honeycomb_ising_ferromagnet_exact_tc": "doi:10.1143/ptp/5.2.177",
+    "triangular_ising_ferromagnet_exact_tc": "doi:10.1143/ptp/5.2.177",
     "majundar_ghosh_chain_exact_dimer_point": "doi:10.1088/0305-4470/17/13/020",
     "square_fully_frustrated_ising_residual_entropy_reference": "doi:10.1088/0305-4470/16/10/023",
     "honeycomb_j1_j2_spiral_ring_reference": "arxiv:1004.1119",
@@ -233,7 +233,7 @@ EXPECTED_REASSIGNED_SOURCE_METADATA = {'blume_capel_spin1_zero_temperature_level
                                                                    'first-order 243 mK LRO '
                                                                    'transition',
                                                'source': 'Quilliam_et_al_2013'},
- 'honeycomb_ising_ferromagnet_exact_tc': {'canonical_source_identity': 'doi:10.1143/ptp.5.2.177',
+ 'honeycomb_ising_ferromagnet_exact_tc': {'canonical_source_identity': 'doi:10.1143/ptp/5.2.177',
                                           'citation_locator': 'dual-transformation critical-point '
                                                               'equation for the honeycomb Ising '
                                                               'lattice',
@@ -385,7 +385,7 @@ EXPECTED_REASSIGNED_SOURCE_METADATA = {'blume_capel_spin1_zero_temperature_level
                                       'citation_locator': 'Bogoliubov spectrum and thermodynamic '
                                                           'gap Delta=2J|1-g|',
                                       'source': 'Dziarmaga_2005'},
- 'triangular_ising_ferromagnet_exact_tc': {'canonical_source_identity': 'doi:10.1143/ptp.5.2.177',
+ 'triangular_ising_ferromagnet_exact_tc': {'canonical_source_identity': 'doi:10.1143/ptp/5.2.177',
                                            'citation_locator': 'dual-transformation critical-point '
                                                                'equation for the triangular Ising '
                                                                'lattice',

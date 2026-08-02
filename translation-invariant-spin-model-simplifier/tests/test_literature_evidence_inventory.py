@@ -88,7 +88,7 @@ EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK = {'aklt_spin1_chain_projector_groun
  'herbertsmithite_kagome_qsl_reference': 'doi:10.1103/physrevlett.98.107204',
  'ho2ti2o7_spin_ice_neutron_reference': 'doi:10.1103/physrevlett.87.047205',
  'honeycomb_haldane_kane_mele_hubbard_spin_model_reference': 'doi:10.1103/physrevb.82.075106',
- 'honeycomb_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp.5.2.177',
+ 'honeycomb_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp/5.2.177',
  'honeycomb_j1_j2_j3_classical_phase_diagram': 'arxiv:1309.3744',
  'honeycomb_j1_j2_kitaev_material_na2iro3_reference': 'arxiv:1209.5100',
  'honeycomb_j1_j2_spiral_ring_reference': 'arxiv:1004.1119',
@@ -175,7 +175,7 @@ EXPECTED_FINAL_SOURCE_IDENTITY_BY_BENCHMARK = {'aklt_spin1_chain_projector_groun
  'triangular_heisenberg_magnetization_plateau_reference': 'doi:10.1088/0953-8984/3/1/005',
  'triangular_heisenberg_spin_half_energy_reference': 'doi:10.1103/physrevlett.82.3899',
  'triangular_ising_antiferromagnet_residual_entropy': 'doi:10.1103/physrev.79.357',
- 'triangular_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp.5.2.177',
+ 'triangular_ising_ferromagnet_exact_tc': 'doi:10.1143/ptp/5.2.177',
  'triangular_j1_j2_spin_half_phase_diagram_reference': 'doi:10.1103/physrevb.92.041105',
  'triangular_nn_classical_120_reference': 'doi:10.1103/physrevlett.60.2531',
  'triangular_ring_exchange_spin_liquid_reference': 'doi:10.1103/physrevb.72.045105',
@@ -399,7 +399,7 @@ EXPECTED_ADDED_SOURCE_IDENTITIES = frozenset(
         "doi:10.1103/physrevlett.113.197201",
         "doi:10.1103/physrevlett.121.107203",
         "doi:10.1103/physrevlett.73.2500",
-        "doi:10.1143/ptp.5.2.177",
+        "doi:10.1143/ptp/5.2.177",
     }
 )
 
@@ -453,8 +453,8 @@ EXPECTED_CHANGED_SOURCE_MEMBERSHIPS = {
     "transverse_field_ising_chain_critical_point": "arxiv:cond-mat/0509490",
     "transverse_field_ising_chain_gap": "arxiv:cond-mat/0509490",
     "xx_spin_half_chain_free_fermion_energy": "doi:10.1103/physrevb.92.125131",
-    "honeycomb_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
-    "triangular_ising_ferromagnet_exact_tc": "doi:10.1143/ptp.5.2.177",
+    "honeycomb_ising_ferromagnet_exact_tc": "doi:10.1143/ptp/5.2.177",
+    "triangular_ising_ferromagnet_exact_tc": "doi:10.1143/ptp/5.2.177",
     "majundar_ghosh_chain_exact_dimer_point": "doi:10.1088/0305-4470/17/13/020",
     "square_fully_frustrated_ising_residual_entropy_reference": "doi:10.1088/0305-4470/16/10/023",
     "honeycomb_j1_j2_spiral_ring_reference": "arxiv:1004.1119",
@@ -484,28 +484,28 @@ EXPECTED_CHANGED_SOURCE_MEMBERSHIPS = {
 }
 
 EXPECTED_SPECIAL_PROVISIONING = {
-    "doi_f334ed253565110358b3": {
-        "source_id": "doi_f334ed253565110358b3",
+    "doi_457c49167653440059e9": {
+        "source_id": "doi_457c49167653440059e9",
         "authoritative_retrieval_route": {
             "kind": "oup_minimal_html",
             "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
-            "artifact_identifier": "doi:10.1143/ptp.5.2.177",
+            "artifact_identifier": "oup-silverchair-article-minimal:1942776",
             "work_identity_evidence": {
-                "kind": "canonical_identity",
-                "url": "https://doi.org/10.1143/ptp.5.2.177",
+                "kind": "crossref_oup_same_work",
+                "url": "https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177",
             },
         },
         "expected_media_type": "text/html",
         "access_mode": "unattended",
         "redistributability": "unresolved",
-        "local_cache_location": "source-cache/doi_f334ed253565110358b3/source.html",
+        "local_cache_location": "source-cache/doi_457c49167653440059e9/source.html",
         "current_availability": "not_acquired",
     },
     "doi_e49cda761520424da334": {
         "source_id": "doi_e49cda761520424da334",
         "authoritative_retrieval_route": {
             "kind": "institutional_repository_pdf",
-            "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+            "url": "https://core.ac.uk/download/572184419.pdf",
             "artifact_identifier": "core:572184419",
             "work_identity_evidence": {
                 "kind": "core_same_work_output",
@@ -525,8 +525,10 @@ EXPECTED_SPECIAL_PROVISIONING = {
             "url": "https://www.lptmc.jussieu.fr/files/maillard/PUB2/Frustrated_jav16i10p2257.pdf",
             "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
             "work_identity_evidence": {
-                "kind": "author_publications_same_work",
-                "url": "https://www.lptmc.jussieu.fr/users/maillard",
+                "kind": "hal_same_work_bibliographic_payload",
+                "url": "https://api.archives-ouvertes.fr/search/",
+                "record_identifier": "hal-02340631v1",
+                "stable_document_url": "https://hal.science/hal-02340631v1",
             },
         },
         "expected_media_type": "application/pdf",
@@ -1183,10 +1185,37 @@ def test_final_provisioning_extension_topology_is_exact():
     generated = build_inventory_data(LITERATURE_STANDARD_RESULTS)
     routes = generated["source_provisioning"]
 
+    assert len(generated["source_index"]) == len(routes) == 137
+    assert len(generated["locator_inventory"]) == 155
     assert Counter(route["expected_media_type"] for route in routes) == {
         "application/pdf": 134,
         "application/xml": 2,
         "text/html": 1,
+    }
+    assert Counter(route["access_mode"] for route in routes) == {
+        "unattended": 123,
+        "challenge_or_institutional": 9,
+        "authenticated_session": 3,
+        "api_key_or_entitlement": 2,
+    }
+    assert Counter(
+        route["authoritative_retrieval_route"]["kind"] for route in routes
+    ) == {
+        "acs_article_pdf": 1,
+        "aip_article_discovery": 1,
+        "aps_harvest_pdf": 78,
+        "arxiv_author_manuscript_pdf": 10,
+        "arxiv_export_pdf": 26,
+        "author_repository_pdf": 1,
+        "elsevier_article_api_xml": 2,
+        "epl_iop_article_pdf": 1,
+        "institutional_repository_pdf": 2,
+        "iop_article_pdf": 3,
+        "nature_article_pdf": 2,
+        "nature_open_article_pdf": 5,
+        "oup_minimal_html": 2,
+        "science_article_pdf": 2,
+        "springer_content_pdf": 1,
     }
     assert Counter(
         route["local_cache_location"].rsplit("/", 1)[-1] for route in routes
@@ -1200,7 +1229,7 @@ def test_final_provisioning_extension_topology_is_exact():
 @pytest.mark.parametrize(
     ("source_id", "wrong_payload_name"),
     [
-        ("doi_f334ed253565110358b3", "source.pdf"),
+        ("doi_457c49167653440059e9", "source.pdf"),
         ("doi_35bb82ba0a5814f69448", "source.html"),
     ],
 )
@@ -1228,7 +1257,7 @@ def test_inventory_extension_mapping_rejects_unknown_media_before_provisioning(
 
     def route_with_invalid_media(identity):
         route = copy.deepcopy(original_route_for_identity(identity))
-        if identity == {"kind": "doi", "value": "10.1143/ptp.5.2.177"}:
+        if identity == {"kind": "doi", "value": "10.1143/ptp/5.2.177"}:
             route["expected_media_type"] = invalid_media_type
         return route
 
@@ -2382,10 +2411,10 @@ def test_corrected_classic_primary_source_dois_are_registered(loaded_inventory):
             "https://arxiv.org/abs/1006.5052"
         ),
         "triangular_ising_ferromagnet_exact_tc": (
-            "https://doi.org/10.1143/ptp.5.2.177"
+            "https://doi.org/10.1143/ptp/5.2.177"
         ),
         "honeycomb_ising_ferromagnet_exact_tc": (
-            "https://doi.org/10.1143/ptp.5.2.177"
+            "https://doi.org/10.1143/ptp/5.2.177"
         ),
     }
     for benchmark_name, source_url in expected.items():
