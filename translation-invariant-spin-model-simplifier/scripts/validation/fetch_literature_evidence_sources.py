@@ -1,16 +1,20 @@
 """Fetch or verify authoritative literature payloads with fail-closed routing."""
 
 import argparse
+import ctypes
 from datetime import datetime, timezone
+import errno
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import ssl
 import stat
 import sys
-from urllib.parse import quote, unquote, urlsplit
+import tempfile
+from urllib.parse import quote, unquote, urlencode, urlsplit
 from urllib.request import (
     HTTPRedirectHandler,
     HTTPSHandler,
@@ -40,6 +44,21 @@ DEFAULT_CA_BUNDLE = Path(
     "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
 )
 USER_AGENT = "Design-Mott-Materials-literature-audit/1.0 (offline evidence acquisition)"
+_HAL_GAREL_API_BASE = "https://api.archives-ouvertes.fr/search/"
+_HAL_GAREL_STABLE_RECORD_ID = "hal-02340631v1"
+_HAL_GAREL_STABLE_DOCUMENT_URL = "https://hal.science/hal-02340631v1"
+_HAL_GAREL_QUERY_PAIRS = (
+    ("q", "halId_s:hal-02340631 AND version_i:1"),
+    (
+        "fl",
+        "docid,linkExtId_s,linkExtUrl_s,title_s,journalTitle_s,"
+        "authFullName_s,halId_s,uri_s,version_i,submitType_s,docType_s,"
+        "issue_s,page_s,volume_s,doiId_s,producedDateY_i,publicationDate_s",
+    ),
+    ("rows", "1"),
+    ("start", "0"),
+    ("wt", "json"),
+)
 _CREDENTIAL_HEADER_NAMES = {
     "Cookie",
     "Authorization",
@@ -666,8 +685,8 @@ def _fetch_source(
 ):
     source_id = source["source_id"]
     sensitive_values = _credential_values(credential_profile)
-    source_dir = Path(cache_root) / source_id
-    provenance_path = source_dir / "provenance.json"
+    cache_root = Path(os.path.abspath(os.fspath(cache_root)))
+    source_dir = cache_root / source_id
     if source_dir.is_symlink():
         return _outcome(
             source_id,
@@ -731,18 +750,16 @@ def _fetch_source(
             payload_name=payload_name,
             sensitive_values=sensitive_values,
         )
-        source_dir.mkdir(parents=True, exist_ok=False)
-        with source_dir.joinpath(payload_name).open("xb") as handle:
-            handle.write(response["body"])
-        with provenance_path.open("x", encoding="utf-8", newline="\n") as handle:
-            json.dump(provenance, handle, indent=2, sort_keys=True, ensure_ascii=True)
-            handle.write("\n")
-        if evidence is not None:
-            _write_work_identity_sidecars(source_dir, evidence)
-        load_verified_source(
+        provenance_payload = _serialized_json_bytes(provenance)
+        _install_verified_cache_candidate(
+            cache_root,
             source_dir,
-            expected_source=source,
-            provisioning_route=route,
+            source=source,
+            route=route,
+            payload_name=payload_name,
+            payload=response["body"],
+            provenance_payload=provenance_payload,
+            evidence=evidence,
         )
         return _outcome(
             source_id,
@@ -757,6 +774,139 @@ def _fetch_source(
             f"new cache directory {source_dir} failed: {exc}",
             sensitive_values=sensitive_values,
         )
+
+
+def _serialized_json_bytes(document):
+    rendered = json.dumps(
+        document,
+        indent=2,
+        sort_keys=True,
+        ensure_ascii=True,
+    )
+    return (rendered + "\n").encode("utf-8")
+
+
+def _exclusive_write_bytes(path, payload):
+    with Path(path).open("xb") as handle:
+        handle.write(payload)
+
+
+def _owned_staging_directory(cache_root):
+    cache_root = Path(cache_root)
+    if os.path.lexists(cache_root):
+        root_status = cache_root.lstat()
+        if not stat.S_ISDIR(root_status.st_mode) or stat.S_ISLNK(
+            root_status.st_mode
+        ):
+            raise SourceEvidenceError(
+                "source cache root must be a real directory"
+            )
+    else:
+        cache_root.mkdir(parents=True, exist_ok=False)
+    staging = Path(
+        tempfile.mkdtemp(
+            prefix=".literature-evidence-staging-",
+            dir=cache_root,
+        )
+    )
+    status = staging.lstat()
+    return staging, (status.st_dev, status.st_ino)
+
+
+def _remove_owned_staging_directory(staging, directory_identity):
+    if not os.path.lexists(staging):
+        return
+    status = staging.lstat()
+    if (
+        not stat.S_ISDIR(status.st_mode)
+        or stat.S_ISLNK(status.st_mode)
+        or (status.st_dev, status.st_ino) != directory_identity
+    ):
+        raise SourceEvidenceError(
+            "invocation-owned staging directory changed before cleanup"
+        )
+    shutil.rmtree(staging)
+
+
+def _publish_directory_noreplace(staging, target):
+    if sys.platform != "linux":
+        raise SourceEvidenceError(
+            "atomic no-replace cache publication requires Linux"
+        )
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    arguments = (
+        -100,
+        os.fsencode(staging),
+        -100,
+        os.fsencode(target),
+        1,
+    )
+    ctypes.set_errno(0)
+    if renameat2 is not None:
+        renameat2.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        renameat2.restype = ctypes.c_int
+        result = renameat2(*arguments)
+    else:
+        syscall_number = {
+            "x86_64": 316,
+            "aarch64": 276,
+        }.get(os.uname().machine)
+        syscall = getattr(libc, "syscall", None)
+        if syscall_number is None or syscall is None:
+            raise SourceEvidenceError(
+                "Linux renameat2 no-replace publication is unavailable"
+            )
+        syscall.restype = ctypes.c_long
+        result = syscall(syscall_number, *arguments)
+    if result == 0:
+        return
+    error_number = ctypes.get_errno()
+    if error_number in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise SourceEvidenceError("cache directory already exists")
+    raise SourceEvidenceError(
+        "atomic no-replace cache publication failed: "
+        + os.strerror(error_number)
+    )
+
+
+def _install_verified_cache_candidate(
+    cache_root,
+    source_dir,
+    *,
+    source,
+    route,
+    payload_name,
+    payload,
+    provenance_payload,
+    evidence,
+):
+    staging = None
+    directory_identity = None
+    try:
+        staging, directory_identity = _owned_staging_directory(cache_root)
+        _exclusive_write_bytes(staging / payload_name, payload)
+        _exclusive_write_bytes(
+            staging / "provenance.json",
+            provenance_payload,
+        )
+        if evidence is not None:
+            _write_work_identity_sidecars(staging, evidence)
+        load_verified_source(
+            staging,
+            expected_source=source,
+            provisioning_route=route,
+        )
+        _publish_directory_noreplace(staging, source_dir)
+    finally:
+        if staging is not None and directory_identity is not None:
+            _remove_owned_staging_directory(staging, directory_identity)
 
 
 def _verify_cached_source(cache_root, source, route):
@@ -852,7 +1002,21 @@ def _fetch_work_identity_evidence(
     payload_name = (
         "work-identity.html" if media_type == "text/html" else "work-identity.json"
     )
-    request_url = _validated_request_url(evidence_route["url"])
+    stable_route_url = _validated_request_url(evidence_route["url"])
+    if evidence_route["kind"] == "hal_same_work_bibliographic_payload":
+        if (
+            stable_route_url != _HAL_GAREL_API_BASE
+            or evidence_route.get("record_identifier")
+            != _HAL_GAREL_STABLE_RECORD_ID
+            or evidence_route.get("stable_document_url")
+            != _HAL_GAREL_STABLE_DOCUMENT_URL
+        ):
+            raise SourceEvidenceError("Garel HAL evidence route is invalid")
+        request_url = stable_route_url + "?" + urlencode(
+            _HAL_GAREL_QUERY_PAIRS
+        )
+    else:
+        request_url = stable_route_url
     request = Request(
         request_url,
         headers={"Accept": media_type, "User-Agent": USER_AGENT},
@@ -888,13 +1052,25 @@ def _fetch_work_identity_evidence(
         )
     else:
         document = payload
-    stable_route_url = _sanitize_url_for_output(request_url)
-    document_base_url = _sanitize_url_for_output(final_url_in_memory)
+    if evidence_route["kind"] == "hal_same_work_bibliographic_payload":
+        if final_url_in_memory != request_url:
+            raise SourceEvidenceError(
+                "HAL work identity evidence redirected unexpectedly"
+            )
+        document_base_url = _HAL_GAREL_STABLE_DOCUMENT_URL
+    else:
+        stable_route_url = _sanitize_url_for_output(request_url)
+        document_base_url = _sanitize_url_for_output(final_url_in_memory)
     validation_route = {
         **authoritative_route,
         "work_identity_evidence": {
             **evidence_route,
-            "url": document_base_url,
+            "url": (
+                stable_route_url
+                if evidence_route["kind"]
+                == "hal_same_work_bibliographic_payload"
+                else document_base_url
+            ),
         },
     }
     validate_work_identity_document(
@@ -919,6 +1095,7 @@ def _fetch_work_identity_evidence(
             "payload_byte_length": payload_byte_length,
         },
     }
+
 
 def _write_work_identity_sidecars(source_dir, evidence):
     if evidence is None:
@@ -966,12 +1143,22 @@ def _crossref_metadata(doi, ssl_context):
     if not authors:
         raise SourceEvidenceError("Crossref metadata has no authors")
     publication_date = _crossref_date(message)
-    return {
+    metadata = {
         "title": title,
         "authors": authors,
         "venue": venue,
         "publication_date": publication_date,
     }
+    if doi.casefold() == "10.1088/0305-4470/16/10/023":
+        metadata.update(
+            {
+                "doi": str(message.get("DOI", "")),
+                "volume": str(message.get("volume", "")),
+                "issue": str(message.get("issue", "")),
+                "pages": str(message.get("page", "")),
+            }
+        )
+    return metadata
 
 
 def _arxiv_metadata(arxiv_id, ssl_context):

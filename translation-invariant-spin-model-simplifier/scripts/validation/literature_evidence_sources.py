@@ -76,6 +76,31 @@ _OPEN_PUBLISHER_ROUTES = {
     "10.1038/ncomms6137": ("ncomms6137", "W1695352508"),
     "10.1038/srep16419": ("srep16419", "W3105052732"),
 }
+_GAREL_DOI = "10.1088/0305-4470/16/10/023"
+_GAREL_PDF_URL = (
+    "https://www.lptmc.jussieu.fr/files/maillard/PUB2/"
+    "Frustrated_jav16i10p2257.pdf"
+)
+_GAREL_PDF_ARTIFACT = "author-repository:Frustrated_jav16i10p2257.pdf"
+_HAL_GAREL_EVIDENCE_KIND = "hal_same_work_bibliographic_payload"
+_HAL_GAREL_API_BASE = "https://api.archives-ouvertes.fr/search/"
+_HAL_GAREL_RECORD_IDENTIFIER = "hal-02340631v1"
+_HAL_GAREL_STABLE_URL = "https://hal.science/hal-02340631v1"
+_HAL_GAREL_TITLE = "Study of a two-dimensional fully frustrated model"
+_HAL_GAREL_AUTHORS = ["T. Garel", "J-M. Maillard"]
+_HAL_GAREL_AUTHOR_TUPLES = (("garel", "t"), ("maillard", "jm"))
+_HAL_GAREL_VENUE = (
+    "Journal of Physics A: Mathematical and General (1975 - 2006)"
+)
+_CROSSREF_GAREL_VENUE = "Journal of Physics A: Mathematical and General"
+_GAREL_PDF_HEADER = (
+    "J. Phys. A : Math. Gen. 16 (1983) 2257-2265. Printed in Great Britain"
+)
+_HAL_GAREL_ISTEX_URL = (
+    "https://api.istex.fr/document/"
+    "315C04C1B2CFE6FA0DE1A3BAA04E06FA586E5893/"
+    "fulltext/pdf?sid=hal"
+)
 _EXACT_AUTHORITATIVE_ROUTES = {
     "10.1143/ptp.5.2.177": {
         "kind": "oup_minimal_html",
@@ -99,18 +124,17 @@ _EXACT_AUTHORITATIVE_ROUTES = {
             "url": "https://api.core.ac.uk/v3/outputs/572184419",
         },
     },
-    "10.1088/0305-4470/16/10/023": {
+    _GAREL_DOI: {
         "kind": "author_repository_pdf",
-        "url": (
-            "https://www.lptmc.jussieu.fr/files/maillard/PUB2/"
-            "Frustrated_jav16i10p2257.pdf"
-        ),
+        "url": _GAREL_PDF_URL,
         "expected_media_type": "application/pdf",
         "access_mode": "unattended",
-        "artifact_identifier": "author-repository:Frustrated_jav16i10p2257.pdf",
+        "artifact_identifier": _GAREL_PDF_ARTIFACT,
         "work_identity_evidence": {
-            "kind": "author_publications_same_work",
-            "url": "https://www.lptmc.jussieu.fr/users/maillard",
+            "kind": _HAL_GAREL_EVIDENCE_KIND,
+            "url": _HAL_GAREL_API_BASE,
+            "record_identifier": _HAL_GAREL_RECORD_IDENTIFIER,
+            "stable_document_url": _HAL_GAREL_STABLE_URL,
         },
     },
     "10.1038/s41535-026-00868-6": {
@@ -460,9 +484,13 @@ def load_verified_source(
         raise SourceEvidenceError("unsupported provenance schema_version")
     _validate_expected_source(raw, expected_source, provisioning_route)
     media_type = _validate_canonical_payload_contract(raw, provisioning_route)
-    _validate_bibliographic_metadata(raw["bibliographic_metadata"])
+    _validate_bibliographic_metadata(
+        raw["bibliographic_metadata"],
+        identity=raw["source_identity"],
+        provisioning_route=provisioning_route,
+    )
     _validate_retrieval_metadata(raw["retrieval_metadata"], raw["source_identity"], provisioning_route)
-    _validate_work_identity_payload(
+    work_identity_document = _validate_work_identity_payload(
         root,
         raw["retrieval_metadata"],
         raw["source_identity"],
@@ -495,6 +523,17 @@ def load_verified_source(
         _validate_husimi_syozi_html_payload(
             payload,
             context="OUP offline HTML payload",
+        )
+    authoritative_route = provisioning_route.get(
+        "authoritative_retrieval_route", {}
+    )
+    if _is_exact_garel_hal_route(raw["source_identity"], authoritative_route):
+        _validate_garel_hal_crossref_pdf_agreement(
+            work_identity_document,
+            crossref_metadata=raw["bibliographic_metadata"],
+            extracted_pdf_text=extracted_text,
+            identity=raw["source_identity"],
+            authoritative_route=authoritative_route,
         )
     _require_target_anchors(extracted_text, required_search_anchors)
 
@@ -569,10 +608,19 @@ def _validate_canonical_payload_contract(raw, provisioning_route):
     return media_type
 
 
-def _validate_bibliographic_metadata(metadata):
+def _validate_bibliographic_metadata(
+    metadata, *, identity=None, provisioning_route=None
+):
     required = {"title", "authors", "venue", "publication_date"}
+    authoritative_route = (
+        provisioning_route.get("authoritative_retrieval_route", {})
+        if isinstance(provisioning_route, Mapping)
+        else {}
+    )
+    if _is_exact_garel_hal_route(identity, authoritative_route):
+        required |= {"doi", "volume", "issue", "pages"}
     _require_exact_fields(metadata, required, "bibliographic_metadata")
-    for field in ("title", "venue"):
+    for field in required - {"authors", "publication_date"}:
         _require_text(metadata[field], field)
     authors = metadata["authors"]
     if (
@@ -657,7 +705,35 @@ def _validate_retrieval_metadata(metadata, identity, provisioning_route):
         legacy_allowed = allowed - {"media_type"}
         document_base_allowed = allowed | {"document_base_url"}
         legacy_document_base_allowed = legacy_allowed | {"document_base_url"}
-        if set(stored) not in (
+        if evidence.get("kind") == _HAL_GAREL_EVIDENCE_KIND:
+            hal_route_fields = {
+                "kind",
+                "url",
+                "record_identifier",
+                "stable_document_url",
+            }
+            if set(stored) != hal_route_fields:
+                raise SourceEvidenceError(
+                    "HAL work_identity_evidence has invalid fields"
+                )
+            if (
+                stored.get("record_identifier")
+                != _HAL_GAREL_RECORD_IDENTIFIER
+                or stored.get("stable_document_url")
+                != _HAL_GAREL_STABLE_URL
+                or stored.get("record_identifier")
+                != evidence.get("record_identifier")
+                or stored.get("stable_document_url")
+                != evidence.get("stable_document_url")
+            ):
+                raise SourceEvidenceError(
+                    "HAL work identity evidence route disagrees with provisioning"
+                )
+            _validate_serialized_https_url(
+                stored["stable_document_url"],
+                "HAL stable document URL",
+            )
+        elif set(stored) not in (
             {"kind", "url"},
             legacy_allowed,
             allowed,
@@ -741,13 +817,44 @@ def _validate_serialized_https_url(value, label):
         )
 
 
+def _is_exact_garel_hal_route(identity, authoritative_route):
+    if not isinstance(identity, Mapping) or not isinstance(
+        authoritative_route, Mapping
+    ):
+        return False
+    evidence = authoritative_route.get("work_identity_evidence")
+    return (
+        isinstance(evidence, Mapping)
+        and identity.get("kind") == "doi"
+        and identity.get("value") == _GAREL_DOI
+        and authoritative_route.get("kind") == "author_repository_pdf"
+        and authoritative_route.get("url") == _GAREL_PDF_URL
+        and authoritative_route.get("expected_media_type") == "application/pdf"
+        and authoritative_route.get("access_mode") == "unattended"
+        and authoritative_route.get("artifact_identifier")
+        == _GAREL_PDF_ARTIFACT
+        and evidence.get("kind") == _HAL_GAREL_EVIDENCE_KIND
+        and evidence.get("url") == _HAL_GAREL_API_BASE
+        and evidence.get("record_identifier")
+        == _HAL_GAREL_RECORD_IDENTIFIER
+        and evidence.get("stable_document_url") == _HAL_GAREL_STABLE_URL
+    )
+
+
+def _require_exact_garel_hal_route(identity, authoritative_route):
+    if not _is_exact_garel_hal_route(identity, authoritative_route):
+        raise SourceEvidenceError(
+            "Garel HAL DOI route does not match the exact approved route"
+        )
+
+
 def _validate_work_identity_payload(
     root, metadata, identity, provisioning_route, bibliographic_metadata
 ):
     route = provisioning_route.get("authoritative_retrieval_route", {})
     expected = route.get("work_identity_evidence", {})
     if expected.get("kind") in {None, "canonical_identity"}:
-        return
+        return None
     stored = metadata["work_identity_evidence"]
     sidecar_route_reference = None
     if "payload_relative_path" in stored:
@@ -821,6 +928,17 @@ def _validate_work_identity_payload(
         raise SourceEvidenceError(
             "work identity evidence payload name disagrees with media type"
         )
+    if descriptor["kind"] == _HAL_GAREL_EVIDENCE_KIND:
+        if (
+            descriptor.get("url") != _HAL_GAREL_API_BASE
+            or descriptor.get("document_base_url") != _HAL_GAREL_STABLE_URL
+            or expected.get("record_identifier")
+            != _HAL_GAREL_RECORD_IDENTIFIER
+            or expected.get("stable_document_url") != _HAL_GAREL_STABLE_URL
+        ):
+            raise SourceEvidenceError(
+                "HAL work identity sidecar route is invalid"
+            )
     document = (
         payload
         if media_type == "text/html"
@@ -833,7 +951,11 @@ def _validate_work_identity_payload(
         **route,
         "work_identity_evidence": {
             **expected,
-            "url": document_base_url,
+            "url": (
+                expected["url"]
+                if descriptor["kind"] == _HAL_GAREL_EVIDENCE_KIND
+                else document_base_url
+            ),
         },
     }
     validate_work_identity_document(
@@ -846,6 +968,192 @@ def _validate_work_identity_payload(
             "doi": identity.get("value", ""),
         },
     )
+    return document
+
+
+def _require_hal_value(actual, expected, label):
+    if actual != expected or type(actual) is not type(expected):
+        raise SourceEvidenceError(f"HAL {label} mismatch")
+
+
+def _ordered_author_tuples(authors, *, label):
+    if (
+        not isinstance(authors, Sequence)
+        or isinstance(authors, (str, bytes, bytearray))
+        or not authors
+    ):
+        raise SourceEvidenceError(f"{label} author cardinality mismatch")
+    normalized = []
+    for author in authors:
+        if not isinstance(author, str) or not author.strip():
+            raise SourceEvidenceError(f"{label} author value is invalid")
+        parts = re.findall(r"[a-z0-9]+", unescape(author).casefold())
+        if len(parts) < 2:
+            raise SourceEvidenceError(f"{label} author value is invalid")
+        family = parts[-1]
+        initials = "".join(part[0] for part in parts[:-1])
+        if not family or not initials:
+            raise SourceEvidenceError(f"{label} author value is invalid")
+        normalized.append((family, initials))
+    return tuple(normalized)
+
+
+def _validate_hal_crossref_agreement(record, bibliographic_metadata):
+    _require_mapping(
+        bibliographic_metadata,
+        "HAL work identity Crossref bibliographic metadata",
+    )
+    required = {
+        "doi",
+        "title",
+        "authors",
+        "venue",
+        "volume",
+        "issue",
+        "pages",
+        "publication_date",
+    }
+    missing = sorted(required - set(bibliographic_metadata))
+    if missing:
+        raise SourceEvidenceError(
+            "HAL/Crossref agreement missing " + missing[0]
+        )
+    if bibliographic_metadata.get("doi") != _GAREL_DOI:
+        raise SourceEvidenceError("HAL/Crossref DOI mismatch")
+    if bibliographic_metadata.get("title") != _HAL_GAREL_TITLE:
+        raise SourceEvidenceError("HAL/Crossref title mismatch")
+    crossref_authors = _ordered_author_tuples(
+        bibliographic_metadata.get("authors"),
+        label="Crossref",
+    )
+    if crossref_authors != _HAL_GAREL_AUTHOR_TUPLES:
+        raise SourceEvidenceError(
+            "HAL/Crossref author order or cardinality mismatch"
+        )
+    hal_authors = _ordered_author_tuples(
+        record.get("authFullName_s"),
+        label="HAL",
+    )
+    if hal_authors != crossref_authors:
+        raise SourceEvidenceError("HAL/Crossref author order mismatch")
+    comparisons = (
+        ("venue", _CROSSREF_GAREL_VENUE),
+        ("volume", "16"),
+        ("issue", "10"),
+        ("pages", "2257-2265"),
+        ("publication_date", "1983-07-11"),
+    )
+    for field, expected in comparisons:
+        if bibliographic_metadata.get(field) != expected:
+            raise SourceEvidenceError(f"HAL/Crossref {field} mismatch")
+
+
+def _validate_hal_same_work_bibliographic_payload(
+    document,
+    *,
+    identity,
+    authoritative_route,
+    bibliographic_metadata,
+):
+    _require_exact_garel_hal_route(identity, authoritative_route)
+    _require_mapping(document, "HAL work identity evidence document")
+    _require_exact_fields(
+        document,
+        {"response"},
+        "HAL work identity evidence document",
+    )
+    response = document["response"]
+    _require_exact_fields(
+        response,
+        {"numFound", "start", "numFoundExact", "docs"},
+        "HAL response",
+    )
+    _require_hal_value(response["numFound"], 1, "numFound")
+    _require_hal_value(response["start"], 0, "start")
+    _require_hal_value(
+        response["numFoundExact"], True, "numFoundExact"
+    )
+    documents = response["docs"]
+    if (
+        not isinstance(documents, list)
+        or len(documents) != 1
+        or not isinstance(documents[0], Mapping)
+    ):
+        raise SourceEvidenceError(
+            "HAL response docs must contain exactly one document"
+        )
+    record = documents[0]
+    expected_record = {
+        "docid": "2340631",
+        "linkExtId_s": "istex",
+        "linkExtUrl_s": _HAL_GAREL_ISTEX_URL,
+        "title_s": [_HAL_GAREL_TITLE],
+        "journalTitle_s": _HAL_GAREL_VENUE,
+        "authFullName_s": _HAL_GAREL_AUTHORS,
+        "halId_s": "hal-02340631",
+        "uri_s": _HAL_GAREL_STABLE_URL,
+        "version_i": 1,
+        "submitType_s": "notice",
+        "docType_s": "ART",
+        "issue_s": ["10"],
+        "page_s": "2257-2265",
+        "volume_s": "16",
+        "doiId_s": _GAREL_DOI,
+        "producedDateY_i": 1983,
+        "publicationDate_s": "1983-07-11",
+    }
+    _require_exact_fields(record, set(expected_record), "HAL document")
+    labels = {
+        "halId_s": "halId_s",
+        "uri_s": "URI uri_s",
+        "submitType_s": "submitType_s notice",
+        "docType_s": "docType_s ART",
+        "doiId_s": "DOI doiId_s",
+        "title_s": "title_s",
+        "authFullName_s": "author authFullName_s",
+        "journalTitle_s": "journal venue journalTitle_s",
+        "producedDateY_i": "year producedDateY_i",
+        "publicationDate_s": "publication date publicationDate_s",
+        "linkExtId_s": "ISTEX linkExtId_s",
+        "linkExtUrl_s": "ISTEX linkExtUrl_s",
+    }
+    for field, expected in expected_record.items():
+        _require_hal_value(
+            record[field],
+            expected,
+            labels.get(field, field),
+        )
+    _validate_hal_crossref_agreement(record, bibliographic_metadata)
+    return record
+
+
+def _validate_garel_hal_crossref_pdf_agreement(
+    document,
+    *,
+    crossref_metadata,
+    extracted_pdf_text,
+    identity,
+    authoritative_route,
+):
+    _validate_hal_same_work_bibliographic_payload(
+        document,
+        identity=identity,
+        authoritative_route=authoritative_route,
+        bibliographic_metadata=crossref_metadata,
+    )
+    if not isinstance(extracted_pdf_text, str):
+        raise SourceEvidenceError("Garel PDF extracted text is invalid")
+    normalized = " ".join(extracted_pdf_text.split())
+    if _HAL_GAREL_TITLE not in normalized:
+        raise SourceEvidenceError("Garel PDF title mismatch")
+    first_author = normalized.find("T Garel")
+    second_author = normalized.find("J M Maillard")
+    if first_author < 0 or second_author < 0 or first_author >= second_author:
+        raise SourceEvidenceError("Garel PDF author order mismatch")
+    if _GAREL_PDF_HEADER not in normalized:
+        raise SourceEvidenceError(
+            "Garel PDF header journal volume year mismatch"
+        )
 
 
 def validate_work_identity_document(
@@ -860,6 +1168,14 @@ def validate_work_identity_document(
 
     canonical_doi = identity.get("value", "").casefold()
     artifact_identifier = authoritative_route.get("artifact_identifier", "")
+    if evidence_kind == _HAL_GAREL_EVIDENCE_KIND:
+        _validate_hal_same_work_bibliographic_payload(
+            document,
+            identity=identity,
+            authoritative_route=authoritative_route,
+            bibliographic_metadata=bibliographic_metadata,
+        )
+        return
     if evidence_kind == "author_publications_same_work":
         _validate_author_publications_same_work(
             document,
