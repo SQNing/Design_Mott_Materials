@@ -406,8 +406,8 @@ offline-verification rule.
   `(casefolded family name, ordered casefolded initials)`. Missing, extra,
   duplicated, reordered, ambiguous, or colliding authors fail closed.
 - The 30 unattended cache directories already acquired during this task and all
-  cache paths that predated the task remain byte-for-byte and metadata-for-
-  metadata unchanged.
+  source directories that predated this amendment remain unchanged under the
+  exact cache-baseline domain defined below.
 
 ### Garel-Maillard: HAL identity sidecar plus author PDF
 
@@ -433,30 +433,55 @@ The replacement evidence kind is
 `hal_same_work_bibliographic_payload`. The configured official API base is
 `https://api.archives-ouvertes.fr/search/`; the fixed record identifier is
 `hal-02340631v1`; and the stable public document URL is
-`https://hal.science/hal-02340631v1`. The fetcher constructs the exact HAL query
-and fixed field projection only in memory and stores the returned bytes as
-`work-identity.json`.
+`https://hal.science/hal-02340631v1`. The fetcher constructs the request from
+this exact ordered parameter sequence, using standard UTF-8 URL encoding, only
+in memory:
+
+```text
+q=halId_s:hal-02340631 AND version_i:1
+fl=docid,linkExtId_s,linkExtUrl_s,title_s,journalTitle_s,authFullName_s,halId_s,uri_s,version_i,submitType_s,docType_s,issue_s,page_s,volume_s,doiId_s,producedDateY_i,publicationDate_s
+rows=1
+start=0
+wt=json
+```
+
+No default field projection, alternate query, pagination, sorting parameter, or
+additional response format is permitted. Only the query-free API base and
+stable public document URL are serialized. The returned bytes are stored
+unchanged as `work-identity.json`.
 
 The HAL validator requires a strict duplicate-key-free JSON document with
 exactly one result and all of the following values:
 
+- response `numFound = 1`, `start = 0`, `numFoundExact = true`, and exactly one
+  object in `docs`;
 - `docid = "2340631"`, `halId_s = "hal-02340631"`, `version_i = 1`, and
   `uri_s = "https://hal.science/hal-02340631v1"`;
-- DOI `10.1088/0305-4470/16/10/023`;
-- title `Study of a two-dimensional fully frustrated model`;
-- exactly two ordered authors, T. Garel followed by J.-M. Maillard;
-- journal identity, volume 16, issue 10, pages 2257-2265, and publication year
-  1983;
-- ISTEX document identifier
-  `315C04C1B2CFE6FA0DE1A3BAA04E06FA586E5893` in the exact external link.
+- `submitType_s = "notice"` and `docType_s = "ART"`;
+- `doiId_s = "10.1088/0305-4470/16/10/023"`;
+- `title_s = ["Study of a two-dimensional fully frustrated model"]`;
+- `authFullName_s = ["T. Garel", "J-M. Maillard"]` in that order;
+- `journalTitle_s = "Journal of Physics A: Mathematical and General (1975 - 2006)"`;
+- `volume_s = "16"`, `issue_s = ["10"]`, `page_s = "2257-2265"`,
+  `producedDateY_i = 1983`, and `publicationDate_s = "1983-07-11"`;
+- `linkExtId_s = "istex"` and
+  `linkExtUrl_s = "https://api.istex.fr/document/315C04C1B2CFE6FA0DE1A3BAA04E06FA586E5893/fulltext/pdf?sid=hal"`.
 
-The raw HAL record must agree field by field with the Crossref-derived
-bibliographic metadata used for the main provenance. The extracted author PDF
-must independently contain the exact title, ordered authors, journal, volume,
-pages, and year. The PDF is allowed to omit the DOI only for this exact route
-and only when both the HAL identity validation and the PDF bibliographic
-fingerprint succeed. Scientific target anchors cannot substitute for this
-identity proof.
+The raw HAL record and Crossref-derived main provenance must agree exactly on
+DOI, title, ordered author tuples `(garel, t)` and `(maillard, jm)`, volume,
+issue, page span, and publication date/year. Venue comparison is deliberately
+source-specific rather than fuzzy: HAL must contain the exact long value above;
+Crossref must contain exactly
+`Journal of Physics A: Mathematical and General`; and extracted PDF text must
+contain the whitespace-normalized header
+`J. Phys. A : Math. Gen. 16 (1983) 2257-2265. Printed in Great Britain`.
+The extracted author PDF must independently contain the exact title and ordered
+author anchors `T Garel` followed by `J M Maillard`. No generic journal-title
+normalization beyond whitespace and case comparison is introduced.
+
+The PDF is allowed to omit the DOI only for this exact route and only when both
+the HAL identity validation and the PDF bibliographic fingerprint succeed.
+Scientific target anchors cannot substitute for this identity proof.
 
 ### Caspers-Emmett-Magnus: current CORE download route
 
@@ -482,13 +507,25 @@ URL. A redirect to any other origin or path, a userinfo URL, a fragment, an
 earlier-hop query, a credential-bearing request, or more than these two
 redirects fails before the unsafe request is issued.
 
-Before accepting PDF bytes, the fetcher validates the raw official
-`https://api.core.ac.uk/v3/outputs/572184419` JSON sidecar. It requires output
-ID 572184419, the exact canonical DOI and title, a full-text download state,
-the exact current download URL, and the exact ordered author tuples. CORE's
-`Caspers, W.J.` and Crossref/PDF `W J Caspers` are representationally equal
-under the amendment-wide tuple rule; no broader fuzzy author matching is
-permitted.
+The fetcher must retrieve and validate the raw official
+`https://api.core.ac.uk/v3/outputs/572184419` JSON sidecar before constructing
+or issuing the first primary-payload request. Validation requires output ID
+572184419; the exact canonical DOI; title
+`The Majumdar-Ghosh chain:Twofold ground state and elementary excitations`;
+`fulltextStatus = "enabled"`; exact download URL
+`https://core.ac.uk/download/572184419.pdf`; and exactly these three ordered raw
+authors and canonical tuples:
+
+```text
+Caspers, W.J. -> (caspers, wj)
+Emmett, K.M.  -> (emmett, km)
+Magnus, W.    -> (magnus, w)
+```
+
+Only after that sidecar succeeds may the exact primary request and redirect
+state machine run. Crossref/PDF forms such as `W J Caspers` are
+representationally equal under the amendment-wide tuple rule; no broader fuzzy
+author matching is permitted.
 
 ### Husimi-Syozi: correct DOI and OUP identity contract
 
@@ -517,32 +554,55 @@ query-free Crossref Works URL
 `https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177`. The fetcher retrieves
 that record once, derives bibliographic metadata from those exact bytes, and
 stores the same bytes as `work-identity.json`. The validator requires a
-successful Crossref work response; the exact slash-form DOI; exact title;
-exactly two ordered authors Kodi Husimi and Itiro Syozi by family/initial tuple;
-OUP publisher and member 286; type `journal-article`; volume 5; issue 2; pages
-177-186; and the exact OUP primary-resource origin/path. Conflicting identity
-fields fail closed.
+successful Crossref work response; the exact slash-form DOI; title
+`The Statistics of Honeycomb and Triangular Lattice. I`; exactly two ordered
+authors `(Husimi, K.)` and `(Syozi, I.)`; publisher
+`Oxford University Press (OUP)`; member `286`; type `journal-article`; volume
+`5`; issue `2`; pages `177-186`; and primary resource URL exactly
+`https://academic.oup.com/ptp/article-lookup/doi/10.1143/ptp/5.2.177`.
+Conflicting identity fields fail closed.
 
-The primary HTML validator identifies one visible minimal-article container and
-one complete visible article-header citation record. That record must contain
-the exact title, both full author names, slash-form DOI, volume, issue, March
-1950, and pages, while the visible article body must contain `Summary` and both
-target equations. Exactly one DOI is allowed in the article identity record,
-and it must be the canonical DOI. DOI values inside the structurally identified
-reference list are cited-work identifiers and do not count as article identity;
-any additional DOI carrier outside that reference list causes rejection.
-Hidden, script/style/comment-only, malformed, query-bearing, attribute-only, or
-conflicting DOI carriers cannot satisfy identity.
+The primary HTML validator requires exactly one visible
+`.minimal-article-container`. It contains exactly one `.article-header` and one
+`.article-content` in document order. Exactly one `.ww-citation-primary` must be
+a descendant of that `.article-header` and must not be a descendant of
+`.article-content`. Exactly one `.ref-list` must be a descendant of the one
+`.article-content` and must not be a descendant of `.article-header`. A class
+token on an arbitrary element outside this exact hierarchy cannot create a
+reference-exclusion region.
 
-The pinned inline stylesheet requires HTML extraction descriptor version 2.
-Version 2 adds only one simple parent/ancestor selector followed by exactly one
-child (`>`) or descendant (whitespace) combinator and one simple target
-selector. A simple selector remains limited to one supported tag, class, or ID
-form. Matching uses the parser's actual ancestor stack and propagates hiding to
-descendants. Multiple combinators, sibling combinators, attributes, pseudos,
-universal or namespace selectors, escapes, malformed blocks/comments,
-unsupported values/functions, at-rules, external stylesheets, or size/rule
-limit violations remain fail closed.
+The article header must contain the exact title, visible full author names
+`Kodi Husimi` and `Itiro Syôzi`, volume 5, issue 2, March 1950, pages 177-186,
+and exactly one identity DOI anchor element. That anchor's normalized `href` and
+visible text must both equal the canonical slash-form DOI; the two
+representations are one carrier, not two. No other DOI-bearing element or plain
+DOI text may occur outside the exact `.ref-list` subtree, even when it repeats
+the canonical DOI. Existing positive tests that accepted a second canonical
+plain-text DOI carrier are intentionally inverted by this amendment.
+
+DOI values inside the exact `.ref-list` subtree are cited-work identifiers and
+do not count as article identity. The visible article body must contain
+`Summary` and both target equations. Hidden, script/style/comment-only,
+malformed, query-bearing, attribute-only, or conflicting DOI carriers cannot
+satisfy identity.
+
+Only the exact corrected OUP DOI route selects HTML extraction descriptor
+version 2; every other HTML route retains its existing descriptor version.
+For a declaration capable of hiding content, version 2 adds only one simple
+parent/ancestor selector followed by exactly one child (`>`) or descendant
+(whitespace) combinator and one simple target selector. A simple selector
+remains limited to one supported tag, class, or ID form. Matching uses the
+parser's actual ancestor stack and propagates hiding to descendants.
+
+Selectors attached only to declarations that cannot hide content retain the
+existing behavior, including acceptance of non-hiding universal or otherwise
+unsupported selector shapes. For hiding declarations, multiple combinators,
+sibling combinators, attributes, pseudos, universal or namespace selectors,
+escapes, or malformed selectors remain fail closed. Existing statement-form
+`@charset` and statement-form `@layer` support remains accepted. Block at-rules,
+external/other at-rules, external stylesheets, malformed blocks/comments,
+unsupported hiding values/functions, and size/rule limit violations remain
+fail closed.
 
 ### Static topology and restricted sources
 
@@ -560,6 +620,40 @@ must be a regular non-symlink file outside the repository and cache, owned by
 the user, mode 0600, and valid under the existing credential schema. Deferring
 those sources never permits a 155/155 completion claim.
 
+### Exact preservation baselines
+
+The cache-preservation baseline contains every descendant entry of every
+source directory that exists directly below `source-cache/` immediately before
+this amendment's acquisition phase. It excludes the `source-cache/` root
+directory entry itself and excludes the three target directories because all
+three must be absent at baseline. It therefore includes both cache directories
+that predated the overall task and the 30 unattended directories acquired
+earlier in the task.
+
+For each baseline regular file, preserve lstat type, permission mode bits, byte
+length, and SHA-256 of file bytes. For each baseline directory, preserve lstat
+type and permission mode bits; directory byte length, mtime, inode, ownership,
+and content hashing are deliberately out of scope. For each baseline symlink,
+preserve lstat type, permission mode bits, and exact link target without
+following it. No baseline path may be removed, replaced, renamed, or gain or
+lose a descendant.
+
+The six protected user-owned regular files are exactly:
+
+```text
+reports/generate_literature_reproduction_audit_pdf.py
+tests/test_literature_reproduction_audit_pdf.py
+reports/literature_reproduction_audit.csv
+reports/literature_reproduction_audit.md
+reports/literature_reproduction_audit_43_of_155.pdf
+reports/remaining_strict_reproduction_gaps.md
+```
+
+Their preservation baseline records repository-relative path, lstat regular-
+file type, permission mode bits, byte length, and SHA-256 of file bytes. All
+five attributes must match after every amendment commit, test run, static
+regeneration, acquisition, and review. None may be staged or committed.
+
 ### Amendment acceptance criteria
 
 - Mutation-first tests demonstrate RED before each production behavior is
@@ -572,8 +666,8 @@ those sources never permits a 155/155 completion claim.
   identity-sidecar, bibliographic, payload, provenance, hash, and target-anchor
   checks before installation, followed by fresh offline replay from stored
   bytes.
-- The six protected user-owned report artifacts retain their entry hashes, the
-  git index contains no unrelated path, and every pre-existing cache path
-  retains its entry type, mode, byte length, and content hash.
+- The six named protected user-owned files and the exact cache-baseline domain
+  retain the attributes defined above; the git index contains no unrelated
+  path.
 - Independent spec-compliance and code-quality reviews approve the amendment
   before the controlled acquisition-route work is considered complete.
