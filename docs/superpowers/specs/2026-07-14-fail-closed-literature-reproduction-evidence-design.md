@@ -622,13 +622,30 @@ those sources never permits a 155/155 completion claim.
 
 ### Exact preservation baselines
 
-The cache-preservation baseline contains every descendant entry of every
-source directory that exists directly below `source-cache/` immediately before
-this amendment's acquisition phase. It excludes the `source-cache/` root
-directory entry itself and excludes the three target directories because all
-three must be absent at baseline. It therefore includes both cache directories
-that predated the overall task and the 30 unattended directories acquired
-earlier in the task.
+For this amendment, the implementation boundary begins with the first
+mutation-first RED test edit or run, production-code edit, static regeneration,
+or acquisition attempt for these three routes. After the design-only review
+work, but before crossing that boundary, the controller captured the
+authoritative cache-preservation baseline at
+`/tmp/literature-evidence-task6-audit.Z4uIC2bC/source-cache-route-amendment-baseline.jsonl`.
+The manifest contains exactly 471 lstat entries below exactly 143 direct source
+directories and has SHA-256
+`e9430235340c6cb2fc5d4f451631a0371d4d41a5d7892a183c6f704dabb933df`.
+The earlier 1,822-test unchanged-suite observation was a read-only
+pre-amendment diagnostic, not a mutation-first amendment test, and did not
+modify `source-cache/`.
+
+The baseline contains every descendant entry of every source directory that
+existed directly below `source-cache/` at capture time. It excludes the
+`source-cache/` root directory entry itself and excludes the three target
+directories because all three were confirmed absent at capture time. It
+therefore includes both cache directories that predated the overall task and
+the 30 unattended directories acquired earlier in the task. Before writing the
+manifest, the controller also matched all 381 non-root entries under all 113
+direct source directories from the earlier 382-entry Task 6 baseline at
+`/tmp/literature-evidence-task6-audit.Z4uIC2bC/source-cache-baseline.jsonl`;
+that earlier manifest has SHA-256
+`7703d8ba51f1cece5dcce3cc5ba04a89c709cc2e157ce55f6d889d3e3514f5d8`.
 
 For each baseline regular file, preserve lstat type, permission mode bits, byte
 length, and SHA-256 of file bytes. For each baseline directory, preserve lstat
@@ -641,25 +658,31 @@ lose a descendant.
 The six protected user-owned regular files are exactly:
 
 ```text
-reports/generate_literature_reproduction_audit_pdf.py
-tests/test_literature_reproduction_audit_pdf.py
-reports/literature_reproduction_audit.csv
-reports/literature_reproduction_audit.md
-reports/literature_reproduction_audit_43_of_155.pdf
-reports/remaining_strict_reproduction_gaps.md
+translation-invariant-spin-model-simplifier/reports/generate_literature_reproduction_audit_pdf.py
+translation-invariant-spin-model-simplifier/tests/test_literature_reproduction_audit_pdf.py
+translation-invariant-spin-model-simplifier/reports/literature_reproduction_audit.csv
+translation-invariant-spin-model-simplifier/reports/literature_reproduction_audit.md
+translation-invariant-spin-model-simplifier/reports/literature_reproduction_audit_43_of_155.pdf
+translation-invariant-spin-model-simplifier/reports/remaining_strict_reproduction_gaps.md
 ```
 
 Their preservation baseline records repository-relative path, lstat regular-
 file type, permission mode bits, byte length, and SHA-256 of file bytes. All
-five attributes must match after every amendment commit, test run, static
-regeneration, acquisition, and review. None may be staged or committed.
+five attributes must match the authoritative manifest at
+`/tmp/literature-evidence-task6-audit.Z4uIC2bC/route-amendment-protected-user-files-baseline.json`,
+which contains exactly six entries and has SHA-256
+`71d8baa3394529645c0527af5ca328158700239271bbdb5e1c386ae9ad10bf09`,
+after every amendment commit, test run, static regeneration, acquisition, and
+review. None may be staged or committed.
 
 ### Amendment acceptance criteria
 
 - Mutation-first tests demonstrate RED before each production behavior is
   implemented and GREEN afterward.
 - All pre-amendment source/inventory/crosscheck tests remain green except tests
-  deliberately inverted because they encoded the invalid DOI or stale route.
+  deliberately inverted because they encoded the invalid DOI, stale route, or
+  old OUP contract that permitted an additional canonical DOI carrier outside
+  the exact article-reference subtree.
 - Regeneration occurs in a temporary root and an exact semantic/path diff proves
   that no unauthorized static file changed.
 - Each of the three new cache candidates passes online response, media,
