@@ -1213,7 +1213,8 @@ def test_final_provisioning_extension_topology_is_exact():
         "iop_article_pdf": 3,
         "nature_article_pdf": 2,
         "nature_open_article_pdf": 5,
-        "oup_minimal_html": 2,
+        "jpsj_article_pdf": 1,
+        "oup_minimal_html": 1,
         "science_article_pdf": 2,
         "springer_content_pdf": 1,
     }

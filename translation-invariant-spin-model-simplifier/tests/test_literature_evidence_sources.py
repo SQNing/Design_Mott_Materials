@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import quote_plus, unquote_plus
+from urllib.parse import quote_plus, unquote_plus, urlencode
 from urllib.request import Request
 
 import pytest
@@ -9141,66 +9141,28 @@ def test_round12_valid_json_acquisition_control(
     assert (tmp_path / fixture["source"]["source_id"]).is_dir()
 
 
-# Task 5A.1 mutation-first contracts.  These tests deliberately describe the
-# candidate-directory lifecycle before the production installer implements it.
-TASK5A_LIFECYCLE_SOURCE_ID = "doi_task5a_atomic_candidate"
+# Task 5A.1 mutation-first contracts.  The fixture is already accepted by the
+# real online sidecar validator and the real offline loader; individual tests
+# mutate exactly one lower boundary instead of replacing either validator.
 
 
 def _task5a_lifecycle_fixture():
-    source = {
-        "source_id": TASK5A_LIFECYCLE_SOURCE_ID,
-        "canonical_identity": {"kind": "doi", "value": "10.1234/task5a.atomic"},
-        "canonical_url": "https://doi.org/10.1234/task5a.atomic",
-        "benchmark_names": ["task5a_atomic_candidate_fixture"],
-    }
-    route_spec = {
-        "kind": "institutional_repository_pdf",
-        "url": "https://repository.example.invalid/task5a/source.pdf",
-        "artifact_identifier": "repository:task5a-atomic-candidate",
-        "work_identity_evidence": {
-            "kind": "core_same_work_output",
-            "url": "https://repository.example.invalid/task5a/identity.json",
-        },
-    }
-    route = {
-        "source_id": source["source_id"],
-        "authoritative_retrieval_route": route_spec,
-        "expected_media_type": "application/pdf",
-        "access_mode": "unattended",
-        "local_cache_location": (
-            f"source-cache/{source['source_id']}/source.pdf"
-        ),
-    }
-    response = {
-        "body": _minimal_pdf("Task 5A atomic candidate payload."),
-        "status": 200,
-        "headers": {"Content-Type": "application/pdf"},
-        "final_url": route_spec["url"],
-        "media_type": "application/pdf",
-    }
-    bibliographic = {
-        "title": "Task 5A atomic candidate",
-        "authors": ["A. Candidate", "B. Verifier"],
-        "venue": "Repository Test Journal",
-        "publication_date": "2026-08-02",
-    }
-    sidecar = b'{"strict":"raw-sidecar"}'
-    evidence = {
-        "payload": sidecar,
-        "descriptor": {
-            "kind": "core_same_work_output",
-            "url": route_spec["work_identity_evidence"]["url"],
-            "media_type": "application/json",
-            "payload_relative_path": "work-identity.json",
-            "payload_sha256": hashlib.sha256(sidecar).hexdigest(),
-            "payload_byte_length": len(sidecar),
-        },
-    }
-    provenance = {
-        "task5a_fixture": True,
-        "raw_payload_sha256": hashlib.sha256(response["body"]).hexdigest(),
-    }
-    return source, route, response, bibliographic, evidence, provenance
+    fixture = copy.deepcopy(
+        _round12_json_acquisition_fixture("core_same_work_output")
+    )
+    document = copy.deepcopy(fixture["sidecar_document"])
+    document["authors"] = [
+        {"name": author} for author in fixture["bibliographic"]["authors"]
+    ]
+    document["downloadUrl"] = fixture["route"][
+        "authoritative_retrieval_route"
+    ]["url"]
+    fixture["sidecar_document"] = document
+    fixture["sidecar_payload"] = json.dumps(
+        document,
+        sort_keys=True,
+    ).encode("utf-8")
+    return fixture
 
 
 def _task5a_cache_manifest(cache_root):
@@ -9220,37 +9182,81 @@ def _task5a_cache_manifest(cache_root):
     return tuple(manifest)
 
 
-def _task5a_install_lifecycle_stubs(monkeypatch):
-    source, route, response, bibliographic, evidence, provenance = (
-        _task5a_lifecycle_fixture()
+def _task5a_install_real_lifecycle_boundary(
+    monkeypatch,
+    fixture,
+    *,
+    events,
+    sidecar_payload=None,
+    bibliographic=None,
+    primary_content_type="application/pdf",
+):
+    sidecar_payload = (
+        fixture["sidecar_payload"]
+        if sidecar_payload is None
+        else sidecar_payload
     )
+    bibliographic = (
+        fixture["bibliographic"]
+        if bibliographic is None
+        else bibliographic
+    )
+    real_live_validator = source_fetcher.validate_work_identity_document
+    real_offline_validator = evidence_sources.validate_work_identity_document
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            accept = _header_dict(request).get("accept")
+            if accept == "application/pdf":
+                events.append("primary-response-bytes")
+                return _FixtureHTTPResponse(
+                    fixture["primary_payload"],
+                    content_type=primary_content_type,
+                    final_url=fixture["route"][
+                        "authoritative_retrieval_route"
+                    ]["url"],
+                )
+            assert accept == "application/json"
+            events.append("sidecar-response-bytes")
+            return _FixtureHTTPResponse(
+                sidecar_payload,
+                content_type="application/json",
+                final_url=fixture["sidecar_final_url"],
+            )
+
+    def fetch_bibliographic(*args, **kwargs):
+        events.append("crossref-bibliographic-metadata")
+        return copy.deepcopy(bibliographic)
+
+    def live_validator(document, **kwargs):
+        events.append("live-sidecar-agreement-validator")
+        return real_live_validator(document, **kwargs)
+
+    def offline_validator(document, **kwargs):
+        events.append("offline-sidecar-agreement-validator")
+        return real_offline_validator(document, **kwargs)
+
     monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
     monkeypatch.setattr(
         source_fetcher,
-        "_download",
-        lambda *args, **kwargs: copy.deepcopy(response),
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
     )
     monkeypatch.setattr(
         source_fetcher,
         "_fetch_bibliographic_metadata",
-        lambda *args, **kwargs: copy.deepcopy(bibliographic),
+        fetch_bibliographic,
     )
     monkeypatch.setattr(
         source_fetcher,
-        "_fetch_work_identity_evidence",
-        lambda *args, **kwargs: copy.deepcopy(evidence),
+        "validate_work_identity_document",
+        live_validator,
     )
     monkeypatch.setattr(
-        source_fetcher,
-        "_build_provenance",
-        lambda *args, **kwargs: copy.deepcopy(provenance),
+        evidence_sources,
+        "validate_work_identity_document",
+        offline_validator,
     )
-    monkeypatch.setattr(
-        source_fetcher,
-        "load_verified_source",
-        lambda *args, **kwargs: SimpleNamespace(payload_sha256="verified"),
-    )
-    return source, route
 
 
 @pytest.mark.parametrize(
@@ -9265,7 +9271,6 @@ def _task5a_install_lifecycle_stubs(monkeypatch):
         "provenance-serialization",
         "exclusive-sidecar-write",
         "offline-candidate-replay",
-        "atomic-publication",
     ),
 )
 def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates_tree(
@@ -9278,26 +9283,40 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     existing.mkdir(parents=True)
     existing.joinpath("source.pdf").write_bytes(b"PREEXISTING-BYTES")
     before = _task5a_cache_manifest(cache_root)
-    source, route = _task5a_install_lifecycle_stubs(monkeypatch)
+    fixture = _task5a_lifecycle_fixture()
+    source = fixture["source"]
+    route = fixture["route"]
     target = cache_root / source["source_id"]
     failure = SourceEvidenceError(f"injected {failure_stage} failure")
+    events = []
+    sidecar_payload = fixture["sidecar_payload"]
+    bibliographic = fixture["bibliographic"]
+    primary_content_type = "application/pdf"
 
     if failure_stage == "primary-response-media":
-        monkeypatch.setattr(
-            source_fetcher,
-            "_download",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
+        primary_content_type = "text/html"
+    elif failure_stage == "raw-sidecar-validation":
+        sidecar_payload, _marker = _round12_invalid_json_sidecar(
+            sidecar_payload,
+            "duplicate-key",
         )
-    elif failure_stage == "crossref-metadata":
+    elif failure_stage == "bibliographic-agreement":
+        bibliographic = copy.deepcopy(bibliographic)
+        bibliographic["title"] = "A different CORE work"
+
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+        sidecar_payload=sidecar_payload,
+        bibliographic=bibliographic,
+        primary_content_type=primary_content_type,
+    )
+
+    if failure_stage == "crossref-metadata":
         monkeypatch.setattr(
             source_fetcher,
             "_fetch_bibliographic_metadata",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
-        )
-    elif failure_stage in {"raw-sidecar-validation", "bibliographic-agreement"}:
-        monkeypatch.setattr(
-            source_fetcher,
-            "_fetch_work_identity_evidence",
             lambda *args, **kwargs: (_ for _ in ()).throw(failure),
         )
     elif failure_stage == "provenance-build":
@@ -9322,24 +9341,25 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
             lambda *args, **kwargs: (_ for _ in ()).throw(failure),
         )
     elif failure_stage == "exclusive-sidecar-write":
-        monkeypatch.setattr(
-            source_fetcher,
-            "_write_work_identity_sidecars",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
-        )
+        real_open = Path.open
+
+        def fail_candidate_sidecar(path, mode="r", *args, **kwargs):
+            if path.name == "work-identity.json" and "x" in mode:
+                raise failure
+            return real_open(path, mode, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", fail_candidate_sidecar)
     elif failure_stage == "offline-candidate-replay":
-        monkeypatch.setattr(
-            source_fetcher,
-            "load_verified_source",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
-        )
-    else:
-        monkeypatch.setattr(
-            source_fetcher,
-            "_publish_candidate_directory_no_replace",
-            lambda *args, **kwargs: (_ for _ in ()).throw(failure),
-            raising=False,
-        )
+        real_read_bytes = Path.read_bytes
+
+        def corrupt_candidate_payload_read(path):
+            data = real_read_bytes(path)
+            if path.name == "source.pdf" and path.parent != existing:
+                events.append("offline-primary-payload-read")
+                return data + b"INJECTED-OFFLINE-REPLAY-MUTATION"
+            return data
+
+        monkeypatch.setattr(Path, "read_bytes", corrupt_candidate_payload_read)
 
     outcome = source_fetcher._fetch_source(
         cache_root,
@@ -9349,7 +9369,16 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
         resume=False,
     )
 
-    assert outcome["status"] == "failed"
+    assert outcome["status"] == "failed", outcome
+    if failure_stage not in {"primary-response-media", "crossref-metadata"}:
+        assert "sidecar-response-bytes" in events
+    if failure_stage == "raw-sidecar-validation":
+        assert "live-sidecar-agreement-validator" not in events
+    elif failure_stage not in {"primary-response-media", "crossref-metadata"}:
+        assert "live-sidecar-agreement-validator" in events
+    if failure_stage == "offline-candidate-replay":
+        assert "offline-sidecar-agreement-validator" in events
+        assert "offline-primary-payload-read" in events
     assert not target.exists() and not target.is_symlink()
     assert _task5a_cache_manifest(cache_root) == before
 
@@ -9363,37 +9392,35 @@ def test_task5a_success_publishes_once_only_after_complete_offline_candidate_rep
     existing.mkdir(parents=True)
     existing.joinpath("sentinel").write_bytes(b"UNCHANGED")
     before_existing = _task5a_cache_manifest(existing)
-    source, route = _task5a_install_lifecycle_stubs(monkeypatch)
+    fixture = _task5a_lifecycle_fixture()
+    source = fixture["source"]
+    route = fixture["route"]
     target = cache_root / source["source_id"]
     events = []
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+    )
+    real_loader = source_fetcher.load_verified_source
 
     def replay_candidate(candidate, **kwargs):
         candidate = Path(candidate)
-        events.append(("offline-replay", candidate, target.exists()))
+        events.append("offline-replay-enter")
+        target_visible_before_replay = target.exists() or target.is_symlink()
+        verified = real_loader(candidate, **kwargs)
+        events.append("offline-replay-complete")
         assert candidate != target
         assert candidate.parent == cache_root
-        assert not target.exists() and not target.is_symlink()
+        assert target_visible_before_replay is False
         assert candidate.joinpath("source.pdf").is_file()
         assert candidate.joinpath("provenance.json").is_file()
         assert candidate.joinpath("work-identity.json").is_file()
         assert candidate.joinpath("work-identity.provenance.json").is_file()
-        return SimpleNamespace(payload_sha256="verified")
-
-    def publish(candidate, destination):
-        candidate = Path(candidate)
-        destination = Path(destination)
-        events.append(("publish", candidate, destination.exists()))
-        assert destination == target
-        assert not destination.exists() and not destination.is_symlink()
-        candidate.rename(destination)
+        assert not target.exists() and not target.is_symlink()
+        return verified
 
     monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
-    monkeypatch.setattr(
-        source_fetcher,
-        "_publish_candidate_directory_no_replace",
-        publish,
-        raising=False,
-    )
 
     outcome = source_fetcher._fetch_source(
         cache_root,
@@ -9403,15 +9430,67 @@ def test_task5a_success_publishes_once_only_after_complete_offline_candidate_rep
         resume=False,
     )
 
-    assert outcome["status"] == "acquired"
-    assert [event[0] for event in events] == ["offline-replay", "publish"]
-    assert all(not event[-1] for event in events)
+    assert outcome["status"] == "acquired", outcome
+    assert events == [
+        "primary-response-bytes",
+        "crossref-bibliographic-metadata",
+        "sidecar-response-bytes",
+        "live-sidecar-agreement-validator",
+        "offline-replay-enter",
+        "offline-sidecar-agreement-validator",
+        "offline-replay-complete",
+    ]
     assert target.is_dir() and not target.is_symlink()
     assert {path.name for path in cache_root.iterdir()} == {
         "preexisting_source",
         source["source_id"],
     }
     assert _task5a_cache_manifest(existing) == before_existing
+    verified = real_loader(
+        target,
+        expected_source=source,
+        provisioning_route=route,
+    )
+    assert verified.source_id == source["source_id"]
+
+
+def test_task5a_atomic_no_replace_publication_helper_black_box_success(tmp_path):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    candidate = cache_root / ".task5a-owned-candidate"
+    candidate.mkdir()
+    candidate.joinpath("source.pdf").write_bytes(b"CANDIDATE-BYTES")
+    candidate.joinpath("nested").mkdir()
+    candidate.joinpath("nested", "sidecar").write_bytes(b"SIDECAR-BYTES")
+    target = cache_root / "published-source"
+
+    source_fetcher._publish_candidate_directory_no_replace(candidate, target)
+
+    assert not candidate.exists() and not candidate.is_symlink()
+    assert target.is_dir() and not target.is_symlink()
+    assert target.joinpath("source.pdf").read_bytes() == b"CANDIDATE-BYTES"
+    assert target.joinpath("nested", "sidecar").read_bytes() == b"SIDECAR-BYTES"
+    assert list(cache_root.iterdir()) == [target]
+
+
+def test_task5a_atomic_no_replace_publication_helper_black_box_empty_collision(
+    tmp_path,
+):
+    cache_root = tmp_path / "source-cache"
+    cache_root.mkdir()
+    candidate = cache_root / ".task5a-owned-candidate"
+    candidate.mkdir()
+    candidate.joinpath("source.pdf").write_bytes(b"CANDIDATE-BYTES")
+    target = cache_root / "concurrent-target"
+    target.mkdir()
+
+    with pytest.raises(FileExistsError):
+        source_fetcher._publish_candidate_directory_no_replace(candidate, target)
+
+    assert target.is_dir() and not target.is_symlink()
+    assert list(target.iterdir()) == []
+    assert not candidate.exists() and not candidate.is_symlink()
+    assert list(cache_root.iterdir()) == [target]
 
 
 def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candidate(
@@ -9420,32 +9499,39 @@ def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candid
 ):
     cache_root = tmp_path / "source-cache"
     cache_root.mkdir()
-    source, route = _task5a_install_lifecycle_stubs(monkeypatch)
+    existing = cache_root / "preexisting_source"
+    existing.mkdir()
+    existing.joinpath("sentinel").write_bytes(b"PREEXISTING-BYTES")
+    before_existing = _task5a_cache_manifest(existing)
+    fixture = _task5a_lifecycle_fixture()
+    source = fixture["source"]
+    route = fixture["route"]
     target = cache_root / source["source_id"]
-    collision_bytes = b"CONCURRENT-OWNER-BYTES"
+    events = []
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+    )
+    real_loader = source_fetcher.load_verified_source
 
     def replay_then_create_collision(candidate, **kwargs):
-        assert Path(candidate) != target
+        candidate = Path(candidate)
+        target_visible_before_replay = target.exists() or target.is_symlink()
+        verified = real_loader(candidate, **kwargs)
+        events.append("real-offline-replay-complete")
+        assert candidate != target
+        assert target_visible_before_replay is False
+        assert not target.exists() and not target.is_symlink()
         target.mkdir()
-        target.joinpath("owner-sentinel").write_bytes(collision_bytes)
-        return SimpleNamespace(payload_sha256="verified")
-
-    def publish_no_replace(candidate, destination):
-        assert Path(destination) == target
-        raise FileExistsError("concurrent target publication collision")
+        events.append("concurrent-empty-target-created")
+        return verified
 
     monkeypatch.setattr(
         source_fetcher,
         "load_verified_source",
         replay_then_create_collision,
     )
-    monkeypatch.setattr(
-        source_fetcher,
-        "_publish_candidate_directory_no_replace",
-        publish_no_replace,
-        raising=False,
-    )
-
     outcome = source_fetcher._fetch_source(
         cache_root,
         source,
@@ -9454,10 +9540,18 @@ def test_task5a_concurrent_target_collision_is_no_replace_and_cleans_only_candid
         resume=False,
     )
 
-    assert outcome["status"] == "failed"
-    assert target.joinpath("owner-sentinel").read_bytes() == collision_bytes
-    assert list(target.iterdir()) == [target / "owner-sentinel"]
-    assert {path.name for path in cache_root.iterdir()} == {source["source_id"]}
+    assert outcome["status"] == "failed", outcome
+    assert events[-2:] == [
+        "real-offline-replay-complete",
+        "concurrent-empty-target-created",
+    ]
+    assert target.is_dir() and not target.is_symlink()
+    assert list(target.iterdir()) == []
+    assert _task5a_cache_manifest(existing) == before_existing
+    assert {path.name for path in cache_root.iterdir()} == {
+        "preexisting_source",
+        source["source_id"],
+    }
 
 
 TASK5A_GAREL_IDENTITY = {
@@ -9472,10 +9566,14 @@ TASK5A_HAL_FIELD_PROJECTION = (
     "halId_s,uri_s,version_i,submitType_s,docType_s,issue_s,page_s,volume_s,"
     "doiId_s,producedDateY_i,publicationDate_s"
 )
-TASK5A_HAL_QUERY = (
-    "q=halId_s%3Ahal-02340631+AND+version_i%3A1&"
-    f"fl={TASK5A_HAL_FIELD_PROJECTION}&rows=1&start=0&wt=json"
+TASK5A_HAL_QUERY_PAIRS = (
+    ("q", "halId_s:hal-02340631 AND version_i:1"),
+    ("fl", TASK5A_HAL_FIELD_PROJECTION),
+    ("rows", "1"),
+    ("start", "0"),
+    ("wt", "json"),
 )
+TASK5A_HAL_QUERY = urlencode(TASK5A_HAL_QUERY_PAIRS)
 TASK5A_HAL_REQUEST_URL = TASK5A_HAL_BASE + "?" + TASK5A_HAL_QUERY
 TASK5A_GAREL_CROSSREF = {
     "doi": TASK5A_GAREL_IDENTITY["value"],
@@ -9494,6 +9592,24 @@ J M Maillard
 J. Phys. A : Math. Gen. 16 (1983) 2257-2265. Printed in Great Britain
 The model exhibits the exact target-bearing frustrated phase discussed below.
 """
+
+
+def test_task5a_hal_query_uses_stdlib_urlencode_on_exact_ordered_pairs():
+    assert TASK5A_HAL_QUERY_PAIRS == (
+        ("q", "halId_s:hal-02340631 AND version_i:1"),
+        ("fl", TASK5A_HAL_FIELD_PROJECTION),
+        ("rows", "1"),
+        ("start", "0"),
+        ("wt", "json"),
+    )
+    assert TASK5A_HAL_QUERY == urlencode(TASK5A_HAL_QUERY_PAIRS)
+    assert TASK5A_HAL_QUERY == (
+        "q=halId_s%3Ahal-02340631+AND+version_i%3A1&"
+        "fl=docid%2ClinkExtId_s%2ClinkExtUrl_s%2Ctitle_s%2CjournalTitle_s%2C"
+        "authFullName_s%2ChalId_s%2Curi_s%2Cversion_i%2CsubmitType_s%2C"
+        "docType_s%2Cissue_s%2Cpage_s%2Cvolume_s%2CdoiId_s%2CproducedDateY_i%2C"
+        "publicationDate_s&rows=1&start=0&wt=json"
+    )
 
 
 def _task5a_hal_document():
@@ -9767,9 +9883,12 @@ def test_task5a_hal_fetch_uses_exact_ordered_query_but_serializes_only_stable_ur
         bibliographic_metadata=TASK5A_GAREL_CROSSREF,
     )
 
+    expected_query = urlencode(TASK5A_HAL_QUERY_PAIRS)
+    assert expected_query == TASK5A_HAL_QUERY
+    assert "fl=docid%2ClinkExtId_s%2ClinkExtUrl_s%2Ctitle_s" in expected_query
     assert requests == [
         (
-            TASK5A_HAL_REQUEST_URL,
+            TASK5A_HAL_BASE + "?" + expected_query,
             {"Accept": "application/json", "User-agent": source_fetcher.USER_AGENT},
             30,
         )
@@ -10279,15 +10398,26 @@ def _task5a_oup_dom_mutation(mutation):
         header = payload.split(b'<header class="article-header">', 1)[1].split(b"</header>", 1)[0]
         payload = payload.replace(b"</header>", b"</header><header class=\"article-header\">" + header + b"</header>", 1)
     elif mutation == "content-before-header":
-        payload = payload.replace(
-            b'class="article-header"', b'class="task5a-swap-temporary"', 1
+        header_start = payload.index(b'      <header class="article-header">')
+        header_end = payload.index(b"</header>", header_start) + len(b"</header>")
+        content_start = payload.index(
+            b'      <section class="article-content">', header_end
         )
-        payload = payload.replace(
-            b'class="article-content"', b'class="article-header"', 1
+        content_end = payload.index(b"</section>", content_start) + len(
+            b"</section>"
         )
-        payload = payload.replace(
-            b'class="task5a-swap-temporary"', b'class="article-content"', 1
+        header_subtree = payload[header_start:header_end]
+        separator = payload[header_end:content_start]
+        content_subtree = payload[content_start:content_end]
+        payload = (
+            payload[:header_start]
+            + content_subtree
+            + separator
+            + header_subtree
+            + payload[content_end:]
         )
+        assert header_subtree in payload and content_subtree in payload
+        assert payload.index(content_subtree) < payload.index(header_subtree)
     elif mutation == "citation-outside-header":
         payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1).replace(b"</section>", b'<div class="ww-citation-primary">citation</div></section>', 1)
     elif mutation == "citation-inside-content":
@@ -10332,7 +10462,6 @@ def test_task5a_oup_rejects_each_dom_hierarchy_and_cardinality_mutation(
 @pytest.mark.parametrize(
     ("old", "new", "match"),
     (
-        (b"The Statistics of Honeycomb and Triangular Lattice. I", b"Different title", "title"),
         (b"Kodi Husimi", b"Taro Husimi", "author"),
         (b"Itiro Sy&#244;zi", b"Itiro Different", "author"),
         (b"Volume 5", b"Volume 6", "volume"),
@@ -10355,6 +10484,33 @@ def test_task5a_oup_rejects_each_visible_identity_bibliographic_and_equation_mut
         _validate_oup_html_payload(payload)
 
 
+def test_task5a_oup_rejects_header_h1_title_mutation_while_head_title_is_unchanged():
+    head_title = (
+        b"<title>The Statistics of Honeycomb and Triangular Lattice. I</title>"
+    )
+    header_title = (
+        b"<h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>"
+    )
+    payload = OUP_HTML.replace(header_title, b"<h1>Different title</h1>", 1)
+    assert head_title in payload
+    assert header_title not in payload
+    with pytest.raises(SourceEvidenceError, match="title"):
+        _validate_oup_html_payload(payload)
+
+
+def test_task5a_oup_head_title_is_not_an_article_title_identity_carrier():
+    header_title = (
+        b"<h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>"
+    )
+    payload = OUP_HTML.replace(
+        b"<title>The Statistics of Honeycomb and Triangular Lattice. I</title>",
+        b"<title>Publisher navigation title</title>",
+        1,
+    )
+    assert header_title in payload
+    assert _validate_oup_html_payload(payload) == "text/html"
+
+
 @pytest.mark.parametrize(
     ("mutation", "match"),
     (
@@ -10369,14 +10525,37 @@ def test_task5a_oup_identity_anchor_requires_exact_matching_href_and_visible_tex
     match,
 ):
     payload = OUP_HTML
+    exact_anchor = (
+        b'<a href="' + OUP_RESOLVER + b'"><p>' + OUP_RESOLVER + b"</p></a>"
+    )
+    assert OUP_HTML.count(exact_anchor) == 1
     if mutation == "href":
-        payload = payload.replace(OUP_RESOLVER, b"https://doi.org/10.1143/ptp/5.2.178", 1)
+        mutated_anchor = exact_anchor.replace(
+            b'href="' + OUP_RESOLVER + b'"',
+            b'href="https://doi.org/10.1143/ptp/5.2.178"',
+            1,
+        )
     elif mutation == "text":
-        payload = payload.replace(OUP_RESOLVER, b"10.1143/ptp/5.2.177", 1)
+        mutated_anchor = exact_anchor.replace(
+            b"><p>" + OUP_RESOLVER + b"</p>",
+            b"><p>10.1143/ptp/5.2.177</p>",
+            1,
+        )
     elif mutation == "href-query":
-        payload = payload.replace(OUP_RESOLVER, OUP_RESOLVER + b"?download=1", 1)
+        mutated_anchor = exact_anchor.replace(
+            b'href="' + OUP_RESOLVER + b'"',
+            b'href="' + OUP_RESOLVER + b'?download=1"',
+            1,
+        )
     else:
         payload = payload.replace(b'class="ww-citation-primary"', b'class="removed-citation"', 1)
+        mutated_anchor = None
+    if mutated_anchor is not None:
+        payload = payload.replace(exact_anchor, mutated_anchor, 1)
+        if mutation == "text":
+            assert b'href="' + OUP_RESOLVER + b'"' in payload
+        else:
+            assert b"><p>" + OUP_RESOLVER + b"</p>" in payload
     assert payload != OUP_HTML
     with pytest.raises(SourceEvidenceError, match=match):
         _validate_oup_html_payload(payload)
@@ -10530,14 +10709,23 @@ def test_task5a_oup_css_v2_enforces_stylesheet_limits(
         _validate_oup_html_payload(_task5a_oup_css_v2_payload(stylesheet))
 
 
-def test_task5a_html_extraction_descriptor_v2_is_exact_route_scoped(monkeypatch):
-    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "unused")
-    corrected_source = {
+def _task5a_html_extraction_provenance(source, route, response):
+    return source_fetcher._build_provenance(
+        source,
+        route,
+        response,
+        _task5a_oup_crossref_metadata(),
+        payload_name="source.html",
+    )
+
+
+def _task5a_corrected_html_extraction_inputs():
+    source = {
         "source_id": TASK5A_OUP_SOURCE_ID,
-        "canonical_identity": TASK5A_OUP_IDENTITY,
+        "canonical_identity": copy.deepcopy(TASK5A_OUP_IDENTITY),
         "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
     }
-    corrected_route = {"authoritative_retrieval_route": _oup_html_route()}
+    route = {"authoritative_retrieval_route": copy.deepcopy(_oup_html_route())}
     response = {
         "body": OUP_HTML,
         "status": 200,
@@ -10545,36 +10733,215 @@ def test_task5a_html_extraction_descriptor_v2_is_exact_route_scoped(monkeypatch)
         "final_url": _oup_html_route()["url"],
         "media_type": "text/html",
     }
-    corrected = source_fetcher._build_provenance(
-        corrected_source,
-        corrected_route,
-        response,
-        _task5a_oup_crossref_metadata(),
-        payload_name="source.html",
-    )
-    other_source = copy.deepcopy(corrected_source)
-    other_source["source_id"] = "doi_other_html_route"
-    other_source["canonical_identity"]["value"] = "10.1234/other.html"
-    other_source["canonical_url"] = "https://doi.org/10.1234/other.html"
-    other_route = copy.deepcopy(corrected_route)
-    other_route["authoritative_retrieval_route"]["kind"] = "author_repository_pdf"
-    other_route["authoritative_retrieval_route"]["artifact_identifier"] = "other:html"
-    other = source_fetcher._build_provenance(
-        other_source,
-        other_route,
-        response,
-        _task5a_oup_crossref_metadata(),
-        payload_name="source.html",
-    )
+    return source, route, response
+
+
+def test_task5a_html_extraction_descriptor_v2_is_exact_corrected_route(monkeypatch):
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "unused")
+    source, route, response = _task5a_corrected_html_extraction_inputs()
+    corrected = _task5a_html_extraction_provenance(source, route, response)
     assert corrected["text_extraction"] == {
         "tool": "stdlib_html_visible_text",
         "version": 2,
         "deterministic": True,
         "arguments": [],
     }
+
+
+@pytest.mark.parametrize(
+    "scope_mutation",
+    (
+        "canonical-doi",
+        "route-kind",
+        "artifact-identifier",
+        "primary-route-url",
+        "source-id",
+    ),
+)
+def test_task5a_html_extraction_descriptor_v2_rejects_each_single_scope_mutation(
+    monkeypatch,
+    scope_mutation,
+):
+    monkeypatch.setattr(source_fetcher, "_pdftotext_version", lambda: "unused")
+    source, route, response = _task5a_corrected_html_extraction_inputs()
+    if scope_mutation == "canonical-doi":
+        source["canonical_identity"]["value"] = "10.1143/ptp/5.2.178"
+    elif scope_mutation == "route-kind":
+        route["authoritative_retrieval_route"]["kind"] = "author_repository_pdf"
+    elif scope_mutation == "artifact-identifier":
+        route["authoritative_retrieval_route"]["artifact_identifier"] = (
+            "oup-silverchair-article-minimal:1942777"
+        )
+    elif scope_mutation == "primary-route-url":
+        route["authoritative_retrieval_route"]["url"] = (
+            "https://oup.silverchair-cdn.com/article-minimal/1942777"
+        )
+    else:
+        source["source_id"] = "doi_other_html_route"
+    other = _task5a_html_extraction_provenance(source, route, response)
     assert other["text_extraction"] == {
         "tool": "stdlib_html_visible_text",
         "version": 1,
         "deterministic": True,
         "arguments": [],
     }
+
+
+TASK5A_GENERIC_V1_DOI = b"10.1143/ptp.5.2.177"
+TASK5A_GENERIC_V1_RESOLVER = b"https://doi.org/" + TASK5A_GENERIC_V1_DOI
+TASK5A_GENERIC_V1_SOURCE_ID = "doi_task5a_generic_v1_html"
+
+
+def _task5a_generic_v1_html_payload():
+    exact_anchor = (
+        b'<a href="' + OUP_RESOLVER + b'"><p>' + OUP_RESOLVER + b"</p></a>"
+    )
+    assert OUP_HTML.count(exact_anchor) == 1
+    payload = OUP_HTML.replace(
+        exact_anchor,
+        b"<p>" + TASK5A_GENERIC_V1_RESOLVER + b"</p>",
+        1,
+    )
+    return payload.replace(
+        b'<a href="https://doi.org/10.1000/cited-work">10.1000/cited-work</a>',
+        b"legacy reference without a DOI carrier",
+        1,
+    )
+
+
+def _task5a_generic_v1_html_contract(payload):
+    route_spec = {
+        "kind": "oup_minimal_html",
+        "url": "https://oup.silverchair-cdn.com/article-minimal/generic-v1-control",
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "artifact_identifier": "oup-silverchair-article-minimal:generic-v1-control",
+        "work_identity_evidence": {
+            "kind": "canonical_identity",
+            "url": "https://doi.org/10.1143/ptp.5.2.177",
+        },
+    }
+    source = {
+        "source_id": TASK5A_GENERIC_V1_SOURCE_ID,
+        "canonical_identity": {
+            "kind": "doi",
+            "value": TASK5A_GENERIC_V1_DOI.decode("ascii"),
+        },
+        "canonical_url": TASK5A_GENERIC_V1_RESOLVER.decode("ascii"),
+    }
+    route = {
+        "source_id": source["source_id"],
+        "authoritative_retrieval_route": route_spec,
+        "expected_media_type": "text/html",
+        "access_mode": "unattended",
+        "local_cache_location": (
+            f"source-cache/{source['source_id']}/source.html"
+        ),
+    }
+    response = {
+        "body": payload,
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "final_url": route_spec["url"],
+        "media_type": "text/html",
+    }
+    bibliographic = {
+        "title": "The Statistics of Honeycomb and Triangular Lattice. I",
+        "authors": ["Kodi Husimi", "Itiro Syozi"],
+        "venue": "Progress of Theoretical Physics",
+        "publication_date": "1950-03-01",
+    }
+    provenance = source_fetcher._build_provenance(
+        source,
+        route,
+        response,
+        bibliographic,
+        payload_name="source.html",
+    )
+    assert provenance["text_extraction"] == {
+        "tool": "stdlib_html_visible_text",
+        "version": 1,
+        "deterministic": True,
+        "arguments": [],
+    }
+    return source, route, response, provenance
+
+
+def _task5a_validate_generic_v1_html(payload, validation_mode, tmp_path):
+    source, route, response, provenance = _task5a_generic_v1_html_contract(payload)
+    if validation_mode == "download":
+        return validate_download_response(
+            route["authoritative_retrieval_route"],
+            status=response["status"],
+            headers=response["headers"],
+            body=response["body"],
+            final_url=response["final_url"],
+        )
+    assert validation_mode == "offline"
+    source_dir = tmp_path / source["source_id"]
+    source_dir.mkdir()
+    source_dir.joinpath("source.html").write_bytes(payload)
+    source_dir.joinpath("provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+    assert verified.extraction_tool["version"] == 1
+    return verified
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "meta_name",
+    (b"citation_doi", b"dc.identifier.doi", b"prism.doi"),
+)
+def test_task5a_generic_v1_html_preserves_sole_head_metadata_identity(
+    tmp_path,
+    validation_mode,
+    meta_name,
+):
+    payload = _task5a_generic_v1_html_payload().replace(
+        b"<p>" + TASK5A_GENERIC_V1_RESOLVER + b"</p>",
+        b"",
+        1,
+    )
+    payload = _oup_html_with_head_meta(
+        payload,
+        meta_name,
+        TASK5A_GENERIC_V1_DOI.upper(),
+    )
+    _task5a_validate_generic_v1_html(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "presentation",
+    (
+        TASK5A_GENERIC_V1_DOI,
+        b"DOI: " + TASK5A_GENERIC_V1_DOI + b".",
+        b"DOI: " + TASK5A_GENERIC_V1_DOI + b", verified",
+        b"(DOI: " + TASK5A_GENERIC_V1_DOI + b")",
+        b"(DOI: " + TASK5A_GENERIC_V1_DOI + b").",
+        b"(" + TASK5A_GENERIC_V1_RESOLVER + b").",
+        b"See (" + TASK5A_GENERIC_V1_DOI + b").",
+        TASK5A_GENERIC_V1_DOI + b".",
+        TASK5A_GENERIC_V1_DOI + b", verified",
+        TASK5A_GENERIC_V1_RESOLVER + b".",
+        TASK5A_GENERIC_V1_RESOLVER + b", verified",
+    ),
+)
+def test_task5a_generic_v1_html_preserves_legal_doi_presentation_normalization(
+    tmp_path,
+    validation_mode,
+    presentation,
+):
+    payload = _task5a_generic_v1_html_payload().replace(
+        TASK5A_GENERIC_V1_RESOLVER,
+        presentation,
+        1,
+    )
+    _task5a_validate_generic_v1_html(payload, validation_mode, tmp_path)
