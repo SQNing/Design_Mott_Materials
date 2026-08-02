@@ -120,6 +120,13 @@ reviewer under the same non-Fast model configuration, and resolve every
 blocking executability or contract-coverage issue before editing tests or
 production code.
 
+Every Python process in Task 5A sets `PYTHONDONTWRITEBYTECODE=1`. Every pytest
+invocation also passes `-p no:cacheprovider`; no command may create or update
+repository `__pycache__`, `.pyc`, or `.pytest_cache` paths. Direct script
+entry points that import `validation` set `PYTHONPATH=scripts`. Syntax
+compilation uses a newly created, retained external `PYTHONPYCACHEPREFIX`;
+never run bare `python -m py_compile` against repository paths.
+
 ### Task 5A.0: Preserve The Pre-Implementation State
 
 **External read-only comparison artifacts:**
@@ -157,6 +164,148 @@ production code.
   only the three previously absent target subtrees may be additional cache
   paths. Never stage or commit any of the six protected files.
 
+Run the following exact read-only preservation command from the repository
+root. Before acquisition, set `TASK5A_ALLOWED_TARGETS` to the empty string.
+After each successful atomic publication, set it to the comma-separated exact
+set of targets published so far; at the final gate set all three. Do not edit or
+replace this command with a newly captured snapshot.
+
+```bash
+TASK5A_ALLOWED_TARGETS="" PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
+import hashlib
+import json
+import os
+import stat
+from pathlib import Path
+
+repo = Path.cwd().resolve()
+expected_repo = Path(
+    "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit"
+)
+if repo != expected_repo:
+    raise SystemExit(f"run from repository root {expected_repo}, got {repo}")
+project = repo / "translation-invariant-spin-model-simplifier"
+cache_root = project / "source-cache"
+cache_manifest = Path(
+    "/tmp/literature-evidence-task6-audit.Z4uIC2bC/"
+    "source-cache-route-amendment-baseline.jsonl"
+)
+protected_manifest = Path(
+    "/tmp/literature-evidence-task6-audit.Z4uIC2bC/"
+    "route-amendment-protected-user-files-baseline.json"
+)
+target_names = {
+    "doi_dba239926d673e54f80a",
+    "doi_e49cda761520424da334",
+    "doi_457c49167653440059e9",
+}
+allowed = {
+    value
+    for value in os.environ.get("TASK5A_ALLOWED_TARGETS", "").split(",")
+    if value
+}
+if not allowed <= target_names:
+    raise SystemExit(f"unknown allowed target: {sorted(allowed - target_names)}")
+cache_bytes = cache_manifest.read_bytes()
+protected_bytes = protected_manifest.read_bytes()
+if hashlib.sha256(cache_bytes).hexdigest() != (
+    "e9430235340c6cb2fc5d4f451631a0371d4d41a5d7892a183c6f704dabb933df"
+):
+    raise SystemExit("cache baseline artifact hash mismatch")
+if hashlib.sha256(protected_bytes).hexdigest() != (
+    "71d8baa3394529645c0527af5ca328158700239271bbdb5e1c386ae9ad10bf09"
+):
+    raise SystemExit("protected baseline artifact hash mismatch")
+baseline = [
+    json.loads(line) for line in cache_bytes.decode("utf-8").splitlines()
+]
+protected = json.loads(protected_bytes.decode("utf-8"))
+if len(baseline) != 471 or len(protected) != 6:
+    raise SystemExit("baseline cardinality mismatch")
+baseline_paths = {entry["path"] for entry in baseline}
+baseline_roots = {path.split("/", 2)[1] for path in baseline_paths}
+if len(baseline_paths) != 471 or len(baseline_roots) != 143:
+    raise SystemExit("cache baseline path/root cardinality mismatch")
+
+def lstat_type(mode):
+    if stat.S_ISREG(mode):
+        return "regular"
+    if stat.S_ISDIR(mode):
+        return "directory"
+    if stat.S_ISLNK(mode):
+        return "symlink"
+    return "other"
+
+def verify_entry(entry, path):
+    status = path.lstat()
+    actual_type = lstat_type(status.st_mode)
+    if actual_type != entry["lstat_type"]:
+        raise SystemExit(f"lstat type mismatch: {entry['path']}")
+    if (status.st_mode & 0o7777) != (entry["lstat_mode"] & 0o7777):
+        raise SystemExit(f"mode mismatch: {entry['path']}")
+    if actual_type == "regular":
+        payload = path.read_bytes()
+        if len(payload) != entry["byte_length"]:
+            raise SystemExit(f"byte length mismatch: {entry['path']}")
+        if hashlib.sha256(payload).hexdigest() != entry["sha256"]:
+            raise SystemExit(f"SHA-256 mismatch: {entry['path']}")
+    elif actual_type == "symlink":
+        if os.readlink(path) != entry["symlink_target"]:
+            raise SystemExit(f"symlink target mismatch: {entry['path']}")
+
+for entry in baseline:
+    verify_entry(entry, project / entry["path"])
+for entry in protected:
+    verify_entry(entry, repo / entry["path"])
+
+current_paths = set()
+current_roots = set()
+def walk(path, relative):
+    current_paths.add(relative)
+    status = path.lstat()
+    if stat.S_ISDIR(status.st_mode):
+        with os.scandir(path) as scan:
+            children = sorted(list(scan), key=lambda child: child.name)
+        for child in children:
+            walk(path / child.name, f"{relative}/{child.name}")
+
+with os.scandir(cache_root) as scan:
+    root_entries = sorted(list(scan), key=lambda child: child.name)
+for child in root_entries:
+    current_roots.add(child.name)
+    walk(cache_root / child.name, f"source-cache/{child.name}")
+if current_roots - baseline_roots != allowed:
+    raise SystemExit(
+        "unexpected cache roots: "
+        f"expected extras={sorted(allowed)} "
+        f"actual={sorted(current_roots - baseline_roots)}"
+    )
+if baseline_roots - current_roots:
+    raise SystemExit(
+        f"missing baseline roots: {sorted(baseline_roots - current_roots)}"
+    )
+current_baseline_paths = {
+    path for path in current_paths if path.split("/", 2)[1] in baseline_roots
+}
+if current_baseline_paths != baseline_paths:
+    raise SystemExit(
+        "baseline path-set mismatch: "
+        f"missing={sorted(baseline_paths-current_baseline_paths)[:5]} "
+        f"added={sorted(current_baseline_paths-baseline_paths)[:5]}"
+    )
+for name in allowed:
+    target = cache_root / name
+    if not target.is_dir() or target.is_symlink():
+        raise SystemExit(f"allowed target is not a real directory: {name}")
+print(json.dumps({
+    "allowed_targets": sorted(allowed),
+    "baseline_entries_verified": len(baseline),
+    "baseline_roots_verified": len(baseline_roots),
+    "protected_files_verified": len(protected),
+}, sort_keys=True))
+PY
+```
+
 ### Task 5A.1: Lock The Amended Route Contracts In RED Tests
 
 **Files:**
@@ -165,9 +314,21 @@ production code.
 - Modify `translation-invariant-spin-model-simplifier/tests/test_literature_evidence_inventory.py`
 - Modify `translation-invariant-spin-model-simplifier/tests/test_literature_spin_model_crosschecks.py`
 
-- [ ] Re-run the Task 5A.0 baseline comparators, then add exact route-shape
+- [ ] Re-run the exact Task 5A.0 preservation command with no allowed targets,
+  then add exact route-shape
   tests for the Garel HAL descriptor, current CORE download URL, correct OUP
   slash DOI/source ID/artifact, and Crossref OUP sidecar.
+- [ ] Add amendment-wide acquisition lifecycle RED tests. Instrument every
+  stage—primary response/media validation, Crossref metadata, HAL/CORE/OUP raw
+  sidecar validation and hashing, cross-record bibliographic agreement,
+  provenance construction/serialization, exclusive candidate writes, complete
+  offline replay, and final publication. Any injected failure must leave the
+  exact target directory absent and leave every pre-existing cache byte and
+  path unchanged. A pre-existing or concurrently created target must cause a
+  no-clobber failure and remain byte-identical. The success control must prove
+  that the target becomes visible only once, after all candidate checks, by one
+  atomic no-replace directory publication, with no staging directory left in
+  `source-cache/`.
 - [ ] Pin the Garel request to the query-free HAL API base and this exact ordered
   in-memory parameter sequence, with no default projection, alternate query,
   sort, pagination, or serialization of query values:
@@ -231,7 +392,9 @@ production code.
   CSS, or limit violations. Scope descriptor v2 to this exact corrected OUP
   route and preserve v1 everywhere else.
 - [ ] Update exact inventory expectations to 137 sources and replace only the
-  invalid OUP source identity/path. Lock aggregate media/route/access counts.
+  invalid OUP source identity/path. Lock 134 PDF / 2 XML / 1 HTML and exact
+  access counts: 123 unattended, 9 challenge-or-institutional, 3 authenticated
+  session, and 2 API-key-or-entitlement routes; lock every route-kind count.
 - [ ] Run the new selectors before production edits and record expected failures
   caused by the missing HAL kind, stale CORE URL, invalid OUP identity, absent
   Crossref OUP validator, and unsupported CSS-v2 grammar—not fixture or syntax
@@ -256,6 +419,15 @@ production code.
 - [ ] Fetch the HAL response once, validate the exact raw bytes with strict JSON
   duplicate rejection, and store those same bytes as `work-identity.json` with
   hashed sidecar provenance.
+- [ ] Refactor the common cache installer before any live acquisition: write
+  the complete candidate with exclusive creation into a uniquely owned hidden
+  staging directory on the same filesystem; validate that directory through
+  the production offline loader; atomically publish it to the absent target
+  with a no-replace primitive; and remove only the staging directory created by
+  that invocation on any pre-publication failure. A collision never replaces,
+  enters, or mutates the target. No success or failure may leave an extra
+  staging child below `source-cache/`. Make every Task 5A.1 lifecycle RED test
+  GREEN before continuing.
 - [ ] Require `numFound=1`, `start=0`, `numFoundExact=true`, one document, and
   every exact HAL field/value pinned by the design: identifiers, URI,
   notice/ART types, DOI, one-element title, ordered authors, long journal title,
@@ -270,11 +442,16 @@ production code.
   not invoke or weaken the author-page HTML validator.
 - [ ] Run the focused HAL tests and all existing author-sidecar/CSS/redirect
   non-regression tests; obtain GREEN.
-- [ ] Run `python -m py_compile` on both source modules and the test module.
+- [ ] Create and retain a fresh external cache directory with
+  `mktemp -d /tmp/literature-evidence-task5a-pycache.XXXXXX`, then run
+  `PYTHONPYCACHEPREFIX=<that-directory> PYTHONDONTWRITEBYTECODE=1 python -m
+  py_compile` on both source modules and the test module. Confirm that no
+  repository `.pyc` path changed.
 - [ ] Commit only the two production modules with message
   `fix: bind Garel source through HAL metadata` (the RED-test commit remains its
   own parent).
-- [ ] Re-run both Task 5A.0 comparators after tests and after the commit.
+- [ ] Re-run the Task 5A.0 preservation command with no allowed targets after
+  tests and after the commit.
 
 ### Task 5A.3: Implement The Current CORE Route
 
@@ -302,7 +479,8 @@ production code.
   regression group; obtain GREEN.
 - [ ] Commit only the two production modules with message
   `fix: follow the current CORE full-text route`.
-- [ ] Re-run both Task 5A.0 comparators after tests and after the commit.
+- [ ] Re-run the Task 5A.0 preservation command with no allowed targets after
+  tests and after the commit.
 
 ### Task 5A.4: Correct The OUP Canonical Source And Inventory Generator
 
@@ -310,22 +488,33 @@ production code.
 
 - Modify `translation-invariant-spin-model-simplifier/scripts/validation/literature_spin_model_benchmarks.py`
 - Modify `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_inventory.py`
+- Modify `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_sources.py`
 - Test `translation-invariant-spin-model-simplifier/tests/test_literature_evidence_inventory.py`
 - Test `translation-invariant-spin-model-simplifier/tests/test_literature_spin_model_crosschecks.py`
+- Test `translation-invariant-spin-model-simplifier/tests/test_literature_evidence_sources.py`
 
 - [ ] Change exactly the two Husimi-Syozi benchmark source URLs from the invalid
   dotted hybrid to `https://doi.org/10.1143/ptp/5.2.177`.
+- [ ] In the single route source of truth, move the exact OUP override from the
+  dotted hybrid to the slash DOI and pin HTML/unattended, the exact CDN URL,
+  artifact `oup-silverchair-article-minimal:1942776`, and
+  `crossref_oup_same_work` descriptor. Do not duplicate this override in the
+  inventory generator.
 - [ ] Require deterministic source ID `doi_457c49167653440059e9`, cache path
   `source-cache/doi_457c49167653440059e9/source.html`, OUP artifact
   `oup-silverchair-article-minimal:1942776`, and
   `crossref_oup_same_work` sidecar.
 - [ ] Preserve 137 unique sources, 155 benchmark mappings, 134 PDF / 2 XML / 1
-  HTML media counts, and all unaffected route/access counts.
-- [ ] Run both complete inventory and benchmark-crosscheck modules; obtain
-  GREEN.
-- [ ] Commit only the two production modules with message
+  HTML media counts, 123/9/3/2 access counts in the order pinned above, and all
+  unaffected route-kind counts.
+- [ ] Run the exact focused source route-shape node IDs plus the complete
+  inventory and benchmark-crosscheck modules. Obtain GREEN for the corrected
+  mapping; do not misreport the whole source module as GREEN while the
+  intentionally deferred Task 5A.5 deep OUP validator selectors remain RED.
+- [ ] Commit only the three production modules with message
   `fix: correct the Husimi-Syozi DOI identity`.
-- [ ] Re-run both Task 5A.0 comparators after tests and after the commit.
+- [ ] Re-run the Task 5A.0 preservation command with no allowed targets after
+  tests and after the commit.
 
 ### Task 5A.5: Implement OUP Crossref Binding, DOI Scoping, And CSS V2
 
@@ -335,8 +524,8 @@ production code.
 - Modify `translation-invariant-spin-model-simplifier/scripts/validation/fetch_literature_evidence_sources.py`
 - Test `translation-invariant-spin-model-simplifier/tests/test_literature_evidence_sources.py`
 
-- [ ] Move the exact OUP route override to slash-form DOI and add the exact OUP
-  artifact and `crossref_oup_same_work` descriptor.
+- [ ] Use the slash-form OUP route descriptor committed by Task 5A.4; do not
+  create a second override or modify the inventory generator in this task.
 - [ ] Fetch the exact query-free Crossref Works URL once; derive main
   bibliographic metadata and store `work-identity.json` from the same raw bytes.
   Require the slash DOI, title
@@ -360,7 +549,8 @@ production code.
   the entire source test module; obtain GREEN.
 - [ ] Commit only the two production modules with message
   `fix: validate the corrected OUP article identity`.
-- [ ] Re-run both Task 5A.0 comparators after tests and after the commit.
+- [ ] Re-run the Task 5A.0 preservation command with no allowed targets after
+  tests and after the commit.
 
 ### Task 5A.6: Regenerate Only The Authorized Static Inventory
 
@@ -372,20 +562,198 @@ production code.
 - Modify `translation-invariant-spin-model-simplifier/reference/literature-evidence/records/honeycomb_ising_ferromagnet_exact_tc.json`
 - Modify `translation-invariant-spin-model-simplifier/reference/literature-evidence/records/triangular_ising_ferromagnet_exact_tc.json`
 
-- [ ] Generate the full inventory into a fresh external temporary root rather
-  than in place.
-- [ ] Compare all generated paths and semantic JSON values against HEAD.
-- [ ] Require exactly the five authorized static paths above to differ; copy
-  them with the established deterministic generator workflow and do not touch
-  any other existing file.
+- [ ] From the project root, create and retain the first external generation
+  root and run the generator only against it. Never invoke the module's default
+  in-place `__main__`:
+
+      task5a_generation_root_1="$(
+        mktemp -d /tmp/literature-evidence-task5a-generation-1.XXXXXX
+      )"
+      cp --no-clobber -- \
+        reference/literature-evidence/canonical-observables.json \
+        "$task5a_generation_root_1/canonical-observables.json"
+      TASK5A_GENERATION_ROOT="$task5a_generation_root_1" \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python - <<'PY'
+      import os
+      from pathlib import Path
+      from validation.literature_evidence_inventory import (
+          load_and_validate_inventory,
+          write_inventory,
+      )
+      from validation.literature_spin_model_benchmarks import (
+          LITERATURE_STANDARD_RESULTS,
+      )
+      root = Path(os.environ["TASK5A_GENERATION_ROOT"])
+      write_inventory(
+          inventory_root=root,
+          registry_entries=LITERATURE_STANDARD_RESULTS,
+      )
+      inventory = load_and_validate_inventory(
+          inventory_root=root,
+          registry_entries=LITERATURE_STANDARD_RESULTS,
+      )
+      print(
+          f"records={len(inventory.records)} "
+          f"sources={len(inventory.source_index)} "
+          f"locators={len(inventory.locator_inventory)}"
+      )
+      PY
+
+  Require `records=155 sources=137 locators=155`. Retain and record the exact
+  printed temporary path; do not delete or reuse it.
+- [ ] Compare the first generated tree to the real inventory with this exact
+  read-only path/byte/semantic gate:
+
+      TASK5A_GENERATION_ROOT="$task5a_generation_root_1" \
+        PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
+      import json
+      import os
+      from pathlib import Path
+      generated = Path(os.environ["TASK5A_GENERATION_ROOT"])
+      current = Path("reference/literature-evidence")
+      expected = {
+          "source-index.json",
+          "source-provisioning.json",
+          "locator-inventory.json",
+          "records/honeycomb_ising_ferromagnet_exact_tc.json",
+          "records/triangular_ising_ferromagnet_exact_tc.json",
+      }
+      generated_paths = {
+          path.relative_to(generated).as_posix()
+          for path in generated.rglob("*.json")
+      }
+      current_paths = {
+          path.relative_to(current).as_posix()
+          for path in current.rglob("*.json")
+      }
+      if generated_paths != current_paths:
+          raise SystemExit(
+              f"generated path-set mismatch: "
+              f"missing={sorted(current_paths-generated_paths)} "
+              f"added={sorted(generated_paths-current_paths)}"
+          )
+      byte_changed = {
+          relative
+          for relative in generated_paths
+          if (generated / relative).read_bytes()
+          != (current / relative).read_bytes()
+      }
+      semantic_changed = {
+          relative
+          for relative in generated_paths
+          if json.loads((generated / relative).read_text(encoding="utf-8"))
+          != json.loads((current / relative).read_text(encoding="utf-8"))
+      }
+      if byte_changed != expected or semantic_changed != expected:
+          raise SystemExit(
+              f"unauthorized generated diff: "
+              f"bytes={sorted(byte_changed)} "
+              f"semantic={sorted(semantic_changed)}"
+          )
+      print(f"authorized_changed_paths={len(expected)}")
+      PY
+
+- [ ] Require `authorized_changed_paths=5`, then mechanically install only
+  these user-approved exact generated files. The bulk deterministic rewrite is
+  the only permitted overwrite; never copy the whole tree:
+
+      cp -- "$task5a_generation_root_1/source-index.json" \
+        reference/literature-evidence/source-index.json
+      cp -- "$task5a_generation_root_1/source-provisioning.json" \
+        reference/literature-evidence/source-provisioning.json
+      cp -- "$task5a_generation_root_1/locator-inventory.json" \
+        reference/literature-evidence/locator-inventory.json
+      cp -- \
+        "$task5a_generation_root_1/records/honeycomb_ising_ferromagnet_exact_tc.json" \
+        reference/literature-evidence/records/honeycomb_ising_ferromagnet_exact_tc.json
+      cp -- \
+        "$task5a_generation_root_1/records/triangular_ising_ferromagnet_exact_tc.json" \
+        reference/literature-evidence/records/triangular_ising_ferromagnet_exact_tc.json
+
 - [ ] Prove the Garel and CORE static effect is confined to their provisioning
   rows, while the OUP identity changes the source index, provisioning, two
   locator rows, and two named records.
-- [ ] Run `git diff --check`, exact topology tests, and a second independent
-  temporary-root regeneration; require byte-identical output.
+- [ ] Run `git diff --check` and the exact topology tests under the global
+  no-bytecode/no-pytest-cache rule. Require the static diff name set to be the
+  exact five paths above.
+
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python -m pytest -p no:cacheprovider -q \
+          tests/test_literature_evidence_inventory.py \
+          tests/test_literature_spin_model_crosschecks.py
+
+- [ ] Create, populate, validate, and retain the second root with these exact
+  commands:
+
+      task5a_generation_root_2="$(
+        mktemp -d /tmp/literature-evidence-task5a-generation-2.XXXXXX
+      )"
+      cp --no-clobber -- \
+        reference/literature-evidence/canonical-observables.json \
+        "$task5a_generation_root_2/canonical-observables.json"
+      TASK5A_GENERATION_ROOT="$task5a_generation_root_2" \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python - <<'PY'
+      import os
+      from pathlib import Path
+      from validation.literature_evidence_inventory import (
+          load_and_validate_inventory,
+          write_inventory,
+      )
+      from validation.literature_spin_model_benchmarks import (
+          LITERATURE_STANDARD_RESULTS,
+      )
+      root = Path(os.environ["TASK5A_GENERATION_ROOT"])
+      write_inventory(
+          inventory_root=root,
+          registry_entries=LITERATURE_STANDARD_RESULTS,
+      )
+      inventory = load_and_validate_inventory(
+          inventory_root=root,
+          registry_entries=LITERATURE_STANDARD_RESULTS,
+      )
+      print(
+          f"records={len(inventory.records)} "
+          f"sources={len(inventory.source_index)} "
+          f"locators={len(inventory.locator_inventory)}"
+      )
+      PY
+
+  Require the same 155/137/155 counts. Then run this exact full-tree gate:
+
+      TASK5A_GENERATION_ROOT_1="$task5a_generation_root_1" \
+        TASK5A_GENERATION_ROOT_2="$task5a_generation_root_2" \
+        PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
+      import json
+      import os
+      from pathlib import Path
+      first = Path(os.environ["TASK5A_GENERATION_ROOT_1"])
+      second = Path(os.environ["TASK5A_GENERATION_ROOT_2"])
+      current = Path("reference/literature-evidence")
+      roots = (first, second, current)
+      path_sets = [
+          {path.relative_to(root).as_posix() for path in root.rglob("*.json")}
+          for root in roots
+      ]
+      if not path_sets[0] == path_sets[1] == path_sets[2]:
+          raise SystemExit("deterministic generation path sets differ")
+      for relative in sorted(path_sets[0]):
+          payloads = [(root / relative).read_bytes() for root in roots]
+          if not payloads[0] == payloads[1] == payloads[2]:
+              raise SystemExit(f"byte mismatch: {relative}")
+          values = [json.loads(payload.decode("utf-8")) for payload in payloads]
+          if not values[0] == values[1] == values[2]:
+              raise SystemExit(f"semantic mismatch: {relative}")
+      print(f"byte_identical_paths={len(path_sets[0])}")
+      PY
+
+  Require `byte_identical_paths=159`, retain both temporary roots, and record
+  their exact paths.
 - [ ] Commit only the five static files with message
   `data: regenerate corrected acquisition routes`.
-- [ ] Re-run both Task 5A.0 comparators before regeneration, after each
+- [ ] Re-run the Task 5A.0 preservation command with no allowed targets before
+  regeneration, after each
   temporary regeneration, after installing the authorized five-file result,
   after tests, and after the commit.
 
@@ -399,20 +767,58 @@ production code.
 
 - [ ] Verify the unchanged authoritative 471-entry Task 5A.0 manifest and its
   exact hash; do not replace it with a later pre-acquisition snapshot.
-- [ ] Invoke the exact source-specific acquisition command once per absent
-  target, using `--source-id` for exactly
-  `doi_dba239926d673e54f80a`, `doi_e49cda761520424da334`, and
-  `doi_457c49167653440059e9`. Use no credential-file argument and no alternate
-  or undeclared route.
+- [ ] From the project root, invoke these exact commands in order, once each.
+  Do not pass `--resume`, `--access-mode all`, or any credential-file
+  argument; stop on the first non-acquired outcome:
+
+      env -u SSL_CERT_FILE -u REQUESTS_CA_BUNDLE \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --source-id doi_dba239926d673e54f80a
+
+      env -u SSL_CERT_FILE -u REQUESTS_CA_BUNDLE \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --source-id doi_e49cda761520424da334
+
+      env -u SSL_CERT_FILE -u REQUESTS_CA_BUNDLE \
+        PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --source-id doi_457c49167653440059e9
 - [ ] Require primary response/media validation, raw sidecar validation,
   bibliographic identity, target-bearing anchors, complete hashed provenance,
   and atomic installation.
 - [ ] After each acquisition, compare all 471 baseline entries and the six
   protected files before continuing; allow only the successfully validated
-  target subtree as an additional cache path.
-- [ ] Run `--verify-offline --source-id` separately for each new directory and
-  then the full offline source verifier. Report restricted gaps honestly; do
-  not promote the deferred fourteen sources.
+  target subtree as an additional cache path. Re-run the exact Task 5A.0
+  command with, successively:
+
+      TASK5A_ALLOWED_TARGETS=doi_dba239926d673e54f80a
+      TASK5A_ALLOWED_TARGETS=doi_dba239926d673e54f80a,doi_e49cda761520424da334
+      TASK5A_ALLOWED_TARGETS=doi_dba239926d673e54f80a,doi_e49cda761520424da334,doi_457c49167653440059e9
+- [ ] From the project root, run these exact no-network isolated replays:
+
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --verify-offline --source-id doi_dba239926d673e54f80a
+
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --verify-offline --source-id doi_e49cda761520424da334
+
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --verify-offline --source-id doi_457c49167653440059e9
+
+  Require `total=1, verified=1` for each. Then run:
+
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python scripts/validation/fetch_literature_evidence_sources.py \
+          --verify-offline --all
+
+  Require `total=137, verified=123, blocked=14, failed=0`. The fourteen
+  blocked outcomes must correspond exactly to the approved restricted source
+  IDs. Do not promote them or claim 155/155.
 - [ ] At the end, require exact attribute/path equality for all 471 baseline
   entries and exactly the three authorized new cache subtrees—no other additions.
 - [ ] Confirm all signed/query values and any secret-shaped test sentinels are
@@ -422,15 +828,43 @@ production code.
 
 ### Task 5A.8: Completion Gate And Reviews
 
+- [ ] Create a fresh retained external pycache root and compile every Task 5A
+  Python path without writing repository bytecode:
+
+      task5a_final_pycache="$(
+        mktemp -d /tmp/literature-evidence-task5a-final-pycache.XXXXXX
+      )"
+      PYTHONPYCACHEPREFIX="$task5a_final_pycache" \
+        PYTHONDONTWRITEBYTECODE=1 python -m py_compile \
+          scripts/validation/literature_evidence_sources.py \
+          scripts/validation/fetch_literature_evidence_sources.py \
+          scripts/validation/literature_evidence_inventory.py \
+          scripts/validation/literature_spin_model_benchmarks.py \
+          tests/test_literature_evidence_sources.py \
+          tests/test_literature_evidence_inventory.py \
+          tests/test_literature_spin_model_crosschecks.py
+
 - [ ] Run the three affected test modules from a clean process:
 
-      PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider \
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python -m pytest -p no:cacheprovider \
         tests/test_literature_evidence_sources.py \
         tests/test_literature_evidence_inventory.py \
         tests/test_literature_spin_model_crosschecks.py -q
 
-- [ ] Run the wider Task 1-5 regression command used by the preceding static
-  inventory completion gate.
+- [ ] Run this exact wider Task 1-5 regression command:
+
+      PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts \
+        python -m pytest -p no:cacheprovider -q \
+          tests/test_literature_evidence_schema.py \
+          tests/test_literature_evidence_sources.py \
+          tests/test_literature_evidence_inventory.py \
+          tests/test_literature_spin_model_crosschecks.py \
+          tests/test_literature_runtime_evidence.py \
+          tests/test_literature_reproduction_audit.py
+
+  The protected user-owned PDF test is intentionally not part of this Task 5A
+  gate and must remain byte-identical.
 - [ ] Reconfirm exact static topology: 137 canonical sources, 155 locators,
   134 PDF / 2 XML / 1 HTML sources, unchanged aggregate route/access counts,
   all three corrected caches passing isolated and full offline replay, and
@@ -442,7 +876,8 @@ production code.
 - [ ] Only after spec approval, dispatch a fresh code-quality/security reviewer
   and obtain explicit approval. Both reviewers use `gpt-5.6-sol` at `xhigh`
   reasoning and never Fast mode.
-- [ ] Run both Task 5A.0 comparators immediately before and after each reviewer;
+- [ ] Run the exact Task 5A.0 preservation command immediately before and after
+  each reviewer;
   require exact baseline equality plus only the three authorized new cache
   subtrees.
 - [ ] Do not claim Task 5 source feasibility or final 155/155 while the fourteen
