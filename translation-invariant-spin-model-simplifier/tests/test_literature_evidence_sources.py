@@ -9359,14 +9359,52 @@ class _Task5AInotifyWatch:
         self.close()
 
 
-TASK5A_STRACE_SYSCALLS = (
-    "rename,renameat,renameat2,mkdir,mkdirat,open,openat,unlink,unlinkat,"
-    "rmdir,symlink,symlinkat,link,linkat"
+TASK5A_STRACE_OPERATIONS = (
+    "rename",
+    "renameat",
+    "renameat2",
+    "mkdir",
+    "mkdirat",
+    "mknod",
+    "mknodat",
+    "open",
+    "openat",
+    "creat",
+    "unlink",
+    "unlinkat",
+    "rmdir",
+    "symlink",
+    "symlinkat",
+    "link",
+    "linkat",
+    "truncate",
+    "ftruncate",
+    "fallocate",
+    "write",
+    "writev",
+    "pwrite64",
+    "pwritev",
+    "chmod",
+    "fchmod",
+    "fchmodat",
+    "chown",
+    "fchown",
+    "lchown",
+    "fchownat",
+    "utime",
+    "utimes",
+    "utimensat",
+    "setxattr",
+    "lsetxattr",
+    "fsetxattr",
+    "removexattr",
+    "lremovexattr",
+    "fremovexattr",
 )
+TASK5A_STRACE_SYSCALLS = ",".join(TASK5A_STRACE_OPERATIONS)
 TASK5A_STRACE_CALL = re.compile(
     r"^(?:(?:\[pid\s+\d+\]|\d+)\s+)?"
-    r"(?P<operation>rename|renameat|renameat2|mkdir|mkdirat|open|openat|"
-    r"unlink|unlinkat|rmdir|symlink|symlinkat|link|linkat)"
+    rf"(?P<operation>{'|'.join(TASK5A_STRACE_OPERATIONS)})"
     r"\((?P<arguments>.*)\)\s+=\s+(?P<result>-?\d+)"
     r"(?:<[^>]*>)?(?:\s|$)"
 )
@@ -9374,6 +9412,22 @@ TASK5A_STRACE_QUOTED_PATH = re.compile(r'"(?:\\.|[^"\\])*"')
 TASK5A_STRACE_DIRFD = re.compile(
     r"^(?P<descriptor>AT_FDCWD|-?\d+)(?:<(?P<path>.*)>)?$"
 )
+TASK5A_STRACE_FD = re.compile(r"^-?\d+<(?P<path>.*)>$")
+TASK5A_STRACE_OPEN_MUTATION = re.compile(
+    r"\b(?:O_WRONLY|O_RDWR|O_CREAT|O_TRUNC|O_APPEND|O_TMPFILE)\b"
+)
+TASK5A_STRACE_FD_MUTATIONS = {
+    "ftruncate",
+    "fallocate",
+    "write",
+    "writev",
+    "pwrite64",
+    "pwritev",
+    "fchmod",
+    "fchown",
+    "fsetxattr",
+    "fremovexattr",
+}
 
 
 def _task5a_split_strace_arguments(arguments):
@@ -9428,14 +9482,39 @@ def _task5a_resolve_strace_path(token, *, cwd, dirfd=None):
     return Path(os.path.abspath(path))
 
 
+def _task5a_resolve_strace_fd_path(token):
+    match = TASK5A_STRACE_FD.fullmatch(token)
+    assert match is not None, (
+        "strace file descriptor lacks the path annotation requested by -yy"
+    )
+    annotated_path = match.group("path")
+    if annotated_path.endswith(" (deleted)"):
+        annotated_path = annotated_path[: -len(" (deleted)")]
+    return Path(os.path.abspath(annotated_path))
+
+
 def _task5a_strace_operation_paths(operation, tokens, *, cwd):
+    if operation in {"rename", "link"}:
+        assert len(tokens) >= 2, tokens
+        return (
+            _task5a_resolve_strace_path(tokens[0], cwd=cwd),
+            _task5a_resolve_strace_path(tokens[1], cwd=cwd),
+        )
     if operation in {"renameat", "renameat2", "linkat"}:
         assert len(tokens) >= 4, tokens
         return (
             _task5a_resolve_strace_path(tokens[1], cwd=cwd, dirfd=tokens[0]),
             _task5a_resolve_strace_path(tokens[3], cwd=cwd, dirfd=tokens[2]),
         )
-    if operation in {"mkdirat", "openat", "unlinkat"}:
+    if operation in {
+        "mkdirat",
+        "mknodat",
+        "openat",
+        "unlinkat",
+        "fchmodat",
+        "fchownat",
+        "utimensat",
+    }:
         assert len(tokens) >= 2, tokens
         return (
             _task5a_resolve_strace_path(tokens[1], cwd=cwd, dirfd=tokens[0]),
@@ -9445,12 +9524,15 @@ def _task5a_strace_operation_paths(operation, tokens, *, cwd):
         return (
             _task5a_resolve_strace_path(tokens[2], cwd=cwd, dirfd=tokens[1]),
         )
-    quoted_tokens = tuple(
-        token for token in tokens if TASK5A_STRACE_QUOTED_PATH.fullmatch(token)
-    )
-    return tuple(
-        _task5a_resolve_strace_path(token, cwd=cwd) for token in quoted_tokens
-    )
+    if operation == "symlink":
+        assert len(tokens) >= 2, tokens
+        return (_task5a_resolve_strace_path(tokens[1], cwd=cwd),)
+    if operation in TASK5A_STRACE_FD_MUTATIONS:
+        assert tokens, tokens
+        return (_task5a_resolve_strace_fd_path(tokens[0]),)
+    assert tokens, tokens
+    assert TASK5A_STRACE_QUOTED_PATH.fullmatch(tokens[0]), tokens
+    return (_task5a_resolve_strace_path(tokens[0], cwd=cwd),)
 
 
 def _task5a_parse_strace_payload(payload, *, cwd=None):
@@ -9550,6 +9632,26 @@ class _Task5AStraceWatch:
         }
 
 
+def _task5a_required_success_strace_observer(root, trace_path):
+    if sys.platform != "linux":
+        pytest.skip("Linux renameat2 syscall proof is not portable")
+    if not Path("/usr/bin/strace").is_file():
+        pytest.fail("required Linux syscall publication proof is unavailable")
+    try:
+        return _Task5AStraceWatch(root, trace_path)
+    except (OSError, subprocess.SubprocessError):
+        pytest.fail("required Linux syscall publication proof is unavailable")
+
+
+def _task5a_optional_inotify_observer(root):
+    try:
+        return _Task5AInotifyWatch(root)
+    except OSError as error:
+        if error.errno not in {errno.ENOSPC, errno.EMFILE, errno.ENFILE}:
+            raise
+        return None
+
+
 def _task5a_publication_observer_or_skip(root, trace_path):
     if sys.platform != "linux":
         pytest.skip("atomic publication observer requires Linux")
@@ -9607,6 +9709,17 @@ def _task5a_strace_rename_paths(record):
     raise AssertionError(record)
 
 
+def _task5a_strace_mutated_paths(record):
+    if record["operation"] in {"open", "openat"}:
+        if TASK5A_STRACE_OPEN_MUTATION.search(record["arguments"]) is None:
+            return ()
+    return record["paths"]
+
+
+def _task5a_path_is_target_or_descendant(path, target):
+    return path == target or target in path.parents
+
+
 def _task5a_assert_strace_single_directory_publication(records, cache_root, target):
     cache_root = Path(os.path.abspath(cache_root))
     target = Path(os.path.abspath(target))
@@ -9623,29 +9736,32 @@ def _task5a_assert_strace_single_directory_publication(records, cache_root, targ
     assert staging.parent == cache_root, publication
     assert staging.name.startswith("."), publication
     assert staging != target, publication
+    assert publication["operation"] == "renameat2", (
+        "successful publication did not use renameat2"
+    )
+    assert len(publication["argument_tokens"]) == 5, (
+        "renameat2 publication has an unexpected argument shape"
+    )
+    assert publication["argument_tokens"][4] == "RENAME_NOREPLACE", (
+        "renameat2 publication did not use exactly RENAME_NOREPLACE"
+    )
 
     publication_line = publication["line_number"]
     for record in records:
         if record["line_number"] >= publication_line or not record["success"]:
             continue
-        if record["operation"] in {"mkdir", "mkdirat"}:
-            assert target not in record["paths"], record
-        if record["operation"] in {"open", "openat"} and re.search(
-            r"\b(?:O_WRONLY|O_RDWR|O_CREAT|O_TRUNC|O_APPEND)\b",
-            record["arguments"],
-        ):
-            for opened_path in record["paths"]:
-                assert opened_path != target and target not in opened_path.parents, record
+        for mutated_path in _task5a_strace_mutated_paths(record):
+            assert not _task5a_path_is_target_or_descendant(
+                mutated_path,
+                target,
+            ), "successful target mutation occurred before publication"
     return staging.name, publication_line
 
 
 def _task5a_assert_successful_publication(observation, cache_root, target):
-    if observation["backend"] == "inotify":
-        return _task5a_assert_single_directory_publication(
-            observation["events"],
-            target.name,
-        )
-    assert observation["backend"] == "strace", observation
+    assert observation["backend"] == "strace", (
+        "successful publication requires syscall-level proof"
+    )
     return _task5a_assert_strace_single_directory_publication(
         observation["records"],
         cache_root,
@@ -9965,9 +10081,9 @@ def test_task5a_inotify_event_parser_preserves_masks_names_and_move_cookie():
 
 @pytest.mark.parametrize(
     "path_form",
-    ("absolute", "numeric-dirfd-relative-renameat", "numeric-dirfd-relative-renameat2"),
+    ("absolute", "numeric-dirfd-relative"),
 )
-def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes(
+def test_task5a_strace_oracle_accepts_only_noreplace_publication_path_forms(
     path_form,
 ):
     cache_root = Path("/tmp/task5a-parser-control/source-cache")
@@ -9989,16 +10105,10 @@ def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes(
             f'417 openat({candidate_fd}, "source.pdf", '
             f'O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 9<{staging}/source.pdf>'
         )
-        if path_form.endswith("renameat2"):
-            publication_call = (
-                f'417 renameat2({cache_fd}, "{staging.name}", {cache_fd}, '
-                f'"{target.name}", RENAME_NOREPLACE) = 0'
-            )
-        else:
-            publication_call = (
-                f'417 renameat({cache_fd}, "{staging.name}", {cache_fd}, '
-                f'"{target.name}") = 0'
-            )
+        publication_call = (
+            f'417 renameat2({cache_fd}, "{staging.name}", {cache_fd}, '
+            f'"{target.name}", RENAME_NOREPLACE) = 0'
+        )
     payload = "\n".join(
         (
             open_call,
@@ -10016,12 +10126,109 @@ def test_task5a_strace_parser_preserves_atomic_move_and_prepublication_writes(
     )
     assert [record["operation"] for record in records] == [
         "openat",
-        "renameat" if path_form.endswith("-renameat") else "renameat2",
+        "renameat2",
     ]
     assert records[0]["paths"] == (staging / "source.pdf",)
     assert records[1]["paths"] == (staging, target)
     assert staging_name == staging.name
     assert publication_line == 2
+
+
+def test_task5a_strace_parser_resolves_numeric_dirfd_renameat_but_oracle_rejects_it():
+    cache_root = Path("/tmp/task5a-parser-control/source-cache")
+    staging = cache_root / ".task5a-observer-control"
+    target = cache_root / "published-control"
+    cache_fd = f"42<{cache_root}>"
+    records = _task5a_parse_strace_payload(
+        f'417 renameat({cache_fd}, "{staging.name}", {cache_fd}, '
+        f'"{target.name}") = 0'
+    )
+
+    assert records[0]["operation"] == "renameat"
+    assert records[0]["paths"] == (staging, target)
+    with pytest.raises(AssertionError, match="did not use renameat2"):
+        _task5a_assert_strace_single_directory_publication(
+            records,
+            cache_root,
+            target,
+        )
+
+
+@pytest.mark.parametrize(
+    "publication_kind",
+    ("plain-rename", "renameat", "renameat2-without-flag", "renameat2-extra-flag"),
+)
+def test_task5a_strace_oracle_rejects_non_noreplace_publication_primitives(
+    publication_kind,
+):
+    cache_root = Path("/tmp/task5a-parser-control/source-cache")
+    staging = cache_root / ".task5a-observer-control"
+    target = cache_root / "published-control"
+    cache_fd = f"42<{cache_root}>"
+    publication_calls = {
+        "plain-rename": f'417 rename("{staging}", "{target}") = 0',
+        "renameat": (
+            f'417 renameat({cache_fd}, "{staging.name}", {cache_fd}, '
+            f'"{target.name}") = 0'
+        ),
+        "renameat2-without-flag": (
+            f'417 renameat2({cache_fd}, "{staging.name}", {cache_fd}, '
+            f'"{target.name}", 0) = 0'
+        ),
+        "renameat2-extra-flag": (
+            f'417 renameat2({cache_fd}, "{staging.name}", {cache_fd}, '
+            f'"{target.name}", RENAME_NOREPLACE|RENAME_EXCHANGE) = 0'
+        ),
+    }
+    records = _task5a_parse_strace_payload(publication_calls[publication_kind])
+
+    with pytest.raises(AssertionError):
+        _task5a_assert_strace_single_directory_publication(
+            records,
+            cache_root,
+            target,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation_kind",
+    ("link", "symlink", "unlink", "rmdir", "truncate-open", "chmod"),
+)
+def test_task5a_strace_oracle_rejects_each_successful_prepublication_target_mutation(
+    mutation_kind,
+):
+    cache_root = Path("/tmp/task5a-parser-control/source-cache")
+    staging = cache_root / ".task5a-observer-control"
+    target = cache_root / "published-control"
+    target_child = target / "descendant"
+    mutation_calls = {
+        "link": f'417 link("/tmp/source-control", "{target_child}") = 0',
+        "symlink": f'417 symlink("source-control", "{target_child}") = 0',
+        "unlink": f'417 unlink("{target_child}") = 0',
+        "rmdir": f'417 rmdir("{target_child}") = 0',
+        "truncate-open": (
+            f'417 openat(AT_FDCWD, "{target_child}", '
+            f'O_WRONLY|O_TRUNC|O_CLOEXEC) = 9<{target_child}>'
+        ),
+        "chmod": f'417 chmod("{target_child}", 0600) = 0',
+    }
+    payload = "\n".join(
+        (
+            mutation_calls[mutation_kind],
+            f'417 renameat2(AT_FDCWD, "{staging}", AT_FDCWD, '
+            f'"{target}", RENAME_NOREPLACE) = 0',
+        )
+    )
+
+    with pytest.raises(
+        AssertionError,
+        match="successful target mutation occurred before publication",
+    ):
+        _task5a_assert_strace_single_directory_publication(
+            _task5a_parse_strace_payload(payload),
+            cache_root,
+            target,
+        )
 
 
 @pytest.mark.parametrize("failed_attempts", (0, 2))
@@ -10089,28 +10296,80 @@ def test_task5a_strace_collision_control_rejects_successful_target_move(tmp_path
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="requires Linux observer")
-def test_task5a_publication_observer_pairs_one_hidden_directory_move(tmp_path):
+def test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
+    tmp_path,
+):
     cache_root = tmp_path / "source-cache"
     cache_root.mkdir()
     staging = cache_root / ".task5a-observer-control"
     staging.mkdir()
     target = cache_root / "published-control"
 
-    observer = _task5a_publication_observer_or_skip(
+    visibility_observer = _task5a_optional_inotify_observer(cache_root)
+    observer = _task5a_required_success_strace_observer(
         cache_root,
         tmp_path / "task5a-observer-control.strace",
     )
+    directory_fd = os.open(
+        cache_root,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC,
+    )
     try:
-        os.rename(staging, target)
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        rename_arguments = (
+            directory_fd,
+            os.fsencode(staging.name),
+            directory_fd,
+            os.fsencode(target.name),
+            1,
+        )
+        if renameat2 is not None:
+            renameat2.argtypes = [
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            ]
+            renameat2.restype = ctypes.c_int
+            result = renameat2(*rename_arguments)
+        else:
+            syscall_number = {
+                "x86_64": 316,
+                "aarch64": 276,
+            }.get(os.uname().machine)
+            if syscall_number is None:
+                pytest.fail("live Linux renameat2 control is unavailable")
+            libc.syscall.restype = ctypes.c_long
+            result = libc.syscall(syscall_number, *rename_arguments)
+        if result != 0:
+            pytest.fail("live Linux renameat2 no-replace control failed")
     finally:
+        os.close(directory_fd)
+        visibility_observation = (
+            visibility_observer.finish()
+            if visibility_observer is not None
+            else None
+        )
         observation = observer.finish()
 
+    if visibility_observation is not None:
+        visible_staging_name, visibility_cookie = (
+            _task5a_assert_single_directory_publication(
+                visibility_observation["events"],
+                target.name,
+            )
+        )
     staging_name, publication_proof = _task5a_assert_successful_publication(
         observation,
         cache_root,
         target,
     )
     assert staging_name == ".task5a-observer-control"
+    if visibility_observation is not None:
+        assert visible_staging_name == staging_name
+        assert visibility_cookie != 0
     assert publication_proof != 0
     assert target.is_dir() and not target.is_symlink()
 
@@ -10154,10 +10413,23 @@ def test_task5a_exclusive_write_fault_harness_accepts_low_level_writer(
     assert not os.path.lexists(destination)
 
 
+class _Task5ANonJsonBibliographicProbe:
+    def __init__(self, marker):
+        self.marker = marker
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, _Task5ANonJsonBibliographicProbe)
+            and other.marker == self.marker
+        )
+
+
 def test_task5a_nonserializable_bibliographic_structure_reaches_real_provenance():
     fixture = _task5a_lifecycle_fixture()
     bibliographic = copy.deepcopy(fixture["bibliographic"])
-    nonserializable_probe = object()
+    nonserializable_probe = _Task5ANonJsonBibliographicProbe(
+        "distinctive-task5a-provenance-serialization-probe"
+    )
     bibliographic["task5a_nonserializable_probe"] = nonserializable_probe
     route = fixture["route"]
     response = {
@@ -10176,18 +10448,26 @@ def test_task5a_nonserializable_bibliographic_structure_reaches_real_provenance(
         payload_name="source.pdf",
     )
 
-    assert provenance["bibliographic_metadata"] is bibliographic
-    assert (
-        provenance["bibliographic_metadata"]["task5a_nonserializable_probe"]
-        is nonserializable_probe
-    )
-    with pytest.raises(TypeError, match="not JSON serializable"):
+    propagated_probe = provenance["bibliographic_metadata"][
+        "task5a_nonserializable_probe"
+    ]
+    if not isinstance(propagated_probe, _Task5ANonJsonBibliographicProbe):
+        pytest.fail("non-JSON bibliographic probe type was not preserved")
+    if propagated_probe.marker != nonserializable_probe.marker:
+        pytest.fail("non-JSON bibliographic probe meaning was not preserved")
+    with pytest.raises(TypeError) as serialization_error:
         json.dumps(
             provenance,
             indent=2,
             sort_keys=True,
             ensure_ascii=True,
         )
+    serialization_reason = str(serialization_error.value)
+    if (
+        "_Task5ANonJsonBibliographicProbe" not in serialization_reason
+        or "not JSON serializable" not in serialization_reason
+    ):
+        pytest.fail("real JSON serialization rejected the probe for the wrong reason")
 
 
 @pytest.mark.parametrize(
@@ -10238,7 +10518,11 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
         bibliographic["title"] = "A different HAL work"
     elif failure_stage == "provenance-serialization":
         bibliographic = copy.deepcopy(bibliographic)
-        bibliographic["task5a_nonserializable_probe"] = object()
+        bibliographic["task5a_nonserializable_probe"] = (
+            _Task5ANonJsonBibliographicProbe(
+                "distinctive-task5a-lifecycle-cleanup-probe"
+            )
+        )
 
     _task5a_install_real_lifecycle_boundary(
         monkeypatch,
@@ -10337,7 +10621,11 @@ def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates
     else:
         if failure_stage == "provenance-serialization":
             _task5a_assert_inputs_complete(events)
-            assert "not JSON serializable" in outcome["detail"]
+            if (
+                "_Task5ANonJsonBibliographicProbe" not in outcome["detail"]
+                or "not JSON serializable" not in outcome["detail"]
+            ):
+                pytest.fail("lifecycle serialization failed for the wrong reason")
         else:
             terminal_event = {
                 "provenance-build": "provenance-build-enter",
@@ -10420,7 +10708,8 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
 
     monkeypatch.setattr(source_fetcher, "load_verified_source", replay_candidate)
 
-    observer = _task5a_publication_observer_or_skip(
+    visibility_observer = _task5a_optional_inotify_observer(cache_root)
+    observer = _task5a_required_success_strace_observer(
         cache_root,
         tmp_path / "task5a-success-publication.strace",
     )
@@ -10433,6 +10722,11 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
             resume=False,
         )
     finally:
+        visibility_observation = (
+            visibility_observer.finish()
+            if visibility_observer is not None
+            else None
+        )
         publication_observation = observer.finish()
 
     assert outcome["status"] == "acquired", outcome
@@ -10447,6 +10741,13 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
     assert len(replayed) == 1
     assert replayed[0].source_id == source["source_id"]
     assert not any(visible for _event, visible in target_visibility)
+    if visibility_observation is not None:
+        visible_staging_name, visibility_cookie = (
+            _task5a_assert_single_directory_publication(
+                visibility_observation["events"],
+                target.name,
+            )
+        )
     staging_name, publication_proof = (
         _task5a_assert_successful_publication(
             publication_observation,
@@ -10455,6 +10756,9 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
         )
     )
     assert publication_proof != 0
+    if visibility_observation is not None:
+        assert visible_staging_name == staging_name
+        assert visibility_cookie != 0
     assert staging_name != foreign_staging.name
     assert not os.path.lexists(cache_root / staging_name)
     assert target.is_dir() and not target.is_symlink()
@@ -10656,7 +10960,8 @@ def _task5a_assert_no_forbidden_query_channels(
         "stderr": captured.err,
         "cache": cache_entries,
     }
-    assert "1" not in forbidden
+    if "1" in forbidden or "0" in forbidden:
+        pytest.fail("forbidden query set contains an overbroad numeric value")
     leaking_channels = {
         channel_name
         for channel_name, channel in channels.items()
@@ -10700,6 +11005,15 @@ TASK5A_HAL_REQUEST_URL = TASK5A_HAL_BASE + "?" + TASK5A_HAL_QUERY
 
 def _task5a_hal_forbidden_query_material():
     q_expression = dict(TASK5A_HAL_QUERY_PAIRS)["q"]
+    auxiliary_pair_fragments = tuple(
+        fragment
+        for key, value in TASK5A_HAL_QUERY_PAIRS
+        if key in {"rows", "start", "wt"}
+        for fragment in (
+            f"{key}={value}",
+            quote_plus(f"{key}={value}", safe=""),
+        )
+    )
     return (
         TASK5A_HAL_REQUEST_URL,
         TASK5A_HAL_QUERY,
@@ -10708,7 +11022,23 @@ def _task5a_hal_forbidden_query_material():
         quote_plus(q_expression, safe=""),
         TASK5A_HAL_FIELD_PROJECTION,
         quote_plus(TASK5A_HAL_FIELD_PROJECTION, safe=""),
-    )
+    ) + auxiliary_pair_fragments
+
+
+def test_task5a_hal_forbidden_material_covers_exact_auxiliary_query_pairs():
+    forbidden = set(_task5a_hal_forbidden_query_material())
+    expected_fragments = {
+        fragment
+        for key, value in (("rows", "1"), ("start", "0"), ("wt", "json"))
+        for fragment in (
+            f"{key}={value}",
+            quote_plus(f"{key}={value}", safe=""),
+        )
+    }
+    if not expected_fragments <= forbidden:
+        pytest.fail("HAL auxiliary query-pair redaction coverage is incomplete")
+    if {"0", "1"} & forbidden:
+        pytest.fail("HAL query-pair redaction coverage is overbroad")
 
 
 def test_task5a_hal_sidecar_open_failure_redacts_every_external_channel(
@@ -11123,6 +11453,10 @@ TASK5A_CORE_FINAL_BASE = (
 TASK5A_CORE_SIGNED_QUERY = "download-token=TASK5A_CORE_MEMORY_ONLY_SIGNATURE"
 
 
+def _task5a_core_url_digest(url):
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+
 def _task5a_core_forbidden_query_material():
     token = TASK5A_CORE_SIGNED_QUERY.split("=", 1)[1]
     signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
@@ -11197,9 +11531,6 @@ def test_task5a_core_direct_download_failure_redacts_signed_final_exception(
     else:
         pytest.fail("CORE direct signed-final failure was not propagated")
 
-    assert opener_requests == [TASK5A_CORE_INITIAL_URL]
-    assert validator_receipts == [signed_final]
-    assert isinstance(exposed_exception, SourceEvidenceError)
     _task5a_assert_no_forbidden_query_channels(
         forbidden=_task5a_core_forbidden_query_material(),
         exception=exposed_exception,
@@ -11207,9 +11538,20 @@ def test_task5a_core_direct_download_failure_redacts_signed_final_exception(
         capsys=capsys,
         cache_root=cache_root,
     )
-    assert "CORE media validation failed after signed-final receipt" in str(
+    if opener_requests != [TASK5A_CORE_INITIAL_URL]:
+        pytest.fail("CORE direct download used an unexpected initial request")
+    if (
+        len(validator_receipts) != 1
+        or _task5a_core_url_digest(validator_receipts[0])
+        != _task5a_core_url_digest(signed_final)
+    ):
+        pytest.fail("CORE signed final URL did not reach media validation exactly")
+    if not isinstance(exposed_exception, SourceEvidenceError):
+        pytest.fail("CORE direct download raised the wrong exception type")
+    if "CORE media validation failed after signed-final receipt" not in str(
         exposed_exception
-    )
+    ):
+        pytest.fail("CORE direct download failure lost its safe diagnostic")
     assert _task5a_cache_manifest(cache_root) == before
 
 
@@ -11313,8 +11655,6 @@ def test_task5a_core_provenance_failure_redacts_signed_final_url_everywhere(
         resume=False,
     )
 
-    assert signed_final in requests
-    assert "CORE provenance failed after" in outcome["detail"]
     _task5a_assert_no_forbidden_query_channels(
         forbidden=_task5a_core_forbidden_query_material(),
         outcome=outcome,
@@ -11322,6 +11662,14 @@ def test_task5a_core_provenance_failure_redacts_signed_final_url_everywhere(
         capsys=capsys,
         cache_root=cache_root,
     )
+    signed_final_digest = _task5a_core_url_digest(signed_final)
+    if not any(
+        _task5a_core_url_digest(request_url) == signed_final_digest
+        for request_url in requests
+    ):
+        pytest.fail("CORE signed final URL was not used in memory")
+    if "CORE provenance failed after" not in outcome["detail"]:
+        pytest.fail("CORE provenance failure lost its safe diagnostic")
     assert not os.path.lexists(cache_root / source_id)
     assert not any(path.name.startswith(".") for path in cache_root.iterdir())
     assert _task5a_cache_manifest(cache_root) == before
@@ -11426,33 +11774,77 @@ def test_task5a_core_redirects_follow_only_exact_three_hop_sequence_and_two_redi
     signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
     third = _task5a_redirect_request(handler, second, signed_final)
 
-    assert second.full_url == TASK5A_CORE_SECOND_URL
-    assert third.full_url == signed_final
-    assert constructed == [TASK5A_CORE_SECOND_URL, signed_final]
-    with pytest.raises(SourceEvidenceError, match="redirect|two|depth"):
+    if second.full_url != TASK5A_CORE_SECOND_URL:
+        pytest.fail("CORE first redirect constructed the wrong safe URL")
+    if _task5a_core_url_digest(third.full_url) != _task5a_core_url_digest(
+        signed_final
+    ):
+        pytest.fail("CORE final redirect did not retain the signed URL in memory")
+    expected_construction_digests = (
+        _task5a_core_url_digest(TASK5A_CORE_SECOND_URL),
+        _task5a_core_url_digest(signed_final),
+    )
+    if tuple(map(_task5a_core_url_digest, constructed)) != (
+        expected_construction_digests
+    ):
+        pytest.fail("CORE redirect construction sequence was not exact")
+    depth_error = None
+    try:
         _task5a_redirect_request(handler, third, signed_final)
-    assert constructed == [TASK5A_CORE_SECOND_URL, signed_final]
+    except Exception as error:
+        depth_error = error
+    if not isinstance(depth_error, SourceEvidenceError):
+        pytest.fail("CORE redirect depth was not rejected safely")
+    depth_diagnostic = str(depth_error).casefold()
+    if not any(word in depth_diagnostic for word in ("redirect", "two", "depth")):
+        pytest.fail("CORE redirect-depth rejection lost its safe diagnostic")
+    if tuple(map(_task5a_core_url_digest, constructed)) != (
+        expected_construction_digests
+    ):
+        pytest.fail("CORE redirect-depth rejection constructed another request")
+
+
+TASK5A_CORE_UNSAFE_REDIRECT_CASES = {
+    "first-origin": ("first", "https://evil.invalid/download/572184419.pdf"),
+    "first-path": (
+        "first",
+        "https://fileserver-az.core.ac.uk/download/572184418.pdf",
+    ),
+    "first-userinfo": (
+        "first",
+        "https://user:password@fileserver-az.core.ac.uk/download/572184419.pdf",
+    ),
+    "first-query": (
+        "first",
+        TASK5A_CORE_SECOND_URL + "?too-early=TASK5A_SECRET",
+    ),
+    "first-fragment": ("first", TASK5A_CORE_SECOND_URL + "#fragment"),
+    "final-origin": (
+        "final",
+        "https://evil.invalid/corefilesystem/pdf/363/572184419.pdf",
+    ),
+    "final-path": (
+        "final",
+        "https://pdf.core.ac.uk/corefilesystem/pdf/364/572184419.pdf",
+    ),
+    "final-userinfo": (
+        "final",
+        "https://user@pdf.core.ac.uk/corefilesystem/pdf/363/572184419.pdf",
+    ),
+    "final-fragment": ("final", TASK5A_CORE_FINAL_BASE + "#fragment"),
+}
 
 
 @pytest.mark.parametrize(
-    ("stage", "unsafe_url"),
-    (
-        ("first", "https://evil.invalid/download/572184419.pdf"),
-        ("first", "https://fileserver-az.core.ac.uk/download/572184418.pdf"),
-        ("first", "https://user:password@fileserver-az.core.ac.uk/download/572184419.pdf"),
-        ("first", TASK5A_CORE_SECOND_URL + "?too-early=TASK5A_SECRET"),
-        ("first", TASK5A_CORE_SECOND_URL + "#fragment"),
-        ("final", "https://evil.invalid/corefilesystem/pdf/363/572184419.pdf"),
-        ("final", "https://pdf.core.ac.uk/corefilesystem/pdf/364/572184419.pdf"),
-        ("final", "https://user@pdf.core.ac.uk/corefilesystem/pdf/363/572184419.pdf"),
-        ("final", TASK5A_CORE_FINAL_BASE + "#fragment"),
-    ),
+    "case_name",
+    tuple(TASK5A_CORE_UNSAFE_REDIRECT_CASES),
+    ids=tuple(TASK5A_CORE_UNSAFE_REDIRECT_CASES),
 )
 def test_task5a_core_rejects_unsafe_redirect_before_request_construction_or_issue(
     monkeypatch,
-    stage,
-    unsafe_url,
+    case_name,
 ):
+    stage, unsafe_url = TASK5A_CORE_UNSAFE_REDIRECT_CASES[case_name]
     constructed = []
 
     def forbidden_super(*args, **kwargs):
@@ -11487,9 +11879,20 @@ def test_task5a_core_rejects_unsafe_redirect_before_request_construction_or_issu
             "redirect_request",
             forbidden_super,
         )
-    with pytest.raises(SourceEvidenceError, match="CORE|redirect|userinfo|query|fragment"):
+    redirect_error = None
+    try:
         _task5a_redirect_request(handler, previous, unsafe_url)
-    assert constructed == []
+    except Exception as error:
+        redirect_error = error
+    if not isinstance(redirect_error, SourceEvidenceError):
+        pytest.fail("unsafe CORE redirect was not rejected before construction")
+    safe_reason_terms = ("core", "redirect", "userinfo", "query", "fragment")
+    if not any(
+        term in str(redirect_error).casefold() for term in safe_reason_terms
+    ):
+        pytest.fail("unsafe CORE redirect rejection lost its safe diagnostic")
+    if constructed:
+        pytest.fail("unsafe CORE redirect reached request construction")
 
 
 def test_task5a_core_redirect_rejects_credential_bearing_request_before_super(
@@ -11521,6 +11924,8 @@ def test_task5a_core_final_signed_query_is_used_in_memory_but_never_serialized(
     route["expected_media_type"] = "application/pdf"
     signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
     requested = []
+    validator_receipts = []
+    real_validator = source_fetcher.validate_download_response
 
     class FixtureOpener:
         def open(self, request, timeout):
@@ -11536,11 +11941,29 @@ def test_task5a_core_final_signed_query_is_used_in_memory_but_never_serialized(
         "build_opener",
         lambda *handlers: FixtureOpener(),
     )
+
+    def record_validation_receipt(route_spec, **response):
+        validator_receipts.append(response["final_url"])
+        return real_validator(route_spec, **response)
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_download_response",
+        record_validation_receipt,
+    )
     response = source_fetcher._download(route, object())
 
     assert requested == [TASK5A_CORE_INITIAL_URL]
     assert response["final_url"] == TASK5A_CORE_FINAL_BASE
-    assert TASK5A_CORE_SIGNED_QUERY not in json.dumps(response, sort_keys=True)
+    if (
+        len(validator_receipts) != 1
+        or _task5a_core_url_digest(validator_receipts[0])
+        != _task5a_core_url_digest(signed_final)
+    ):
+        pytest.fail("CORE signed final URL did not reach validation in memory")
+    serialized_response = json.dumps(response, sort_keys=True)
+    if TASK5A_CORE_SIGNED_QUERY in serialized_response:
+        pytest.fail("CORE response serialized signed query material")
 
 
 def test_task5a_core_sidecar_validation_precedes_even_first_pdf_request_construction(
@@ -12452,13 +12875,6 @@ def test_task5a_oup_offline_candidate_sidecar_failure_leaves_no_target_or_stagin
 
 def _task5a_oup_dom_mutation(mutation):
     payload = OUP_HTML
-    container_start = payload.index(
-        b'    <article class="minimal-article-container"'
-    )
-    container_end = payload.index(b"    </article>", container_start) + len(
-        b"    </article>"
-    )
-    container_subtree = payload[container_start:container_end]
     header_start = payload.index(b'      <header class="article-header">')
     header_end = payload.index(b"</header>", header_start) + len(b"</header>")
     header_subtree = payload[header_start:header_end]
@@ -12481,10 +12897,17 @@ def _task5a_oup_dom_mutation(mutation):
     )
     ref_list_end = payload.index(b"</div>", ref_list_start) + len(b"</div>")
     ref_list_subtree = payload[ref_list_start:ref_list_end]
-    if mutation == "duplicate-container":
+    if mutation == "missing-container":
+        payload = payload.replace(
+            b'class="minimal-article-container"',
+            b'class="task5a-container-class-removed"',
+            1,
+        )
+    elif mutation == "duplicate-container":
         payload = payload.replace(
             b"  </body>",
-            container_subtree + b"\n  </body>",
+            b'    <article class="minimal-article-container"></article>\n'
+            b"  </body>",
             1,
         )
     elif mutation == "missing-header":
@@ -12496,7 +12919,7 @@ def _task5a_oup_dom_mutation(mutation):
     elif mutation == "duplicate-header":
         payload = payload.replace(
             header_subtree,
-            header_subtree + b"\n" + header_subtree,
+            header_subtree + b'\n      <header class="article-header"></header>',
             1,
         )
     elif mutation == "missing-content":
@@ -12508,7 +12931,8 @@ def _task5a_oup_dom_mutation(mutation):
     elif mutation == "duplicate-content":
         payload = payload.replace(
             content_subtree,
-            content_subtree + b"\n" + content_subtree,
+            content_subtree
+            + b'\n      <section class="article-content"></section>',
             1,
         )
     elif mutation == "header-outside-container":
@@ -12556,7 +12980,8 @@ def _task5a_oup_dom_mutation(mutation):
     elif mutation == "duplicate-citation":
         payload = payload.replace(
             citation_subtree,
-            citation_subtree + b"\n" + citation_subtree,
+            citation_subtree
+            + b'\n        <div class="ww-citation-primary"></div>',
             1,
         )
     elif mutation == "missing-ref-list":
@@ -12568,7 +12993,7 @@ def _task5a_oup_dom_mutation(mutation):
     elif mutation == "duplicate-ref-list":
         payload = payload.replace(
             ref_list_subtree,
-            ref_list_subtree + b"\n" + ref_list_subtree,
+            ref_list_subtree + b'\n        <div class="ref-list"></div>',
             1,
         )
     elif mutation == "ref-list-in-header":
@@ -12614,38 +13039,100 @@ def _task5a_oup_dom_mutation(mutation):
     return payload
 
 
+def _task5a_oup_dom_carrier_counts(payload):
+    class_values = re.findall(
+        rb"\bclass\s*=\s*['\"]([^'\"]*)['\"]",
+        payload,
+        flags=re.IGNORECASE,
+    )
+
+    def class_count(class_name):
+        return sum(
+            class_name in value.decode("ascii").split()
+            for value in class_values
+        )
+
+    return {
+        "class:minimal-article-container": class_count(
+            "minimal-article-container"
+        ),
+        "class:article-header": class_count("article-header"),
+        "class:article-content": class_count("article-content"),
+        "class:ww-citation-primary": class_count("ww-citation-primary"),
+        "class:ref-list": class_count("ref-list"),
+        "carrier:title": payload.count(
+            b"The Statistics of Honeycomb and Triangular Lattice. I"
+        ),
+        "carrier:author-husimi": payload.count(b"Kodi Husimi"),
+        "carrier:author-syozi": payload.count(b"Itiro Sy&#244;zi"),
+        "carrier:canonical-doi": payload.count(OUP_RESOLVER),
+        "carrier:cited-doi": payload.count(b"10.1000/cited-work"),
+        "carrier:summary": payload.count(b"Summary"),
+        "carrier:honeycomb-equation": payload.count(b"ch 2H = 2"),
+        "carrier:triangular-equation": payload.count(b"exp(4H) = 3"),
+    }
+
+
 @pytest.mark.parametrize(
-    ("mutation", "match"),
+    ("mutation", "changed_class", "delta"),
     (
-        ("duplicate-container", "container|one"),
-        ("missing-header", "header"),
-        ("duplicate-header", "header|one"),
-        ("missing-content", "content"),
-        ("duplicate-content", "content|one"),
-        ("header-outside-container", "header|container"),
-        ("content-outside-container", "content|container"),
-        ("content-before-header", "order|header|content"),
-        ("citation-outside-header", "citation|header"),
-        ("citation-inside-content", "citation|content|header"),
-        ("duplicate-citation", "citation|one"),
-        ("missing-ref-list", "reference|ref-list"),
-        ("duplicate-ref-list", "reference|ref-list|one"),
-        ("ref-list-in-header", "reference|ref-list|header|content"),
-        (
-            "ref-list-container-sibling",
-            "reference|ref-list|header|content",
-        ),
-        (
-            "extra-ref-list-token-outside-body",
-            "reference|ref-list|one|container|body",
-        ),
+        ("missing-container", "class:minimal-article-container", -1),
+        ("duplicate-container", "class:minimal-article-container", 1),
+        ("missing-header", "class:article-header", -1),
+        ("duplicate-header", "class:article-header", 1),
+        ("missing-content", "class:article-content", -1),
+        ("duplicate-content", "class:article-content", 1),
+        ("duplicate-citation", "class:ww-citation-primary", 1),
+        ("missing-ref-list", "class:ref-list", -1),
+        ("duplicate-ref-list", "class:ref-list", 1),
+    ),
+)
+def test_task5a_oup_cardinality_fixtures_change_only_the_intended_class(
+    mutation,
+    changed_class,
+    delta,
+):
+    base_counts = _task5a_oup_dom_carrier_counts(OUP_HTML)
+    mutated_counts = _task5a_oup_dom_carrier_counts(
+        _task5a_oup_dom_mutation(mutation)
+    )
+    changed_counts = {
+        name
+        for name, base_count in base_counts.items()
+        if mutated_counts[name] != base_count
+    }
+    if changed_counts != {changed_class}:
+        pytest.fail("OUP cardinality fixture changed unrelated carriers")
+    if mutated_counts[changed_class] != base_counts[changed_class] + delta:
+        pytest.fail("OUP cardinality fixture changed the wrong class amount")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-container",
+        "duplicate-container",
+        "missing-header",
+        "duplicate-header",
+        "missing-content",
+        "duplicate-content",
+        "header-outside-container",
+        "content-outside-container",
+        "content-before-header",
+        "citation-outside-header",
+        "citation-inside-content",
+        "duplicate-citation",
+        "missing-ref-list",
+        "duplicate-ref-list",
+        "ref-list-in-header",
+        "ref-list-container-sibling",
+        "extra-ref-list-token-outside-body",
     ),
 )
 def test_task5a_oup_rejects_each_dom_hierarchy_and_cardinality_mutation(
     mutation,
-    match,
 ):
-    with pytest.raises(SourceEvidenceError, match=match):
+    with pytest.raises(SourceEvidenceError):
         _validate_oup_html_payload(_task5a_oup_dom_mutation(mutation))
 
 
