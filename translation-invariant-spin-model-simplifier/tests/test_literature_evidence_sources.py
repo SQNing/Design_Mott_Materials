@@ -9335,7 +9335,14 @@ class _Task5AInotifyWatch:
         return _task5a_parse_inotify_payload(payload)
 
     def finish(self):
-        events = self.read_events()
+        try:
+            events = self.read_events()
+        except BaseException as read_error:
+            try:
+                self.close()
+            except BaseException as close_error:
+                raise read_error from close_error
+            raise
         self.close()
         return {"backend": "inotify", "events": events}
 
@@ -9357,6 +9364,22 @@ class _Task5AInotifyWatch:
 
     def __exit__(self, exc_type, exc, traceback):
         self.close()
+
+
+def _task5a_unwatched_inotify_finish_control(root):
+    watch = _Task5AInotifyWatch.__new__(_Task5AInotifyWatch)
+    watch.root = Path(root)
+    watch.libc = ctypes.CDLL(None, use_errno=True)
+    watch.libc.inotify_init1.argtypes = [ctypes.c_int]
+    watch.libc.inotify_init1.restype = ctypes.c_int
+    watch.libc.inotify_rm_watch.argtypes = [ctypes.c_int, ctypes.c_int]
+    watch.libc.inotify_rm_watch.restype = ctypes.c_int
+    watch.fd = watch.libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
+    if watch.fd < 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+    watch.wd = -1
+    return watch
 
 
 TASK5A_STRACE_OPERATIONS = (
@@ -9876,15 +9899,71 @@ def _task5a_finish_strace_then_optional_inotify(
     try:
         strace_observation = strace_observer.finish()
     except BaseException as strace_error:
+        existing_strace_cause = strace_error.__cause__
+        existing_strace_context = strace_error.__context__
         if inotify_observer is not None:
             try:
                 inotify_observer.finish()
             except BaseException as inotify_error:
-                raise strace_error from inotify_error
+                retained_errors = []
+                for retained_error in (
+                    existing_strace_cause,
+                    inotify_error,
+                    existing_strace_context,
+                ):
+                    if retained_error is None or any(
+                        retained_error is existing_error
+                        for existing_error in retained_errors
+                    ):
+                        continue
+                    retained_errors.append(retained_error)
+                if (
+                    len(retained_errors) == 1
+                    and retained_errors[0] is inotify_error
+                ):
+                    raise strace_error from inotify_error
+                aggregate_error = AssertionError(
+                    "multiple observer teardown failures"
+                )
+                aggregate_error.observer_teardown_errors = tuple(
+                    retained_errors
+                )
+                raise strace_error from aggregate_error
         raise
     if inotify_observer is not None:
         inotify_observation = inotify_observer.finish()
     return strace_observation, inotify_observation
+
+
+def _task5a_assert_observer_teardown_failures_reachable(error, expected):
+    aggregate_error = error.__cause__
+    retained_errors = getattr(
+        aggregate_error,
+        "observer_teardown_errors",
+        None,
+    )
+    assert isinstance(retained_errors, tuple)
+    assert len(retained_errors) == len(expected)
+    retained_descriptions = {
+        (type(retained_error).__name__, str(retained_error))
+        for retained_error in retained_errors
+    }
+    assert retained_descriptions == set(expected)
+
+    reachable_descriptions = set()
+    pending = [error]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if not isinstance(current, BaseException) or id(current) in seen:
+            continue
+        seen.add(id(current))
+        reachable_descriptions.add((type(current).__name__, str(current)))
+        pending.extend((current.__cause__, current.__context__))
+        pending.extend(
+            getattr(current, "observer_teardown_errors", ())
+        )
+    assert set(expected) <= reachable_descriptions
 
 
 def _task5a_publication_observer_or_skip(root, trace_path):
@@ -10312,6 +10391,43 @@ def test_task5a_inotify_event_parser_preserves_masks_names_and_move_cookie():
     )
     assert staging_name == ".invocation-owned-staging"
     assert parsed_cookie == cookie
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires Linux inotify")
+def test_task5a_inotify_finish_preserves_read_error_when_close_also_fails(
+    tmp_path,
+    monkeypatch,
+):
+    watch_root = tmp_path / "inotify-read-close-failure"
+    watch_root.mkdir()
+    watch = _task5a_unwatched_inotify_finish_control(watch_root)
+    original_fd = watch.fd
+    real_close = watch.close
+
+    def failing_read_events():
+        raise RuntimeError("inotify read control")
+
+    def close_then_fail():
+        real_close()
+        raise OSError(errno.EIO, "inotify close control")
+
+    monkeypatch.setattr(watch, "read_events", failing_read_events)
+    monkeypatch.setattr(watch, "close", close_then_fail)
+    try:
+        with pytest.raises(
+            RuntimeError,
+            match=r"\Ainotify read control\Z",
+        ) as exception_info:
+            watch.finish()
+        assert isinstance(exception_info.value.__cause__, OSError)
+        assert exception_info.value.__cause__.errno == errno.EIO
+        assert watch.fd == -1
+        with pytest.raises(OSError) as fd_error:
+            os.fstat(original_fd)
+        assert fd_error.value.errno == errno.EBADF
+    finally:
+        if watch.fd >= 0:
+            real_close()
 
 
 @pytest.mark.parametrize(
@@ -10776,6 +10892,8 @@ def test_task5a_strace_process_shutdown_is_idempotent_after_finish(
         "directory-fd-acquisition",
         "strace-finish",
         "both-finishes",
+        "precaused-body-and-inotify",
+        "inotify-read-failure",
     ),
 )
 def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observer(
@@ -10786,10 +10904,15 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
     events = []
     opened_directory_fds = []
     closed_directory_fds = []
+    real_inotify_controls = []
 
     class RequiredStraceControl:
         def finish(self):
             events.append("strace-finish")
+            if failure_stage == "precaused-body-and-inotify":
+                raise AssertionError(
+                    "strace finish control"
+                ) from RuntimeError("preexisting strace cause control")
             if failure_stage in {"strace-finish", "both-finishes"}:
                 raise AssertionError("strace finish control")
             return {"backend": "strace", "records": [], "payload": ""}
@@ -10797,7 +10920,10 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
     class OptionalInotifyControl:
         def finish(self):
             events.append("inotify-finish")
-            if failure_stage == "both-finishes":
+            if failure_stage in {
+                "both-finishes",
+                "precaused-body-and-inotify",
+            }:
                 raise AssertionError("inotify finish control")
             return {"backend": "inotify", "events": []}
 
@@ -10809,6 +10935,17 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
         events.append("inotify-acquisition")
         if failure_stage == "optional-observer-acquisition":
             raise OSError(errno.EIO, "optional observer acquisition control")
+        if failure_stage == "inotify-read-failure":
+            watch = _task5a_unwatched_inotify_finish_control(_root)
+            original_fd = watch.fd
+
+            def failing_read_events():
+                events.append("inotify-read")
+                raise RuntimeError("inotify read control")
+
+            monkeypatch.setattr(watch, "read_events", failing_read_events)
+            real_inotify_controls.append((watch, original_fd))
+            return watch
         return OptionalInotifyControl()
 
     monkeypatch.setattr(
@@ -10821,9 +10958,17 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
         "_task5a_optional_inotify_observer",
         optional_inotify_control,
     )
-    if failure_stage == "directory-fd-acquisition":
+    if failure_stage in {
+        "directory-fd-acquisition",
+        "precaused-body-and-inotify",
+    }:
         def failing_directory_open(*_args, **_kwargs):
-            raise OSError(errno.EMFILE, "directory fd acquisition control")
+            message = (
+                "body acquisition control"
+                if failure_stage == "precaused-body-and-inotify"
+                else "directory fd acquisition control"
+            )
+            raise OSError(errno.EMFILE, message)
 
         monkeypatch.setattr(os, "open", failing_directory_open)
     elif failure_stage == "strace-finish":
@@ -10848,23 +10993,52 @@ def test_task5a_live_noreplace_teardown_reaps_strace_then_closes_optional_observ
         "directory-fd-acquisition": "directory fd acquisition control",
         "strace-finish": "strace finish control",
         "both-finishes": "strace finish control",
+        "precaused-body-and-inotify": "strace finish control",
+        "inotify-read-failure": "inotify read control",
     }[failure_stage]
-    with pytest.raises(
-        (OSError, AssertionError),
-        match=expected_error,
-    ) as exception_info:
-        test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
-            tmp_path
-        )
-    if failure_stage == "both-finishes":
-        assert str(exception_info.value.__cause__) == "inotify finish control"
+    try:
+        with pytest.raises(
+            (OSError, AssertionError, RuntimeError),
+            match=expected_error,
+        ) as exception_info:
+            test_task5a_live_strace_observer_proves_noreplace_hidden_directory_move(
+                tmp_path
+            )
+        if failure_stage == "both-finishes":
+            assert str(exception_info.value.__cause__) == "inotify finish control"
+        elif failure_stage == "precaused-body-and-inotify":
+            _task5a_assert_observer_teardown_failures_reachable(
+                exception_info.value,
+                {
+                    ("RuntimeError", "preexisting strace cause control"),
+                    ("AssertionError", "inotify finish control"),
+                    (
+                        "OSError",
+                        f"[Errno {errno.EMFILE}] body acquisition control",
+                    ),
+                },
+            )
+        elif failure_stage == "inotify-read-failure":
+            watch, original_fd = real_inotify_controls[0]
+            assert type(exception_info.value) is RuntimeError
+            assert str(exception_info.value) == "inotify read control"
+            assert watch.fd == -1
+            with pytest.raises(OSError) as fd_error:
+                os.fstat(original_fd)
+            assert fd_error.value.errno == errno.EBADF
+    finally:
+        for watch, _original_fd in real_inotify_controls:
+            if watch.fd >= 0:
+                watch.close()
 
     expected_events = [
         "strace-acquired",
         "inotify-acquisition",
         "strace-finish",
     ]
-    if failure_stage != "optional-observer-acquisition":
+    if failure_stage == "inotify-read-failure":
+        expected_events.append("inotify-read")
+    elif failure_stage != "optional-observer-acquisition":
         expected_events.append("inotify-finish")
     assert events == expected_events
     assert opened_directory_fds == closed_directory_fds
@@ -11405,7 +11579,19 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
 
 @pytest.mark.parametrize(
     "failure_stage",
-    ("optional-observer-acquisition", "strace-finish", "both-finishes"),
+    (
+        "optional-observer-acquisition",
+        "strace-finish",
+        "both-finishes",
+        "precaused-body-and-inotify",
+        pytest.param(
+            "inotify-read-failure",
+            marks=pytest.mark.skipif(
+                sys.platform != "linux",
+                reason="requires Linux inotify",
+            ),
+        ),
+    ),
 )
 def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observer(
     tmp_path,
@@ -11413,10 +11599,17 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
     failure_stage,
 ):
     events = []
+    real_inotify_controls = []
 
     class RequiredStraceControl:
         def finish(self):
             events.append("strace-finish")
+            if failure_stage == "precaused-body-and-inotify":
+                raise AssertionError(
+                    "public success strace finish control"
+                ) from RuntimeError(
+                    "public success preexisting strace cause control"
+                )
             if failure_stage in {"strace-finish", "both-finishes"}:
                 raise AssertionError("public success strace finish control")
             return {"backend": "strace", "records": [], "payload": ""}
@@ -11424,7 +11617,10 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
     class OptionalInotifyControl:
         def finish(self):
             events.append("inotify-finish")
-            if failure_stage == "both-finishes":
+            if failure_stage in {
+                "both-finishes",
+                "precaused-body-and-inotify",
+            }:
                 raise AssertionError("public success inotify finish control")
             return {"backend": "inotify", "events": []}
 
@@ -11439,6 +11635,17 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
                 errno.EIO,
                 "public success optional observer acquisition control",
             )
+        if failure_stage == "inotify-read-failure":
+            watch = _task5a_unwatched_inotify_finish_control(_root)
+            original_fd = watch.fd
+
+            def failing_read_events():
+                events.append("inotify-read")
+                raise RuntimeError("public success inotify read control")
+
+            monkeypatch.setattr(watch, "read_events", failing_read_events)
+            real_inotify_controls.append((watch, original_fd))
+            return watch
         return OptionalInotifyControl()
 
     monkeypatch.setattr(
@@ -11451,6 +11658,15 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
         "_task5a_optional_inotify_observer",
         optional_inotify_control,
     )
+    if failure_stage == "precaused-body-and-inotify":
+        def failing_fetch_source(*_args, **_kwargs):
+            raise RuntimeError("public success body control")
+
+        monkeypatch.setattr(
+            source_fetcher,
+            "_fetch_source",
+            failing_fetch_source,
+        )
 
     expected_error = {
         "optional-observer-acquisition": (
@@ -11458,26 +11674,66 @@ def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observ
         ),
         "strace-finish": "public success strace finish control",
         "both-finishes": "public success strace finish control",
+        "precaused-body-and-inotify": (
+            "public success strace finish control"
+        ),
+        "inotify-read-failure": "public success inotify read control",
     }[failure_stage]
-    with pytest.raises(
-        (OSError, AssertionError),
-        match=expected_error,
-    ) as exception_info:
-        test_task5a_success_publishes_complete_target_only_after_real_offline_replay(
-            tmp_path,
-            monkeypatch,
-        )
-    if failure_stage == "both-finishes":
-        assert str(exception_info.value.__cause__) == (
-            "public success inotify finish control"
-        )
+    try:
+        with pytest.raises(
+            (OSError, AssertionError, RuntimeError),
+            match=expected_error,
+        ) as exception_info:
+            test_task5a_success_publishes_complete_target_only_after_real_offline_replay(
+                tmp_path,
+                monkeypatch,
+            )
+        if failure_stage == "both-finishes":
+            assert str(exception_info.value.__cause__) == (
+                "public success inotify finish control"
+            )
+        elif failure_stage == "precaused-body-and-inotify":
+            _task5a_assert_observer_teardown_failures_reachable(
+                exception_info.value,
+                {
+                    (
+                        "RuntimeError",
+                        "public success preexisting strace cause control",
+                    ),
+                    (
+                        "AssertionError",
+                        "public success inotify finish control",
+                    ),
+                    ("RuntimeError", "public success body control"),
+                },
+            )
+        elif failure_stage == "inotify-read-failure":
+            watch, original_fd = real_inotify_controls[0]
+            assert type(exception_info.value) is RuntimeError
+            assert str(exception_info.value) == (
+                "public success inotify read control"
+            )
+            assert watch.fd == -1
+            with pytest.raises(OSError) as fd_error:
+                os.fstat(original_fd)
+            assert fd_error.value.errno == errno.EBADF
+    finally:
+        for watch, _original_fd in real_inotify_controls:
+            if watch.fd >= 0:
+                watch.close()
 
     expected_events = [
         "strace-acquired",
         "inotify-acquisition",
         "strace-finish",
     ]
-    if failure_stage in {"strace-finish", "both-finishes"}:
+    if failure_stage == "inotify-read-failure":
+        expected_events.append("inotify-read")
+    elif failure_stage in {
+        "strace-finish",
+        "both-finishes",
+        "precaused-body-and-inotify",
+    }:
         expected_events.append("inotify-finish")
     assert events == expected_events
     assert _task5a_tracer_pid() == 0
