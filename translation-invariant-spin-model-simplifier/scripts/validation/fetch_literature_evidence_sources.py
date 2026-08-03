@@ -1,6 +1,7 @@
 """Fetch or verify authoritative literature payloads with fail-closed routing."""
 
 import argparse
+from collections.abc import Mapping
 import ctypes
 from datetime import datetime, timezone
 import errno
@@ -58,6 +59,15 @@ _HAL_GAREL_QUERY_PAIRS = (
     ("start", "0"),
     ("wt", "json"),
 )
+_CORE_MG_DOI = "10.1088/0305-4470/17/13/020"
+_CORE_MG_INITIAL_URL = "https://core.ac.uk/download/572184419.pdf"
+_CORE_MG_SECOND_URL = (
+    "https://fileserver-az.core.ac.uk/download/572184419.pdf"
+)
+_CORE_MG_FINAL_URL = (
+    "https://pdf.core.ac.uk/corefilesystem/pdf/363/572184419.pdf"
+)
+_CORE_MG_OUTPUT_URL = "https://api.core.ac.uk/v3/outputs/572184419"
 _RENAME_NOREPLACE = 1
 _CREDENTIAL_HEADER_NAMES = {
     "Cookie",
@@ -351,6 +361,23 @@ def _sanitize_url_for_output(url, *, sensitive_values=()):
     return sanitized
 
 
+def _url_query_sensitive_values(url):
+    try:
+        query = urlsplit(url).query
+    except ValueError:
+        return ()
+    if not query:
+        return ()
+    values = [query]
+    for component in query.split("&"):
+        values.append(component)
+        if "=" in component:
+            _name, value = component.split("=", 1)
+            values.append(value)
+            values.append(unquote(value).replace("+", " "))
+    return tuple(dict.fromkeys(value for value in values if value))
+
+
 def _allowed_authorization_origins(route):
     route_spec = route["authoritative_retrieval_route"]
     route_kind = route_spec["kind"]
@@ -584,10 +611,100 @@ class _CredentialRedirectHandler(HTTPRedirectHandler):
         return redirected
 
 
+def _is_exact_core_fulltext_route(route):
+    evidence = route.get("work_identity_evidence")
+    return (
+        route.get("kind") == "institutional_repository_pdf"
+        and route.get("url") == _CORE_MG_INITIAL_URL
+        and route.get("expected_media_type") == "application/pdf"
+        and route.get("artifact_identifier") == "core:572184419"
+        and isinstance(evidence, Mapping)
+        and evidence.get("kind") == "core_same_work_output"
+        and evidence.get("url") == _CORE_MG_OUTPUT_URL
+    )
+
+
+class _CoreFullTextRedirectHandler(_CredentialRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if _credential_values(self.credential_profile) or any(
+            name.casefold() in _CREDENTIAL_HEADER_NAMES_CASEFOLDED
+            for name, _ in req.header_items()
+        ):
+            raise SourceEvidenceError(
+                "CORE redirect rejects credential-bearing request headers"
+            )
+
+        current_url = req.full_url
+        if current_url == _CORE_MG_INITIAL_URL:
+            if newurl != _CORE_MG_SECOND_URL:
+                raise SourceEvidenceError(
+                    "CORE first redirect target is not approved"
+                )
+        elif current_url == _CORE_MG_SECOND_URL:
+            try:
+                parsed = urlsplit(newurl)
+                query_free = _sanitize_url_for_output(newurl)
+            except SourceEvidenceError:
+                raise
+            if parsed.fragment:
+                raise SourceEvidenceError(
+                    "CORE final redirect fragment is forbidden"
+                )
+            if len(parsed.query) > _MAX_SENSITIVE_URL_QUERY_CHARACTERS:
+                raise SourceEvidenceError(
+                    "CORE final redirect query exceeds the safe limit"
+                )
+            if query_free != _CORE_MG_FINAL_URL:
+                raise SourceEvidenceError(
+                    "CORE final redirect target is not approved"
+                )
+        else:
+            raise SourceEvidenceError(
+                "CORE redirect depth exceeds the exact two-hop policy"
+            )
+
+        return super().redirect_request(
+            req,
+            fp,
+            code,
+            msg,
+            headers,
+            newurl,
+        )
+
+
+class _CoreDownloadResponse(dict):
+    """Keep raw CORE bytes available internally but outside serialization."""
+
+    def __init__(self, *, body, **safe_fields):
+        super().__init__(safe_fields)
+        self._body = body
+
+    def __getitem__(self, key):
+        if key == "body":
+            return self._body
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        if key == "body":
+            return self._body
+        return super().get(key, default)
+
+    def __contains__(self, key):
+        return key == "body" or super().__contains__(key)
+
+
 class _HALNoRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise SourceEvidenceError(
             "HAL work identity evidence redirect rejected"
+        )
+
+
+class _CoreOutputNoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise SourceEvidenceError(
+            "CORE work identity evidence redirect rejected"
         )
 
 
@@ -735,18 +852,38 @@ def _fetch_source(
             "expected_media_type": route["expected_media_type"],
             "access_mode": route["access_mode"],
         }
-        response = _download(
-            route_spec,
-            ssl_context,
-            credential_profile=credential_profile,
+        identity = source.get("canonical_identity", {})
+        exact_core_route = (
+            identity.get("kind") == "doi"
+            and str(identity.get("value", "")).casefold() == _CORE_MG_DOI
+            and _is_exact_core_fulltext_route(route_spec)
         )
-        bibliographic = _fetch_bibliographic_metadata(source, ssl_context)
-        evidence = _fetch_work_identity_evidence(
-            source,
-            route,
-            ssl_context,
-            bibliographic_metadata=bibliographic,
-        )
+        if exact_core_route:
+            bibliographic = _fetch_bibliographic_metadata(source, ssl_context)
+            evidence = _fetch_work_identity_evidence(
+                source,
+                route,
+                ssl_context,
+                bibliographic_metadata=bibliographic,
+            )
+            response = _download(
+                route_spec,
+                ssl_context,
+                credential_profile=credential_profile,
+            )
+        else:
+            response = _download(
+                route_spec,
+                ssl_context,
+                credential_profile=credential_profile,
+            )
+            bibliographic = _fetch_bibliographic_metadata(source, ssl_context)
+            evidence = _fetch_work_identity_evidence(
+                source,
+                route,
+                ssl_context,
+                bibliographic_metadata=bibliographic,
+            )
         extension = payload_extension_for_media_type(route["expected_media_type"])
         payload_name = f"source.{extension}"
         provenance = _build_provenance(
@@ -1355,6 +1492,11 @@ def _verify_cached_source(cache_root, source, route):
 
 def _download(route, ssl_context, *, credential_profile=None):
     credential_values = _credential_values(credential_profile)
+    exact_core_route = _is_exact_core_fulltext_route(route)
+    if exact_core_route and credential_values:
+        raise SourceEvidenceError(
+            "CORE full-text route rejects credential-bearing requests"
+        )
     request_url = _validated_request_url(
         route["url"], sensitive_values=credential_values
     )
@@ -1369,9 +1511,14 @@ def _download(route, ssl_context, *, credential_profile=None):
         credential_profile, request_url
     ).items():
         request.add_unredirected_header(name, value)
+    redirect_handler = (
+        _CoreFullTextRedirectHandler(credential_profile)
+        if exact_core_route
+        else _CredentialRedirectHandler(credential_profile)
+    )
     opener = build_opener(
         HTTPSHandler(context=ssl_context),
-        _CredentialRedirectHandler(credential_profile),
+        redirect_handler,
     )
     try:
         with opener.open(request, timeout=60) as response:
@@ -1389,31 +1536,61 @@ def _download(route, ssl_context, *, credential_profile=None):
         final_url_in_memory,
         sensitive_values=credential_values,
     )
-    if _contains_sensitive(body, credential_values):
-        raise SourceEvidenceError("downloaded payload contains sensitive data")
-    media_type = validate_download_response(
-        route,
-        status=status,
-        headers=headers,
-        body=body,
-        final_url=final_url_in_memory,
+    query_sensitive_values = (
+        _url_query_sensitive_values(final_url_in_memory)
+        if exact_core_route
+        else ()
     )
+    response_sensitive_values = tuple(
+        dict.fromkeys((*credential_values, *query_sensitive_values))
+    )
+    if _contains_sensitive(body, response_sensitive_values):
+        raise SourceEvidenceError("downloaded payload contains sensitive data")
+    try:
+        media_type = validate_download_response(
+            route,
+            status=status,
+            headers=headers,
+            body=body,
+            final_url=final_url_in_memory,
+        )
+    except SourceEvidenceError as exc:
+        exc.args = (
+            _sanitize_detail(
+                exc,
+                sensitive_values=credential_values,
+            ),
+        )
+        exc.__cause__ = None
+        exc.__context__ = None
+        if exact_core_route:
+            vars(exc).clear()
+        raise
     safe_headers = {}
     for key, value in headers.items():
-        if _contains_sensitive(key, credential_values):
+        if _contains_sensitive(key, response_sensitive_values):
             raise SourceEvidenceError(
                 "response header name contains sensitive data"
             )
-        if not _contains_sensitive(value, credential_values):
+        if not _contains_sensitive(value, response_sensitive_values):
             safe_headers[key] = value
-    response_mapping = {
-        "body": body,
+    safe_response_fields = {
         "status": status,
         "headers": safe_headers,
         "final_url": final_url,
         "media_type": media_type,
     }
-    if _contains_sensitive(response_mapping, credential_values):
+    if exact_core_route:
+        response_mapping = _CoreDownloadResponse(
+            body=body,
+            **safe_response_fields,
+        )
+    else:
+        response_mapping = {
+            "body": body,
+            **safe_response_fields,
+        }
+    if _contains_sensitive(response_mapping, response_sensitive_values):
         raise SourceEvidenceError("download response contains sensitive data")
     return response_mapping
 
@@ -1434,6 +1611,11 @@ def _fetch_work_identity_evidence(
         "work-identity.html" if media_type == "text/html" else "work-identity.json"
     )
     stable_route_url = _validated_request_url(evidence_route["url"])
+    exact_core_evidence = (
+        evidence_route["kind"] == "core_same_work_output"
+        and stable_route_url == _CORE_MG_OUTPUT_URL
+        and _is_exact_core_fulltext_route(authoritative_route)
+    )
     if evidence_route["kind"] == "hal_same_work_bibliographic_payload":
         if (
             stable_route_url != _HAL_GAREL_API_BASE
@@ -1452,11 +1634,12 @@ def _fetch_work_identity_evidence(
         request_url,
         headers={"Accept": media_type, "User-Agent": USER_AGENT},
     )
-    redirect_handler = (
-        _HALNoRedirectHandler()
-        if evidence_route["kind"] == "hal_same_work_bibliographic_payload"
-        else _CredentialRedirectHandler(None)
-    )
+    if evidence_route["kind"] == "hal_same_work_bibliographic_payload":
+        redirect_handler = _HALNoRedirectHandler()
+    elif exact_core_evidence:
+        redirect_handler = _CoreOutputNoRedirectHandler()
+    else:
+        redirect_handler = _CredentialRedirectHandler(None)
     opener = build_opener(
         HTTPSHandler(context=ssl_context),
         redirect_handler,
@@ -1494,6 +1677,13 @@ def _fetch_work_identity_evidence(
                 "HAL work identity evidence redirected unexpectedly"
             )
         document_base_url = _HAL_GAREL_STABLE_DOCUMENT_URL
+    elif exact_core_evidence:
+        if final_url_in_memory != request_url:
+            raise SourceEvidenceError(
+                "CORE work identity evidence redirected unexpectedly"
+            )
+        stable_route_url = _sanitize_url_for_output(request_url)
+        document_base_url = stable_route_url
     else:
         stable_route_url = _sanitize_url_for_output(request_url)
         document_base_url = _sanitize_url_for_output(final_url_in_memory)
@@ -1561,6 +1751,7 @@ def _fetch_bibliographic_metadata(source, ssl_context):
 
 def _crossref_metadata(doi, ssl_context):
     exact_garel = doi.casefold() == "10.1088/0305-4470/16/10/023"
+    exact_core = doi.casefold() == _CORE_MG_DOI
     url = f"https://api.crossref.org/works/{quote(doi, safe='')}"
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     with urlopen(request, context=ssl_context, timeout=30) as response:
@@ -1574,10 +1765,14 @@ def _crossref_metadata(doi, ssl_context):
     title = _first_text(message.get("title"), "Crossref title")
     venue = _first_text(message.get("container-title"), "Crossref venue")
     raw_authors = message.get("author", [])
-    if exact_garel:
-        if not isinstance(raw_authors, list) or len(raw_authors) != 2:
+    exact_author_count = 2 if exact_garel else 3 if exact_core else None
+    if exact_author_count is not None:
+        if (
+            not isinstance(raw_authors, list)
+            or len(raw_authors) != exact_author_count
+        ):
             raise SourceEvidenceError(
-                "Crossref raw authors must contain exactly two entries"
+                "Crossref raw authors have incorrect cardinality"
             )
         for author in raw_authors:
             if not isinstance(author, dict):
@@ -1785,12 +1980,25 @@ def _sanitize_detail(detail, *, sensitive_values=()):
     if _contains_sensitive(rendered, sensitive_values):
         return "sensitive acquisition detail redacted"
 
+    trailing_url_punctuation = ".,;:!?)]}"
+    query_secrets = []
+    for match in re.finditer(
+        r"https://[^\s\"'<>]+",
+        rendered,
+        flags=re.IGNORECASE,
+    ):
+        candidate = match.group(0).rstrip(trailing_url_punctuation)
+        query_secrets.extend(_url_query_sensitive_values(candidate))
+
     def sanitize_match(match):
+        matched = match.group(0)
+        candidate = matched.rstrip(trailing_url_punctuation)
+        suffix = matched[len(candidate) :]
         try:
             return _sanitize_url_for_output(
-                match.group(0),
+                candidate,
                 sensitive_values=sensitive_values,
-            )
+            ) + suffix
         except SourceEvidenceError:
             return "[redacted-url]"
 
@@ -1800,6 +2008,23 @@ def _sanitize_detail(detail, *, sensitive_values=()):
         rendered,
         flags=re.IGNORECASE,
     )
+    for secret in sorted(
+        {
+            variant
+            for value in query_secrets
+            if value
+            for variant in _bounded_percent_decoded_variants(value)
+            if variant
+        },
+        key=len,
+        reverse=True,
+    ):
+        sanitized = re.sub(
+            re.escape(secret),
+            "[redacted-query]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
     if _contains_sensitive(sanitized, sensitive_values):
         return "sensitive acquisition detail redacted"
     return sanitized

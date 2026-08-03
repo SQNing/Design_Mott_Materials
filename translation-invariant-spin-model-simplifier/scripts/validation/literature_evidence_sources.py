@@ -82,6 +82,23 @@ _GAREL_PDF_URL = (
     "Frustrated_jav16i10p2257.pdf"
 )
 _GAREL_PDF_ARTIFACT = "author-repository:Frustrated_jav16i10p2257.pdf"
+_CORE_MG_DOI = "10.1088/0305-4470/17/13/020"
+_CORE_MG_OUTPUT_ID = 572184419
+_CORE_MG_DOWNLOAD_URL = "https://core.ac.uk/download/572184419.pdf"
+_CORE_MG_OUTPUT_URL = "https://api.core.ac.uk/v3/outputs/572184419"
+_CORE_MG_TITLE = (
+    "The Majumdar-Ghosh chain:Twofold ground state and elementary excitations"
+)
+_CORE_MG_RAW_AUTHORS = (
+    "Caspers, W.J.",
+    "Emmett, K.M.",
+    "Magnus, W.",
+)
+_CORE_MG_AUTHOR_TUPLES = (
+    ("caspers", "wj"),
+    ("emmett", "km"),
+    ("magnus", "w"),
+)
 _HAL_GAREL_EVIDENCE_KIND = "hal_same_work_bibliographic_payload"
 _HAL_GAREL_API_BASE = "https://api.archives-ouvertes.fr/search/"
 _HAL_GAREL_RECORD_IDENTIFIER = "hal-02340631v1"
@@ -113,15 +130,15 @@ _EXACT_AUTHORITATIVE_ROUTES = {
             "url": "https://doi.org/10.1143/ptp.5.2.177",
         },
     },
-    "10.1088/0305-4470/17/13/020": {
+    _CORE_MG_DOI: {
         "kind": "institutional_repository_pdf",
-        "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+        "url": _CORE_MG_DOWNLOAD_URL,
         "expected_media_type": "application/pdf",
         "access_mode": "unattended",
         "artifact_identifier": "core:572184419",
         "work_identity_evidence": {
             "kind": "core_same_work_output",
-            "url": "https://api.core.ac.uk/v3/outputs/572184419",
+            "url": _CORE_MG_OUTPUT_URL,
         },
     },
     _GAREL_DOI: {
@@ -1005,6 +1022,92 @@ def _ordered_author_tuples(authors, *, label):
     return tuple(normalized)
 
 
+def _ordered_bibliographic_author_tuples(authors, *, source_kind):
+    """Return strict ordered ``(family, initials)`` tuples for one source form."""
+
+    if (
+        not isinstance(authors, Sequence)
+        or isinstance(authors, (str, bytes, bytearray))
+        or not authors
+    ):
+        raise SourceEvidenceError(
+            f"work identity {source_kind} author cardinality mismatch"
+        )
+    if source_kind not in {"core", "crossref", "pdf"}:
+        raise SourceEvidenceError(
+            "work identity bibliographic author source kind is invalid"
+        )
+
+    normalized = []
+    seen = set()
+    for author in authors:
+        if not isinstance(author, str) or not author.strip():
+            raise SourceEvidenceError(
+                f"work identity {source_kind} author value is invalid"
+            )
+        rendered = " ".join(unescape(author).split()).casefold()
+        if "," in rendered:
+            if rendered.count(",") != 1:
+                raise SourceEvidenceError(
+                    f"work identity {source_kind} author representation is ambiguous"
+                )
+            family_text, initials_text = (
+                part.strip() for part in rendered.split(",", 1)
+            )
+            family_parts = re.findall(r"[a-z]+", family_text)
+            initial_parts = re.findall(r"[a-z]+", initials_text)
+            if (
+                len(family_parts) != 1
+                or not initial_parts
+                or any(len(part) != 1 for part in initial_parts)
+            ):
+                raise SourceEvidenceError(
+                    f"work identity {source_kind} author representation is ambiguous"
+                )
+            family = family_parts[0]
+            initials = "".join(initial_parts)
+        else:
+            parts = re.findall(r"[a-z]+", rendered)
+            if (
+                len(parts) < 2
+                or any(len(part) != 1 for part in parts[:-1])
+            ):
+                raise SourceEvidenceError(
+                    f"work identity {source_kind} author representation is ambiguous"
+                )
+            family = parts[-1]
+            initials = "".join(parts[:-1])
+
+        author_tuple = (family, initials)
+        if author_tuple in seen:
+            raise SourceEvidenceError(
+                f"work identity {source_kind} author duplicate or collision"
+            )
+        seen.add(author_tuple)
+        normalized.append(author_tuple)
+    return normalized
+
+
+def _require_core_author_agreement(actual, expected, *, label):
+    if len(actual) != len(expected):
+        raise SourceEvidenceError(
+            f"work identity {label} author cardinality mismatch"
+        )
+    if actual == expected:
+        return
+    if set(actual) == set(expected):
+        raise SourceEvidenceError(
+            f"work identity {label} author order mismatch"
+        )
+    if [family for family, _ in actual] == [
+        family for family, _ in expected
+    ]:
+        raise SourceEvidenceError(
+            f"work identity {label} author initials mismatch"
+        )
+    raise SourceEvidenceError(f"work identity {label} authors mismatch")
+
+
 def _validate_hal_crossref_agreement(record, bibliographic_metadata):
     _require_mapping(
         bibliographic_metadata,
@@ -1216,29 +1319,95 @@ def validate_work_identity_document(
     else:
         _require_mapping(document, "work identity evidence document")
     if evidence_kind == "core_same_work_output":
-        expected_output_id = artifact_identifier.removeprefix("core:")
-        if not expected_output_id or str(document.get("id", "")) != expected_output_id:
+        evidence_route = authoritative_route.get("work_identity_evidence")
+        if (
+            canonical_doi != _CORE_MG_DOI
+            or authoritative_route.get("kind")
+            != "institutional_repository_pdf"
+            or authoritative_route.get("url") != _CORE_MG_DOWNLOAD_URL
+            or artifact_identifier != f"core:{_CORE_MG_OUTPUT_ID}"
+            or not isinstance(evidence_route, Mapping)
+            or evidence_route.get("kind") != "core_same_work_output"
+        ):
+            raise SourceEvidenceError("work identity CORE route mismatch")
+        if (
+            type(document.get("id")) is not int
+            or document.get("id") != _CORE_MG_OUTPUT_ID
+        ):
             raise SourceEvidenceError("work identity evidence CORE output ID mismatch")
-        if str(document.get("doi", "")).casefold() != canonical_doi:
+        if document.get("doi") != _CORE_MG_DOI:
             raise SourceEvidenceError("work identity evidence canonical DOI mismatch")
+        if document.get("title") != _CORE_MG_TITLE:
+            raise SourceEvidenceError("work identity evidence CORE title mismatch")
+        if document.get("fulltextStatus") != "enabled":
+            raise SourceEvidenceError(
+                "work identity evidence CORE fulltext status mismatch"
+            )
+        if document.get("downloadUrl") != _CORE_MG_DOWNLOAD_URL:
+            raise SourceEvidenceError(
+                "work identity evidence CORE download URL mismatch"
+            )
         authors = document.get("authors")
-        if not isinstance(authors, list):
-            raise SourceEvidenceError("work identity evidence CORE authors are missing")
-        author_names = [
-            author.get("name") if isinstance(author, Mapping) else author
-            for author in authors
-        ]
-        _validate_same_work_bibliographic_metadata(
-            canonical_doi=canonical_doi,
-            title=document.get("title"),
-            authors=author_names,
-            bibliographic_metadata=bibliographic_metadata,
+        if not isinstance(authors, list) or len(authors) != len(
+            _CORE_MG_RAW_AUTHORS
+        ):
+            raise SourceEvidenceError(
+                "work identity evidence CORE author cardinality mismatch"
+            )
+        if not all(isinstance(author, Mapping) for author in authors):
+            raise SourceEvidenceError(
+                "work identity evidence CORE author value is invalid"
+            )
+        author_names = [author.get("name") for author in authors]
+        core_author_tuples = _ordered_bibliographic_author_tuples(
+            author_names,
+            source_kind="core",
         )
-        location_urls = {
-            document.get(field)
-            for field in ("downloadUrl", "fullTextLink", "pdfUrl")
-            if isinstance(document.get(field), str)
-        }
+        _require_core_author_agreement(
+            core_author_tuples,
+            list(_CORE_MG_AUTHOR_TUPLES),
+            label="CORE",
+        )
+        if tuple(author_names) != _CORE_MG_RAW_AUTHORS:
+            raise SourceEvidenceError(
+                "work identity evidence CORE raw author value mismatch"
+            )
+
+        _require_mapping(
+            bibliographic_metadata,
+            "work identity bibliographic metadata",
+        )
+        if bibliographic_metadata.get("doi") != _CORE_MG_DOI:
+            raise SourceEvidenceError(
+                "work identity DOI bibliographic metadata mismatch"
+            )
+        if bibliographic_metadata.get("title") != _CORE_MG_TITLE:
+            raise SourceEvidenceError(
+                "work identity bibliographic title mismatch"
+            )
+        crossref_authors = bibliographic_metadata.get("authors")
+        if (
+            not isinstance(crossref_authors, Sequence)
+            or isinstance(crossref_authors, (str, bytes, bytearray))
+            or len(crossref_authors) != len(_CORE_MG_AUTHOR_TUPLES)
+        ):
+            raise SourceEvidenceError(
+                "work identity Crossref author cardinality mismatch"
+            )
+        crossref_author_tuples = _ordered_bibliographic_author_tuples(
+            crossref_authors,
+            source_kind="crossref",
+        )
+        _require_core_author_agreement(
+            crossref_author_tuples,
+            list(_CORE_MG_AUTHOR_TUPLES),
+            label="Crossref",
+        )
+        if crossref_author_tuples != core_author_tuples:
+            raise SourceEvidenceError(
+                "work identity CORE/Crossref author order mismatch"
+            )
+        location_urls = {_CORE_MG_DOWNLOAD_URL}
     elif evidence_kind.startswith("openalex_"):
         reported_doi = str(document.get("doi", ""))
         if reported_doi.casefold() != f"https://doi.org/{canonical_doi}":
