@@ -8841,8 +8841,10 @@ def test_round11_new_json_sidecar_write_immediately_replays_one_snapshot(
     source_dir = tmp_path / source["source_id"]
     sidecar_path = source_dir / "work-identity.json"
     primary_final_url = route["authoritative_retrieval_route"]["url"]
-    real_open = Path.open
-    sidecar_reads = []
+    sidecar_reads, _real_io_open = _task5a_install_snapshot_read_recorder(
+        monkeypatch,
+        tmp_path,
+    )
 
     class FixtureOpener:
         def open(self, request, timeout):
@@ -8859,13 +8861,6 @@ def test_round11_new_json_sidecar_write_immediately_replays_one_snapshot(
                 final_url=fixture["sidecar_final_url"],
             )
 
-    def one_read_only(path, mode="r", *args, **kwargs):
-        if path == sidecar_path and "r" in mode:
-            sidecar_reads.append(mode)
-            if len(sidecar_reads) > 1:
-                raise AssertionError("immediate replay read JSON sidecar twice")
-        return real_open(path, mode, *args, **kwargs)
-
     monkeypatch.setattr(source_fetcher, "_ssl_context", lambda path: object())
     monkeypatch.setattr(
         source_fetcher,
@@ -8877,8 +8872,6 @@ def test_round11_new_json_sidecar_write_immediately_replays_one_snapshot(
         "build_opener",
         lambda *handlers: FixtureOpener(),
     )
-    monkeypatch.setattr(Path, "open", one_read_only)
-
     outcome = source_fetcher._fetch_source(
         tmp_path,
         source,
@@ -8888,7 +8881,14 @@ def test_round11_new_json_sidecar_write_immediately_replays_one_snapshot(
     )
 
     assert outcome["status"] == "acquired"
-    assert sidecar_reads == ["rb"]
+    assert len(sidecar_reads) == 1
+    operation, replay_path, _mode, _flags = sidecar_reads[0]
+    assert operation in {"io.open", "builtins.open", "os.open"}
+    assert replay_path.name == sidecar_path.name
+    assert replay_path.parent.parent == tmp_path
+    assert replay_path.parent.name.startswith(".literature-evidence-staging-")
+    assert replay_path != sidecar_path
+    assert sidecar_path.is_file()
 
 
 def test_round11_invalid_downloaded_json_sidecar_fails_before_any_cache_write(
