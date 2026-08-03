@@ -737,6 +737,13 @@ class _HALNoRedirectHandler(HTTPRedirectHandler):
         )
 
 
+class _OUPNoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise SourceEvidenceError(
+            "OUP work identity evidence redirect rejected"
+        )
+
+
 class _CoreOutputNoRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise SourceEvidenceError(
@@ -1666,6 +1673,13 @@ def _fetch_work_identity_evidence(
     evidence_route = authoritative_route["work_identity_evidence"]
     if evidence_route["kind"] == "canonical_identity":
         return None
+    exact_oup_evidence = evidence_route["kind"] == "crossref_oup_same_work"
+    if exact_oup_evidence and not _is_exact_oup_route(
+        source.get("canonical_identity"),
+        authoritative_route,
+        source_id=source.get("source_id"),
+    ):
+        raise SourceEvidenceError("OUP Crossref evidence route is invalid")
     media_type = (
         "text/html"
         if evidence_route["kind"] == "author_publications_same_work"
@@ -1698,7 +1712,9 @@ def _fetch_work_identity_evidence(
         request_url,
         headers={"Accept": media_type, "User-Agent": USER_AGENT},
     )
-    if evidence_route["kind"] == "hal_same_work_bibliographic_payload":
+    if exact_oup_evidence:
+        redirect_handler = _OUPNoRedirectHandler()
+    elif evidence_route["kind"] == "hal_same_work_bibliographic_payload":
         redirect_handler = _HALNoRedirectHandler()
     elif exact_core_evidence:
         redirect_handler = _CoreOutputNoRedirectHandler()
@@ -1735,7 +1751,6 @@ def _fetch_work_identity_evidence(
         )
     else:
         document = payload
-    exact_oup_evidence = evidence_route["kind"] == "crossref_oup_same_work"
     if exact_oup_evidence:
         if not _is_exact_oup_route(
             source.get("canonical_identity"),

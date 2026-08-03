@@ -3342,6 +3342,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
     _TRACKED_CLASSES = (
         "minimal-article-container",
         "article-header",
+        "authors",
         "article-content",
         "ww-citation-primary",
         "ref-list",
@@ -3359,6 +3360,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
         self.serial = 0
         self.visible_text = _RenderedTextBlocks()
         self.outside_reference_text = _RenderedTextBlocks()
+        self.all_outside_reference_text = _RenderedTextBlocks()
         self.nodes_by_class = {
             class_name: [] for class_name in self._TRACKED_CLASSES
         }
@@ -3450,6 +3452,11 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
         )
         in_reference = parent_reference or "ref-list" in class_names
         in_citation = parent_citation or "ww-citation-primary" in class_names
+        if (
+            (not in_reference and tag in _VISIBLE_BLOCK_ELEMENTS)
+            or (in_reference and not parent_reference)
+        ):
+            self.all_outside_reference_text.boundary()
         if not in_body and (
             tag in {"article", "main"}
             or any(name in class_names for name in self._TRACKED_CLASSES)
@@ -3603,6 +3610,14 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
                 frame["active_anchor"]["text_builder"].boundary()
             if frame["active_h1"] is not None:
                 frame["active_h1"]["text_builder"].boundary()
+        parent_in_reference = (
+            self.frames[-2]["in_reference"] if len(self.frames) > 1 else False
+        )
+        if (
+            (not frame["in_reference"] and tag in _VISIBLE_BLOCK_ELEMENTS)
+            or (frame["in_reference"] and not parent_in_reference)
+        ):
+            self.all_outside_reference_text.boundary()
         self.frames.pop()
         if tag == "body":
             self.body_closed = True
@@ -3617,6 +3632,8 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
                 )
             return
         frame = self.frames[-1]
+        if not frame["in_reference"]:
+            self.all_outside_reference_text.append(data)
         if frame["hidden"] or frame["in_inert"]:
             return
         if not frame["in_container"]:
@@ -3649,6 +3666,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
     def _validate_topology(self):
         container = self._one_node("minimal-article-container")
         header = self._one_node("article-header")
+        authors = self._one_node("authors")
         content = self._one_node("article-content")
         citation = self._one_node("ww-citation-primary")
         reference = self._one_node("ref-list")
@@ -3663,6 +3681,15 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
         if container["id"] not in content["ancestor_ids"]:
             raise SourceEvidenceError(
                 "OUP DOM article-content must descend from minimal-article-container"
+            )
+        if authors["hidden"]:
+            raise SourceEvidenceError("OUP DOM authors byline must be visible")
+        if (
+            header["id"] not in authors["ancestor_ids"]
+            or content["id"] in authors["ancestor_ids"]
+        ):
+            raise SourceEvidenceError(
+                "OUP DOM authors byline must descend only from article-header"
             )
         if header["id"] >= content["id"]:
             raise SourceEvidenceError(
@@ -3682,9 +3709,9 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             raise SourceEvidenceError(
                 "OUP DOM ref-list must descend only from article-content"
             )
-        return container, header, content, citation, reference
+        return container, header, authors, content, citation, reference
 
-    def _validate_identity(self, header, content, citation, reference):
+    def _validate_identity(self, header, authors, content, citation, reference):
         header_text = self._node_text(header)
         content_text = self._node_text(content)
         header_h1s = [
@@ -3698,9 +3725,8 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
         ]
         if h1_texts != [_OUP_HUSIMI_SYOZI_TITLE]:
             raise SourceEvidenceError("OUP HTML header title mismatch")
-        for author in ("Kodi Husimi", "Itiro Syôzi"):
-            if author not in header_text:
-                raise SourceEvidenceError("OUP HTML header author mismatch")
+        if self._node_text(authors) != "Kodi Husimi and Itiro Syôzi":
+            raise SourceEvidenceError("OUP HTML header author mismatch")
         header_coordinates = (
             (r"\bVolume\s+5\b", "volume"),
             (r"\bIssue\s+2\b", "issue"),
@@ -3776,6 +3802,22 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             raise SourceEvidenceError(
                 "OUP HTML contains a conflicting or second DOI carrier outside ref-list"
             )
+        all_outside_blocks = self.all_outside_reference_text.blocks()
+        all_doi_values, all_valid_carriers = _visible_text_doi_values(
+            all_outside_blocks
+        )
+        all_doi_occurrences = sum(
+            len(_ANY_DOI_VALUE.findall(block))
+            for block in all_outside_blocks
+        )
+        if (
+            not all_valid_carriers
+            or all_doi_values != {_OUP_HUSIMI_SYOZI_DOI}
+            or all_doi_occurrences != 1
+        ):
+            raise SourceEvidenceError(
+                "OUP HTML contains a conflicting or second DOI carrier outside ref-list"
+            )
 
     def result(self):
         if not self.root_seen or not self.root_closed:
@@ -3808,13 +3850,26 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             and _OUP_HUSIMI_SYOZI_TITLE not in outside_container_text
         ):
             raise SourceEvidenceError("OUP HTML header title mismatch")
-        _, header, content, citation, reference = self._validate_topology()
+        (
+            _,
+            header,
+            authors,
+            content,
+            citation,
+            reference,
+        ) = self._validate_topology()
         visible_blocks = self.visible_text.blocks()
         if not visible_blocks:
             raise SourceEvidenceError(
                 f"{self.context} contains no nonempty visible article body"
             )
-        self._validate_identity(header, content, citation, reference)
+        self._validate_identity(
+            header,
+            authors,
+            content,
+            citation,
+            reference,
+        )
         return "\n".join(visible_blocks)
 
 
