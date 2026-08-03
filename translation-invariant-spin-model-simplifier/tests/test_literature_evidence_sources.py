@@ -15956,9 +15956,8 @@ def test_task5a_oup_css_v2_matches_three_live_child_and_descendant_selectors_wit
         selector + b" { display:none }"
         for selector in TASK5A_OUP_LIVE_HIDING_SELECTORS
     )
-    assert _validate_oup_html_payload(
-        _task5a_oup_css_v2_payload(stylesheet)
-    ) == "text/html"
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier|ref-list"):
+        _validate_oup_html_payload(_task5a_oup_css_v2_payload(stylesheet))
 
 
 @pytest.mark.parametrize(
@@ -16010,9 +16009,8 @@ def test_task5a_oup_css_v2_preserves_nonhiding_complex_selectors_and_statement_a
             for selector in TASK5A_OUP_LIVE_HIDING_SELECTORS
         )
     )
-    assert _validate_oup_html_payload(
-        _task5a_oup_css_v2_payload(stylesheet)
-    ) == "text/html"
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier|ref-list"):
+        _validate_oup_html_payload(_task5a_oup_css_v2_payload(stylesheet))
 
 
 def test_task5a_oup_css_v2_rejects_external_stylesheet_without_fetch(monkeypatch):
