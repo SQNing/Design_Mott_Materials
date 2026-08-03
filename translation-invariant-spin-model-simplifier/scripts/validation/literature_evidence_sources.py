@@ -2721,7 +2721,7 @@ _DOI_RESOLVER_SHAPE = re.compile(
     r"https://(?:doi\.org|doi\.org:443)/[^\s?#]+\Z",
     flags=re.IGNORECASE,
 )
-_DOI_LABEL_BEFORE_VALUE = re.compile(r"doi\s*:\s*\Z", flags=re.IGNORECASE)
+_DOI_LABEL = re.compile(r"doi", flags=re.IGNORECASE)
 _OUP_PERCENT_ENCODED_SLASH = re.compile(r"%2f", flags=re.IGNORECASE)
 
 
@@ -2821,14 +2821,14 @@ def _has_presentation_opener(text, start, opener):
         and (start == 1 or text[start - 2].isspace())
     ):
         return True
-    label = _DOI_LABEL_BEFORE_VALUE.search(text[:start])
+    label_start = _labelled_doi_start(text, start)
     return bool(
-        label is not None
-        and label.start() > 0
-        and text[label.start() - 1] == opener
+        label_start is not None
+        and label_start > 0
+        and text[label_start - 1] == opener
         and (
-            label.start() == 1
-            or text[label.start() - 2].isspace()
+            label_start == 1
+            or text[label_start - 2].isspace()
         )
     )
 
@@ -2847,8 +2847,9 @@ def _text_doi_has_removable_closer(text, match, value):
 
 def _normalized_text_doi_value(text, match):
     value = match.group(0)
-    following = text[match.end() :]
-    at_terminal_boundary = not following or following[0].isspace()
+    at_terminal_boundary = (
+        match.end() == len(text) or text[match.end()].isspace()
+    )
     if value.endswith((",", ".")) and at_terminal_boundary:
         value = value[:-1]
     if _text_doi_has_removable_closer(text, match, value):
@@ -2869,11 +2870,29 @@ def _starts_at_visible_presentation_boundary(text, start):
     return opener == 0 or text[opener - 1].isspace()
 
 
+def _labelled_doi_start(text, start):
+    cursor = start
+    while cursor > 0 and text[cursor - 1].isspace():
+        cursor -= 1
+    if cursor == 0 or text[cursor - 1] != ":":
+        return None
+    cursor -= 1
+    while cursor > 0 and text[cursor - 1].isspace():
+        cursor -= 1
+    label_start = cursor - 3
+    if (
+        label_start < 0
+        or _DOI_LABEL.fullmatch(text, label_start, cursor) is None
+    ):
+        return None
+    return label_start
+
+
 def _has_labelled_doi_boundary(text, start):
-    label = _DOI_LABEL_BEFORE_VALUE.search(text[:start])
-    return label is not None and _starts_at_visible_presentation_boundary(
+    label_start = _labelled_doi_start(text, start)
+    return label_start is not None and _starts_at_visible_presentation_boundary(
         text,
-        label.start(),
+        label_start,
     )
 
 
@@ -2888,17 +2907,16 @@ def _visible_text_doi_values(blocks):
     valid_carriers = True
     for block in blocks:
         resolver_carriers = []
-        seen_resolver_tokens = set()
+        covered_token_end = 0
         for marker in _DOI_RESOLVER_MARKER.finditer(block):
+            if marker.start() < covered_token_end:
+                continue
             token_start, token_end = _text_token_bounds(
                 block,
                 marker.start(),
                 marker.end(),
             )
-            token_bounds = (token_start, token_end)
-            if token_bounds in seen_resolver_tokens:
-                continue
-            seen_resolver_tokens.add(token_bounds)
+            covered_token_end = token_end
             token = _trim_visible_url_presentation(
                 block[token_start:token_end]
             )
