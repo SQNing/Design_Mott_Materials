@@ -27,7 +27,9 @@ import xml.etree.ElementTree as ElementTree
 from validation.literature_evidence_inventory import load_and_validate_inventory
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
+    _is_exact_oup_route,
     _load_json_bytes,
+    _oup_crossref_bibliographic_metadata,
     _pdftotext_version,
     arxiv_atom_identifier_matches,
     authoritative_origin_for_route_kind,
@@ -892,7 +894,25 @@ def _fetch_source(
             and str(identity.get("value", "")).casefold() == _CORE_MG_DOI
             and _is_exact_core_fulltext_route(route_spec)
         )
-        if exact_core_route:
+        exact_oup_route = _is_exact_oup_route(
+            identity,
+            route_spec,
+            source_id=source_id,
+        )
+        if exact_oup_route:
+            evidence = _fetch_work_identity_evidence(
+                source,
+                route,
+                ssl_context,
+                bibliographic_metadata=None,
+            )
+            bibliographic = evidence["bibliographic_metadata"]
+            response = _download(
+                route_spec,
+                ssl_context,
+                credential_profile=credential_profile,
+            )
+        elif exact_core_route:
             bibliographic = _fetch_bibliographic_metadata(source, ssl_context)
             evidence = _fetch_work_identity_evidence(
                 source,
@@ -1715,7 +1735,24 @@ def _fetch_work_identity_evidence(
         )
     else:
         document = payload
-    if evidence_route["kind"] == "hal_same_work_bibliographic_payload":
+    exact_oup_evidence = evidence_route["kind"] == "crossref_oup_same_work"
+    if exact_oup_evidence:
+        if not _is_exact_oup_route(
+            source.get("canonical_identity"),
+            authoritative_route,
+            source_id=source.get("source_id"),
+        ):
+            raise SourceEvidenceError("OUP Crossref evidence route is invalid")
+        if final_url_in_memory != request_url:
+            raise SourceEvidenceError(
+                "OUP Crossref work identity evidence redirected unexpectedly"
+            )
+        bibliographic_metadata = _oup_crossref_bibliographic_metadata(
+            document
+        )
+        stable_route_url = _sanitize_url_for_output(request_url)
+        document_base_url = stable_route_url
+    elif evidence_route["kind"] == "hal_same_work_bibliographic_payload":
         if final_url_in_memory != request_url:
             raise SourceEvidenceError(
                 "HAL work identity evidence redirected unexpectedly"
@@ -1753,7 +1790,7 @@ def _fetch_work_identity_evidence(
             "doi": source["canonical_identity"].get("value", ""),
         },
     )
-    return {
+    result = {
         "payload": payload,
         "descriptor": {
             "kind": evidence_route["kind"],
@@ -1765,6 +1802,9 @@ def _fetch_work_identity_evidence(
             "payload_byte_length": payload_byte_length,
         },
     }
+    if exact_oup_evidence:
+        result["bibliographic_metadata"] = bibliographic_metadata
+    return result
 
 
 def _write_work_identity_sidecars(source_dir, evidence):
@@ -1915,9 +1955,18 @@ def _build_provenance(
             "deterministic": True,
         }
     elif response["media_type"] == "text/html":
+        descriptor_version = (
+            2
+            if _is_exact_oup_route(
+                identity,
+                retrieval_route,
+                source_id=source.get("source_id"),
+            )
+            else 1
+        )
         extraction = {
             "tool": "stdlib_html_visible_text",
-            "version": 1,
+            "version": descriptor_version,
             "deterministic": True,
             "arguments": [],
         }

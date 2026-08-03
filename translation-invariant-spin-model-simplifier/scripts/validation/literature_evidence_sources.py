@@ -102,6 +102,18 @@ _CORE_MG_AUTHOR_TUPLES = (
     ("emmett", "km"),
     ("magnus", "w"),
 )
+_OUP_HUSIMI_SYOZI_DOI = "10.1143/ptp/5.2.177"
+_OUP_HUSIMI_SYOZI_SOURCE_ID = "doi_457c49167653440059e9"
+_OUP_HUSIMI_SYOZI_TITLE = (
+    "The Statistics of Honeycomb and Triangular Lattice. I"
+)
+_OUP_HUSIMI_SYOZI_AUTHOR_TUPLES = (("Husimi", "K"), ("Syozi", "I"))
+_OUP_HUSIMI_SYOZI_VENUE = "Progress of Theoretical Physics"
+_OUP_HUSIMI_SYOZI_PUBLICATION_DATE = "1950-03-01"
+_OUP_HUSIMI_SYOZI_PRIMARY_RESOURCE_URL = (
+    "https://academic.oup.com/ptp/article-lookup/doi/"
+    "10.1143/ptp/5.2.177"
+)
 _HAL_GAREL_EVIDENCE_KIND = "hal_same_work_bibliographic_payload"
 _HAL_GAREL_API_BASE = "https://api.archives-ouvertes.fr/search/"
 _HAL_GAREL_RECORD_IDENTIFIER = "hal-02340631v1"
@@ -122,7 +134,7 @@ _HAL_GAREL_ISTEX_URL = (
     "fulltext/pdf?sid=hal"
 )
 _EXACT_AUTHORITATIVE_ROUTES = {
-    "10.1143/ptp/5.2.177": {
+    _OUP_HUSIMI_SYOZI_DOI: {
         "kind": "oup_minimal_html",
         "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
         "expected_media_type": "text/html",
@@ -169,6 +181,63 @@ _EXACT_AUTHORITATIVE_ROUTES = {
         },
     },
 }
+
+
+def _is_exact_oup_route(identity, authoritative_route, *, source_id=None):
+    """Return whether all supplied values name the one approved OUP route."""
+
+    if not isinstance(identity, Mapping) or not isinstance(
+        authoritative_route, Mapping
+    ):
+        return False
+    if source_id is not None and source_id != _OUP_HUSIMI_SYOZI_SOURCE_ID:
+        return False
+    return (
+        identity.get("kind") == "doi"
+        and identity.get("value") == _OUP_HUSIMI_SYOZI_DOI
+        and dict(authoritative_route)
+        == _EXACT_AUTHORITATIVE_ROUTES[_OUP_HUSIMI_SYOZI_DOI]
+    )
+
+
+def _is_exact_oup_authoritative_route(authoritative_route):
+    return isinstance(authoritative_route, Mapping) and dict(
+        authoritative_route
+    ) == _EXACT_AUTHORITATIVE_ROUTES[_OUP_HUSIMI_SYOZI_DOI]
+
+
+def _oup_crossref_bibliographic_metadata(document):
+    """Derive the ordinary provenance metadata from one parsed OUP snapshot."""
+
+    _require_mapping(document, "OUP Crossref response")
+    message = document.get("message")
+    _require_mapping(message, "OUP Crossref response message")
+    title = message.get("title")
+    if not isinstance(title, list) or title != [_OUP_HUSIMI_SYOZI_TITLE]:
+        raise SourceEvidenceError("OUP Crossref title mismatch")
+    authors = message.get("author")
+    if not isinstance(authors, list) or len(authors) != 2:
+        raise SourceEvidenceError("OUP Crossref author cardinality mismatch")
+    if any(not isinstance(author, Mapping) for author in authors):
+        raise SourceEvidenceError("OUP Crossref author shape is invalid")
+    rendered_authors = []
+    for author in authors:
+        given = author.get("given")
+        family = author.get("family")
+        if (
+            not isinstance(given, str)
+            or not given.strip()
+            or not isinstance(family, str)
+            or not family.strip()
+        ):
+            raise SourceEvidenceError("OUP Crossref author shape is invalid")
+        rendered_authors.append(f"{given.strip()} {family.strip()}")
+    return {
+        "title": title[0],
+        "authors": rendered_authors,
+        "venue": _OUP_HUSIMI_SYOZI_VENUE,
+        "publication_date": _OUP_HUSIMI_SYOZI_PUBLICATION_DATE,
+    }
 
 
 def payload_extension_for_media_type(media_type):
@@ -441,9 +510,11 @@ def validate_download_response(route, *, status, headers, body, final_url):
             raise SourceEvidenceError("Elsevier response is minimized metadata, not full text")
         _xml_article_text(body, context="downloaded XML")
     elif expected == "text/html":
+        exact_oup_route = _is_exact_oup_authoritative_route(route)
         visible_text, html_hrefs, html_doi_metadata = _html_visible_document(
             body,
             context="downloaded HTML",
+            descriptor_version=2 if exact_oup_route else 1,
         )
         lowered = visible_text.casefold()
         challenge_markers = (
@@ -455,7 +526,7 @@ def validate_download_response(route, *, status, headers, body, final_url):
         )
         if any(marker in lowered for marker in challenge_markers):
             raise SourceEvidenceError("downloaded HTML is a challenge or access-denied page")
-        if route.get("kind") == "oup_minimal_html":
+        if route.get("kind") == "oup_minimal_html" and not exact_oup_route:
             _validate_husimi_syozi_visible_text(
                 visible_text,
                 hrefs=html_hrefs,
@@ -533,20 +604,27 @@ def load_verified_source(
         raise SourceEvidenceError("payload byte length does not match provenance")
     _validate_coordinates(raw["artifact_coordinates"], len(payload))
 
+    authoritative_route = provisioning_route.get(
+        "authoritative_retrieval_route", {}
+    )
+    exact_oup_route = _is_exact_oup_route(
+        raw["source_identity"],
+        authoritative_route,
+        source_id=raw["source_id"],
+    )
     extracted_text = _extract_text(
-        payload_path, payload, media_type, raw["text_extraction"]
+        payload_path,
+        payload,
+        media_type,
+        raw["text_extraction"],
+        html_descriptor_version=2 if exact_oup_route else 1,
     )
-    route_kind = provisioning_route.get("authoritative_retrieval_route", {}).get(
-        "kind"
-    )
-    if route_kind == "oup_minimal_html":
+    route_kind = authoritative_route.get("kind")
+    if route_kind == "oup_minimal_html" and not exact_oup_route:
         _validate_husimi_syozi_html_payload(
             payload,
             context="OUP offline HTML payload",
         )
-    authoritative_route = provisioning_route.get(
-        "authoritative_retrieval_route", {}
-    )
     if _is_exact_garel_hal_route(raw["source_identity"], authoritative_route):
         _validate_garel_hal_crossref_pdf_agreement(
             work_identity_document,
@@ -910,6 +988,7 @@ def _validate_work_identity_payload(
 ):
     route = provisioning_route.get("authoritative_retrieval_route", {})
     expected = route.get("work_identity_evidence", {})
+    exact_oup_route = _is_exact_oup_route(identity, route)
     if expected.get("kind") in {None, "canonical_identity"}:
         return None
     stored = metadata["work_identity_evidence"]
@@ -940,6 +1019,36 @@ def _validate_work_identity_payload(
                 "work identity sidecar provenance has invalid fields"
             )
         sidecar_route_reference = stored
+    if exact_oup_route:
+        exact_descriptor_fields = {
+            "kind",
+            "url",
+            "document_base_url",
+            "media_type",
+            "payload_relative_path",
+            "payload_sha256",
+            "payload_byte_length",
+        }
+        if set(descriptor) != exact_descriptor_fields:
+            raise SourceEvidenceError(
+                "OUP work identity sidecar provenance has invalid fields"
+            )
+        if (
+            descriptor.get("kind") != "crossref_oup_same_work"
+            or descriptor.get("url") != expected.get("url")
+            or descriptor.get("document_base_url") != expected.get("url")
+            or descriptor.get("media_type") != "application/json"
+            or descriptor.get("payload_relative_path")
+            != "work-identity.json"
+            or not isinstance(descriptor.get("payload_sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", descriptor["payload_sha256"])
+            is None
+            or type(descriptor.get("payload_byte_length")) is not int
+            or descriptor["payload_byte_length"] <= 0
+        ):
+            raise SourceEvidenceError(
+                "OUP work identity sidecar provenance is invalid"
+            )
     if (
         descriptor.get("kind") == _HAL_GAREL_EVIDENCE_KIND
         and "media_type" not in descriptor
@@ -1412,6 +1521,125 @@ def _validate_core_crossref_pdf_agreement(
         )
 
 
+def _validate_oup_crossref_same_work(
+    document,
+    *,
+    identity,
+    authoritative_route,
+    bibliographic_metadata,
+):
+    if not _is_exact_oup_route(identity, authoritative_route):
+        raise SourceEvidenceError("OUP Crossref route mismatch")
+    evidence_route = authoritative_route.get("work_identity_evidence")
+    if evidence_route != _EXACT_AUTHORITATIVE_ROUTES[
+        _OUP_HUSIMI_SYOZI_DOI
+    ]["work_identity_evidence"]:
+        raise SourceEvidenceError("OUP Crossref evidence route mismatch")
+
+    _require_exact_fields(
+        document,
+        {"status", "message-type", "message-version", "message"},
+        "OUP Crossref response",
+    )
+    if document["status"] != "ok":
+        raise SourceEvidenceError("OUP Crossref response status is not successful")
+    if document["message-type"] != "work":
+        raise SourceEvidenceError("OUP Crossref response message-type is not work")
+    if document["message-version"] != "1.0.0":
+        raise SourceEvidenceError("OUP Crossref response version mismatch")
+    message = document["message"]
+    _require_mapping(message, "OUP Crossref response message")
+
+    if message.get("DOI") != _OUP_HUSIMI_SYOZI_DOI:
+        raise SourceEvidenceError("OUP Crossref DOI mismatch")
+    if message.get("title") != [_OUP_HUSIMI_SYOZI_TITLE]:
+        raise SourceEvidenceError("OUP Crossref title mismatch")
+    authors = message.get("author")
+    if not isinstance(authors, list) or len(authors) != len(
+        _OUP_HUSIMI_SYOZI_AUTHOR_TUPLES
+    ):
+        raise SourceEvidenceError("OUP Crossref author cardinality mismatch")
+    if any(not isinstance(author, Mapping) for author in authors):
+        raise SourceEvidenceError("OUP Crossref author shape is invalid")
+    actual_author_tuples = []
+    for author in authors:
+        family = author.get("family")
+        given = author.get("given")
+        if (
+            not isinstance(family, str)
+            or not family.strip()
+            or not isinstance(given, str)
+            or not given.strip()
+        ):
+            raise SourceEvidenceError("OUP Crossref author shape is invalid")
+        initial_match = re.search(r"[A-Za-z]", given)
+        if initial_match is None:
+            raise SourceEvidenceError("OUP Crossref author initial is invalid")
+        actual_author_tuples.append((family, initial_match.group(0).upper()))
+    if tuple(actual_author_tuples) != _OUP_HUSIMI_SYOZI_AUTHOR_TUPLES:
+        raise SourceEvidenceError("OUP Crossref author order or initial mismatch")
+
+    fixed_fields = {
+        "publisher": "Oxford University Press (OUP)",
+        "member": "286",
+        "type": "journal-article",
+        "volume": "5",
+        "issue": "2",
+        "page": "177-186",
+    }
+    for field, expected in fixed_fields.items():
+        if message.get(field) != expected:
+            raise SourceEvidenceError(f"OUP Crossref {field} mismatch")
+    resource = message.get("resource")
+    _require_mapping(resource, "OUP Crossref primary resource")
+    primary = resource.get("primary")
+    _require_mapping(primary, "OUP Crossref primary resource")
+    if primary.get("URL") != _OUP_HUSIMI_SYOZI_PRIMARY_RESOURCE_URL:
+        raise SourceEvidenceError("OUP Crossref primary resource URL mismatch")
+
+    _require_mapping(
+        bibliographic_metadata,
+        "OUP Crossref bibliographic metadata",
+    )
+    expected_bibliographic_values = {
+        "doi": _OUP_HUSIMI_SYOZI_DOI,
+        "title": _OUP_HUSIMI_SYOZI_TITLE,
+        "venue": _OUP_HUSIMI_SYOZI_VENUE,
+        "publication_date": _OUP_HUSIMI_SYOZI_PUBLICATION_DATE,
+    }
+    for field, expected in expected_bibliographic_values.items():
+        if bibliographic_metadata.get(field) != expected:
+            raise SourceEvidenceError(
+                f"OUP Crossref bibliographic {field} mismatch"
+            )
+    bibliographic_authors = bibliographic_metadata.get("authors")
+    if (
+        not isinstance(bibliographic_authors, Sequence)
+        or isinstance(bibliographic_authors, (str, bytes, bytearray))
+        or len(bibliographic_authors) != 2
+    ):
+        raise SourceEvidenceError(
+            "OUP Crossref bibliographic author cardinality mismatch"
+        )
+    parsed_bibliographic_authors = _ordered_author_tuples(
+        bibliographic_authors,
+        label="OUP Crossref bibliographic",
+    )
+    expected_normalized_authors = tuple(
+        (family.casefold(), initial.casefold())
+        for family, initial in _OUP_HUSIMI_SYOZI_AUTHOR_TUPLES
+    )
+    if tuple(parsed_bibliographic_authors) != expected_normalized_authors:
+        raise SourceEvidenceError(
+            "OUP Crossref bibliographic author order mismatch"
+        )
+    for field, expected in (("volume", "5"), ("issue", "2"), ("pages", "177-186")):
+        if field in bibliographic_metadata and bibliographic_metadata[field] != expected:
+            raise SourceEvidenceError(
+                f"OUP Crossref bibliographic {field} mismatch"
+            )
+
+
 def validate_work_identity_document(
     document,
     *,
@@ -1424,6 +1652,14 @@ def validate_work_identity_document(
 
     canonical_doi = identity.get("value", "").casefold()
     artifact_identifier = authoritative_route.get("artifact_identifier", "")
+    if evidence_kind == "crossref_oup_same_work":
+        _validate_oup_crossref_same_work(
+            document,
+            identity=identity,
+            authoritative_route=authoritative_route,
+            bibliographic_metadata=bibliographic_metadata,
+        )
+        return
     if evidence_kind == _HAL_GAREL_EVIDENCE_KIND:
         _validate_hal_same_work_bibliographic_payload(
             document,
@@ -1697,16 +1933,34 @@ class _HiddenStylesheetSelectors:
     classes: frozenset
     ids: frozenset
     tags: frozenset
+    compounds: tuple = ()
+
+
+@dataclass(frozen=True)
+class _CSSSimpleSelector:
+    kind: str
+    value: str
+
+
+@dataclass(frozen=True)
+class _CSSCompoundHidingSelector:
+    ancestor: _CSSSimpleSelector
+    combinator: str
+    target: _CSSSimpleSelector
 
 
 _NO_HIDDEN_STYLESHEET_SELECTORS = _HiddenStylesheetSelectors(
     classes=frozenset(),
     ids=frozenset(),
     tags=frozenset(),
+    compounds=(),
 )
 _CSS_SIMPLE_CLASS = re.compile(r"\.[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
 _CSS_SIMPLE_ID = re.compile(r"#[a-z_][a-z0-9_-]*\Z", flags=re.IGNORECASE)
 _CSS_SIMPLE_TAG = re.compile(r"[a-z][a-z0-9-]*\Z", flags=re.IGNORECASE)
+_CSS_SIMPLE_SELECTOR_SOURCE = (
+    r"(?:\.[a-z_][a-z0-9_-]*|#[a-z_][a-z0-9_-]*|[a-z][a-z0-9-]*)"
+)
 _CSS_NUMBER_PATTERN = (
     r"(?P<sign>[+-]?)(?P<mantissa>\d+(?:\.\d*)?|\.\d+)"
     r"(?:[eE](?P<exponent_sign>[+-]?)(?P<exponent>\d+))?"
@@ -1985,7 +2239,7 @@ class _LocalStyleElementCollector(HTMLParser):
         self.character_count += len(data)
         if self.character_count > _MAX_LOCAL_STYLESHEET_CHARACTERS:
             raise SourceEvidenceError(
-                f"{self.context} local stylesheets exceed the validation bound"
+                f"{self.context} local stylesheets exceed the CSS validation bound"
             )
         self.parts.append(data)
 
@@ -2029,7 +2283,51 @@ def _stylesheet_rule_count(rule_count, *, context):
     return rule_count
 
 
-def _hidden_stylesheet_selectors(document, *, context):
+def _parse_css_simple_selector(value):
+    normalized = value.casefold()
+    if _CSS_SIMPLE_CLASS.fullmatch(normalized):
+        return _CSSSimpleSelector("class", normalized[1:])
+    if _CSS_SIMPLE_ID.fullmatch(normalized):
+        return _CSSSimpleSelector("id", normalized[1:])
+    if _CSS_SIMPLE_TAG.fullmatch(normalized):
+        return _CSSSimpleSelector("tag", normalized)
+    return None
+
+
+def _parse_css_v2_hiding_selector(value):
+    simple = _parse_css_simple_selector(value.strip())
+    if simple is not None:
+        return simple
+    child = re.fullmatch(
+        rf"\s*({_CSS_SIMPLE_SELECTOR_SOURCE})\s*>\s*"
+        rf"({_CSS_SIMPLE_SELECTOR_SOURCE})\s*",
+        value,
+        flags=re.IGNORECASE,
+    )
+    if child is not None:
+        ancestor = _parse_css_simple_selector(child.group(1))
+        target = _parse_css_simple_selector(child.group(2))
+        if ancestor is not None and target is not None:
+            return _CSSCompoundHidingSelector(ancestor, "child", target)
+    descendant = re.fullmatch(
+        rf"\s*({_CSS_SIMPLE_SELECTOR_SOURCE})\s+"
+        rf"({_CSS_SIMPLE_SELECTOR_SOURCE})\s*",
+        value,
+        flags=re.IGNORECASE,
+    )
+    if descendant is not None:
+        ancestor = _parse_css_simple_selector(descendant.group(1))
+        target = _parse_css_simple_selector(descendant.group(2))
+        if ancestor is not None and target is not None:
+            return _CSSCompoundHidingSelector(
+                ancestor,
+                "descendant",
+                target,
+            )
+    return None
+
+
+def _hidden_stylesheet_selectors(document, *, context, descriptor_version=1):
     collector = _LocalStyleElementCollector(context=context)
     try:
         collector.feed(document)
@@ -2051,6 +2349,7 @@ def _hidden_stylesheet_selectors(document, *, context):
     hidden_classes = set()
     hidden_ids = set()
     hidden_tags = set()
+    compound_selectors = []
     rule_count = 0
     cursor = 0
     while cursor < len(stylesheet):
@@ -2141,12 +2440,20 @@ def _hidden_stylesheet_selectors(document, *, context):
             )
         for raw_selector in selector_group.split(","):
             selector = raw_selector.strip().casefold()
-            if _CSS_SIMPLE_CLASS.fullmatch(selector):
-                hidden_classes.add(selector[1:])
-            elif _CSS_SIMPLE_ID.fullmatch(selector):
-                hidden_ids.add(selector[1:])
-            elif _CSS_SIMPLE_TAG.fullmatch(selector):
-                hidden_tags.add(selector)
+            parsed_selector = (
+                _parse_css_v2_hiding_selector(selector)
+                if descriptor_version == 2
+                else _parse_css_simple_selector(selector)
+            )
+            if isinstance(parsed_selector, _CSSSimpleSelector):
+                if parsed_selector.kind == "class":
+                    hidden_classes.add(parsed_selector.value)
+                elif parsed_selector.kind == "id":
+                    hidden_ids.add(parsed_selector.value)
+                else:
+                    hidden_tags.add(parsed_selector.value)
+            elif isinstance(parsed_selector, _CSSCompoundHidingSelector):
+                compound_selectors.append(parsed_selector)
             else:
                 raise SourceEvidenceError(
                     f"{context} local stylesheet uses an unsupported hiding selector"
@@ -2155,12 +2462,46 @@ def _hidden_stylesheet_selectors(document, *, context):
         classes=frozenset(hidden_classes),
         ids=frozenset(hidden_ids),
         tags=frozenset(hidden_tags),
+        compounds=tuple(compound_selectors),
     )
 
 
-def _element_is_hidden(tag, attributes, hidden_selectors):
+def _css_simple_selector_matches(selector, tag, attributes):
+    if selector.kind == "tag":
+        return tag == selector.value
+    if selector.kind == "id":
+        return str(attributes.get("id") or "").casefold() == selector.value
+    class_names = set(str(attributes.get("class") or "").casefold().split())
+    return selector.value in class_names
+
+
+def _element_is_hidden(
+    tag,
+    attributes,
+    hidden_selectors,
+    *,
+    ancestors=(),
+):
     class_names = set(str(attributes.get("class") or "").casefold().split())
     element_id = str(attributes.get("id") or "").casefold()
+    compound_hidden = False
+    for selector in hidden_selectors.compounds:
+        if not _css_simple_selector_matches(selector.target, tag, attributes):
+            continue
+        if selector.combinator == "child":
+            candidates = ancestors[-1:]
+        else:
+            candidates = ancestors
+        if any(
+            _css_simple_selector_matches(
+                selector.ancestor,
+                ancestor_tag,
+                ancestor_attributes,
+            )
+            for ancestor_tag, ancestor_attributes in candidates
+        ):
+            compound_hidden = True
+            break
     return (
         tag in {"script", "style", "noscript", "template"}
         or "hidden" in attributes
@@ -2173,6 +2514,7 @@ def _element_is_hidden(tag, attributes, hidden_selectors):
         or tag in hidden_selectors.tags
         or element_id in hidden_selectors.ids
         or bool(class_names & hidden_selectors.classes)
+        or compound_hidden
     )
 
 
@@ -2691,7 +3033,14 @@ def _validate_coordinates(coordinates, payload_length):
         raise SourceEvidenceError("artifact coordinates do not cover exact payload bytes")
 
 
-def _extract_text(payload_path, payload, media_type, extraction):
+def _extract_text(
+    payload_path,
+    payload,
+    media_type,
+    extraction,
+    *,
+    html_descriptor_version=1,
+):
     expected_fields = {"tool", "version", "deterministic"}
     if media_type in {"application/pdf", "text/html"}:
         expected_fields.add("arguments")
@@ -2734,14 +3083,19 @@ def _extract_text(payload_path, payload, media_type, extraction):
     if media_type == "text/html":
         if extraction != {
             "tool": "stdlib_html_visible_text",
-            "version": 1,
+            "version": html_descriptor_version,
             "deterministic": True,
             "arguments": [],
         }:
             raise SourceEvidenceError(
-                "HTML payload requires deterministic stdlib_html_visible_text version 1"
+                "HTML payload requires the route-scoped deterministic "
+                "stdlib_html_visible_text descriptor version"
             )
-        return _html_visible_text(payload, context="HTML payload")
+        return _html_visible_text(
+            payload,
+            context="HTML payload",
+            descriptor_version=html_descriptor_version,
+        )
     if media_type.startswith("text/"):
         _require_text(extraction["version"], "version")
         if extraction["tool"] != "utf8_text":
@@ -2982,16 +3336,508 @@ class _VisibleArticleHTMLParser(HTMLParser):
         return "\n".join(visible_blocks)
 
 
-def _html_visible_document(payload, *, context):
+class _StrictOUPArticleHTMLParser(HTMLParser):
+    _VOID_ELEMENTS = _VisibleArticleHTMLParser._VOID_ELEMENTS
+    _HEAD_DOI_META_NAMES = _VisibleArticleHTMLParser._HEAD_DOI_META_NAMES
+    _TRACKED_CLASSES = (
+        "minimal-article-container",
+        "article-header",
+        "article-content",
+        "ww-citation-primary",
+        "ref-list",
+    )
+
+    def __init__(self, *, context, hidden_selectors):
+        super().__init__(convert_charrefs=True)
+        self.context = context
+        self.hidden_selectors = hidden_selectors
+        self.frames = []
+        self.root_seen = False
+        self.root_closed = False
+        self.body_seen = False
+        self.body_closed = False
+        self.serial = 0
+        self.visible_text = _RenderedTextBlocks()
+        self.outside_reference_text = _RenderedTextBlocks()
+        self.nodes_by_class = {
+            class_name: [] for class_name in self._TRACKED_CLASSES
+        }
+        self.anchors = []
+        self.h1_nodes = []
+        self.doi_metadata_outside_reference = []
+        self.article_bearing_content_outside_body = False
+        self.visible_body_text_outside_container = []
+
+    @staticmethod
+    def _normalized_attributes(attrs):
+        names = [str(name).casefold() for name, _ in attrs]
+        if len(names) != len(set(names)):
+            raise SourceEvidenceError("OUP HTML contains duplicate attributes")
+        return {str(name).casefold(): value for name, value in attrs}
+
+    @staticmethod
+    def _boundary(builders):
+        for builder in builders:
+            builder.boundary()
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.casefold()
+        if self.root_closed:
+            raise SourceEvidenceError(
+                f"{self.context} is malformed after document root"
+            )
+        if not self.frames:
+            if self.root_seen or tag != "html":
+                raise SourceEvidenceError(
+                    f"{self.context} document root must be html"
+                )
+            self.root_seen = True
+        elif tag == "html":
+            raise SourceEvidenceError(
+                f"{self.context} contains a nested document root"
+            )
+        if tag == "body":
+            if (
+                self.body_seen
+                or not self.frames
+                or self.frames[-1]["tag"] != "html"
+            ):
+                raise SourceEvidenceError(
+                    f"{self.context} contains an invalid document body"
+                )
+            self.body_seen = True
+        elif self.body_closed:
+            raise SourceEvidenceError(
+                f"{self.context} is malformed after document body"
+            )
+
+        attributes = self._normalized_attributes(attrs)
+        ancestor_elements = tuple(
+            (frame["tag"], frame["attributes"]) for frame in self.frames
+        )
+        parent_hidden = self.frames[-1]["hidden"] if self.frames else False
+        hidden = parent_hidden or _element_is_hidden(
+            tag,
+            attributes,
+            self.hidden_selectors,
+            ancestors=ancestor_elements,
+        )
+        parent_body = self.frames[-1]["in_body"] if self.frames else False
+        parent_head = self.frames[-1]["in_head"] if self.frames else False
+        parent_inert = self.frames[-1]["in_inert"] if self.frames else False
+        parent_container = (
+            self.frames[-1]["in_container"] if self.frames else False
+        )
+        parent_reference = (
+            self.frames[-1]["in_reference"] if self.frames else False
+        )
+        parent_citation = (
+            self.frames[-1]["in_citation"] if self.frames else False
+        )
+        in_body = tag == "body" or parent_body
+        in_head = tag == "head" or parent_head
+        in_inert = parent_inert or tag in {
+            "script",
+            "style",
+            "noscript",
+            "template",
+        }
+        class_names = set(
+            str(attributes.get("class") or "").casefold().split()
+        )
+        in_container = parent_container or (
+            in_body and "minimal-article-container" in class_names
+        )
+        in_reference = parent_reference or "ref-list" in class_names
+        in_citation = parent_citation or "ww-citation-primary" in class_names
+        if not in_body and (
+            tag in {"article", "main"}
+            or any(name in class_names for name in self._TRACKED_CLASSES)
+        ):
+            self.article_bearing_content_outside_body = True
+
+        self.serial += 1
+        node_id = self.serial
+        ancestor_ids = tuple(frame["node_id"] for frame in self.frames)
+        node = {
+            "id": node_id,
+            "tag": tag,
+            "hidden": hidden,
+            "ancestor_ids": ancestor_ids,
+            "text_builder": _RenderedTextBlocks(),
+        }
+        tracked_here = False
+        for class_name in self._TRACKED_CLASSES:
+            if class_name in class_names:
+                self.nodes_by_class[class_name].append(node)
+                tracked_here = True
+        parent_active_nodes = (
+            self.frames[-1]["active_nodes"] if self.frames else ()
+        )
+        active_nodes = parent_active_nodes + ((node,) if tracked_here else ())
+
+        parent_h1 = self.frames[-1]["active_h1"] if self.frames else None
+        active_h1 = parent_h1
+        if tag == "h1":
+            if parent_h1 is not None:
+                raise SourceEvidenceError("OUP HTML contains nested h1 elements")
+            active_h1 = {
+                "ancestor_ids": ancestor_ids,
+                "hidden": hidden,
+                "text_builder": _RenderedTextBlocks(),
+            }
+            self.h1_nodes.append(active_h1)
+
+        parent_anchor = (
+            self.frames[-1]["active_anchor"] if self.frames else None
+        )
+        active_anchor = parent_anchor
+        if tag == "a":
+            if parent_anchor is not None:
+                raise SourceEvidenceError("OUP HTML contains nested anchors")
+            href = attributes.get("href")
+            active_anchor = {
+                "href": unescape(href.strip())
+                if isinstance(href, str) and href.strip()
+                else None,
+                "hidden": hidden,
+                "ancestor_ids": ancestor_ids,
+                "in_reference": in_reference,
+                "in_citation": in_citation,
+                "text_builder": _RenderedTextBlocks(),
+            }
+            self.anchors.append(active_anchor)
+
+        if not in_reference:
+            for name, value in attributes.items():
+                if tag == "a" and name == "href":
+                    continue
+                if not isinstance(value, str) or not value.strip():
+                    continue
+                decoded_value = unescape(value.strip())
+                if (
+                    _ANY_DOI_VALUE.search(decoded_value)
+                    or _DOI_RESOLVER_MARKER.search(decoded_value)
+                ):
+                    self.doi_metadata_outside_reference.append(decoded_value)
+            if (
+                in_head
+                and tag == "meta"
+                and str(attributes.get("name", "")).casefold()
+                in self._HEAD_DOI_META_NAMES
+            ):
+                content = attributes.get("content")
+                if isinstance(content, str) and content.strip():
+                    self.doi_metadata_outside_reference.append(
+                        unescape(content.strip())
+                    )
+            if tag == "meta" and str(
+                attributes.get("name", "")
+            ).casefold() in _VisiblePublicationRecordParser._DOI_META_NAMES:
+                content = attributes.get("content")
+                if isinstance(content, str) and content.strip():
+                    self.doi_metadata_outside_reference.append(
+                        unescape(content.strip())
+                    )
+            for name in ("data-doi", "doi"):
+                value = attributes.get(name)
+                if isinstance(value, str) and value.strip():
+                    self.doi_metadata_outside_reference.append(
+                        unescape(value.strip())
+                    )
+
+        visible = in_container and not hidden and not in_inert
+        builders = [node["text_builder"] for node in active_nodes]
+        if visible and tag in _VISIBLE_BLOCK_ELEMENTS:
+            self.visible_text.boundary()
+            if not in_reference:
+                self.outside_reference_text.boundary()
+            self._boundary(builders)
+            if active_anchor is not None:
+                active_anchor["text_builder"].boundary()
+            if active_h1 is not None:
+                active_h1["text_builder"].boundary()
+
+        if tag not in self._VOID_ELEMENTS:
+            self.frames.append(
+                {
+                    "tag": tag,
+                    "attributes": attributes,
+                    "hidden": hidden,
+                    "in_body": in_body,
+                    "in_head": in_head,
+                    "in_inert": in_inert,
+                    "in_container": in_container,
+                    "in_reference": in_reference,
+                    "in_citation": in_citation,
+                    "node_id": node_id,
+                    "active_nodes": active_nodes,
+                    "active_anchor": active_anchor,
+                    "active_h1": active_h1,
+                }
+            )
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag.casefold() not in self._VOID_ELEMENTS:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        tag = tag.casefold()
+        if not self.frames or self.frames[-1]["tag"] != tag:
+            raise SourceEvidenceError(f"{self.context} is malformed HTML nesting")
+        frame = self.frames[-1]
+        visible = (
+            frame["in_container"]
+            and not frame["hidden"]
+            and not frame["in_inert"]
+        )
+        if visible and tag in _VISIBLE_BLOCK_ELEMENTS:
+            self.visible_text.boundary()
+            if not frame["in_reference"]:
+                self.outside_reference_text.boundary()
+            self._boundary(
+                node["text_builder"] for node in frame["active_nodes"]
+            )
+            if frame["active_anchor"] is not None:
+                frame["active_anchor"]["text_builder"].boundary()
+            if frame["active_h1"] is not None:
+                frame["active_h1"]["text_builder"].boundary()
+        self.frames.pop()
+        if tag == "body":
+            self.body_closed = True
+        if tag == "html":
+            self.root_closed = True
+
+    def handle_data(self, data):
+        if not self.frames:
+            if data.strip():
+                raise SourceEvidenceError(
+                    f"{self.context} has visible data outside the document root"
+                )
+            return
+        frame = self.frames[-1]
+        if frame["hidden"] or frame["in_inert"]:
+            return
+        if not frame["in_container"]:
+            if frame["in_body"] and data.strip():
+                self.visible_body_text_outside_container.append(data)
+            return
+        self.visible_text.append(data)
+        if not frame["in_reference"]:
+            self.outside_reference_text.append(data)
+        for node in frame["active_nodes"]:
+            node["text_builder"].append(data)
+        if frame["active_anchor"] is not None:
+            frame["active_anchor"]["text_builder"].append(data)
+        if frame["active_h1"] is not None:
+            frame["active_h1"]["text_builder"].append(data)
+
+    def _one_node(self, class_name):
+        nodes = self.nodes_by_class[class_name]
+        if len(nodes) != 1:
+            raise SourceEvidenceError(
+                'OUP DOM cardinality: expected exactly one element with class "'
+                f'{class_name}"; found {len(nodes)}'
+            )
+        return nodes[0]
+
+    @staticmethod
+    def _node_text(node):
+        return " ".join(" ".join(node["text_builder"].blocks()).split())
+
+    def _validate_topology(self):
+        container = self._one_node("minimal-article-container")
+        header = self._one_node("article-header")
+        content = self._one_node("article-content")
+        citation = self._one_node("ww-citation-primary")
+        reference = self._one_node("ref-list")
+        if container["hidden"]:
+            raise SourceEvidenceError(
+                "OUP DOM minimal-article-container must be visible"
+            )
+        if container["id"] not in header["ancestor_ids"]:
+            raise SourceEvidenceError(
+                "OUP DOM article-header must descend from minimal-article-container"
+            )
+        if container["id"] not in content["ancestor_ids"]:
+            raise SourceEvidenceError(
+                "OUP DOM article-content must descend from minimal-article-container"
+            )
+        if header["id"] >= content["id"]:
+            raise SourceEvidenceError(
+                "OUP DOM article-header must precede article-content"
+            )
+        if (
+            header["id"] not in citation["ancestor_ids"]
+            or content["id"] in citation["ancestor_ids"]
+        ):
+            raise SourceEvidenceError(
+                "OUP DOM ww-citation-primary must descend only from article-header"
+            )
+        if (
+            content["id"] not in reference["ancestor_ids"]
+            or header["id"] in reference["ancestor_ids"]
+        ):
+            raise SourceEvidenceError(
+                "OUP DOM ref-list must descend only from article-content"
+            )
+        return container, header, content, citation, reference
+
+    def _validate_identity(self, header, content, citation, reference):
+        header_text = self._node_text(header)
+        content_text = self._node_text(content)
+        header_h1s = [
+            h1
+            for h1 in self.h1_nodes
+            if header["id"] in h1["ancestor_ids"] and not h1["hidden"]
+        ]
+        h1_texts = [
+            " ".join(" ".join(h1["text_builder"].blocks()).split())
+            for h1 in header_h1s
+        ]
+        if h1_texts != [_OUP_HUSIMI_SYOZI_TITLE]:
+            raise SourceEvidenceError("OUP HTML header title mismatch")
+        for author in ("Kodi Husimi", "Itiro Syôzi"):
+            if author not in header_text:
+                raise SourceEvidenceError("OUP HTML header author mismatch")
+        header_coordinates = (
+            (r"\bVolume\s+5\b", "volume"),
+            (r"\bIssue\s+2\b", "issue"),
+            (r"\bMarch\s+1950\b", "date March"),
+            (r"\bPages\s+177-186\b", "page"),
+        )
+        for pattern, label in header_coordinates:
+            if re.search(pattern, header_text) is None:
+                raise SourceEvidenceError(f"OUP HTML header {label} mismatch")
+        if "Summary" not in content_text:
+            raise SourceEvidenceError("OUP HTML content is missing summary")
+        equations = (
+            r"(?:ch|cosh)\s*\(?\s*2\s*H\s*\)?\s*=\s*2",
+            r"exp\s*\(\s*4\s*H\s*\)\s*=\s*3",
+        )
+        if any(
+            re.search(pattern, content_text, flags=re.IGNORECASE) is None
+            for pattern in equations
+        ):
+            raise SourceEvidenceError("OUP HTML content equation mismatch")
+
+        doi_anchors = []
+        for anchor in self.anchors:
+            if anchor["in_reference"]:
+                continue
+            anchor_text = " ".join(
+                " ".join(anchor["text_builder"].blocks()).split()
+            )
+            href = anchor["href"] or ""
+            if (
+                _ANY_DOI_VALUE.search(href)
+                or _DOI_RESOLVER_MARKER.search(href)
+                or _ANY_DOI_VALUE.search(anchor_text)
+                or _DOI_RESOLVER_MARKER.search(anchor_text)
+            ):
+                doi_anchors.append((anchor, href, anchor_text))
+        if len(doi_anchors) != 1:
+            raise SourceEvidenceError(
+                "OUP HTML must contain exactly one identity DOI anchor carrier"
+            )
+        anchor, href, anchor_text = doi_anchors[0]
+        if anchor["hidden"]:
+            raise SourceEvidenceError("OUP HTML identity DOI anchor is hidden")
+        if (
+            citation["id"] not in anchor["ancestor_ids"]
+            or header["id"] not in anchor["ancestor_ids"]
+            or content["id"] in anchor["ancestor_ids"]
+        ):
+            raise SourceEvidenceError(
+                "OUP HTML identity DOI anchor is outside the exact header citation"
+            )
+        if (
+            _resolver_doi_value(href) != _OUP_HUSIMI_SYOZI_DOI
+            or _resolver_doi_value(anchor_text) != _OUP_HUSIMI_SYOZI_DOI
+        ):
+            raise SourceEvidenceError(
+                "OUP HTML identity DOI anchor href or visible text mismatch"
+            )
+        if self.doi_metadata_outside_reference:
+            raise SourceEvidenceError(
+                "OUP HTML contains an attribute-only DOI carrier outside ref-list"
+            )
+        outside_blocks = self.outside_reference_text.blocks()
+        doi_values, valid_carriers = _visible_text_doi_values(outside_blocks)
+        doi_occurrences = sum(
+            len(_ANY_DOI_VALUE.findall(block)) for block in outside_blocks
+        )
+        if (
+            not valid_carriers
+            or doi_values != {_OUP_HUSIMI_SYOZI_DOI}
+            or doi_occurrences != 1
+        ):
+            raise SourceEvidenceError(
+                "OUP HTML contains a conflicting or second DOI carrier outside ref-list"
+            )
+
+    def result(self):
+        if not self.root_seen or not self.root_closed:
+            raise SourceEvidenceError(f"{self.context} has no complete document root")
+        if not self.body_seen or not self.body_closed:
+            raise SourceEvidenceError(f"{self.context} has no complete document body")
+        if self.frames:
+            raise SourceEvidenceError(f"{self.context} is malformed HTML")
+        if self.article_bearing_content_outside_body:
+            raise SourceEvidenceError(
+                "OUP article-bearing content must be inside the document body"
+            )
+        outside_container_text = " ".join(
+            " ".join(self.visible_body_text_outside_container).split()
+        )
+        lowered_outside_text = outside_container_text.casefold()
+        challenge_markers = (
+            "access denied",
+            "verify you are human",
+            "captcha",
+            "cloudflare",
+            "enable javascript and cookies",
+        )
+        if any(marker in lowered_outside_text for marker in challenge_markers):
+            raise SourceEvidenceError(
+                f"{self.context} is a challenge or access-denied page"
+            )
+        if (
+            outside_container_text
+            and _OUP_HUSIMI_SYOZI_TITLE not in outside_container_text
+        ):
+            raise SourceEvidenceError("OUP HTML header title mismatch")
+        _, header, content, citation, reference = self._validate_topology()
+        visible_blocks = self.visible_text.blocks()
+        if not visible_blocks:
+            raise SourceEvidenceError(
+                f"{self.context} contains no nonempty visible article body"
+            )
+        self._validate_identity(header, content, citation, reference)
+        return "\n".join(visible_blocks)
+
+
+def _html_visible_document(payload, *, context, descriptor_version=1):
     try:
         document = payload.decode("utf-8")
     except (AttributeError, UnicodeDecodeError) as exc:
         raise SourceEvidenceError(f"{context} is not valid UTF-8") from exc
-    hidden_selectors = _hidden_stylesheet_selectors(document, context=context)
-    parser = _VisibleArticleHTMLParser(
+    hidden_selectors = _hidden_stylesheet_selectors(
+        document,
         context=context,
-        hidden_selectors=hidden_selectors,
+        descriptor_version=descriptor_version,
     )
+    if descriptor_version == 2:
+        parser = _StrictOUPArticleHTMLParser(
+            context=context,
+            hidden_selectors=hidden_selectors,
+        )
+    else:
+        parser = _VisibleArticleHTMLParser(
+            context=context,
+            hidden_selectors=hidden_selectors,
+        )
     try:
         parser.feed(document)
         parser.close()
@@ -2999,11 +3845,24 @@ def _html_visible_document(payload, *, context):
         raise
     except Exception as exc:
         raise SourceEvidenceError(f"{context} is malformed HTML: {exc}") from exc
-    return parser.result(), tuple(parser.hrefs), tuple(parser.doi_metadata)
+    visible_text = parser.result()
+    if descriptor_version == 2:
+        hrefs = tuple(
+            anchor["href"] for anchor in parser.anchors if anchor["href"]
+        )
+        doi_metadata = tuple(parser.doi_metadata_outside_reference)
+    else:
+        hrefs = tuple(parser.hrefs)
+        doi_metadata = tuple(parser.doi_metadata)
+    return visible_text, hrefs, doi_metadata
 
 
-def _html_visible_text(payload, *, context):
-    visible_text, _, _ = _html_visible_document(payload, context=context)
+def _html_visible_text(payload, *, context, descriptor_version=1):
+    visible_text, _, _ = _html_visible_document(
+        payload,
+        context=context,
+        descriptor_version=descriptor_version,
+    )
     return visible_text
 
 
