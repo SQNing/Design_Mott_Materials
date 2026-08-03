@@ -552,6 +552,14 @@ def load_verified_source(
             identity=raw["source_identity"],
             authoritative_route=authoritative_route,
         )
+    elif _is_exact_core_route(raw["source_identity"], authoritative_route):
+        _validate_core_crossref_pdf_agreement(
+            work_identity_document,
+            crossref_metadata=raw["bibliographic_metadata"],
+            extracted_pdf_text=extracted_text,
+            identity=raw["source_identity"],
+            authoritative_route=authoritative_route,
+        )
     _require_target_anchors(extracted_text, required_search_anchors)
 
     provenance_fields = {
@@ -858,6 +866,35 @@ def _is_exact_garel_hal_route(identity, authoritative_route):
     )
 
 
+def _is_exact_core_route(identity, authoritative_route):
+    if not isinstance(identity, Mapping) or not isinstance(
+        authoritative_route, Mapping
+    ):
+        return False
+    evidence = authoritative_route.get("work_identity_evidence")
+    return (
+        isinstance(evidence, Mapping)
+        and identity.get("kind") == "doi"
+        and identity.get("value") == _CORE_MG_DOI
+        and authoritative_route.get("kind")
+        == "institutional_repository_pdf"
+        and authoritative_route.get("url") == _CORE_MG_DOWNLOAD_URL
+        and authoritative_route.get("expected_media_type") == "application/pdf"
+        and authoritative_route.get("access_mode") == "unattended"
+        and authoritative_route.get("artifact_identifier")
+        == f"core:{_CORE_MG_OUTPUT_ID}"
+        and evidence.get("kind") == "core_same_work_output"
+        and evidence.get("url") == _CORE_MG_OUTPUT_URL
+    )
+
+
+def _require_exact_core_route(identity, authoritative_route):
+    if not _is_exact_core_route(identity, authoritative_route):
+        raise SourceEvidenceError(
+            "CORE DOI route does not match the exact approved route"
+        )
+
+
 def _require_exact_garel_hal_route(identity, authoritative_route):
     if not _is_exact_garel_hal_route(identity, authoritative_route):
         raise SourceEvidenceError(
@@ -1022,6 +1059,30 @@ def _ordered_author_tuples(authors, *, label):
     return tuple(normalized)
 
 
+_BIBLIOGRAPHIC_AUTHOR_FAMILY = re.compile(r"[a-z]+\Z", re.IGNORECASE)
+_BIBLIOGRAPHIC_SPACED_INITIALS = re.compile(
+    r"[a-z]\.?(?:\s+[a-z]\.?)\Z",
+    re.IGNORECASE,
+)
+_BIBLIOGRAPHIC_SINGLE_INITIAL = re.compile(r"[a-z]\.?\Z", re.IGNORECASE)
+_BIBLIOGRAPHIC_COMPACT_DOTTED_INITIALS = re.compile(
+    r"(?:[a-z]\.)+\Z",
+    re.IGNORECASE,
+)
+
+
+def _closed_bibliographic_initials(value, *, source_kind):
+    if _BIBLIOGRAPHIC_COMPACT_DOTTED_INITIALS.fullmatch(value):
+        return "".join(re.findall(r"[a-z]", value, flags=re.IGNORECASE)).casefold()
+    if _BIBLIOGRAPHIC_SINGLE_INITIAL.fullmatch(value):
+        return value[0].casefold()
+    if _BIBLIOGRAPHIC_SPACED_INITIALS.fullmatch(value):
+        return "".join(part[0] for part in value.split()).casefold()
+    raise SourceEvidenceError(
+        f"work identity {source_kind} author representation is ambiguous"
+    )
+
+
 def _ordered_bibliographic_author_tuples(authors, *, source_kind):
     """Return strict ordered ``(family, initials)`` tuples for one source form."""
 
@@ -1054,29 +1115,29 @@ def _ordered_bibliographic_author_tuples(authors, *, source_kind):
             family_text, initials_text = (
                 part.strip() for part in rendered.split(",", 1)
             )
-            family_parts = re.findall(r"[a-z]+", family_text)
-            initial_parts = re.findall(r"[a-z]+", initials_text)
-            if (
-                len(family_parts) != 1
-                or not initial_parts
-                or any(len(part) != 1 for part in initial_parts)
-            ):
+            if _BIBLIOGRAPHIC_AUTHOR_FAMILY.fullmatch(family_text) is None:
                 raise SourceEvidenceError(
                     f"work identity {source_kind} author representation is ambiguous"
                 )
-            family = family_parts[0]
-            initials = "".join(initial_parts)
+            family = family_text
+            initials = _closed_bibliographic_initials(
+                initials_text,
+                source_kind=source_kind,
+            )
         else:
-            parts = re.findall(r"[a-z]+", rendered)
-            if (
-                len(parts) < 2
-                or any(len(part) != 1 for part in parts[:-1])
-            ):
+            if " " not in rendered:
                 raise SourceEvidenceError(
                     f"work identity {source_kind} author representation is ambiguous"
                 )
-            family = parts[-1]
-            initials = "".join(parts[:-1])
+            initials_text, family = rendered.rsplit(" ", 1)
+            if _BIBLIOGRAPHIC_AUTHOR_FAMILY.fullmatch(family) is None:
+                raise SourceEvidenceError(
+                    f"work identity {source_kind} author representation is ambiguous"
+                )
+            initials = _closed_bibliographic_initials(
+                initials_text,
+                source_kind=source_kind,
+            )
 
         author_tuple = (family, initials)
         if author_tuple in seen:
@@ -1263,6 +1324,88 @@ def _validate_garel_hal_crossref_pdf_agreement(
     if _GAREL_PDF_HEADER not in normalized:
         raise SourceEvidenceError(
             "Garel PDF header journal volume year mismatch"
+        )
+
+
+def _validate_core_crossref_pdf_agreement(
+    document,
+    *,
+    crossref_metadata,
+    extracted_pdf_text,
+    identity,
+    authoritative_route,
+):
+    _require_exact_core_route(identity, authoritative_route)
+    _require_mapping(
+        crossref_metadata,
+        "CORE PDF Crossref bibliographic metadata",
+    )
+    bound_crossref_metadata = {
+        "doi": identity.get("value", ""),
+        **crossref_metadata,
+    }
+    if bound_crossref_metadata.get("doi") != _CORE_MG_DOI:
+        raise SourceEvidenceError("CORE PDF Crossref DOI mismatch")
+    if bound_crossref_metadata.get("title") != _CORE_MG_TITLE:
+        raise SourceEvidenceError("CORE PDF Crossref title mismatch")
+    if not isinstance(extracted_pdf_text, str):
+        raise SourceEvidenceError("CORE PDF extracted text is invalid")
+
+    normalized_pdf = " ".join(extracted_pdf_text.split()).replace(": ", ":")
+    normalized_title = " ".join(_CORE_MG_TITLE.split()).replace(": ", ":")
+    if normalized_title not in normalized_pdf:
+        raise SourceEvidenceError("CORE PDF title mismatch")
+
+    lines = tuple(
+        normalized_line
+        for line in extracted_pdf_text.splitlines()
+        if (normalized_line := " ".join(line.split()))
+    )
+    family_patterns = tuple(
+        re.compile(rf"\b{re.escape(family)}\b", re.IGNORECASE)
+        for family, _initials in _CORE_MG_AUTHOR_TUPLES
+    )
+    author_lines = [
+        line
+        for line in lines
+        if any(pattern.search(line) for pattern in family_patterns)
+    ]
+    if not author_lines:
+        raise SourceEvidenceError("CORE PDF author line is missing")
+    author_line = author_lines[0]
+    author_representations = re.split(
+        r"\s*,\s*|\s+and\s+",
+        author_line,
+        flags=re.IGNORECASE,
+    )
+    if (
+        len(author_representations) != len(_CORE_MG_AUTHOR_TUPLES)
+        or any(not representation for representation in author_representations)
+    ):
+        raise SourceEvidenceError("CORE PDF author cardinality mismatch")
+    pdf_author_tuples = _ordered_bibliographic_author_tuples(
+        author_representations,
+        source_kind="pdf",
+    )
+    _require_core_author_agreement(
+        pdf_author_tuples,
+        list(_CORE_MG_AUTHOR_TUPLES),
+        label="PDF",
+    )
+
+    core_author_tuples = _ordered_bibliographic_author_tuples(
+        [author.get("name") for author in document["authors"]],
+        source_kind="core",
+    )
+    crossref_author_tuples = _ordered_bibliographic_author_tuples(
+        bound_crossref_metadata["authors"],
+        source_kind="crossref",
+    )
+    if not (
+        pdf_author_tuples == core_author_tuples == crossref_author_tuples
+    ):
+        raise SourceEvidenceError(
+            "CORE/Crossref/PDF author order or cardinality mismatch"
         )
 
 

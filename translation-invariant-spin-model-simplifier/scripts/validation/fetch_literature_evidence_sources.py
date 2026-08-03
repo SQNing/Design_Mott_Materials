@@ -625,6 +625,10 @@ def _is_exact_core_fulltext_route(route):
 
 
 class _CoreFullTextRedirectHandler(_CredentialRedirectHandler):
+    def __init__(self, credential_profile=None):
+        super().__init__(credential_profile)
+        self._validated_redirects = 0
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if _credential_values(self.credential_profile) or any(
             name.casefold() in _CREDENTIAL_HEADER_NAMES_CASEFOLDED
@@ -635,12 +639,20 @@ class _CoreFullTextRedirectHandler(_CredentialRedirectHandler):
             )
 
         current_url = req.full_url
-        if current_url == _CORE_MG_INITIAL_URL:
+        if self._validated_redirects == 0:
+            if current_url != _CORE_MG_INITIAL_URL:
+                raise SourceEvidenceError(
+                    "CORE first redirect source is not approved"
+                )
             if newurl != _CORE_MG_SECOND_URL:
                 raise SourceEvidenceError(
                     "CORE first redirect target is not approved"
                 )
-        elif current_url == _CORE_MG_SECOND_URL:
+        elif self._validated_redirects == 1:
+            if current_url != _CORE_MG_SECOND_URL:
+                raise SourceEvidenceError(
+                    "CORE final redirect source is not approved"
+                )
             try:
                 parsed = urlsplit(newurl)
                 query_free = _sanitize_url_for_output(newurl)
@@ -663,7 +675,7 @@ class _CoreFullTextRedirectHandler(_CredentialRedirectHandler):
                 "CORE redirect depth exceeds the exact two-hop policy"
             )
 
-        return super().redirect_request(
+        redirected = super().redirect_request(
             req,
             fp,
             code,
@@ -671,6 +683,28 @@ class _CoreFullTextRedirectHandler(_CredentialRedirectHandler):
             headers,
             newurl,
         )
+        if redirected is not None:
+            self._validated_redirects += 1
+        return redirected
+
+    def require_complete_response(self, final_url):
+        if self._validated_redirects != 2:
+            raise SourceEvidenceError(
+                "CORE response requires exactly two approved redirects"
+            )
+        parsed = urlsplit(final_url)
+        if parsed.fragment:
+            raise SourceEvidenceError(
+                "CORE final response fragment is forbidden"
+            )
+        if len(parsed.query) > _MAX_SENSITIVE_URL_QUERY_CHARACTERS:
+            raise SourceEvidenceError(
+                "CORE final response query exceeds the safe limit"
+            )
+        if _sanitize_url_for_output(final_url) != _CORE_MG_FINAL_URL:
+            raise SourceEvidenceError(
+                "CORE final response URL is not approved"
+            )
 
 
 class _CoreDownloadResponse(dict):
@@ -1522,10 +1556,12 @@ def _download(route, ssl_context, *, credential_profile=None):
     )
     try:
         with opener.open(request, timeout=60) as response:
+            final_url_in_memory = response.geturl()
+            if exact_core_route:
+                redirect_handler.require_complete_response(final_url_in_memory)
             body = response.read()
             status = response.status
             headers = dict(response.headers.items())
-            final_url_in_memory = response.geturl()
     except SourceEvidenceError:
         raise
     except Exception as exc:
@@ -1546,6 +1582,7 @@ def _download(route, ssl_context, *, credential_profile=None):
     )
     if _contains_sensitive(body, response_sensitive_values):
         raise SourceEvidenceError("downloaded payload contains sensitive data")
+    core_validation_error = None
     try:
         media_type = validate_download_response(
             route,
@@ -1555,17 +1592,24 @@ def _download(route, ssl_context, *, credential_profile=None):
             final_url=final_url_in_memory,
         )
     except SourceEvidenceError as exc:
-        exc.args = (
-            _sanitize_detail(
-                exc,
-                sensitive_values=credential_values,
-            ),
+        sanitized_detail = _sanitize_detail(
+            exc,
+            sensitive_values=response_sensitive_values,
         )
-        exc.__cause__ = None
-        exc.__context__ = None
         if exact_core_route:
-            vars(exc).clear()
-        raise
+            if _contains_sensitive(exc, response_sensitive_values):
+                sanitized_detail = (
+                    "CORE media validation failed after signed-final receipt; "
+                    "sensitive query detail redacted"
+                )
+            core_validation_error = SourceEvidenceError(sanitized_detail)
+        else:
+            exc.args = (sanitized_detail,)
+            exc.__cause__ = None
+            exc.__context__ = None
+            raise
+    if core_validation_error is not None:
+        raise core_validation_error from None
     safe_headers = {}
     for key, value in headers.items():
         if _contains_sensitive(key, response_sensitive_values):
@@ -1975,6 +2019,28 @@ def _stable_response_headers(headers, *, forbidden_values=()):
     }
 
 
+def _query_echo_secret_is_distinctive(value):
+    if "=" in value or "&" in value:
+        return True
+    decoded = unquote(value).replace("+", " ")
+    return (
+        len(decoded) >= 8
+        and any(character.isalpha() for character in decoded)
+        and all(character.isprintable() for character in decoded)
+    )
+
+
+def _redact_standalone_query_echo(rendered, secret):
+    prefix = r"(?<![a-z0-9])" if secret[0].isalnum() else ""
+    suffix = r"(?![a-z0-9])" if secret[-1].isalnum() else ""
+    return re.sub(
+        prefix + re.escape(secret) + suffix,
+        "[redacted-query]",
+        rendered,
+        flags=re.IGNORECASE,
+    )
+
+
 def _sanitize_detail(detail, *, sensitive_values=()):
     rendered = str(detail)
     if _contains_sensitive(rendered, sensitive_values):
@@ -2014,16 +2080,14 @@ def _sanitize_detail(detail, *, sensitive_values=()):
             for value in query_secrets
             if value
             for variant in _bounded_percent_decoded_variants(value)
-            if variant
+            if variant and _query_echo_secret_is_distinctive(variant)
         },
         key=len,
         reverse=True,
     ):
-        sanitized = re.sub(
-            re.escape(secret),
-            "[redacted-query]",
+        sanitized = _redact_standalone_query_echo(
             sanitized,
-            flags=re.IGNORECASE,
+            secret,
         )
     if _contains_sensitive(sanitized, sensitive_values):
         return "sensitive acquisition detail redacted"
