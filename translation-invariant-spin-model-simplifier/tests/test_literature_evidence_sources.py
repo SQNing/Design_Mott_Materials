@@ -300,8 +300,18 @@ def _repository_fixture(
 
 
 def _minimal_pdf(text):
-    escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    stream = f"BT /F1 12 Tf 72 720 Td ({escaped}) Tj ET".encode("ascii")
+    lines = text.splitlines() or [""]
+    escaped_lines = [
+        line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        for line in lines
+    ]
+    operations = ["BT /F1 12 Tf 72 720 Td"]
+    for index, escaped in enumerate(escaped_lines):
+        if index:
+            operations.append("0 -18 Td")
+        operations.append(f"({escaped}) Tj")
+    operations.append("ET")
+    stream = " ".join(operations).encode("ascii")
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -954,6 +964,13 @@ CORE_MG_BIBLIOGRAPHIC_METADATA = {
     "title": "The Majumdar-Ghosh chain:Twofold ground state and elementary excitations",
     "authors": ["W. J. Caspers", "K. M. Emmett", "W. Magnus"],
 }
+CORE_MG_PDF_TEXT = "\n".join(
+    (
+        "The Majumdar-Ghosh chain: Twofold ground state and elementary excitations",
+        "W J Caspers, K M Emmett and W Magnus",
+        "Abstract",
+    )
+)
 
 
 def _core_mg_work_identity_document():
@@ -2482,7 +2499,11 @@ def _special_sidecar_cache(tmp_path, evidence_kind, *, write_sidecar=True):
     source_id = "doi_" + hashlib.sha256(
         f"doi:{identity_value}".encode("ascii")
     ).hexdigest()[:20]
-    payload = _minimal_pdf("Locally verified special-route source payload.")
+    payload = _minimal_pdf(
+        CORE_MG_PDF_TEXT
+        if evidence_kind == "core_same_work_output"
+        else "Locally verified special-route source payload."
+    )
     source = {
         "source_id": source_id,
         "canonical_identity": {"kind": "doi", "value": identity_value},
@@ -13546,8 +13567,16 @@ def test_task5a_core_direct_download_failure_redacts_signed_final_exception(
     real_validator = source_fetcher.validate_download_response
 
     class FixtureOpener:
+        def __init__(self, redirect_handler):
+            self.redirect_handler = redirect_handler
+
         def open(self, request, timeout):
             opener_requests.append(request.full_url)
+            _task5a_complete_core_redirects(
+                self.redirect_handler,
+                request,
+                signed_final,
+            )
             return _FixtureHTTPResponse(
                 _minimal_pdf("CORE direct signed-final exception fixture."),
                 content_type="application/pdf",
@@ -13568,7 +13597,9 @@ def test_task5a_core_direct_download_failure_redacts_signed_final_exception(
     monkeypatch.setattr(
         source_fetcher,
         "build_opener",
-        lambda *handlers: FixtureOpener(),
+        lambda *handlers: FixtureOpener(
+            _task5a_core_handler_from_build_args(handlers)
+        ),
     )
     monkeypatch.setattr(
         source_fetcher,
@@ -13646,11 +13677,18 @@ def test_task5a_core_provenance_failure_redacts_signed_final_url_everywhere(
     validated_sidecars = []
 
     class FixtureOpener:
+        def __init__(self, redirect_handler):
+            self.redirect_handler = redirect_handler
+
         def open(self, request, timeout):
             requests.append(request.full_url)
             accept = _header_dict(request).get("accept")
             if accept == "application/pdf":
-                redirected = Request(signed_final)
+                redirected = _task5a_complete_core_redirects(
+                    self.redirect_handler,
+                    request,
+                    signed_final,
+                )
                 requests.append(redirected.full_url)
                 return _FixtureHTTPResponse(
                     _minimal_pdf("CORE signed final redaction fixture."),
@@ -13686,7 +13724,19 @@ def test_task5a_core_provenance_failure_redacts_signed_final_url_everywhere(
     monkeypatch.setattr(
         source_fetcher,
         "build_opener",
-        lambda *handlers: FixtureOpener(),
+        lambda *handlers: FixtureOpener(
+            next(
+                (
+                    handler
+                    for handler in handlers
+                    if isinstance(
+                        handler,
+                        source_fetcher._CoreFullTextRedirectHandler,
+                    )
+                ),
+                None,
+            )
+        ),
     )
     monkeypatch.setattr(
         source_fetcher,
@@ -13805,6 +13855,26 @@ def _task5a_redirect_request(handler, request, new_url):
         {},
         new_url,
     )
+
+
+def _task5a_core_handler_from_build_args(handlers):
+    matches = [
+        handler
+        for handler in handlers
+        if isinstance(handler, source_fetcher._CoreFullTextRedirectHandler)
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _task5a_complete_core_redirects(handler, initial_request, signed_final):
+    assert isinstance(handler, source_fetcher._CoreFullTextRedirectHandler)
+    second = _task5a_redirect_request(
+        handler,
+        initial_request,
+        TASK5A_CORE_SECOND_URL,
+    )
+    return _task5a_redirect_request(handler, second, signed_final)
 
 
 def test_task5a_core_redirects_follow_only_exact_three_hop_sequence_and_two_redirects(
@@ -13981,8 +14051,16 @@ def test_task5a_core_final_signed_query_is_used_in_memory_but_never_serialized(
     real_validator = source_fetcher.validate_download_response
 
     class FixtureOpener:
+        def __init__(self, redirect_handler):
+            self.redirect_handler = redirect_handler
+
         def open(self, request, timeout):
             requested.append(request.full_url)
+            _task5a_complete_core_redirects(
+                self.redirect_handler,
+                request,
+                signed_final,
+            )
             return _FixtureHTTPResponse(
                 _minimal_pdf("CORE signed query in-memory control."),
                 content_type="application/pdf",
@@ -13992,7 +14070,9 @@ def test_task5a_core_final_signed_query_is_used_in_memory_but_never_serialized(
     monkeypatch.setattr(
         source_fetcher,
         "build_opener",
-        lambda *handlers: FixtureOpener(),
+        lambda *handlers: FixtureOpener(
+            _task5a_core_handler_from_build_args(handlers)
+        ),
     )
 
     def record_validation_receipt(route_spec, **response):
@@ -14081,6 +14161,268 @@ def test_task5a_core_sidecar_validation_precedes_even_first_pdf_request_construc
         "first-PDF-request-constructed",
     ]
     assert not (tmp_path / source["source_id"]).exists()
+
+
+@pytest.mark.parametrize(
+    "reflected",
+    (
+        TASK5A_CORE_SIGNED_QUERY,
+        TASK5A_CORE_SIGNED_QUERY.split("=", 1)[1],
+        quote_plus(TASK5A_CORE_SIGNED_QUERY, safe=""),
+        "".join(
+            f"%{byte:02X}"
+            for byte in TASK5A_CORE_SIGNED_QUERY.split("=", 1)[1].encode(
+                "ascii"
+            )
+        ),
+    ),
+    ids=("raw-query", "bare-token", "encoded-component", "encoded-token"),
+)
+def test_task5a_core_validator_only_query_reflection_is_redacted_everywhere(
+    tmp_path,
+    monkeypatch,
+    caplog,
+    capsys,
+    reflected,
+):
+    route = copy.deepcopy(_core_mg_route())
+    route["expected_media_type"] = "application/pdf"
+    signed_final = TASK5A_CORE_FINAL_BASE + "?" + TASK5A_CORE_SIGNED_QUERY
+
+    class FixtureOpener:
+        def __init__(self, redirect_handler):
+            self.redirect_handler = redirect_handler
+
+        def open(self, request, timeout):
+            _task5a_complete_core_redirects(
+                self.redirect_handler,
+                request,
+                signed_final,
+            )
+            return _FixtureHTTPResponse(
+                _minimal_pdf("CORE validator-only query reflection fixture."),
+                content_type="application/pdf",
+                final_url=signed_final,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(
+            _task5a_core_handler_from_build_args(handlers)
+        ),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_download_response",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            SourceEvidenceError("validator reflected only " + reflected)
+        ),
+    )
+
+    with pytest.raises(SourceEvidenceError) as raised:
+        source_fetcher._download(route, object())
+
+    _task5a_assert_no_forbidden_query_channels(
+        forbidden=_task5a_core_forbidden_query_material(),
+        exception=raised.value,
+        caplog=caplog,
+        capsys=capsys,
+        cache_root=tmp_path,
+    )
+    assert "validator" in str(raised.value).casefold() or "redact" in str(
+        raised.value
+    ).casefold()
+
+
+@pytest.mark.parametrize("completed_hops", (0, 1), ids=("zero-hop", "one-hop"))
+def test_task5a_core_download_rejects_incomplete_redirect_sequence_before_body_read(
+    monkeypatch,
+    completed_hops,
+):
+    route = copy.deepcopy(_core_mg_route())
+    route["expected_media_type"] = "application/pdf"
+    final_url = (
+        TASK5A_CORE_INITIAL_URL
+        if completed_hops == 0
+        else TASK5A_CORE_SECOND_URL
+    )
+    response = _FixtureHTTPResponse(
+        _minimal_pdf("CORE incomplete redirect fixture."),
+        content_type="application/pdf",
+        final_url=final_url,
+    )
+    body_reads = []
+    real_read = response.read
+
+    def tracked_read():
+        body_reads.append(True)
+        return real_read()
+
+    response.read = tracked_read
+
+    class FixtureOpener:
+        def __init__(self, redirect_handler):
+            self.redirect_handler = redirect_handler
+
+        def open(self, request, timeout):
+            if completed_hops == 1:
+                _task5a_redirect_request(
+                    self.redirect_handler,
+                    request,
+                    TASK5A_CORE_SECOND_URL,
+                )
+            return response
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(
+            _task5a_core_handler_from_build_args(handlers)
+        ),
+    )
+
+    with pytest.raises(SourceEvidenceError, match="CORE|redirect|two|final"):
+        source_fetcher._download(route, object())
+    assert body_reads == []
+
+
+@pytest.mark.parametrize(
+    "malformed_author",
+    (
+        "W1 J2 Caspers123",
+        "W.@J. Caspers",
+        "W.\x00J. Caspers",
+        "W J Caspers Jr",
+    ),
+    ids=("digits", "symbol", "control", "suffix"),
+)
+def test_task5a_core_crossref_author_parser_rejects_every_unconsumed_character(
+    malformed_author,
+):
+    metadata = copy.deepcopy(CORE_MG_BIBLIOGRAPHIC_METADATA)
+    metadata["authors"][0] = malformed_author
+    with pytest.raises(SourceEvidenceError, match="author|ambiguous|invalid"):
+        validate_work_identity_document(
+            _core_mg_work_identity_document(),
+            identity={
+                "kind": "doi",
+                "value": CORE_MG_BIBLIOGRAPHIC_METADATA["doi"],
+            },
+            authoritative_route=_core_mg_route(),
+            evidence_kind="core_same_work_output",
+            bibliographic_metadata=metadata,
+        )
+
+
+def _task5a_validate_core_pdf_text(extracted_text):
+    return evidence_sources._validate_core_crossref_pdf_agreement(
+        _core_mg_work_identity_document(),
+        crossref_metadata=CORE_MG_BIBLIOGRAPHIC_METADATA,
+        extracted_pdf_text=extracted_text,
+        identity={
+            "kind": "doi",
+            "value": CORE_MG_BIBLIOGRAPHIC_METADATA["doi"],
+        },
+        authoritative_route=_core_mg_route(),
+    )
+
+
+def test_task5a_core_pdf_title_and_ordered_authors_agree_transitively():
+    _task5a_validate_core_pdf_text(CORE_MG_PDF_TEXT)
+
+
+@pytest.mark.parametrize(
+    "mutated_text",
+    (
+        CORE_MG_PDF_TEXT.replace(
+            "The Majumdar-Ghosh chain: Twofold ground state and elementary excitations",
+            "A different spin-chain paper",
+        ),
+        CORE_MG_PDF_TEXT.replace(" and W Magnus", ""),
+        CORE_MG_PDF_TEXT.replace(
+            "W J Caspers, K M Emmett and W Magnus",
+            "W J Caspers, K M Emmett, A Extra and W Magnus",
+        ),
+        CORE_MG_PDF_TEXT.replace(
+            "W J Caspers, K M Emmett and W Magnus",
+            "K M Emmett, W J Caspers and W Magnus",
+        ),
+        CORE_MG_PDF_TEXT.replace(
+            "W J Caspers, K M Emmett and W Magnus",
+            "W J Caspers, W J Caspers and W Magnus",
+        ),
+        CORE_MG_PDF_TEXT.replace("W J Caspers", "J W Caspers"),
+        CORE_MG_PDF_TEXT.replace("W J Caspers", "W.@J. Caspers"),
+        "Completely different paper by Alice Example and Bob Example.",
+    ),
+    ids=(
+        "wrong-title",
+        "missing-author",
+        "extra-author",
+        "reordered-authors",
+        "duplicate-author",
+        "wrong-initial-order",
+        "ambiguous-author",
+        "unrelated-pdf",
+    ),
+)
+def test_task5a_core_pdf_rejects_each_bibliographic_fingerprint_mutation(
+    mutated_text,
+):
+    with pytest.raises(SourceEvidenceError, match="CORE|PDF|title|author"):
+        _task5a_validate_core_pdf_text(mutated_text)
+
+
+def test_task5a_core_offline_replay_rejects_unrelated_structurally_valid_pdf(
+    tmp_path,
+):
+    source_dir, source, route, _descriptor = _special_sidecar_cache(
+        tmp_path,
+        "core_same_work_output",
+    )
+    unrelated = _minimal_pdf(
+        "Completely different paper by Alice Example and Bob Example."
+    )
+    source_dir.joinpath("source.pdf").write_bytes(unrelated)
+    provenance_path = source_dir / "provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    provenance["raw_payload_sha256"] = hashlib.sha256(unrelated).hexdigest()
+    provenance["raw_payload_byte_length"] = len(unrelated)
+    provenance["artifact_coordinates"]["end_byte"] = len(unrelated)
+    provenance_path.write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SourceEvidenceError, match="CORE|PDF|title|author"):
+        load_verified_source(
+            source_dir,
+            expected_source=source,
+            provisioning_route=route,
+        )
+
+
+@pytest.mark.parametrize(
+    ("detail", "expected"),
+    (
+        (
+            "generic retry 17 failed at https://example.invalid/path?retry=1 "
+            "after HTTP 401",
+            "generic retry 17 failed at https://example.invalid/path after HTTP 401",
+        ),
+        (
+            "source 10.1234/example failed at https://example.invalid/path?id=10",
+            "source 10.1234/example failed at https://example.invalid/path",
+        ),
+    ),
+    ids=("one-digit-query", "two-digit-query"),
+)
+def test_task5a_generic_query_sanitization_preserves_unrelated_numeric_diagnostics(
+    detail,
+    expected,
+):
+    assert source_fetcher._sanitize_detail(detail) == expected
 
 
 TASK5A_OUP_CANONICAL_URL = "https://doi.org/10.1143/ptp/5.2.177"
