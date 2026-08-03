@@ -17201,3 +17201,220 @@ def test_task5a5_css_match_element_keeps_generic_v1_behavior(
         assert result == "text/html"
     else:
         assert result.extraction_tool["version"] == 1
+
+
+class _Task5A5NoVariableDOISlices(str):
+    def __new__(cls, value):
+        instance = super().__new__(cls, value)
+        instance.character_reads = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            self.character_reads += 1
+        if isinstance(key, slice):
+            start = key.start
+            stop = key.stop
+            if (
+                not isinstance(start, int)
+                or not isinstance(stop, int)
+            ):
+                raise AssertionError(
+                    "DOI text scanning created an open-ended prefix or suffix slice"
+                )
+        return super().__getitem__(key)
+
+
+def test_task5a5_doi_text_scan_avoids_variable_prefix_and_suffix_slices():
+    expected = {
+        f"10.7000/linear-{index}"
+        for index in range(257)
+    }
+    block = _Task5A5NoVariableDOISlices(
+        " ".join(f"DoI : {value}" for value in sorted(expected))
+    )
+
+    values, valid_carriers = evidence_sources._visible_text_doi_values(
+        (block,)
+    )
+
+    assert valid_carriers is True
+    assert values == expected
+
+
+@pytest.mark.parametrize("token_count", (1, 3))
+def test_task5a5_resolver_markers_compute_each_token_bounds_once(
+    monkeypatch,
+    token_count,
+):
+    marker_count = 257
+    token = "https://" + "doi.org/" * marker_count + "10.7000/value"
+    block = " ".join(token for _ in range(token_count))
+    real_bounds = evidence_sources._text_token_bounds
+    bounds_calls = []
+
+    def recording_bounds(text, start, end):
+        bounds_calls.append((start, end))
+        return real_bounds(text, start, end)
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_text_token_bounds",
+        recording_bounds,
+    )
+
+    values, valid_carriers = evidence_sources._visible_text_doi_values(
+        (block,)
+    )
+
+    assert values == set()
+    assert valid_carriers is False
+    assert len(bounds_calls) == token_count
+
+
+def test_task5a5_label_start_helper_is_local_and_reused_by_boundaries():
+    helper = getattr(evidence_sources, "_labelled_doi_start", None)
+    assert callable(helper), "a local labelled DOI start helper is required"
+    assert "search" not in helper.__code__.co_names
+    assert "fullmatch" in helper.__code__.co_names
+    for boundary_helper in (
+        evidence_sources._has_labelled_doi_boundary,
+        evidence_sources._has_presentation_opener,
+    ):
+        assert "_labelled_doi_start" in boundary_helper.__code__.co_names
+        assert "search" not in boundary_helper.__code__.co_names
+
+    long_prefix = "x" * 16_384 + " "
+    cases = (
+        ("DoI : 10.7000/value", 0),
+        ("(dOi:  10.7000/value)", 1),
+        (long_prefix + "DOI\t:\t10.7000/value", len(long_prefix)),
+    )
+    for rendered, expected_start in cases:
+        text = _Task5A5NoVariableDOISlices(rendered)
+        doi_start = text.index("10.7000/value")
+        assert helper(text, doi_start) == expected_start
+        assert text.character_reads <= 16
+
+    for rendered in (
+        "doi 10.7000/value",
+        "doi :: 10.7000/value",
+        "label: 10.7000/value",
+    ):
+        text = _Task5A5NoVariableDOISlices(rendered)
+        assert helper(text, text.index("10.7000/value")) is None
+        assert text.character_reads <= 16
+
+
+def _task5a5_validate_strict_oup_scan_mode(payload, validation_mode, tmp_path):
+    if validation_mode == "direct":
+        return evidence_sources._html_visible_document(
+            payload,
+            context="Task 5A.5 direct strict OUP DOI scan",
+            descriptor_version=2,
+        )
+    if validation_mode == "download":
+        return _validate_oup_html_payload(payload)
+    assert validation_mode == "offline"
+    return _validate_oup_html_payload_in_mode(payload, "offline", tmp_path)
+
+
+def _task5a5_bound_semantic_doi_scans(monkeypatch):
+    real_scanner = evidence_sources._visible_text_doi_values
+    scans = []
+
+    def bounded_scanner(blocks):
+        trapped_blocks = tuple(
+            _Task5A5NoVariableDOISlices(block) for block in blocks
+        )
+        scans.append(
+            (
+                sum(len(block) for block in trapped_blocks),
+                sum(
+                    len(evidence_sources._ANY_DOI_VALUE.findall(block))
+                    for block in trapped_blocks
+                ),
+            )
+        )
+        return real_scanner(trapped_blocks)
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_visible_text_doi_values",
+        bounded_scanner,
+    )
+    return scans
+
+
+@pytest.mark.parametrize("validation_mode", ("direct", "download", "offline"))
+def test_task5a5_strict_modes_reject_many_visible_dois_with_linear_scans(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+):
+    extra_count = 33
+    extra_dois = " ".join(
+        f"DOI : 10.7100/visible-{index}" for index in range(extra_count)
+    ).encode("ascii")
+    payload = OUP_HTML.replace(
+        b"</header>",
+        b"<p>" + extra_dois + b"</p></header>",
+        1,
+    )
+    scans = _task5a5_bound_semantic_doi_scans(monkeypatch)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _task5a5_validate_strict_oup_scan_mode(
+            payload,
+            validation_mode,
+            tmp_path,
+        )
+
+    assert str(caught.value) == (
+        "OUP HTML contains a conflicting or second DOI carrier outside ref-list"
+    )
+    assert len(scans) == 1
+    assert scans[0][1] == extra_count + 1
+    assert scans[0][0] <= len(payload)
+
+
+@pytest.mark.parametrize("validation_mode", ("direct", "download", "offline"))
+@pytest.mark.parametrize(
+    ("opening", "closing"),
+    (
+        (b"<div hidden><p>", b"</p></div>"),
+        (b"<template><p>", b"</p></template>"),
+    ),
+    ids=("hidden", "inert"),
+)
+def test_task5a5_strict_modes_scan_hidden_and_inert_dois_twice_linearly(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+    opening,
+    closing,
+):
+    extra_count = 33
+    extra_dois = " ".join(
+        f"doi : 10.7200/nonvisible-{index}" for index in range(extra_count)
+    ).encode("ascii")
+    payload = OUP_HTML.replace(
+        b"</article>",
+        opening + extra_dois + closing + b"</article>",
+        1,
+    )
+    scans = _task5a5_bound_semantic_doi_scans(monkeypatch)
+
+    with pytest.raises(SourceEvidenceError) as caught:
+        _task5a5_validate_strict_oup_scan_mode(
+            payload,
+            validation_mode,
+            tmp_path,
+        )
+
+    assert str(caught.value) == (
+        "OUP HTML contains a conflicting or second DOI carrier outside ref-list"
+    )
+    assert len(scans) == 2
+    assert [doi_count for _, doi_count in scans] == [1, extra_count + 1]
+    assert all(character_count <= len(payload) for character_count, _ in scans)
