@@ -6269,11 +6269,8 @@ def test_round7_b_oup_v2_accepts_one_descendant_hiding_selector(
         extra_doi=extra_doi,
     )
 
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI|anchor|carrier"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI|anchor"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
@@ -6302,11 +6299,8 @@ def test_round7_b_oup_inline_css_escape_is_fail_closed_hidden(
         extra_doi=extra_doi,
     )
 
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize(
