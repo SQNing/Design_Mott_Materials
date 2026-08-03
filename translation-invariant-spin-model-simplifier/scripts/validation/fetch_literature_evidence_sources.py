@@ -1560,6 +1560,7 @@ def _fetch_bibliographic_metadata(source, ssl_context):
 
 
 def _crossref_metadata(doi, ssl_context):
+    exact_garel = doi.casefold() == "10.1088/0305-4470/16/10/023"
     url = f"https://api.crossref.org/works/{quote(doi, safe='')}"
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     with urlopen(request, context=ssl_context, timeout=30) as response:
@@ -1572,8 +1573,25 @@ def _crossref_metadata(doi, ssl_context):
         raise SourceEvidenceError("Crossref DOI metadata disagrees with source identity")
     title = _first_text(message.get("title"), "Crossref title")
     venue = _first_text(message.get("container-title"), "Crossref venue")
+    raw_authors = message.get("author", [])
+    if exact_garel:
+        if not isinstance(raw_authors, list) or len(raw_authors) != 2:
+            raise SourceEvidenceError(
+                "Crossref raw authors must contain exactly two entries"
+            )
+        for author in raw_authors:
+            if not isinstance(author, dict):
+                raise SourceEvidenceError(
+                    "Crossref raw authors contain a non-mapping entry"
+                )
+            for field in ("given", "family"):
+                value = author.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    raise SourceEvidenceError(
+                        f"Crossref raw authors contain invalid {field}"
+                    )
     authors = []
-    for author in message.get("author", []):
+    for author in raw_authors:
         rendered = " ".join(
             part for part in (author.get("given", ""), author.get("family", "")) if part
         ).strip()
@@ -1588,7 +1606,7 @@ def _crossref_metadata(doi, ssl_context):
         "venue": venue,
         "publication_date": publication_date,
     }
-    if doi.casefold() == "10.1088/0305-4470/16/10/023":
+    if exact_garel:
         metadata.update(
             {
                 "doi": str(message.get("DOI", "")),
