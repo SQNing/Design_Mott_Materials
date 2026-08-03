@@ -15889,6 +15889,79 @@ def test_task5a_oup_rejects_every_second_identity_carrier_outside_exact_ref_list
         _validate_oup_html_payload(payload)
 
 
+TASK5A_OUP_ENCODED_DOI_CARRIERS = (
+    pytest.param(
+        b"<span hidden>10.9011%2Fpercent</span>",
+        id="hidden-text-percent-upper",
+    ),
+    pytest.param(
+        b"<span hidden>10.9011%2fpercent</span>",
+        id="hidden-text-percent-lower",
+    ),
+    pytest.param(
+        b'<a href="10.9012%2Fpercent-href">encoded DOI</a>',
+        id="anchor-href-percent-upper",
+    ),
+    pytest.param(
+        b'<a href="10.9012%2fpercent-href">encoded DOI</a>',
+        id="anchor-href-percent-lower",
+    ),
+    pytest.param(
+        b'<span data-extra="10.9013%2Fpercent-attr">x</span>',
+        id="attribute-percent-upper",
+    ),
+    pytest.param(
+        b'<span data-extra="10.9013%2fpercent-attr">x</span>',
+        id="attribute-percent-lower",
+    ),
+    pytest.param(
+        br'<script>"10.9014\/js-escaped"</script>',
+        id="script-json-escaped-slash",
+    ),
+)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("encoded_carrier", TASK5A_OUP_ENCODED_DOI_CARRIERS)
+def test_task5a_oup_rejects_encoded_doi_carrier_outside_exact_ref_list(
+    tmp_path,
+    validation_mode,
+    encoded_carrier,
+):
+    payload = OUP_HTML.replace(
+        b"    </article>",
+        b"      " + encoded_carrier + b"\n    </article>",
+        1,
+    )
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier|ref-list"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("encoded_carrier", TASK5A_OUP_ENCODED_DOI_CARRIERS)
+def test_task5a_oup_accepts_encoded_doi_carrier_inside_exact_ref_list(
+    tmp_path,
+    validation_mode,
+    encoded_carrier,
+):
+    cited_anchor = (
+        b'<a href="https://doi.org/10.1000/cited-work">'
+        b"10.1000/cited-work</a>"
+    )
+    assert OUP_HTML.count(cited_anchor) == 1
+    payload = OUP_HTML.replace(
+        cited_anchor,
+        cited_anchor + encoded_carrier,
+        1,
+    )
+    _validate_oup_html_payload_in_mode(
+        payload,
+        validation_mode,
+        tmp_path,
+    )
+
+
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
 def test_task5a_oup_rejects_title_and_extra_doi_outside_container(
     tmp_path,
@@ -16274,6 +16347,21 @@ def test_task5a_generic_v1_html_preserves_legal_doi_presentation_normalization(
     payload = _task5a_generic_v1_html_payload().replace(
         TASK5A_GENERIC_V1_RESOLVER,
         presentation,
+        1,
+    )
+    _task5a_validate_generic_v1_html(payload, validation_mode, tmp_path)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize("encoded_carrier", TASK5A_OUP_ENCODED_DOI_CARRIERS)
+def test_task5a_generic_v1_html_preserves_encoded_doi_carrier_behavior(
+    tmp_path,
+    validation_mode,
+    encoded_carrier,
+):
+    payload = _task5a_generic_v1_html_payload().replace(
+        b"    </article>",
+        b"      " + encoded_carrier + b"\n    </article>",
         1,
     )
     _task5a_validate_generic_v1_html(payload, validation_mode, tmp_path)
