@@ -2647,8 +2647,10 @@ class _FixtureHTTPResponse:
     def __exit__(self, exc_type, exc, traceback):
         return False
 
-    def read(self):
-        return self._payload
+    def read(self, size=-1):
+        if size is None or size < 0:
+            return self._payload
+        return self._payload[:size]
 
     def geturl(self):
         return self._final_url
@@ -14755,9 +14757,9 @@ def _task5a_install_oup_memory_opener(
     response_reads = []
 
     class FixtureResponse(_FixtureHTTPResponse):
-        def read(self):
+        def read(self, size=-1):
             response_reads.append((self._final_url, self._payload))
-            return super().read()
+            return super().read(size)
 
     class FixtureOpener:
         def open(self, request, timeout):
@@ -16365,3 +16367,398 @@ def test_task5a_generic_v1_html_preserves_encoded_doi_carrier_behavior(
         1,
     )
     _task5a_validate_generic_v1_html(payload, validation_mode, tmp_path)
+
+
+def test_task5a5_oup_v2_resource_limits_are_exact_contract():
+    assert evidence_sources._MAX_OUP_HTML_BYTES == 8 * 1024 * 1024
+    assert evidence_sources._MAX_OUP_DOM_START_NODES == 50_000
+    assert evidence_sources._MAX_OUP_OPEN_ELEMENT_DEPTH == 128
+
+
+@pytest.mark.parametrize("ignores_size", (False, True))
+def test_task5a5_exact_oup_acquisition_bounds_primary_read_before_validation_or_cache(
+    tmp_path,
+    monkeypatch,
+    ignores_size,
+):
+    fixture = _task5a_oup_acquisition_fixture()
+    limit = len(OUP_HTML) + 8
+    primary_payload = OUP_HTML.replace(
+        b"</body>",
+        b" " * 32 + b"</body>",
+        1,
+    )
+    assert len(primary_payload) > limit
+    fixture["primary_payload"] = primary_payload
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_HTML_BYTES",
+        limit,
+        raising=False,
+    )
+    reads = []
+
+    class BoundedResponse(_FixtureHTTPResponse):
+        def read(self, size=-1):
+            reads.append((self._final_url, size))
+            if self._final_url == TASK5A_OUP_CROSSREF_URL:
+                return self._payload
+            if ignores_size or size is None or size < 0:
+                return self._payload
+            return self._payload[:size]
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            url = request.full_url
+            if url == TASK5A_OUP_CROSSREF_URL:
+                return BoundedResponse(
+                    fixture["crossref_raw"],
+                    content_type="application/json",
+                    final_url=url,
+                )
+            assert url == fixture["route"]["authoritative_retrieval_route"][
+                "url"
+            ]
+            return BoundedResponse(
+                primary_payload,
+                content_type="text/html",
+                final_url=url,
+            )
+
+    validation_calls = []
+    real_validate_download = source_fetcher.validate_download_response
+
+    def recording_validate_download(*args, **kwargs):
+        validation_calls.append((args, kwargs))
+        return real_validate_download(*args, **kwargs)
+
+    cache_installs = []
+    monkeypatch.setattr(source_fetcher, "_ssl_context", lambda _path: object())
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "validate_download_response",
+        recording_validate_download,
+    )
+    monkeypatch.setattr(
+        source_fetcher,
+        "_install_verified_cache_candidate",
+        lambda *args, **kwargs: cache_installs.append((args, kwargs)),
+    )
+
+    outcome = source_fetcher._fetch_source(
+        tmp_path / "source-cache",
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "failed", outcome
+    assert reads == [
+        (TASK5A_OUP_CROSSREF_URL, -1),
+        (
+            fixture["route"]["authoritative_retrieval_route"]["url"],
+            limit + 1,
+        ),
+    ]
+    assert validation_calls == []
+    assert cache_installs == []
+    rendered = json.dumps(outcome, sort_keys=True)
+    assert "OUP HTML" in rendered and "byte" in rendered
+    assert "The Statistics of Honeycomb" not in rendered
+
+
+def test_task5a5_generic_v1_live_download_keeps_unbounded_response_read(
+    monkeypatch,
+):
+    payload = _task5a_generic_v1_html_payload()
+    _, route, _, _ = _task5a_generic_v1_html_contract(payload)
+    route_spec = route["authoritative_retrieval_route"]
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_HTML_BYTES",
+        1,
+        raising=False,
+    )
+    read_sizes = []
+
+    class GenericResponse(_FixtureHTTPResponse):
+        def read(self, size=-1):
+            read_sizes.append(size)
+            return super().read(size)
+
+    class GenericOpener:
+        def open(self, request, timeout):
+            return GenericResponse(
+                payload,
+                content_type="text/html",
+                final_url=route_spec["url"],
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: GenericOpener(),
+    )
+
+    response = source_fetcher._download(route_spec, object())
+
+    assert response["body"] == payload
+    assert read_sizes == [-1]
+
+
+def test_task5a5_offline_exact_oup_rejects_stat_oversize_without_unbounded_read(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, fixture = _task5a_write_oup_snapshot_cache(tmp_path)
+    payload_path = source_dir / "source.html"
+    limit = len(fixture["primary_payload"]) - 1
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_HTML_BYTES",
+        limit,
+        raising=False,
+    )
+    real_read_bytes = Path.read_bytes
+    real_open = Path.open
+    payload_opens = []
+    payload_stats = []
+
+    def guarded_read_bytes(path):
+        if path == payload_path:
+            raise AssertionError("exact OUP payload used Path.read_bytes")
+        return real_read_bytes(path)
+
+    def recording_open(path, mode="r", *args, **kwargs):
+        if path == payload_path:
+            payload_opens.append(mode)
+        return real_open(path, mode, *args, **kwargs)
+
+    def recording_lstat(path):
+        payload_stats.append(Path(path))
+        return os.lstat(path)
+
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+    monkeypatch.setattr(Path, "open", recording_open)
+    monkeypatch.setattr(
+        evidence_sources,
+        "os",
+        SimpleNamespace(lstat=recording_lstat),
+        raising=False,
+    )
+
+    with pytest.raises(SourceEvidenceError, match=r"OUP HTML.*byte|byte.*limit"):
+        load_verified_source(
+            source_dir,
+            expected_source=fixture["source"],
+            provisioning_route=fixture["route"],
+        )
+
+    assert payload_stats == [payload_path]
+    assert payload_opens == []
+
+
+def test_task5a5_offline_exact_oup_bounded_read_rechecks_changed_file_size(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, fixture = _task5a_write_oup_snapshot_cache(tmp_path)
+    payload_path = source_dir / "source.html"
+    limit = len(fixture["primary_payload"]) + 8
+    changed_payload = fixture["primary_payload"].replace(
+        b"</body>",
+        b" " * 32 + b"</body>",
+        1,
+    )
+    assert len(changed_payload) > limit
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_HTML_BYTES",
+        limit,
+        raising=False,
+    )
+    real_open = Path.open
+    read_sizes = []
+
+    class ChangedFile:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self, size=-1):
+            read_sizes.append(size)
+            if size is None or size < 0:
+                return changed_payload
+            return changed_payload[:size]
+
+    def changed_after_stat_open(path, mode="r", *args, **kwargs):
+        if path == payload_path:
+            assert mode == "rb"
+            return ChangedFile()
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", changed_after_stat_open)
+
+    with pytest.raises(SourceEvidenceError, match=r"OUP HTML.*byte|byte.*limit"):
+        load_verified_source(
+            source_dir,
+            expected_source=fixture["source"],
+            provisioning_route=fixture["route"],
+        )
+
+    assert read_sizes == [limit + 1]
+
+
+@pytest.mark.parametrize("entry_point", ("document", "text"))
+def test_task5a5_direct_strict_v2_rejects_oversize_before_decode(
+    monkeypatch,
+    entry_point,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_HTML_BYTES",
+        len(OUP_HTML) - 1,
+        raising=False,
+    )
+    function = (
+        evidence_sources._html_visible_document
+        if entry_point == "document"
+        else evidence_sources._html_visible_text
+    )
+
+    with pytest.raises(SourceEvidenceError, match=r"OUP HTML.*byte|byte.*limit") as caught:
+        function(
+            OUP_HTML,
+            context="Task 5A.5 direct strict OUP HTML",
+            descriptor_version=2,
+        )
+
+    assert "The Statistics of Honeycomb" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("limit_name", "limit_value", "serial", "frame_count", "match"),
+    (
+        ("_MAX_OUP_DOM_START_NODES", 2, 2, 1, "node"),
+        ("_MAX_OUP_OPEN_ELEMENT_DEPTH", 2, 0, 2, "depth"),
+    ),
+)
+def test_task5a5_strict_v2_rejects_node_and_depth_limits_before_ancestor_copy(
+    monkeypatch,
+    limit_name,
+    limit_value,
+    serial,
+    frame_count,
+    match,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        limit_name,
+        limit_value,
+        raising=False,
+    )
+
+    class AncestorCopyForbidden(list):
+        def __iter__(self):
+            raise AssertionError("ancestor tuple construction reached")
+
+    parser = evidence_sources._StrictOUPArticleHTMLParser(
+        context="Task 5A.5 strict OUP parser",
+        hidden_selectors=evidence_sources._NO_HIDDEN_STYLESHEET_SELECTORS,
+    )
+    parser.serial = serial
+    parser.frames = AncestorCopyForbidden(
+        {"tag": "body"} for _ in range(frame_count)
+    )
+
+    with pytest.raises(SourceEvidenceError, match=match):
+        parser.handle_starttag("div", [])
+
+
+def test_task5a5_strict_v2_rejects_second_tracked_class_before_accumulation(
+    monkeypatch,
+):
+    parser = evidence_sources._StrictOUPArticleHTMLParser(
+        context="Task 5A.5 strict OUP parser",
+        hidden_selectors=evidence_sources._NO_HIDDEN_STYLESHEET_SELECTORS,
+    )
+    parser.handle_starttag("html", [])
+    parser.handle_starttag("body", [])
+    parser.handle_starttag(
+        "article",
+        [("class", "minimal-article-container")],
+    )
+    serial_before = parser.serial
+    frame_count_before = len(parser.frames)
+    active_nodes_before = parser.frames[-1]["active_nodes"]
+    tracked_nodes_before = tuple(
+        parser.nodes_by_class["minimal-article-container"]
+    )
+    monkeypatch.setattr(
+        evidence_sources,
+        "_element_is_hidden",
+        lambda *args, **kwargs: pytest.fail(
+            "duplicate tracked class reached ancestor-dependent hiding"
+        ),
+    )
+
+    with pytest.raises(
+        SourceEvidenceError,
+        match=(
+            r'expected exactly one element with class '
+            r'"minimal-article-container"; found 2'
+        ),
+    ):
+        parser.handle_starttag(
+            "div",
+            [("class", "minimal-article-container")],
+        )
+
+    assert parser.serial == serial_before
+    assert len(parser.frames) == frame_count_before
+    assert parser.frames[-1]["active_nodes"] is active_nodes_before
+    assert tuple(
+        parser.nodes_by_class["minimal-article-container"]
+    ) == tracked_nodes_before
+
+
+def test_task5a5_approved_oup_fixture_remains_valid_under_default_limits():
+    assert _validate_oup_html_payload(OUP_HTML) == "text/html"
+
+
+def test_task5a5_generic_v1_ignores_strict_oup_v2_resource_limits(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_HTML_BYTES",
+        1,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_DOM_START_NODES",
+        1,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_OPEN_ELEMENT_DEPTH",
+        1,
+        raising=False,
+    )
+
+    assert _task5a_validate_generic_v1_html(
+        _task5a_generic_v1_html_payload(),
+        "download",
+        tmp_path,
+    ) == "text/html"
