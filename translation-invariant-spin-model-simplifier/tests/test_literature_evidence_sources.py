@@ -966,7 +966,7 @@ CORE_MG_BIBLIOGRAPHIC_METADATA = {
 }
 CORE_MG_PDF_TEXT = "\n".join(
     (
-        "The Majumdar-Ghosh chain: Twofold ground state and elementary excitations",
+        "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
         "W J Caspers, K M Emmett and W Magnus",
         "Abstract",
     )
@@ -14336,7 +14336,11 @@ def test_task5a_core_pdf_title_and_ordered_authors_agree_transitively():
     "mutated_text",
     (
         CORE_MG_PDF_TEXT.replace(
+            "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
             "The Majumdar-Ghosh chain: Twofold ground state and elementary excitations",
+        ),
+        CORE_MG_PDF_TEXT.replace(
+            "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations",
             "A different spin-chain paper",
         ),
         CORE_MG_PDF_TEXT.replace(" and W Magnus", ""),
@@ -14357,6 +14361,7 @@ def test_task5a_core_pdf_title_and_ordered_authors_agree_transitively():
         "Completely different paper by Alice Example and Bob Example.",
     ),
     ids=(
+        "api-title-punctuation",
         "wrong-title",
         "missing-author",
         "extra-author",
