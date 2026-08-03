@@ -1959,6 +1959,13 @@ class _CSSSimpleSelector:
 
 
 @dataclass(frozen=True)
+class _CSSMatchElement:
+    tag: str
+    element_id: str
+    class_names: frozenset
+
+
+@dataclass(frozen=True)
 class _CSSCompoundHidingSelector:
     ancestor: _CSSSimpleSelector
     combinator: str
@@ -2495,24 +2502,32 @@ def _hidden_stylesheet_selectors(document, *, context, descriptor_version=1):
     )
 
 
-def _css_simple_selector_matches(selector, tag, attributes):
+def _css_match_element(tag, attributes):
+    return _CSSMatchElement(
+        tag=str(tag).casefold(),
+        element_id=str(attributes.get("id") or "").casefold(),
+        class_names=frozenset(
+            str(attributes.get("class") or "").casefold().split()
+        ),
+    )
+
+
+def _css_simple_selector_matches(selector, match_element):
     if selector.kind == "tag":
-        return tag == selector.value
+        return match_element.tag == selector.value
     if selector.kind == "id":
-        return str(attributes.get("id") or "").casefold() == selector.value
-    class_names = set(str(attributes.get("class") or "").casefold().split())
-    return selector.value in class_names
+        return match_element.element_id == selector.value
+    return selector.value in match_element.class_names
 
 
 def _css_simple_selector_matches_with_budget(
     selector,
-    tag,
-    attributes,
+    match_element,
     match_work_budget,
 ):
     if match_work_budget is not None:
         match_work_budget.consume()
-    return _css_simple_selector_matches(selector, tag, attributes)
+    return _css_simple_selector_matches(selector, match_element)
 
 
 def _element_is_hidden(
@@ -2522,15 +2537,20 @@ def _element_is_hidden(
     *,
     ancestors=(),
     match_work_budget=None,
+    match_element=None,
 ):
-    class_names = set(str(attributes.get("class") or "").casefold().split())
-    element_id = str(attributes.get("id") or "").casefold()
+    if match_element is None:
+        match_element = _css_match_element(tag, attributes)
+    if ancestors and not isinstance(ancestors[0], _CSSMatchElement):
+        ancestors = tuple(
+            _css_match_element(ancestor_tag, ancestor_attributes)
+            for ancestor_tag, ancestor_attributes in ancestors
+        )
     compound_hidden = False
     for selector in hidden_selectors.compounds:
         if not _css_simple_selector_matches_with_budget(
             selector.target,
-            tag,
-            attributes,
+            match_element,
             match_work_budget,
         ):
             continue
@@ -2541,11 +2561,10 @@ def _element_is_hidden(
         if any(
             _css_simple_selector_matches_with_budget(
                 selector.ancestor,
-                ancestor_tag,
-                ancestor_attributes,
+                ancestor,
                 match_work_budget,
             )
-            for ancestor_tag, ancestor_attributes in candidates
+            for ancestor in candidates
         ):
             compound_hidden = True
             break
@@ -2558,9 +2577,9 @@ def _element_is_hidden(
             and str(attributes.get("type", "")).casefold() == "hidden"
         )
         or _style_hides(str(attributes.get("style") or ""))
-        or tag in hidden_selectors.tags
-        or element_id in hidden_selectors.ids
-        or bool(class_names & hidden_selectors.classes)
+        or match_element.tag in hidden_selectors.tags
+        or match_element.element_id in hidden_selectors.ids
+        or bool(match_element.class_names & hidden_selectors.classes)
         or compound_hidden
     )
 
@@ -3512,9 +3531,8 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             )
 
         attributes = self._normalized_attributes(attrs)
-        class_names = set(
-            str(attributes.get("class") or "").casefold().split()
-        )
+        match_element = _css_match_element(tag, attributes)
+        class_names = match_element.class_names
         for class_name in self._TRACKED_CLASSES:
             if (
                 class_name in class_names
@@ -3526,7 +3544,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
                     f"{len(self.nodes_by_class[class_name]) + 1}"
                 )
         ancestor_elements = tuple(
-            (frame["tag"], frame["attributes"]) for frame in self.frames
+            frame["match_element"] for frame in self.frames
         )
         parent_hidden = self.frames[-1]["hidden"] if self.frames else False
         hidden = parent_hidden or _element_is_hidden(
@@ -3535,6 +3553,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             self.hidden_selectors,
             ancestors=ancestor_elements,
             match_work_budget=self.css_selector_match_work_budget,
+            match_element=match_element,
         )
         parent_body = self.frames[-1]["in_body"] if self.frames else False
         parent_head = self.frames[-1]["in_head"] if self.frames else False
@@ -3676,6 +3695,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
                 {
                     "tag": tag,
                     "attributes": attributes,
+                    "match_element": match_element,
                     "hidden": hidden,
                     "in_body": in_body,
                     "in_head": in_head,
