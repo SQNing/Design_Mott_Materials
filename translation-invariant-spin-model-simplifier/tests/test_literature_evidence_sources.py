@@ -16790,9 +16790,14 @@ def _task5a5_record_css_matcher_calls(monkeypatch):
     calls = []
     real_matcher = evidence_sources._css_simple_selector_matches
 
-    def recording_matcher(selector, tag, attributes):
+    def recording_matcher(selector, *element_args):
+        tag = (
+            element_args[0].tag
+            if len(element_args) == 1
+            else element_args[0]
+        )
         calls.append((selector.value, tag))
-        return real_matcher(selector, tag, attributes)
+        return real_matcher(selector, *element_args)
 
     monkeypatch.setattr(
         evidence_sources,
@@ -16955,3 +16960,244 @@ def test_task5a5_strict_v2_compound_match_work_counts_exact_matcher_calls(
     with pytest.raises(SourceEvidenceError, match=r"CSS.*match.*work|match.*limit"):
         exercise(work_limit)
     assert tuple(calls) == expected_calls[:work_limit]
+
+
+class _Task5A5CountedClassAttribute:
+    def __init__(self, value):
+        self.value = value
+        self.normalizations = 0
+
+    def __str__(self):
+        self.normalizations += 1
+        return self.value
+
+
+def _task5a5_compound_hidden_selectors(*, rule_count, combinator="descendant"):
+    selector = evidence_sources._CSSCompoundHidingSelector(
+        evidence_sources._CSSSimpleSelector(
+            "class",
+            "task5a5-absent-ancestor",
+        ),
+        combinator,
+        evidence_sources._CSSSimpleSelector(
+            "class",
+            "task5a5-long-target",
+        ),
+    )
+    return evidence_sources._HiddenStylesheetSelectors(
+        classes=frozenset(),
+        ids=frozenset(),
+        tags=frozenset(),
+        compounds=(selector,) * rule_count,
+    )
+
+
+def test_task5a5_css_match_element_compound_rules_normalize_one_long_target_once(
+    monkeypatch,
+):
+    rule_count = 257
+    long_class = _Task5A5CountedClassAttribute(
+        " ".join(
+            ("task5a5-long-target",)
+            + tuple(f"task5a5-filler-{index}" for index in range(2048))
+        )
+    )
+    calls = _task5a5_record_css_matcher_calls(monkeypatch)
+    match_work_budget = evidence_sources._CSSSelectorMatchWorkBudget(rule_count)
+
+    hidden = evidence_sources._element_is_hidden(
+        "div",
+        {"class": long_class},
+        _task5a5_compound_hidden_selectors(rule_count=rule_count),
+        match_work_budget=match_work_budget,
+    )
+
+    assert hidden is False
+    assert calls == [("task5a5-long-target", "div")] * rule_count
+    assert match_work_budget.consumed == rule_count
+    assert long_class.normalizations == 1
+
+
+def test_task5a5_css_match_element_strict_descendants_normalize_each_element_once(
+    monkeypatch,
+):
+    class_attributes = {
+        "html": _Task5A5CountedClassAttribute("task5a5-root"),
+        "body": _Task5A5CountedClassAttribute("task5a5-body"),
+        "div": _Task5A5CountedClassAttribute("task5a5-ancestor"),
+        "section": _Task5A5CountedClassAttribute("task5a5-section"),
+        "span": _Task5A5CountedClassAttribute("task5a5-target-class"),
+    }
+    hidden_selectors = evidence_sources._HiddenStylesheetSelectors(
+        classes=frozenset(),
+        ids=frozenset(),
+        tags=frozenset(),
+        compounds=(
+            evidence_sources._CSSCompoundHidingSelector(
+                evidence_sources._CSSSimpleSelector(
+                    "class",
+                    "task5a5-ancestor",
+                ),
+                "descendant",
+                evidence_sources._CSSSimpleSelector("id", "task5a5-target"),
+            ),
+        ),
+    )
+    calls = _task5a5_record_css_matcher_calls(monkeypatch)
+    parser = evidence_sources._StrictOUPArticleHTMLParser(
+        context="Task 5A.5 strict OUP match-element reuse",
+        hidden_selectors=hidden_selectors,
+    )
+
+    for tag in ("html", "body", "div", "section", "span"):
+        attributes = [("class", class_attributes[tag])]
+        if tag == "span":
+            attributes.append(("id", "TASK5A5-TARGET"))
+        parser.handle_starttag(tag, attributes)
+
+    assert calls == [
+        ("task5a5-target", "html"),
+        ("task5a5-target", "body"),
+        ("task5a5-target", "div"),
+        ("task5a5-target", "section"),
+        ("task5a5-target", "span"),
+        ("task5a5-ancestor", "html"),
+        ("task5a5-ancestor", "body"),
+        ("task5a5-ancestor", "div"),
+    ]
+    assert {tag: value.normalizations for tag, value in class_attributes.items()} == {
+        "html": 1,
+        "body": 1,
+        "div": 1,
+        "section": 1,
+        "span": 1,
+    }
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_task5a5_css_match_element_strict_modes_precompute_long_target_once(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+):
+    rule_count = 257
+    filler_classes = b" ".join(
+        f"task5a5-mode-filler-{index}".encode("ascii")
+        for index in range(2048)
+    )
+    payload = OUP_HTML.replace(
+        b'class="article-content"',
+        b'class="article-content task5a5-long-target '
+        + filler_classes
+        + b'"',
+        1,
+    ).replace(
+        b"</head>",
+        (
+            b"<style>"
+            + (
+                b".task5a5-absent-ancestor .task5a5-long-target"
+                b" { display:none }"
+            )
+            * rule_count
+            + b"</style></head>"
+        ),
+        1,
+    )
+    real_factory = getattr(evidence_sources, "_css_match_element", None)
+    assert real_factory is not None, "CSS match elements must be precomputed"
+    target_normalizations = []
+
+    def recording_factory(tag, attributes):
+        match_element = real_factory(tag, attributes)
+        if "task5a5-long-target" in match_element.class_names:
+            target_normalizations.append(match_element)
+        return match_element
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_css_match_element",
+        recording_factory,
+    )
+
+    result = _validate_oup_html_payload_in_mode(
+        payload,
+        validation_mode,
+        tmp_path,
+    )
+    if validation_mode == "download":
+        assert result == "text/html"
+    else:
+        assert result.extraction_tool["version"] == 2
+    assert len(target_normalizations) == 1
+
+
+@pytest.mark.parametrize(
+    ("selector", "ancestors", "expected_hidden"),
+    (
+        pytest.param(
+            evidence_sources._CSSCompoundHidingSelector(
+                evidence_sources._CSSSimpleSelector("id", "mixed-id"),
+                "child",
+                evidence_sources._CSSSimpleSelector("class", "mixed-target"),
+            ),
+            (("section", {"id": "MIXED-ID"}),),
+            True,
+            id="mixed-case-id-child-and-class-target-match",
+        ),
+        pytest.param(
+            evidence_sources._CSSCompoundHidingSelector(
+                evidence_sources._CSSSimpleSelector("class", "missing-parent"),
+                "child",
+                evidence_sources._CSSSimpleSelector("id", "mixed-id"),
+            ),
+            (("section", {"class": "present-parent"}),),
+            False,
+            id="child-miss",
+        ),
+        pytest.param(
+            evidence_sources._CSSCompoundHidingSelector(
+                evidence_sources._CSSSimpleSelector("class", "present-parent"),
+                "descendant",
+                evidence_sources._CSSSimpleSelector("class", "missing-target"),
+            ),
+            (("section", {"class": "PRESENT-PARENT"}),),
+            False,
+            id="target-miss",
+        ),
+    ),
+)
+def test_task5a5_css_match_element_preserves_compound_id_class_semantics(
+    selector,
+    ancestors,
+    expected_hidden,
+):
+    hidden_selectors = evidence_sources._HiddenStylesheetSelectors(
+        classes=frozenset(),
+        ids=frozenset(),
+        tags=frozenset(),
+        compounds=(selector,),
+    )
+
+    assert evidence_sources._element_is_hidden(
+        "span",
+        {"id": "MIXED-ID", "class": "MIXED-TARGET"},
+        hidden_selectors,
+        ancestors=ancestors,
+    ) is expected_hidden
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_task5a5_css_match_element_keeps_generic_v1_behavior(
+    tmp_path,
+    validation_mode,
+):
+    result = _task5a_validate_generic_v1_html(
+        _task5a_generic_v1_html_payload(),
+        validation_mode,
+        tmp_path,
+    )
+    if validation_mode == "download":
+        assert result == "text/html"
+    else:
+        assert result.extraction_tool["version"] == 1
