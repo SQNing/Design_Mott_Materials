@@ -8,8 +8,10 @@ from html import unescape
 from html.parser import HTMLParser
 import json
 import math
+import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 import subprocess
 from types import MappingProxyType
 from urllib.parse import urljoin, urlparse, urlsplit
@@ -114,6 +116,9 @@ _OUP_HUSIMI_SYOZI_PRIMARY_RESOURCE_URL = (
     "https://academic.oup.com/ptp/article-lookup/doi/"
     "10.1143/ptp/5.2.177"
 )
+_MAX_OUP_HTML_BYTES = 8 * 1024 * 1024
+_MAX_OUP_DOM_START_NODES = 50_000
+_MAX_OUP_OPEN_ELEMENT_DEPTH = 128
 _HAL_GAREL_EVIDENCE_KIND = "hal_same_work_bibliographic_payload"
 _HAL_GAREL_API_BASE = "https://api.archives-ouvertes.fr/search/"
 _HAL_GAREL_RECORD_IDENTIFIER = "hal-02340631v1"
@@ -204,6 +209,12 @@ def _is_exact_oup_authoritative_route(authoritative_route):
     return isinstance(authoritative_route, Mapping) and dict(
         authoritative_route
     ) == _EXACT_AUTHORITATIVE_ROUTES[_OUP_HUSIMI_SYOZI_DOI]
+
+
+def _max_oup_html_bytes():
+    """Return the live exact-OUP HTML byte limit from its single source."""
+
+    return _MAX_OUP_HTML_BYTES
 
 
 def _oup_crossref_bibliographic_metadata(document):
@@ -590,9 +601,21 @@ def load_verified_source(
     )
     _validate_structured_notes(raw)
 
+    authoritative_route = provisioning_route.get(
+        "authoritative_retrieval_route", {}
+    )
+    exact_oup_route = _is_exact_oup_route(
+        raw["source_identity"],
+        authoritative_route,
+        source_id=raw["source_id"],
+    )
     payload_path = _payload_path(root, raw["payload_relative_path"])
     try:
-        payload = payload_path.read_bytes()
+        payload = (
+            _read_bounded_oup_html_payload(payload_path)
+            if exact_oup_route
+            else payload_path.read_bytes()
+        )
     except OSError as exc:
         raise SourceEvidenceError(f"cannot read source payload {payload_path}: {exc}") from exc
     if not payload:
@@ -604,14 +627,6 @@ def load_verified_source(
         raise SourceEvidenceError("payload byte length does not match provenance")
     _validate_coordinates(raw["artifact_coordinates"], len(payload))
 
-    authoritative_route = provisioning_route.get(
-        "authoritative_retrieval_route", {}
-    )
-    exact_oup_route = _is_exact_oup_route(
-        raw["source_identity"],
-        authoritative_route,
-        source_id=raw["source_id"],
-    )
     extracted_text = _extract_text(
         payload_path,
         payload,
@@ -3036,6 +3051,31 @@ def _payload_path(root, relative_path):
     return path
 
 
+def _raise_oup_html_byte_limit():
+    raise SourceEvidenceError("OUP HTML byte limit exceeded")
+
+
+def _require_bounded_oup_html_payload(payload):
+    if len(payload) > _max_oup_html_bytes():
+        _raise_oup_html_byte_limit()
+
+
+def _read_bounded_oup_html_payload(payload_path):
+    limit = _max_oup_html_bytes()
+    payload_status = os.lstat(payload_path)
+    if not stat.S_ISREG(payload_status.st_mode):
+        raise SourceEvidenceError(
+            "OUP HTML payload must be a regular file"
+        )
+    if payload_status.st_size > limit:
+        _raise_oup_html_byte_limit()
+    with payload_path.open("rb") as handle:
+        payload = handle.read(limit + 1)
+    if len(payload) > limit:
+        _raise_oup_html_byte_limit()
+    return payload
+
+
 def _validate_coordinates(coordinates, payload_length):
     _require_exact_fields(
         coordinates,
@@ -3398,6 +3438,14 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             builder.boundary()
 
     def handle_starttag(self, tag, attrs):
+        if self.serial >= _MAX_OUP_DOM_START_NODES:
+            raise SourceEvidenceError(
+                "OUP HTML DOM start node limit exceeded"
+            )
+        if len(self.frames) >= _MAX_OUP_OPEN_ELEMENT_DEPTH:
+            raise SourceEvidenceError(
+                "OUP HTML open-element depth limit exceeded"
+            )
         tag = tag.casefold()
         if self.root_closed:
             raise SourceEvidenceError(
@@ -3429,6 +3477,19 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             )
 
         attributes = self._normalized_attributes(attrs)
+        class_names = set(
+            str(attributes.get("class") or "").casefold().split()
+        )
+        for class_name in self._TRACKED_CLASSES:
+            if (
+                class_name in class_names
+                and self.nodes_by_class[class_name]
+            ):
+                raise SourceEvidenceError(
+                    'OUP DOM cardinality: expected exactly one element with class "'
+                    f'{class_name}"; found '
+                    f"{len(self.nodes_by_class[class_name]) + 1}"
+                )
         ancestor_elements = tuple(
             (frame["tag"], frame["attributes"]) for frame in self.frames
         )
@@ -3459,9 +3520,6 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             "noscript",
             "template",
         }
-        class_names = set(
-            str(attributes.get("class") or "").casefold().split()
-        )
         in_container = parent_container or (
             in_body and "minimal-article-container" in class_names
         )
@@ -3887,6 +3945,8 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
 
 
 def _html_visible_document(payload, *, context, descriptor_version=1):
+    if descriptor_version == 2:
+        _require_bounded_oup_html_payload(payload)
     try:
         document = payload.decode("utf-8")
     except (AttributeError, UnicodeDecodeError) as exc:

@@ -28,7 +28,9 @@ from validation.literature_evidence_inventory import load_and_validate_inventory
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
     _is_exact_oup_route,
+    _is_exact_oup_authoritative_route,
     _load_json_bytes,
+    _max_oup_html_bytes,
     _oup_crossref_bibliographic_metadata,
     _pdftotext_version,
     arxiv_atom_identifier_matches,
@@ -1554,6 +1556,8 @@ def _verify_cached_source(cache_root, source, route):
 def _download(route, ssl_context, *, credential_profile=None):
     credential_values = _credential_values(credential_profile)
     exact_core_route = _is_exact_core_fulltext_route(route)
+    exact_oup_route = _is_exact_oup_authoritative_route(route)
+    oup_html_limit = _max_oup_html_bytes() if exact_oup_route else None
     if exact_core_route and credential_values:
         raise SourceEvidenceError(
             "CORE full-text route rejects credential-bearing requests"
@@ -1586,7 +1590,13 @@ def _download(route, ssl_context, *, credential_profile=None):
             final_url_in_memory = response.geturl()
             if exact_core_route:
                 redirect_handler.require_complete_response(final_url_in_memory)
-            body = response.read()
+            body = (
+                response.read(oup_html_limit + 1)
+                if exact_oup_route
+                else response.read()
+            )
+            if exact_oup_route and len(body) > oup_html_limit:
+                raise SourceEvidenceError("OUP HTML byte limit exceeded")
             status = response.status
             headers = dict(response.headers.items())
     except SourceEvidenceError:
