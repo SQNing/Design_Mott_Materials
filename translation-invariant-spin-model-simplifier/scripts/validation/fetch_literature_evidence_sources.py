@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ElementTree
 from validation.literature_evidence_inventory import load_and_validate_inventory
 from validation.literature_evidence_sources import (
     SourceEvidenceError,
+    _authoritative_route_from_provisioning,
     _is_exact_oup_route,
     _is_exact_oup_authoritative_route,
     _load_json_bytes,
@@ -892,11 +893,7 @@ def _fetch_source(
         )
     try:
         ssl_context = _ssl_context(ca_bundle)
-        route_spec = {
-            **route["authoritative_retrieval_route"],
-            "expected_media_type": route["expected_media_type"],
-            "access_mode": route["access_mode"],
-        }
+        route_spec = _authoritative_route_from_provisioning(route)
         identity = source.get("canonical_identity", {})
         exact_core_route = (
             identity.get("kind") == "doi"
@@ -1679,7 +1676,7 @@ def _download(route, ssl_context, *, credential_profile=None):
 def _fetch_work_identity_evidence(
     source, route, ssl_context, *, bibliographic_metadata
 ):
-    authoritative_route = route["authoritative_retrieval_route"]
+    authoritative_route = _authoritative_route_from_provisioning(route)
     evidence_route = authoritative_route["work_identity_evidence"]
     if evidence_route["kind"] == "canonical_identity":
         return None
@@ -1963,8 +1960,8 @@ def _build_provenance(
 ):
     body = response["body"]
     identity = source["canonical_identity"]
-    retrieval_kind = route["authoritative_retrieval_route"]["kind"]
-    retrieval_route = route["authoritative_retrieval_route"]
+    retrieval_route = _authoritative_route_from_provisioning(route)
+    retrieval_kind = retrieval_route["kind"]
     origin = authoritative_origin_for_route_kind(retrieval_kind)
     if response["media_type"] == "application/pdf":
         extraction = {

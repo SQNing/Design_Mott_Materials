@@ -212,6 +212,22 @@ def _is_exact_oup_authoritative_route(authoritative_route):
     ) == _EXACT_AUTHORITATIVE_ROUTES[_OUP_HUSIMI_SYOZI_DOI]
 
 
+def _authoritative_route_from_provisioning(provisioning_route):
+    """Return one complete in-memory route from the split provisioning schema."""
+
+    if not isinstance(provisioning_route, Mapping):
+        return {}
+    authoritative_route = provisioning_route.get(
+        "authoritative_retrieval_route"
+    )
+    if not isinstance(authoritative_route, Mapping):
+        return {}
+    complete_route = dict(authoritative_route)
+    for field in ("expected_media_type", "access_mode"):
+        complete_route[field] = provisioning_route.get(field)
+    return complete_route
+
+
 def _max_oup_html_bytes():
     """Return the live exact-OUP HTML byte limit from its single source."""
 
@@ -602,8 +618,8 @@ def load_verified_source(
     )
     _validate_structured_notes(raw)
 
-    authoritative_route = provisioning_route.get(
-        "authoritative_retrieval_route", {}
+    authoritative_route = _authoritative_route_from_provisioning(
+        provisioning_route
     )
     exact_oup_route = _is_exact_oup_route(
         raw["source_identity"],
@@ -734,10 +750,8 @@ def _validate_bibliographic_metadata(
     metadata, *, identity=None, provisioning_route=None
 ):
     required = {"title", "authors", "venue", "publication_date"}
-    authoritative_route = (
-        provisioning_route.get("authoritative_retrieval_route", {})
-        if isinstance(provisioning_route, Mapping)
-        else {}
+    authoritative_route = _authoritative_route_from_provisioning(
+        provisioning_route
     )
     if _is_exact_garel_hal_route(identity, authoritative_route):
         required |= {"doi", "volume", "issue", "pages"}
@@ -1002,7 +1016,7 @@ def _require_exact_garel_hal_route(identity, authoritative_route):
 def _validate_work_identity_payload(
     root, metadata, identity, provisioning_route, bibliographic_metadata
 ):
-    route = provisioning_route.get("authoritative_retrieval_route", {})
+    route = _authoritative_route_from_provisioning(provisioning_route)
     expected = route.get("work_identity_evidence", {})
     exact_oup_route = _is_exact_oup_route(identity, route)
     if expected.get("kind") in {None, "canonical_identity"}:

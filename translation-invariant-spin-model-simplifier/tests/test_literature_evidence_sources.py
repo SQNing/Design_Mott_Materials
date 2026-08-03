@@ -2694,7 +2694,19 @@ def test_fetcher_preserves_raw_media_aware_same_work_sidecar(
             "value": metadata["doi"],
         }
     }
-    route = {"authoritative_retrieval_route": route_spec}
+    route = {
+        "authoritative_retrieval_route": {
+            key: copy.deepcopy(route_spec[key])
+            for key in (
+                "kind",
+                "url",
+                "artifact_identifier",
+                "work_identity_evidence",
+            )
+        },
+        "expected_media_type": route_spec["expected_media_type"],
+        "access_mode": route_spec["access_mode"],
+    }
     class FixtureOpener:
         def open(self, request, timeout):
             return _FixtureHTTPResponse(
@@ -5901,7 +5913,19 @@ def test_fetcher_records_exact_deterministic_html_extraction_contract():
         "canonical_identity": {"kind": "doi", "value": "10.1143/ptp/5.2.177"},
         "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
     }
-    route = {"authoritative_retrieval_route": route_spec}
+    route = {
+        "authoritative_retrieval_route": {
+            key: copy.deepcopy(route_spec[key])
+            for key in (
+                "kind",
+                "url",
+                "artifact_identifier",
+                "work_identity_evidence",
+            )
+        },
+        "expected_media_type": route_spec["expected_media_type"],
+        "access_mode": route_spec["access_mode"],
+    }
     response = {
         "body": OUP_HTML,
         "final_url": route_spec["url"],
@@ -12184,6 +12208,100 @@ TASK5A_HAL_QUERY = urlencode(TASK5A_HAL_QUERY_PAIRS)
 TASK5A_HAL_REQUEST_URL = TASK5A_HAL_BASE + "?" + TASK5A_HAL_QUERY
 
 
+def _task5a_static_source_and_route(source_id):
+    reference_root = PROJECT_ROOT / "reference" / "literature-evidence"
+    source_document = json.loads(
+        reference_root.joinpath("source-index.json").read_text(encoding="utf-8")
+    )
+    provisioning_document = json.loads(
+        reference_root.joinpath("source-provisioning.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    source = next(
+        item for item in source_document["sources"] if item["source_id"] == source_id
+    )
+    route = next(
+        item
+        for item in provisioning_document["sources"]
+        if item["source_id"] == source_id
+    )
+    return copy.deepcopy(source), copy.deepcopy(route)
+
+
+@pytest.mark.parametrize(
+    "source_id",
+    (
+        "doi_dba239926d673e54f80a",
+        "doi_e49cda761520424da334",
+        "doi_457c49167653440059e9",
+    ),
+)
+def test_task5a_static_provisioning_shape_rehydrates_exact_route(source_id):
+    source, route = _task5a_static_source_and_route(source_id)
+    assert set(route["authoritative_retrieval_route"]) == {
+        "kind",
+        "url",
+        "artifact_identifier",
+        "work_identity_evidence",
+    }
+    assert evidence_sources._authoritative_route_from_provisioning(route) == (
+        authoritative_route_for_identity(source["canonical_identity"])
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "mutated_value"),
+    (
+        ("expected_media_type", "application/xml"),
+        ("access_mode", "challenge_or_institutional"),
+    ),
+)
+def test_task5a_static_provisioning_top_level_fields_cannot_be_bypassed(
+    field,
+    mutated_value,
+):
+    source, route = _task5a_static_source_and_route(
+        "doi_dba239926d673e54f80a"
+    )
+    route["authoritative_retrieval_route"][field] = (
+        authoritative_route_for_identity(source["canonical_identity"])[field]
+    )
+    route[field] = mutated_value
+
+    complete_route = evidence_sources._authoritative_route_from_provisioning(
+        route
+    )
+
+    assert complete_route[field] == mutated_value
+    assert not evidence_sources._is_exact_garel_hal_route(
+        source["canonical_identity"],
+        complete_route,
+    )
+
+
+@pytest.mark.parametrize("field", ("expected_media_type", "access_mode"))
+def test_task5a_static_provisioning_requires_each_top_level_route_field(field):
+    source, route = _task5a_static_source_and_route(
+        "doi_dba239926d673e54f80a"
+    )
+    canonical_route = authoritative_route_for_identity(
+        source["canonical_identity"]
+    )
+    route["authoritative_retrieval_route"][field] = canonical_route[field]
+    del route[field]
+
+    complete_route = evidence_sources._authoritative_route_from_provisioning(
+        route
+    )
+
+    assert complete_route[field] is None
+    assert not evidence_sources._is_exact_garel_hal_route(
+        source["canonical_identity"],
+        complete_route,
+    )
+
+
 def _task5a_hal_forbidden_query_material():
     q_expression = dict(TASK5A_HAL_QUERY_PAIRS)["q"]
     auxiliary_pair_fragments = tuple(
@@ -12591,9 +12709,11 @@ def test_task5a_hal_fetch_uses_exact_ordered_query_but_serializes_only_stable_ur
         "validate_work_identity_document",
         lambda *args, **kwargs: None,
     )
-    route = {"authoritative_retrieval_route": _task5a_garel_route()}
+    source, route = _task5a_static_source_and_route(
+        "doi_dba239926d673e54f80a"
+    )
     evidence = source_fetcher._fetch_work_identity_evidence(
-        {"canonical_identity": TASK5A_GAREL_IDENTITY},
+        source,
         route,
         object(),
         bibliographic_metadata=TASK5A_GAREL_CROSSREF,
@@ -12622,6 +12742,43 @@ def test_task5a_hal_fetch_uses_exact_ordered_query_but_serializes_only_stable_ur
     serialized = json.dumps(evidence["descriptor"], sort_keys=True)
     assert TASK5A_HAL_QUERY not in serialized
     assert "?" not in serialized
+
+
+def test_task5a_static_garel_route_acquires_after_real_offline_replay(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _task5a_lifecycle_fixture()
+    fixture["source"], fixture["route"] = _task5a_static_source_and_route(
+        "doi_dba239926d673e54f80a"
+    )
+    cache_root = tmp_path / "source-cache"
+    target = cache_root / fixture["source"]["source_id"]
+    events = []
+    _task5a_install_real_lifecycle_boundary(
+        monkeypatch,
+        fixture,
+        events=events,
+        target=target,
+        target_visibility=[],
+    )
+
+    outcome = source_fetcher._fetch_source(
+        cache_root,
+        fixture["source"],
+        fixture["route"],
+        ca_bundle=Path("/unused"),
+        resume=False,
+    )
+
+    assert outcome["status"] == "acquired", outcome
+    _task5a_assert_complete_hal_candidate(target, fixture)
+    _task5a_assert_event_order(
+        events,
+        "live-hal-crossref-validator-complete",
+        "offline-hal-crossref-validator-enter",
+        "offline-hal-crossref-validator-complete",
+    )
 
 
 # Task 5A.2 review controls: close the HAL cache publication boundary without
@@ -14155,6 +14312,97 @@ def test_task5a_core_sidecar_validation_precedes_even_first_pdf_request_construc
     assert not (tmp_path / source["source_id"]).exists()
 
 
+def test_task5a_static_core_route_fetches_and_validates_exact_sidecar(monkeypatch):
+    source, route = _task5a_static_source_and_route(
+        "doi_e49cda761520424da334"
+    )
+    document = _core_mg_work_identity_document()
+    raw = json.dumps(
+        document,
+        separators=(",", ":"),
+        sort_keys=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    requests = []
+
+    class FixtureOpener:
+        def open(self, request, timeout):
+            requests.append((request.full_url, _header_dict(request), timeout))
+            return _FixtureHTTPResponse(
+                raw,
+                content_type="application/json",
+                final_url=route["authoritative_retrieval_route"][
+                    "work_identity_evidence"
+                ]["url"],
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: FixtureOpener(),
+    )
+
+    evidence = source_fetcher._fetch_work_identity_evidence(
+        source,
+        route,
+        object(),
+        bibliographic_metadata=copy.deepcopy(CORE_MG_BIBLIOGRAPHIC_METADATA),
+    )
+
+    assert requests == [
+        (
+            route["authoritative_retrieval_route"]["work_identity_evidence"][
+                "url"
+            ],
+            {
+                "accept": "application/json",
+                "user-agent": source_fetcher.USER_AGENT,
+            },
+            30,
+        )
+    ]
+    assert evidence["payload"] == raw
+    assert evidence["descriptor"]["payload_sha256"] == hashlib.sha256(
+        raw
+    ).hexdigest()
+
+
+def test_task5a_static_core_offline_replay_runs_transitive_pdf_agreement(
+    tmp_path,
+    monkeypatch,
+):
+    source_dir, _fixture_source, _fixture_route, _descriptor = (
+        _special_sidecar_cache(tmp_path, "core_same_work_output")
+    )
+    source, route = _task5a_static_source_and_route(
+        "doi_e49cda761520424da334"
+    )
+    calls = []
+    real_validator = evidence_sources._validate_core_crossref_pdf_agreement
+
+    def recording_validator(*args, **kwargs):
+        calls.append((args, copy.deepcopy(kwargs)))
+        return real_validator(*args, **kwargs)
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_validate_core_crossref_pdf_agreement",
+        recording_validator,
+    )
+
+    verified = load_verified_source(
+        source_dir,
+        expected_source=source,
+        provisioning_route=route,
+    )
+
+    assert verified.source_id == source["source_id"]
+    assert len(calls) == 1
+    assert calls[0][1]["authoritative_route"] == (
+        authoritative_route_for_identity(source["canonical_identity"])
+    )
+
+
 @pytest.mark.parametrize(
     "reflected",
     (
@@ -15114,6 +15362,9 @@ def test_task5a_oup_offline_replay_reads_one_hashed_snapshot_then_real_validator
     monkeypatch,
 ):
     source_dir, fixture = _task5a_write_oup_snapshot_cache(tmp_path)
+    static_source, static_route = _task5a_static_source_and_route(
+        "doi_457c49167653440059e9"
+    )
     events = []
     parsed_snapshots = []
     validator_documents = []
@@ -15157,8 +15408,8 @@ def test_task5a_oup_offline_replay_reads_one_hashed_snapshot_then_real_validator
 
     verified = load_verified_source(
         source_dir,
-        expected_source=fixture["source"],
-        provisioning_route=fixture["route"],
+        expected_source=static_source,
+        provisioning_route=static_route,
     )
 
     assert verified.source_id == TASK5A_OUP_SOURCE_ID
@@ -15180,6 +15431,9 @@ def test_task5a_oup_fetch_source_publishes_one_raw_snapshot_after_real_offline_r
     monkeypatch,
 ):
     fixture = _task5a_oup_acquisition_fixture()
+    fixture["source"], fixture["route"] = _task5a_static_source_and_route(
+        "doi_457c49167653440059e9"
+    )
     cache_root = tmp_path / "source-cache"
     cache_root.mkdir()
     target = cache_root / TASK5A_OUP_SOURCE_ID
@@ -16132,7 +16386,20 @@ def _task5a_corrected_html_extraction_inputs():
         "canonical_identity": copy.deepcopy(TASK5A_OUP_IDENTITY),
         "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
     }
-    route = {"authoritative_retrieval_route": copy.deepcopy(_oup_html_route())}
+    route_spec = _oup_html_route()
+    route = {
+        "authoritative_retrieval_route": {
+            key: copy.deepcopy(route_spec[key])
+            for key in (
+                "kind",
+                "url",
+                "artifact_identifier",
+                "work_identity_evidence",
+            )
+        },
+        "expected_media_type": route_spec["expected_media_type"],
+        "access_mode": route_spec["access_mode"],
+    }
     response = {
         "body": OUP_HTML,
         "status": 200,
