@@ -119,6 +119,7 @@ _OUP_HUSIMI_SYOZI_PRIMARY_RESOURCE_URL = (
 _MAX_OUP_HTML_BYTES = 8 * 1024 * 1024
 _MAX_OUP_DOM_START_NODES = 50_000
 _MAX_OUP_OPEN_ELEMENT_DEPTH = 128
+_MAX_OUP_CSS_SELECTOR_MATCH_WORK = 1_000_000
 _HAL_GAREL_EVIDENCE_KIND = "hal_same_work_bibliographic_payload"
 _HAL_GAREL_API_BASE = "https://api.archives-ouvertes.fr/search/"
 _HAL_GAREL_RECORD_IDENTIFIER = "hal-02340631v1"
@@ -1964,6 +1965,19 @@ class _CSSCompoundHidingSelector:
     target: _CSSSimpleSelector
 
 
+class _CSSSelectorMatchWorkBudget:
+    def __init__(self, limit):
+        self.limit = limit
+        self.consumed = 0
+
+    def consume(self):
+        if self.consumed >= self.limit:
+            raise SourceEvidenceError(
+                "OUP CSS selector match work limit exceeded"
+            )
+        self.consumed += 1
+
+
 _NO_HIDDEN_STYLESHEET_SELECTORS = _HiddenStylesheetSelectors(
     classes=frozenset(),
     ids=frozenset(),
@@ -2490,28 +2504,46 @@ def _css_simple_selector_matches(selector, tag, attributes):
     return selector.value in class_names
 
 
+def _css_simple_selector_matches_with_budget(
+    selector,
+    tag,
+    attributes,
+    match_work_budget,
+):
+    if match_work_budget is not None:
+        match_work_budget.consume()
+    return _css_simple_selector_matches(selector, tag, attributes)
+
+
 def _element_is_hidden(
     tag,
     attributes,
     hidden_selectors,
     *,
     ancestors=(),
+    match_work_budget=None,
 ):
     class_names = set(str(attributes.get("class") or "").casefold().split())
     element_id = str(attributes.get("id") or "").casefold()
     compound_hidden = False
     for selector in hidden_selectors.compounds:
-        if not _css_simple_selector_matches(selector.target, tag, attributes):
+        if not _css_simple_selector_matches_with_budget(
+            selector.target,
+            tag,
+            attributes,
+            match_work_budget,
+        ):
             continue
         if selector.combinator == "child":
             candidates = ancestors[-1:]
         else:
             candidates = ancestors
         if any(
-            _css_simple_selector_matches(
+            _css_simple_selector_matches_with_budget(
                 selector.ancestor,
                 ancestor_tag,
                 ancestor_attributes,
+                match_work_budget,
             )
             for ancestor_tag, ancestor_attributes in candidates
         ):
@@ -3407,6 +3439,9 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.context = context
         self.hidden_selectors = hidden_selectors
+        self.css_selector_match_work_budget = _CSSSelectorMatchWorkBudget(
+            _MAX_OUP_CSS_SELECTOR_MATCH_WORK
+        )
         self.frames = []
         self.root_seen = False
         self.root_closed = False
@@ -3499,6 +3534,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             attributes,
             self.hidden_selectors,
             ancestors=ancestor_elements,
+            match_work_budget=self.css_selector_match_work_budget,
         )
         parent_body = self.frames[-1]["in_body"] if self.frames else False
         parent_head = self.frames[-1]["in_head"] if self.frames else False
