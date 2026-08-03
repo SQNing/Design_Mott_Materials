@@ -122,15 +122,15 @@ _HAL_GAREL_ISTEX_URL = (
     "fulltext/pdf?sid=hal"
 )
 _EXACT_AUTHORITATIVE_ROUTES = {
-    "10.1143/ptp.5.2.177": {
+    "10.1143/ptp/5.2.177": {
         "kind": "oup_minimal_html",
         "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
         "expected_media_type": "text/html",
         "access_mode": "unattended",
-        "artifact_identifier": "doi:10.1143/ptp.5.2.177",
+        "artifact_identifier": "oup-silverchair-article-minimal:1942776",
         "work_identity_evidence": {
-            "kind": "canonical_identity",
-            "url": "https://doi.org/10.1143/ptp.5.2.177",
+            "kind": "crossref_oup_same_work",
+            "url": "https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177",
         },
     },
     _CORE_MG_DOI: {

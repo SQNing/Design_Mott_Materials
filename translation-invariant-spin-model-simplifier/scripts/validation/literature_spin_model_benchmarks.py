@@ -1623,7 +1623,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"tc_over_j": 4.0 / math.log(3.0)},
             "source": "Husimi_Syozi_1950",
-            "source_url": "https://doi.org/10.1143/ptp.5.2.177",
+            "source_url": "https://doi.org/10.1143/ptp/5.2.177",
             "citation_locator": "dual-transformation critical-point equation for the triangular Ising lattice",
         },
         {
@@ -1638,7 +1638,7 @@ LITERATURE_STANDARD_RESULTS.extend(
             "backend_needed": "transfer_matrix",
             "standard_result": {"tc_over_j": 2.0 / math.log(2.0 + math.sqrt(3.0))},
             "source": "Husimi_Syozi_1950",
-            "source_url": "https://doi.org/10.1143/ptp.5.2.177",
+            "source_url": "https://doi.org/10.1143/ptp/5.2.177",
             "citation_locator": "dual-transformation critical-point equation for the honeycomb Ising lattice",
         },
         {
