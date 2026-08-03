@@ -89,6 +89,9 @@ _CORE_MG_OUTPUT_URL = "https://api.core.ac.uk/v3/outputs/572184419"
 _CORE_MG_TITLE = (
     "The Majumdar-Ghosh chain:Twofold ground state and elementary excitations"
 )
+_CORE_MG_PDF_TITLE = (
+    "The Majumdar-Ghosh chain. Twofold ground state and elementary excitations"
+)
 _CORE_MG_RAW_AUTHORS = (
     "Caspers, W.J.",
     "Emmett, K.M.",
@@ -1351,8 +1354,8 @@ def _validate_core_crossref_pdf_agreement(
     if not isinstance(extracted_pdf_text, str):
         raise SourceEvidenceError("CORE PDF extracted text is invalid")
 
-    normalized_pdf = " ".join(extracted_pdf_text.split()).replace(": ", ":")
-    normalized_title = " ".join(_CORE_MG_TITLE.split()).replace(": ", ":")
+    normalized_pdf = " ".join(extracted_pdf_text.split())
+    normalized_title = " ".join(_CORE_MG_PDF_TITLE.split())
     if normalized_title not in normalized_pdf:
         raise SourceEvidenceError("CORE PDF title mismatch")
 
