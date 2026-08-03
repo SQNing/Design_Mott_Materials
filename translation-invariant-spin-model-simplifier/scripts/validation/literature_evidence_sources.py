@@ -2656,6 +2656,21 @@ _DOI_RESOLVER_SHAPE = re.compile(
     flags=re.IGNORECASE,
 )
 _DOI_LABEL_BEFORE_VALUE = re.compile(r"doi\s*:\s*\Z", flags=re.IGNORECASE)
+_OUP_PERCENT_ENCODED_SLASH = re.compile(r"%2f", flags=re.IGNORECASE)
+
+
+def _oup_doi_carrier_detection_view(value):
+    """Expose one bounded layer of OUP DOI slash encoding for detection."""
+
+    return _OUP_PERCENT_ENCODED_SLASH.sub("/", value).replace("\\/", "/")
+
+
+def _oup_has_doi_carrier(value):
+    detection_view = _oup_doi_carrier_detection_view(value)
+    return bool(
+        _ANY_DOI_VALUE.search(detection_view)
+        or _DOI_RESOLVER_MARKER.search(detection_view)
+    )
 
 
 def _plain_doi_value(value):
@@ -3522,10 +3537,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
                 if not isinstance(value, str) or not value.strip():
                     continue
                 decoded_value = unescape(value.strip())
-                if (
-                    _ANY_DOI_VALUE.search(decoded_value)
-                    or _DOI_RESOLVER_MARKER.search(decoded_value)
-                ):
+                if _oup_has_doi_carrier(decoded_value):
                     self.doi_metadata_outside_reference.append(decoded_value)
             if (
                 in_head
@@ -3756,12 +3768,7 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
                 " ".join(anchor["text_builder"].blocks()).split()
             )
             href = anchor["href"] or ""
-            if (
-                _ANY_DOI_VALUE.search(href)
-                or _DOI_RESOLVER_MARKER.search(href)
-                or _ANY_DOI_VALUE.search(anchor_text)
-                or _DOI_RESOLVER_MARKER.search(anchor_text)
-            ):
+            if _oup_has_doi_carrier(href) or _oup_has_doi_carrier(anchor_text):
                 doi_anchors.append((anchor, href, anchor_text))
         if len(doi_anchors) != 1:
             raise SourceEvidenceError(
@@ -3789,7 +3796,10 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             raise SourceEvidenceError(
                 "OUP HTML contains an attribute-only DOI carrier outside ref-list"
             )
-        outside_blocks = self.outside_reference_text.blocks()
+        outside_blocks = tuple(
+            _oup_doi_carrier_detection_view(block)
+            for block in self.outside_reference_text.blocks()
+        )
         doi_values, valid_carriers = _visible_text_doi_values(outside_blocks)
         doi_occurrences = sum(
             len(_ANY_DOI_VALUE.findall(block)) for block in outside_blocks
@@ -3802,7 +3812,10 @@ class _StrictOUPArticleHTMLParser(HTMLParser):
             raise SourceEvidenceError(
                 "OUP HTML contains a conflicting or second DOI carrier outside ref-list"
             )
-        all_outside_blocks = self.all_outside_reference_text.blocks()
+        all_outside_blocks = tuple(
+            _oup_doi_carrier_detection_view(block)
+            for block in self.all_outside_reference_text.blocks()
+        )
         all_doi_values, all_valid_carriers = _visible_text_doi_values(
             all_outside_blocks
         )
