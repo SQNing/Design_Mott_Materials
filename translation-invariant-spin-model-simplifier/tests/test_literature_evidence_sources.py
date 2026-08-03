@@ -13352,6 +13352,126 @@ def test_task5a_garel_crossref_raw_json_is_strict(mutation, monkeypatch):
         )
 
 
+TASK5A_GAREL_RAW_CROSSREF_AUTHORS = (
+    {"given": "T.", "family": "Garel"},
+    {"given": "J.-M.", "family": "Maillard"},
+)
+
+
+def _task5a_crossref_raw_response(monkeypatch, document):
+    raw = json.dumps(
+        document,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    monkeypatch.setattr(
+        source_fetcher,
+        "urlopen",
+        lambda *args, **kwargs: _FixtureHTTPResponse(
+            raw,
+            content_type="application/json",
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "raw_authors",
+    (
+        pytest.param(
+            [*TASK5A_GAREL_RAW_CROSSREF_AUTHORS, {}],
+            id="extra-empty-mapping",
+        ),
+        pytest.param(
+            [
+                *TASK5A_GAREL_RAW_CROSSREF_AUTHORS,
+                {"given": " ", "family": "\t"},
+            ],
+            id="extra-blank-mapping",
+        ),
+        pytest.param(
+            [TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0]],
+            id="missing-author",
+        ),
+        pytest.param(
+            {"first": TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0]},
+            id="non-list-container",
+        ),
+        pytest.param(
+            [TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0], "J.-M. Maillard"],
+            id="non-mapping-entry",
+        ),
+        pytest.param(
+            [
+                TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0],
+                {"family": "Maillard"},
+            ],
+            id="missing-given",
+        ),
+        pytest.param(
+            [
+                TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0],
+                {"given": "J.-M."},
+            ],
+            id="missing-family",
+        ),
+        pytest.param(
+            [
+                TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0],
+                {"given": "  ", "family": "Maillard"},
+            ],
+            id="blank-given",
+        ),
+        pytest.param(
+            [
+                TASK5A_GAREL_RAW_CROSSREF_AUTHORS[0],
+                {"given": "J.-M.", "family": "\n"},
+            ],
+            id="blank-family",
+        ),
+    ),
+)
+def test_task5a_garel_crossref_rejects_raw_author_shape_before_filtering(
+    monkeypatch,
+    raw_authors,
+):
+    document = _task5a_crossref_document()
+    document["message"]["author"] = copy.deepcopy(raw_authors)
+    _task5a_crossref_raw_response(monkeypatch, document)
+
+    with pytest.raises(SourceEvidenceError, match="Crossref raw authors"):
+        source_fetcher._crossref_metadata(
+            TASK5A_GAREL_IDENTITY["value"],
+            object(),
+        )
+
+
+def test_task5a_garel_crossref_valid_raw_authors_preserve_exact_order(
+    monkeypatch,
+):
+    document = _task5a_crossref_document()
+    assert tuple(document["message"]["author"]) == (
+        TASK5A_GAREL_RAW_CROSSREF_AUTHORS
+    )
+    _task5a_crossref_raw_response(monkeypatch, document)
+
+    assert source_fetcher._crossref_metadata(
+        TASK5A_GAREL_IDENTITY["value"],
+        object(),
+    ) == TASK5A_GAREL_CROSSREF
+
+
+def test_task5a_other_crossref_route_retains_legacy_filtered_empty_author(
+    monkeypatch,
+):
+    doi = "10.1234/task5a-legacy-filter-control"
+    document = _task5a_crossref_document(doi)
+    document["message"]["author"].append({})
+    _task5a_crossref_raw_response(monkeypatch, document)
+
+    metadata = source_fetcher._crossref_metadata(doi, object())
+    assert metadata["authors"] == ["T. Garel", "J.-M. Maillard"]
+
+
 def test_task5a_other_crossref_route_accepts_valid_json(monkeypatch):
     doi = "10.1234/task5a-generic-control"
     raw = json.dumps(
