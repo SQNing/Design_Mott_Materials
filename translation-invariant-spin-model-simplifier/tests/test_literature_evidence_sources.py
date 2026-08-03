@@ -16373,6 +16373,7 @@ def test_task5a5_oup_v2_resource_limits_are_exact_contract():
     assert evidence_sources._MAX_OUP_HTML_BYTES == 8 * 1024 * 1024
     assert evidence_sources._MAX_OUP_DOM_START_NODES == 50_000
     assert evidence_sources._MAX_OUP_OPEN_ELEMENT_DEPTH == 128
+    assert evidence_sources._MAX_OUP_CSS_SELECTOR_MATCH_WORK == 1_000_000
 
 
 @pytest.mark.parametrize("ignores_size", (False, True))
@@ -16756,9 +16757,201 @@ def test_task5a5_generic_v1_ignores_strict_oup_v2_resource_limits(
         1,
         raising=False,
     )
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_CSS_SELECTOR_MATCH_WORK",
+        0,
+        raising=False,
+    )
 
     assert _task5a_validate_generic_v1_html(
         _task5a_generic_v1_html_payload(),
         "download",
         tmp_path,
     ) == "text/html"
+
+
+TASK5A5_CSS_MATCH_SECRET = b"task5a5-budget-secret-selector"
+
+
+def _task5a5_oup_css_match_budget_payload():
+    return OUP_HTML.replace(
+        b"</head>",
+        (
+            b"<style>.task5a5-unused-ancestor ."
+            + TASK5A5_CSS_MATCH_SECRET
+            + b" { display:none }</style></head>"
+        ),
+        1,
+    )
+
+
+def _task5a5_record_css_matcher_calls(monkeypatch):
+    calls = []
+    real_matcher = evidence_sources._css_simple_selector_matches
+
+    def recording_matcher(selector, tag, attributes):
+        calls.append((selector.value, tag))
+        return real_matcher(selector, tag, attributes)
+
+    monkeypatch.setattr(
+        evidence_sources,
+        "_css_simple_selector_matches",
+        recording_matcher,
+    )
+    return calls
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+@pytest.mark.parametrize(
+    "over_budget",
+    (False, True),
+    ids=("at-limit", "limit-plus-one"),
+)
+def test_task5a5_strict_v2_download_and_offline_bound_total_css_match_work(
+    tmp_path,
+    monkeypatch,
+    validation_mode,
+    over_budget,
+):
+    payload = _task5a5_oup_css_match_budget_payload()
+    required_work = len(
+        re.findall(rb"<[a-z][a-z0-9-]*(?:\s|>)", payload, flags=re.IGNORECASE)
+    )
+    work_limit = required_work - int(over_budget)
+    monkeypatch.setattr(
+        evidence_sources,
+        "_MAX_OUP_CSS_SELECTOR_MATCH_WORK",
+        work_limit,
+        raising=False,
+    )
+    calls = _task5a5_record_css_matcher_calls(monkeypatch)
+
+    if not over_budget:
+        _validate_oup_html_payload_in_mode(
+            payload,
+            validation_mode,
+            tmp_path,
+        )
+        assert len(calls) == work_limit == required_work
+        return
+
+    with pytest.raises(SourceEvidenceError, match=r"CSS.*match.*work|match.*limit") as caught:
+        _validate_oup_html_payload_in_mode(
+            payload,
+            validation_mode,
+            tmp_path,
+        )
+
+    assert len(calls) == work_limit
+    assert len(calls) < required_work
+    diagnostic = str(caught.value).casefold()
+    assert TASK5A5_CSS_MATCH_SECRET.decode("ascii") not in diagnostic
+    assert "the statistics of honeycomb" not in diagnostic
+
+
+@pytest.mark.parametrize(
+    ("combinator", "start_tags", "expected_calls"),
+    (
+        pytest.param(
+            "descendant",
+            (
+                ("html", []),
+                ("body", []),
+                ("div", [("class", "task5a5-budget-ancestor")]),
+                ("section", []),
+                ("span", [("class", "task5a5-budget-target")]),
+            ),
+            (
+                ("task5a5-budget-target", "html"),
+                ("task5a5-budget-target", "body"),
+                ("task5a5-budget-target", "div"),
+                ("task5a5-budget-target", "section"),
+                ("task5a5-budget-target", "span"),
+                ("task5a5-budget-ancestor", "html"),
+                ("task5a5-budget-ancestor", "body"),
+                ("task5a5-budget-ancestor", "div"),
+            ),
+            id="descendant-counts-each-ancestor",
+        ),
+        pytest.param(
+            "child",
+            (
+                ("html", []),
+                ("body", []),
+                ("div", [("class", "task5a5-budget-ancestor")]),
+                ("span", [("class", "task5a5-budget-target")]),
+            ),
+            (
+                ("task5a5-budget-target", "html"),
+                ("task5a5-budget-target", "body"),
+                ("task5a5-budget-target", "div"),
+                ("task5a5-budget-target", "span"),
+                ("task5a5-budget-ancestor", "div"),
+            ),
+            id="child-counts-existing-parent",
+        ),
+        pytest.param(
+            "descendant",
+            (
+                ("html", []),
+                ("body", []),
+                ("div", []),
+            ),
+            (
+                ("task5a5-budget-target", "html"),
+                ("task5a5-budget-target", "body"),
+                ("task5a5-budget-target", "div"),
+            ),
+            id="target-miss-does-not-scan-ancestors",
+        ),
+    ),
+)
+def test_task5a5_strict_v2_compound_match_work_counts_exact_matcher_calls(
+    monkeypatch,
+    combinator,
+    start_tags,
+    expected_calls,
+):
+    hidden_selectors = evidence_sources._HiddenStylesheetSelectors(
+        classes=frozenset(),
+        ids=frozenset(),
+        tags=frozenset(),
+        compounds=(
+            evidence_sources._CSSCompoundHidingSelector(
+                evidence_sources._CSSSimpleSelector(
+                    "class",
+                    "task5a5-budget-ancestor",
+                ),
+                combinator,
+                evidence_sources._CSSSimpleSelector(
+                    "class",
+                    "task5a5-budget-target",
+                ),
+            ),
+        ),
+    )
+    calls = _task5a5_record_css_matcher_calls(monkeypatch)
+
+    def exercise(limit):
+        monkeypatch.setattr(
+            evidence_sources,
+            "_MAX_OUP_CSS_SELECTOR_MATCH_WORK",
+            limit,
+            raising=False,
+        )
+        parser = evidence_sources._StrictOUPArticleHTMLParser(
+            context="Task 5A.5 strict OUP CSS match budget",
+            hidden_selectors=hidden_selectors,
+        )
+        for tag, attributes in start_tags:
+            parser.handle_starttag(tag, attributes)
+
+    exercise(len(expected_calls))
+    assert tuple(calls) == expected_calls
+
+    calls.clear()
+    work_limit = len(expected_calls) - 1
+    with pytest.raises(SourceEvidenceError, match=r"CSS.*match.*work|match.*limit"):
+        exercise(work_limit)
+    assert tuple(calls) == expected_calls[:work_limit]
