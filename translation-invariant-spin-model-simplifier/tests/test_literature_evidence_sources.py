@@ -4594,6 +4594,9 @@ def _write_oup_html_source(tmp_path, payload=OUP_HTML):
         "access_mode": "unattended",
         "local_cache_location": f"source-cache/{source_id}/source.html",
     }
+    identity_fixture = _task5a_oup_acquisition_fixture()
+    assert identity_fixture["source"] == source
+    assert identity_fixture["route"] == route
     provenance = _provenance(payload)
     provenance.update(
         {
@@ -4601,6 +4604,15 @@ def _write_oup_html_source(tmp_path, payload=OUP_HTML):
             "source_identity": {
                 **source["canonical_identity"],
                 "canonical_url": source["canonical_url"],
+            },
+            "bibliographic_metadata": {
+                key: copy.deepcopy(identity_fixture["bibliographic"][key])
+                for key in (
+                    "title",
+                    "authors",
+                    "venue",
+                    "publication_date",
+                )
             },
             "media_type": "text/html",
             "payload_relative_path": "source.html",
@@ -4618,6 +4630,9 @@ def _write_oup_html_source(tmp_path, payload=OUP_HTML):
             "method": route_spec["kind"],
             "response_headers": {"content-type": "text/html"},
             "immutable_artifact_identifier": route_spec["artifact_identifier"],
+            "work_identity_evidence": copy.deepcopy(
+                route_spec["work_identity_evidence"]
+            ),
         }
     )
     source_dir = tmp_path / source_id
@@ -4625,6 +4640,18 @@ def _write_oup_html_source(tmp_path, payload=OUP_HTML):
     source_dir.joinpath("source.html").write_bytes(payload)
     source_dir.joinpath("provenance.json").write_text(
         json.dumps(provenance, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    source_dir.joinpath("work-identity.json").write_bytes(
+        identity_fixture["crossref_raw"]
+    )
+    source_dir.joinpath("work-identity.provenance.json").write_text(
+        json.dumps(
+            identity_fixture["sidecar_descriptor"],
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         encoding="utf-8",
     )
     return source_dir, source, route
@@ -4729,8 +4756,8 @@ def _oup_payload_with_inline_doi_style(style, *, extra_doi):
         )
     else:
         payload = OUP_HTML.replace(
-            b"      <p>" + OUP_RESOLVER + b"</p>",
-            b'      <p style="' + style + b'">' + OUP_RESOLVER + b"</p>",
+            b"<p>" + OUP_RESOLVER + b"</p>",
+            b'<p style="' + style + b'">' + OUP_RESOLVER + b"</p>",
             1,
         )
     assert payload != OUP_HTML
@@ -4748,8 +4775,8 @@ def _oup_payload_with_local_stylesheet(stylesheet, *, extra_doi):
         )
     else:
         payload = OUP_HTML.replace(
-            b"      <p>" + OUP_RESOLVER + b"</p>",
-            b'      <p class="hide-doi">' + OUP_RESOLVER + b"</p>",
+            b"<p>" + OUP_RESOLVER + b"</p>",
+            b'<p class="hide-doi">' + OUP_RESOLVER + b"</p>",
             1,
         )
     payload = payload.replace(
@@ -4957,7 +4984,7 @@ def test_structured_doi_oup_head_metadata_cannot_supply_canonical_identity(
     meta_name,
 ):
     payload = OUP_HTML.replace(
-        b"      <p>" + OUP_RESOLVER + b"</p>\n",
+        b"<p>" + OUP_RESOLVER + b"</p>",
         b"",
         1,
     )
@@ -5184,8 +5211,8 @@ def test_structured_doi_oup_rejects_inline_style_hidden_sole_doi(
     style,
 ):
     payload = OUP_HTML.replace(
-        b"      <p>" + OUP_RESOLVER + b"</p>",
-        b'      <p style="' + style + b'">' + OUP_RESOLVER + b"</p>",
+        b"<p>" + OUP_RESOLVER + b"</p>",
+        b'<p style="' + style + b'">' + OUP_RESOLVER + b"</p>",
         1,
     )
     assert payload != OUP_HTML
@@ -5241,8 +5268,8 @@ def test_structured_doi_oup_stylesheet_hides_sole_doi_regardless_of_order(
 ):
     closing_tag = b"</aside>" if doi_markup == b"<aside>" else b"</p>"
     payload = OUP_HTML.replace(
-        b"      <p>" + OUP_RESOLVER + b"</p>",
-        b"      " + doi_markup + OUP_RESOLVER + closing_tag,
+        b"<p>" + OUP_RESOLVER + b"</p>",
+        doi_markup + OUP_RESOLVER + closing_tag,
         1,
     )
     payload = payload.replace(
@@ -5281,8 +5308,8 @@ def test_structured_doi_oup_ordinary_stylesheet_class_remains_visible(
     validation_mode,
 ):
     payload = OUP_HTML.replace(
-        b"      <p>" + OUP_RESOLVER + b"</p>",
-        b'      <p class="show-doi">' + OUP_RESOLVER + b"</p>",
+        b"<p>" + OUP_RESOLVER + b"</p>",
+        b'<p class="show-doi">' + OUP_RESOLVER + b"</p>",
         1,
     )
     payload = payload.replace(
@@ -6266,7 +6293,7 @@ def test_round7_b_author_complex_hiding_selector_fails_entire_document(extra_doi
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
 @pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
-def test_round7_b_oup_complex_hiding_selector_fails_entire_document(
+def test_round7_b_oup_v2_accepts_one_descendant_hiding_selector(
     tmp_path,
     validation_mode,
     extra_doi,
@@ -6276,8 +6303,11 @@ def test_round7_b_oup_complex_hiding_selector_fails_entire_document(
         extra_doi=extra_doi,
     )
 
-    with pytest.raises(SourceEvidenceError, match="style|CSS|validation"):
+    if extra_doi:
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    else:
+        with pytest.raises(SourceEvidenceError, match="DOI|anchor"):
+            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("extra_doi", (False, True), ids=("sole", "extra"))
