@@ -2312,7 +2312,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1143/ptp.5.2.177",
+        "canonical_source_identity": "doi:10.1143/ptp/5.2.177",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -2321,7 +2321,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1143/ptp.5.2.177 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1143/ptp/5.2.177 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical temperature",
           "tc over j",
@@ -2341,7 +2341,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_f334ed253565110358b3",
+      "source_id": "doi_457c49167653440059e9",
       "target_representation": {
         "fields": [
           {
@@ -6666,7 +6666,7 @@
       "expected_container": "numbered_or_displayed_equation",
       "locator_class": "equation",
       "locator_strategy": {
-        "canonical_source_identity": "doi:10.1143/ptp.5.2.177",
+        "canonical_source_identity": "doi:10.1143/ptp/5.2.177",
         "expected_container": "numbered_or_displayed_equation",
         "locator_basis": [
           "citation_locator",
@@ -6675,7 +6675,7 @@
           "canonical_source_identity"
         ],
         "locator_class": "equation",
-        "rationale": "Search the authoritative doi:10.1143/ptp.5.2.177 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
+        "rationale": "Search the authoritative doi:10.1143/ptp/5.2.177 payload for the cited context and the declared critical temperature observable; Task 5 must replace this forecast with exact source coordinates.",
         "search_anchors": [
           "critical temperature",
           "tc over j",
@@ -6695,7 +6695,7 @@
           "kind": "registered_field_map"
         }
       },
-      "source_id": "doi_f334ed253565110358b3",
+      "source_id": "doi_457c49167653440059e9",
       "target_representation": {
         "fields": [
           {

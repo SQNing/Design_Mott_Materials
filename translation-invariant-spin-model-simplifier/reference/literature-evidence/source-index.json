@@ -1493,18 +1493,6 @@
     },
     {
       "benchmark_names": [
-        "honeycomb_ising_ferromagnet_exact_tc",
-        "triangular_ising_ferromagnet_exact_tc"
-      ],
-      "canonical_identity": {
-        "kind": "doi",
-        "value": "10.1143/ptp.5.2.177"
-      },
-      "canonical_url": "https://doi.org/10.1143/ptp.5.2.177",
-      "source_id": "doi_f334ed253565110358b3"
-    },
-    {
-      "benchmark_names": [
         "kagome_ising_antiferromagnet_residual_entropy_reference",
         "kagome_ising_ferromagnet_exact_tc"
       ],
@@ -1514,6 +1502,18 @@
       },
       "canonical_url": "https://doi.org/10.1143/ptp/10.2.158",
       "source_id": "doi_a368c0c9e03dd0b4142f"
+    },
+    {
+      "benchmark_names": [
+        "honeycomb_ising_ferromagnet_exact_tc",
+        "triangular_ising_ferromagnet_exact_tc"
+      ],
+      "canonical_identity": {
+        "kind": "doi",
+        "value": "10.1143/ptp/5.2.177"
+      },
+      "canonical_url": "https://doi.org/10.1143/ptp/5.2.177",
+      "source_id": "doi_457c49167653440059e9"
     },
     {
       "benchmark_names": [

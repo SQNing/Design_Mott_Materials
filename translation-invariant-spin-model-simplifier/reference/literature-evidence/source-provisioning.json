@@ -756,8 +756,10 @@
         "kind": "author_repository_pdf",
         "url": "https://www.lptmc.jussieu.fr/files/maillard/PUB2/Frustrated_jav16i10p2257.pdf",
         "work_identity_evidence": {
-          "kind": "author_publications_same_work",
-          "url": "https://www.lptmc.jussieu.fr/users/maillard"
+          "kind": "hal_same_work_bibliographic_payload",
+          "record_identifier": "hal-02340631v1",
+          "stable_document_url": "https://hal.science/hal-02340631v1",
+          "url": "https://api.archives-ouvertes.fr/search/"
         }
       },
       "current_availability": "not_acquired",
@@ -771,7 +773,7 @@
       "authoritative_retrieval_route": {
         "artifact_identifier": "core:572184419",
         "kind": "institutional_repository_pdf",
-        "url": "https://files01.core.ac.uk/download/pdf/572184419.pdf",
+        "url": "https://core.ac.uk/download/572184419.pdf",
         "work_identity_evidence": {
           "kind": "core_same_work_output",
           "url": "https://api.core.ac.uk/v3/outputs/572184419"
@@ -2280,23 +2282,6 @@
       "source_id": "doi_777604a7df2a1f46d2cb"
     },
     {
-      "access_mode": "unattended",
-      "authoritative_retrieval_route": {
-        "artifact_identifier": "doi:10.1143/ptp.5.2.177",
-        "kind": "oup_minimal_html",
-        "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
-        "work_identity_evidence": {
-          "kind": "canonical_identity",
-          "url": "https://doi.org/10.1143/ptp.5.2.177"
-        }
-      },
-      "current_availability": "not_acquired",
-      "expected_media_type": "text/html",
-      "local_cache_location": "source-cache/doi_f334ed253565110358b3/source.html",
-      "redistributability": "unresolved",
-      "source_id": "doi_f334ed253565110358b3"
-    },
-    {
       "access_mode": "challenge_or_institutional",
       "authoritative_retrieval_route": {
         "artifact_identifier": "doi:10.1143/ptp/10.2.158",
@@ -2312,6 +2297,23 @@
       "local_cache_location": "source-cache/doi_a368c0c9e03dd0b4142f/source.pdf",
       "redistributability": "unresolved",
       "source_id": "doi_a368c0c9e03dd0b4142f"
+    },
+    {
+      "access_mode": "unattended",
+      "authoritative_retrieval_route": {
+        "artifact_identifier": "oup-silverchair-article-minimal:1942776",
+        "kind": "oup_minimal_html",
+        "url": "https://oup.silverchair-cdn.com/article-minimal/1942776",
+        "work_identity_evidence": {
+          "kind": "crossref_oup_same_work",
+          "url": "https://api.crossref.org/works/10.1143%2Fptp%2F5.2.177"
+        }
+      },
+      "current_availability": "not_acquired",
+      "expected_media_type": "text/html",
+      "local_cache_location": "source-cache/doi_457c49167653440059e9/source.html",
+      "redistributability": "unresolved",
+      "source_id": "doi_457c49167653440059e9"
     },
     {
       "access_mode": "challenge_or_institutional",
