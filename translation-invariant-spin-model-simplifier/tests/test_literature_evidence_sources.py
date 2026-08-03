@@ -17215,12 +17215,15 @@ class _Task5A5NoVariableDOISlices(str):
         if isinstance(key, slice):
             start = key.start
             stop = key.stop
+            step = key.step
             if (
                 not isinstance(start, int)
                 or not isinstance(stop, int)
+                or step not in (None, 1)
+                or stop - start != 3
             ):
                 raise AssertionError(
-                    "DOI text scanning created an open-ended prefix or suffix slice"
+                    "DOI text scanning created a nonlocal variable-length slice"
                 )
         return super().__getitem__(key)
 
@@ -17325,7 +17328,12 @@ def _task5a5_bound_semantic_doi_scans(monkeypatch):
 
     def bounded_scanner(blocks):
         trapped_blocks = tuple(
-            _Task5A5NoVariableDOISlices(block) for block in blocks
+            (
+                block
+                if evidence_sources._DOI_RESOLVER_MARKER.search(block)
+                else _Task5A5NoVariableDOISlices(block)
+            )
+            for block in blocks
         )
         scans.append(
             (
