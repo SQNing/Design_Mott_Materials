@@ -94,7 +94,7 @@ OUP_MINIMAL_DIV_HTML = b"""<!doctype html>
     <div class="minimal-article-container">
       <div class="article-header">
         <h1>The Statistics of Honeycomb and Triangular Lattice. I</h1>
-        <p>Kodi Husimi and Itiro Sy&#244;zi</p>
+        <p class="authors">Kodi Husimi and Itiro Sy&#244;zi</p>
         <p>Volume 5, Issue 2, March 1950, Pages 177-186</p>
         <div class="ww-citation-primary"><a href="https://doi.org/10.1143/ptp/5.2.177"><p>https://doi.org/10.1143/ptp/5.2.177</p></a></div>
       </div>
@@ -5231,7 +5231,7 @@ def test_structured_doi_oup_rejects_inline_style_hidden_sole_doi(
         b"content-visibility:hidden",
     ),
 )
-def test_structured_doi_oup_ignores_inline_style_hidden_extra_doi(
+def test_structured_doi_oup_rejects_inline_style_hidden_extra_doi(
     tmp_path,
     validation_mode,
     style,
@@ -5246,7 +5246,8 @@ def test_structured_doi_oup_ignores_inline_style_hidden_extra_doi(
         1,
     )
     assert payload != OUP_HTML
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier|ref-list"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5283,7 +5284,7 @@ def test_structured_doi_oup_stylesheet_hides_sole_doi_regardless_of_order(
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
-def test_structured_doi_oup_stylesheet_hidden_extra_doi_does_not_pollute(
+def test_structured_doi_oup_rejects_stylesheet_hidden_extra_doi(
     tmp_path,
     validation_mode,
 ):
@@ -5299,7 +5300,8 @@ def test_structured_doi_oup_stylesheet_hidden_extra_doi_does_not_pollute(
         b"<style>.hide-doi { display:none }</style></body>",
         1,
     )
-    _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier|ref-list"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5364,11 +5366,8 @@ def test_round5_oup_zero_and_ambiguous_function_styles_hide_doi(
     extra_doi,
 ):
     payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5411,11 +5410,8 @@ def test_round5_oup_simple_stylesheet_selectors_apply_hidden_values(
             b"<aside>" + value + b"</aside>",
             1,
         )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5445,11 +5441,8 @@ def test_round6_i1_oup_clamped_and_unreliable_inline_values_hide_doi(
     extra_doi,
 ):
     payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5470,11 +5463,8 @@ def test_round6_i1_oup_clamped_and_unreliable_stylesheet_values_hide_doi(
         selector_kind=selector_kind,
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5529,11 +5519,8 @@ def test_round6_i2_oup_collapsed_inline_visibility_hides_doi(
     extra_doi,
 ):
     payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5552,11 +5539,8 @@ def test_round6_i2_oup_collapsed_stylesheet_visibility_hides_doi(
         selector_kind=selector_kind,
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5616,11 +5600,8 @@ def test_round5_oup_inline_css_comments_preserve_hidden_declarations(
     extra_doi,
 ):
     payload = _oup_payload_with_inline_doi_style(style, extra_doi=extra_doi)
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5634,11 +5615,8 @@ def test_round5_oup_unterminated_inline_css_comment_hides_fail_closed(
         b"display:/*unterminated",
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5659,11 +5637,8 @@ def test_round5_oup_overlimit_inline_css_hides_fail_closed(
         b"display:block;opacity:1",
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5680,11 +5655,8 @@ def test_round5_oup_statement_at_rule_does_not_swallow_hidden_rule(
         stylesheet,
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5701,11 +5673,8 @@ def test_round5_oup_unsupported_selector_does_not_swallow_hidden_rule(
         stylesheet,
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -5719,11 +5688,8 @@ def test_round5_oup_cdo_cdc_wrapper_preserves_hidden_rule(
         b"<!--\n.hide-doi { display:none }\n-->",
         extra_doi=extra_doi,
     )
-    if extra_doi:
+    with pytest.raises(SourceEvidenceError, match="DOI"):
         _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
-    else:
-        with pytest.raises(SourceEvidenceError, match="DOI"):
-            _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 @pytest.mark.parametrize("validation_mode", ("download", "offline"))
@@ -14478,6 +14444,20 @@ TASK5A_OUP_PRIMARY_RESOURCE_URL = (
 )
 
 
+def test_task5a_oup_no_redirect_handler_rejects_redirect_request():
+    handler = source_fetcher._OUPNoRedirectHandler()
+    request = Request(TASK5A_OUP_CROSSREF_URL)
+    with pytest.raises(SourceEvidenceError, match="OUP.*redirect|redirect.*OUP"):
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            TASK5A_OUP_CROSSREF_URL + "/redirected",
+        )
+
+
 def _task5a_oup_crossref_document():
     return {
         "status": "ok",
@@ -14819,6 +14799,110 @@ def _task5a_install_oup_memory_opener(
         lambda *handlers: FixtureOpener(),
     )
     return requests, response_reads
+
+
+def test_task5a_oup_crossref_redirect_is_rejected_before_second_request_or_body_read(
+    monkeypatch,
+):
+    fixture = _task5a_oup_acquisition_fixture()
+    requests = []
+    response_reads = []
+    selected_handler_names = []
+
+    class RedirectOpener:
+        def __init__(self, handlers):
+            self.redirect_handler = next(
+                handler for handler in handlers if hasattr(handler, "redirect_request")
+            )
+            selected_handler_names.append(type(self.redirect_handler).__name__)
+
+        def open(self, request, timeout):
+            requests.append(request.full_url)
+            redirected = self.redirect_handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {},
+                TASK5A_OUP_CROSSREF_URL + "/redirected",
+            )
+            requests.append(redirected.full_url)
+
+            class TrackingResponse(_FixtureHTTPResponse):
+                def read(self):
+                    response_reads.append(True)
+                    return super().read()
+
+            return TrackingResponse(
+                fixture["crossref_raw"],
+                content_type="application/json",
+                final_url=redirected.full_url,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: RedirectOpener(handlers),
+    )
+
+    with pytest.raises(SourceEvidenceError, match="OUP.*redirect|redirect.*OUP"):
+        source_fetcher._fetch_work_identity_evidence(
+            fixture["source"],
+            fixture["route"],
+            object(),
+            bibliographic_metadata=fixture["bibliographic"],
+        )
+
+    assert selected_handler_names == ["_OUPNoRedirectHandler"]
+    assert requests == [TASK5A_OUP_CROSSREF_URL]
+    assert response_reads == []
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("source-id", "primary-url", "evidence-url"),
+)
+def test_task5a_nonexact_oup_crossref_route_is_rejected_before_request(
+    monkeypatch,
+    mutation,
+):
+    fixture = _task5a_oup_acquisition_fixture()
+    source = copy.deepcopy(fixture["source"])
+    route = copy.deepcopy(fixture["route"])
+    authoritative_route = route["authoritative_retrieval_route"]
+    if mutation == "source-id":
+        source["source_id"] = "doi_nonexact_oup_source"
+    elif mutation == "primary-url":
+        authoritative_route["url"] += "?download=1"
+    else:
+        authoritative_route["work_identity_evidence"]["url"] += "?mailto=test.invalid"
+
+    opened_urls = []
+
+    class RecordingOpener:
+        def open(self, request, timeout):
+            opened_urls.append(request.full_url)
+            return _FixtureHTTPResponse(
+                fixture["crossref_raw"],
+                content_type="application/json",
+                final_url=request.full_url,
+            )
+
+    monkeypatch.setattr(
+        source_fetcher,
+        "build_opener",
+        lambda *handlers: RecordingOpener(),
+    )
+
+    with pytest.raises(SourceEvidenceError, match="OUP.*route|route.*OUP"):
+        source_fetcher._fetch_work_identity_evidence(
+            source,
+            route,
+            object(),
+            bibliographic_metadata=fixture["bibliographic"],
+        )
+
+    assert opened_urls == []
 
 
 def _task5a_install_snapshot_read_recorder(monkeypatch, cache_root):
@@ -15778,6 +15862,25 @@ def test_task5a_oup_identity_anchor_requires_exact_matching_href_and_visible_tex
         _validate_oup_html_payload(payload)
 
 
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_task5a_oup_rejects_header_byline_with_third_author(
+    tmp_path,
+    validation_mode,
+):
+    exact_byline = (
+        b'<p class="authors">Kodi Husimi and Itiro Sy&#244;zi</p>'
+    )
+    payload = OUP_HTML.replace(
+        exact_byline,
+        b'<p class="authors">Kodi Husimi and Itiro Sy&#244;zi and Ada Example</p>',
+        1,
+    )
+    assert OUP_HTML.count(exact_byline) == 1
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="author"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
+
+
 @pytest.mark.parametrize("carrier_kind", ("plain", "element", "canonical-anchor"))
 def test_task5a_oup_rejects_every_second_identity_carrier_outside_exact_ref_list(
     carrier_kind,
@@ -15790,6 +15893,26 @@ def test_task5a_oup_rejects_every_second_identity_carrier_outside_exact_ref_list
     payload = OUP_HTML.replace(b"</header>", carrier + b"</header>", 1)
     with pytest.raises(SourceEvidenceError, match="DOI|carrier"):
         _validate_oup_html_payload(payload)
+
+
+@pytest.mark.parametrize("validation_mode", ("download", "offline"))
+def test_task5a_oup_rejects_title_and_extra_doi_outside_container(
+    tmp_path,
+    validation_mode,
+):
+    outside_carrier = (
+        b"    <p>The Statistics of Honeycomb and Triangular Lattice. I "
+        b"10.9999/extra</p>\n"
+    )
+    payload = OUP_HTML.replace(
+        b"  </body>",
+        outside_carrier + b"  </body>",
+        1,
+    )
+    assert outside_carrier in payload
+    assert payload != OUP_HTML
+    with pytest.raises(SourceEvidenceError, match="DOI|carrier|container"):
+        _validate_oup_html_payload_in_mode(payload, validation_mode, tmp_path)
 
 
 def test_task5a_oup_excludes_only_cited_dois_inside_structurally_exact_ref_list():
