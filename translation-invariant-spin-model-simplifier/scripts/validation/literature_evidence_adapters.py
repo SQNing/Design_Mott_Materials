@@ -509,6 +509,22 @@ def _freeze_mapping(value: object, field_name: str) -> FrozenJsonObject:
     return frozen
 
 
+def _snapshot_json_mapping(
+    value: object,
+    field_name: str,
+) -> FrozenJsonObject:
+    validated = _freeze_mapping(value, field_name)
+    snapshot = _freeze_mapping(
+        thaw_json(validated, field_name),
+        field_name,
+    )
+    if snapshot is validated:
+        raise AdapterContractError(
+            f"{field_name} snapshot must not retain caller identity"
+        )
+    return snapshot
+
+
 _FORBIDDEN_METADATA_TOKENS = frozenset(
     {
         "expected",
@@ -1194,6 +1210,114 @@ _OBSERVABLE_IDENTITY_KEYS = frozenset(
 )
 
 
+def _snapshot_parameter_sources(
+    value: object,
+) -> tuple[ParameterSource, ...]:
+    items = _require_tuple(value, "parameter_sources")
+    snapshots = []
+    for index, item in enumerate(items):
+        if type(item) is not ParameterSource:
+            raise AdapterContractError(
+                "parameter_sources must contain only ParameterSource records"
+            )
+        snapshots.append(
+            ParameterSource(
+                parameter_name=item.parameter_name,
+                kind=item.kind,
+                details=_snapshot_json_mapping(
+                    item.details,
+                    f"parameter_sources[{index}].details",
+                ),
+            )
+        )
+    return tuple(snapshots)
+
+
+def _snapshot_problem_size_policy(
+    value: object,
+) -> ProblemSizePolicy:
+    if type(value) is not ProblemSizePolicy:
+        raise AdapterContractError(
+            "problem_size_policy must be a ProblemSizePolicy"
+        )
+    return ProblemSizePolicy(
+        kind=value.kind,
+        fixed_sizes=_snapshot_json_mapping(
+            value.fixed_sizes,
+            "problem_size_policy.fixed_sizes",
+        ),
+        allowed_sizes=_snapshot_json_mapping(
+            value.allowed_sizes,
+            "problem_size_policy.allowed_sizes",
+        ),
+    )
+
+
+def _snapshot_runtime_requirements(
+    value: object,
+) -> RuntimeRequirements:
+    if type(value) is not RuntimeRequirements:
+        raise AdapterContractError(
+            "runtime_requirements must be a RuntimeRequirements"
+        )
+    return RuntimeRequirements(
+        interpreter=value.interpreter,
+        packages=value.packages,
+        native_libraries=value.native_libraries,
+        backend_resources=value.backend_resources,
+    )
+
+
+def _snapshot_convergence_contract(
+    value: object,
+) -> ConvergenceContract:
+    if type(value) is not ConvergenceContract:
+        raise AdapterContractError(
+            "convergence_contract must be a ConvergenceContract"
+        )
+    return ConvergenceContract(
+        kind=value.kind,
+        requirements=_snapshot_json_mapping(
+            value.requirements,
+            "convergence_contract.requirements",
+        ),
+    )
+
+
+def _snapshot_counterfactual_domain(
+    value: object,
+) -> CounterfactualDomain:
+    if type(value) is not CounterfactualDomain:
+        raise AdapterContractError(
+            "counterfactual_domain must be a CounterfactualDomain"
+        )
+    return CounterfactualDomain(
+        valid_rules=_snapshot_json_mapping(
+            value.valid_rules,
+            "counterfactual_domain.valid_rules",
+        ),
+        invalid_rules=_snapshot_json_mapping(
+            value.invalid_rules,
+            "counterfactual_domain.invalid_rules",
+        ),
+    )
+
+
+def _snapshot_resource_limits(value: object) -> ResourceLimits:
+    if type(value) is not ResourceLimits:
+        raise AdapterContractError(
+            "resource_limits must be a ResourceLimits"
+        )
+    return ResourceLimits(
+        cpu_seconds=value.cpu_seconds,
+        wall_seconds=value.wall_seconds,
+        address_space_bytes=value.address_space_bytes,
+        output_bytes=value.output_bytes,
+        file_descriptors=value.file_descriptors,
+        process_count=value.process_count,
+    )
+
+
 @_seal_contract
 @dataclass(frozen=True, init=False)
 class AdapterDefinition:
@@ -1231,28 +1355,41 @@ class AdapterDefinition:
                 "entry_symbol must be the exact unresolved adapter symbol"
             )
         observable_identity = require_exact_keys(
-            self.observable_identity,
+            _snapshot_json_mapping(
+                self.observable_identity,
+                "observable_identity",
+            ),
             _OBSERVABLE_IDENTITY_KEYS,
             "observable_identity",
         )
-        for field_name in (
+        scientific_input_schema = _snapshot_value_schema(
+            self.scientific_input_schema,
             "scientific_input_schema",
+        )
+        numerical_control_schema = _snapshot_value_schema(
+            self.numerical_control_schema,
             "numerical_control_schema",
+        )
+        for field_name, schema in (
+            ("scientific_input_schema", scientific_input_schema),
+            ("numerical_control_schema", numerical_control_schema),
         ):
-            schema = getattr(self, field_name)
-            if type(schema) is not ValueSchema or schema.kind != "object":
+            if schema.kind != "object":
                 raise AdapterContractError(
                     f"{field_name} must be an object ValueSchema"
                 )
         if type(self.output_schema) is not OutputSchema:
             raise AdapterContractError("output_schema must be an OutputSchema")
         output_schema = _snapshot_output_schema(self.output_schema)
-        parameter_sources = _require_tuple(self.parameter_sources, "parameter_sources")
-        if any(type(item) is not ParameterSource for item in parameter_sources):
-            raise AdapterContractError(
-                "parameter_sources must contain only ParameterSource records"
-            )
+        parameter_sources = _snapshot_parameter_sources(
+            self.parameter_sources
+        )
         for index, parameter_source in enumerate(parameter_sources):
+            if parameter_source.kind == "numerical_control":
+                raise AdapterContractError(
+                    "scientific parameter_sources cannot use "
+                    "numerical_control provenance"
+                )
             _validate_authored_string(
                 parameter_source.parameter_name,
                 f"parameter_sources[{index}].parameter_name",
@@ -1267,8 +1404,16 @@ class AdapterDefinition:
                 "parameter_sources contains a duplicate parameter"
             )
         scientific_names = tuple(
-            name for name, _ in self.scientific_input_schema.properties
+            name for name, _ in scientific_input_schema.properties
         )
+        control_names = tuple(
+            name for name, _ in numerical_control_schema.properties
+        )
+        if set(scientific_names) & set(control_names):
+            raise AdapterContractError(
+                "scientific and numerical-control schema properties "
+                "must be disjoint"
+            )
         if set(parameter_names) != set(scientific_names):
             raise AdapterContractError(
                 "parameter_sources must bind every scientific input exactly once"
@@ -1277,17 +1422,19 @@ class AdapterDefinition:
             raise AdapterContractError("backend_kind must be a string")
         if self.backend_kind not in _BACKEND_KINDS:
             raise AdapterContractError(f"unknown backend_kind {self.backend_kind!r}")
-        for field_name, expected_type in (
-            ("problem_size_policy", ProblemSizePolicy),
-            ("runtime_requirements", RuntimeRequirements),
-            ("convergence_contract", ConvergenceContract),
-            ("counterfactual_domain", CounterfactualDomain),
-            ("resource_limits", ResourceLimits),
-        ):
-            if type(getattr(self, field_name)) is not expected_type:
-                raise AdapterContractError(
-                    f"{field_name} must be a {expected_type.__name__}"
-                )
+        problem_size_policy = _snapshot_problem_size_policy(
+            self.problem_size_policy
+        )
+        runtime_requirements = _snapshot_runtime_requirements(
+            self.runtime_requirements
+        )
+        convergence_contract = _snapshot_convergence_contract(
+            self.convergence_contract
+        )
+        counterfactual_domain = _snapshot_counterfactual_domain(
+            self.counterfactual_domain
+        )
+        resource_limits = _snapshot_resource_limits(self.resource_limits)
         require_identifier(self.oracle_id, "oracle_id")
         _validate_authored_string(
             self.adapter_id, "adapter_id", allow_numerical_control=True
@@ -1297,10 +1444,11 @@ class AdapterDefinition:
         )
         _validate_authored_json(observable_identity, "observable_identity")
         _validate_authored_schema(
-            self.scientific_input_schema, "scientific_input_schema"
+            scientific_input_schema,
+            "scientific_input_schema",
         )
         _validate_authored_schema(
-            self.numerical_control_schema,
+            numerical_control_schema,
             "numerical_control_schema",
             allow_numerical_control=True,
         )
@@ -1318,11 +1466,11 @@ class AdapterDefinition:
                 binding.value_schema, f"output_schema.{selector_field}"
             )
         _validate_authored_json(
-            self.problem_size_policy.fixed_sizes,
+            problem_size_policy.fixed_sizes,
             "problem_size_policy.fixed_sizes",
         )
         _validate_authored_json(
-            self.problem_size_policy.allowed_sizes,
+            problem_size_policy.allowed_sizes,
             "problem_size_policy.allowed_sizes",
         )
         for field_name in (
@@ -1331,7 +1479,7 @@ class AdapterDefinition:
             "native_libraries",
             "backend_resources",
         ):
-            value = getattr(self.runtime_requirements, field_name)
+            value = getattr(runtime_requirements, field_name)
             if type(value) is tuple:
                 for index, item in enumerate(value):
                     _validate_authored_string(
@@ -1342,19 +1490,51 @@ class AdapterDefinition:
                     value, f"runtime_requirements.{field_name}"
                 )
         _validate_authored_json(
-            self.convergence_contract.requirements,
+            convergence_contract.requirements,
             "convergence_contract.requirements",
         )
         _validate_authored_json(
-            self.counterfactual_domain.valid_rules,
+            counterfactual_domain.valid_rules,
             "counterfactual_domain.valid_rules",
         )
         _validate_authored_json(
-            self.counterfactual_domain.invalid_rules,
+            counterfactual_domain.invalid_rules,
             "counterfactual_domain.invalid_rules",
         )
         object.__setattr__(self, "observable_identity", observable_identity)
+        object.__setattr__(
+            self,
+            "scientific_input_schema",
+            scientific_input_schema,
+        )
+        object.__setattr__(
+            self,
+            "numerical_control_schema",
+            numerical_control_schema,
+        )
+        object.__setattr__(self, "parameter_sources", parameter_sources)
         object.__setattr__(self, "output_schema", output_schema)
+        object.__setattr__(
+            self,
+            "problem_size_policy",
+            problem_size_policy,
+        )
+        object.__setattr__(
+            self,
+            "runtime_requirements",
+            runtime_requirements,
+        )
+        object.__setattr__(
+            self,
+            "convergence_contract",
+            convergence_contract,
+        )
+        object.__setattr__(
+            self,
+            "counterfactual_domain",
+            counterfactual_domain,
+        )
+        object.__setattr__(self, "resource_limits", resource_limits)
 
 
 _ELIGIBILITY_DISPOSITIONS = frozenset({"eligible", "source_parse_only"})

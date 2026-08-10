@@ -2812,6 +2812,134 @@ def test_output_schema_snapshot_allows_shared_noncyclic_subschemas():
     )
 
 
+def _schema_context_values(context, schema):
+    values = _fresh_adapter_values()
+    values[context] = schema
+    return values
+
+
+def _schema_context_property_name(context):
+    if context == "scientific_input_schema":
+        return "exchange"
+    return "root_residual_threshold"
+
+
+def _schema_context_at_depth(context, depth):
+    property_name = _schema_context_property_name(context)
+    return _object_schema(
+        ((property_name, _nested_list_schema(depth - 1)),)
+    )
+
+
+@pytest.mark.parametrize(
+    "context",
+    ("scientific_input_schema", "numerical_control_schema"),
+)
+@pytest.mark.parametrize("cycle_kind", ("item_schema", "properties"))
+def test_adapter_definition_schema_contexts_reject_cycles(
+    context,
+    cycle_kind,
+):
+    property_name = _schema_context_property_name(context)
+    if cycle_kind == "item_schema":
+        child = _nested_list_schema(1)
+        object.__setattr__(child, "item_schema", child)
+        schema = _object_schema(((property_name, child),))
+    else:
+        schema = _object_schema(((property_name, _number_schema()),))
+        object.__setattr__(schema, "properties", ((property_name, schema),))
+
+    values = _schema_context_values(context, schema)
+    with pytest.raises(
+        AdapterContractError,
+        match="cycle|nesting|recursion",
+    ):
+        AdapterDefinition(**values)
+
+
+@pytest.mark.parametrize(
+    "context",
+    ("scientific_input_schema", "numerical_control_schema"),
+)
+def test_adapter_definition_schema_contexts_enforce_128_level_boundary(
+    context,
+):
+    accepted_schema = _schema_context_at_depth(context, 128)
+    accepted_values = _schema_context_values(context, accepted_schema)
+
+    accepted = AdapterDefinition(**accepted_values)
+
+    assert type(getattr(accepted, context)) is ValueSchema
+    rejected_schema = _schema_context_at_depth(context, 129)
+    rejected_values = _schema_context_values(context, rejected_schema)
+    with pytest.raises(AdapterContractError, match="nesting|128"):
+        AdapterDefinition(**rejected_values)
+
+
+@pytest.mark.parametrize(
+    "context",
+    ("scientific_input_schema", "numerical_control_schema"),
+)
+def test_adapter_definition_schema_contexts_allow_shared_acyclic_children(
+    context,
+):
+    shared = _number_schema(units="J")
+    nested = _object_schema((("left", shared), ("right", shared)))
+    property_name = _schema_context_property_name(context)
+    schema = _object_schema(((property_name, nested),))
+    values = _schema_context_values(context, schema)
+
+    definition = AdapterDefinition(**values)
+
+    stored_nested = getattr(definition, context).properties[0][1]
+    assert tuple(name for name, _child in stored_nested.properties) == (
+        "left",
+        "right",
+    )
+
+
+def test_adapter_definition_rejects_numerical_control_scientific_provenance():
+    values = _fresh_adapter_values()
+    values["parameter_sources"] = (
+        ParameterSource(
+            parameter_name="exchange",
+            kind="numerical_control",
+            details={"physical_role": "exchange scale"},
+        ),
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="parameter_sources|provenance|numerical.control|scientific",
+    ):
+        AdapterDefinition(**values)
+
+
+def test_adapter_definition_rejects_scientific_control_property_overlap():
+    values = _fresh_adapter_values()
+    values["numerical_control_schema"] = _object_schema(
+        (("exchange", _number_schema(units="J")),)
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scientific.*control|control.*scientific|overlap|disjoint",
+    ):
+        AdapterDefinition(**values)
+
+
+def test_adapter_definition_revalidates_tampered_parameter_source_kind():
+    values = _fresh_adapter_values()
+    parameter_source = values["parameter_sources"][0]
+    object.__setattr__(parameter_source, "kind", "numerical_control")
+
+    with pytest.raises(
+        AdapterContractError,
+        match="parameter_sources|provenance|numerical.control|scientific",
+    ):
+        AdapterDefinition(**values)
+
+
 def test_adapter_definition_provenance_is_complete_exact_and_disjoint():
     allowed_source_kinds = {
         "canonical_model_parameter",
@@ -2932,6 +3060,221 @@ def _definition_values_from(definition):
         field.name: getattr(definition, field.name)
         for field in dataclasses.fields(AdapterDefinition)
     }
+
+
+def _detached_value_schema(schema):
+    return ValueSchema(
+        kind=schema.kind,
+        required=schema.required,
+        lower=schema.lower,
+        upper=schema.upper,
+        item_schema=(
+            None
+            if schema.item_schema is None
+            else _detached_value_schema(schema.item_schema)
+        ),
+        properties=tuple(
+            (name, _detached_value_schema(child))
+            for name, child in schema.properties
+        ),
+        units=schema.units,
+    )
+
+
+def _detached_adapter_definition(definition):
+    policy = definition.problem_size_policy
+    runtime = definition.runtime_requirements
+    convergence = definition.convergence_contract
+    domain = definition.counterfactual_domain
+    limits = definition.resource_limits
+    return AdapterDefinition(
+        adapter_id=definition.adapter_id,
+        entry_symbol=definition.entry_symbol,
+        observable_identity=freeze_json(
+            thaw_json(definition.observable_identity)
+        ),
+        scientific_input_schema=_detached_value_schema(
+            definition.scientific_input_schema
+        ),
+        numerical_control_schema=_detached_value_schema(
+            definition.numerical_control_schema
+        ),
+        parameter_sources=tuple(
+            ParameterSource(
+                source.parameter_name,
+                source.kind,
+                thaw_json(source.details),
+            )
+            for source in definition.parameter_sources
+        ),
+        output_schema=definition.output_schema,
+        backend_kind=definition.backend_kind,
+        problem_size_policy=ProblemSizePolicy(
+            policy.kind,
+            thaw_json(policy.fixed_sizes),
+            thaw_json(policy.allowed_sizes),
+        ),
+        runtime_requirements=RuntimeRequirements(
+            runtime.interpreter,
+            tuple(runtime.packages),
+            tuple(runtime.native_libraries),
+            tuple(runtime.backend_resources),
+        ),
+        convergence_contract=ConvergenceContract(
+            convergence.kind,
+            thaw_json(convergence.requirements),
+        ),
+        counterfactual_domain=CounterfactualDomain(
+            thaw_json(domain.valid_rules),
+            thaw_json(domain.invalid_rules),
+        ),
+        oracle_id=definition.oracle_id,
+        resource_limits=ResourceLimits(
+            limits.cpu_seconds,
+            limits.wall_seconds,
+            limits.address_space_bytes,
+            limits.output_bytes,
+            limits.file_descriptors,
+            limits.process_count,
+        ),
+    )
+
+
+def _alias_probe_pair(layer, alias_field):
+    if layer == "direct":
+        source_values = _fresh_adapter_values()
+        source_values["observable_identity"] = freeze_json(
+            source_values["observable_identity"]
+        )
+        source_values["numerical_control_schema"] = _object_schema(
+            (
+                (
+                    "root_residual_threshold",
+                    _number_schema(units="dimensionless"),
+                ),
+            )
+        )
+        stored = AdapterDefinition(**source_values)
+        return source_values, stored
+
+    target_adapter_id = {
+        "numerical_control_schema": "square_ising_self_dual_tc",
+        "problem_size_policy": "spin_ice_tetrahedron_enumeration",
+    }.get(alias_field, "xxx_bethe_energy")
+    callers = [
+        _detached_adapter_definition(definition)
+        for definition in adapters.ADAPTER_DEFINITIONS.values()
+    ]
+    catalog = adapters._build_adapter_definitions(callers)
+    caller = next(
+        definition
+        for definition in callers
+        if definition.adapter_id == target_adapter_id
+    )
+    return _definition_values_from(caller), catalog[target_adapter_id]
+
+
+@pytest.mark.parametrize("layer", ("direct", "catalog"))
+@pytest.mark.parametrize(
+    "alias_field",
+    (
+        "observable_identity",
+        "scientific_input_schema",
+        "numerical_control_schema",
+        "parameter_source",
+        "parameter_source_details",
+        "problem_size_policy",
+        "runtime_requirements",
+        "convergence_contract",
+        "counterfactual_domain",
+        "resource_limits",
+    ),
+)
+def test_adapter_metadata_snapshots_isolate_all_caller_aliases(
+    layer,
+    alias_field,
+):
+    source_values, stored = _alias_probe_pair(layer, alias_field)
+
+    if alias_field == "observable_identity":
+        caller_record = source_values[alias_field]
+        caller_nested = caller_record["hamiltonian"]
+        stored_nested = stored.observable_identity["hamiltonian"]
+        digest = canonical_sha256(stored.observable_identity)
+        object.__setattr__(caller_nested, "_items", ())
+        assert canonical_sha256(stored.observable_identity) == digest
+        assert stored.observable_identity is not caller_record
+        assert stored_nested is not caller_nested
+    elif alias_field in {
+        "scientific_input_schema",
+        "numerical_control_schema",
+    }:
+        caller_record = source_values[alias_field]
+        caller_child = caller_record.properties[0][1]
+        stored_record = getattr(stored, alias_field)
+        stored_child = stored_record.properties[0][1]
+        units = stored_child.units
+        object.__setattr__(caller_child, "units", "caller_mutation")
+        assert stored_child.units == units
+        assert stored_record is not caller_record
+        assert stored_child is not caller_child
+    elif alias_field == "parameter_source":
+        caller_record = source_values["parameter_sources"][0]
+        stored_record = stored.parameter_sources[0]
+        kind = stored_record.kind
+        object.__setattr__(caller_record, "kind", "numerical_control")
+        assert stored_record.kind == kind
+        assert stored_record is not caller_record
+    elif alias_field == "parameter_source_details":
+        caller_source = source_values["parameter_sources"][0]
+        caller_record = caller_source.details
+        stored_source = stored.parameter_sources[0]
+        digest = canonical_sha256(stored_source.details)
+        object.__setattr__(caller_record, "_items", ())
+        assert canonical_sha256(stored_source.details) == digest
+        assert stored_source is not caller_source
+        assert stored_source.details is not caller_record
+    elif alias_field == "problem_size_policy":
+        caller_record = source_values[alias_field]
+        stored_record = stored.problem_size_policy
+        digest = canonical_sha256(stored_record.fixed_sizes)
+        kind = stored_record.kind
+        object.__setattr__(caller_record, "kind", "not_applicable")
+        object.__setattr__(caller_record.fixed_sizes, "_items", ())
+        assert stored_record.kind == kind
+        assert canonical_sha256(stored_record.fixed_sizes) == digest
+        assert stored_record is not caller_record
+    elif alias_field == "runtime_requirements":
+        caller_record = source_values[alias_field]
+        stored_record = stored.runtime_requirements
+        packages = stored_record.packages
+        object.__setattr__(caller_record, "packages", ("caller_mutation",))
+        assert stored_record.packages == packages
+        assert stored_record is not caller_record
+    elif alias_field == "convergence_contract":
+        caller_record = source_values[alias_field]
+        stored_record = stored.convergence_contract
+        digest = canonical_sha256(stored_record.requirements)
+        kind = stored_record.kind
+        object.__setattr__(caller_record, "kind", "iterative")
+        object.__setattr__(caller_record.requirements, "_items", ())
+        assert stored_record.kind == kind
+        assert canonical_sha256(stored_record.requirements) == digest
+        assert stored_record is not caller_record
+    elif alias_field == "counterfactual_domain":
+        caller_record = source_values[alias_field]
+        stored_record = stored.counterfactual_domain
+        digest = canonical_sha256(stored_record.valid_rules)
+        object.__setattr__(caller_record.valid_rules, "_items", ())
+        assert canonical_sha256(stored_record.valid_rules) == digest
+        assert stored_record is not caller_record
+    else:
+        caller_record = source_values[alias_field]
+        stored_record = stored.resource_limits
+        cpu_seconds = stored_record.cpu_seconds
+        object.__setattr__(caller_record, "cpu_seconds", 999)
+        assert stored_record.cpu_seconds == cpu_seconds
+        assert stored_record is not caller_record
 
 
 def test_adapter_definition_builder_rejects_type_cardinality_and_linkage_drift(
