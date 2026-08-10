@@ -1,3 +1,4 @@
+import ast
 import dataclasses
 import math
 import sys
@@ -11,6 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from validation.literature_evidence_adapters import (
+    ADAPTER_ELIGIBILITY,
+    SOURCE_PARSE_ONLY_REASONS,
     AdapterContractError,
     AdapterDefinition,
     ConvergenceContract,
@@ -26,7 +29,528 @@ from validation.literature_evidence_adapters import (
     canonical_sha256,
     freeze_json,
     thaw_json,
+    _build_adapter_eligibility,
 )
+
+
+EXPECTED_ELIGIBILITY = (
+    (
+        "xxx_spin_half_chain_bethe_ground_state",
+        ("energy_per_site",),
+        "eligible",
+        "xxx_bethe_energy",
+        "xxx_bethe_integral_oracle",
+        None,
+    ),
+    (
+        "one_dimensional_classical_ising_correlation_length",
+        ("formula", "correlation_length_beta_1_j_1"),
+        "source_parse_only",
+        None,
+        None,
+        "mixed_selector_contains_source_only_field",
+    ),
+    (
+        "two_dimensional_square_ising_onsager_tc",
+        ("tc_over_j",),
+        "eligible",
+        "square_ising_self_dual_tc",
+        "square_ising_duality_residual_oracle",
+        None,
+    ),
+    (
+        "two_dimensional_square_ising_spontaneous_magnetization",
+        ("formula", "magnetization_beta_0_6_j_1"),
+        "source_parse_only",
+        None,
+        None,
+        "mixed_selector_contains_source_only_field",
+    ),
+    (
+        "square_potts_exact_critical_point",
+        ("critical_beta_j", "continuous_for_q_le_4"),
+        "source_parse_only",
+        None,
+        None,
+        "mixed_selector_contains_source_only_field",
+    ),
+    (
+        "triangular_ising_antiferromagnet_residual_entropy",
+        ("residual_entropy_per_spin",),
+        "eligible",
+        "triangular_ising_af_entropy_quadrature",
+        "triangular_ising_af_entropy_series_oracle",
+        None,
+    ),
+    (
+        "xy_spin_half_chain_anisotropic_critical_line",
+        ("ising_critical_field", "anisotropy_transition_gamma"),
+        "eligible",
+        "xy_chain_bdg_boundaries",
+        "xy_chain_dense_bdg_oracle",
+        None,
+    ),
+    (
+        "diamond_j1_j2_spiral_surface_reference",
+        ("spiral_surface_for_j2_over_j1_gt",),
+        "eligible",
+        "diamond_spiral_threshold_fourier",
+        "diamond_real_space_threshold_oracle",
+        None,
+    ),
+    (
+        "spin_ice_tetrahedron_nn_ice_rule",
+        (
+            "two_in_two_out_energy",
+            "three_in_one_out_energy",
+            "all_in_all_out_energy",
+            "two_in_two_out_degeneracy",
+        ),
+        "eligible",
+        "spin_ice_tetrahedron_enumeration",
+        "spin_ice_tetrahedron_matrix_oracle",
+        None,
+    ),
+    (
+        "square_j1_j3_classical_lifshitz_reference",
+        ("spiral_condition",),
+        "source_parse_only",
+        None,
+        None,
+        "source_only_symbolic_or_categorical_field",
+    ),
+    (
+        "two_leg_ladder_strong_rung_exact_limit",
+        ("energy_per_rung", "gap_to_triplet"),
+        "eligible",
+        "spin_ladder_rung_dense_ed",
+        "spin_ladder_analytic_rung_oracle",
+        None,
+    ),
+    (
+        "square_ashkin_teller_exact_critical_line",
+        ("has_exact_critical_line",),
+        "source_parse_only",
+        None,
+        None,
+        "status_or_candidate_only",
+    ),
+    (
+        "pyrochlore_dipolar_spin_ice_pauling_entropy",
+        ("pauling_entropy_per_spin",),
+        "eligible",
+        "pauling_entropy_combinatorics",
+        "pauling_cluster_count_oracle",
+        None,
+    ),
+    (
+        "two_dimensional_xy_bkt_universal_jump",
+        ("formula", "helicity_modulus_at_t_1"),
+        "source_parse_only",
+        None,
+        None,
+        "mixed_selector_contains_source_only_field",
+    ),
+    (
+        "uimin_lai_sutherland_spin1_su3_point",
+        ("theta_radians", "su3_symmetric"),
+        "eligible",
+        "uls_two_site_su3_matrix",
+        "uls_permutation_commutator_oracle",
+        None,
+    ),
+    (
+        "bilinear_biquadratic_spin1_chain_aklt_angle",
+        ("aklt_tan_theta", "theta_radians"),
+        "eligible",
+        "aklt_projector_angle",
+        "aklt_two_spin_spectrum_oracle",
+        None,
+    ),
+    (
+        "square_compass_model_directional_exchange_degeneracy",
+        ("has_line_flip_symmetries",),
+        "eligible",
+        "compass_line_symmetry_matrix",
+        "compass_spin_flip_oracle",
+        None,
+    ),
+    (
+        "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
+        ("field_opens_non_abelian_gap",),
+        "eligible",
+        "kitaev_field_majorana_mass",
+        "kitaev_two_band_chern_oracle",
+        None,
+    ),
+    (
+        "square_toric_code_exact_topological_degeneracy",
+        ("torus_ground_state_degeneracy",),
+        "eligible",
+        "toric_code_stabilizer_rank",
+        "toric_code_logical_loop_oracle",
+        None,
+    ),
+    (
+        "triangular_nn_classical_120_reference",
+        ("order", "q_reciprocal"),
+        "source_parse_only",
+        None,
+        None,
+        "status_or_candidate_only",
+    ),
+    (
+        "aklt_spin1_chain_projector_ground_state",
+        ("two_site_projector_eigenvalues", "vbs_ground_energy"),
+        "eligible",
+        "aklt_two_site_projector_ed",
+        "aklt_clebsch_gordan_oracle",
+        None,
+    ),
+    (
+        "blume_capel_spin1_zero_temperature_level_crossing",
+        ("square_lattice_d_over_j_crossing",),
+        "eligible",
+        "blume_capel_level_crossing",
+        "blume_capel_configuration_oracle",
+        None,
+    ),
+    (
+        "checkerboard_heisenberg_afm_planar_pyrochlore_reference",
+        ("zero_total_spin_per_crossed_plaquette",),
+        "eligible",
+        "checkerboard_plaquette_enumeration",
+        "checkerboard_total_spin_oracle",
+        None,
+    ),
+    (
+        "cubic_ising_critical_temperature_reference",
+        ("tc_over_j",),
+        "source_parse_only",
+        None,
+        None,
+        "target_equivalent_input",
+    ),
+    (
+        "fcc_j1_j2_heisenberg_type_order_reference",
+        ("common_orders",),
+        "source_parse_only",
+        None,
+        None,
+        "status_or_candidate_only",
+    ),
+    (
+        "honeycomb_ising_ferromagnet_exact_tc",
+        ("tc_over_j",),
+        "eligible",
+        "honeycomb_ising_star_triangle_tc",
+        "honeycomb_ising_critical_polynomial_oracle",
+        None,
+    ),
+    (
+        "honeycomb_j1_j2_spiral_ring_reference",
+        ("ring_condition",),
+        "source_parse_only",
+        None,
+        None,
+        "source_only_symbolic_or_categorical_field",
+    ),
+    (
+        "kagome_ising_antiferromagnet_residual_entropy_reference",
+        ("macroscopic_ground_state_degeneracy",),
+        "eligible",
+        "kagome_ising_af_entropy_quadrature",
+        "kagome_ising_af_transfer_count_oracle",
+        None,
+    ),
+    (
+        "kagome_ising_ferromagnet_exact_tc",
+        ("tc_over_j",),
+        "eligible",
+        "kagome_ising_star_triangle_tc",
+        "kagome_ising_critical_polynomial_oracle",
+        None,
+    ),
+    (
+        "majundar_ghosh_chain_exact_dimer_point",
+        ("energy_per_site", "degenerate_dimer_coverings"),
+        "eligible",
+        "majumdar_ghosh_dimer_ed",
+        "majumdar_ghosh_projector_oracle",
+        None,
+    ),
+    (
+        "one_dimensional_classical_ising_no_finite_t_transition",
+        ("finite_temperature_transition", "tc_over_j"),
+        "eligible",
+        "ising_chain_transfer_matrix",
+        "ising_chain_partition_analytic_oracle",
+        None,
+    ),
+    (
+        "pyrochlore_heisenberg_afm_coulomb_phase_reference",
+        ("zero_total_spin_per_tetrahedron", "pinch_points"),
+        "eligible",
+        "pyrochlore_coulomb_fourier",
+        "pyrochlore_real_space_constraint_oracle",
+        None,
+    ),
+    (
+        "shastry_sutherland_exact_dimer_product",
+        ("energy_per_dimer", "energy_per_spin"),
+        "eligible",
+        "shastry_sutherland_dimer_ed",
+        "shastry_sutherland_bond_oracle",
+        None,
+    ),
+    (
+        "simple_cubic_j1_j2_collinear_reference",
+        ("neel_to_collinear_boundary_j2_over_j1",),
+        "eligible",
+        "simple_cubic_j1_j2_fourier",
+        "simple_cubic_real_space_energy_oracle",
+        None,
+    ),
+    (
+        "single_ion_spin1_anisotropy_levels",
+        ("levels", "degeneracies"),
+        "eligible",
+        "spin1_single_ion_dense_ed",
+        "spin1_m_quantum_number_oracle",
+        None,
+    ),
+    (
+        "square_fully_frustrated_ising_residual_entropy_reference",
+        ("macroscopic_ground_state_degeneracy",),
+        "eligible",
+        "fully_frustrated_ising_entropy_series",
+        "fully_frustrated_ising_transfer_oracle",
+        None,
+    ),
+    (
+        "takhtajan_babujian_spin1_critical_point",
+        ("theta_radians", "is_integrable"),
+        "source_parse_only",
+        None,
+        None,
+        "mixed_selector_contains_source_only_field",
+    ),
+    (
+        "transverse_field_ising_chain_critical_point",
+        ("critical_field_over_exchange",),
+        "eligible",
+        "tfim_bdg_critical_point",
+        "tfim_duality_gap_oracle",
+        None,
+    ),
+    (
+        "transverse_field_ising_chain_gap",
+        ("gap_formula", "gap_formula_at_g_0_6"),
+        "source_parse_only",
+        None,
+        None,
+        "mixed_selector_contains_source_only_field",
+    ),
+    (
+        "triangular_ising_ferromagnet_exact_tc",
+        ("tc_over_j",),
+        "eligible",
+        "triangular_ising_star_triangle_tc",
+        "triangular_ising_critical_polynomial_oracle",
+        None,
+    ),
+    (
+        "xx_spin_half_chain_free_fermion_energy",
+        ("energy_per_site",),
+        "eligible",
+        "xx_chain_fermion_integral",
+        "xx_chain_dense_ed_extrapolation_oracle",
+        None,
+    ),
+    (
+        "xxz_spin_half_chain_phase_boundaries",
+        (
+            "ferromagnetic_boundary_delta",
+            "neel_boundary_delta",
+            "gapless_interval",
+        ),
+        "source_parse_only",
+        None,
+        None,
+        "backend_unavailable_for_registered_limit",
+    ),
+)
+
+
+MIGRATION_CANDIDATE_SOURCES = frozenset(
+    {
+        "blume_capel_spin1_zero_temperature_level_crossing",
+        "checkerboard_heisenberg_afm_planar_pyrochlore_reference",
+        "cubic_ising_critical_temperature_reference",
+        "fcc_j1_j2_heisenberg_type_order_reference",
+        "honeycomb_ising_ferromagnet_exact_tc",
+        "honeycomb_j1_j2_spiral_ring_reference",
+        "kagome_ising_antiferromagnet_residual_entropy_reference",
+        "kagome_ising_ferromagnet_exact_tc",
+        "majundar_ghosh_chain_exact_dimer_point",
+        "one_dimensional_classical_ising_no_finite_t_transition",
+        "pyrochlore_heisenberg_afm_coulomb_phase_reference",
+        "shastry_sutherland_exact_dimer_product",
+        "simple_cubic_j1_j2_collinear_reference",
+        "single_ion_spin1_anisotropy_levels",
+        "square_fully_frustrated_ising_residual_entropy_reference",
+        "takhtajan_babujian_spin1_critical_point",
+        "transverse_field_ising_chain_critical_point",
+        "transverse_field_ising_chain_gap",
+        "triangular_ising_ferromagnet_exact_tc",
+        "xx_spin_half_chain_free_fermion_energy",
+        "xxz_spin_half_chain_phase_boundaries",
+    }
+)
+
+
+def _legacy_local_recompute_candidate_names():
+    runtime_source = (
+        PROJECT_ROOT / "scripts" / "validation" / "literature_runtime_evidence.py"
+    )
+    tree = ast.parse(
+        runtime_source.read_text(encoding="utf-8"), filename=str(runtime_source)
+    )
+    collectors = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "collect_runtime_evidence"
+    ]
+    assert len(collectors) == 1
+    specs_assignments = [
+        node
+        for node in collectors[0].body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "specs"
+            for target in node.targets
+        )
+    ]
+    assert len(specs_assignments) == 1
+    specs_literal = specs_assignments[0].value
+    assert isinstance(specs_literal, ast.Tuple)
+
+    candidate_names = []
+    for spec in specs_literal.elts:
+        assert isinstance(spec, ast.Dict)
+        literal_fields = {
+            key.value: value
+            for key, value in zip(spec.keys, spec.values)
+            if isinstance(key, ast.Constant) and type(key.value) is str
+        }
+        mode = literal_fields.get("mode")
+        if not (
+            isinstance(mode, ast.Constant) and mode.value == "local_recompute"
+        ):
+            continue
+        benchmark_name = literal_fields.get("benchmark_name")
+        assert isinstance(benchmark_name, ast.Constant)
+        assert type(benchmark_name.value) is str
+        candidate_names.append(benchmark_name.value)
+
+    assert len(candidate_names) == 21
+    assert len(set(candidate_names)) == 21
+    return frozenset(candidate_names)
+
+
+def test_eligibility_catalog_matches_all_42_normative_rows_field_for_field():
+    actual = tuple(
+        (
+            benchmark_name,
+            decision.selector_fields,
+            decision.disposition,
+            decision.adapter_id,
+            decision.oracle_id,
+            decision.reason,
+        )
+        for benchmark_name, decision in ADAPTER_ELIGIBILITY.items()
+    )
+
+    assert actual == EXPECTED_ELIGIBILITY
+    assert tuple(field.name for field in dataclasses.fields(EligibilityDecision)) == (
+        "selector_fields",
+        "disposition",
+        "adapter_id",
+        "oracle_id",
+        "reason",
+    )
+    assert ADAPTER_ELIGIBILITY[
+        "two_leg_ladder_strong_rung_exact_limit"
+    ].selector_fields == ("energy_per_rung", "gap_to_triplet")
+    triangular = ADAPTER_ELIGIBILITY["triangular_nn_classical_120_reference"]
+    assert (triangular.disposition, triangular.reason) == (
+        "source_parse_only",
+        "status_or_candidate_only",
+    )
+    cubic = ADAPTER_ELIGIBILITY["cubic_ising_critical_temperature_reference"]
+    assert (cubic.disposition, cubic.reason) == (
+        "source_parse_only",
+        "target_equivalent_input",
+    )
+
+
+def test_eligibility_catalog_has_exact_29_eligible_and_13_source_parse_rows():
+    assert len(ADAPTER_ELIGIBILITY) == 42
+    assert sum(
+        decision.disposition == "eligible"
+        for decision in ADAPTER_ELIGIBILITY.values()
+    ) == 29
+    assert sum(
+        decision.disposition == "source_parse_only"
+        for decision in ADAPTER_ELIGIBILITY.values()
+    ) == 13
+    assert SOURCE_PARSE_ONLY_REASONS == frozenset(
+        {
+            "status_or_candidate_only",
+            "mixed_selector_contains_source_only_field",
+            "source_only_symbolic_or_categorical_field",
+            "target_equivalent_input",
+            "observable_identity_mismatch",
+            "no_independent_oracle",
+            "no_honest_convergence_evidence",
+            "backend_unavailable_for_registered_limit",
+        }
+    )
+
+
+def test_source_parse_rows_cannot_resolve_an_adapter():
+    for decision in ADAPTER_ELIGIBILITY.values():
+        if decision.disposition == "source_parse_only":
+            assert decision.adapter_id is None
+            assert decision.oracle_id is None
+
+
+def test_candidate_sources_union_matches_normative_catalog():
+    legacy_candidates = _legacy_local_recompute_candidate_names()
+
+    assert len(legacy_candidates) == 21
+    assert len(MIGRATION_CANDIDATE_SOURCES) == 21
+    assert legacy_candidates.isdisjoint(MIGRATION_CANDIDATE_SOURCES)
+    assert legacy_candidates | MIGRATION_CANDIDATE_SOURCES == set(
+        ADAPTER_ELIGIBILITY
+    )
+
+
+def test_eligibility_catalog_is_immutable():
+    existing = ADAPTER_ELIGIBILITY["xxx_spin_half_chain_bethe_ground_state"]
+
+    with pytest.raises(TypeError):
+        ADAPTER_ELIGIBILITY["xxx_spin_half_chain_bethe_ground_state"] = existing
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        existing.disposition = "source_parse_only"
+
+
+def test_eligibility_builder_rejects_a_duplicate_benchmark_id():
+    duplicated_row = EXPECTED_ELIGIBILITY[0]
+
+    with pytest.raises(AdapterContractError, match="duplicate.*benchmark"):
+        _build_adapter_eligibility((duplicated_row, duplicated_row))
 
 
 def _number_schema(*, lower=0.0, upper=None, units="dimensionless"):
@@ -779,6 +1303,7 @@ def test_adapter_definition_rejects_missing_unknown_and_mutable_fields():
             invalid_contract()
 
     eligible = EligibilityDecision(
+        selector_fields=("energy_per_site",),
         disposition="eligible",
         adapter_id="xxx_bethe_energy",
         oracle_id="xxx_bethe_energy_series_oracle",
@@ -786,20 +1311,59 @@ def test_adapter_definition_rejects_missing_unknown_and_mutable_fields():
     )
     assert eligible.reason is None
     with pytest.raises(AdapterContractError):
-        EligibilityDecision("eligible", None, None, None)
+        EligibilityDecision(("energy_per_site",), "eligible", None, None, None)
     with pytest.raises(AdapterContractError):
         EligibilityDecision(
+            ("energy_per_site",),
             "source_parse_only",
             "xxx_bethe_energy",
             "xxx_bethe_energy_series_oracle",
             "no_independent_oracle",
         )
     with pytest.raises(AdapterContractError):
-        EligibilityDecision("source_parse_only", None, None, "arbitrary_reason")
+        EligibilityDecision(
+            ("energy_per_site",),
+            "source_parse_only",
+            None,
+            None,
+            "arbitrary_reason",
+        )
     source_only = EligibilityDecision(
-        "source_parse_only", None, None, "target_equivalent_input"
+        ("tc_over_j",),
+        "source_parse_only",
+        None,
+        None,
+        "target_equivalent_input",
     )
     assert source_only.adapter_id is source_only.oracle_id is None
+
+
+@pytest.mark.parametrize(
+    "selector_fields",
+    (
+        pytest.param((), id="empty"),
+        pytest.param(["energy_per_site"], id="list"),
+        pytest.param(
+            _CallerBackedTuple(["energy_per_site"]), id="tuple_subclass"
+        ),
+        pytest.param(
+            ("energy_per_site", "energy_per_site"), id="duplicate"
+        ),
+        pytest.param(("EnergyPerSite",), id="not_lower_snake_case"),
+        pytest.param(("\ud800",), id="non_utf8"),
+    ),
+)
+def test_eligibility_selector_fields_are_exact_nonempty_unique_identifiers(
+    selector_fields,
+):
+    with pytest.raises(AdapterContractError, match="selector_fields"):
+        EligibilityDecision(
+            selector_fields,
+            "eligible",
+            "xxx_bethe_energy",
+            "xxx_bethe_integral_oracle",
+            None,
+        )
 
 
 @pytest.mark.parametrize(
@@ -833,10 +1397,16 @@ def test_enum_contracts_do_not_hash_or_repr_untrusted_values(
         values["backend_kind"] = untrusted
         operation = lambda: AdapterDefinition(**values)
     elif field_name == "eligibility_disposition":
-        operation = lambda: EligibilityDecision(untrusted, None, None, None)
+        operation = lambda: EligibilityDecision(
+            ("energy_per_site",), untrusted, None, None, None
+        )
     else:
         operation = lambda: EligibilityDecision(
-            "source_parse_only", None, None, untrusted
+            ("energy_per_site",),
+            "source_parse_only",
+            None,
+            None,
+            untrusted,
         )
 
     with pytest.raises(AdapterContractError, match=diagnostic):

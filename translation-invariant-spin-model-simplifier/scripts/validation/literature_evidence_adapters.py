@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import re
+from types import MappingProxyType
 from typing import Any
 
 
@@ -876,7 +877,7 @@ class AdapterDefinition:
 
 
 _ELIGIBILITY_DISPOSITIONS = frozenset({"eligible", "source_parse_only"})
-_SOURCE_PARSE_ONLY_REASONS = frozenset(
+SOURCE_PARSE_ONLY_REASONS = frozenset(
     {
         "status_or_candidate_only",
         "mixed_selector_contains_source_only_field",
@@ -893,6 +894,7 @@ _SOURCE_PARSE_ONLY_REASONS = frozenset(
 @_seal_contract
 @dataclass(frozen=True, init=False)
 class EligibilityDecision:
+    selector_fields: tuple[str, ...]
     disposition: str
     adapter_id: str | None
     oracle_id: str | None
@@ -902,6 +904,13 @@ class EligibilityDecision:
         _initialize_closed(self, args, kwargs, EligibilityDecision)
 
     def __post_init__(self) -> None:
+        selector_fields = _require_tuple(self.selector_fields, "selector_fields")
+        if not selector_fields:
+            raise AdapterContractError("selector_fields must be nonempty")
+        for index, selector_field in enumerate(selector_fields):
+            require_identifier(selector_field, f"selector_fields[{index}]")
+        if len(set(selector_fields)) != len(selector_fields):
+            raise AdapterContractError("selector_fields contains a duplicate")
         if type(self.disposition) is not str:
             raise AdapterContractError("eligibility disposition must be a string")
         if self.disposition not in _ELIGIBILITY_DISPOSITIONS:
@@ -920,7 +929,413 @@ class EligibilityDecision:
             )
         if type(self.reason) is not str:
             raise AdapterContractError("source_parse_only reason must be a string")
-        if self.reason not in _SOURCE_PARSE_ONLY_REASONS:
+        if self.reason not in SOURCE_PARSE_ONLY_REASONS:
             raise AdapterContractError(
                 f"unknown source_parse_only reason {self.reason!r}"
             )
+
+
+def _build_adapter_eligibility(
+    rows: Iterable[
+        tuple[
+            str,
+            tuple[str, ...],
+            str,
+            str | None,
+            str | None,
+            str | None,
+        ]
+    ],
+) -> Mapping[str, EligibilityDecision]:
+    decisions: dict[str, EligibilityDecision] = {}
+    for index, row in enumerate(rows):
+        if type(row) is not tuple or len(row) != 6:
+            raise AdapterContractError(
+                f"eligibility row {index} must be an exact six-field tuple"
+            )
+        (
+            benchmark_name,
+            selector_fields,
+            disposition,
+            adapter_id,
+            oracle_id,
+            reason,
+        ) = row
+        require_identifier(benchmark_name, f"eligibility row {index} benchmark_name")
+        if benchmark_name in decisions:
+            raise AdapterContractError(
+                f"duplicate benchmark ID in eligibility catalog: {benchmark_name}"
+            )
+        decisions[benchmark_name] = EligibilityDecision(
+            selector_fields=selector_fields,
+            disposition=disposition,
+            adapter_id=adapter_id,
+            oracle_id=oracle_id,
+            reason=reason,
+        )
+    if len(decisions) != 42:
+        raise AdapterContractError("eligibility catalog must contain exactly 42 rows")
+    eligible_count = sum(
+        decision.disposition == "eligible" for decision in decisions.values()
+    )
+    source_parse_count = sum(
+        decision.disposition == "source_parse_only"
+        for decision in decisions.values()
+    )
+    if eligible_count != 29 or source_parse_count != 13:
+        raise AdapterContractError(
+            "eligibility catalog must contain exactly 29 eligible and "
+            "13 source_parse_only rows"
+        )
+    return MappingProxyType(decisions)
+
+
+ADAPTER_ELIGIBILITY: Mapping[str, EligibilityDecision] = _build_adapter_eligibility(
+    (
+        (
+            "xxx_spin_half_chain_bethe_ground_state",
+            ("energy_per_site",),
+            "eligible",
+            "xxx_bethe_energy",
+            "xxx_bethe_integral_oracle",
+            None,
+        ),
+        (
+            "one_dimensional_classical_ising_correlation_length",
+            ("formula", "correlation_length_beta_1_j_1"),
+            "source_parse_only",
+            None,
+            None,
+            "mixed_selector_contains_source_only_field",
+        ),
+        (
+            "two_dimensional_square_ising_onsager_tc",
+            ("tc_over_j",),
+            "eligible",
+            "square_ising_self_dual_tc",
+            "square_ising_duality_residual_oracle",
+            None,
+        ),
+        (
+            "two_dimensional_square_ising_spontaneous_magnetization",
+            ("formula", "magnetization_beta_0_6_j_1"),
+            "source_parse_only",
+            None,
+            None,
+            "mixed_selector_contains_source_only_field",
+        ),
+        (
+            "square_potts_exact_critical_point",
+            ("critical_beta_j", "continuous_for_q_le_4"),
+            "source_parse_only",
+            None,
+            None,
+            "mixed_selector_contains_source_only_field",
+        ),
+        (
+            "triangular_ising_antiferromagnet_residual_entropy",
+            ("residual_entropy_per_spin",),
+            "eligible",
+            "triangular_ising_af_entropy_quadrature",
+            "triangular_ising_af_entropy_series_oracle",
+            None,
+        ),
+        (
+            "xy_spin_half_chain_anisotropic_critical_line",
+            ("ising_critical_field", "anisotropy_transition_gamma"),
+            "eligible",
+            "xy_chain_bdg_boundaries",
+            "xy_chain_dense_bdg_oracle",
+            None,
+        ),
+        (
+            "diamond_j1_j2_spiral_surface_reference",
+            ("spiral_surface_for_j2_over_j1_gt",),
+            "eligible",
+            "diamond_spiral_threshold_fourier",
+            "diamond_real_space_threshold_oracle",
+            None,
+        ),
+        (
+            "spin_ice_tetrahedron_nn_ice_rule",
+            (
+                "two_in_two_out_energy",
+                "three_in_one_out_energy",
+                "all_in_all_out_energy",
+                "two_in_two_out_degeneracy",
+            ),
+            "eligible",
+            "spin_ice_tetrahedron_enumeration",
+            "spin_ice_tetrahedron_matrix_oracle",
+            None,
+        ),
+        (
+            "square_j1_j3_classical_lifshitz_reference",
+            ("spiral_condition",),
+            "source_parse_only",
+            None,
+            None,
+            "source_only_symbolic_or_categorical_field",
+        ),
+        (
+            "two_leg_ladder_strong_rung_exact_limit",
+            ("energy_per_rung", "gap_to_triplet"),
+            "eligible",
+            "spin_ladder_rung_dense_ed",
+            "spin_ladder_analytic_rung_oracle",
+            None,
+        ),
+        (
+            "square_ashkin_teller_exact_critical_line",
+            ("has_exact_critical_line",),
+            "source_parse_only",
+            None,
+            None,
+            "status_or_candidate_only",
+        ),
+        (
+            "pyrochlore_dipolar_spin_ice_pauling_entropy",
+            ("pauling_entropy_per_spin",),
+            "eligible",
+            "pauling_entropy_combinatorics",
+            "pauling_cluster_count_oracle",
+            None,
+        ),
+        (
+            "two_dimensional_xy_bkt_universal_jump",
+            ("formula", "helicity_modulus_at_t_1"),
+            "source_parse_only",
+            None,
+            None,
+            "mixed_selector_contains_source_only_field",
+        ),
+        (
+            "uimin_lai_sutherland_spin1_su3_point",
+            ("theta_radians", "su3_symmetric"),
+            "eligible",
+            "uls_two_site_su3_matrix",
+            "uls_permutation_commutator_oracle",
+            None,
+        ),
+        (
+            "bilinear_biquadratic_spin1_chain_aklt_angle",
+            ("aklt_tan_theta", "theta_radians"),
+            "eligible",
+            "aklt_projector_angle",
+            "aklt_two_spin_spectrum_oracle",
+            None,
+        ),
+        (
+            "square_compass_model_directional_exchange_degeneracy",
+            ("has_line_flip_symmetries",),
+            "eligible",
+            "compass_line_symmetry_matrix",
+            "compass_spin_flip_oracle",
+            None,
+        ),
+        (
+            "kitaev_honeycomb_abelian_nonabelian_field_gap_reference",
+            ("field_opens_non_abelian_gap",),
+            "eligible",
+            "kitaev_field_majorana_mass",
+            "kitaev_two_band_chern_oracle",
+            None,
+        ),
+        (
+            "square_toric_code_exact_topological_degeneracy",
+            ("torus_ground_state_degeneracy",),
+            "eligible",
+            "toric_code_stabilizer_rank",
+            "toric_code_logical_loop_oracle",
+            None,
+        ),
+        (
+            "triangular_nn_classical_120_reference",
+            ("order", "q_reciprocal"),
+            "source_parse_only",
+            None,
+            None,
+            "status_or_candidate_only",
+        ),
+        (
+            "aklt_spin1_chain_projector_ground_state",
+            ("two_site_projector_eigenvalues", "vbs_ground_energy"),
+            "eligible",
+            "aklt_two_site_projector_ed",
+            "aklt_clebsch_gordan_oracle",
+            None,
+        ),
+        (
+            "blume_capel_spin1_zero_temperature_level_crossing",
+            ("square_lattice_d_over_j_crossing",),
+            "eligible",
+            "blume_capel_level_crossing",
+            "blume_capel_configuration_oracle",
+            None,
+        ),
+        (
+            "checkerboard_heisenberg_afm_planar_pyrochlore_reference",
+            ("zero_total_spin_per_crossed_plaquette",),
+            "eligible",
+            "checkerboard_plaquette_enumeration",
+            "checkerboard_total_spin_oracle",
+            None,
+        ),
+        (
+            "cubic_ising_critical_temperature_reference",
+            ("tc_over_j",),
+            "source_parse_only",
+            None,
+            None,
+            "target_equivalent_input",
+        ),
+        (
+            "fcc_j1_j2_heisenberg_type_order_reference",
+            ("common_orders",),
+            "source_parse_only",
+            None,
+            None,
+            "status_or_candidate_only",
+        ),
+        (
+            "honeycomb_ising_ferromagnet_exact_tc",
+            ("tc_over_j",),
+            "eligible",
+            "honeycomb_ising_star_triangle_tc",
+            "honeycomb_ising_critical_polynomial_oracle",
+            None,
+        ),
+        (
+            "honeycomb_j1_j2_spiral_ring_reference",
+            ("ring_condition",),
+            "source_parse_only",
+            None,
+            None,
+            "source_only_symbolic_or_categorical_field",
+        ),
+        (
+            "kagome_ising_antiferromagnet_residual_entropy_reference",
+            ("macroscopic_ground_state_degeneracy",),
+            "eligible",
+            "kagome_ising_af_entropy_quadrature",
+            "kagome_ising_af_transfer_count_oracle",
+            None,
+        ),
+        (
+            "kagome_ising_ferromagnet_exact_tc",
+            ("tc_over_j",),
+            "eligible",
+            "kagome_ising_star_triangle_tc",
+            "kagome_ising_critical_polynomial_oracle",
+            None,
+        ),
+        (
+            "majundar_ghosh_chain_exact_dimer_point",
+            ("energy_per_site", "degenerate_dimer_coverings"),
+            "eligible",
+            "majumdar_ghosh_dimer_ed",
+            "majumdar_ghosh_projector_oracle",
+            None,
+        ),
+        (
+            "one_dimensional_classical_ising_no_finite_t_transition",
+            ("finite_temperature_transition", "tc_over_j"),
+            "eligible",
+            "ising_chain_transfer_matrix",
+            "ising_chain_partition_analytic_oracle",
+            None,
+        ),
+        (
+            "pyrochlore_heisenberg_afm_coulomb_phase_reference",
+            ("zero_total_spin_per_tetrahedron", "pinch_points"),
+            "eligible",
+            "pyrochlore_coulomb_fourier",
+            "pyrochlore_real_space_constraint_oracle",
+            None,
+        ),
+        (
+            "shastry_sutherland_exact_dimer_product",
+            ("energy_per_dimer", "energy_per_spin"),
+            "eligible",
+            "shastry_sutherland_dimer_ed",
+            "shastry_sutherland_bond_oracle",
+            None,
+        ),
+        (
+            "simple_cubic_j1_j2_collinear_reference",
+            ("neel_to_collinear_boundary_j2_over_j1",),
+            "eligible",
+            "simple_cubic_j1_j2_fourier",
+            "simple_cubic_real_space_energy_oracle",
+            None,
+        ),
+        (
+            "single_ion_spin1_anisotropy_levels",
+            ("levels", "degeneracies"),
+            "eligible",
+            "spin1_single_ion_dense_ed",
+            "spin1_m_quantum_number_oracle",
+            None,
+        ),
+        (
+            "square_fully_frustrated_ising_residual_entropy_reference",
+            ("macroscopic_ground_state_degeneracy",),
+            "eligible",
+            "fully_frustrated_ising_entropy_series",
+            "fully_frustrated_ising_transfer_oracle",
+            None,
+        ),
+        (
+            "takhtajan_babujian_spin1_critical_point",
+            ("theta_radians", "is_integrable"),
+            "source_parse_only",
+            None,
+            None,
+            "mixed_selector_contains_source_only_field",
+        ),
+        (
+            "transverse_field_ising_chain_critical_point",
+            ("critical_field_over_exchange",),
+            "eligible",
+            "tfim_bdg_critical_point",
+            "tfim_duality_gap_oracle",
+            None,
+        ),
+        (
+            "transverse_field_ising_chain_gap",
+            ("gap_formula", "gap_formula_at_g_0_6"),
+            "source_parse_only",
+            None,
+            None,
+            "mixed_selector_contains_source_only_field",
+        ),
+        (
+            "triangular_ising_ferromagnet_exact_tc",
+            ("tc_over_j",),
+            "eligible",
+            "triangular_ising_star_triangle_tc",
+            "triangular_ising_critical_polynomial_oracle",
+            None,
+        ),
+        (
+            "xx_spin_half_chain_free_fermion_energy",
+            ("energy_per_site",),
+            "eligible",
+            "xx_chain_fermion_integral",
+            "xx_chain_dense_ed_extrapolation_oracle",
+            None,
+        ),
+        (
+            "xxz_spin_half_chain_phase_boundaries",
+            (
+                "ferromagnetic_boundary_delta",
+                "neel_boundary_delta",
+                "gapless_interval",
+            ),
+            "source_parse_only",
+            None,
+            None,
+            "backend_unavailable_for_registered_limit",
+        ),
+    )
+)
