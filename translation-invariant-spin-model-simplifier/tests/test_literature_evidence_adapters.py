@@ -12,6 +12,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
+import validation.literature_evidence_adapters as adapters
 from validation.literature_evidence_adapters import (
     ADAPTER_ELIGIBILITY,
     SOURCE_PARSE_ONLY_REASONS,
@@ -383,6 +384,614 @@ EXPECTED_ELIGIBILITY = (
 )
 
 
+EXPECTED_ELIGIBLE_BY_ADAPTER = {
+    adapter_id: (selector_fields, oracle_id)
+    for (
+        _benchmark_name,
+        selector_fields,
+        disposition,
+        adapter_id,
+        oracle_id,
+        _reason,
+    ) in EXPECTED_ELIGIBILITY
+    if disposition == "eligible"
+}
+
+EXPECTED_BACKENDS = {
+    "analytic": frozenset(
+        {
+            "xxx_bethe_energy",
+            "square_ising_self_dual_tc",
+            "pauling_entropy_combinatorics",
+            "aklt_projector_angle",
+            "honeycomb_ising_star_triangle_tc",
+            "kagome_ising_star_triangle_tc",
+            "ising_chain_transfer_matrix",
+            "triangular_ising_star_triangle_tc",
+        }
+    ),
+    "enumeration": frozenset(
+        {
+            "spin_ice_tetrahedron_enumeration",
+            "toric_code_stabilizer_rank",
+            "blume_capel_level_crossing",
+            "checkerboard_plaquette_enumeration",
+        }
+    ),
+    "dense_ed": frozenset(
+        {
+            "spin_ladder_rung_dense_ed",
+            "uls_two_site_su3_matrix",
+            "compass_line_symmetry_matrix",
+            "aklt_two_site_projector_ed",
+            "majumdar_ghosh_dimer_ed",
+            "shastry_sutherland_dimer_ed",
+            "spin1_single_ion_dense_ed",
+        }
+    ),
+    "glt_fourier": frozenset(
+        {
+            "xy_chain_bdg_boundaries",
+            "diamond_spiral_threshold_fourier",
+            "kitaev_field_majorana_mass",
+            "pyrochlore_coulomb_fourier",
+            "simple_cubic_j1_j2_fourier",
+            "tfim_bdg_critical_point",
+        }
+    ),
+    "iterative_numeric": frozenset(
+        {
+            "triangular_ising_af_entropy_quadrature",
+            "kagome_ising_af_entropy_quadrature",
+            "fully_frustrated_ising_entropy_series",
+            "xx_chain_fermion_integral",
+        }
+    ),
+}
+
+FIXED_LOCAL = frozenset(
+    {
+        "spin_ice_tetrahedron_enumeration",
+        "spin_ladder_rung_dense_ed",
+        "uls_two_site_su3_matrix",
+        "aklt_two_site_projector_ed",
+        "blume_capel_level_crossing",
+        "checkerboard_plaquette_enumeration",
+        "spin1_single_ion_dense_ed",
+    }
+)
+
+SCALABLE = frozenset(
+    {
+        "compass_line_symmetry_matrix",
+        "toric_code_stabilizer_rank",
+        "majumdar_ghosh_dimer_ed",
+        "shastry_sutherland_dimer_ed",
+    }
+)
+
+EXPECTED_SIZE_DATA = {
+    "spin_ice_tetrahedron_enumeration": {"spin_count": 4, "tetrahedra": 1},
+    "spin_ladder_rung_dense_ed": {"spin_count": 2, "rungs": 1},
+    "uls_two_site_su3_matrix": {"spin_count": 2, "spin_quantum_number": 1},
+    "aklt_two_site_projector_ed": {
+        "spin_count": 2,
+        "spin_quantum_number": 1,
+    },
+    "blume_capel_level_crossing": {
+        "unit_cell_sites": 1,
+        "coordination_number": 4,
+    },
+    "checkerboard_plaquette_enumeration": {
+        "spin_count": 4,
+        "crossed_plaquettes": 1,
+    },
+    "spin1_single_ion_dense_ed": {
+        "spin_count": 1,
+        "spin_quantum_number": 1,
+    },
+    "compass_line_symmetry_matrix": {
+        "lattice_shapes": ((2, 2), (2, 3)),
+        "boundary_conditions": "open",
+    },
+    "toric_code_stabilizer_rank": {
+        "lattice_shapes": ((2, 2), (3, 3)),
+        "boundary_conditions": "periodic",
+    },
+    "majumdar_ghosh_dimer_ed": {
+        "periodic_chain_lengths": (8, 10),
+        "boundary_conditions": "periodic",
+    },
+    "shastry_sutherland_dimer_ed": {
+        "orthogonal_dimer_counts": (2, 4),
+        "spin_counts": (4, 8),
+        "boundary_conditions": "open_linked_cells",
+    },
+}
+
+EXPECTED_OUTPUT_CONTRACTS = {
+    "xxx_bethe_energy": {
+        "energy_per_site": (
+            "number",
+            "J",
+            "raw_bethe_energy_expression",
+            "direct_exact_value",
+        ),
+    },
+    "square_ising_self_dual_tc": {
+        "tc_over_j": (
+            "number",
+            "dimensionless",
+            "raw_positive_duality_root",
+            "bounded_numeric_value",
+        ),
+    },
+    "triangular_ising_af_entropy_quadrature": {
+        "residual_entropy_per_spin": (
+            "number",
+            "k_B",
+            "raw_wannier_entropy_bounds",
+            "bounded_numeric_value",
+        ),
+    },
+    "xy_chain_bdg_boundaries": {
+        "ising_critical_field": (
+            "number",
+            "J",
+            "raw_field_gap_closing",
+            "bounded_numeric_value",
+        ),
+        "anisotropy_transition_gamma": (
+            "number",
+            "dimensionless",
+            "raw_anisotropy_gap_closing",
+            "bounded_numeric_value",
+        ),
+    },
+    "diamond_spiral_threshold_fourier": {
+        "spiral_surface_for_j2_over_j1_gt": (
+            "number",
+            "dimensionless",
+            "raw_kernel_minimum_threshold",
+            "bounded_numeric_value",
+        ),
+    },
+    "spin_ice_tetrahedron_enumeration": {
+        "two_in_two_out_energy": (
+            "number",
+            "J",
+            "raw_two_in_two_out_sector_energy",
+            "direct_exact_value",
+        ),
+        "three_in_one_out_energy": (
+            "number",
+            "J",
+            "raw_three_in_one_out_sector_energy",
+            "direct_exact_value",
+        ),
+        "all_in_all_out_energy": (
+            "number",
+            "J",
+            "raw_all_in_all_out_sector_energy",
+            "direct_exact_value",
+        ),
+        "two_in_two_out_degeneracy": (
+            "integer",
+            "states",
+            "raw_two_in_two_out_sector_count",
+            "direct_exact_value",
+        ),
+    },
+    "spin_ladder_rung_dense_ed": {
+        "energy_per_rung": (
+            "number",
+            "J",
+            "raw_rung_singlet_eigenvalue",
+            "direct_exact_value",
+        ),
+        "gap_to_triplet": (
+            "number",
+            "J",
+            "raw_rung_spectrum_gap",
+            "direct_exact_value",
+        ),
+    },
+    "pauling_entropy_combinatorics": {
+        "pauling_entropy_per_spin": (
+            "number",
+            "k_B",
+            "raw_shared_spin_entropy_expression",
+            "direct_exact_value",
+        ),
+    },
+    "uls_two_site_su3_matrix": {
+        "theta_radians": (
+            "number",
+            "radians",
+            "raw_bilinear_biquadratic_angle",
+            "direct_exact_value",
+        ),
+        "su3_symmetric": (
+            "boolean",
+            "dimensionless",
+            "raw_permutation_commutator_norms",
+            "all_residuals_within_bound_boolean",
+        ),
+    },
+    "aklt_projector_angle": {
+        "aklt_tan_theta": (
+            "number",
+            "dimensionless",
+            "raw_projector_coefficient_ratio",
+            "direct_exact_value",
+        ),
+        "theta_radians": (
+            "number",
+            "radians",
+            "raw_projector_coefficient_angle",
+            "direct_exact_value",
+        ),
+    },
+    "compass_line_symmetry_matrix": {
+        "has_line_flip_symmetries": (
+            "boolean",
+            "dimensionless",
+            "raw_line_flip_commutator_norms",
+            "all_residuals_within_bound_boolean",
+        ),
+    },
+    "kitaev_field_majorana_mass": {
+        "field_opens_non_abelian_gap": (
+            "boolean",
+            "dimensionless",
+            "raw_mass_gap_and_parity",
+            "positive_gap_and_odd_parity_boolean",
+        ),
+    },
+    "toric_code_stabilizer_rank": {
+        "torus_ground_state_degeneracy": (
+            "integer",
+            "states",
+            "raw_stabilizer_matrix_rank",
+            "rank_derived_integer",
+        ),
+    },
+    "aklt_two_site_projector_ed": {
+        "two_site_projector_eigenvalues": (
+            "list_number",
+            "dimensionless",
+            "raw_projector_sector_eigenvalues",
+            "grouped_exact_sequence",
+        ),
+        "vbs_ground_energy": (
+            "number",
+            "J",
+            "raw_local_vbs_energy",
+            "direct_exact_value",
+        ),
+    },
+    "blume_capel_level_crossing": {
+        "square_lattice_d_over_j_crossing": (
+            "number",
+            "dimensionless",
+            "raw_uniform_level_crossing_ratio",
+            "direct_exact_value",
+        ),
+    },
+    "checkerboard_plaquette_enumeration": {
+        "zero_total_spin_per_crossed_plaquette": (
+            "boolean",
+            "dimensionless",
+            "raw_plaquette_spin_sum_norms",
+            "all_residuals_within_bound_boolean",
+        ),
+    },
+    "honeycomb_ising_star_triangle_tc": {
+        "tc_over_j": (
+            "number",
+            "dimensionless",
+            "raw_positive_star_triangle_root",
+            "bounded_numeric_value",
+        ),
+    },
+    "kagome_ising_af_entropy_quadrature": {
+        "macroscopic_ground_state_degeneracy": (
+            "boolean",
+            "dimensionless",
+            "raw_entropy_lower_bounds",
+            "positive_lower_bound_boolean",
+        ),
+    },
+    "kagome_ising_star_triangle_tc": {
+        "tc_over_j": (
+            "number",
+            "dimensionless",
+            "raw_ferromagnetic_star_triangle_root",
+            "bounded_numeric_value",
+        ),
+    },
+    "majumdar_ghosh_dimer_ed": {
+        "energy_per_site": (
+            "number",
+            "J",
+            "raw_chain_energy_density_sequence",
+            "direct_exact_value",
+        ),
+        "degenerate_dimer_coverings": (
+            "integer",
+            "states",
+            "raw_translated_ground_space_rank",
+            "rank_derived_integer",
+        ),
+    },
+    "ising_chain_transfer_matrix": {
+        "finite_temperature_transition": (
+            "boolean",
+            "dimensionless",
+            "raw_transfer_eigenvalue_separation",
+            "no_finite_crossing_boolean",
+        ),
+        "tc_over_j": (
+            "number",
+            "dimensionless",
+            "raw_zero_temperature_limit",
+            "no_finite_crossing_zero_limit",
+        ),
+    },
+    "pyrochlore_coulomb_fourier": {
+        "zero_total_spin_per_tetrahedron": (
+            "boolean",
+            "dimensionless",
+            "raw_tetrahedron_spin_sum_norms",
+            "all_residuals_within_bound_boolean",
+        ),
+        "pinch_points": (
+            "boolean",
+            "dimensionless",
+            "raw_directional_polarization_limits",
+            "directional_limits_differ_boolean",
+        ),
+    },
+    "shastry_sutherland_dimer_ed": {
+        "energy_per_dimer": (
+            "number",
+            "J",
+            "raw_singlet_product_energy_per_dimer",
+            "direct_exact_value",
+        ),
+        "energy_per_spin": (
+            "number",
+            "J",
+            "raw_singlet_product_energy_per_spin",
+            "direct_exact_value",
+        ),
+    },
+    "simple_cubic_j1_j2_fourier": {
+        "neel_to_collinear_boundary_j2_over_j1": (
+            "number",
+            "dimensionless",
+            "raw_branch_crossing_ratio",
+            "bounded_numeric_value",
+        ),
+    },
+    "spin1_single_ion_dense_ed": {
+        "levels": (
+            "list_number",
+            "J",
+            "raw_single_ion_eigenvalues",
+            "grouped_exact_sequence",
+        ),
+        "degeneracies": (
+            "list_integer",
+            "states",
+            "raw_single_ion_level_multiplicities",
+            "grouped_exact_sequence",
+        ),
+    },
+    "fully_frustrated_ising_entropy_series": {
+        "macroscopic_ground_state_degeneracy": (
+            "boolean",
+            "dimensionless",
+            "raw_entropy_series_lower_bounds",
+            "positive_lower_bound_boolean",
+        ),
+    },
+    "tfim_bdg_critical_point": {
+        "critical_field_over_exchange": (
+            "number",
+            "dimensionless",
+            "raw_thermodynamic_gap_closing_ratio",
+            "bounded_numeric_value",
+        ),
+    },
+    "triangular_ising_star_triangle_tc": {
+        "tc_over_j": (
+            "number",
+            "dimensionless",
+            "raw_positive_critical_equation_root",
+            "bounded_numeric_value",
+        ),
+    },
+    "xx_chain_fermion_integral": {
+        "energy_per_site": (
+            "number",
+            "J",
+            "raw_occupied_dispersion_integral_bounds",
+            "bounded_numeric_value",
+        ),
+    },
+}
+
+EXPECTED_NONNEGATIVE_OUTPUT_FIELDS = frozenset(
+    {
+        ("square_ising_self_dual_tc", "tc_over_j"),
+        (
+            "triangular_ising_af_entropy_quadrature",
+            "residual_entropy_per_spin",
+        ),
+        ("xy_chain_bdg_boundaries", "ising_critical_field"),
+        ("xy_chain_bdg_boundaries", "anisotropy_transition_gamma"),
+        (
+            "diamond_spiral_threshold_fourier",
+            "spiral_surface_for_j2_over_j1_gt",
+        ),
+        (
+            "spin_ice_tetrahedron_enumeration",
+            "two_in_two_out_degeneracy",
+        ),
+        ("spin_ladder_rung_dense_ed", "gap_to_triplet"),
+        ("pauling_entropy_combinatorics", "pauling_entropy_per_spin"),
+        ("uls_two_site_su3_matrix", "theta_radians"),
+        ("aklt_projector_angle", "aklt_tan_theta"),
+        ("aklt_projector_angle", "theta_radians"),
+        ("toric_code_stabilizer_rank", "torus_ground_state_degeneracy"),
+        ("aklt_two_site_projector_ed", "two_site_projector_eigenvalues"),
+        ("aklt_two_site_projector_ed", "vbs_ground_energy"),
+        (
+            "blume_capel_level_crossing",
+            "square_lattice_d_over_j_crossing",
+        ),
+        ("honeycomb_ising_star_triangle_tc", "tc_over_j"),
+        ("kagome_ising_star_triangle_tc", "tc_over_j"),
+        ("majumdar_ghosh_dimer_ed", "degenerate_dimer_coverings"),
+        ("ising_chain_transfer_matrix", "tc_over_j"),
+        (
+            "simple_cubic_j1_j2_fourier",
+            "neel_to_collinear_boundary_j2_over_j1",
+        ),
+        ("spin1_single_ion_dense_ed", "degeneracies"),
+        ("tfim_bdg_critical_point", "critical_field_over_exchange"),
+        ("triangular_ising_star_triangle_tc", "tc_over_j"),
+    }
+)
+EXPECTED_LIST_OUTPUT_LENGTHS = {
+    ("aklt_two_site_projector_ed", "two_site_projector_eigenvalues"): 3,
+    ("spin1_single_ion_dense_ed", "levels"): 3,
+    ("spin1_single_ion_dense_ed", "degeneracies"): 2,
+}
+
+EXPECTED_SCIENTIFIC_INPUT_NAMES = {
+    "xxx_bethe_energy": {"exchange"},
+    "square_ising_self_dual_tc": {"exchange"},
+    "triangular_ising_af_entropy_quadrature": {"exchange"},
+    "xy_chain_bdg_boundaries": {"exchange"},
+    "diamond_spiral_threshold_fourier": {"first_neighbor_exchange"},
+    "spin_ice_tetrahedron_enumeration": {"exchange"},
+    "spin_ladder_rung_dense_ed": {"rung_exchange"},
+    "pauling_entropy_combinatorics": {"spins_per_tetrahedron"},
+    "uls_two_site_su3_matrix": {"energy_scale"},
+    "aklt_projector_angle": {"projector_scale"},
+    "compass_line_symmetry_matrix": {
+        "horizontal_exchange",
+        "vertical_exchange",
+    },
+    "kitaev_field_majorana_mass": {
+        "kitaev_exchange",
+        "field_x",
+        "field_y",
+        "field_z",
+    },
+    "toric_code_stabilizer_rank": {"stabilizer_scale"},
+    "aklt_two_site_projector_ed": {"projector_scale"},
+    "blume_capel_level_crossing": {"exchange"},
+    "checkerboard_plaquette_enumeration": {"exchange"},
+    "honeycomb_ising_star_triangle_tc": {"exchange"},
+    "kagome_ising_af_entropy_quadrature": {"exchange"},
+    "kagome_ising_star_triangle_tc": {"exchange"},
+    "majumdar_ghosh_dimer_ed": {"nearest_exchange"},
+    "ising_chain_transfer_matrix": {"exchange", "inverse_temperature"},
+    "pyrochlore_coulomb_fourier": {
+        "exchange",
+        "approach_direction_a",
+        "approach_direction_b",
+    },
+    "shastry_sutherland_dimer_ed": {
+        "intradimer_exchange",
+        "interdimer_exchange",
+    },
+    "simple_cubic_j1_j2_fourier": {"first_neighbor_exchange"},
+    "spin1_single_ion_dense_ed": {"single_ion_anisotropy"},
+    "fully_frustrated_ising_entropy_series": {"bond_magnitude"},
+    "tfim_bdg_critical_point": {"exchange"},
+    "triangular_ising_star_triangle_tc": {"exchange"},
+    "xx_chain_fermion_integral": {"exchange"},
+}
+
+EXPECTED_CONTROL_NAMES = {
+    "xxx_bethe_energy": set(),
+    "square_ising_self_dual_tc": {
+        "root_residual_threshold",
+        "maximum_refinement_iterations",
+    },
+    "triangular_ising_af_entropy_quadrature": {
+        "quadrature_absolute_threshold",
+        "quadrature_max_subintervals",
+    },
+    "xy_chain_bdg_boundaries": {
+        "momentum_refinement_grid",
+        "eigensolver_residual_threshold",
+    },
+    "diamond_spiral_threshold_fourier": {
+        "momentum_refinement_grid",
+        "kernel_residual_bound",
+    },
+    "spin_ice_tetrahedron_enumeration": set(),
+    "spin_ladder_rung_dense_ed": set(),
+    "pauling_entropy_combinatorics": set(),
+    "uls_two_site_su3_matrix": set(),
+    "aklt_projector_angle": set(),
+    "compass_line_symmetry_matrix": set(),
+    "kitaev_field_majorana_mass": {
+        "momentum_refinement_grid",
+        "gap_residual_bound",
+    },
+    "toric_code_stabilizer_rank": set(),
+    "aklt_two_site_projector_ed": set(),
+    "blume_capel_level_crossing": set(),
+    "checkerboard_plaquette_enumeration": set(),
+    "honeycomb_ising_star_triangle_tc": {
+        "root_residual_threshold",
+        "maximum_refinement_iterations",
+    },
+    "kagome_ising_af_entropy_quadrature": {
+        "quadrature_absolute_threshold",
+        "quadrature_max_subintervals",
+    },
+    "kagome_ising_star_triangle_tc": {
+        "root_residual_threshold",
+        "maximum_refinement_iterations",
+    },
+    "majumdar_ghosh_dimer_ed": set(),
+    "ising_chain_transfer_matrix": set(),
+    "pyrochlore_coulomb_fourier": {
+        "momentum_refinement_grid",
+        "constraint_residual_bound",
+    },
+    "shastry_sutherland_dimer_ed": set(),
+    "simple_cubic_j1_j2_fourier": {
+        "momentum_refinement_grid",
+        "branch_residual_bound",
+    },
+    "spin1_single_ion_dense_ed": set(),
+    "fully_frustrated_ising_entropy_series": {
+        "series_refinement_terms",
+        "truncation_cutoff",
+    },
+    "tfim_bdg_critical_point": {
+        "momentum_refinement_grid",
+        "gap_residual_bound",
+    },
+    "triangular_ising_star_triangle_tc": {
+        "root_residual_threshold",
+        "maximum_refinement_iterations",
+    },
+    "xx_chain_fermion_integral": {
+        "momentum_refinement_grid",
+        "quadrature_absolute_threshold",
+    },
+}
+
+
 MIGRATION_CANDIDATE_SOURCES = frozenset(
     {
         "blume_capel_spin1_zero_temperature_level_crossing",
@@ -704,8 +1313,17 @@ def _adapter_values(observable_identity, fixed_sizes, valid_rules):
         (("exchange", _number_schema(lower=0.0, units="J")),)
     )
     numerical_controls = _object_schema(())
-    output_schema = _object_schema(
-        (("energy_per_site", _number_schema(units="J")),)
+    output_schema = adapters.OutputSchema(
+        fields=(
+            (
+                "energy_per_site",
+                adapters.OutputFieldBinding(
+                    value_schema=_number_schema(units="J"),
+                    raw_field="raw_bethe_energy_expression",
+                    proof_kind="direct_exact_value",
+                ),
+            ),
+        )
     )
     return {
         "adapter_id": "xxx_bethe_energy",
@@ -1758,3 +2376,893 @@ def test_resource_limits_reject_bool_and_nonfinite_float_times(field_name, value
 
     with pytest.raises(AdapterContractError, match=field_name):
         ResourceLimits(**values)
+
+
+def _schema_signature(schema):
+    if schema.kind == "list":
+        return f"list_{schema.item_schema.kind}"
+    return schema.kind
+
+
+def _fresh_adapter_values():
+    return _adapter_values(
+        _observable_identity(),
+        {"spin_count": 2},
+        {"exchange": {"kind": "positive_finite"}},
+    )
+
+
+def test_adapter_definitions_cover_exact_eligible_ids_and_link_field_for_field():
+    definitions = adapters.ADAPTER_DEFINITIONS
+
+    assert type(definitions) is MappingProxyType
+    assert set(definitions) == set(EXPECTED_ELIGIBLE_BY_ADAPTER)
+    assert len(definitions) == 29
+    assert all(type(item) is AdapterDefinition for item in definitions.values())
+    for adapter_id, definition in definitions.items():
+        selector_fields, oracle_id = EXPECTED_ELIGIBLE_BY_ADAPTER[adapter_id]
+        assert definition.adapter_id == adapter_id
+        assert definition.entry_symbol == (
+            "validation.literature_evidence_adapters:adapter_" + adapter_id
+        )
+        assert definition.oracle_id == oracle_id
+        assert tuple(name for name, _binding in definition.output_schema) == (
+            selector_fields
+        )
+        assert adapters.get_adapter_definition(adapter_id) is definition
+
+    source_parse_ids = {
+        adapter_id
+        for (
+            _benchmark_name,
+            _selector_fields,
+            disposition,
+            adapter_id,
+            _oracle_id,
+            _reason,
+        ) in EXPECTED_ELIGIBILITY
+        if disposition == "source_parse_only"
+    }
+    assert source_parse_ids == {None}
+
+    for invalid_id in (1, "UnknownAdapter", "not_an_adapter"):
+        with pytest.raises(AdapterContractError, match="adapter_id|unknown"):
+            adapters.get_adapter_definition(invalid_id)
+
+
+def test_adapter_definition_backend_map_is_exact_and_independent():
+    actual = {
+        backend: frozenset(
+            adapter_id
+            for adapter_id, definition in adapters.ADAPTER_DEFINITIONS.items()
+            if definition.backend_kind == backend
+        )
+        for backend in EXPECTED_BACKENDS
+    }
+
+    assert actual == EXPECTED_BACKENDS
+    assert tuple(len(actual[name]) for name in EXPECTED_BACKENDS) == (8, 4, 7, 6, 4)
+
+
+def test_adapter_definition_size_policy_assignments_and_data_are_exact():
+    definitions = adapters.ADAPTER_DEFINITIONS
+    not_applicable = set(EXPECTED_ELIGIBLE_BY_ADAPTER) - FIXED_LOCAL - SCALABLE
+
+    assert len(FIXED_LOCAL) == 7
+    assert len(SCALABLE) == 4
+    assert len(not_applicable) == 18
+    assert set(EXPECTED_SIZE_DATA) == FIXED_LOCAL | SCALABLE
+
+    actual_fixed = {
+        adapter_id
+        for adapter_id, definition in definitions.items()
+        if definition.problem_size_policy.kind == "fixed_local"
+    }
+    actual_scalable = {
+        adapter_id
+        for adapter_id, definition in definitions.items()
+        if definition.problem_size_policy.kind == "scalable_same_observable"
+    }
+    actual_not_applicable = {
+        adapter_id
+        for adapter_id, definition in definitions.items()
+        if definition.problem_size_policy.kind == "not_applicable"
+    }
+    assert (actual_fixed, actual_scalable, actual_not_applicable) == (
+        set(FIXED_LOCAL),
+        set(SCALABLE),
+        not_applicable,
+    )
+
+    for adapter_id, definition in definitions.items():
+        policy = definition.problem_size_policy
+        if adapter_id in FIXED_LOCAL:
+            assert policy.fixed_sizes == freeze_json(EXPECTED_SIZE_DATA[adapter_id])
+            assert not policy.allowed_sizes
+        elif adapter_id in SCALABLE:
+            assert not policy.fixed_sizes
+            assert policy.allowed_sizes == freeze_json(EXPECTED_SIZE_DATA[adapter_id])
+        else:
+            assert not policy.fixed_sizes
+            assert not policy.allowed_sizes
+
+
+def test_adapter_definition_observable_identity_is_complete_and_nonempty():
+    exact_keys = {
+        "subject",
+        "system_or_material",
+        "hamiltonian",
+        "parameter_regime",
+        "size_or_limit",
+        "observable_definition",
+        "units",
+        "conditions",
+    }
+
+    identities = []
+    for definition in adapters.ADAPTER_DEFINITIONS.values():
+        identity = definition.observable_identity
+        assert set(identity) == exact_keys
+        assert all(value not in (None, "", (), False) for value in identity.values())
+        identities.append(canonical_sha256(identity))
+    assert len(set(identities)) == 29
+
+
+def test_output_schema_records_are_exact_sealed_and_match_every_selector():
+    assert adapters.OUTPUT_PROOF_KINDS == frozenset(
+        {
+            "direct_exact_value",
+            "bounded_numeric_value",
+            "grouped_exact_sequence",
+            "rank_derived_integer",
+            "all_residuals_within_bound_boolean",
+            "positive_lower_bound_boolean",
+            "positive_gap_and_odd_parity_boolean",
+            "directional_limits_differ_boolean",
+            "no_finite_crossing_boolean",
+            "no_finite_crossing_zero_limit",
+        }
+    )
+    assert tuple(
+        field.name for field in dataclasses.fields(adapters.OutputFieldBinding)
+    ) == ("value_schema", "raw_field", "proof_kind")
+    assert tuple(field.name for field in dataclasses.fields(adapters.OutputSchema)) == (
+        "fields",
+    )
+    for contract_type in (adapters.OutputFieldBinding, adapters.OutputSchema):
+        with pytest.raises(TypeError, match="sealed|subclass"):
+            type(f"Unsafe{contract_type.__name__}", (contract_type,), {})
+
+    all_raw_fields = []
+    for adapter_id, definition in adapters.ADAPTER_DEFINITIONS.items():
+        output_schema = definition.output_schema
+        assert type(output_schema) is adapters.OutputSchema
+        expected_fields = EXPECTED_OUTPUT_CONTRACTS[adapter_id]
+        assert tuple(name for name, _binding in output_schema) == tuple(expected_fields)
+        assert output_schema.selector_fields == tuple(expected_fields)
+        assert tuple(output_schema.items()) == output_schema.fields
+
+        detached_lookup = output_schema.as_mapping()
+        assert type(detached_lookup) is MappingProxyType
+        assert tuple(detached_lookup) == tuple(expected_fields)
+        for selector_field, binding in output_schema:
+            expected_kind, expected_units, raw_field, proof_kind = expected_fields[
+                selector_field
+            ]
+            assert type(binding) is adapters.OutputFieldBinding
+            assert type(binding.value_schema) is ValueSchema
+            assert binding.value_schema.required is True
+            assert _schema_signature(binding.value_schema) == expected_kind
+            assert binding.value_schema.units == expected_units
+            bounded_schema = (
+                binding.value_schema.item_schema
+                if binding.value_schema.kind == "list"
+                else binding.value_schema
+            )
+            expected_lower = (
+                0
+                if (adapter_id, selector_field)
+                in EXPECTED_NONNEGATIVE_OUTPUT_FIELDS
+                else None
+            )
+            assert bounded_schema.lower == expected_lower
+            assert bounded_schema.upper is None
+            if binding.value_schema.kind == "list":
+                exact_length = EXPECTED_LIST_OUTPUT_LENGTHS[
+                    (adapter_id, selector_field)
+                ]
+                assert binding.value_schema.lower == exact_length
+                assert binding.value_schema.upper == exact_length
+            assert (binding.raw_field, binding.proof_kind) == (raw_field, proof_kind)
+            assert output_schema[selector_field] is binding
+            all_raw_fields.append(binding.raw_field)
+            if binding.value_schema.kind == "boolean":
+                assert binding.proof_kind not in {
+                    "direct_exact_value",
+                    "bounded_numeric_value",
+                }
+                assert not binding.raw_field.endswith(("status", "boolean"))
+
+    assert set(EXPECTED_OUTPUT_CONTRACTS) == set(EXPECTED_ELIGIBLE_BY_ADAPTER)
+    assert len(all_raw_fields) == len(set(all_raw_fields))
+
+
+def test_list_value_schema_uses_nonnegative_integer_item_count_bounds():
+    item_schema = _number_schema(units="J")
+    exact_three = ValueSchema(
+        kind="list",
+        required=True,
+        lower=3,
+        upper=3,
+        item_schema=item_schema,
+        properties=(),
+        units="J",
+    )
+
+    assert (exact_three.lower, exact_three.upper) == (3, 3)
+    for lower, upper in ((True, 3), (1.5, 3), (-1, 3), (4, 3)):
+        with pytest.raises(AdapterContractError, match="lower|upper|item.count"):
+            ValueSchema(
+                kind="list",
+                required=True,
+                lower=lower,
+                upper=upper,
+                item_schema=item_schema,
+                properties=(),
+                units="J",
+            )
+
+
+def test_output_schema_rejects_duplicates_subclasses_and_caller_aliases():
+    binding = adapters.OutputFieldBinding(
+        value_schema=_number_schema(units="J"),
+        raw_field="raw_energy_expression",
+        proof_kind="direct_exact_value",
+    )
+    caller_fields = (("energy_per_site", binding),)
+    schema = adapters.OutputSchema(fields=caller_fields)
+
+    assert schema.fields == caller_fields
+    with pytest.raises(AdapterContractError, match="duplicate"):
+        adapters.OutputSchema(
+            fields=(
+                ("energy_per_site", binding),
+                ("energy_per_site", binding),
+            )
+        )
+    with pytest.raises(AdapterContractError, match="fields"):
+        adapters.OutputSchema(fields=list(caller_fields))
+    with pytest.raises(AdapterContractError, match="proof_kind"):
+        adapters.OutputFieldBinding(
+            value_schema=_number_schema(units="J"),
+            raw_field="raw_energy_expression",
+            proof_kind="trusted_status_literal",
+        )
+    with pytest.raises(KeyError):
+        schema["unknown_field"]
+
+
+@pytest.mark.parametrize(
+    ("field_name", "tampered_value"),
+    (
+        ("proof_kind", "made_up_proof"),
+        ("raw_field", "RawField"),
+        ("value_schema", _object_schema(())),
+    ),
+)
+def test_adapter_definition_revalidates_tampered_output_bindings(
+    field_name, tampered_value
+):
+    binding = adapters.OutputFieldBinding(
+        _number_schema(units="J"),
+        "raw_bethe_energy_expression",
+        "direct_exact_value",
+    )
+    output_schema = adapters.OutputSchema(fields=(("energy_per_site", binding),))
+    object.__setattr__(binding, field_name, tampered_value)
+    values = _fresh_adapter_values()
+    values["output_schema"] = output_schema
+
+    with pytest.raises(
+        AdapterContractError,
+        match="output_schema|proof_kind|raw_field|value_schema",
+    ):
+        AdapterDefinition(**values)
+
+
+@pytest.mark.parametrize("tampered_fields", ([], "duplicate", "wrong_binding"))
+def test_adapter_definition_revalidates_tampered_output_schema_fields(
+    tampered_fields
+):
+    binding = adapters.OutputFieldBinding(
+        _number_schema(units="J"),
+        "raw_bethe_energy_expression",
+        "direct_exact_value",
+    )
+    output_schema = adapters.OutputSchema(fields=(("energy_per_site", binding),))
+    if tampered_fields == "duplicate":
+        tampered_fields = (
+            ("energy_per_site", binding),
+            ("energy_per_site", binding),
+        )
+    elif tampered_fields == "wrong_binding":
+        tampered_fields = (("energy_per_site", object()),)
+    object.__setattr__(output_schema, "fields", tampered_fields)
+    values = _fresh_adapter_values()
+    values["output_schema"] = output_schema
+
+    with pytest.raises(AdapterContractError, match="output_schema|fields|binding"):
+        AdapterDefinition(**values)
+
+
+def test_adapter_definition_snapshots_output_schema_and_binding_aliases():
+    binding = adapters.OutputFieldBinding(
+        _number_schema(units="J"),
+        "raw_bethe_energy_expression",
+        "direct_exact_value",
+    )
+    output_schema = adapters.OutputSchema(fields=(("energy_per_site", binding),))
+    values = _fresh_adapter_values()
+    values["output_schema"] = output_schema
+
+    definition = AdapterDefinition(**values)
+    object.__setattr__(binding, "proof_kind", "made_up_proof")
+    object.__setattr__(output_schema, "fields", ())
+
+    stored_binding = definition.output_schema["energy_per_site"]
+    assert stored_binding.proof_kind == "direct_exact_value"
+    assert definition.output_schema.selector_fields == ("energy_per_site",)
+
+
+def _nested_list_schema(depth):
+    schema = _number_schema(units="J")
+    for _ in range(depth):
+        schema = ValueSchema(
+            kind="list",
+            required=True,
+            lower=1,
+            upper=1,
+            item_schema=schema,
+            properties=(),
+            units="J",
+        )
+    return schema
+
+
+@pytest.mark.parametrize("cycle_kind", ("item_schema", "properties"))
+def test_output_schema_snapshot_rejects_value_schema_cycles(cycle_kind):
+    if cycle_kind == "item_schema":
+        schema = _nested_list_schema(1)
+        object.__setattr__(schema, "item_schema", schema)
+        snapshot = lambda: adapters.OutputFieldBinding(
+            schema,
+            "raw_cyclic_value",
+            "direct_exact_value",
+        )
+    else:
+        schema = _object_schema((("child", _number_schema(units="J")),))
+        object.__setattr__(schema, "properties", (("child", schema),))
+        snapshot = lambda: adapters._snapshot_value_schema(schema, "value_schema")
+
+    with pytest.raises(AdapterContractError, match="cycle|nesting|recursion"):
+        snapshot()
+
+
+def test_output_schema_snapshot_enforces_128_level_nesting_boundary():
+    accepted = adapters._snapshot_value_schema(
+        _nested_list_schema(128), "value_schema"
+    )
+
+    assert type(accepted) is ValueSchema
+    with pytest.raises(AdapterContractError, match="nesting|128"):
+        adapters._snapshot_value_schema(_nested_list_schema(129), "value_schema")
+
+
+def test_output_schema_snapshot_allows_shared_noncyclic_subschemas():
+    shared = _number_schema(units="J")
+    schema = _object_schema((('left', shared), ('right', shared)))
+
+    snapshot = adapters._snapshot_value_schema(schema, "value_schema")
+
+    assert tuple(name for name, _child in snapshot.properties) == ("left", "right")
+
+
+def test_adapter_definition_provenance_is_complete_exact_and_disjoint():
+    allowed_source_kinds = {
+        "canonical_model_parameter",
+        "source_model_parameter",
+        "universal_probe",
+        "numerical_control",
+    }
+
+    for definition in adapters.ADAPTER_DEFINITIONS.values():
+        scientific = definition.scientific_input_schema
+        controls = definition.numerical_control_schema
+        assert type(scientific) is ValueSchema and scientific.kind == "object"
+        assert type(controls) is ValueSchema and controls.kind == "object"
+        scientific_names = tuple(name for name, _schema in scientific.properties)
+        control_names = tuple(name for name, _schema in controls.properties)
+        source_names = tuple(
+            source.parameter_name for source in definition.parameter_sources
+        )
+        assert scientific_names
+        assert set(scientific_names) == EXPECTED_SCIENTIFIC_INPUT_NAMES[
+            definition.adapter_id
+        ]
+        assert set(control_names) == EXPECTED_CONTROL_NAMES[definition.adapter_id]
+        assert len(source_names) == len(set(source_names))
+        assert set(source_names) == set(scientific_names)
+        assert set(scientific_names).isdisjoint(control_names)
+        assert all(
+            type(source) is ParameterSource
+            and source.kind in allowed_source_kinds - {"numerical_control"}
+            and bool(source.details)
+            for source in definition.parameter_sources
+        )
+
+
+def test_adapter_definition_domains_convergence_runtime_and_resources_are_closed():
+    convergence_kinds = {
+        "exact",
+        "residual_bound",
+        "finite_size",
+        "quadrature",
+        "iterative",
+    }
+
+    for definition in adapters.ADAPTER_DEFINITIONS.values():
+        scientific_names = {
+            name for name, _schema in definition.scientific_input_schema.properties
+        }
+        domain = definition.counterfactual_domain
+        assert bool(domain.valid_rules)
+        assert bool(domain.invalid_rules)
+        assert scientific_names <= set(domain.valid_rules)
+        assert scientific_names <= set(domain.invalid_rules)
+        assert "physical_size_rule" in domain.valid_rules
+        assert "physical_size_rule" in domain.invalid_rules
+
+        convergence = definition.convergence_contract
+        assert convergence.kind in convergence_kinds
+        assert bool(convergence.requirements)
+
+        runtime = definition.runtime_requirements
+        assert runtime.interpreter == "python3"
+        assert type(runtime.packages) is tuple
+        assert type(runtime.native_libraries) is tuple
+        assert type(runtime.backend_resources) is tuple
+        assert len(runtime.packages) == len(set(runtime.packages))
+
+        limits = definition.resource_limits
+        assert 0 < limits.cpu_seconds <= 120
+        assert 0 < limits.wall_seconds <= 120
+        assert 0 < limits.address_space_bytes <= 2 * 1024**3
+        assert 0 < limits.output_bytes <= 1024**2
+        assert 0 < limits.file_descriptors <= 64
+        assert limits.process_count == 1
+
+
+def test_adapter_definition_builder_rejects_duplicates_and_caller_aliases():
+    definitions = tuple(adapters.ADAPTER_DEFINITIONS.values())
+    duplicated = definitions[0]
+
+    with pytest.raises(AdapterContractError, match="duplicate.*adapter"):
+        adapters._build_adapter_definitions((duplicated, duplicated))
+
+    caller_definitions = [
+        AdapterDefinition(**_definition_values_from(definition))
+        for definition in definitions
+    ]
+    rebuilt = adapters._build_adapter_definitions(caller_definitions)
+    first_adapter_id = caller_definitions[0].adapter_id
+    first_oracle_id = caller_definitions[0].oracle_id
+    object.__setattr__(caller_definitions[0], "oracle_id", "made_up_oracle")
+    object.__setattr__(
+        caller_definitions[0].output_schema.fields[0][1],
+        "proof_kind",
+        "made_up_proof",
+    )
+    caller_definitions.clear()
+
+    assert type(rebuilt) is MappingProxyType
+    assert tuple(rebuilt) == tuple(adapters.ADAPTER_DEFINITIONS)
+    assert len({item.oracle_id for item in rebuilt.values()}) == 29
+    assert rebuilt[first_adapter_id].oracle_id == first_oracle_id
+    assert (
+        rebuilt[first_adapter_id].output_schema.fields[0][1].proof_kind
+        in adapters.OUTPUT_PROOF_KINDS
+    )
+    with pytest.raises(TypeError):
+        rebuilt[definitions[0].adapter_id] = definitions[0]
+
+
+def _definition_values_from(definition):
+    return {
+        field.name: getattr(definition, field.name)
+        for field in dataclasses.fields(AdapterDefinition)
+    }
+
+
+def test_adapter_definition_builder_rejects_type_cardinality_and_linkage_drift():
+    definitions = tuple(adapters.ADAPTER_DEFINITIONS.values())
+
+    with pytest.raises(AdapterContractError, match="AdapterDefinition"):
+        adapters._build_adapter_definitions((object(), *definitions[1:]))
+    with pytest.raises(AdapterContractError, match="exactly 29"):
+        adapters._build_adapter_definitions(definitions[:-1])
+
+    first = definitions[0]
+    wrong_id = AdapterDefinition(
+        **{
+            **_definition_values_from(first),
+            "adapter_id": "unique_extra_adapter",
+            "entry_symbol": (
+                "validation.literature_evidence_adapters:"
+                "adapter_unique_extra_adapter"
+            ),
+        }
+    )
+    with pytest.raises(AdapterContractError, match="eligible.*adapter|key set"):
+        adapters._build_adapter_definitions((wrong_id, *definitions[1:]))
+
+    wrong_oracle = AdapterDefinition(
+        **{
+            **_definition_values_from(first),
+            "oracle_id": "independent_but_unlinked_oracle",
+        }
+    )
+    with pytest.raises(AdapterContractError, match="oracle"):
+        adapters._build_adapter_definitions((wrong_oracle, *definitions[1:]))
+
+    wrong_output = AdapterDefinition(
+        **{
+            **_definition_values_from(first),
+            "output_schema": adapters.OutputSchema(
+                fields=(
+                    (
+                        "unlinked_selector",
+                        adapters.OutputFieldBinding(
+                            _number_schema(units="J"),
+                            "raw_unlinked_calculation",
+                            "direct_exact_value",
+                        ),
+                    ),
+                )
+            ),
+        }
+    )
+    with pytest.raises(AdapterContractError, match="selector"):
+        adapters._build_adapter_definitions((wrong_output, *definitions[1:]))
+
+    fixed_definition = adapters.ADAPTER_DEFINITIONS[
+        "spin_ice_tetrahedron_enumeration"
+    ]
+    wrong_size_data = AdapterDefinition(
+        **{
+            **_definition_values_from(fixed_definition),
+            "problem_size_policy": ProblemSizePolicy(
+                "fixed_local", {"spin_count": 6, "tetrahedra": 1}, {}
+            ),
+        }
+    )
+    replaced = tuple(
+        wrong_size_data
+        if item.adapter_id == wrong_size_data.adapter_id
+        else item
+        for item in definitions
+    )
+    with pytest.raises(AdapterContractError, match="size data"):
+        adapters._build_adapter_definitions(replaced)
+
+
+def test_adapter_definition_rejects_entry_symbol_mismatch_without_resolving_it():
+    values = _fresh_adapter_values()
+    values["entry_symbol"] = (
+        "validation.literature_evidence_adapters:adapter_unlinked_symbol"
+    )
+
+    with pytest.raises(AdapterContractError, match="entry_symbol.*exact"):
+        AdapterDefinition(**values)
+
+
+FORBIDDEN_METADATA_CASES = (
+    pytest.param(
+        "observable_identity",
+        "expected",
+        id="observable_nested_plain_token",
+    ),
+    pytest.param(
+        "observable_identity",
+        "taggedExpectedValue",
+        id="observable_nested_camel_alias",
+    ),
+    pytest.param(
+        "scientific_input_schema",
+        "answer_value",
+        id="scientific_property",
+    ),
+    pytest.param(
+        "parameter_source_details",
+        "approved-verdict",
+        id="provenance_nested_punctuation_alias",
+    ),
+    pytest.param("fixed_sizes", "RegistryTag", id="size_data_camel_alias"),
+    pytest.param("convergence", "comparison.tag", id="convergence_punctuation"),
+    pytest.param("counterfactual", "sourceOperand", id="domain_camel_pair"),
+    pytest.param(
+        "counterfactual",
+        "sourceoperand",
+        id="domain_lowercase_glued_pair",
+    ),
+    pytest.param("runtime", "solver-report-addon", id="runtime_punctuation"),
+    pytest.param("runtime", "sealedEvidenceTag", id="evidence_camel_alias"),
+    pytest.param(
+        "counterfactual",
+        "numeric-tolerance-tag",
+        id="tolerance_punctuation_alias",
+    ),
+    pytest.param("output_selector", "expected_value", id="selector_identifier"),
+    pytest.param("raw_field", "raw_target_value", id="raw_identifier"),
+    pytest.param("proof_kind", "answer-proof", id="proof_binding"),
+    pytest.param("output_units", "result/unit", id="schema_units"),
+)
+
+
+@pytest.mark.parametrize(("location", "forbidden_value"), FORBIDDEN_METADATA_CASES)
+def test_adapter_definition_rejects_forbidden_vocabulary_at_arbitrary_nesting(
+    location, forbidden_value
+):
+    values = _fresh_adapter_values()
+    if location == "observable_identity":
+        identity = _observable_identity()
+        identity["conditions"] = {"nested": [{forbidden_value: "forbidden"}]}
+        values["observable_identity"] = identity
+    elif location == "scientific_input_schema":
+        values["scientific_input_schema"] = _object_schema(
+            ((forbidden_value, _number_schema(units="J")),)
+        )
+        values["parameter_sources"] = (
+            ParameterSource(
+                forbidden_value,
+                "canonical_model_parameter",
+                {"canonical_path": ["hamiltonian", "exchange"]},
+            ),
+        )
+    elif location == "parameter_source_details":
+        values["parameter_sources"] = (
+            ParameterSource(
+                "exchange",
+                "canonical_model_parameter",
+                {"canonical_path": ["hamiltonian", {forbidden_value: "tag"}]},
+            ),
+        )
+    elif location == "fixed_sizes":
+        values["problem_size_policy"] = ProblemSizePolicy(
+            "fixed_local",
+            {"spin_count": 2, "nested": {forbidden_value: 1}},
+            {},
+        )
+    elif location == "convergence":
+        values["convergence_contract"] = ConvergenceContract(
+            "exact", {"derivation": {forbidden_value: "present"}}
+        )
+    elif location == "counterfactual":
+        values["counterfactual_domain"] = CounterfactualDomain(
+            {"exchange": {"kind": forbidden_value}},
+            {"exchange": {"kind": "nonpositive"}},
+        )
+    elif location == "runtime":
+        values["runtime_requirements"] = RuntimeRequirements(
+            "python3", (forbidden_value,), (), ()
+        )
+    else:
+        selector = "energy_per_site"
+        raw_field = "raw_bethe_energy_expression"
+        proof_kind = "direct_exact_value"
+        units = "J"
+        if location == "output_selector":
+            selector = forbidden_value
+        elif location == "raw_field":
+            raw_field = forbidden_value
+        elif location == "proof_kind":
+            proof_kind = forbidden_value
+        elif location == "output_units":
+            units = forbidden_value
+        if location in {"output_selector", "raw_field", "proof_kind"}:
+            with pytest.raises(AdapterContractError, match="forbidden"):
+                adapters.OutputSchema(
+                    fields=(
+                        (
+                            selector,
+                            adapters.OutputFieldBinding(
+                                _number_schema(units=units), raw_field, proof_kind
+                            ),
+                        ),
+                    )
+                )
+            return
+        values["output_schema"] = adapters.OutputSchema(
+            fields=(
+                (
+                    selector,
+                    adapters.OutputFieldBinding(
+                        _number_schema(units=units), raw_field, proof_kind
+                    ),
+                ),
+            )
+        )
+
+    with pytest.raises(AdapterContractError, match="forbidden"):
+        AdapterDefinition(**values)
+
+
+def test_forbidden_vocabulary_does_not_confuse_residual_with_result():
+    values = _fresh_adapter_values()
+    values["convergence_contract"] = ConvergenceContract(
+        "residual_bound", {"residual_norm": "derived_from_lower_level_data"}
+    )
+
+    definition = AdapterDefinition(**values)
+
+    assert definition.convergence_contract.kind == "residual_bound"
+
+
+def test_forbidden_vocabulary_diagnostics_do_not_repr_or_hash_custom_objects():
+    values = _fresh_adapter_values()
+    identity = _observable_identity()
+    identity["conditions"] = {"nested": [BadRepr()]}
+    values["observable_identity"] = identity
+
+    with pytest.raises(AdapterContractError, match="observable_identity|JSON"):
+        AdapterDefinition(**values)
+
+
+NUMERICAL_CONTROL_ONLY_NAMES = (
+    "quadrature_absolute_threshold",
+    "eigensolver_residual_threshold",
+    "truncation_cutoff",
+    "momentum_refinement_grid",
+    "series_refinement_terms",
+    "maximum_refinement_iterations",
+    "root_residual_threshold",
+    "quadrature_max_subintervals",
+    "kernel_residual_bound",
+    "gap_residual_bound",
+    "constraint_residual_bound",
+    "branch_residual_bound",
+)
+
+
+def test_numerical_control_only_names_are_accepted_in_control_schema():
+    values = _fresh_adapter_values()
+    values["numerical_control_schema"] = _object_schema(
+        tuple((name, _number_schema()) for name in NUMERICAL_CONTROL_ONLY_NAMES)
+    )
+    values["convergence_contract"] = ConvergenceContract(
+        "iterative",
+        {"successive_estimates": "form_a_convergent_sequence"},
+    )
+
+    definition = AdapterDefinition(**values)
+
+    assert tuple(
+        name for name, _schema in definition.numerical_control_schema.properties
+    ) == tuple(sorted(NUMERICAL_CONTROL_ONLY_NAMES))
+
+
+def test_physical_threshold_terms_are_not_misclassified_as_numerical_controls():
+    values = _fresh_adapter_values()
+    identity = _observable_identity()
+    identity["conditions"] = {"spiral_threshold": "calculated_boundary"}
+    values["observable_identity"] = identity
+    values["output_schema"] = adapters.OutputSchema(
+        fields=(
+            (
+                "energy_per_site",
+                adapters.OutputFieldBinding(
+                    _number_schema(units="J"),
+                    "raw_kernel_minimum_threshold",
+                    "bounded_numeric_value",
+                ),
+            ),
+        )
+    )
+
+    definition = AdapterDefinition(**values)
+
+    assert (
+        definition.output_schema["energy_per_site"].raw_field
+        == "raw_kernel_minimum_threshold"
+    )
+
+
+@pytest.mark.parametrize(
+    "location",
+    (
+        "scientific_input_schema",
+        "observable_identity",
+        "output_selector",
+        "raw_field",
+        "provenance_parameter",
+        "counterfactual_domain",
+        "convergence_contract",
+        "runtime_requirements",
+    ),
+)
+@pytest.mark.parametrize("control_name", NUMERICAL_CONTROL_ONLY_NAMES)
+def test_numerical_control_only_names_are_rejected_outside_control_schema(
+    location, control_name
+):
+    values = _fresh_adapter_values()
+    if location == "scientific_input_schema":
+        values["scientific_input_schema"] = _object_schema(
+            ((control_name, _number_schema()),)
+        )
+        values["parameter_sources"] = (
+            ParameterSource(
+                control_name,
+                "canonical_model_parameter",
+                {"canonical_path": ["hamiltonian", "exchange"]},
+            ),
+        )
+    elif location == "observable_identity":
+        identity = _observable_identity()
+        identity["conditions"] = {control_name: 1e-10}
+        values["observable_identity"] = identity
+    elif location == "provenance_parameter":
+        values["parameter_sources"] = (
+            ParameterSource(
+                control_name,
+                "canonical_model_parameter",
+                {"canonical_path": ["hamiltonian", "exchange"]},
+            ),
+        )
+    elif location == "counterfactual_domain":
+        values["counterfactual_domain"] = CounterfactualDomain(
+            {
+                "exchange": {"kind": "positive_finite"},
+                control_name: {"kind": "positive"},
+            },
+            {"exchange": {"kind": "nonpositive"}},
+        )
+    elif location == "convergence_contract":
+        values["convergence_contract"] = ConvergenceContract(
+            "iterative", {control_name: 1e-10}
+        )
+    elif location == "runtime_requirements":
+        values["runtime_requirements"] = RuntimeRequirements(
+            "python3", (control_name,), (), ()
+        )
+    else:
+        selector = control_name if location == "output_selector" else "energy_per_site"
+        raw_field = control_name if location == "raw_field" else "raw_energy_value"
+        if location in {"output_selector", "raw_field"}:
+            with pytest.raises(AdapterContractError, match="numerical.control"):
+                adapters.OutputSchema(
+                    fields=(
+                        (
+                            selector,
+                            adapters.OutputFieldBinding(
+                                _number_schema(units="J"),
+                                raw_field,
+                                "direct_exact_value",
+                            ),
+                        ),
+                    )
+                )
+            return
+        values["output_schema"] = adapters.OutputSchema(
+            fields=(
+                (
+                    selector,
+                    adapters.OutputFieldBinding(
+                        _number_schema(units="J"),
+                        raw_field,
+                        "direct_exact_value",
+                    ),
+                ),
+            )
+        )
+
+    with pytest.raises(AdapterContractError, match="numerical.control"):
+        AdapterDefinition(**values)
