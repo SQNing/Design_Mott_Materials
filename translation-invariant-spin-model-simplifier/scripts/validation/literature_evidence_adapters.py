@@ -4210,3 +4210,434 @@ def get_adapter_definition(adapter_id: str) -> AdapterDefinition:
         raise AdapterContractError(
             f"unknown adapter_id {adapter_id}"
         ) from error
+
+
+def validate_adapter_definition(value: object) -> AdapterDefinition:
+    """Return a fresh, fully revalidated adapter-definition snapshot."""
+
+    if type(value) is not AdapterDefinition:
+        raise AdapterContractError(
+            "adapter definition must be an exact AdapterDefinition"
+        )
+    try:
+        return AdapterDefinition(
+            adapter_id=value.adapter_id,
+            entry_symbol=value.entry_symbol,
+            observable_identity=value.observable_identity,
+            scientific_input_schema=value.scientific_input_schema,
+            numerical_control_schema=value.numerical_control_schema,
+            parameter_sources=value.parameter_sources,
+            output_schema=value.output_schema,
+            backend_kind=value.backend_kind,
+            problem_size_policy=value.problem_size_policy,
+            runtime_requirements=value.runtime_requirements,
+            convergence_contract=value.convergence_contract,
+            counterfactual_domain=value.counterfactual_domain,
+            oracle_id=value.oracle_id,
+            resource_limits=value.resource_limits,
+        )
+    except AdapterContractError:
+        raise
+    except Exception as error:
+        raise AdapterContractError(
+            "adapter definition revalidation failed"
+        ) from error
+
+
+def _validate_value_against_schema(
+    schema: ValueSchema,
+    value: object,
+    field_name: str,
+    *,
+    depth: int = 0,
+) -> object:
+    if depth > _MAX_VALUE_SCHEMA_NESTING:
+        raise AdapterContractError(
+            f"{field_name} exceeds the maximum schema validation depth"
+        )
+    if type(schema) is not ValueSchema:
+        raise AdapterContractError(f"{field_name} schema is not exact")
+    if schema.kind == "boolean":
+        if type(value) is not bool:
+            raise AdapterContractError(f"{field_name} must be a boolean")
+    elif schema.kind == "integer":
+        if type(value) is not int:
+            raise AdapterContractError(f"{field_name} must be an integer")
+        _require_json_integer_magnitude(value, field_name)
+    elif schema.kind == "number":
+        _require_finite_number(value, field_name)
+    elif schema.kind == "string":
+        if type(value) is not str:
+            raise AdapterContractError(f"{field_name} must be a string")
+        _require_utf8_string(value, field_name)
+    elif schema.kind == "list":
+        if type(value) is not tuple:
+            raise AdapterContractError(f"{field_name} must be a JSON array")
+        if schema.lower is not None and len(value) < schema.lower:
+            raise AdapterContractError(f"{field_name} contains too few items")
+        if schema.upper is not None and len(value) > schema.upper:
+            raise AdapterContractError(f"{field_name} contains too many items")
+        for index, item in enumerate(value):
+            _validate_value_against_schema(
+                schema.item_schema,
+                item,
+                f"{field_name}[{index}]",
+                depth=depth + 1,
+            )
+    elif schema.kind == "object":
+        if type(value) is not FrozenJsonObject:
+            raise AdapterContractError(f"{field_name} must be a JSON object")
+        declared = {name: child for name, child in schema.properties}
+        actual = set(value)
+        required = {
+            name for name, child in schema.properties if child.required is True
+        }
+        missing = sorted(required - actual)
+        unknown = sorted(actual - set(declared))
+        if missing:
+            raise AdapterContractError(
+                f"{field_name} missing required field {missing[0]}"
+            )
+        if unknown:
+            raise AdapterContractError(
+                f"{field_name} contains unknown field {unknown[0]}"
+            )
+        for name in sorted(actual):
+            _validate_value_against_schema(
+                declared[name],
+                value[name],
+                f"{field_name}.{name}",
+                depth=depth + 1,
+            )
+    else:  # pragma: no cover - ValueSchema construction closes this.
+        raise AdapterContractError(f"{field_name} has an unknown schema kind")
+
+    if schema.kind in {"integer", "number"}:
+        if schema.lower is not None and value < schema.lower:
+            raise AdapterContractError(
+                f"{field_name} is below its lower bound"
+            )
+        if schema.upper is not None and value > schema.upper:
+            raise AdapterContractError(f"{field_name} exceeds its upper bound")
+    return value
+
+
+def _validate_closed_schema_mapping(
+    definition: AdapterDefinition,
+    values: object,
+    *,
+    schema_attribute: str,
+    field_name: str,
+) -> FrozenJsonObject:
+    validated_definition = validate_adapter_definition(definition)
+    snapshot = _snapshot_json_mapping(values, field_name)
+    schema = getattr(validated_definition, schema_attribute)
+    _validate_value_against_schema(schema, snapshot, field_name)
+    _validate_authored_json(
+        snapshot,
+        field_name,
+        allow_numerical_control=(
+            schema_attribute == "numerical_control_schema"
+        ),
+    )
+    return snapshot
+
+
+def validate_scientific_inputs(
+    definition: AdapterDefinition, values: object
+) -> FrozenJsonObject:
+    """Validate and isolate answer-free model inputs against one definition."""
+
+    return _validate_closed_schema_mapping(
+        definition,
+        values,
+        schema_attribute="scientific_input_schema",
+        field_name="scientific_inputs",
+    )
+
+
+def validate_numerical_controls(
+    definition: AdapterDefinition, values: object
+) -> FrozenJsonObject:
+    """Validate and isolate predeclared numerical controls."""
+
+    return _validate_closed_schema_mapping(
+        definition,
+        values,
+        schema_attribute="numerical_control_schema",
+        field_name="numerical_controls",
+    )
+
+
+_LOCAL_OBSERVABLE_RESULT_SCHEMA_VERSION = "local_observable_result_v1"
+_LOCAL_RESULT_FORBIDDEN_TOKENS = frozenset(
+    {
+        "success",
+        "verdict",
+        "strictmatch",
+        "literature",
+        "expected",
+        "target",
+        "comparison",
+        "registry",
+    }
+)
+_EXACT_OUTPUT_PROOF_KINDS = frozenset(
+    {
+        "direct_exact_value",
+        "grouped_exact_sequence",
+        "rank_derived_integer",
+        "all_residuals_within_bound_boolean",
+        "positive_lower_bound_boolean",
+        "positive_gap_and_odd_parity_boolean",
+        "directional_limits_differ_boolean",
+        "no_finite_crossing_boolean",
+        "no_finite_crossing_zero_limit",
+    }
+)
+
+
+def _require_sha256(value: object, field_name: str) -> str:
+    if (
+        type(value) is not str
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise AdapterContractError(
+            f"{field_name} must be a lowercase SHA-256 hex digest"
+        )
+    return value
+
+
+def _reject_local_result_claims(value: object, field_name: str) -> None:
+    if type(value) is FrozenJsonObject:
+        for key, item in value._items:
+            tokens = _metadata_tokens(key, f"{field_name} mapping key")
+            joined = "".join(tokens)
+            if joined in _LOCAL_RESULT_FORBIDDEN_TOKENS or any(
+                token in _LOCAL_RESULT_FORBIDDEN_TOKENS for token in tokens
+            ):
+                raise AdapterContractError(
+                    f"{field_name} contains a forbidden literature claim"
+                )
+            _reject_local_result_claims(item, f"{field_name}.{key}")
+    elif type(value) is tuple:
+        for index, item in enumerate(value):
+            _reject_local_result_claims(item, f"{field_name}[{index}]")
+    elif type(value) is str:
+        tokens = _metadata_tokens(value, field_name)
+        joined = "".join(tokens)
+        if joined in _LOCAL_RESULT_FORBIDDEN_TOKENS or any(
+            token in _LOCAL_RESULT_FORBIDDEN_TOKENS for token in tokens
+        ):
+            raise AdapterContractError(
+                f"{field_name} contains a forbidden literature claim"
+            )
+
+
+def _require_monotonic_ns(value: object, field_name: str) -> int:
+    if type(value) is not int:
+        raise AdapterContractError(f"{field_name} must be an integer")
+    _require_json_integer_magnitude(value, field_name)
+    if value < 0:
+        raise AdapterContractError(f"{field_name} must be nonnegative")
+    return value
+
+
+@_seal_contract
+@dataclass(frozen=True, init=False)
+class LocalObservableResult:
+    schema_version: str
+    adapter_id: str
+    capsule_sha256: str
+    request_sha256: str
+    observable_identity: FrozenJsonObject
+    fields: FrozenJsonObject
+    units: FrozenJsonObject
+    uncertainty: FrozenJsonObject
+    raw_convergence_evidence: FrozenJsonObject
+    backend_diagnostics: FrozenJsonObject
+    operation_counts_or_sizes: FrozenJsonObject
+    worker_started_monotonic_ns: int
+    worker_finished_monotonic_ns: int
+
+    def __init__(self, *args, **kwargs):
+        _initialize_closed(self, args, kwargs, LocalObservableResult)
+
+    def __post_init__(self) -> None:
+        if self.schema_version != _LOCAL_OBSERVABLE_RESULT_SCHEMA_VERSION:
+            raise AdapterContractError(
+                "LocalObservableResult has an unknown schema_version"
+            )
+        require_identifier(self.adapter_id, "adapter_id")
+        _require_sha256(self.capsule_sha256, "capsule_sha256")
+        _require_sha256(self.request_sha256, "request_sha256")
+        observable_identity = require_exact_keys(
+            _snapshot_json_mapping(
+                self.observable_identity, "observable_identity"
+            ),
+            _OBSERVABLE_IDENTITY_KEYS,
+            "observable_identity",
+        )
+        snapshots = {}
+        for field_name in (
+            "fields",
+            "units",
+            "uncertainty",
+            "raw_convergence_evidence",
+            "backend_diagnostics",
+            "operation_counts_or_sizes",
+        ):
+            snapshots[field_name] = _snapshot_json_mapping(
+                getattr(self, field_name), field_name
+            )
+        _require_monotonic_ns(
+            self.worker_started_monotonic_ns,
+            "worker_started_monotonic_ns",
+        )
+        _require_monotonic_ns(
+            self.worker_finished_monotonic_ns,
+            "worker_finished_monotonic_ns",
+        )
+        if (
+            self.worker_finished_monotonic_ns
+            < self.worker_started_monotonic_ns
+        ):
+            raise AdapterContractError(
+                "worker monotonic timestamps are reversed"
+            )
+        for field_name, snapshot in snapshots.items():
+            _reject_local_result_claims(snapshot, field_name)
+            object.__setattr__(self, field_name, snapshot)
+        object.__setattr__(self, "observable_identity", observable_identity)
+
+    def to_frozen_json(self) -> FrozenJsonObject:
+        return _snapshot_json_mapping(
+            {
+                field.name: getattr(self, field.name)
+                for field in fields(LocalObservableResult)
+            },
+            "local_observable_result",
+        )
+
+
+def _snapshot_local_observable_result(value: object) -> LocalObservableResult:
+    field_names = tuple(field.name for field in fields(LocalObservableResult))
+    if type(value) is LocalObservableResult:
+        raw_values = {name: getattr(value, name) for name in field_names}
+    elif isinstance(value, Mapping):
+        snapshot = require_exact_keys(
+            value, field_names, "local_observable_result"
+        )
+        raw_values = thaw_json(snapshot, "local_observable_result")
+    else:
+        raise AdapterContractError(
+            "local_observable_result must be a mapping or exact record"
+        )
+    try:
+        return LocalObservableResult(**raw_values)
+    except AdapterContractError:
+        raise
+    except Exception as error:
+        raise AdapterContractError(
+            "local_observable_result revalidation failed"
+        ) from error
+
+
+def _require_numeric_sequence(value: object, field_name: str) -> None:
+    if type(value) is not tuple or not value:
+        raise AdapterContractError(
+            f"{field_name} must be a nonempty immutable numeric sequence"
+        )
+    for index, item in enumerate(value):
+        _require_finite_number(item, f"{field_name}[{index}]")
+
+
+def _validate_nonnegative_counts(value: object, field_name: str) -> None:
+    if type(value) is FrozenJsonObject:
+        for key, item in value._items:
+            _validate_nonnegative_counts(item, f"{field_name}.{key}")
+        return
+    if type(value) is tuple:
+        for index, item in enumerate(value):
+            _validate_nonnegative_counts(item, f"{field_name}[{index}]")
+        return
+    if type(value) is not int or value < 0:
+        raise AdapterContractError(
+            f"{field_name} must contain only nonnegative integer "
+            "counts or sizes"
+        )
+    _require_json_integer_magnitude(value, field_name)
+
+
+def validate_local_observable_result(
+    definition: AdapterDefinition, value: object
+) -> FrozenJsonObject:
+    """Validate only a local calculation, never a literature comparison."""
+
+    validated_definition = validate_adapter_definition(definition)
+    result = _snapshot_local_observable_result(value)
+    if result.adapter_id != validated_definition.adapter_id:
+        raise AdapterContractError(
+            "local result adapter_id does not match definition"
+        )
+    actual_identity = canonical_json_bytes(result.observable_identity)
+    expected_identity = canonical_json_bytes(
+        validated_definition.observable_identity
+    )
+    if actual_identity != expected_identity:
+        raise AdapterContractError(
+            "local result observable_identity does not match definition"
+        )
+    expected_fields = tuple(validated_definition.output_schema.selector_fields)
+    for field_name, mapping in (
+        ("fields", result.fields),
+        ("units", result.units),
+        ("uncertainty", result.uncertainty),
+    ):
+        require_exact_keys(mapping, expected_fields, field_name)
+    for selector_field, binding in validated_definition.output_schema:
+        _validate_value_against_schema(
+            binding.value_schema,
+            result.fields[selector_field],
+            f"fields.{selector_field}",
+        )
+        if result.units[selector_field] != binding.value_schema.units:
+            raise AdapterContractError(
+                f"units.{selector_field} does not match output schema"
+            )
+        uncertainty = _require_finite_number(
+            result.uncertainty[selector_field],
+            f"uncertainty.{selector_field}",
+            nonnegative=True,
+        )
+        if (
+            binding.proof_kind in _EXACT_OUTPUT_PROOF_KINDS
+            and uncertainty != 0
+        ):
+            raise AdapterContractError(
+                f"uncertainty.{selector_field} must be zero for exact output"
+            )
+    convergence = result.raw_convergence_evidence
+    required_convergence = {"kind", "samples", "residuals"}
+    missing_convergence = sorted(required_convergence - set(convergence))
+    if missing_convergence:
+        raise AdapterContractError(
+            "raw_convergence_evidence missing required field "
+            + missing_convergence[0]
+        )
+    if convergence["kind"] != validated_definition.convergence_contract.kind:
+        raise AdapterContractError(
+            "raw convergence kind does not match definition"
+        )
+    _require_numeric_sequence(convergence["samples"], "convergence.samples")
+    _require_numeric_sequence(
+        convergence["residuals"], "convergence.residuals"
+    )
+    if not result.backend_diagnostics:
+        raise AdapterContractError("backend_diagnostics must be nonempty")
+    _validate_nonnegative_counts(
+        result.operation_counts_or_sizes,
+        "operation_counts_or_sizes",
+    )
+    return result.to_frozen_json()

@@ -1,5 +1,7 @@
 import ast
 import dataclasses
+import hashlib
+import json
 import math
 import sys
 from collections.abc import Mapping
@@ -3694,3 +3696,1051 @@ def test_numerical_control_only_names_are_rejected_outside_control_schema(
 
     with pytest.raises(AdapterContractError, match="numerical.control"):
         AdapterDefinition(**values)
+
+
+AUTHORITY_CONTEXT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "audit_run_id",
+        "benchmark_name",
+        "producer_id",
+        "producer_code_sha256",
+        "canonical_observable_id",
+        "observable_identity",
+        "canonical_spec_path",
+        "canonical_spec_sha256",
+        "scientific_inputs",
+        "parameter_provenance",
+        "numerical_controls",
+        "numerical_control_provenance",
+        "registry_snapshot_sha256",
+        "selector_sha256",
+        "forbidden_output_fingerprints",
+        "fingerprint_algorithm_version",
+        "context_sha256",
+    }
+)
+WORKER_REQUEST_FIELDS = frozenset(
+    {
+        "schema_version",
+        "opaque_run_nonce",
+        "adapter_id",
+        "scientific_inputs",
+        "numerical_controls",
+        "capsule_sha256",
+    }
+)
+LOCAL_OBSERVABLE_RESULT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "adapter_id",
+        "capsule_sha256",
+        "request_sha256",
+        "observable_identity",
+        "fields",
+        "units",
+        "uncertainty",
+        "raw_convergence_evidence",
+        "backend_diagnostics",
+        "operation_counts_or_sizes",
+        "worker_started_monotonic_ns",
+        "worker_finished_monotonic_ns",
+    }
+)
+FAILURE_CONTRACT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "status",
+        "stage",
+        "reason_code",
+        "diagnostic",
+        "available_hashes",
+        "available_attestations",
+    }
+)
+
+AUTHORITY_ONLY_CANARIES = (
+    "authority-benchmark-canary",
+    "canonical-observable-canary",
+    "canonical/specifications/authority-canary.json",
+    "provenance-locator-canary",
+    "registry-snapshot-canary",
+    "selector-commitment-canary",
+)
+
+
+def _sha256_text(value):
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _authority_context_payload(*, producer_id="task7_test_authority_v1"):
+    """Produce a Task 7 canary context without loading any registry module."""
+
+    payload = {
+        "schema_version": "adapter_authority_context_v1",
+        "audit_run_id": "authority-audit-run-canary",
+        "benchmark_name": AUTHORITY_ONLY_CANARIES[0],
+        "producer_id": producer_id,
+        "producer_code_sha256": _sha256_text(
+            "independent-authority-producer-code-v1"
+        ),
+        "canonical_observable_id": AUTHORITY_ONLY_CANARIES[1],
+        "observable_identity": {
+            "subject": "critical temperature from a duality root",
+            "system_or_material": "canary square lattice spin model",
+            "hamiltonian": {"nearest_neighbor_exchange": "positive"},
+            "parameter_regime": {"exchange": "positive_finite"},
+            "size_or_limit": {"kind": "thermodynamic_limit"},
+            "observable_definition": {"quantity": "temperature_ratio"},
+            "units": {"temperature_ratio": "dimensionless"},
+            "conditions": {"field": 0.0},
+        },
+        "canonical_spec_path": AUTHORITY_ONLY_CANARIES[2],
+        "canonical_spec_sha256": _sha256_text("canonical-spec-canary"),
+        "scientific_inputs": {"exchange": 1.375},
+        "parameter_provenance": {
+            "exchange": {
+                "kind": "canonical_model_parameter",
+                "locator": AUTHORITY_ONLY_CANARIES[3],
+                "commitment_sha256": _sha256_text(
+                    "parameter-provenance-canary"
+                ),
+                "target_equivalent": False,
+            }
+        },
+        "numerical_controls": {
+            "maximum_refinement_iterations": 64,
+            "root_residual_threshold": 1e-12,
+        },
+        "numerical_control_provenance": {
+            "maximum_refinement_iterations": {
+                "kind": "numerical_control",
+                "locator": "fixed-control-policy-canary-a",
+                "commitment_sha256": _sha256_text("control-canary-a"),
+                "registry_independent": True,
+            },
+            "root_residual_threshold": {
+                "kind": "numerical_control",
+                "locator": "fixed-control-policy-canary-b",
+                "commitment_sha256": _sha256_text("control-canary-b"),
+                "registry_independent": True,
+            },
+        },
+        "registry_snapshot_sha256": _sha256_text(
+            AUTHORITY_ONLY_CANARIES[4]
+        ),
+        "selector_sha256": _sha256_text(AUTHORITY_ONLY_CANARIES[5]),
+        "forbidden_output_fingerprints": tuple(
+            sorted(
+                {
+                    _sha256_text("forbidden-numeric-operand-canary"),
+                    _sha256_text("forbidden-categorical-operand-canary"),
+                }
+            )
+        ),
+        "fingerprint_algorithm_version": "canonical_json_sha256_v1",
+    }
+    payload["context_sha256"] = canonical_sha256(payload)
+    return payload
+
+
+def _rehash_authority_payload(payload):
+    rehashed = dict(payload)
+    rehashed.pop("context_sha256", None)
+    rehashed["context_sha256"] = canonical_sha256(rehashed)
+    return rehashed
+
+
+def test_authority_context_requires_exact_closed_fields_and_hash():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    accepted = isolation.validate_authority_context(
+        payload, allow_test_producer=True
+    )
+
+    assert type(accepted) is isolation.AdapterAuthorityContext
+    assert {
+        field.name for field in dataclasses.fields(type(accepted))
+    } == AUTHORITY_CONTEXT_FIELDS
+    assert accepted.context_sha256 == canonical_sha256(
+        {
+            key: value
+            for key, value in payload.items()
+            if key != "context_sha256"
+        }
+    )
+
+    for bad_payload in (
+        {
+            key: value
+            for key, value in payload.items()
+            if key != "selector_sha256"
+        },
+        {**payload, "authority_extra": "must-fail-closed"},
+    ):
+        with pytest.raises(AdapterContractError):
+            isolation.validate_authority_context(
+                bad_payload, allow_test_producer=True
+            )
+
+
+AUTHORITY_MUTATIONS = (
+    "producer_id",
+    "producer_code_sha256",
+    "canonical_spec_sha256",
+    "registry_snapshot_sha256",
+    "selector_sha256",
+    "fingerprint_set",
+    "parameter_provenance",
+    "context_sha256",
+)
+
+
+@pytest.mark.parametrize("mutation", AUTHORITY_MUTATIONS)
+def test_authority_context_rejects_stale_or_incomplete_commitments(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    if mutation == "producer_id":
+        payload["producer_id"] = "task8_canonical_authority_v1"
+    elif mutation == "fingerprint_set":
+        payload["forbidden_output_fingerprints"] = (
+            payload["forbidden_output_fingerprints"][0],
+        )
+    elif mutation == "parameter_provenance":
+        payload["parameter_provenance"] = {
+            "exchange": {
+                **payload["parameter_provenance"]["exchange"],
+                "locator": "mutated-provenance-locator",
+            }
+        }
+    elif mutation == "context_sha256":
+        payload["context_sha256"] = "0" * 64
+    else:
+        payload[mutation] = "1" * 64
+
+    with pytest.raises(AdapterContractError):
+        isolation.validate_authority_context(payload, allow_test_producer=True)
+
+
+def test_production_validation_rejects_test_authority_producer():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+
+    with pytest.raises(AdapterContractError, match="test.*producer|producer"):
+        isolation.validate_authority_context(payload)
+
+    accepted = isolation.validate_authority_context(
+        payload, allow_test_producer=True
+    )
+    production_payload = _rehash_authority_payload(
+        {**payload, "producer_id": "task8_canonical_authority_v1"}
+    )
+    production = isolation.validate_authority_context(production_payload)
+
+    assert accepted.producer_id == "task7_test_authority_v1"
+    assert production.producer_id == "task8_canonical_authority_v1"
+
+
+def test_target_equivalent_parameter_provenance_is_rejected():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    payload["parameter_provenance"] = {
+        "exchange": {
+            **payload["parameter_provenance"]["exchange"],
+            "target_equivalent": True,
+        }
+    }
+    payload = _rehash_authority_payload(payload)
+
+    with pytest.raises(AdapterContractError, match="target.equivalent"):
+        isolation.validate_authority_context(
+            payload, allow_test_producer=True
+        )
+
+
+def _valid_worker_request():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    authority = isolation.validate_authority_context(
+        _authority_context_payload(), allow_test_producer=True
+    )
+    return isolation.make_worker_request(
+        definition,
+        authority,
+        opaque_run_nonce="opaque-worker-run-nonce-7f1d",
+        capsule_sha256=_sha256_text("frozen-adapter-capsule-canary"),
+        allow_test_producer=True,
+    )
+
+
+def test_worker_request_projection_excludes_authority_canaries():
+    request = _valid_worker_request()
+    serialized = canonical_json_bytes(request.to_frozen_json())
+
+    from validation import literature_evidence_isolation as isolation
+
+    assert type(request) is isolation.WorkerRequest
+    assert {
+        field.name for field in dataclasses.fields(type(request))
+    } == WORKER_REQUEST_FIELDS
+    assert set(request.to_frozen_json()) == WORKER_REQUEST_FIELDS
+    assert request.scientific_inputs == {"exchange": 1.375}
+    assert request.numerical_controls == {
+        "maximum_refinement_iterations": 64,
+        "root_residual_threshold": 1e-12,
+    }
+    for canary in AUTHORITY_ONLY_CANARIES:
+        assert canary.encode("utf-8") not in serialized
+    for forbidden_token in (
+        b"benchmark_name",
+        b"canonical_observable_id",
+        b"parameter_provenance",
+        b"registry_snapshot_sha256",
+        b"selector_sha256",
+        b"forbidden_output_fingerprints",
+        b"target",
+        b"verdict",
+    ):
+        assert forbidden_token not in serialized
+
+
+def test_worker_request_rejects_extra_metadata_and_tampered_authority_records(
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    authority = isolation.validate_authority_context(
+        _authority_context_payload(), allow_test_producer=True
+    )
+    with pytest.raises(AdapterContractError):
+        isolation.make_worker_request(
+            definition,
+            authority,
+            opaque_run_nonce="opaque-worker-run-nonce-7f1d",
+            capsule_sha256=_sha256_text("frozen-adapter-capsule-canary"),
+            allow_test_producer=True,
+            target_metadata={"answer": 2.0},
+        )
+
+    object.__setattr__(authority, "scientific_inputs", {"exchange": 1.0})
+    with pytest.raises(AdapterContractError):
+        isolation.make_worker_request(
+            definition,
+            authority,
+            opaque_run_nonce="opaque-worker-run-nonce-7f1d",
+            capsule_sha256=_sha256_text("frozen-adapter-capsule-canary"),
+            allow_test_producer=True,
+        )
+
+
+def _local_observable_payload():
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    request = _valid_worker_request()
+    return {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": definition.adapter_id,
+        "capsule_sha256": request.capsule_sha256,
+        "request_sha256": canonical_sha256(request.to_frozen_json()),
+        "observable_identity": thaw_json(definition.observable_identity),
+        "fields": {"tc_over_j": 2.269185314213022},
+        "units": {"tc_over_j": "dimensionless"},
+        "uncertainty": {"tc_over_j": 2e-13},
+        "raw_convergence_evidence": {
+            "kind": "residual_bound",
+            "samples": [2.26918531420, 2.269185314213022],
+            "residuals": [2e-11, 2e-14],
+        },
+        "backend_diagnostics": {
+            "backend_kind": "analytic",
+            "interpreter_implementation": "cpython",
+            "interpreter_version": "canary-version",
+        },
+        "operation_counts_or_sizes": {"root_iterations": 12},
+        "worker_started_monotonic_ns": 10_000,
+        "worker_finished_monotonic_ns": 20_000,
+    }
+
+
+def test_local_observable_result_has_exact_local_calculation_fields_only():
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _local_observable_payload()
+    accepted = adapters.validate_local_observable_result(definition, payload)
+
+    assert type(accepted) is FrozenJsonObject
+    assert {
+        field.name
+        for field in dataclasses.fields(adapters.LocalObservableResult)
+    } == LOCAL_OBSERVABLE_RESULT_FIELDS
+    assert set(accepted) == LOCAL_OBSERVABLE_RESULT_FIELDS
+    assert set(payload) == LOCAL_OBSERVABLE_RESULT_FIELDS
+    serialized = canonical_json_bytes(accepted)
+    for forbidden_token in (
+        b"success",
+        b"verdict",
+        b"strict_match",
+        b"literature",
+        b"expected",
+        b"comparison",
+        b"registry",
+    ):
+        assert forbidden_token not in serialized.lower()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "extra_field",
+        "missing_field",
+        "wrong_units",
+        "nonfinite_field",
+        "missing_uncertainty",
+        "wrong_convergence_kind",
+        "timestamp_reversal",
+        "success_bundle",
+    ),
+)
+def test_local_observable_result_rejects_closed_contract_violations(mutation):
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _local_observable_payload()
+    if mutation == "extra_field":
+        payload["extra"] = "closed"
+    elif mutation == "missing_field":
+        payload["fields"] = {}
+    elif mutation == "wrong_units":
+        payload["units"] = {"tc_over_j": "kelvin"}
+    elif mutation == "nonfinite_field":
+        payload["fields"] = {"tc_over_j": math.nan}
+    elif mutation == "missing_uncertainty":
+        payload["uncertainty"] = {}
+    elif mutation == "wrong_convergence_kind":
+        payload["raw_convergence_evidence"]["kind"] = "exact"
+    elif mutation == "timestamp_reversal":
+        payload["worker_finished_monotonic_ns"] = 9_999
+    else:
+        payload["backend_diagnostics"]["success_bundle"] = {
+            "strict_match": True
+        }
+
+    with pytest.raises(AdapterContractError):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+def test_local_observable_result_requires_zero_exact_uncertainty():
+    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    payload = _local_observable_payload()
+    payload.update(
+        {
+            "adapter_id": definition.adapter_id,
+            "observable_identity": thaw_json(definition.observable_identity),
+            "fields": {"energy_per_site": -0.4431471805599453},
+            "units": {"energy_per_site": "J"},
+            "uncertainty": {"energy_per_site": 1e-15},
+            "raw_convergence_evidence": {
+                "kind": "exact",
+                "samples": [-0.4431471805599453],
+                "residuals": [0.0],
+            },
+        }
+    )
+
+    with pytest.raises(AdapterContractError, match="uncertainty|zero"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+def _failure_payload():
+    return {
+        "schema_version": "adapter_run_failure_v1",
+        "status": "execution_failed",
+        "stage": "worker_execution",
+        "reason_code": "worker_timeout",
+        "diagnostic": "worker exceeded the declared wall-time limit",
+        "available_hashes": {
+            "capsule_sha256": _sha256_text("failure-capsule-canary")
+        },
+        "available_attestations": {"namespace_created": True},
+    }
+
+
+def test_failure_contract_is_closed_bounded_and_has_no_success_bundle():
+    from validation import literature_evidence_isolation as isolation
+
+    accepted = isolation.validate_failure(_failure_payload())
+
+    assert type(accepted) is isolation.AdapterRunFailure
+    assert {
+        field.name for field in dataclasses.fields(type(accepted))
+    } == FAILURE_CONTRACT_FIELDS
+    assert accepted.status == "execution_failed"
+    assert not hasattr(accepted, "evidence")
+    assert not hasattr(accepted, "success")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "success_status",
+        "unknown_stage",
+        "unknown_reason",
+        "oversized_diagnostic",
+        "success_bundle",
+        "unknown_field",
+        "nonfinite_attestation",
+    ),
+)
+def test_failure_contract_rejects_success_or_unbounded_payloads(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _failure_payload()
+    if mutation == "success_status":
+        payload["status"] = "isolated_recomputation_succeeded"
+    elif mutation == "unknown_stage":
+        payload["stage"] = "caller_chosen_stage"
+    elif mutation == "unknown_reason":
+        payload["reason_code"] = "caller_chosen_reason"
+    elif mutation == "oversized_diagnostic":
+        payload["diagnostic"] = "x" * 2_000
+    elif mutation == "success_bundle":
+        payload["available_attestations"] = {
+            "success_bundle": {"strict_match": True}
+        }
+    elif mutation == "unknown_field":
+        payload["evidence"] = {"strict_match": True}
+    else:
+        payload["available_attestations"] = {"elapsed": math.inf}
+
+    with pytest.raises(AdapterContractError):
+        isolation.validate_failure(payload)
+
+
+def test_failure_contract_rejects_subclasses_lists_and_pre_tampered_records():
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(TypeError):
+        class FailureSubclass(isolation.AdapterRunFailure):
+            pass
+
+    payload = _failure_payload()
+    payload["available_hashes"] = [("capsule_sha256", "0" * 64)]
+    with pytest.raises(AdapterContractError):
+        isolation.validate_failure(payload)
+
+    accepted = isolation.validate_failure(_failure_payload())
+    object.__setattr__(accepted, "status", "isolated_recomputation_succeeded")
+    with pytest.raises(AdapterContractError):
+        isolation.validate_failure(accepted)
+
+
+def test_all_task4_records_are_exact_frozen_sealed_contracts():
+    from validation import literature_evidence_isolation as isolation
+
+    record_names_and_fields = {
+        "ScientificClosure": {
+            "schema_version", "role", "entry_symbol", "nodes",
+            "dependency_edges", "emitted_source_sha256", "bundle_sha256",
+        },
+        "ScientificPolicyCommitment": {
+            "schema_version", "role", "definition_id",
+            "canonical_definition_bytes", "canonical_definition_sha256",
+            "eligibility_row_sha256", "eligibility_catalog_sha256",
+            "entry_closure_sha256", "output_or_invariant_proof_bindings",
+            "domain_sha256", "size_policy_sha256", "convergence_sha256",
+            "static_scan_sha256", "combined_sha256",
+        },
+        "InfrastructureClosure": {
+            "schema_version", "roots", "nodes", "dependency_edges",
+            "purpose_bindings", "bundle_sha256",
+        },
+        "StaticScanReport": {
+            "schema_version", "role", "scanner_version", "scanner_sha256",
+            "scanned_closure_sha256", "fingerprint_commitment_sha256",
+            "checks", "passed", "report_sha256",
+        },
+        "RuntimeResourceManifest": {
+            "schema_version", "resources", "manifest_sha256",
+        },
+        "RuntimeSnapshot": {
+            "schema_version", "manifest", "snapshot_root",
+            "directory_identities", "snapshot_sha256",
+        },
+        "CapabilityPreflightReport": {
+            "schema_version", "audit_run_id", "available", "checks",
+            "command_identities", "namespace_identifiers", "mount_facts",
+            "probe_result_codes", "trace_sha256", "report_sha256",
+        },
+        "ProcessAttestation": {
+            "schema_version", "process_role", "point_id",
+            "namespace_identifiers", "mount_facts", "environment_facts",
+            "resource_limit_facts", "chroot_facts", "attestation_sha256",
+        },
+        "TracePolicyReport": {
+            "schema_version", "trace_sha256", "attempted_accesses",
+            "violations", "passed", "report_sha256",
+        },
+        "PointExecutionEvidence": {
+            "schema_version", "point_id", "request_sha256", "result_sha256",
+            "trace_policy_report", "process_attestation",
+            "backend_diagnostics", "exit_status", "execution_sha256",
+        },
+        "ConvergenceDecision": {
+            "schema_version", "kind", "accepted", "raw_evidence_sha256",
+            "reason_code", "decision_sha256",
+        },
+        "OracleDecision": {
+            "schema_version", "oracle_id", "accepted",
+            "oracle_execution_evidence_hashes", "residuals", "invariants",
+            "reason_code", "decision_sha256",
+        },
+        "AdapterExecutionEvidence": {
+            "schema_version", "status", "authority_context_sha256",
+            "validated_inputs_and_provenance", "eligibility_commitments",
+            "adapter_policy_commitment", "oracle_policy_commitment",
+            "adapter_scientific_closure", "oracle_scientific_closure",
+            "infrastructure_closure", "static_scan_reports",
+            "runtime_snapshot", "ordering_events",
+            "capability_preflight_sha256", "point_executions",
+            "convergence_decision", "oracle_decision", "disclosed_seed_hex",
+            "bundle_sha256",
+        },
+        "AdapterRunOutcome": {"status", "evidence", "failure"},
+        "EventRecord": {"sequence_number", "event_name", "details"},
+    }
+
+    for record_name, expected_fields in record_names_and_fields.items():
+        record_type = getattr(isolation, record_name)
+        assert dataclasses.is_dataclass(record_type)
+        assert dataclasses.fields(record_type)[0]._field_type is not None
+        assert {field.name for field in dataclasses.fields(record_type)} == (
+            expected_fields
+        )
+        assert record_type.__dataclass_params__.frozen is True
+        with pytest.raises(TypeError):
+            type(f"{record_name}Subclass", (record_type,), {})
+
+
+def test_oracle_contract_is_closed_and_catalog_starts_exactly_empty():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    assert {
+        field.name for field in dataclasses.fields(oracles.OracleDefinition)
+    } == {
+        "oracle_id",
+        "entry_symbol",
+        "input_schema",
+        "result_schema",
+        "runtime_requirements",
+        "convergence_invariant_contract",
+        "resource_limits",
+    }
+    assert oracles.ORACLE_DEFINITIONS == {}
+    assert type(oracles.ORACLE_DEFINITIONS) is MappingProxyType
+    with pytest.raises(AdapterContractError):
+        oracles.get_oracle_definition("not_populated_until_task13")
+
+
+def test_scientific_policy_rejects_noncanonical_or_unknown_definition():
+    from validation import literature_evidence_isolation as isolation
+
+    canonical_payload = {
+        "adapter_id": "canary_adapter",
+        "entry_symbol": (
+            "validation.literature_evidence_adapters:adapter_canary_adapter"
+        ),
+        "observable_identity": {},
+        "scientific_input_schema": {},
+        "numerical_control_schema": {},
+        "parameter_sources": [],
+        "output_schema": {},
+        "backend_kind": "analytic",
+        "problem_size_policy": {},
+        "runtime_requirements": {},
+        "convergence_contract": {},
+        "counterfactual_domain": {},
+        "oracle_id": "canary_oracle",
+        "resource_limits": {},
+    }
+    canonical_bytes = canonical_json_bytes(canonical_payload)
+    values = {
+        "schema_version": "scientific_policy_commitment_v1",
+        "role": "adapter",
+        "definition_id": "canary_adapter",
+        "canonical_definition_bytes": canonical_bytes,
+        "canonical_definition_sha256": hashlib.sha256(
+            canonical_bytes
+        ).hexdigest(),
+        "eligibility_row_sha256": _sha256_text("eligibility-row-canary"),
+        "eligibility_catalog_sha256": _sha256_text("catalog-canary"),
+        "entry_closure_sha256": _sha256_text("entry-closure-canary"),
+        "output_or_invariant_proof_bindings": {
+            "energy_per_site": "direct_exact_value"
+        },
+        "domain_sha256": _sha256_text("domain-canary"),
+        "size_policy_sha256": _sha256_text("size-canary"),
+        "convergence_sha256": _sha256_text("convergence-canary"),
+        "static_scan_sha256": _sha256_text("static-scan-canary"),
+    }
+    values["combined_sha256"] = isolation.scientific_policy_combined_sha256(
+        values
+    )
+    accepted = isolation.ScientificPolicyCommitment(**values)
+    assert accepted.canonical_definition_bytes == canonical_bytes
+
+    noncanonical = json.dumps(
+        thaw_json(freeze_json(canonical_payload)), sort_keys=False, indent=2
+    ).encode("utf-8")
+    bad_noncanonical = dict(values)
+    bad_noncanonical["canonical_definition_bytes"] = noncanonical
+    bad_noncanonical["canonical_definition_sha256"] = hashlib.sha256(
+        noncanonical
+    ).hexdigest()
+    bad_noncanonical["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(bad_noncanonical)
+    )
+    with pytest.raises(AdapterContractError, match="canonical"):
+        isolation.ScientificPolicyCommitment(**bad_noncanonical)
+
+    with_unknown = dict(canonical_payload)
+    with_unknown["unexpected_policy_field"] = "must-fail-before-emission"
+    bad_unknown = dict(values)
+    bad_unknown["canonical_definition_bytes"] = canonical_json_bytes(
+        with_unknown
+    )
+    bad_unknown["canonical_definition_sha256"] = hashlib.sha256(
+        bad_unknown["canonical_definition_bytes"]
+    ).hexdigest()
+    bad_unknown["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(bad_unknown)
+    )
+    with pytest.raises(
+        AdapterContractError, match="unknown|definition fields"
+    ):
+        isolation.ScientificPolicyCommitment(**bad_unknown)
+
+
+def test_authority_context_fresh_snapshots_revalidate_tampering():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    caller_inputs = freeze_json(payload["scientific_inputs"])
+    caller_provenance = freeze_json(payload["parameter_provenance"])
+    payload["scientific_inputs"] = caller_inputs
+    payload["parameter_provenance"] = caller_provenance
+    payload = _rehash_authority_payload(payload)
+
+    accepted = isolation.validate_authority_context(
+        payload, allow_test_producer=True
+    )
+    accepted_hash = accepted.context_sha256
+    object.__setattr__(caller_inputs, "_items", ())
+    object.__setattr__(caller_provenance, "_items", ())
+
+    assert accepted.scientific_inputs == {"exchange": 1.375}
+    assert accepted.context_sha256 == accepted_hash
+    assert accepted.scientific_inputs is not caller_inputs
+    assert accepted.parameter_provenance is not caller_provenance
+
+    object.__setattr__(accepted, "producer_code_sha256", "0" * 64)
+    with pytest.raises(AdapterContractError, match="hash"):
+        isolation.validate_authority_context(
+            accepted, allow_test_producer=True
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_value",
+    (
+        pytest.param(math.nan, id="nan"),
+        pytest.param(math.inf, id="positive_infinity"),
+        pytest.param(-math.inf, id="negative_infinity"),
+        pytest.param(_list_cycle(), id="cycle"),
+    ),
+)
+def test_authority_context_rejects_nonfinite_or_cyclic_inputs(invalid_value):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    payload["scientific_inputs"] = {"exchange": invalid_value}
+    with pytest.raises(AdapterContractError):
+        isolation.validate_authority_context(
+            payload, allow_test_producer=True
+        )
+
+
+def test_authority_context_rejects_excessive_depth_and_list_record_fields():
+    from validation import literature_evidence_isolation as isolation
+
+    nested = 1.0
+    for _ in range(140):
+        nested = [nested]
+    payload = _authority_context_payload()
+    payload["scientific_inputs"] = {"exchange": nested}
+    with pytest.raises(AdapterContractError, match="nesting|recursion"):
+        isolation.validate_authority_context(
+            payload, allow_test_producer=True
+        )
+
+    direct_values = _authority_context_payload()
+    direct_values["forbidden_output_fingerprints"] = list(
+        direct_values["forbidden_output_fingerprints"]
+    )
+    with pytest.raises(AdapterContractError, match="tuple"):
+        isolation.AdapterAuthorityContext(**direct_values)
+
+
+def test_input_control_validation_rejects_closed_contract_violations():
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+
+    assert adapters.validate_scientific_inputs(
+        definition, {"exchange": 1.25}
+    ) == {"exchange": 1.25}
+    assert adapters.validate_numerical_controls(
+        definition,
+        {
+            "maximum_refinement_iterations": 32,
+            "root_residual_threshold": 1e-10,
+        },
+    ) == {
+        "maximum_refinement_iterations": 32,
+        "root_residual_threshold": 1e-10,
+    }
+    for bad_inputs in (
+        {},
+        {"exchange": 1.25, "unexpected": 2.0},
+        {"exchange": True},
+        {"exchange": math.nan},
+        {"exchange": "target answer"},
+    ):
+        with pytest.raises(AdapterContractError):
+            adapters.validate_scientific_inputs(definition, bad_inputs)
+    with pytest.raises(AdapterContractError):
+        adapters.validate_numerical_controls(
+            definition, {"maximum_refinement_iterations": 32}
+        )
+
+
+def test_worker_request_record_rejects_unknown_missing_and_wrong_hash_fields():
+    from validation import literature_evidence_isolation as isolation
+
+    request = _valid_worker_request()
+    values = {
+        field.name: getattr(request, field.name)
+        for field in dataclasses.fields(type(request))
+    }
+    with pytest.raises(AdapterContractError, match="unknown"):
+        isolation.WorkerRequest(**{**values, "benchmark_name": "forbidden"})
+    values.pop("opaque_run_nonce")
+    with pytest.raises(AdapterContractError, match="missing"):
+        isolation.WorkerRequest(**values)
+    values = {
+        field.name: getattr(request, field.name)
+        for field in dataclasses.fields(type(request))
+    }
+    values["capsule_sha256"] = "not-a-hash"
+    with pytest.raises(AdapterContractError, match="SHA-256"):
+        isolation.WorkerRequest(**values)
+
+
+def test_local_result_revalidates_pre_tampered_records_and_hash_shapes():
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _local_observable_payload()
+    record = adapters.LocalObservableResult(**payload)
+    object.__setattr__(record, "fields", freeze_json({}))
+    with pytest.raises(AdapterContractError):
+        adapters.validate_local_observable_result(definition, record)
+
+    for hash_field in ("capsule_sha256", "request_sha256"):
+        bad_payload = _local_observable_payload()
+        bad_payload[hash_field] = "f" * 63
+        with pytest.raises(AdapterContractError, match="SHA-256"):
+            adapters.validate_local_observable_result(
+                definition, bad_payload
+            )
+
+
+def test_local_result_and_failure_snapshots_do_not_retain_deep_aliases():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    local_payload = _local_observable_payload()
+    caller_diagnostics = freeze_json(local_payload["backend_diagnostics"])
+    local_payload["backend_diagnostics"] = caller_diagnostics
+    accepted_local = adapters.validate_local_observable_result(
+        definition, local_payload
+    )
+    local_digest = canonical_sha256(accepted_local)
+    object.__setattr__(caller_diagnostics, "_items", ())
+    assert canonical_sha256(accepted_local) == local_digest
+    assert accepted_local["backend_diagnostics"]
+
+    failure_payload = _failure_payload()
+    caller_attestations = freeze_json(
+        failure_payload["available_attestations"]
+    )
+    failure_payload["available_attestations"] = caller_attestations
+    accepted_failure = isolation.validate_failure(failure_payload)
+    object.__setattr__(caller_attestations, "_items", ())
+    assert accepted_failure.available_attestations == {
+        "namespace_created": True
+    }
+    assert accepted_failure.available_attestations is not caller_attestations
+
+
+@pytest.mark.parametrize(
+    "invalid_attestation",
+    (
+        pytest.param(_mapping_cycle(), id="cycle"),
+        pytest.param({"elapsed": math.nan}, id="nan"),
+        pytest.param({"elapsed": math.inf}, id="infinity"),
+    ),
+)
+def test_failure_contract_normalizes_recursive_json_rejections(
+    invalid_attestation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _failure_payload()
+    payload["available_attestations"] = invalid_attestation
+    with pytest.raises(AdapterContractError):
+        isolation.validate_failure(payload)
+
+
+@pytest.mark.parametrize(
+    "canonical_spec_path",
+    (
+        "canonical//observable.json",
+        "canonical/./observable.json",
+        ".",
+    ),
+)
+def test_authority_context_rejects_noncanonical_spec_paths(
+    canonical_spec_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    payload["canonical_spec_path"] = canonical_spec_path
+    payload = _rehash_authority_payload(payload)
+    with pytest.raises(AdapterContractError, match="normalized|path"):
+        isolation.validate_authority_context(
+            payload, allow_test_producer=True
+        )
+
+
+def test_worker_request_requires_separate_explicit_test_producer_opt_in():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    authority = isolation.validate_authority_context(
+        _authority_context_payload(), allow_test_producer=True
+    )
+    with pytest.raises(AdapterContractError, match="test.*producer|opt.in"):
+        isolation.make_worker_request(
+            definition,
+            authority,
+            opaque_run_nonce="opaque-worker-run-nonce-7f1d",
+            capsule_sha256=_sha256_text("frozen-adapter-capsule-canary"),
+        )
+
+    request = isolation.make_worker_request(
+        definition,
+        authority,
+        opaque_run_nonce="opaque-worker-run-nonce-7f1d",
+        capsule_sha256=_sha256_text("frozen-adapter-capsule-canary"),
+        allow_test_producer=True,
+    )
+    assert request.adapter_id == definition.adapter_id
+
+
+def test_scientific_policy_binds_definition_id_to_canonical_bytes():
+    from validation import literature_evidence_isolation as isolation
+
+    canonical_payload = {
+        "adapter_id": "canonical_adapter_id",
+        "entry_symbol": (
+            "validation.literature_evidence_adapters:"
+            "adapter_canonical_adapter_id"
+        ),
+        "observable_identity": {},
+        "scientific_input_schema": {},
+        "numerical_control_schema": {},
+        "parameter_sources": [],
+        "output_schema": {},
+        "backend_kind": "analytic",
+        "problem_size_policy": {},
+        "runtime_requirements": {},
+        "convergence_contract": {},
+        "counterfactual_domain": {},
+        "oracle_id": "canonical_oracle_id",
+        "resource_limits": {},
+    }
+    canonical_bytes = canonical_json_bytes(canonical_payload)
+    values = {
+        "schema_version": "scientific_policy_commitment_v1",
+        "role": "adapter",
+        "definition_id": "different_adapter_id",
+        "canonical_definition_bytes": canonical_bytes,
+        "canonical_definition_sha256": hashlib.sha256(
+            canonical_bytes
+        ).hexdigest(),
+        "eligibility_row_sha256": _sha256_text("eligibility-row-canary"),
+        "eligibility_catalog_sha256": _sha256_text("catalog-canary"),
+        "entry_closure_sha256": _sha256_text("entry-closure-canary"),
+        "output_or_invariant_proof_bindings": {
+            "energy_per_site": "direct_exact_value"
+        },
+        "domain_sha256": _sha256_text("domain-canary"),
+        "size_policy_sha256": _sha256_text("size-canary"),
+        "convergence_sha256": _sha256_text("convergence-canary"),
+        "static_scan_sha256": _sha256_text("static-scan-canary"),
+    }
+    values["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(values)
+    )
+    with pytest.raises(AdapterContractError, match="definition_id|canonical"):
+        isolation.ScientificPolicyCommitment(**values)
+
+
+def test_oracle_definition_recursively_rejects_expected_answer_metadata():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    input_schema = ValueSchema(
+        "object",
+        True,
+        None,
+        None,
+        None,
+        (("exchange", _number_schema(units="J")),),
+        "",
+    )
+    result_schema = ValueSchema(
+        "object",
+        True,
+        None,
+        None,
+        None,
+        (("residual_norm", _number_schema()),),
+        "",
+    )
+    with pytest.raises(AdapterContractError, match="forbidden"):
+        oracles.OracleDefinition(
+            oracle_id="canary_oracle",
+            entry_symbol=(
+                "validation.literature_evidence_adapter_oracles:"
+                "oracle_canary_oracle"
+            ),
+            input_schema=input_schema,
+            result_schema=result_schema,
+            runtime_requirements=RuntimeRequirements(
+                "python3", (), (), ()
+            ),
+            convergence_invariant_contract={
+                "expected_answer": "forbidden-canary"
+            },
+            resource_limits=ResourceLimits(
+                1, 2, 64_000_000, 16_000, 16, 1
+            ),
+        )
