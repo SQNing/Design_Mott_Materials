@@ -182,6 +182,7 @@ Each `AdapterDefinition` contains exactly these fields:
 | `parameter_sources` | Per-input provenance requirements |
 | `output_schema` | Closed result field names, types, shapes, and units |
 | `backend_kind` | One of `analytic`, `enumeration`, `dense_ed`, `glt_fourier`, or `iterative_numeric` |
+| `problem_size_policy` | One of `not_applicable`, `fixed_local`, or `scalable_same_observable`, with identity-bound size data |
 | `runtime_requirements` | Interpreter, package, native library, or backend resources |
 | `convergence_contract` | Exact, residual-bound, finite-size, quadrature, or iterative requirements |
 | `counterfactual_domain` | Valid and invalid input-generation rules |
@@ -454,6 +455,30 @@ boolean does not satisfy this table.
 | `triangular_ising_star_triangle_tc` | `analytic` | Solve the triangular ferromagnet star-triangle critical equation | Verify the independently transformed honeycomb dual equation and critical-polynomial residual |
 | `xx_chain_fermion_integral` | `iterative_numeric` | Integrate the occupied free-fermion dispersion with successive momentum refinements for arbitrary exchange | Diagonalize independent finite periodic XX chains at several sizes and extrapolate the energy density with a declared bound |
 
+`problem_size_policy` is normative and prevents a counterfactual from silently
+changing observable identity:
+
+- `fixed_local` applies exactly to
+  `spin_ice_tetrahedron_enumeration`, `spin_ladder_rung_dense_ed`,
+  `uls_two_site_su3_matrix`, `aklt_two_site_projector_ed`,
+  `blume_capel_level_crossing`, `checkerboard_plaquette_enumeration`, and
+  `spin1_single_ion_dense_ed`. Their one-site, two-site, tetrahedron, or
+  plaquette size is part of the observable identity and never varies.
+- `scalable_same_observable` applies exactly to
+  `compass_line_symmetry_matrix`, `toric_code_stabilizer_rank`,
+  `majumdar_ghosh_dimer_ed`, and `shastry_sutherland_dimer_ed`. Their declared
+  finite sizes are separate realizations of the same symmetry, topology, or
+  exact product-state observable and must agree under the adapter's size rule.
+- `not_applicable` applies to the remaining eighteen eligible adapters. Their
+  physical observable is analytic or already in the declared thermodynamic or
+  Fourier limit; quadrature grids, momentum grids, series truncations, and
+  iterative cutoffs are numerical controls rather than physical system sizes.
+
+The implementation stores the fixed size or allowed scalable size sequence in
+the adapter definition and tests exact-set equality for all 29 policies. A
+planner may not reclassify a numerical grid refinement as a physical second
+size, or introduce a second local Hilbert-space size to satisfy a generic test.
+
 The adapter result may contain lower-level numeric diagnostics needed to prove a
 selected boolean, but its computed operand contains exactly the complete
 selector fields in the appendix. Boolean fields such as pinch points, SU(3)
@@ -534,9 +559,29 @@ target identities are recorded. A resource resolving into the project,
 workspace parent, source cache, reports, user configuration, or an undeclared
 package fails validation.
 
-The actual files opened at runtime, reconstructed from `strace`, must be a
-subset of this pre-hashed manifest plus the capsule, input, and output paths.
-No resource discovered only after execution is retrospectively accepted.
+The runner never bind-mounts a mutable original runtime or package directory.
+Before obtaining the random seed, it materializes every declared regular file
+into a new file-level runtime snapshot under the exclusive run directory. Each
+source is opened no-follow, checked with `fstat` before and after copying, and
+copied to an exclusively created destination. The destination is flushed,
+reopened no-follow, byte-compared, hashed, and assigned only its required read
+or read/execute mode. Snapshot directories contain no writable or undeclared
+entry and are made non-writable after construction. The manifest commits both
+the original identity and exact snapshot file identity.
+
+Private roots mount only these snapshot files at their declared logical
+destinations; they do not mount original interpreter, library, standard-library,
+or package paths. The coordinator retains directory FDs for the snapshot and,
+after every adapter and oracle process has exited, reopens every file no-follow
+and revalidates type, device/inode policy, byte length, mode, and SHA-256. Any
+pre-copy race, post-copy mutation, missing file, replacement, or hash difference
+invalidates all outcomes using that snapshot. This pre-seed snapshot plus post-
+execution revalidation closes host-side read-only-bind drift for the stated
+non-malicious-host threat model.
+
+The actual snapshot files opened at runtime, reconstructed from `strace`, must
+be a subset of this pre-hashed manifest plus the capsule, input, and output
+paths. No resource discovered only after execution is retrospectively accepted.
 
 ## Mandatory Event Ordering
 
@@ -546,7 +591,7 @@ required order is:
 1. validate the adapter definition and parameter-provenance schema;
 2. construct and hash the scientific closure;
 3. run all static scans;
-4. construct and hash the runtime-resource closure;
+4. construct, materialize, byte-compare, and hash the runtime-resource snapshot;
 5. emit and hash the adapter and oracle capsules;
 6. freeze all code, dependency, scanner, and runtime hashes;
 7. obtain 32 random bytes from the operating system;
@@ -629,7 +674,7 @@ The chroot has this logical layout:
 
 | Path | Source and mode |
 | --- | --- |
-| `/runtime` | Pre-hashed interpreter, loader, standard library, declared packages, and native libraries; read-only |
+| `/runtime` | Pre-seed snapshot of the interpreter, loader, standard library, declared packages, and native libraries; read-only |
 | `/adapter` | One emitted scientific capsule and fixed worker; read-only, no device, no set-ID |
 | `/input/request.json` | One regular request file bind-mounted read-only with no symlink components |
 | `/output` | Only the new `worker-output` subdirectory; writable, no device, no set-ID |
@@ -725,12 +770,23 @@ Minimum counterfactual coverage is:
 
 - analytic adapters: three random valid parameter points and one invalid
   boundary point that must be rejected;
-- exact enumeration and dense ED: two random valid couplings or fields at each
-  of two declared small system sizes, plus one invalid shape or size;
+- `fixed_local` enumeration or dense ED: three random valid couplings, fields,
+  anisotropies, overall scales, or basis/gauge transformations at the single
+  identity-bound size, plus one invalid parameter or different-size shape that
+  must be rejected;
+- `scalable_same_observable` enumeration or dense ED: two random valid physical
+  parameter points at each of two declared sizes, plus one invalid shape or
+  disallowed size;
 - GLT/Fourier adapters: three random valid couplings and two random momenta or
   configurations per coupling, including a real-space/Fourier identity check;
 - iterative numerical adapters: one random valid model point and at least three
   progressively stronger numerical controls, plus one invalid control.
+
+An analytic or fixed-local adapter with no continuous canonical model parameter
+uses declared answer-free overall scales, unitary/orthogonal basis changes, or
+gauge-equivalent representations whose invariants are checked by the oracle.
+Those are counterfactual scientific probes, not changes to the observable's
+physical size or target value.
 
 Each point executes in a fresh chrooted worker process using the same frozen
 capsule. This prevents cross-point mutable state. Domain generation enforces
@@ -860,6 +916,8 @@ gates:
 - require exact candidate-set equality with the 42 appendix IDs;
 - require the appendix's exact 29 eligible and 13 source-parse dispositions,
   complete selectors, adapter/oracle IDs, and reason codes;
+- require the exact seven `fixed_local`, four `scalable_same_observable`, and
+  eighteen `not_applicable` size-policy assignments;
 - reject an authority context with an unknown producer, stale producer hash,
   stale canonical/registry/selector hash, incomplete fingerprints, mismatched
   context hash, or target-derived parameter provenance;
@@ -882,7 +940,11 @@ gates:
 - prove an oracle scientific node cannot enter the adapter closure;
 - apply every forbidden-import, registry-fingerprint, embedded-output, and
   undeclared-dependency mutation independently to an oracle capsule and require
-  rejection.
+  rejection;
+- mutate an original runtime file during snapshot construction, mutate or
+  replace a snapshot file after hashing, and require rejection; mutate an
+  original path only after a valid snapshot and prove the worker still opens the
+  unchanged snapshot rather than the original.
 
 ### Ordering and counterfactual tests
 
@@ -890,6 +952,9 @@ gates:
 - prove a fixed disclosed seed reproduces points while a fresh seed changes
   them;
 - prove each backend family receives its required minimum point set;
+- prove fixed-local adapters never execute a second valid physical size and
+  reject one as an identity mismatch, while scalable adapters execute exactly
+  the declared same-observable size sequence;
 - reject constants, canonical-point branches, supplied candidate lists, and
   invalid-point acceptance;
 - require one fresh isolated process and trace per point.
@@ -949,7 +1014,8 @@ Task 7 is complete only when all of the following are true:
 1. the three production modules and adapter test module exist;
 2. the eligibility catalog exactly matches all 42 normative appendix rows,
    including 29 eligible and 13 source-parse-only dispositions, selectors,
-   adapter/oracle IDs, and reason codes, with no missing, duplicate, or extra ID;
+   adapter/oracle IDs, reason codes, and the exact 7/4/18 problem-size policies,
+   with no missing, duplicate, or extra ID;
 3. every one of the 29 eligible candidates has the required real adapter,
    answer-free input contract, counterfactual domain, convergence contract, and
    separate oracle;
@@ -957,7 +1023,8 @@ Task 7 is complete only when all of the following are true:
    reason and cannot produce an isolated adapter success;
 5. full positive capability preflight succeeds on the designated host;
 6. all static leakage, namespace, filesystem, environment, network, process,
-   trace, counterfactual, and oracle adversarial tests pass;
+   trace, runtime-snapshot TOCTOU, counterfactual, and oracle adversarial tests
+   pass;
 7. every eligible production adapter produces a complete independence bundle
    bound to one structurally valid authority-context hash, while tests prove
    only Task 8's authenticated producer can later support a strict verdict;
