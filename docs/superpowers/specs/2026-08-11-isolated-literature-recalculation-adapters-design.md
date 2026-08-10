@@ -1,6 +1,6 @@
 # Isolated Literature Recalculation Adapters Design
 
-**Status:** User-approved design, ready for independent specification review
+**Status:** User-approved design, first review findings resolved; ready for rereview
 
 **Date:** 2026-08-11
 
@@ -177,7 +177,8 @@ Each `AdapterDefinition` contains exactly these fields:
 | `adapter_id` | Stable lower-snake-case identifier, distinct from a benchmark name |
 | `entry_symbol` | Exact project source module and function to extract |
 | `observable_identity` | The identity of the calculation actually performed |
-| `input_schema` | Closed names, scalar/container types, bounds, and shape constraints |
+| `scientific_input_schema` | Closed names, scalar/container types, bounds, and shape constraints for model inputs and probes |
+| `numerical_control_schema` | Closed names, types, bounds, and ordering rules for precision and convergence controls |
 | `parameter_sources` | Per-input provenance requirements |
 | `output_schema` | Closed result field names, types, shapes, and units |
 | `backend_kind` | One of `analytic`, `enumeration`, `dense_ed`, `glt_fourier`, or `iterative_numeric` |
@@ -218,8 +219,56 @@ only the answer-free input values and numerical controls are mounted into it.
 
 The input validator recursively rejects keys or tagged values associated with
 expected, target, answer, result, registry, evidence, verdict, comparison,
-tolerance, source operand, or report content. It also rejects additional fields,
-aliases, positional payloads, object instances, callables, NaN, and infinity.
+comparison tolerance, source operand, or report content. It also rejects
+additional fields, aliases, positional payloads, object instances, callables,
+NaN, and infinity. A predeclared convergence control such as
+`quadrature_absolute_threshold`, `eigensolver_residual_threshold`, or
+`truncation_cutoff` is permitted only in `numerical_control_schema`. It is fixed
+and hashed before execution, must not be populated from the registry comparator,
+and is never passed as a scientific input.
+
+### Trusted authority boundary
+
+Task 7 consumes, but does not produce, one closed `AdapterAuthorityContext`.
+This type is the sole boundary through which canonical identity, parameter
+provenance, and forbidden-output fingerprints enter the isolation service. It
+contains exactly:
+
+- schema version, audit run ID, and benchmark name;
+- producer ID and producer-code SHA-256;
+- canonical observable ID, complete observable identity, canonical-spec path,
+  and canonical-spec SHA-256;
+- closed scientific inputs and one parameter-provenance record per input;
+- closed numerical controls and their non-registry provenance;
+- registry snapshot SHA-256 and independently resolved selector SHA-256;
+- canonical forbidden-output fingerprints and the fingerprint algorithm
+  version; and
+- a canonical context SHA-256 covering every preceding field.
+
+The context is not mounted wholesale. The isolation service structurally
+validates and hashes it, uses its fingerprints only in the outer static scanner,
+and writes only answer-free scientific inputs and numerical controls into worker
+requests. Benchmark name, registry commitments, fingerprints, canonical
+identity, and provenance records remain outside the chroot.
+
+Task 8 is the only authoritative production producer. It may construct this
+context only after its independent canonical-observable loader, evidence-record
+loader, source/provenance validator, and registry selector have succeeded. Task
+8 records the exact producer code hash and later proves that the context hash in
+`AdapterExecutionEvidence` is the one it produced. Any other producer ID,
+producer-code hash, context mutation, incomplete fingerprint set, or context
+whose selected registry operand does not regenerate the fingerprints is a
+strict failure.
+
+Task 7 deliberately does not authenticate those upstream facts by loading the
+registry or source cache itself. Its standalone tests use a test-only authority
+producer that independently constructs canary operands and parameter provenance;
+those contexts prove the isolation API and leakage scans, not a production
+literature match. Consequently, Task 7 can report
+`isolated_recomputation_succeeded`, but only Task 8 can turn that evidence into a
+strict literature verdict. This producer/consumer split keeps registry and
+source selection out of the isolation module without trusting unstructured
+caller assertions.
 
 ### Worker request
 
@@ -228,8 +277,8 @@ One worker request contains only:
 - a schema version;
 - an opaque run nonce;
 - the adapter ID;
-- one closed set of scientific inputs;
-- one closed set of numerical controls; and
+- one closed set conforming to `scientific_input_schema`;
+- one closed set conforming to `numerical_control_schema`; and
 - the hash of the exact capsule expected to execute.
 
 It does not contain the benchmark name, source ID, target value, registry value,
@@ -264,7 +313,8 @@ literature target, or prose claim of correctness.
 
 `AdapterExecutionEvidence` aggregates the following mandatory objects:
 
-1. parameter values and independently validated provenance;
+1. the authority-context hash plus structurally validated parameter values and
+   provenance bindings, with upstream authenticity reserved for Task 8;
 2. adapter source-node hashes and dependency graph;
 3. emitted capsule, worker, and runtime-resource hashes;
 4. static forbidden-import, embedded-output, lookup-table, and undeclared-
@@ -313,7 +363,11 @@ later approved specification to support multiple independently adjudicated
 modes for one benchmark.
 
 The implementation maintains an exact-set `ADAPTER_ELIGIBILITY` catalog for the
-42 candidate benchmark IDs listed in the appendix. Each entry is either:
+42 candidate benchmark IDs listed in the appendix. The appendix is normative:
+it fixes the disposition and, for every eligible entry, the exact adapter and
+oracle IDs. The catalog must equal that table field for field; an implementer
+cannot satisfy acceptance by assigning a convenient reason to an undecided
+candidate. Each entry is either:
 
 - `eligible`, with one adapter ID and one oracle ID; or
 - `source_parse_only`, with one closed reason code.
@@ -321,7 +375,8 @@ The implementation maintains an exact-set `ADAPTER_ELIGIBILITY` catalog for the
 Allowed `source_parse_only` reason codes are:
 
 - `status_or_candidate_only`;
-- `mixed_selector_contains_source_claim`;
+- `mixed_selector_contains_source_only_field`;
+- `source_only_symbolic_or_categorical_field`;
 - `target_equivalent_input`;
 - `observable_identity_mismatch`;
 - `no_independent_oracle`;
@@ -332,25 +387,79 @@ This catalog is migration metadata, not an authoritative verdict whitelist.
 Task 8 still requires runtime evidence. Mutating a catalog label cannot produce
 a strict result without a complete independence bundle.
 
-Three known legacy shapes receive explicit treatment:
+Three previously ambiguous legacy shapes receive explicit treatment:
 
 - `two_leg_ladder_strong_rung_exact_limit` currently returns a calculated rung
-  gap together with `spin_ladder_material`. Because the material field is not
-  established by the two-spin calculation, the existing mixed selector is
-  `source_parse_only`.
+  gap together with an unselected extra `spin_ladder_material` helper field.
+  The complete registry selector contains only `energy_per_rung` and
+  `gap_to_triplet`; both are calculated by the two-spin rung Hamiltonian. The
+  route is therefore `eligible`, the adapter capsule excludes the unselected
+  material field, and closed output validation rejects that extra field.
 - `triangular_nn_classical_120_reference` currently evaluates a supplied list
-  containing the registered ordering vector. It is eligible only after being
-  replaced by a genuine stationary-point or Brillouin-zone minimization that
-  receives no candidate answer; otherwise it is `source_parse_only`.
+  containing the registered ordering vector and returns a selected phase label.
+  Task 7 does not replace it with a global thermodynamic-limit minimizer; the
+  normative disposition is `source_parse_only` with
+  `status_or_candidate_only`.
 - `cubic_ising_critical_temperature_reference` currently obtains `Tc/J` by
   inverting a supplied critical coupling. Because that coupling is an
   invertible restatement of the target rather than a model parameter, the
-  existing route is `source_parse_only` unless replaced by an independent
-  finite-size, series, or equivalent calculation of the registered limit.
+  normative disposition is `source_parse_only` with
+  `target_equivalent_input`.
 
 Other candidates are not presumed eligible merely because their current helper
-returns the registered shape. The parameterized eligibility tests apply the
-same gate to all 42 entries.
+returns the registered shape. The appendix chooses conservative source parsing
+for formula-string, candidate-label, target-equivalent, or unsupported
+thermodynamic-limit selectors and requires real replacement calculations for
+the 29 entries it marks eligible. Parameterized tests apply the gate and exact
+mapping to all 42 entries.
+
+### Normative scientific implementations
+
+The following methods are mandatory for the 29 eligible adapter/oracle pairs.
+An existing helper may be extracted only when its transitive closure implements
+the stated adapter method without extra selected status fields. Otherwise Task 7
+adds an answer-free replacement calculation under the same adapter ID. An
+implementation that merely returns the final analytic constant, phase label, or
+boolean does not satisfy this table.
+
+| Adapter ID | Backend | Required adapter calculation | Required independent oracle |
+| --- | --- | --- | --- |
+| `xxx_bethe_energy` | `analytic` | Evaluate the Bethe ground-state expression as a function of arbitrary positive exchange | Evaluate an independently coded alternating-series or integral representation with a certified tail bound |
+| `square_ising_self_dual_tc` | `analytic` | Numerically solve the square-Ising self-duality equation for the positive critical coupling and invert the model temperature variable | Apply an independently rearranged Kramers-Wannier fixed-point residual and dual-temperature involution |
+| `triangular_ising_af_entropy_quadrature` | `iterative_numeric` | Evaluate the Wannier entropy integral with declared quadrature refinements and error estimates | Evaluate an independently expanded convergent series with a bounded remainder |
+| `xy_chain_bdg_boundaries` | `glt_fourier` | Construct the momentum-space Bogoliubov-de Gennes matrix and locate gap-closing conditions over answer-free fields and anisotropies | Diagonalize independently constructed dense momentum matrices and check determinant, particle-hole, and neighboring-gap invariants |
+| `diamond_spiral_threshold_fourier` | `glt_fourier` | Construct the two-sublattice exchange kernel and derive the coupling at which its minima become a spiral surface | Compare direct real-space single-q energies and threshold-side minima using independently generated spin configurations |
+| `spin_ice_tetrahedron_enumeration` | `enumeration` | Enumerate all sixteen Ising tetrahedron configurations and calculate energy and degeneracy sectors | Derive sectors independently from total charge squared and combinatorial multiplicities |
+| `spin_ladder_rung_dense_ed` | `dense_ed` | Build and diagonalize the two-spin rung Hamiltonian, returning only singlet energy per rung and singlet-triplet gap | Evaluate analytic singlet/triplet projectors and their exact eigenvalues |
+| `pauling_entropy_combinatorics` | `analytic` | Derive the Pauling entropy from the number of ice-rule tetrahedron states and shared-spin counting | Recompute the same asymptotic entropy using an independent finite-cluster combinatorial count and normalization |
+| `uls_two_site_su3_matrix` | `dense_ed` | Build spin-1 bilinear and biquadratic matrices, solve the coefficient angle, and verify the two-site Hamiltonian is permutation-equivalent | Construct the SU(3) permutation and generator commutators independently and check all total-spin sectors |
+| `aklt_projector_angle` | `analytic` | Expand the total-spin-two projector into bilinear/biquadratic coefficients and derive their angle | Reconstruct total-spin sectors from independent Clebsch-Gordan projectors and compare coefficient ratios |
+| `compass_line_symmetry_matrix` | `dense_ed` | Build finite compass Hamiltonians and line-flip operators, then calculate every required commutator | Transform bond Pauli operators algebraically under independent line-flip strings and verify the symmetry action |
+| `kitaev_field_majorana_mass` | `glt_fourier` | Construct the third-order Majorana mass from arbitrary nonzero field components and determine nonzero gap and odd Chern parity | Evaluate an independently coded two-band d-vector mass, gap minimum, and winding/Chern-sign invariant |
+| `toric_code_stabilizer_rank` | `enumeration` | Construct the GF(2) stabilizer incidence matrix on a periodic torus and derive the ground-space dimension from its rank | Construct independent logical Wilson-loop pairs and their commutation algebra to derive the same degeneracy |
+| `aklt_two_site_projector_ed` | `dense_ed` | Build the two-spin-one projector Hamiltonian and diagonalize its spin sectors and local VBS energy | Reconstruct the projector from independent Clebsch-Gordan sector polynomials and check eigenvalues and kernel |
+| `blume_capel_level_crossing` | `enumeration` | Enumerate uniform spin-1 configurations with square-lattice bond counting and solve their zero-temperature energy crossing | Derive onsite and bond energies independently per site and verify both sides of the crossing |
+| `checkerboard_plaquette_enumeration` | `enumeration` | Calculate the complete-graph crossed-plaquette energy over answer-free normalized spin configurations and minimize total spin | Use the independent total-spin-squared energy identity and explicit constraint residuals |
+| `honeycomb_ising_star_triangle_tc` | `analytic` | Solve the honeycomb star-triangle critical equation for positive coupling | Transform independently to the dual triangular critical polynomial and verify reciprocal critical variables |
+| `kagome_ising_af_entropy_quadrature` | `iterative_numeric` | Evaluate the kagome antiferromagnet entropy expression under successive quadrature refinements and establish a positive thermodynamic entropy | Use independent finite-width transfer counts to establish a positive lower bound and consistent limiting trend |
+| `kagome_ising_star_triangle_tc` | `analytic` | Solve the kagome ferromagnet star-triangle critical equation | Verify an independently derived critical polynomial and transformation residual |
+| `majumdar_ghosh_dimer_ed` | `dense_ed` | Build periodic J1-J2 chains at one half ratio, diagonalize more than one even size, and obtain energy density and translated ground-space degeneracy | Use the independent dimer-projector decomposition and translated covering states to check energy and rank |
+| `ising_chain_transfer_matrix` | `analytic` | Construct the finite-temperature transfer matrix, derive both eigenvalues, and establish positive analytic separation for arbitrary finite inverse temperature | Derive the finite-size partition function independently and verify absence of a finite-temperature eigenvalue crossing |
+| `pyrochlore_coulomb_fourier` | `glt_fourier` | Calculate the tetrahedron zero-sum minimum and transverse polarization tensor with directional pinch-point limits | Check the real-space divergence constraint and independently evaluate directional structure-factor limits |
+| `shastry_sutherland_dimer_ed` | `dense_ed` | Construct an orthogonal-dimer cell Hamiltonian and calculate singlet-product energy per dimer and spin while verifying interdimer cancellation | Evaluate independent bond projectors on the product state and compare exact local expectations |
+| `simple_cubic_j1_j2_fourier` | `glt_fourier` | Construct the simple-cubic Fourier exchange energy, minimize the Néel and collinear branches, and solve their crossing | Count first- and second-neighbor bonds in independent real-space configurations on both sides of the boundary |
+| `spin1_single_ion_dense_ed` | `dense_ed` | Build and diagonalize the spin-one single-ion anisotropy matrix for arbitrary nonzero anisotropy | Enumerate independent magnetic quantum numbers and their squared eigenvalues and degeneracies |
+| `fully_frustrated_ising_entropy_series` | `iterative_numeric` | Evaluate the fully frustrated square-Ising entropy series with successive truncations and a declared tail estimate, establishing macroscopic degeneracy | Use independent finite-width transfer matrices and normalized state counts to establish a positive limiting entropy |
+| `tfim_bdg_critical_point` | `glt_fourier` | Construct the Jordan-Wigner BdG dispersion and locate its thermodynamic gap closing over arbitrary positive exchange | Apply independent duality and finite-chain parity-sector gap calculations with size scaling |
+| `triangular_ising_star_triangle_tc` | `analytic` | Solve the triangular ferromagnet star-triangle critical equation | Verify the independently transformed honeycomb dual equation and critical-polynomial residual |
+| `xx_chain_fermion_integral` | `iterative_numeric` | Integrate the occupied free-fermion dispersion with successive momentum refinements for arbitrary exchange | Diagonalize independent finite periodic XX chains at several sizes and extrapolate the energy density with a declared bound |
+
+The adapter result may contain lower-level numeric diagnostics needed to prove a
+selected boolean, but its computed operand contains exactly the complete
+selector fields in the appendix. Boolean fields such as pinch points, SU(3)
+symmetry, a field-opened gap, or macroscopic degeneracy are derived by the outer
+adapter validator from the mandatory residual, spectrum, entropy, or topology
+data; the scientific capsule does not return an unexamined status literal.
 
 ## Scientific Dependency Closure
 
@@ -390,9 +499,12 @@ source file is not mounted into the chroot.
 
 ### Embedded-output scan
 
-The outer coordinator builds forbidden fingerprints from canonical registry
-operands solely for rejection. Those fingerprints are never placed in the
-capsule or request. Static scanning rejects:
+The isolation coordinator consumes the canonical forbidden fingerprints from
+the closed authority context solely for rejection. It validates their encoding,
+algorithm version, uniqueness, and commitment hash but does not load the
+registry. Task 8 regenerates the set from its independently selected registry
+operand and authenticates completeness before any final strict verdict. The
+fingerprints are never placed in the capsule or request. Static scanning rejects:
 
 - a complete serialized registered operand;
 - a mapping or sequence reproducing a registered field/value structure;
@@ -488,11 +600,30 @@ availability from platform name or tool presence alone.
 
 ## Private Root and Mount Policy
 
-The trusted setup process is launched with a clean environment and closed file
-descriptors under `unshare -Urnm`. It makes mount propagation private, mounts a
-new tmpfs root, creates only the declared mount points, performs bind mounts,
-then remounts the root and every non-output mount read-only. The output bind is
-the only writable filesystem visible to the worker.
+The outer coordinator first creates a unique mode-0700 run directory using
+exclusive creation. It contains three disjoint subdirectories: `supervisor`,
+`input`, and `worker-output`. The coordinator opens and retains directory FDs
+for all three, verifies their device/inode identities and absence of symlink
+components, and never exposes the `supervisor` subdirectory to the worker.
+
+The process topology is fixed:
+
+```text
+outer coordinator in the original namespaces
+  `-- unshare -Urnm namespace supervisor
+        |-- constructs and attests the private mount tree
+        `-- strace tracer outside the chroot
+              `-- fixed tracee launcher
+                    `-- chroot, drop capabilities, set limits, exec worker
+```
+
+The namespace supervisor is trusted infrastructure. It is launched with a clean
+environment and closed unrelated file descriptors, stays outside the chroot,
+and remains alive until the tracer and tracee have exited. It makes mount
+propagation private, mounts a new tmpfs root, creates only declared mount points,
+performs bind mounts, then remounts the root and every non-output mount read-
+only. The `worker-output` bind is the only writable filesystem visible to the
+worker.
 
 The chroot has this logical layout:
 
@@ -501,7 +632,7 @@ The chroot has this logical layout:
 | `/runtime` | Pre-hashed interpreter, loader, standard library, declared packages, and native libraries; read-only |
 | `/adapter` | One emitted scientific capsule and fixed worker; read-only, no device, no set-ID |
 | `/input/request.json` | One regular request file bind-mounted read-only with no symlink components |
-| `/output` | One newly created host run directory; writable, no device, no set-ID |
+| `/output` | Only the new `worker-output` subdirectory; writable, no device, no set-ID |
 
 There is no project mount, parent/workspace mount, source-cache mount, evidence
 mount, report mount, home directory, `/proc`, `/sys`, general `/dev`, host `/tmp`,
@@ -510,17 +641,34 @@ its declared scratch subdirectory is inside `/output` and all scratch paths are
 included in the evidence. A backend requiring an additional writable mount is
 not strict-compatible under this design.
 
-The setup process starts tracing only after mount construction. It then enters
-the chroot, drops all capability sets, sets no-new-privileges, changes directory
-to `/`, applies resource limits, and executes the exact pre-hashed interpreter
-with isolated-mode flags. No setup descriptor other than standard streams is
-inherited. Standard output and error are captured as bounded output artifacts;
-the result itself is accepted only from `/output/result.json`.
+After mount construction, the namespace supervisor launches a trusted tracer
+that remains outside the chroot and writes its log to an exclusively created
+regular file beneath the supervisor-only directory. The tracer launches one
+fixed tracee. Only that tracee enters the chroot, drops all capability sets,
+sets no-new-privileges, changes directory to `/`, applies resource limits, and
+executes the exact pre-hashed interpreter with isolated-mode flags. The worker
+inherits no supervisor, input-host, trace, attestation, or previous-output FD.
+Standard output and error are drained through bounded pipes owned by the
+supervisor and stored outside the worker-visible mount.
 
-All host output files use exclusive creation. After the worker exits, the
-trusted setup process exclusively creates its namespace/mount attestation. If
-the worker pre-creates a reserved attestation name, the run fails instead of
-overwriting it.
+The namespace supervisor waits for the complete traced process tree, records
+exit status, rechecks the namespace and mount facts, and then exclusively
+creates the namespace/mount attestation beneath the supervisor-only directory.
+The outer coordinator waits for the namespace supervisor before reading any
+worker artifact. Trace logs and attestations are therefore never writable or
+visible from `/output`.
+
+The result is accepted only from the fixed basename `result.json` beneath the
+coordinator's retained `worker-output` directory FD. After all worker processes
+have exited, the coordinator opens that basename with `openat` using
+`O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC`, then validates with `fstat` that the
+opened object is a regular file, has exactly one link, has the expected owner,
+mode and device, and lies within the configured byte bound. It hashes and parses
+bytes from that same FD without reopening a path. A symlink, hard link, FIFO,
+device, socket, directory, unexpected owner/mode, changed directory identity,
+or undeclared extra output fails the run. Declared backend scratch entries are
+validated by the same no-follow, regular-file-or-directory allowlist rules and
+can never substitute for `result.json`.
 
 ## Environment and Resource Policy
 
@@ -598,18 +746,38 @@ calculation.
 
 ## Independent Oracle Protocol
 
-The oracle is bundled and hashed separately. Its scientific source nodes and
-transitive scientific dependencies must have an empty intersection with the
-adapter's scientific closure. The only shared code permitted is fixed transport,
-canonical JSON validation, and isolation infrastructure, which is recorded in a
-separate infrastructure closure rather than either scientific closure.
+The oracle is bundled and hashed separately. Its project scientific source
+nodes and transitive project scientific dependencies must have an empty
+intersection with the adapter's scientific closure. Standard interpreter and
+numerical-library files may be shared only as pre-hashed runtime resources; no
+project formula, helper, constant, table, or scientific implementation may be
+shared. Fixed transport, canonical JSON validation, and isolation infrastructure
+are recorded in a separate infrastructure closure rather than either scientific
+closure.
+
+The oracle closure passes the same forbidden-import, unresolved-dependency,
+embedded-output, categorical-answer, benchmark-table, and registry-fingerprint
+scans as an adapter closure. Its code, runtime-resource manifest, and scanner
+results are frozen before the random seed is obtained. A separately hashed
+capsule is necessary but not sufficient: any static scan failure rejects the
+oracle.
 
 The oracle receives the same answer-free model inputs. It does not receive a
 source operand, registry operand, comparator tolerance, or verdict. When an
 invariant necessarily evaluates an adapter result, the outer coordinator places
-that result in a separate closed oracle request after adapter completion; the
-oracle still cannot influence the adapter run. Oracle output is compared by the
+that already validated result in a new typed oracle request after adapter
+completion; it does not mount or expose the adapter output directory. The oracle
+still cannot influence the adapter run. Oracle output is compared by the
 coordinator under the adapter's declared numerical contract.
+
+Every oracle point runs through the same isolation service in its own fresh
+`unshare -Urnm` process, private read-only chroot, scrubbed environment, empty
+network namespace, resource limits, supervisor-only `strace` log, and hardened
+no-follow output ingestion. It receives no registry, source, report, environment
+secret, previous-output path, or network capability. Its per-process namespace,
+mount, trace, access-policy, environment, and output attestations are mandatory
+parts of the independence bundle. An oracle does not inherit success merely
+because the corresponding adapter isolation passed.
 
 Required oracle families are:
 
@@ -624,8 +792,9 @@ Required oracle families are:
   convergence envelopes.
 
 An oracle that only compares with a copied expected number is invalid. Missing
-oracle code, closure overlap, result mismatch, excessive residual, or malformed
-oracle evidence makes the adapter outcome non-strict.
+oracle code, closure overlap, static-policy failure, isolation or access-policy
+failure, result mismatch, excessive residual, or malformed oracle evidence makes
+the adapter outcome non-strict.
 
 ## Backend and Convergence Evidence
 
@@ -657,7 +826,7 @@ identity comparison even when numerically close.
 
 All errors are data, not promotions. The closed top-level statuses are:
 
-- `strict_recomputation_succeeded`;
+- `isolated_recomputation_succeeded`;
 - `strict_recomputation_unavailable`;
 - `adapter_ineligible`;
 - `input_rejected`;
@@ -667,9 +836,10 @@ All errors are data, not promotions. The closed top-level statuses are:
 - `convergence_failed`; and
 - `oracle_failed`.
 
-Only `strict_recomputation_succeeded` carries a successful independence bundle,
-and Task 8 must still compare it with independently parsed literature and
-registry operands. Exceptions, unavailable tools, malformed output, nonzero
+Only `isolated_recomputation_succeeded` carries a successful independence
+bundle, and Task 8 must still authenticate its authority context and compare it
+with independently parsed literature and registry operands. Exceptions,
+unavailable tools, malformed output, nonzero
 exit status, timeout, signal, missing trace, unparseable trace, undeclared read,
 network syscall, missing version, closure mismatch, non-convergence, and oracle
 failure cannot be retried in a weaker mode or translated into success.
@@ -688,9 +858,14 @@ gates:
 - reject unknown, missing, mutable, non-JSON, nonfinite, or wrongly typed fields;
 - reject expected-output and target-equivalent parameters recursively;
 - require exact candidate-set equality with the 42 appendix IDs;
-- require exactly one closed eligibility decision per candidate;
+- require the appendix's exact 29 eligible and 13 source-parse dispositions,
+  complete selectors, adapter/oracle IDs, and reason codes;
+- reject an authority context with an unknown producer, stale producer hash,
+  stale canonical/registry/selector hash, incomplete fingerprints, mismatched
+  context hash, or target-derived parameter provenance;
+- prove worker requests contain none of the authority-only fields;
 - prove status, candidate-only, mixed-selector, and target-equivalent examples
-  cannot be labeled eligible without a replacement calculation;
+  have exactly the appendix's source-parse-only disposition;
 - require every eligible entry to have one adapter, domain, convergence
   contract, and independent oracle.
 
@@ -704,7 +879,10 @@ gates:
 - reject direct literals, structured operands, lookup tables, and transitive
   helper copies of registered outputs;
 - prove changing one transitive helper changes the closure and capsule hashes;
-- prove an oracle scientific node cannot enter the adapter closure.
+- prove an oracle scientific node cannot enter the adapter closure;
+- apply every forbidden-import, registry-fingerprint, embedded-output, and
+  undeclared-dependency mutation independently to an oracle capsule and require
+  rejection.
 
 ### Ordering and counterfactual tests
 
@@ -726,7 +904,10 @@ gates:
   writable;
 - prove chroot, capability dropping, no-new-privileges, resource limits, clean
   environment, distinct namespaces, and empty network namespace;
-- prove missing or malformed attestation invalidates the run.
+- prove missing or malformed attestation invalidates the run;
+- replace `result.json` independently with a symlink, hard link, FIFO, socket,
+  directory, wrong-mode file, oversized file, and undeclared extra output and
+  require rejection through descriptor-pinned no-follow ingestion.
 
 ### Adversarial information-flow tests
 
@@ -737,14 +918,18 @@ gates:
 - attempt symlink, relative-path, directory-FD, and prefix-confusion escapes;
 - attempt subprocess creation and undeclared native-library loading;
 - require rejection for both successful and failed forbidden syscalls;
-- mutate, truncate, omit, or make a trace unparsable and require failure.
+- mutate, truncate, omit, or make a trace unparsable and require failure;
+- repeat registry/source/report, environment-secret, network, previous-output,
+  symlink-output, and malformed-trace attacks against an oracle process rather
+  than inferring oracle isolation from adapter tests.
 
 ### Scientific and evidence-bundle tests
 
 - exercise at least one real analytic, dense-ED or exact-enumeration,
   GLT/Fourier, and iterative-numeric adapter shape;
 - require typed identity, units, uncertainty, raw convergence, and diagnostics;
-- require independent oracles and empty scientific-closure intersection;
+- require independent oracles, empty project-scientific-closure intersection,
+  complete oracle static scans, and complete per-oracle isolation evidence;
 - require exact, residual, quadrature, finite-size, and iterative convergence
   decisions where applicable;
 - parameterize every eligible production adapter and require the complete
@@ -762,16 +947,20 @@ adapter tests to execute; skipping those tests is not Task 7 completion.
 Task 7 is complete only when all of the following are true:
 
 1. the three production modules and adapter test module exist;
-2. the eligibility catalog covers exactly the 42 appendix candidates with no
-   missing, duplicate, or extra ID;
-3. every eligible candidate has a real adapter, answer-free input contract,
-   counterfactual domain, convergence contract, and separate oracle;
-4. every ineligible candidate has one closed source-parse-only reason and
-   cannot produce a strict adapter result;
+2. the eligibility catalog exactly matches all 42 normative appendix rows,
+   including 29 eligible and 13 source-parse-only dispositions, selectors,
+   adapter/oracle IDs, and reason codes, with no missing, duplicate, or extra ID;
+3. every one of the 29 eligible candidates has the required real adapter,
+   answer-free input contract, counterfactual domain, convergence contract, and
+   separate oracle;
+4. every one of the 13 ineligible candidates has its mandated source-parse-only
+   reason and cannot produce an isolated adapter success;
 5. full positive capability preflight succeeds on the designated host;
 6. all static leakage, namespace, filesystem, environment, network, process,
    trace, counterfactual, and oracle adversarial tests pass;
-7. every eligible production adapter produces a complete independence bundle;
+7. every eligible production adapter produces a complete independence bundle
+   bound to one structurally valid authority-context hash, while tests prove
+   only Task 8's authenticated producer can later support a strict verdict;
 8. no test fixture containing an expected output is mounted into a successful
    production-style worker;
 9. `python -m pytest tests/test_literature_evidence_adapters.py -q` passes
@@ -823,61 +1012,70 @@ Before and after every Task 7 commit, the existing protected-baseline verifier
 is run with no allowed source-cache targets. A commit is rejected if it contains
 any path outside the reviewed Task 7 scope.
 
-## Appendix: Exact Recalculation Candidate Set
+## Appendix: Normative Candidate Dispositions
 
-The eligibility catalog covers exactly these 42 benchmark IDs. The first group
-is registered by the legacy runtime collector; the second group comes from the
-approved 155-record migration design. Group membership has no bearing on final
-eligibility.
+The eligibility catalog covers exactly these 42 benchmark IDs. The first table
+is registered by the legacy runtime collector; the second comes from the
+approved 155-record migration design. The selector column is the complete
+current registry selector. `eligible` rows must use the exact adapter and oracle
+IDs shown. `source_parse_only` rows must use the exact reason shown and have no
+adapter or oracle ID. These are implementation requirements, not examples.
 
 ### Legacy collector candidates
 
-1. `xxx_spin_half_chain_bethe_ground_state`
-2. `one_dimensional_classical_ising_correlation_length`
-3. `two_dimensional_square_ising_onsager_tc`
-4. `two_dimensional_square_ising_spontaneous_magnetization`
-5. `square_potts_exact_critical_point`
-6. `triangular_ising_antiferromagnet_residual_entropy`
-7. `xy_spin_half_chain_anisotropic_critical_line`
-8. `diamond_j1_j2_spiral_surface_reference`
-9. `spin_ice_tetrahedron_nn_ice_rule`
-10. `square_j1_j3_classical_lifshitz_reference`
-11. `two_leg_ladder_strong_rung_exact_limit`
-12. `square_ashkin_teller_exact_critical_line`
-13. `pyrochlore_dipolar_spin_ice_pauling_entropy`
-14. `two_dimensional_xy_bkt_universal_jump`
-15. `uimin_lai_sutherland_spin1_su3_point`
-16. `bilinear_biquadratic_spin1_chain_aklt_angle`
-17. `square_compass_model_directional_exchange_degeneracy`
-18. `kitaev_honeycomb_abelian_nonabelian_field_gap_reference`
-19. `square_toric_code_exact_topological_degeneracy`
-20. `triangular_nn_classical_120_reference`
-21. `aklt_spin1_chain_projector_ground_state`
+| Benchmark | Complete selector fields | Disposition | Adapter ID | Oracle ID | Source-parse reason |
+| --- | --- | --- | --- | --- | --- |
+| `xxx_spin_half_chain_bethe_ground_state` | `energy_per_site` | `eligible` | `xxx_bethe_energy` | `xxx_bethe_integral_oracle` | — |
+| `one_dimensional_classical_ising_correlation_length` | `formula`, `correlation_length_beta_1_j_1` | `source_parse_only` | — | — | `mixed_selector_contains_source_only_field` |
+| `two_dimensional_square_ising_onsager_tc` | `tc_over_j` | `eligible` | `square_ising_self_dual_tc` | `square_ising_duality_residual_oracle` | — |
+| `two_dimensional_square_ising_spontaneous_magnetization` | `formula`, `magnetization_beta_0_6_j_1` | `source_parse_only` | — | — | `mixed_selector_contains_source_only_field` |
+| `square_potts_exact_critical_point` | `critical_beta_j`, `continuous_for_q_le_4` | `source_parse_only` | — | — | `mixed_selector_contains_source_only_field` |
+| `triangular_ising_antiferromagnet_residual_entropy` | `residual_entropy_per_spin` | `eligible` | `triangular_ising_af_entropy_quadrature` | `triangular_ising_af_entropy_series_oracle` | — |
+| `xy_spin_half_chain_anisotropic_critical_line` | `ising_critical_field`, `anisotropy_transition_gamma` | `eligible` | `xy_chain_bdg_boundaries` | `xy_chain_dense_bdg_oracle` | — |
+| `diamond_j1_j2_spiral_surface_reference` | `spiral_surface_for_j2_over_j1_gt` | `eligible` | `diamond_spiral_threshold_fourier` | `diamond_real_space_threshold_oracle` | — |
+| `spin_ice_tetrahedron_nn_ice_rule` | `two_in_two_out_energy`, `three_in_one_out_energy`, `all_in_all_out_energy`, `two_in_two_out_degeneracy` | `eligible` | `spin_ice_tetrahedron_enumeration` | `spin_ice_tetrahedron_matrix_oracle` | — |
+| `square_j1_j3_classical_lifshitz_reference` | `spiral_condition` | `source_parse_only` | — | — | `source_only_symbolic_or_categorical_field` |
+| `two_leg_ladder_strong_rung_exact_limit` | `energy_per_rung`, `gap_to_triplet` | `eligible` | `spin_ladder_rung_dense_ed` | `spin_ladder_analytic_rung_oracle` | — |
+| `square_ashkin_teller_exact_critical_line` | `has_exact_critical_line` | `source_parse_only` | — | — | `status_or_candidate_only` |
+| `pyrochlore_dipolar_spin_ice_pauling_entropy` | `pauling_entropy_per_spin` | `eligible` | `pauling_entropy_combinatorics` | `pauling_cluster_count_oracle` | — |
+| `two_dimensional_xy_bkt_universal_jump` | `formula`, `helicity_modulus_at_t_1` | `source_parse_only` | — | — | `mixed_selector_contains_source_only_field` |
+| `uimin_lai_sutherland_spin1_su3_point` | `theta_radians`, `su3_symmetric` | `eligible` | `uls_two_site_su3_matrix` | `uls_permutation_commutator_oracle` | — |
+| `bilinear_biquadratic_spin1_chain_aklt_angle` | `aklt_tan_theta`, `theta_radians` | `eligible` | `aklt_projector_angle` | `aklt_two_spin_spectrum_oracle` | — |
+| `square_compass_model_directional_exchange_degeneracy` | `has_line_flip_symmetries` | `eligible` | `compass_line_symmetry_matrix` | `compass_spin_flip_oracle` | — |
+| `kitaev_honeycomb_abelian_nonabelian_field_gap_reference` | `field_opens_non_abelian_gap` | `eligible` | `kitaev_field_majorana_mass` | `kitaev_two_band_chern_oracle` | — |
+| `square_toric_code_exact_topological_degeneracy` | `torus_ground_state_degeneracy` | `eligible` | `toric_code_stabilizer_rank` | `toric_code_logical_loop_oracle` | — |
+| `triangular_nn_classical_120_reference` | `order`, `q_reciprocal` | `source_parse_only` | — | — | `status_or_candidate_only` |
+| `aklt_spin1_chain_projector_ground_state` | `two_site_projector_eigenvalues`, `vbs_ground_energy` | `eligible` | `aklt_two_site_projector_ed` | `aklt_clebsch_gordan_oracle` | — |
 
 ### Migration-design candidates
 
-1. `blume_capel_spin1_zero_temperature_level_crossing`
-2. `checkerboard_heisenberg_afm_planar_pyrochlore_reference`
-3. `cubic_ising_critical_temperature_reference`
-4. `fcc_j1_j2_heisenberg_type_order_reference`
-5. `honeycomb_ising_ferromagnet_exact_tc`
-6. `honeycomb_j1_j2_spiral_ring_reference`
-7. `kagome_ising_antiferromagnet_residual_entropy_reference`
-8. `kagome_ising_ferromagnet_exact_tc`
-9. `majundar_ghosh_chain_exact_dimer_point`
-10. `one_dimensional_classical_ising_no_finite_t_transition`
-11. `pyrochlore_heisenberg_afm_coulomb_phase_reference`
-12. `shastry_sutherland_exact_dimer_product`
-13. `simple_cubic_j1_j2_collinear_reference`
-14. `single_ion_spin1_anisotropy_levels`
-15. `square_fully_frustrated_ising_residual_entropy_reference`
-16. `takhtajan_babujian_spin1_critical_point`
-17. `transverse_field_ising_chain_critical_point`
-18. `transverse_field_ising_chain_gap`
-19. `triangular_ising_ferromagnet_exact_tc`
-20. `xx_spin_half_chain_free_fermion_energy`
-21. `xxz_spin_half_chain_phase_boundaries`
+| Benchmark | Complete selector fields | Disposition | Adapter ID | Oracle ID | Source-parse reason |
+| --- | --- | --- | --- | --- | --- |
+| `blume_capel_spin1_zero_temperature_level_crossing` | `square_lattice_d_over_j_crossing` | `eligible` | `blume_capel_level_crossing` | `blume_capel_configuration_oracle` | — |
+| `checkerboard_heisenberg_afm_planar_pyrochlore_reference` | `zero_total_spin_per_crossed_plaquette` | `eligible` | `checkerboard_plaquette_enumeration` | `checkerboard_total_spin_oracle` | — |
+| `cubic_ising_critical_temperature_reference` | `tc_over_j` | `source_parse_only` | — | — | `target_equivalent_input` |
+| `fcc_j1_j2_heisenberg_type_order_reference` | `common_orders` | `source_parse_only` | — | — | `status_or_candidate_only` |
+| `honeycomb_ising_ferromagnet_exact_tc` | `tc_over_j` | `eligible` | `honeycomb_ising_star_triangle_tc` | `honeycomb_ising_critical_polynomial_oracle` | — |
+| `honeycomb_j1_j2_spiral_ring_reference` | `ring_condition` | `source_parse_only` | — | — | `source_only_symbolic_or_categorical_field` |
+| `kagome_ising_antiferromagnet_residual_entropy_reference` | `macroscopic_ground_state_degeneracy` | `eligible` | `kagome_ising_af_entropy_quadrature` | `kagome_ising_af_transfer_count_oracle` | — |
+| `kagome_ising_ferromagnet_exact_tc` | `tc_over_j` | `eligible` | `kagome_ising_star_triangle_tc` | `kagome_ising_critical_polynomial_oracle` | — |
+| `majundar_ghosh_chain_exact_dimer_point` | `energy_per_site`, `degenerate_dimer_coverings` | `eligible` | `majumdar_ghosh_dimer_ed` | `majumdar_ghosh_projector_oracle` | — |
+| `one_dimensional_classical_ising_no_finite_t_transition` | `finite_temperature_transition`, `tc_over_j` | `eligible` | `ising_chain_transfer_matrix` | `ising_chain_partition_analytic_oracle` | — |
+| `pyrochlore_heisenberg_afm_coulomb_phase_reference` | `zero_total_spin_per_tetrahedron`, `pinch_points` | `eligible` | `pyrochlore_coulomb_fourier` | `pyrochlore_real_space_constraint_oracle` | — |
+| `shastry_sutherland_exact_dimer_product` | `energy_per_dimer`, `energy_per_spin` | `eligible` | `shastry_sutherland_dimer_ed` | `shastry_sutherland_bond_oracle` | — |
+| `simple_cubic_j1_j2_collinear_reference` | `neel_to_collinear_boundary_j2_over_j1` | `eligible` | `simple_cubic_j1_j2_fourier` | `simple_cubic_real_space_energy_oracle` | — |
+| `single_ion_spin1_anisotropy_levels` | `levels`, `degeneracies` | `eligible` | `spin1_single_ion_dense_ed` | `spin1_m_quantum_number_oracle` | — |
+| `square_fully_frustrated_ising_residual_entropy_reference` | `macroscopic_ground_state_degeneracy` | `eligible` | `fully_frustrated_ising_entropy_series` | `fully_frustrated_ising_transfer_oracle` | — |
+| `takhtajan_babujian_spin1_critical_point` | `theta_radians`, `is_integrable` | `source_parse_only` | — | — | `mixed_selector_contains_source_only_field` |
+| `transverse_field_ising_chain_critical_point` | `critical_field_over_exchange` | `eligible` | `tfim_bdg_critical_point` | `tfim_duality_gap_oracle` | — |
+| `transverse_field_ising_chain_gap` | `gap_formula`, `gap_formula_at_g_0_6` | `source_parse_only` | — | — | `mixed_selector_contains_source_only_field` |
+| `triangular_ising_ferromagnet_exact_tc` | `tc_over_j` | `eligible` | `triangular_ising_star_triangle_tc` | `triangular_ising_critical_polynomial_oracle` | — |
+| `xx_spin_half_chain_free_fermion_energy` | `energy_per_site` | `eligible` | `xx_chain_fermion_integral` | `xx_chain_dense_ed_extrapolation_oracle` | — |
+| `xxz_spin_half_chain_phase_boundaries` | `ferromagnetic_boundary_delta`, `neel_boundary_delta`, `gapless_interval` | `source_parse_only` | — | — | `backend_unavailable_for_registered_limit` |
 
-The implementation test obtains both source sets independently and requires
-their union to equal this appendix and `ADAPTER_ELIGIBILITY`. An aggregate count
-without identity-level equality is insufficient.
+The implementation test obtains both candidate source sets independently and
+requires their union to equal these tables and `ADAPTER_ELIGIBILITY`. It also
+requires exactly 29 `eligible` and 13 `source_parse_only` dispositions, exact
+selector-field equality, exact adapter/oracle IDs for eligible rows, and exact
+reason equality for source-parse rows. Aggregate counts without identity-level
+and field-level equality are insufficient.
