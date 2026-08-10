@@ -217,6 +217,15 @@ def _mapping_cycle():
     return value
 
 
+def _frozen_object_with_scalar_depth(scalar_depth):
+    value = 0
+    for _ in range(scalar_depth):
+        value = {"nested": value}
+    frozen = freeze_json(value)
+    assert type(frozen) is FrozenJsonObject
+    return frozen
+
+
 def test_freeze_json_rejects_non_string_keys_unknown_objects_and_nonfinite_numbers():
     class Unknown:
         pass
@@ -329,6 +338,59 @@ def test_excessive_json_nesting_is_rejected(operation):
 
     with pytest.raises(AdapterContractError, match="nesting"):
         operation(value)
+
+
+@pytest.mark.parametrize("outer_kind", ("mapping", "sequence"))
+def test_freeze_json_rejects_frozen_depth_128_embedded_one_level(outer_kind):
+    frozen = _frozen_object_with_scalar_depth(128)
+    outer = {"embedded": frozen} if outer_kind == "mapping" else [frozen]
+
+    with pytest.raises(AdapterContractError, match="nesting"):
+        freeze_json(outer)
+
+
+@pytest.mark.parametrize("outer_kind", ("mapping", "sequence"))
+def test_freeze_json_accepts_frozen_depth_127_embedded_one_level(outer_kind):
+    frozen = _frozen_object_with_scalar_depth(127)
+    outer = {"embedded": frozen} if outer_kind == "mapping" else [frozen]
+
+    accepted = freeze_json(outer)
+    embedded = accepted["embedded"] if outer_kind == "mapping" else accepted[0]
+    encoded = canonical_json_bytes(accepted)
+    digest = canonical_sha256(accepted)
+
+    assert embedded is frozen
+    assert encoded == canonical_json_bytes(accepted)
+    assert digest == canonical_sha256(accepted)
+    assert accepted == accepted
+    assert hash(accepted) == hash(accepted)
+
+
+def test_freeze_json_accepts_shared_legal_frozen_aliases_without_false_cycle():
+    shared = _frozen_object_with_scalar_depth(127)
+
+    accepted = freeze_json({"left": shared, "right": shared})
+    digest = canonical_sha256(accepted)
+
+    assert accepted["left"] is accepted["right"] is shared
+    assert accepted == accepted
+    assert hash(accepted) == hash(accepted)
+    assert canonical_sha256(accepted) == digest
+
+
+def test_freeze_json_at_root_remains_idempotent_at_depth_boundary():
+    frozen = _frozen_object_with_scalar_depth(128)
+
+    assert freeze_json(frozen) is frozen
+
+
+def test_freeze_json_rejects_mutable_storage_in_exact_frozen_object():
+    frozen = FrozenJsonObject({"value": 1})
+    mutable_items = [("value", 1)]
+    object.__setattr__(frozen, "_items", mutable_items)
+
+    with pytest.raises(AdapterContractError, match="immutable"):
+        freeze_json(frozen)
 
 
 def test_excessive_frozen_json_nesting_is_rejected_on_direct_thaw():

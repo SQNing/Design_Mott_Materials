@@ -90,6 +90,83 @@ def _require_json_integer_magnitude(value: int, field_name: str) -> int:
     return value
 
 
+def _validate_frozen_json_placement(
+    value: object,
+    field_name: str,
+    active_container_ids: set[int],
+    depth: int,
+) -> None:
+    if depth > _MAX_JSON_NESTING:
+        raise AdapterContractError(
+            f"{field_name} exceeds the maximum JSON nesting of {_MAX_JSON_NESTING}"
+        )
+    if callable(value):
+        raise AdapterContractError(f"{field_name} contains a callable value")
+    if type(value) is FrozenJsonObject:
+        if type(value._items) is not tuple:
+            raise AdapterContractError(
+                f"{field_name} frozen mapping storage must be an immutable tuple"
+            )
+        container_id = id(value)
+        if container_id in active_container_ids:
+            raise AdapterContractError(f"{field_name} contains a JSON cycle")
+        active_container_ids.add(container_id)
+        seen_keys = set()
+        try:
+            for pair in value._items:
+                if type(pair) is not tuple or len(pair) != 2:
+                    raise AdapterContractError(
+                        f"{field_name} contains a malformed frozen mapping item"
+                    )
+                key, item = pair
+                if type(key) is not str:
+                    raise AdapterContractError(
+                        f"{field_name} contains a non-string mapping key"
+                    )
+                _require_utf8_string(key, f"{field_name} mapping key")
+                if key in seen_keys:
+                    raise AdapterContractError(
+                        f"{field_name} contains duplicate mapping key {key!r}"
+                    )
+                seen_keys.add(key)
+                _validate_frozen_json_placement(
+                    item,
+                    f"{field_name}.{key}",
+                    active_container_ids,
+                    depth + 1,
+                )
+        finally:
+            active_container_ids.remove(container_id)
+        return
+    if isinstance(value, FrozenJsonObject):
+        raise AdapterContractError(
+            f"{field_name} contains an unsupported FrozenJsonObject subclass"
+        )
+    if type(value) is tuple:
+        container_id = id(value)
+        if container_id in active_container_ids:
+            raise AdapterContractError(f"{field_name} contains a JSON cycle")
+        active_container_ids.add(container_id)
+        try:
+            for index, item in enumerate(value):
+                _validate_frozen_json_placement(
+                    item,
+                    f"{field_name}[{index}]",
+                    active_container_ids,
+                    depth + 1,
+                )
+        finally:
+            active_container_ids.remove(container_id)
+        return
+    if value is None or type(value) in (bool, int, float, str):
+        _freeze_json(value, field_name, active_container_ids, depth)
+        return
+    raise AdapterContractError(
+        f"{field_name} contains unsupported frozen JSON value "
+        f"{type(value).__name__}"
+    )
+
+
 def _freeze_json(
     value: object,
     field_name: str,
@@ -104,6 +181,9 @@ def _freeze_json(
     if callable(value):
         raise AdapterContractError(f"{field_name} contains a callable value")
     if type(value) is FrozenJsonObject:
+        _validate_frozen_json_placement(
+            value, field_name, active_container_ids, depth
+        )
         return value
     if isinstance(value, FrozenJsonObject):
         raise AdapterContractError(
