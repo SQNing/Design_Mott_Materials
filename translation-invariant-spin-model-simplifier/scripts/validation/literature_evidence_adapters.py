@@ -52,13 +52,11 @@ class FrozenJsonObject(Mapping[str, object]):
         return len(self._items)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Mapping) or len(self) != len(other):
+        if not isinstance(other, Mapping):
             return False
         try:
-            return all(
-                key in other and value == other[key] for key, value in self._items
-            )
-        except (KeyError, TypeError):
+            return canonical_json_bytes(self) == canonical_json_bytes(other)
+        except Exception:
             return False
 
     def __hash__(self) -> int:
@@ -72,8 +70,14 @@ class FrozenJsonObject(Mapping[str, object]):
 def freeze_json(value: object, field_name: str = "value") -> object:
     """Return an isolated, recursively immutable representation of JSON data."""
 
-    if isinstance(value, FrozenJsonObject):
+    if callable(value):
+        raise AdapterContractError(f"{field_name} contains a callable value")
+    if type(value) is FrozenJsonObject:
         return value
+    if isinstance(value, FrozenJsonObject):
+        raise AdapterContractError(
+            f"{field_name} contains an unsupported FrozenJsonObject subclass"
+        )
     if value is None or type(value) in (str, bool, int):
         return value
     if type(value) is float:
@@ -103,12 +107,18 @@ def freeze_json(value: object, field_name: str = "value") -> object:
 def thaw_json(value: object, field_name: str = "value") -> object:
     """Convert frozen JSON data to fresh ordinary dictionaries and lists."""
 
-    if isinstance(value, FrozenJsonObject):
+    if callable(value):
+        raise AdapterContractError(f"{field_name} contains a callable value")
+    if type(value) is FrozenJsonObject:
         return {
             key: thaw_json(item, f"{field_name}.{key}")
             for key, item in value.items()
         }
-    if isinstance(value, tuple):
+    if isinstance(value, FrozenJsonObject):
+        raise AdapterContractError(
+            f"{field_name} contains an unsupported FrozenJsonObject subclass"
+        )
+    if type(value) is tuple:
         return [
             thaw_json(item, f"{field_name}[{index}]")
             for index, item in enumerate(value)

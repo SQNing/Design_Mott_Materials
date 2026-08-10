@@ -15,6 +15,7 @@ from validation.literature_evidence_adapters import (
     ConvergenceContract,
     CounterfactualDomain,
     EligibilityDecision,
+    FrozenJsonObject,
     ParameterSource,
     ProblemSizePolicy,
     ResourceLimits,
@@ -126,6 +127,85 @@ def test_freeze_json_rejects_non_string_keys_unknown_objects_and_nonfinite_numbe
     for value in invalid_values:
         with pytest.raises(AdapterContractError):
             freeze_json(value)
+
+
+def test_freeze_json_rejects_callable_containers_and_frozen_subclasses():
+    class CallableMapping(dict):
+        def __call__(self):
+            return None
+
+    class CallableList(list):
+        def __call__(self):
+            return None
+
+    class MutableBackedFrozenJsonObject(FrozenJsonObject):
+        def __init__(self, backing):
+            super().__init__(backing)
+            object.__setattr__(self, "_backing", backing)
+
+        def __getitem__(self, key):
+            return self._backing[key]
+
+        def __iter__(self):
+            return iter(self._backing)
+
+        def __len__(self):
+            return len(self._backing)
+
+    accepted_callable_types = []
+    for value in (CallableMapping(x=1), CallableList([1, 2])):
+        try:
+            freeze_json(value)
+        except AdapterContractError:
+            continue
+        accepted_callable_types.append(type(value).__name__)
+    assert accepted_callable_types == []
+
+    backing = {"x": [1]}
+    untrusted = MutableBackedFrozenJsonObject(backing)
+    with pytest.raises(AdapterContractError):
+        freeze_json(untrusted)
+    with pytest.raises(AdapterContractError):
+        thaw_json(untrusted)
+    backing["x"].append(2)
+    with pytest.raises(AdapterContractError):
+        canonical_sha256(untrusted)
+
+    exact_frozen = freeze_json({"x": [1]})
+    assert type(exact_frozen) is FrozenJsonObject
+    assert freeze_json(exact_frozen) is exact_frozen
+
+
+def test_frozen_json_equality_and_hash_use_canonical_types():
+    frozen_integer = freeze_json({"x": 1})
+    equal_integer = freeze_json({"x": 1})
+    frozen_float = freeze_json({"x": 1.0})
+    frozen_boolean = freeze_json({"x": True})
+
+    assert frozen_integer == equal_integer == {"x": 1}
+    assert {"x": 1} == frozen_integer
+    assert hash(frozen_integer) == hash(equal_integer)
+    assert frozen_integer != frozen_float
+    assert frozen_integer != frozen_boolean
+    assert frozen_float != frozen_boolean
+
+    frozen_set = {frozen_integer, equal_integer, frozen_float, frozen_boolean}
+    assert len(frozen_set) == 3
+    lookup = {
+        frozen_integer: "integer",
+        frozen_float: "float",
+        frozen_boolean: "boolean",
+    }
+    assert lookup[equal_integer] == "integer"
+    assert lookup[freeze_json({"x": 1.0})] == "float"
+    assert lookup[freeze_json({"x": True})] == "boolean"
+
+    class MalformedMapping(dict):
+        def items(self):
+            raise RuntimeError("malformed mapping")
+
+    assert frozen_integer != MalformedMapping(x=1)
+    assert frozen_integer != object()
 
 
 def test_freeze_json_recursively_prevents_mutation():
