@@ -78,6 +78,16 @@ def _require_utf8_string(value: str, field_name: str) -> str:
 
 
 _MAX_JSON_NESTING = 128
+_MAX_JSON_INTEGER_BITS = 1024
+
+
+def _require_json_integer_magnitude(value: int, field_name: str) -> int:
+    if abs(value).bit_length() > _MAX_JSON_INTEGER_BITS:
+        raise AdapterContractError(
+            f"{field_name} exceeds the maximum JSON integer magnitude of "
+            f"{_MAX_JSON_INTEGER_BITS} bits"
+        )
+    return value
 
 
 def _freeze_json(
@@ -101,8 +111,10 @@ def _freeze_json(
         )
     if type(value) is str:
         return _require_utf8_string(value, field_name)
-    if value is None or type(value) in (bool, int):
+    if value is None or type(value) is bool:
         return value
+    if type(value) is int:
+        return _require_json_integer_magnitude(value, field_name)
     if type(value) is float:
         if not math.isfinite(value):
             raise AdapterContractError(f"{field_name} contains a non-finite number")
@@ -224,14 +236,16 @@ def freeze_json(value: object, field_name: str = "value") -> object:
         raise AdapterContractError(f"{field_name} JSON traversal failed") from error
 
 
-def thaw_json(value: object, field_name: str = "value") -> object:
-    """Convert frozen JSON data to fresh ordinary dictionaries and lists."""
-
+def _thaw_json(value: object, field_name: str, depth: int) -> object:
+    if depth > _MAX_JSON_NESTING:
+        raise AdapterContractError(
+            f"{field_name} exceeds the maximum JSON nesting of {_MAX_JSON_NESTING}"
+        )
     if callable(value):
         raise AdapterContractError(f"{field_name} contains a callable value")
     if type(value) is FrozenJsonObject:
         return {
-            key: thaw_json(item, f"{field_name}.{key}")
+            key: _thaw_json(item, f"{field_name}.{key}", depth + 1)
             for key, item in value._items
         }
     if isinstance(value, FrozenJsonObject):
@@ -240,13 +254,15 @@ def thaw_json(value: object, field_name: str = "value") -> object:
         )
     if type(value) is tuple:
         return [
-            thaw_json(item, f"{field_name}[{index}]")
+            _thaw_json(item, f"{field_name}[{index}]", depth + 1)
             for index, item in enumerate(value)
         ]
     if type(value) is str:
         return _require_utf8_string(value, field_name)
-    if value is None or type(value) in (bool, int):
+    if value is None or type(value) is bool:
         return value
+    if type(value) is int:
+        return _require_json_integer_magnitude(value, field_name)
     if type(value) is float:
         if not math.isfinite(value):
             raise AdapterContractError(f"{field_name} contains a non-finite number")
@@ -254,6 +270,21 @@ def thaw_json(value: object, field_name: str = "value") -> object:
     raise AdapterContractError(
         f"{field_name} contains unsupported frozen JSON value {type(value).__name__}"
     )
+
+
+def thaw_json(value: object, field_name: str = "value") -> object:
+    """Convert frozen JSON data to fresh ordinary dictionaries and lists."""
+
+    try:
+        return _thaw_json(value, field_name, 0)
+    except AdapterContractError:
+        raise
+    except RecursionError as error:
+        raise AdapterContractError(
+            f"{field_name} exceeds safe JSON recursion limits"
+        ) from error
+    except Exception as error:
+        raise AdapterContractError(f"{field_name} JSON traversal failed") from error
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -340,7 +371,9 @@ def _require_finite_number(
 ) -> int | float:
     if type(value) not in (int, float):
         raise AdapterContractError(f"{field_name} must be a finite number")
-    if type(value) is float and not math.isfinite(value):
+    if type(value) is int:
+        _require_json_integer_magnitude(value, field_name)
+    elif not math.isfinite(value):
         raise AdapterContractError(f"{field_name} must be a finite number")
     if positive and value <= 0:
         raise AdapterContractError(f"{field_name} must be positive")
@@ -350,7 +383,10 @@ def _require_finite_number(
 
 
 def _require_positive_integer(value: object, field_name: str) -> int:
-    if type(value) is not int or value <= 0:
+    if type(value) is not int:
+        raise AdapterContractError(f"{field_name} must be a positive integer")
+    _require_json_integer_magnitude(value, field_name)
+    if value <= 0:
         raise AdapterContractError(f"{field_name} must be a positive integer")
     return value
 
@@ -527,7 +563,9 @@ class ParameterSource:
 
     def __post_init__(self) -> None:
         require_identifier(self.parameter_name, "parameter_name")
-        if type(self.kind) is not str or self.kind not in _PARAMETER_SOURCE_KINDS:
+        if type(self.kind) is not str:
+            raise AdapterContractError("parameter provenance kind must be a string")
+        if self.kind not in _PARAMETER_SOURCE_KINDS:
             raise AdapterContractError(
                 f"unknown parameter provenance kind {self.kind!r}"
             )
@@ -567,7 +605,9 @@ class ConvergenceContract:
         _initialize_closed(self, args, kwargs, ConvergenceContract)
 
     def __post_init__(self) -> None:
-        if type(self.kind) is not str or self.kind not in _CONVERGENCE_KINDS:
+        if type(self.kind) is not str:
+            raise AdapterContractError("convergence kind must be a string")
+        if self.kind not in _CONVERGENCE_KINDS:
             raise AdapterContractError(f"unknown convergence kind {self.kind!r}")
         object.__setattr__(
             self,
@@ -592,7 +632,9 @@ class ProblemSizePolicy:
         _initialize_closed(self, args, kwargs, ProblemSizePolicy)
 
     def __post_init__(self) -> None:
-        if type(self.kind) is not str or self.kind not in _PROBLEM_SIZE_KINDS:
+        if type(self.kind) is not str:
+            raise AdapterContractError("problem-size policy kind must be a string")
+        if self.kind not in _PROBLEM_SIZE_KINDS:
             raise AdapterContractError(f"unknown problem-size policy {self.kind!r}")
         fixed_sizes = _freeze_mapping(self.fixed_sizes, "fixed_sizes")
         allowed_sizes = _freeze_mapping(self.allowed_sizes, "allowed_sizes")
@@ -734,10 +776,9 @@ class AdapterDefinition:
             raise AdapterContractError(
                 "parameter_sources must bind every scientific input exactly once"
             )
-        if (
-            type(self.backend_kind) is not str
-            or self.backend_kind not in _BACKEND_KINDS
-        ):
+        if type(self.backend_kind) is not str:
+            raise AdapterContractError("backend_kind must be a string")
+        if self.backend_kind not in _BACKEND_KINDS:
             raise AdapterContractError(f"unknown backend_kind {self.backend_kind!r}")
         for field_name, expected_type in (
             ("problem_size_policy", ProblemSizePolicy),
@@ -781,10 +822,9 @@ class EligibilityDecision:
         _initialize_closed(self, args, kwargs, EligibilityDecision)
 
     def __post_init__(self) -> None:
-        if (
-            type(self.disposition) is not str
-            or self.disposition not in _ELIGIBILITY_DISPOSITIONS
-        ):
+        if type(self.disposition) is not str:
+            raise AdapterContractError("eligibility disposition must be a string")
+        if self.disposition not in _ELIGIBILITY_DISPOSITIONS:
             raise AdapterContractError(
                 f"unknown eligibility disposition {self.disposition!r}"
             )
@@ -798,10 +838,9 @@ class EligibilityDecision:
             raise AdapterContractError(
                 "source_parse_only decision cannot resolve an adapter or oracle"
             )
-        if (
-            type(self.reason) is not str
-            or self.reason not in _SOURCE_PARSE_ONLY_REASONS
-        ):
+        if type(self.reason) is not str:
+            raise AdapterContractError("source_parse_only reason must be a string")
+        if self.reason not in _SOURCE_PARSE_ONLY_REASONS:
             raise AdapterContractError(
                 f"unknown source_parse_only reason {self.reason!r}"
             )

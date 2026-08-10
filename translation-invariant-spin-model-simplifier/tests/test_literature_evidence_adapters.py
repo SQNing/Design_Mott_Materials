@@ -192,6 +192,19 @@ class _CallerBackedTuple(tuple):
         return self._backing[index]
 
 
+class BadRepr:
+    def __repr__(self):
+        raise RuntimeError("repr must not run")
+
+    def __hash__(self):
+        raise RuntimeError("hash must not run")
+
+
+class _BrokenFrozenItems:
+    def __iter__(self):
+        raise RuntimeError("broken frozen traversal")
+
+
 def _list_cycle():
     value = []
     value.append(value)
@@ -318,6 +331,23 @@ def test_excessive_json_nesting_is_rejected(operation):
         operation(value)
 
 
+def test_excessive_frozen_json_nesting_is_rejected_on_direct_thaw():
+    value = 0
+    for _ in range(256):
+        value = (value,)
+
+    with pytest.raises(AdapterContractError, match="nesting"):
+        thaw_json(value)
+
+
+def test_thaw_json_normalizes_unexpected_frozen_traversal_failures():
+    malformed = FrozenJsonObject({"value": 1})
+    object.__setattr__(malformed, "_items", _BrokenFrozenItems())
+
+    with pytest.raises(AdapterContractError, match="traversal"):
+        thaw_json(malformed)
+
+
 def test_shared_noncyclic_json_aliases_are_copied_and_accepted():
     shared = {"values": [1, 2]}
 
@@ -361,6 +391,40 @@ def test_frozen_json_equality_and_hash_use_canonical_types():
 
     assert frozen_integer != MalformedMapping(x=1)
     assert frozen_integer != object()
+
+
+def test_json_accepts_1024_bit_integer_boundaries():
+    boundary = 2**1024 - 1
+    value = {"negative": -boundary, "positive": boundary}
+
+    frozen = freeze_json(value, "payload")
+    equal_frozen = freeze_json(value, "payload")
+    encoded = canonical_json_bytes(frozen)
+    digest = canonical_sha256(frozen)
+
+    assert thaw_json(frozen, "payload") == value
+    assert encoded == canonical_json_bytes(value)
+    assert digest == canonical_sha256(value)
+    assert len(digest) == 64
+    assert frozen == frozen == equal_frozen
+    assert hash(frozen) == hash(frozen) == hash(equal_frozen)
+
+
+@pytest.mark.parametrize(
+    "value",
+    (
+        pytest.param(2**1024, id="positive"),
+        pytest.param(-(2**1024), id="negative"),
+    ),
+)
+@pytest.mark.parametrize(
+    "operation",
+    (freeze_json, thaw_json, canonical_json_bytes, canonical_sha256),
+    ids=("freeze", "thaw", "canonical_bytes", "canonical_sha256"),
+)
+def test_json_rejects_integers_beyond_1024_bits(value, operation):
+    with pytest.raises(AdapterContractError, match="value.*1024"):
+        operation(value)
 
 
 def test_freeze_json_recursively_prevents_mutation():
@@ -676,6 +740,47 @@ def test_adapter_definition_rejects_missing_unknown_and_mutable_fields():
     assert source_only.adapter_id is source_only.oracle_id is None
 
 
+@pytest.mark.parametrize(
+    ("field_name", "diagnostic"),
+    (
+        ("parameter_source_kind", "kind"),
+        ("convergence_kind", "kind"),
+        ("problem_size_kind", "kind"),
+        ("backend_kind", "backend_kind"),
+        ("eligibility_disposition", "disposition"),
+        ("eligibility_reason", "reason"),
+    ),
+)
+def test_enum_contracts_do_not_hash_or_repr_untrusted_values(
+    field_name, diagnostic
+):
+    untrusted = BadRepr()
+
+    if field_name == "parameter_source_kind":
+        operation = lambda: ParameterSource("exchange", untrusted, {})
+    elif field_name == "convergence_kind":
+        operation = lambda: ConvergenceContract(untrusted, {})
+    elif field_name == "problem_size_kind":
+        operation = lambda: ProblemSizePolicy(untrusted, {}, {})
+    elif field_name == "backend_kind":
+        values = _adapter_values(
+            _observable_identity(),
+            {"spin_count": [2]},
+            {"exchange": {"kind": "finite_interval", "bounds": [0.1, 3.0]}},
+        )
+        values["backend_kind"] = untrusted
+        operation = lambda: AdapterDefinition(**values)
+    elif field_name == "eligibility_disposition":
+        operation = lambda: EligibilityDecision(untrusted, None, None, None)
+    else:
+        operation = lambda: EligibilityDecision(
+            "source_parse_only", None, None, untrusted
+        )
+
+    with pytest.raises(AdapterContractError, match=diagnostic):
+        operation()
+
+
 def test_schema_rejects_bool_where_numeric_is_required():
     for field_name in ("lower", "upper"):
         values = {
@@ -724,41 +829,91 @@ def test_schema_rejects_bool_where_numeric_is_required():
         )
 
 
-def test_value_schema_accepts_arbitrary_precision_integer_bounds():
-    huge = 10**10000
+def test_value_schema_accepts_1024_bit_integer_bounds():
+    boundary = 2**1024 - 1
 
     schema = ValueSchema(
         kind="number",
         required=True,
-        lower=-huge,
-        upper=huge,
+        lower=-boundary,
+        upper=boundary,
         item_schema=None,
         properties=(),
         units="J",
     )
 
-    assert schema.lower == -huge
-    assert schema.upper == huge
+    assert schema.lower == -boundary
+    assert schema.upper == boundary
 
 
-def test_resource_limits_accept_arbitrary_precision_integer_time_limits():
-    huge = 10**10000
+def test_resource_limits_accept_1024_bit_integer_boundaries():
+    boundary = 2**1024 - 1
 
     limits = ResourceLimits(
-        cpu_seconds=huge,
-        wall_seconds=huge + 1,
-        address_space_bytes=256_000_000,
-        output_bytes=64_000,
-        file_descriptors=16,
-        process_count=1,
+        cpu_seconds=boundary,
+        wall_seconds=boundary,
+        address_space_bytes=boundary,
+        output_bytes=boundary,
+        file_descriptors=boundary,
+        process_count=boundary,
     )
 
-    assert limits.cpu_seconds == huge
-    assert limits.wall_seconds == huge + 1
+    assert all(
+        getattr(limits, field_name) == boundary
+        for field_name in (
+            "cpu_seconds",
+            "wall_seconds",
+            "address_space_bytes",
+            "output_bytes",
+            "file_descriptors",
+            "process_count",
+        )
+    )
 
 
-@pytest.mark.parametrize("field_name", ("cpu_seconds", "wall_seconds"))
-def test_resource_limits_normalize_arbitrary_precision_negative_times(field_name):
+@pytest.mark.parametrize("field_name", ("lower", "upper"))
+@pytest.mark.parametrize(
+    "value",
+    (
+        pytest.param(2**1024, id="positive"),
+        pytest.param(-(2**1024), id="negative"),
+    ),
+)
+def test_value_schema_rejects_integers_beyond_1024_bits(field_name, value):
+    values = {
+        "kind": "number",
+        "required": True,
+        "lower": None,
+        "upper": None,
+        "item_schema": None,
+        "properties": (),
+        "units": "J",
+    }
+    values[field_name] = value
+
+    with pytest.raises(AdapterContractError, match=f"{field_name}.*1024"):
+        ValueSchema(**values)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "cpu_seconds",
+        "wall_seconds",
+        "address_space_bytes",
+        "output_bytes",
+        "file_descriptors",
+        "process_count",
+    ),
+)
+@pytest.mark.parametrize(
+    "value",
+    (
+        pytest.param(2**1024, id="positive"),
+        pytest.param(-(2**1024), id="negative"),
+    ),
+)
+def test_resource_limits_reject_integers_beyond_1024_bits(field_name, value):
     values = {
         "cpu_seconds": 10,
         "wall_seconds": 20,
@@ -767,9 +922,70 @@ def test_resource_limits_normalize_arbitrary_precision_negative_times(field_name
         "file_descriptors": 16,
         "process_count": 1,
     }
-    values[field_name] = -(10**10000)
+    values[field_name] = value
 
-    with pytest.raises(AdapterContractError, match=f"{field_name} must be positive"):
+    with pytest.raises(AdapterContractError, match=f"{field_name}.*1024"):
+        ResourceLimits(**values)
+
+
+@pytest.mark.parametrize("contract_kind", ("value_schema", "resource_limits"))
+@pytest.mark.parametrize(
+    "value",
+    (
+        pytest.param(10**10000, id="positive"),
+        pytest.param(-(10**10000), id="negative"),
+    ),
+)
+def test_numeric_contracts_reject_extreme_integers_without_overflow(
+    contract_kind, value
+):
+    with pytest.raises(AdapterContractError, match="1024"):
+        if contract_kind == "value_schema":
+            ValueSchema(
+                kind="number",
+                required=True,
+                lower=value,
+                upper=None,
+                item_schema=None,
+                properties=(),
+                units="J",
+            )
+        else:
+            ResourceLimits(
+                cpu_seconds=value,
+                wall_seconds=20,
+                address_space_bytes=256_000_000,
+                output_bytes=64_000,
+                file_descriptors=16,
+                process_count=1,
+            )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "diagnostic"),
+    (
+        ("cpu_seconds", "cpu_seconds must be positive"),
+        ("wall_seconds", "wall_seconds must be positive"),
+        ("address_space_bytes", "address_space_bytes must be a positive integer"),
+        ("output_bytes", "output_bytes must be a positive integer"),
+        ("file_descriptors", "file_descriptors must be a positive integer"),
+        ("process_count", "process_count must be a positive integer"),
+    ),
+)
+def test_resource_limits_preserve_within_bound_negative_errors(
+    field_name, diagnostic
+):
+    values = {
+        "cpu_seconds": 10,
+        "wall_seconds": 20,
+        "address_space_bytes": 256_000_000,
+        "output_bytes": 64_000,
+        "file_descriptors": 16,
+        "process_count": 1,
+    }
+    values[field_name] = -(2**1024 - 1)
+
+    with pytest.raises(AdapterContractError, match=diagnostic):
         ResourceLimits(**values)
 
 
