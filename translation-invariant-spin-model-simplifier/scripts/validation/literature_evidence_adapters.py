@@ -16,6 +16,43 @@ from types import MappingProxyType
 from typing import Any
 
 
+__all__ = (
+    "AdapterContractError",
+    "FrozenJsonObject",
+    "freeze_json",
+    "thaw_json",
+    "canonical_json_bytes",
+    "canonical_sha256",
+    "require_exact_keys",
+    "require_identifier",
+    "ValueSchema",
+    "OUTPUT_PROOF_KINDS",
+    "OutputFieldBinding",
+    "OutputSchema",
+    "ParameterSource",
+    "CounterfactualDomain",
+    "ConvergenceContract",
+    "ProblemSizePolicy",
+    "RuntimeRequirements",
+    "ResourceLimits",
+    "AdapterDefinition",
+    "SOURCE_PARSE_ONLY_REASONS",
+    "EligibilityDecision",
+    "ADAPTER_ELIGIBILITY",
+    "ADAPTER_DEFINITIONS",
+    "get_adapter_definition",
+    "validate_adapter_definition",
+    "adapter_definition_to_frozen_json",
+    "adapter_definition_from_frozen_json",
+    "adapter_eligibility_row_to_frozen_json",
+    "adapter_eligibility_catalog_to_frozen_json",
+    "validate_scientific_inputs",
+    "validate_numerical_controls",
+    "LocalObservableResult",
+    "validate_local_observable_result",
+)
+
+
 class AdapterContractError(ValueError):
     """Raised when an adapter definition or JSON value is not closed and valid."""
 
@@ -4244,6 +4281,360 @@ def validate_adapter_definition(value: object) -> AdapterDefinition:
         ) from error
 
 
+_VALUE_SCHEMA_JSON_FIELDS = (
+    "kind",
+    "required",
+    "lower",
+    "upper",
+    "item_schema",
+    "properties",
+    "units",
+)
+_OUTPUT_BINDING_JSON_FIELDS = (
+    "value_schema",
+    "raw_field",
+    "proof_kind",
+)
+_ADAPTER_DEFINITION_JSON_FIELDS = (
+    "adapter_id",
+    "entry_symbol",
+    "observable_identity",
+    "scientific_input_schema",
+    "numerical_control_schema",
+    "parameter_sources",
+    "output_schema",
+    "backend_kind",
+    "problem_size_policy",
+    "runtime_requirements",
+    "convergence_contract",
+    "counterfactual_domain",
+    "oracle_id",
+    "resource_limits",
+)
+
+
+def _value_schema_to_frozen_json(schema: ValueSchema) -> FrozenJsonObject:
+    snapshot = _snapshot_value_schema(schema, "value_schema")
+    return _snapshot_json_mapping(
+        {
+            "kind": snapshot.kind,
+            "required": snapshot.required,
+            "lower": snapshot.lower,
+            "upper": snapshot.upper,
+            "item_schema": (
+                None
+                if snapshot.item_schema is None
+                else _value_schema_to_frozen_json(snapshot.item_schema)
+            ),
+            "properties": {
+                name: _value_schema_to_frozen_json(child)
+                for name, child in snapshot.properties
+            },
+            "units": snapshot.units,
+        },
+        "value_schema",
+    )
+
+
+def _value_schema_from_frozen_json(
+    value: object,
+    field_name: str,
+) -> ValueSchema:
+    record = require_exact_keys(value, _VALUE_SCHEMA_JSON_FIELDS, field_name)
+    properties = _snapshot_json_mapping(
+        record["properties"], f"{field_name}.properties"
+    )
+    item_schema_value = record["item_schema"]
+    return ValueSchema(
+        kind=record["kind"],
+        required=record["required"],
+        lower=record["lower"],
+        upper=record["upper"],
+        item_schema=(
+            None
+            if item_schema_value is None
+            else _value_schema_from_frozen_json(
+                item_schema_value, f"{field_name}.item_schema"
+            )
+        ),
+        properties=tuple(
+            (
+                name,
+                _value_schema_from_frozen_json(
+                    child, f"{field_name}.properties.{name}"
+                ),
+            )
+            for name, child in properties._items
+        ),
+        units=record["units"],
+    )
+
+
+def _output_schema_to_frozen_json(
+    output_schema: OutputSchema,
+) -> FrozenJsonObject:
+    snapshot = _snapshot_output_schema(output_schema)
+    return _snapshot_json_mapping(
+        {
+            "fields": {
+                selector: {
+                    "value_schema": _value_schema_to_frozen_json(
+                        binding.value_schema
+                    ),
+                    "raw_field": binding.raw_field,
+                    "proof_kind": binding.proof_kind,
+                }
+                for selector, binding in snapshot
+            }
+        },
+        "output_schema",
+    )
+
+
+def _output_schema_from_frozen_json(value: object) -> OutputSchema:
+    record = require_exact_keys(value, ("fields",), "output_schema")
+    fields_value = _snapshot_json_mapping(
+        record["fields"], "output_schema.fields"
+    )
+    fields_payload = []
+    for selector, raw_binding in fields_value._items:
+        require_identifier(selector, f"output_schema.fields.{selector}")
+        binding = require_exact_keys(
+            raw_binding,
+            _OUTPUT_BINDING_JSON_FIELDS,
+            f"output_schema.fields.{selector}",
+        )
+        fields_payload.append(
+            (
+                selector,
+                OutputFieldBinding(
+                    value_schema=_value_schema_from_frozen_json(
+                        binding["value_schema"],
+                        f"output_schema.fields.{selector}.value_schema",
+                    ),
+                    raw_field=binding["raw_field"],
+                    proof_kind=binding["proof_kind"],
+                ),
+            )
+        )
+    return OutputSchema(fields=tuple(fields_payload))
+
+
+def adapter_definition_to_frozen_json(
+    value: AdapterDefinition,
+) -> FrozenJsonObject:
+    """Serialize one validated adapter definition with a locked JSON schema."""
+
+    definition = validate_adapter_definition(value)
+    return _snapshot_json_mapping(
+        {
+            "adapter_id": definition.adapter_id,
+            "entry_symbol": definition.entry_symbol,
+            "observable_identity": definition.observable_identity,
+            "scientific_input_schema": _value_schema_to_frozen_json(
+                definition.scientific_input_schema
+            ),
+            "numerical_control_schema": _value_schema_to_frozen_json(
+                definition.numerical_control_schema
+            ),
+            "parameter_sources": tuple(
+                {
+                    "parameter_name": source.parameter_name,
+                    "kind": source.kind,
+                    "details": source.details,
+                }
+                for source in definition.parameter_sources
+            ),
+            "output_schema": _output_schema_to_frozen_json(
+                definition.output_schema
+            ),
+            "backend_kind": definition.backend_kind,
+            "problem_size_policy": {
+                "kind": definition.problem_size_policy.kind,
+                "fixed_sizes": definition.problem_size_policy.fixed_sizes,
+                "allowed_sizes": definition.problem_size_policy.allowed_sizes,
+            },
+            "runtime_requirements": {
+                "interpreter": definition.runtime_requirements.interpreter,
+                "packages": definition.runtime_requirements.packages,
+                "native_libraries": (
+                    definition.runtime_requirements.native_libraries
+                ),
+                "backend_resources": (
+                    definition.runtime_requirements.backend_resources
+                ),
+            },
+            "convergence_contract": {
+                "kind": definition.convergence_contract.kind,
+                "requirements": definition.convergence_contract.requirements,
+            },
+            "counterfactual_domain": {
+                "valid_rules": definition.counterfactual_domain.valid_rules,
+                "invalid_rules": (
+                    definition.counterfactual_domain.invalid_rules
+                ),
+            },
+            "oracle_id": definition.oracle_id,
+            "resource_limits": {
+                field.name: getattr(definition.resource_limits, field.name)
+                for field in fields(ResourceLimits)
+            },
+        },
+        "adapter_definition",
+    )
+
+
+def adapter_definition_from_frozen_json(value: object) -> AdapterDefinition:
+    """Deserialize and fully validate the locked adapter-definition schema."""
+
+    definition = require_exact_keys(
+        value, _ADAPTER_DEFINITION_JSON_FIELDS, "adapter_definition"
+    )
+    sources_value = _require_tuple(
+        definition["parameter_sources"], "parameter_sources"
+    )
+    parameter_sources = []
+    for index, raw_source in enumerate(sources_value):
+        source = require_exact_keys(
+            raw_source,
+            ("parameter_name", "kind", "details"),
+            f"parameter_sources[{index}]",
+        )
+        parameter_sources.append(
+            ParameterSource(
+                parameter_name=source["parameter_name"],
+                kind=source["kind"],
+                details=source["details"],
+            )
+        )
+    size = require_exact_keys(
+        definition["problem_size_policy"],
+        ("kind", "fixed_sizes", "allowed_sizes"),
+        "problem_size_policy",
+    )
+    runtime = require_exact_keys(
+        definition["runtime_requirements"],
+        (
+            "interpreter",
+            "packages",
+            "native_libraries",
+            "backend_resources",
+        ),
+        "runtime_requirements",
+    )
+    convergence = require_exact_keys(
+        definition["convergence_contract"],
+        ("kind", "requirements"),
+        "convergence_contract",
+    )
+    domain = require_exact_keys(
+        definition["counterfactual_domain"],
+        ("valid_rules", "invalid_rules"),
+        "counterfactual_domain",
+    )
+    limits = require_exact_keys(
+        definition["resource_limits"],
+        tuple(field.name for field in fields(ResourceLimits)),
+        "resource_limits",
+    )
+    candidate = AdapterDefinition(
+        adapter_id=definition["adapter_id"],
+        entry_symbol=definition["entry_symbol"],
+        observable_identity=definition["observable_identity"],
+        scientific_input_schema=_value_schema_from_frozen_json(
+            definition["scientific_input_schema"],
+            "scientific_input_schema",
+        ),
+        numerical_control_schema=_value_schema_from_frozen_json(
+            definition["numerical_control_schema"],
+            "numerical_control_schema",
+        ),
+        parameter_sources=tuple(parameter_sources),
+        output_schema=_output_schema_from_frozen_json(
+            definition["output_schema"]
+        ),
+        backend_kind=definition["backend_kind"],
+        problem_size_policy=ProblemSizePolicy(
+            kind=size["kind"],
+            fixed_sizes=size["fixed_sizes"],
+            allowed_sizes=size["allowed_sizes"],
+        ),
+        runtime_requirements=RuntimeRequirements(
+            interpreter=runtime["interpreter"],
+            packages=_require_tuple(
+                runtime["packages"], "runtime_requirements.packages"
+            ),
+            native_libraries=_require_tuple(
+                runtime["native_libraries"],
+                "runtime_requirements.native_libraries",
+            ),
+            backend_resources=_require_tuple(
+                runtime["backend_resources"],
+                "runtime_requirements.backend_resources",
+            ),
+        ),
+        convergence_contract=ConvergenceContract(
+            kind=convergence["kind"],
+            requirements=convergence["requirements"],
+        ),
+        counterfactual_domain=CounterfactualDomain(
+            valid_rules=domain["valid_rules"],
+            invalid_rules=domain["invalid_rules"],
+        ),
+        oracle_id=definition["oracle_id"],
+        resource_limits=ResourceLimits(
+            **{name: limits[name] for name in limits}
+        ),
+    )
+    validated = validate_adapter_definition(candidate)
+    if canonical_json_bytes(adapter_definition_to_frozen_json(validated)) != (
+        canonical_json_bytes(definition)
+    ):
+        raise AdapterContractError(
+            "adapter definition does not round-trip canonically"
+        )
+    return validated
+
+
+def adapter_eligibility_row_to_frozen_json(
+    benchmark_id: str,
+) -> FrozenJsonObject:
+    """Serialize one row from the closed production eligibility catalog."""
+
+    require_identifier(benchmark_id, "benchmark_id")
+    try:
+        decision = ADAPTER_ELIGIBILITY[benchmark_id]
+    except KeyError as error:
+        raise AdapterContractError(
+            f"unknown eligibility benchmark_id {benchmark_id}"
+        ) from error
+    return _snapshot_json_mapping(
+        {
+            "benchmark_id": benchmark_id,
+            "selector_fields": decision.selector_fields,
+            "disposition": decision.disposition,
+            "adapter_id": decision.adapter_id,
+            "oracle_id": decision.oracle_id,
+            "reason": decision.reason,
+        },
+        "eligibility_row",
+    )
+
+
+def adapter_eligibility_catalog_to_frozen_json() -> FrozenJsonObject:
+    """Serialize the complete closed production eligibility catalog."""
+
+    return _snapshot_json_mapping(
+        {
+            benchmark_id: adapter_eligibility_row_to_frozen_json(
+                benchmark_id
+            )
+            for benchmark_id in ADAPTER_ELIGIBILITY
+        },
+        "eligibility_catalog",
+    )
+
+
 def _validate_value_against_schema(
     schema: ValueSchema,
     value: object,
@@ -4570,6 +4961,263 @@ def _validate_nonnegative_counts(value: object, field_name: str) -> None:
     _require_json_integer_magnitude(value, field_name)
 
 
+def _validate_convergence_certificate(
+    value: object,
+    field_name: str,
+) -> FrozenJsonObject:
+    certificate = require_exact_keys(
+        value, ("kind", "certificate_sha256"), field_name
+    )
+    require_identifier(certificate["kind"], f"{field_name}.kind")
+    _require_sha256(
+        certificate["certificate_sha256"],
+        f"{field_name}.certificate_sha256",
+    )
+    return certificate
+
+
+def _validate_equal_numeric_sequences(
+    left: object,
+    left_name: str,
+    right: object,
+    right_name: str,
+    *,
+    minimum_length: int = 2,
+) -> None:
+    _require_numeric_sequence(left, left_name)
+    _require_numeric_sequence(right, right_name)
+    if len(left) < minimum_length or len(right) < minimum_length:
+        raise AdapterContractError(
+            f"{left_name} and {right_name} require at least "
+            f"{minimum_length} refinements"
+        )
+    if len(left) != len(right):
+        raise AdapterContractError(
+            f"{left_name} and {right_name} must have equal length"
+        )
+
+
+def _validate_raw_convergence_evidence(
+    definition: AdapterDefinition,
+    value: FrozenJsonObject,
+) -> None:
+    kind = definition.convergence_contract.kind
+    common = ("kind", "controls", "certificate")
+    kind_fields = {
+        "exact": common,
+        "residual_bound": common
+        + ("samples", "residuals", "error_bound"),
+        "quadrature": common
+        + ("estimates", "error_bounds", "error_bound"),
+        "finite_size": common
+        + ("sizes", "estimates", "error_bound"),
+        "iterative": common
+        + (
+            "estimates",
+            "residuals",
+            "refinement_iterations",
+            "error_bound",
+        ),
+    }
+    convergence = require_exact_keys(
+        value, kind_fields[kind], "raw_convergence_evidence"
+    )
+    if convergence["kind"] != kind:
+        raise AdapterContractError(
+            "raw convergence kind does not match definition"
+        )
+    validate_numerical_controls(definition, convergence["controls"])
+    _validate_convergence_certificate(
+        convergence["certificate"], "convergence.certificate"
+    )
+    if kind == "exact":
+        return
+    error_bound = _require_finite_number(
+        convergence["error_bound"],
+        "convergence.error_bound",
+        nonnegative=True,
+    )
+    if kind in {"residual_bound", "quadrature", "iterative"} and (
+        error_bound <= 0
+    ):
+        raise AdapterContractError(
+            "convergence.error_bound must be positive for approximate work"
+        )
+    if kind == "residual_bound":
+        _validate_equal_numeric_sequences(
+            convergence["samples"],
+            "convergence.samples",
+            convergence["residuals"],
+            "convergence.residuals",
+        )
+        for index, residual in enumerate(convergence["residuals"]):
+            if residual < 0:
+                raise AdapterContractError(
+                    f"convergence.residuals[{index}] must be nonnegative"
+                )
+        return
+    if kind == "quadrature":
+        _validate_equal_numeric_sequences(
+            convergence["estimates"],
+            "convergence.estimates",
+            convergence["error_bounds"],
+            "convergence.error_bounds",
+        )
+        for index, bound in enumerate(convergence["error_bounds"]):
+            if bound <= 0:
+                raise AdapterContractError(
+                    f"convergence.error_bounds[{index}] must be positive"
+                )
+        if convergence["error_bounds"][-1] >= convergence["error_bounds"][0]:
+            raise AdapterContractError(
+                "quadrature error bounds must contract under refinement"
+            )
+        return
+    if kind == "finite_size":
+        sizes = _require_tuple(convergence["sizes"], "convergence.sizes")
+        if len(sizes) < 2:
+            raise AdapterContractError(
+                "finite-size evidence requires at least two sizes"
+            )
+        for index, size in enumerate(sizes):
+            _require_positive_integer(size, f"convergence.sizes[{index}]")
+        if tuple(sorted(set(sizes))) != sizes:
+            raise AdapterContractError(
+                "finite-size evidence sizes must be unique and increasing"
+            )
+        _require_numeric_sequence(
+            convergence["estimates"], "convergence.estimates"
+        )
+        if len(convergence["estimates"]) != len(sizes):
+            raise AdapterContractError(
+                "finite-size estimates must bind every declared size"
+            )
+        return
+    _validate_equal_numeric_sequences(
+        convergence["estimates"],
+        "convergence.estimates",
+        convergence["residuals"],
+        "convergence.residuals",
+    )
+    _require_positive_integer(
+        convergence["refinement_iterations"],
+        "convergence.refinement_iterations",
+    )
+    if convergence["refinement_iterations"] < len(
+        convergence["estimates"]
+    ):
+        raise AdapterContractError(
+            "refinement_iterations cannot be shorter than evidence sequence"
+        )
+
+
+def _validate_backend_identity_record(
+    value: object,
+    field_name: str,
+) -> None:
+    record = require_exact_keys(
+        value, ("version", "binary_sha256"), field_name
+    )
+    _require_nonempty_string(record["version"], f"{field_name}.version")
+    _require_sha256(
+        record["binary_sha256"], f"{field_name}.binary_sha256"
+    )
+
+
+def _validate_backend_diagnostics(
+    definition: AdapterDefinition,
+    value: FrozenJsonObject,
+) -> None:
+    diagnostics = require_exact_keys(
+        value,
+        (
+            "backend_kind",
+            "interpreter_implementation",
+            "interpreter_version",
+            "interpreter_binary_sha256",
+            "packages",
+            "native_libraries",
+            "numerical_backend",
+            "backend_resources",
+        ),
+        "backend_diagnostics",
+    )
+    if diagnostics["backend_kind"] != definition.backend_kind:
+        raise AdapterContractError(
+            "backend_diagnostics backend kind does not match definition"
+        )
+    _require_nonempty_string(
+        diagnostics["interpreter_implementation"],
+        "backend_diagnostics.interpreter_implementation",
+    )
+    _require_nonempty_string(
+        diagnostics["interpreter_version"],
+        "backend_diagnostics.interpreter_version",
+    )
+    _require_sha256(
+        diagnostics["interpreter_binary_sha256"],
+        "backend_diagnostics.interpreter_binary_sha256",
+    )
+    for field_name, expected_names in (
+        ("packages", definition.runtime_requirements.packages),
+        ("native_libraries", definition.runtime_requirements.native_libraries),
+    ):
+        identities = require_exact_keys(
+            diagnostics[field_name],
+            expected_names,
+            f"backend_diagnostics.{field_name}",
+        )
+        for name, identity in identities._items:
+            _validate_backend_identity_record(
+                identity, f"backend_diagnostics.{field_name}.{name}"
+            )
+    numerical_backend = require_exact_keys(
+        diagnostics["numerical_backend"],
+        ("name", "version", "binary_sha256", "applicability"),
+        "backend_diagnostics.numerical_backend",
+    )
+    if numerical_backend["applicability"] == "not_applicable":
+        if numerical_backend["name"] != "not_applicable" or any(
+            numerical_backend[field_name] is not None
+            for field_name in ("version", "binary_sha256")
+        ):
+            raise AdapterContractError(
+                "not-applicable numerical backend must use null identities"
+            )
+    elif numerical_backend["applicability"] == "used":
+        _require_nonempty_string(
+            numerical_backend["name"],
+            "backend_diagnostics.numerical_backend.name",
+        )
+        _require_nonempty_string(
+            numerical_backend["version"],
+            "backend_diagnostics.numerical_backend.version",
+        )
+        _require_sha256(
+            numerical_backend["binary_sha256"],
+            "backend_diagnostics.numerical_backend.binary_sha256",
+        )
+    else:
+        raise AdapterContractError(
+            "numerical backend applicability must be used or not_applicable"
+        )
+    resources = require_exact_keys(
+        diagnostics["backend_resources"],
+        definition.runtime_requirements.backend_resources,
+        "backend_diagnostics.backend_resources",
+    )
+    for name, resource in resources._items:
+        record = require_exact_keys(
+            resource,
+            ("applicability",),
+            f"backend_diagnostics.backend_resources.{name}",
+        )
+        if record["applicability"] != "used":
+            raise AdapterContractError(
+                "declared backend resource applicability must be used"
+            )
+
+
 def validate_local_observable_result(
     definition: AdapterDefinition, value: object
 ) -> FrozenJsonObject:
@@ -4618,24 +5266,19 @@ def validate_local_observable_result(
             raise AdapterContractError(
                 f"uncertainty.{selector_field} must be zero for exact output"
             )
-    convergence = result.raw_convergence_evidence
-    required_convergence = {"kind", "samples", "residuals"}
-    missing_convergence = sorted(required_convergence - set(convergence))
-    if missing_convergence:
-        raise AdapterContractError(
-            "raw_convergence_evidence missing required field "
-            + missing_convergence[0]
-        )
-    if convergence["kind"] != validated_definition.convergence_contract.kind:
-        raise AdapterContractError(
-            "raw convergence kind does not match definition"
-        )
-    _require_numeric_sequence(convergence["samples"], "convergence.samples")
-    _require_numeric_sequence(
-        convergence["residuals"], "convergence.residuals"
+        if (
+            binding.proof_kind == "bounded_numeric_value"
+            and uncertainty <= 0
+        ):
+            raise AdapterContractError(
+                f"uncertainty.{selector_field} must be positive for bounded output"
+            )
+    _validate_raw_convergence_evidence(
+        validated_definition, result.raw_convergence_evidence
     )
-    if not result.backend_diagnostics:
-        raise AdapterContractError("backend_diagnostics must be nonempty")
+    _validate_backend_diagnostics(
+        validated_definition, result.backend_diagnostics
+    )
     _validate_nonnegative_counts(
         result.operation_counts_or_sizes,
         "operation_counts_or_sizes",

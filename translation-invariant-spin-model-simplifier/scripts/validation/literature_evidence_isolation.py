@@ -12,27 +12,57 @@ from dataclasses import dataclass, fields
 import hashlib
 import json
 from pathlib import PurePosixPath
+from validation import literature_evidence_adapters as _adapters
+from validation import literature_evidence_adapter_oracles as _oracles
 from validation.literature_evidence_adapters import (
-    AdapterContractError,
-    AdapterDefinition,
-    FrozenJsonObject,
-    _CONVERGENCE_KINDS,
-    _OBSERVABLE_IDENTITY_KEYS,
-    _initialize_closed,
-    _metadata_tokens,
-    _require_json_integer_magnitude,
-    _require_nonempty_string,
-    _require_string_tuple,
-    _require_tuple,
-    _seal_contract,
-    _snapshot_json_mapping,
-    canonical_json_bytes,
-    canonical_sha256,
-    require_exact_keys,
-    require_identifier,
-    validate_adapter_definition,
-    validate_numerical_controls,
-    validate_scientific_inputs,
+    AdapterContractError as _ContractError,
+    AdapterDefinition as _AdapterDefinition,
+    FrozenJsonObject as _FrozenJsonObject,
+    _CONVERGENCE_KINDS as _ADAPTER_CONVERGENCE_KINDS,
+    _OBSERVABLE_IDENTITY_KEYS as _ADAPTER_OBSERVABLE_IDENTITY_KEYS,
+    _initialize_closed as _initialize_contract,
+    _require_json_integer_magnitude as _require_json_integer,
+    _require_nonempty_string as _require_text,
+    _require_string_tuple as _require_text_tuple,
+    _require_tuple as _require_exact_tuple,
+    _seal_contract as _seal_contract,
+    _snapshot_json_mapping as _snapshot_json,
+    canonical_json_bytes as _canonical_bytes,
+    canonical_sha256 as _canonical_sha256,
+    require_exact_keys as _exact_keys,
+    require_identifier as _identifier,
+    validate_adapter_definition as _validate_adapter_definition,
+    validate_numerical_controls as _validate_controls,
+    validate_scientific_inputs as _validate_inputs,
+)
+
+
+__all__ = (
+    "AdapterAuthorityContext",
+    "WorkerRequest",
+    "ScientificClosure",
+    "ScientificPolicyCommitment",
+    "InfrastructureClosure",
+    "StaticScanReport",
+    "RuntimeResourceManifest",
+    "RuntimeSnapshot",
+    "CapabilityPreflightReport",
+    "ProcessAttestation",
+    "TracePolicyReport",
+    "PointExecutionEvidence",
+    "ConvergenceDecision",
+    "OracleDecision",
+    "AdapterExecutionEvidence",
+    "AdapterRunFailure",
+    "AdapterRunOutcome",
+    "EventRecord",
+    "FAILURE_STATUSES",
+    "FAILURE_STAGES",
+    "FAILURE_REASON_CODES",
+    "validate_authority_context",
+    "make_worker_request",
+    "scientific_policy_combined_sha256",
+    "validate_failure",
 )
 
 
@@ -54,7 +84,7 @@ def _require_sha256(value: object, field_name: str) -> str:
         or len(value) != _SHA256_HEX_LENGTH
         or any(character not in "0123456789abcdef" for character in value)
     ):
-        raise AdapterContractError(
+        raise _ContractError(
             f"{field_name} must be a lowercase SHA-256 hex digest"
         )
     return value
@@ -68,18 +98,18 @@ def _require_optional_sha256(value: object, field_name: str) -> str | None:
 
 def _require_bool(value: object, field_name: str) -> bool:
     if type(value) is not bool:
-        raise AdapterContractError(f"{field_name} must be a boolean")
+        raise _ContractError(f"{field_name} must be a boolean")
     return value
 
 
 def _require_nonnegative_integer(value: object, field_name: str) -> int:
     if type(value) is not int:
-        raise AdapterContractError(
+        raise _ContractError(
             f"{field_name} must be a nonnegative integer"
         )
-    _require_json_integer_magnitude(value, field_name)
+    _require_json_integer(value, field_name)
     if value < 0:
-        raise AdapterContractError(
+        raise _ContractError(
             f"{field_name} must be a nonnegative integer"
         )
     return value
@@ -87,20 +117,20 @@ def _require_nonnegative_integer(value: object, field_name: str) -> int:
 
 def _require_role(value: object, field_name: str = "role") -> str:
     if type(value) is not str or value not in _ROLES:
-        raise AdapterContractError(f"{field_name} must be adapter or oracle")
+        raise _ContractError(f"{field_name} must be adapter or oracle")
     return value
 
 
 def _snapshot_mapping_tuple(value: object, field_name: str) -> tuple:
-    items = _require_tuple(value, field_name)
+    items = _require_exact_tuple(value, field_name)
     return tuple(
-        _snapshot_json_mapping(item, f"{field_name}[{index}]")
+        _snapshot_json(item, f"{field_name}[{index}]")
         for index, item in enumerate(items)
     )
 
 
 def _snapshot_sha256_tuple(value: object, field_name: str) -> tuple[str, ...]:
-    items = _require_tuple(value, field_name)
+    items = _require_exact_tuple(value, field_name)
     return tuple(
         _require_sha256(item, f"{field_name}[{index}]")
         for index, item in enumerate(items)
@@ -120,9 +150,9 @@ def _mapping_or_exact_record_values(
     if type(value) is record_type:
         return {name: getattr(value, name) for name in names}
     if isinstance(value, Mapping):
-        snapshot = require_exact_keys(value, names, field_name)
+        snapshot = _exact_keys(value, names, field_name)
         return {name: snapshot[name] for name in names}
-    raise AdapterContractError(
+    raise _ContractError(
         f"{field_name} must be a mapping or exact {record_type.__name__}"
     )
 
@@ -130,22 +160,22 @@ def _mapping_or_exact_record_values(
 def _normalize_record_error(field_name: str, constructor):
     try:
         return constructor()
-    except AdapterContractError:
+    except _ContractError:
         raise
     except Exception as error:
-        raise AdapterContractError(
+        raise _ContractError(
             f"{field_name} validation failed"
         ) from error
 
 
 def _record_to_frozen_json(
     value: object, record_type: type
-) -> FrozenJsonObject:
+) -> _FrozenJsonObject:
     if type(value) is not record_type:
-        raise AdapterContractError(
+        raise _ContractError(
             f"value must be an exact {record_type.__name__}"
         )
-    return _snapshot_json_mapping(
+    return _snapshot_json(
         {
             field.name: getattr(value, field.name)
             for field in fields(record_type)
@@ -155,11 +185,11 @@ def _record_to_frozen_json(
 
 
 def _validate_parameter_provenance(
-    scientific_inputs: FrozenJsonObject,
-    provenance: FrozenJsonObject,
+    scientific_inputs: _FrozenJsonObject,
+    provenance: _FrozenJsonObject,
 ) -> None:
     if set(scientific_inputs) != set(provenance):
-        raise AdapterContractError(
+        raise _ContractError(
             "parameter_provenance must bind every scientific input "
             "exactly once"
         )
@@ -170,21 +200,30 @@ def _validate_parameter_provenance(
     }
     expected = (
         "kind",
+        "requirement",
         "locator",
         "commitment_sha256",
         "target_equivalent",
     )
     for parameter_name in provenance:
-        record = require_exact_keys(
+        record = _exact_keys(
             provenance[parameter_name],
             expected,
             f"parameter_provenance.{parameter_name}",
         )
         if record["kind"] not in allowed_kinds:
-            raise AdapterContractError(
+            raise _ContractError(
                 "parameter provenance has an unknown kind"
             )
-        _require_nonempty_string(
+        kind = record["kind"]
+        requirement = _validate_parameter_requirement(
+            kind,
+            record["requirement"],
+            f"parameter_provenance.{parameter_name}.requirement",
+        )
+        _validate_parameter_locator(
+            kind,
+            requirement,
             record["locator"],
             f"parameter_provenance.{parameter_name}.locator",
         )
@@ -193,17 +232,107 @@ def _validate_parameter_provenance(
             f"parameter_provenance.{parameter_name}.commitment_sha256",
         )
         if record["target_equivalent"] is not False:
-            raise AdapterContractError(
+            raise _ContractError(
                 "target-equivalent parameter provenance is forbidden"
             )
 
 
+def _require_nonempty_path(value: object, field_name: str) -> tuple[str, ...]:
+    path = _require_exact_tuple(value, field_name)
+    if not path:
+        raise _ContractError(f"{field_name} must be nonempty")
+    for index, component in enumerate(path):
+        _require_text(component, f"{field_name}[{index}]")
+    return path
+
+
+def _validate_parameter_requirement(
+    kind: str,
+    value: object,
+    field_name: str,
+) -> _FrozenJsonObject:
+    if kind == "canonical_model_parameter":
+        requirement = _exact_keys(
+            value, ("canonical_path", "physical_role"), field_name
+        )
+        _require_nonempty_path(
+            requirement["canonical_path"], f"{field_name}.canonical_path"
+        )
+        _require_text(
+            requirement["physical_role"], f"{field_name}.physical_role"
+        )
+        return requirement
+    if kind == "source_model_parameter":
+        requirement = _exact_keys(
+            value, ("source_path", "physical_role"), field_name
+        )
+        _require_nonempty_path(
+            requirement["source_path"], f"{field_name}.source_path"
+        )
+        _require_text(
+            requirement["physical_role"], f"{field_name}.physical_role"
+        )
+        return requirement
+    if kind == "universal_probe":
+        requirement = _exact_keys(
+            value, ("probe_role",), field_name
+        )
+        _require_text(
+            requirement["probe_role"], f"{field_name}.probe_role"
+        )
+        return requirement
+    raise _ContractError("parameter provenance has an unknown kind")
+
+
+def _validate_parameter_locator(
+    kind: str,
+    requirement: _FrozenJsonObject,
+    value: object,
+    field_name: str,
+) -> None:
+    if kind == "canonical_model_parameter":
+        locator = _exact_keys(value, ("kind", "path"), field_name)
+        if locator["kind"] != "canonical_spec_path":
+            raise _ContractError(
+                f"{field_name}.kind must be canonical_spec_path"
+            )
+        path = _require_nonempty_path(locator["path"], f"{field_name}.path")
+        if path != requirement["canonical_path"]:
+            raise _ContractError(
+                f"{field_name}.path must match canonical requirement"
+            )
+        return
+    if kind == "source_model_parameter":
+        locator = _exact_keys(
+            value, ("kind", "source_id", "path"), field_name
+        )
+        if locator["kind"] != "source_model_path":
+            raise _ContractError(
+                f"{field_name}.kind must be source_model_path"
+            )
+        _require_text(
+            locator["source_id"], f"{field_name}.source_id"
+        )
+        path = _require_nonempty_path(locator["path"], f"{field_name}.path")
+        if path != requirement["source_path"]:
+            raise _ContractError(
+                f"{field_name}.path must match source requirement"
+            )
+        return
+    locator = _exact_keys(value, ("kind", "probe_id"), field_name)
+    if locator["kind"] != "universal_probe":
+        raise _ContractError(
+            f"{field_name}.kind must be universal_probe"
+        )
+    _require_text(locator["probe_id"], f"{field_name}.probe_id")
+
+
 def _validate_numerical_control_provenance(
-    numerical_controls: FrozenJsonObject,
-    provenance: FrozenJsonObject,
+    numerical_controls: _FrozenJsonObject,
+    provenance: _FrozenJsonObject,
 ) -> None:
     if set(numerical_controls) != set(provenance):
-        raise AdapterContractError(
+        raise _ContractError(
             "numerical_control_provenance must bind every control exactly once"
         )
     expected = (
@@ -213,16 +342,16 @@ def _validate_numerical_control_provenance(
         "registry_independent",
     )
     for control_name in provenance:
-        record = require_exact_keys(
+        record = _exact_keys(
             provenance[control_name],
             expected,
             f"numerical_control_provenance.{control_name}",
         )
         if record["kind"] != "numerical_control":
-            raise AdapterContractError(
+            raise _ContractError(
                 "numerical control provenance has an unknown kind"
             )
-        _require_nonempty_string(
+        _require_text(
             record["locator"],
             f"numerical_control_provenance.{control_name}.locator",
         )
@@ -231,7 +360,7 @@ def _validate_numerical_control_provenance(
             f"numerical_control_provenance.{control_name}.commitment_sha256",
         )
         if record["registry_independent"] is not True:
-            raise AdapterContractError(
+            raise _ContractError(
                 "numerical control provenance must be registry independent"
             )
 
@@ -245,13 +374,13 @@ class AdapterAuthorityContext:
     producer_id: str
     producer_code_sha256: str
     canonical_observable_id: str
-    observable_identity: FrozenJsonObject
+    observable_identity: _FrozenJsonObject
     canonical_spec_path: str
     canonical_spec_sha256: str
-    scientific_inputs: FrozenJsonObject
-    parameter_provenance: FrozenJsonObject
-    numerical_controls: FrozenJsonObject
-    numerical_control_provenance: FrozenJsonObject
+    scientific_inputs: _FrozenJsonObject
+    parameter_provenance: _FrozenJsonObject
+    numerical_controls: _FrozenJsonObject
+    numerical_control_provenance: _FrozenJsonObject
     registry_snapshot_sha256: str
     selector_sha256: str
     forbidden_output_fingerprints: tuple[str, ...]
@@ -259,31 +388,31 @@ class AdapterAuthorityContext:
     context_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, AdapterAuthorityContext)
+        _initialize_contract(self, args, kwargs, AdapterAuthorityContext)
 
     def __post_init__(self) -> None:
         if self.schema_version != _AUTHORITY_SCHEMA_VERSION:
-            raise AdapterContractError(
+            raise _ContractError(
                 "AdapterAuthorityContext has an unknown schema_version"
             )
-        _require_nonempty_string(self.audit_run_id, "audit_run_id")
-        _require_nonempty_string(self.benchmark_name, "benchmark_name")
+        _require_text(self.audit_run_id, "audit_run_id")
+        _require_text(self.benchmark_name, "benchmark_name")
         if self.producer_id not in _AUTHORITY_PRODUCERS:
-            raise AdapterContractError(
+            raise _ContractError(
                 "authority context has an unknown producer"
             )
         _require_sha256(self.producer_code_sha256, "producer_code_sha256")
-        _require_nonempty_string(
+        _require_text(
             self.canonical_observable_id, "canonical_observable_id"
         )
-        observable_identity = require_exact_keys(
-            _snapshot_json_mapping(
+        observable_identity = _exact_keys(
+            _snapshot_json(
                 self.observable_identity, "observable_identity"
             ),
-            _OBSERVABLE_IDENTITY_KEYS,
+            _ADAPTER_OBSERVABLE_IDENTITY_KEYS,
             "observable_identity",
         )
-        canonical_spec_path = _require_nonempty_string(
+        canonical_spec_path = _require_text(
             self.canonical_spec_path, "canonical_spec_path"
         )
         parsed_path = PurePosixPath(canonical_spec_path)
@@ -293,20 +422,20 @@ class AdapterAuthorityContext:
             or canonical_spec_path == "."
             or str(parsed_path) != canonical_spec_path
         ):
-            raise AdapterContractError(
+            raise _ContractError(
                 "canonical_spec_path must be a relative normalized path"
             )
         _require_sha256(self.canonical_spec_sha256, "canonical_spec_sha256")
-        scientific_inputs = _snapshot_json_mapping(
+        scientific_inputs = _snapshot_json(
             self.scientific_inputs, "scientific_inputs"
         )
-        parameter_provenance = _snapshot_json_mapping(
+        parameter_provenance = _snapshot_json(
             self.parameter_provenance, "parameter_provenance"
         )
-        numerical_controls = _snapshot_json_mapping(
+        numerical_controls = _snapshot_json(
             self.numerical_controls, "numerical_controls"
         )
-        numerical_control_provenance = _snapshot_json_mapping(
+        numerical_control_provenance = _snapshot_json(
             self.numerical_control_provenance,
             "numerical_control_provenance",
         )
@@ -325,22 +454,22 @@ class AdapterAuthorityContext:
             "forbidden_output_fingerprints",
         )
         if not fingerprints:
-            raise AdapterContractError(
+            raise _ContractError(
                 "forbidden_output_fingerprints must be nonempty"
             )
         if len(set(fingerprints)) != len(fingerprints):
-            raise AdapterContractError(
+            raise _ContractError(
                 "forbidden_output_fingerprints contains a duplicate"
             )
         if fingerprints != tuple(sorted(fingerprints)):
-            raise AdapterContractError(
+            raise _ContractError(
                 "forbidden_output_fingerprints must use canonical ordering"
             )
         if (
             self.fingerprint_algorithm_version
             != _FINGERPRINT_ALGORITHM_VERSION
         ):
-            raise AdapterContractError("unknown fingerprint algorithm version")
+            raise _ContractError("unknown fingerprint algorithm version")
         _require_sha256(self.context_sha256, "context_sha256")
         object.__setattr__(self, "observable_identity", observable_identity)
         object.__setattr__(self, "scientific_inputs", scientific_inputs)
@@ -357,7 +486,7 @@ class AdapterAuthorityContext:
             self, "forbidden_output_fingerprints", fingerprints
         )
         if self.context_sha256 != self.calculated_context_sha256():
-            raise AdapterContractError("authority context hash mismatch")
+            raise _ContractError("authority context hash mismatch")
 
     def calculated_context_sha256(self) -> str:
         payload = {
@@ -365,9 +494,9 @@ class AdapterAuthorityContext:
             for field in fields(AdapterAuthorityContext)
             if field.name != "context_sha256"
         }
-        return canonical_sha256(payload)
+        return _canonical_sha256(payload)
 
-    def to_frozen_json(self) -> FrozenJsonObject:
+    def to_frozen_json(self) -> _FrozenJsonObject:
         return _record_to_frozen_json(self, AdapterAuthorityContext)
 
 
@@ -388,13 +517,13 @@ def validate_authority_context(
     """Validate authority structure without authenticating upstream I/O."""
 
     if type(allow_test_producer) is not bool:
-        raise AdapterContractError("allow_test_producer must be a boolean")
+        raise _ContractError("allow_test_producer must be a boolean")
     context = _snapshot_authority_context(value)
     if (
         context.producer_id == _TEST_AUTHORITY_PRODUCER
         and not allow_test_producer
     ):
-        raise AdapterContractError(
+        raise _ContractError(
             "test authority producer requires explicit test-only opt-in"
         )
     return context
@@ -406,40 +535,81 @@ class WorkerRequest:
     schema_version: str
     opaque_run_nonce: str
     adapter_id: str
-    scientific_inputs: FrozenJsonObject
-    numerical_controls: FrozenJsonObject
+    scientific_inputs: _FrozenJsonObject
+    numerical_controls: _FrozenJsonObject
     capsule_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, WorkerRequest)
+        _initialize_contract(self, args, kwargs, WorkerRequest)
 
     def __post_init__(self) -> None:
         if self.schema_version != _WORKER_REQUEST_SCHEMA_VERSION:
-            raise AdapterContractError(
+            raise _ContractError(
                 "WorkerRequest has an unknown schema_version"
             )
-        nonce = _require_nonempty_string(
+        nonce = _require_text(
             self.opaque_run_nonce, "opaque_run_nonce"
         )
         if len(nonce.encode("utf-8")) > 256:
-            raise AdapterContractError("opaque_run_nonce is too long")
-        require_identifier(self.adapter_id, "adapter_id")
-        scientific_inputs = _snapshot_json_mapping(
-            self.scientific_inputs, "scientific_inputs"
+            raise _ContractError("opaque_run_nonce is too long")
+        _identifier(self.adapter_id, "adapter_id")
+        try:
+            canonical_definition = _adapters.get_adapter_definition(
+                self.adapter_id
+            )
+        except _ContractError as error:
+            raise _ContractError(
+                "WorkerRequest adapter_id is not in the canonical catalog"
+            ) from error
+        scientific_inputs = _validate_inputs(
+            canonical_definition, self.scientific_inputs
         )
-        numerical_controls = _snapshot_json_mapping(
-            self.numerical_controls, "numerical_controls"
+        numerical_controls = _validate_controls(
+            canonical_definition, self.numerical_controls
         )
         _require_sha256(self.capsule_sha256, "capsule_sha256")
         object.__setattr__(self, "scientific_inputs", scientific_inputs)
         object.__setattr__(self, "numerical_controls", numerical_controls)
 
-    def to_frozen_json(self) -> FrozenJsonObject:
-        return _record_to_frozen_json(self, WorkerRequest)
+    def to_frozen_json(self) -> _FrozenJsonObject:
+        revalidated = WorkerRequest(
+            **{
+                field.name: getattr(self, field.name)
+                for field in fields(WorkerRequest)
+            }
+        )
+        return _record_to_frozen_json(revalidated, WorkerRequest)
+
+
+def _validate_definition_parameter_provenance(
+    definition: _AdapterDefinition,
+    context: AdapterAuthorityContext,
+) -> None:
+    expected_sources = {
+        source.parameter_name: source
+        for source in definition.parameter_sources
+    }
+    if set(expected_sources) != set(context.parameter_provenance):
+        raise _ContractError(
+            "parameter provenance does not bind canonical definition inputs"
+        )
+    for parameter_name, source in expected_sources.items():
+        provenance = context.parameter_provenance[parameter_name]
+        if provenance["kind"] != source.kind:
+            raise _ContractError(
+                f"parameter provenance kind mismatch for {parameter_name}"
+            )
+        if _canonical_bytes(
+            provenance["requirement"]
+        ) != _canonical_bytes(source.details):
+            raise _ContractError(
+                "parameter provenance requirement mismatch for "
+                f"{parameter_name}"
+            )
 
 
 def make_worker_request(
-    definition: AdapterDefinition,
+    definition: _AdapterDefinition,
     authority_context: AdapterAuthorityContext,
     *,
     opaque_run_nonce: str,
@@ -450,22 +620,41 @@ def make_worker_request(
     """Project only answer-free model inputs and controls into a request."""
 
     if extra_metadata:
-        raise AdapterContractError("worker request contains extra metadata")
+        raise _ContractError("worker request contains extra metadata")
     if type(allow_test_producer) is not bool:
-        raise AdapterContractError("allow_test_producer must be a boolean")
-    validated_definition = validate_adapter_definition(definition)
+        raise _ContractError("allow_test_producer must be a boolean")
+    supplied_definition = _validate_adapter_definition(definition)
+    try:
+        validated_definition = _adapters.get_adapter_definition(
+            supplied_definition.adapter_id
+        )
+    except _ContractError as error:
+        raise _ContractError(
+            "worker request requires a canonical adapter definition"
+        ) from error
+    if _canonical_bytes(
+        _adapters.adapter_definition_to_frozen_json(supplied_definition)
+    ) != _canonical_bytes(
+        _adapters.adapter_definition_to_frozen_json(validated_definition)
+    ):
+        raise _ContractError(
+            "detached adapter definition does not match canonical catalog"
+        )
     if type(authority_context) is not AdapterAuthorityContext:
-        raise AdapterContractError(
+        raise _ContractError(
             "authority_context must be a validated exact record"
         )
     context = validate_authority_context(
         authority_context,
         allow_test_producer=allow_test_producer,
     )
-    scientific_inputs = validate_scientific_inputs(
+    _validate_definition_parameter_provenance(
+        validated_definition, context
+    )
+    scientific_inputs = _validate_inputs(
         validated_definition, context.scientific_inputs
     )
-    numerical_controls = validate_numerical_controls(
+    numerical_controls = _validate_controls(
         validated_definition, context.numerical_controls
     )
     return WorkerRequest(
@@ -479,33 +668,33 @@ def make_worker_request(
 
 
 def _require_entry_symbol(value: object, field_name: str) -> str:
-    text = _require_nonempty_string(value, field_name)
+    text = _require_text(value, field_name)
     if ":" not in text:
-        raise AdapterContractError(
+        raise _ContractError(
             f"{field_name} must contain module:function"
         )
     return text
 
 
 def _require_edge_tuple(value: object, field_name: str) -> tuple:
-    items = _require_tuple(value, field_name)
+    items = _require_exact_tuple(value, field_name)
     normalized = []
     for index, item in enumerate(items):
         if type(item) is not tuple or len(item) != 2:
-            raise AdapterContractError(
+            raise _ContractError(
                 f"{field_name}[{index}] must be an exact edge pair"
             )
         source, destination = item
         normalized.append(
             (
-                _require_nonempty_string(source, f"{field_name}[{index}][0]"),
-                _require_nonempty_string(
+                _require_text(source, f"{field_name}[{index}][0]"),
+                _require_text(
                     destination, f"{field_name}[{index}][1]"
                 ),
             )
         )
     if len(set(normalized)) != len(normalized):
-        raise AdapterContractError(f"{field_name} contains a duplicate edge")
+        raise _ContractError(f"{field_name} contains a duplicate edge")
     return tuple(normalized)
 
 
@@ -515,17 +704,17 @@ class ScientificClosure:
     schema_version: str
     role: str
     entry_symbol: str
-    nodes: tuple[FrozenJsonObject, ...]
+    nodes: tuple[_FrozenJsonObject, ...]
     dependency_edges: tuple[tuple[str, str], ...]
     emitted_source_sha256: str
     bundle_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, ScientificClosure)
+        _initialize_contract(self, args, kwargs, ScientificClosure)
 
     def __post_init__(self) -> None:
         if self.schema_version != "scientific_closure_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "ScientificClosure has unknown schema_version"
             )
         _require_role(self.role)
@@ -575,11 +764,11 @@ _ORACLE_DEFINITION_FIELDS = frozenset(
 
 def _parse_canonical_definition_bytes(value: object, role: str) -> object:
     if type(value) is not bytes:
-        raise AdapterContractError(
+        raise _ContractError(
             "canonical_definition_bytes must be exact bytes"
         )
     if len(value) > 1_048_576:
-        raise AdapterContractError("canonical_definition_bytes is oversized")
+        raise _ContractError("canonical_definition_bytes is oversized")
     try:
         decoded = value.decode("utf-8")
         parsed = json.loads(
@@ -589,24 +778,75 @@ def _parse_canonical_definition_bytes(value: object, role: str) -> object:
             ),
         )
     except (UnicodeDecodeError, ValueError, TypeError) as error:
-        raise AdapterContractError(
+        raise _ContractError(
             "canonical_definition_bytes is not canonical JSON"
         ) from error
-    if canonical_json_bytes(parsed) != value:
-        raise AdapterContractError(
+    if _canonical_bytes(parsed) != value:
+        raise _ContractError(
             "canonical_definition_bytes is noncanonical"
         )
-    frozen = _snapshot_json_mapping(parsed, "canonical_definition")
-    expected = (
-        _ADAPTER_DEFINITION_FIELDS
-        if role == "adapter"
-        else _ORACLE_DEFINITION_FIELDS
-    )
-    if set(frozen) != expected:
-        raise AdapterContractError(
-            "canonical definition fields contain an unknown or missing field"
+    frozen = _snapshot_json(parsed, "canonical_definition")
+    if role == "adapter":
+        definition = _adapters.adapter_definition_from_frozen_json(frozen)
+        rebuilt = _adapters.adapter_definition_to_frozen_json(definition)
+    else:
+        definition = _oracles.oracle_definition_from_frozen_json(frozen)
+        rebuilt = _oracles.oracle_definition_to_frozen_json(definition)
+    if _canonical_bytes(rebuilt) != value:
+        raise _ContractError(
+            "canonical definition bytes do not round-trip exactly"
         )
-    return frozen
+    return definition
+
+
+_POLICY_NOT_APPLICABLE = _FrozenJsonObject({"kind": "not_applicable"})
+
+
+def _adapter_policy_derivations(
+    definition: _AdapterDefinition,
+) -> tuple[object, str, str, str, str, str]:
+    payload = _adapters.adapter_definition_to_frozen_json(definition)
+    matching_rows = tuple(
+        benchmark_id
+        for benchmark_id, decision in _adapters.ADAPTER_ELIGIBILITY.items()
+        if decision.adapter_id == definition.adapter_id
+    )
+    if len(matching_rows) != 1:
+        raise _ContractError(
+            "adapter definition must resolve exactly one eligibility row"
+        )
+    benchmark_id = matching_rows[0]
+    return (
+        payload["output_schema"],
+        _canonical_sha256(payload["counterfactual_domain"]),
+        _canonical_sha256(payload["problem_size_policy"]),
+        _canonical_sha256(payload["convergence_contract"]),
+        _canonical_sha256(
+            _adapters.adapter_eligibility_row_to_frozen_json(benchmark_id)
+        ),
+        _canonical_sha256(
+            _adapters.adapter_eligibility_catalog_to_frozen_json()
+        ),
+    )
+
+
+def _oracle_policy_derivations(
+    definition: _oracles.OracleDefinition,
+) -> tuple[object, str, str, str]:
+    payload = _oracles.oracle_definition_to_frozen_json(definition)
+    bindings = {
+        "result_schema": payload["result_schema"],
+        "convergence_invariant_contract": (
+            payload["convergence_invariant_contract"]
+        ),
+    }
+    not_applicable_sha256 = _canonical_sha256(_POLICY_NOT_APPLICABLE)
+    return (
+        bindings,
+        not_applicable_sha256,
+        not_applicable_sha256,
+        _canonical_sha256(payload["convergence_invariant_contract"]),
+    )
 
 
 _SCIENTIFIC_POLICY_FIELDS = (
@@ -631,13 +871,13 @@ def scientific_policy_combined_sha256(value: Mapping[str, object]) -> str:
     """Hash a canonical policy payload, excluding its stored combined hash."""
 
     if not isinstance(value, Mapping):
-        raise AdapterContractError(
+        raise _ContractError(
             "scientific policy commitment must be a mapping"
         )
     allowed = set(_SCIENTIFIC_POLICY_FIELDS)
     actual = set(value)
     if not actual <= allowed or not (allowed - {"combined_sha256"}) <= actual:
-        raise AdapterContractError(
+        raise _ContractError(
             "scientific policy commitment has unknown or missing fields"
         )
     payload = {}
@@ -647,17 +887,17 @@ def scientific_policy_combined_sha256(value: Mapping[str, object]) -> str:
         item = value[key]
         if key == "canonical_definition_bytes":
             if type(item) is not bytes:
-                raise AdapterContractError(
+                raise _ContractError(
                     "canonical_definition_bytes must be exact bytes"
                 )
             try:
                 item = item.decode("utf-8")
             except UnicodeDecodeError as error:
-                raise AdapterContractError(
+                raise _ContractError(
                     "canonical_definition_bytes must be UTF-8"
                 ) from error
         payload[key] = item
-    return canonical_sha256(payload)
+    return _canonical_sha256(payload)
 
 
 @_seal_contract
@@ -671,7 +911,7 @@ class ScientificPolicyCommitment:
     eligibility_row_sha256: str | None
     eligibility_catalog_sha256: str | None
     entry_closure_sha256: str
-    output_or_invariant_proof_bindings: FrozenJsonObject
+    output_or_invariant_proof_bindings: _FrozenJsonObject
     domain_sha256: str
     size_policy_sha256: str
     convergence_sha256: str
@@ -679,28 +919,31 @@ class ScientificPolicyCommitment:
     combined_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, ScientificPolicyCommitment)
+        _initialize_contract(self, args, kwargs, ScientificPolicyCommitment)
 
     def __post_init__(self) -> None:
         if self.schema_version != "scientific_policy_commitment_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "ScientificPolicyCommitment has unknown schema_version"
             )
         role = _require_role(self.role)
-        require_identifier(self.definition_id, "definition_id")
+        _identifier(self.definition_id, "definition_id")
         canonical_definition = _parse_canonical_definition_bytes(
             self.canonical_definition_bytes, role
         )
         identifier_field = "adapter_id" if role == "adapter" else "oracle_id"
-        if canonical_definition[identifier_field] != self.definition_id:
-            raise AdapterContractError(
+        if (
+            getattr(canonical_definition, identifier_field)
+            != self.definition_id
+        ):
+            raise _ContractError(
                 "definition_id does not match canonical definition bytes"
             )
         expected_definition_hash = hashlib.sha256(
             self.canonical_definition_bytes
         ).hexdigest()
         if self.canonical_definition_sha256 != expected_definition_hash:
-            raise AdapterContractError("canonical definition hash mismatch")
+            raise _ContractError("canonical definition hash mismatch")
         if role == "adapter":
             _require_sha256(
                 self.eligibility_row_sha256, "eligibility_row_sha256"
@@ -713,7 +956,7 @@ class ScientificPolicyCommitment:
             self.eligibility_row_sha256 is not None
             or self.eligibility_catalog_sha256 is not None
         ):
-            raise AdapterContractError(
+            raise _ContractError(
                 "oracle policy cannot contain adapter eligibility hashes"
             )
         for field_name in (
@@ -725,17 +968,66 @@ class ScientificPolicyCommitment:
             "combined_sha256",
         ):
             _require_sha256(getattr(self, field_name), field_name)
-        bindings = _snapshot_json_mapping(
+        bindings = _snapshot_json(
             self.output_or_invariant_proof_bindings,
             "output_or_invariant_proof_bindings",
         )
         if not bindings:
-            raise AdapterContractError(
+            raise _ContractError(
                 "output_or_invariant_proof_bindings must be nonempty"
             )
         object.__setattr__(
             self, "output_or_invariant_proof_bindings", bindings
         )
+        if role == "adapter":
+            (
+                expected_bindings,
+                expected_domain,
+                expected_size_policy,
+                expected_convergence,
+                expected_eligibility_row,
+                expected_eligibility_catalog,
+            ) = _adapter_policy_derivations(canonical_definition)
+            if _canonical_bytes(bindings) != _canonical_bytes(
+                expected_bindings
+            ):
+                raise _ContractError(
+                    "output proof bindings mismatch canonical definition"
+                )
+            if self.eligibility_row_sha256 != expected_eligibility_row:
+                raise _ContractError(
+                    "eligibility row hash mismatch closed catalog"
+                )
+            if (
+                self.eligibility_catalog_sha256
+                != expected_eligibility_catalog
+            ):
+                raise _ContractError(
+                    "eligibility catalog hash mismatch closed catalog"
+                )
+        else:
+            (
+                expected_bindings,
+                expected_domain,
+                expected_size_policy,
+                expected_convergence,
+            ) = _oracle_policy_derivations(canonical_definition)
+            if _canonical_bytes(bindings) != _canonical_bytes(
+                expected_bindings
+            ):
+                raise _ContractError(
+                    "oracle invariant proof bindings mismatch definition"
+                )
+        if self.domain_sha256 != expected_domain:
+            raise _ContractError("domain hash mismatch definition")
+        if self.size_policy_sha256 != expected_size_policy:
+            raise _ContractError(
+                "size policy hash mismatch definition"
+            )
+        if self.convergence_sha256 != expected_convergence:
+            raise _ContractError(
+                "convergence hash mismatch definition"
+            )
         calculated = scientific_policy_combined_sha256(
             {
                 field.name: getattr(self, field.name)
@@ -743,7 +1035,7 @@ class ScientificPolicyCommitment:
             }
         )
         if self.combined_sha256 != calculated:
-            raise AdapterContractError(
+            raise _ContractError(
                 "scientific policy combined hash mismatch"
             )
 
@@ -753,20 +1045,20 @@ class ScientificPolicyCommitment:
 class InfrastructureClosure:
     schema_version: str
     roots: tuple[str, ...]
-    nodes: tuple[FrozenJsonObject, ...]
+    nodes: tuple[_FrozenJsonObject, ...]
     dependency_edges: tuple[tuple[str, str], ...]
-    purpose_bindings: FrozenJsonObject
+    purpose_bindings: _FrozenJsonObject
     bundle_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, InfrastructureClosure)
+        _initialize_contract(self, args, kwargs, InfrastructureClosure)
 
     def __post_init__(self) -> None:
         if self.schema_version != "infrastructure_closure_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "InfrastructureClosure has unknown schema_version"
             )
-        roots = _require_string_tuple(self.roots, "roots")
+        roots = _require_text_tuple(self.roots, "roots")
         object.__setattr__(self, "roots", tuple(roots))
         object.__setattr__(
             self, "nodes", _snapshot_mapping_tuple(self.nodes, "nodes")
@@ -779,7 +1071,7 @@ class InfrastructureClosure:
         object.__setattr__(
             self,
             "purpose_bindings",
-            _snapshot_json_mapping(self.purpose_bindings, "purpose_bindings"),
+            _snapshot_json(self.purpose_bindings, "purpose_bindings"),
         )
         _require_sha256(self.bundle_sha256, "bundle_sha256")
 
@@ -793,21 +1085,21 @@ class StaticScanReport:
     scanner_sha256: str
     scanned_closure_sha256: str
     fingerprint_commitment_sha256: str
-    checks: FrozenJsonObject
+    checks: _FrozenJsonObject
     passed: bool
     report_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, StaticScanReport)
+        _initialize_contract(self, args, kwargs, StaticScanReport)
 
     def __post_init__(self) -> None:
         if self.schema_version != "static_scan_report_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "StaticScanReport has unknown schema_version"
             )
         if self.role not in {"adapter", "oracle", "infrastructure"}:
-            raise AdapterContractError("StaticScanReport has unknown role")
-        _require_nonempty_string(self.scanner_version, "scanner_version")
+            raise _ContractError("StaticScanReport has unknown role")
+        _require_text(self.scanner_version, "scanner_version")
         for field_name in (
             "scanner_sha256",
             "scanned_closure_sha256",
@@ -816,7 +1108,7 @@ class StaticScanReport:
         ):
             _require_sha256(getattr(self, field_name), field_name)
         object.__setattr__(
-            self, "checks", _snapshot_json_mapping(self.checks, "checks")
+            self, "checks", _snapshot_json(self.checks, "checks")
         )
         _require_bool(self.passed, "passed")
 
@@ -825,15 +1117,15 @@ class StaticScanReport:
 @dataclass(frozen=True, init=False)
 class RuntimeResourceManifest:
     schema_version: str
-    resources: tuple[FrozenJsonObject, ...]
+    resources: tuple[_FrozenJsonObject, ...]
     manifest_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, RuntimeResourceManifest)
+        _initialize_contract(self, args, kwargs, RuntimeResourceManifest)
 
     def __post_init__(self) -> None:
         if self.schema_version != "runtime_resource_manifest_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "RuntimeResourceManifest has unknown schema_version"
             )
         object.__setattr__(
@@ -846,7 +1138,7 @@ class RuntimeResourceManifest:
 
 def _snapshot_runtime_manifest(value: object) -> RuntimeResourceManifest:
     if type(value) is not RuntimeResourceManifest:
-        raise AdapterContractError(
+        raise _ContractError(
             "manifest must be an exact RuntimeResourceManifest"
         )
     return RuntimeResourceManifest(
@@ -860,21 +1152,21 @@ class RuntimeSnapshot:
     schema_version: str
     manifest: RuntimeResourceManifest
     snapshot_root: str
-    directory_identities: tuple[FrozenJsonObject, ...]
+    directory_identities: tuple[_FrozenJsonObject, ...]
     snapshot_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, RuntimeSnapshot)
+        _initialize_contract(self, args, kwargs, RuntimeSnapshot)
 
     def __post_init__(self) -> None:
         if self.schema_version != "runtime_snapshot_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "RuntimeSnapshot has unknown schema_version"
             )
         object.__setattr__(
             self, "manifest", _snapshot_runtime_manifest(self.manifest)
         )
-        _require_nonempty_string(self.snapshot_root, "snapshot_root")
+        _require_text(self.snapshot_root, "snapshot_root")
         object.__setattr__(
             self,
             "directory_identities",
@@ -891,23 +1183,23 @@ class CapabilityPreflightReport:
     schema_version: str
     audit_run_id: str
     available: bool
-    checks: FrozenJsonObject
-    command_identities: FrozenJsonObject
-    namespace_identifiers: FrozenJsonObject
-    mount_facts: FrozenJsonObject
-    probe_result_codes: FrozenJsonObject
+    checks: _FrozenJsonObject
+    command_identities: _FrozenJsonObject
+    namespace_identifiers: _FrozenJsonObject
+    mount_facts: _FrozenJsonObject
+    probe_result_codes: _FrozenJsonObject
     trace_sha256: str
     report_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, CapabilityPreflightReport)
+        _initialize_contract(self, args, kwargs, CapabilityPreflightReport)
 
     def __post_init__(self) -> None:
         if self.schema_version != "capability_preflight_report_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "CapabilityPreflightReport has unknown schema_version"
             )
-        _require_nonempty_string(self.audit_run_id, "audit_run_id")
+        _require_text(self.audit_run_id, "audit_run_id")
         _require_bool(self.available, "available")
         for field_name in (
             "checks",
@@ -919,7 +1211,7 @@ class CapabilityPreflightReport:
             object.__setattr__(
                 self,
                 field_name,
-                _snapshot_json_mapping(getattr(self, field_name), field_name),
+                _snapshot_json(getattr(self, field_name), field_name),
             )
         _require_sha256(self.trace_sha256, "trace_sha256")
         _require_sha256(self.report_sha256, "report_sha256")
@@ -931,23 +1223,23 @@ class ProcessAttestation:
     schema_version: str
     process_role: str
     point_id: str
-    namespace_identifiers: FrozenJsonObject
-    mount_facts: FrozenJsonObject
-    environment_facts: FrozenJsonObject
-    resource_limit_facts: FrozenJsonObject
-    chroot_facts: FrozenJsonObject
+    namespace_identifiers: _FrozenJsonObject
+    mount_facts: _FrozenJsonObject
+    environment_facts: _FrozenJsonObject
+    resource_limit_facts: _FrozenJsonObject
+    chroot_facts: _FrozenJsonObject
     attestation_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, ProcessAttestation)
+        _initialize_contract(self, args, kwargs, ProcessAttestation)
 
     def __post_init__(self) -> None:
         if self.schema_version != "process_attestation_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "ProcessAttestation has unknown schema_version"
             )
         _require_role(self.process_role, "process_role")
-        _require_nonempty_string(self.point_id, "point_id")
+        _require_text(self.point_id, "point_id")
         for field_name in (
             "namespace_identifiers",
             "mount_facts",
@@ -958,7 +1250,7 @@ class ProcessAttestation:
             object.__setattr__(
                 self,
                 field_name,
-                _snapshot_json_mapping(getattr(self, field_name), field_name),
+                _snapshot_json(getattr(self, field_name), field_name),
             )
         _require_sha256(self.attestation_sha256, "attestation_sha256")
 
@@ -968,17 +1260,17 @@ class ProcessAttestation:
 class TracePolicyReport:
     schema_version: str
     trace_sha256: str
-    attempted_accesses: tuple[FrozenJsonObject, ...]
-    violations: tuple[FrozenJsonObject, ...]
+    attempted_accesses: tuple[_FrozenJsonObject, ...]
+    violations: tuple[_FrozenJsonObject, ...]
     passed: bool
     report_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, TracePolicyReport)
+        _initialize_contract(self, args, kwargs, TracePolicyReport)
 
     def __post_init__(self) -> None:
         if self.schema_version != "trace_policy_report_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "TracePolicyReport has unknown schema_version"
             )
         _require_sha256(self.trace_sha256, "trace_sha256")
@@ -1000,7 +1292,7 @@ class TracePolicyReport:
 
 def _snapshot_process_attestation(value: object) -> ProcessAttestation:
     if type(value) is not ProcessAttestation:
-        raise AdapterContractError(
+        raise _ContractError(
             "process_attestation must be an exact ProcessAttestation"
         )
     return ProcessAttestation(
@@ -1013,7 +1305,7 @@ def _snapshot_process_attestation(value: object) -> ProcessAttestation:
 
 def _snapshot_trace_policy_report(value: object) -> TracePolicyReport:
     if type(value) is not TracePolicyReport:
-        raise AdapterContractError(
+        raise _ContractError(
             "trace_policy_report must be an exact TracePolicyReport"
         )
     return TracePolicyReport(
@@ -1033,19 +1325,19 @@ class PointExecutionEvidence:
     result_sha256: str
     trace_policy_report: TracePolicyReport
     process_attestation: ProcessAttestation
-    backend_diagnostics: FrozenJsonObject
+    backend_diagnostics: _FrozenJsonObject
     exit_status: int
     execution_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, PointExecutionEvidence)
+        _initialize_contract(self, args, kwargs, PointExecutionEvidence)
 
     def __post_init__(self) -> None:
         if self.schema_version != "point_execution_evidence_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "PointExecutionEvidence has unknown schema_version"
             )
-        _require_nonempty_string(self.point_id, "point_id")
+        _require_text(self.point_id, "point_id")
         _require_sha256(self.request_sha256, "request_sha256")
         _require_sha256(self.result_sha256, "result_sha256")
         object.__setattr__(
@@ -1061,7 +1353,7 @@ class PointExecutionEvidence:
         object.__setattr__(
             self,
             "backend_diagnostics",
-            _snapshot_json_mapping(
+            _snapshot_json(
                 self.backend_diagnostics, "backend_diagnostics"
             ),
         )
@@ -1080,18 +1372,18 @@ class ConvergenceDecision:
     decision_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, ConvergenceDecision)
+        _initialize_contract(self, args, kwargs, ConvergenceDecision)
 
     def __post_init__(self) -> None:
         if self.schema_version != "convergence_decision_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "ConvergenceDecision has unknown schema_version"
             )
-        if self.kind not in _CONVERGENCE_KINDS:
-            raise AdapterContractError("ConvergenceDecision has unknown kind")
+        if self.kind not in _ADAPTER_CONVERGENCE_KINDS:
+            raise _ContractError("ConvergenceDecision has unknown kind")
         _require_bool(self.accepted, "accepted")
         _require_sha256(self.raw_evidence_sha256, "raw_evidence_sha256")
-        require_identifier(self.reason_code, "reason_code")
+        _identifier(self.reason_code, "reason_code")
         _require_sha256(self.decision_sha256, "decision_sha256")
 
 
@@ -1102,20 +1394,20 @@ class OracleDecision:
     oracle_id: str
     accepted: bool
     oracle_execution_evidence_hashes: tuple[str, ...]
-    residuals: FrozenJsonObject
-    invariants: FrozenJsonObject
+    residuals: _FrozenJsonObject
+    invariants: _FrozenJsonObject
     reason_code: str
     decision_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, OracleDecision)
+        _initialize_contract(self, args, kwargs, OracleDecision)
 
     def __post_init__(self) -> None:
         if self.schema_version != "oracle_decision_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "OracleDecision has unknown schema_version"
             )
-        require_identifier(self.oracle_id, "oracle_id")
+        _identifier(self.oracle_id, "oracle_id")
         _require_bool(self.accepted, "accepted")
         object.__setattr__(
             self,
@@ -1128,20 +1420,20 @@ class OracleDecision:
         object.__setattr__(
             self,
             "residuals",
-            _snapshot_json_mapping(self.residuals, "residuals"),
+            _snapshot_json(self.residuals, "residuals"),
         )
         object.__setattr__(
             self,
             "invariants",
-            _snapshot_json_mapping(self.invariants, "invariants"),
+            _snapshot_json(self.invariants, "invariants"),
         )
-        require_identifier(self.reason_code, "reason_code")
+        _identifier(self.reason_code, "reason_code")
         _require_sha256(self.decision_sha256, "decision_sha256")
 
 
 def _snapshot_exact_record(value: object, record_type: type, field_name: str):
     if type(value) is not record_type:
-        raise AdapterContractError(
+        raise _ContractError(
             f"{field_name} must be an exact {record_type.__name__}"
         )
     return record_type(
@@ -1157,16 +1449,16 @@ def _snapshot_exact_record(value: object, record_type: type, field_name: str):
 class EventRecord:
     sequence_number: int
     event_name: str
-    details: FrozenJsonObject
+    details: _FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, EventRecord)
+        _initialize_contract(self, args, kwargs, EventRecord)
 
     def __post_init__(self) -> None:
         _require_nonnegative_integer(self.sequence_number, "sequence_number")
-        require_identifier(self.event_name, "event_name")
+        _identifier(self.event_name, "event_name")
         object.__setattr__(
-            self, "details", _snapshot_json_mapping(self.details, "details")
+            self, "details", _snapshot_json(self.details, "details")
         )
 
 
@@ -1176,8 +1468,8 @@ class AdapterExecutionEvidence:
     schema_version: str
     status: str
     authority_context_sha256: str
-    validated_inputs_and_provenance: FrozenJsonObject
-    eligibility_commitments: FrozenJsonObject
+    validated_inputs_and_provenance: _FrozenJsonObject
+    eligibility_commitments: _FrozenJsonObject
     adapter_policy_commitment: ScientificPolicyCommitment
     oracle_policy_commitment: ScientificPolicyCommitment
     adapter_scientific_closure: ScientificClosure
@@ -1194,15 +1486,15 @@ class AdapterExecutionEvidence:
     bundle_sha256: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, AdapterExecutionEvidence)
+        _initialize_contract(self, args, kwargs, AdapterExecutionEvidence)
 
     def __post_init__(self) -> None:
         if self.schema_version != "adapter_execution_evidence_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "AdapterExecutionEvidence has unknown schema_version"
             )
         if self.status != "isolated_recomputation_succeeded":
-            raise AdapterContractError(
+            raise _ContractError(
                 "AdapterExecutionEvidence carries only isolated success"
             )
         _require_sha256(
@@ -1215,7 +1507,7 @@ class AdapterExecutionEvidence:
             object.__setattr__(
                 self,
                 field_name,
-                _snapshot_json_mapping(getattr(self, field_name), field_name),
+                _snapshot_json(getattr(self, field_name), field_name),
             )
         for field_name, record_type in (
             ("adapter_policy_commitment", ScientificPolicyCommitment),
@@ -1234,7 +1526,9 @@ class AdapterExecutionEvidence:
                     getattr(self, field_name), record_type, field_name
                 ),
             )
-        scans = _require_tuple(self.static_scan_reports, "static_scan_reports")
+        scans = _require_exact_tuple(
+            self.static_scan_reports, "static_scan_reports"
+        )
         object.__setattr__(
             self,
             "static_scan_reports",
@@ -1243,7 +1537,7 @@ class AdapterExecutionEvidence:
                 for item in scans
             ),
         )
-        events = _require_tuple(self.ordering_events, "ordering_events")
+        events = _require_exact_tuple(self.ordering_events, "ordering_events")
         object.__setattr__(
             self,
             "ordering_events",
@@ -1252,7 +1546,9 @@ class AdapterExecutionEvidence:
                 for item in events
             ),
         )
-        points = _require_tuple(self.point_executions, "point_executions")
+        points = _require_exact_tuple(
+            self.point_executions, "point_executions"
+        )
         object.__setattr__(
             self,
             "point_executions",
@@ -1275,7 +1571,7 @@ class AdapterExecutionEvidence:
                 for character in self.disclosed_seed_hex
             )
         ):
-            raise AdapterContractError(
+            raise _ContractError(
                 "disclosed_seed_hex must encode exactly 32 bytes"
             )
         _require_sha256(self.bundle_sha256, "bundle_sha256")
@@ -1355,33 +1651,74 @@ FAILURE_REASON_CODES = frozenset(
     }
 )
 _FAILURE_DIAGNOSTIC_MAX_BYTES = 1024
-_FAILURE_SUCCESS_TOKENS = frozenset(
-    {"success", "strictmatch", "verdict", "literaturematch", "successbundle"}
+_FAILURE_DIAGNOSTICS = {
+    "unknown_adapter": "adapter identifier is not declared",
+    "authority_context_rejected": "authority context validation failed",
+    "adapter_source_parse_only": "adapter is not eligible for recalculation",
+    "scientific_input_rejected": "scientific input validation failed",
+    "numerical_control_rejected": "numerical control validation failed",
+    "dependency_policy_rejected": "dependency policy validation failed",
+    "scientific_policy_rejected": "scientific policy validation failed",
+    "infrastructure_dependency_rejected": (
+        "infrastructure dependency validation failed"
+    ),
+    "runtime_resource_unavailable": "required runtime resource is unavailable",
+    "capability_preflight_failed": "capability preflight failed",
+    "seed_generation_failed": "seed generation failed",
+    "request_write_failed": "worker request write failed",
+    "namespace_setup_failed": "isolation namespace setup failed",
+    "worker_timeout": "worker exceeded the declared wall-time limit",
+    "worker_signaled": "worker terminated by signal",
+    "worker_nonzero_exit": "worker returned a nonzero exit status",
+    "trace_missing": "required execution trace is unavailable",
+    "trace_policy_violation": "execution trace violated isolation policy",
+    "worker_output_rejected": "worker output validation failed",
+    "local_result_rejected": "local result validation failed",
+    "convergence_contract_failed": "convergence contract validation failed",
+    "oracle_dependency_rejected": "oracle dependency validation failed",
+    "oracle_isolation_failed": "oracle isolation failed",
+    "oracle_output_rejected": "oracle output validation failed",
+    "oracle_invariant_failed": "oracle invariant validation failed",
+    "runtime_snapshot_changed": "runtime snapshot changed during execution",
+    "evidence_hash_failed": "evidence hash validation failed",
+}
+_FAILURE_HASH_FIELDS = frozenset(
+    {
+        "authority_context_sha256",
+        "capsule_sha256",
+        "request_sha256",
+        "scientific_closure_sha256",
+        "scientific_policy_sha256",
+        "infrastructure_closure_sha256",
+        "runtime_snapshot_sha256",
+        "capability_preflight_sha256",
+        "trace_sha256",
+        "worker_output_sha256",
+        "local_result_sha256",
+        "oracle_output_sha256",
+    }
 )
-
-
-def _reject_failure_success_material(value: object, field_name: str) -> None:
-    if type(value) is FrozenJsonObject:
-        for key, item in value._items:
-            tokens = _metadata_tokens(key, f"{field_name} mapping key")
-            joined = "".join(tokens)
-            if joined in _FAILURE_SUCCESS_TOKENS or any(
-                token in _FAILURE_SUCCESS_TOKENS for token in tokens
-            ):
-                raise AdapterContractError(
-                    f"{field_name} cannot contain a success bundle"
-                )
-            _reject_failure_success_material(item, f"{field_name}.{key}")
-    elif type(value) is tuple:
-        for index, item in enumerate(value):
-            _reject_failure_success_material(item, f"{field_name}[{index}]")
-    elif type(value) is str:
-        tokens = _metadata_tokens(value, field_name)
-        joined = "".join(tokens)
-        if joined in _FAILURE_SUCCESS_TOKENS:
-            raise AdapterContractError(
-                f"{field_name} cannot contain a success bundle"
-            )
+_FAILURE_ATTESTATION_FIELDS = frozenset(
+    {
+        "authority_validated",
+        "eligibility_validated",
+        "scientific_closure_created",
+        "scientific_policy_committed",
+        "infrastructure_closure_created",
+        "runtime_snapshot_created",
+        "capability_preflight_completed",
+        "request_written",
+        "namespace_created",
+        "resource_limits_applied",
+        "worker_started",
+        "trace_collected",
+        "worker_output_captured",
+        "local_result_validated",
+        "oracle_started",
+        "oracle_output_captured",
+        "runtime_snapshot_revalidated",
+    }
+)
 
 
 @_seal_contract
@@ -1392,37 +1729,50 @@ class AdapterRunFailure:
     stage: str
     reason_code: str
     diagnostic: str
-    available_hashes: FrozenJsonObject
-    available_attestations: FrozenJsonObject
+    available_hashes: _FrozenJsonObject
+    available_attestations: _FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, AdapterRunFailure)
+        _initialize_contract(self, args, kwargs, AdapterRunFailure)
 
     def __post_init__(self) -> None:
         if self.schema_version != "adapter_run_failure_v1":
-            raise AdapterContractError(
+            raise _ContractError(
                 "AdapterRunFailure has unknown schema_version"
             )
         if self.status not in FAILURE_STATUSES:
-            raise AdapterContractError("failure status is not closed")
+            raise _ContractError("failure status is not closed")
         if self.stage not in FAILURE_STAGES:
-            raise AdapterContractError("failure stage is not closed")
+            raise _ContractError("failure stage is not closed")
         if self.reason_code not in FAILURE_REASON_CODES:
-            raise AdapterContractError("failure reason_code is not closed")
-        diagnostic = _require_nonempty_string(self.diagnostic, "diagnostic")
+            raise _ContractError("failure reason_code is not closed")
+        diagnostic = _require_text(self.diagnostic, "diagnostic")
         if len(diagnostic.encode("utf-8")) > _FAILURE_DIAGNOSTIC_MAX_BYTES:
-            raise AdapterContractError("failure diagnostic is oversized")
-        available_hashes = _snapshot_json_mapping(
+            raise _ContractError("failure diagnostic is oversized")
+        if diagnostic != _FAILURE_DIAGNOSTICS[self.reason_code]:
+            raise _ContractError(
+                "failure diagnostic does not match the closed reason template"
+            )
+        available_hashes = _snapshot_json(
             self.available_hashes, "available_hashes"
         )
         for name, digest in available_hashes._items:
+            if name not in _FAILURE_HASH_FIELDS:
+                raise _ContractError(
+                    f"available_hashes contains unknown field {name}"
+                )
             _require_sha256(digest, f"available_hashes.{name}")
-        available_attestations = _snapshot_json_mapping(
+        available_attestations = _snapshot_json(
             self.available_attestations, "available_attestations"
         )
-        _reject_failure_success_material(
-            available_attestations, "available_attestations"
-        )
+        for name, attestation in available_attestations._items:
+            if name not in _FAILURE_ATTESTATION_FIELDS:
+                raise _ContractError(
+                    f"available_attestations contains unknown field {name}"
+                )
+            _require_bool(
+                attestation, f"available_attestations.{name}"
+            )
         object.__setattr__(self, "available_hashes", available_hashes)
         object.__setattr__(
             self, "available_attestations", available_attestations
@@ -1448,16 +1798,16 @@ class AdapterRunOutcome:
     failure: AdapterRunFailure | None
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs, AdapterRunOutcome)
+        _initialize_contract(self, args, kwargs, AdapterRunOutcome)
 
     def __post_init__(self) -> None:
         if self.status == "isolated_recomputation_succeeded":
             if type(self.evidence) is not AdapterExecutionEvidence:
-                raise AdapterContractError(
+                raise _ContractError(
                     "successful outcome requires evidence"
                 )
             if self.failure is not None:
-                raise AdapterContractError(
+                raise _ContractError(
                     "successful outcome cannot carry failure"
                 )
             object.__setattr__(
@@ -1469,16 +1819,16 @@ class AdapterRunOutcome:
             )
         elif self.status in FAILURE_STATUSES:
             if self.evidence is not None:
-                raise AdapterContractError(
+                raise _ContractError(
                     "failed outcome cannot carry evidence"
                 )
             if type(self.failure) is not AdapterRunFailure:
-                raise AdapterContractError("failed outcome requires failure")
+                raise _ContractError("failed outcome requires failure")
             failure = validate_failure(self.failure)
             if failure.status != self.status:
-                raise AdapterContractError(
+                raise _ContractError(
                     "outcome status does not match failure status"
                 )
             object.__setattr__(self, "failure", failure)
         else:
-            raise AdapterContractError("AdapterRunOutcome has unknown status")
+            raise _ContractError("AdapterRunOutcome has unknown status")

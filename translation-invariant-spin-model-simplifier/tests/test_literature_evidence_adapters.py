@@ -3801,7 +3801,14 @@ def _authority_context_payload(*, producer_id="task7_test_authority_v1"):
         "parameter_provenance": {
             "exchange": {
                 "kind": "canonical_model_parameter",
-                "locator": AUTHORITY_ONLY_CANARIES[3],
+                "requirement": {
+                    "canonical_path": ["hamiltonian", "exchange"],
+                    "physical_role": "isotropic ferromagnetic exchange",
+                },
+                "locator": {
+                    "kind": "canonical_spec_path",
+                    "path": ["hamiltonian", "exchange"],
+                },
                 "commitment_sha256": _sha256_text(
                     "parameter-provenance-canary"
                 ),
@@ -3891,7 +3898,10 @@ AUTHORITY_MUTATIONS = (
     "canonical_spec_sha256",
     "registry_snapshot_sha256",
     "selector_sha256",
-    "fingerprint_set",
+    "fingerprint_empty",
+    "fingerprint_duplicate",
+    "fingerprint_unsorted",
+    "fingerprint_algorithm",
     "parameter_provenance",
     "context_sha256",
 )
@@ -3903,25 +3913,71 @@ def test_authority_context_rejects_stale_or_incomplete_commitments(mutation):
 
     payload = _authority_context_payload()
     if mutation == "producer_id":
-        payload["producer_id"] = "task8_canonical_authority_v1"
-    elif mutation == "fingerprint_set":
-        payload["forbidden_output_fingerprints"] = (
-            payload["forbidden_output_fingerprints"][0],
+        payload["producer_id"] = "unknown_authority_producer_v1"
+    elif mutation == "fingerprint_empty":
+        payload["forbidden_output_fingerprints"] = ()
+    elif mutation == "fingerprint_duplicate":
+        digest = payload["forbidden_output_fingerprints"][0]
+        payload["forbidden_output_fingerprints"] = (digest, digest)
+    elif mutation == "fingerprint_unsorted":
+        payload["forbidden_output_fingerprints"] = tuple(
+            reversed(payload["forbidden_output_fingerprints"])
         )
+    elif mutation == "fingerprint_algorithm":
+        payload["fingerprint_algorithm_version"] = "unknown_algorithm_v2"
     elif mutation == "parameter_provenance":
         payload["parameter_provenance"] = {
             "exchange": {
                 **payload["parameter_provenance"]["exchange"],
-                "locator": "mutated-provenance-locator",
+                "locator": {
+                    "kind": "canonical_spec_path",
+                    "path": ["hamiltonian", "mutated_exchange"],
+                },
             }
         }
     elif mutation == "context_sha256":
         payload["context_sha256"] = "0" * 64
     else:
-        payload[mutation] = "1" * 64
+        payload[mutation] = "1" * 63
 
-    with pytest.raises(AdapterContractError):
+    if mutation != "context_sha256":
+        payload = _rehash_authority_payload(payload)
+
+    expected_guard = {
+        "producer_id": "producer",
+        "producer_code_sha256": "producer_code_sha256|SHA-256",
+        "canonical_spec_sha256": "canonical_spec_sha256|SHA-256",
+        "registry_snapshot_sha256": "registry_snapshot_sha256|SHA-256",
+        "selector_sha256": "selector_sha256|SHA-256",
+        "fingerprint_empty": "nonempty",
+        "fingerprint_duplicate": "duplicate",
+        "fingerprint_unsorted": "ordering",
+        "fingerprint_algorithm": "algorithm",
+        "parameter_provenance": "locator|path|requirement",
+        "context_sha256": "context hash",
+    }[mutation]
+    with pytest.raises(AdapterContractError, match=expected_guard):
         isolation.validate_authority_context(payload, allow_test_producer=True)
+
+
+def test_authority_accepts_structurally_valid_unknown_authenticity_hashes():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    for field_name in (
+        "producer_code_sha256",
+        "canonical_spec_sha256",
+        "registry_snapshot_sha256",
+        "selector_sha256",
+    ):
+        payload[field_name] = _sha256_text(
+            f"structurally-valid-unknown-{field_name}"
+        )
+    payload = _rehash_authority_payload(payload)
+    accepted = isolation.validate_authority_context(
+        payload, allow_test_producer=True
+    )
+    assert accepted.context_sha256 == payload["context_sha256"]
 
 
 def test_production_validation_rejects_test_authority_producer():
@@ -4052,13 +4108,45 @@ def _local_observable_payload():
         "uncertainty": {"tc_over_j": 2e-13},
         "raw_convergence_evidence": {
             "kind": "residual_bound",
+            "controls": {
+                "maximum_refinement_iterations": 64,
+                "root_residual_threshold": 1e-12,
+            },
             "samples": [2.26918531420, 2.269185314213022],
             "residuals": [2e-11, 2e-14],
+            "error_bound": 2e-13,
+            "certificate": {
+                "kind": "residual_envelope",
+                "certificate_sha256": _sha256_text(
+                    "residual-envelope-canary"
+                ),
+            },
         },
         "backend_diagnostics": {
             "backend_kind": "analytic",
             "interpreter_implementation": "cpython",
             "interpreter_version": "canary-version",
+            "interpreter_binary_sha256": _sha256_text(
+                "python-binary-canary"
+            ),
+            "packages": {
+                "scipy": {
+                    "version": "canary-version",
+                    "binary_sha256": _sha256_text(
+                        "scipy-binary-canary"
+                    ),
+                }
+            },
+            "native_libraries": {},
+            "numerical_backend": {
+                "name": "not_applicable",
+                "version": None,
+                "binary_sha256": None,
+                "applicability": "not_applicable",
+            },
+            "backend_resources": {
+                "single_cpu_core": {"applicability": "used"}
+            },
         },
         "operation_counts_or_sizes": {"root_iterations": 12},
         "worker_started_monotonic_ns": 10_000,
@@ -4345,47 +4433,10 @@ def test_oracle_contract_is_closed_and_catalog_starts_exactly_empty():
 def test_scientific_policy_rejects_noncanonical_or_unknown_definition():
     from validation import literature_evidence_isolation as isolation
 
-    canonical_payload = {
-        "adapter_id": "canary_adapter",
-        "entry_symbol": (
-            "validation.literature_evidence_adapters:adapter_canary_adapter"
-        ),
-        "observable_identity": {},
-        "scientific_input_schema": {},
-        "numerical_control_schema": {},
-        "parameter_sources": [],
-        "output_schema": {},
-        "backend_kind": "analytic",
-        "problem_size_policy": {},
-        "runtime_requirements": {},
-        "convergence_contract": {},
-        "counterfactual_domain": {},
-        "oracle_id": "canary_oracle",
-        "resource_limits": {},
-    }
-    canonical_bytes = canonical_json_bytes(canonical_payload)
-    values = {
-        "schema_version": "scientific_policy_commitment_v1",
-        "role": "adapter",
-        "definition_id": "canary_adapter",
-        "canonical_definition_bytes": canonical_bytes,
-        "canonical_definition_sha256": hashlib.sha256(
-            canonical_bytes
-        ).hexdigest(),
-        "eligibility_row_sha256": _sha256_text("eligibility-row-canary"),
-        "eligibility_catalog_sha256": _sha256_text("catalog-canary"),
-        "entry_closure_sha256": _sha256_text("entry-closure-canary"),
-        "output_or_invariant_proof_bindings": {
-            "energy_per_site": "direct_exact_value"
-        },
-        "domain_sha256": _sha256_text("domain-canary"),
-        "size_policy_sha256": _sha256_text("size-canary"),
-        "convergence_sha256": _sha256_text("convergence-canary"),
-        "static_scan_sha256": _sha256_text("static-scan-canary"),
-    }
-    values["combined_sha256"] = isolation.scientific_policy_combined_sha256(
-        values
-    )
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = _adapter_policy_values(definition)
+    canonical_bytes = values["canonical_definition_bytes"]
+    canonical_payload = json.loads(canonical_bytes)
     accepted = isolation.ScientificPolicyCommitment(**values)
     assert accepted.canonical_definition_bytes == canonical_bytes
 
@@ -4658,45 +4709,9 @@ def test_worker_request_requires_separate_explicit_test_producer_opt_in():
 def test_scientific_policy_binds_definition_id_to_canonical_bytes():
     from validation import literature_evidence_isolation as isolation
 
-    canonical_payload = {
-        "adapter_id": "canonical_adapter_id",
-        "entry_symbol": (
-            "validation.literature_evidence_adapters:"
-            "adapter_canonical_adapter_id"
-        ),
-        "observable_identity": {},
-        "scientific_input_schema": {},
-        "numerical_control_schema": {},
-        "parameter_sources": [],
-        "output_schema": {},
-        "backend_kind": "analytic",
-        "problem_size_policy": {},
-        "runtime_requirements": {},
-        "convergence_contract": {},
-        "counterfactual_domain": {},
-        "oracle_id": "canonical_oracle_id",
-        "resource_limits": {},
-    }
-    canonical_bytes = canonical_json_bytes(canonical_payload)
-    values = {
-        "schema_version": "scientific_policy_commitment_v1",
-        "role": "adapter",
-        "definition_id": "different_adapter_id",
-        "canonical_definition_bytes": canonical_bytes,
-        "canonical_definition_sha256": hashlib.sha256(
-            canonical_bytes
-        ).hexdigest(),
-        "eligibility_row_sha256": _sha256_text("eligibility-row-canary"),
-        "eligibility_catalog_sha256": _sha256_text("catalog-canary"),
-        "entry_closure_sha256": _sha256_text("entry-closure-canary"),
-        "output_or_invariant_proof_bindings": {
-            "energy_per_site": "direct_exact_value"
-        },
-        "domain_sha256": _sha256_text("domain-canary"),
-        "size_policy_sha256": _sha256_text("size-canary"),
-        "convergence_sha256": _sha256_text("convergence-canary"),
-        "static_scan_sha256": _sha256_text("static-scan-canary"),
-    }
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = _adapter_policy_values(definition)
+    values["definition_id"] = "different_adapter_id"
     values["combined_sha256"] = (
         isolation.scientific_policy_combined_sha256(values)
     )
@@ -4744,3 +4759,1488 @@ def test_oracle_definition_recursively_rejects_expected_answer_metadata():
                 1, 2, 64_000_000, 16_000, 16, 1
             ),
         )
+
+
+def _policy_value_schema_payload(schema):
+    return {
+        "kind": schema.kind,
+        "required": schema.required,
+        "lower": schema.lower,
+        "upper": schema.upper,
+        "item_schema": (
+            None
+            if schema.item_schema is None
+            else _policy_value_schema_payload(schema.item_schema)
+        ),
+        "properties": {
+            name: _policy_value_schema_payload(child)
+            for name, child in schema.properties
+        },
+        "units": schema.units,
+    }
+
+
+def _policy_runtime_payload(runtime):
+    return {
+        "interpreter": runtime.interpreter,
+        "packages": list(runtime.packages),
+        "native_libraries": list(runtime.native_libraries),
+        "backend_resources": list(runtime.backend_resources),
+    }
+
+
+def _policy_limits_payload(limits):
+    return {
+        "cpu_seconds": limits.cpu_seconds,
+        "wall_seconds": limits.wall_seconds,
+        "address_space_bytes": limits.address_space_bytes,
+        "output_bytes": limits.output_bytes,
+        "file_descriptors": limits.file_descriptors,
+        "process_count": limits.process_count,
+    }
+
+
+def _policy_output_payload(output_schema):
+    return {
+        "fields": {
+            name: {
+                "value_schema": _policy_value_schema_payload(
+                    binding.value_schema
+                ),
+                "raw_field": binding.raw_field,
+                "proof_kind": binding.proof_kind,
+            }
+            for name, binding in output_schema
+        }
+    }
+
+
+def _canonical_adapter_definition_payload(definition):
+    return {
+        "adapter_id": definition.adapter_id,
+        "entry_symbol": definition.entry_symbol,
+        "observable_identity": thaw_json(definition.observable_identity),
+        "scientific_input_schema": _policy_value_schema_payload(
+            definition.scientific_input_schema
+        ),
+        "numerical_control_schema": _policy_value_schema_payload(
+            definition.numerical_control_schema
+        ),
+        "parameter_sources": [
+            {
+                "parameter_name": source.parameter_name,
+                "kind": source.kind,
+                "details": thaw_json(source.details),
+            }
+            for source in definition.parameter_sources
+        ],
+        "output_schema": _policy_output_payload(definition.output_schema),
+        "backend_kind": definition.backend_kind,
+        "problem_size_policy": {
+            "kind": definition.problem_size_policy.kind,
+            "fixed_sizes": thaw_json(
+                definition.problem_size_policy.fixed_sizes
+            ),
+            "allowed_sizes": thaw_json(
+                definition.problem_size_policy.allowed_sizes
+            ),
+        },
+        "runtime_requirements": _policy_runtime_payload(
+            definition.runtime_requirements
+        ),
+        "convergence_contract": {
+            "kind": definition.convergence_contract.kind,
+            "requirements": thaw_json(
+                definition.convergence_contract.requirements
+            ),
+        },
+        "counterfactual_domain": {
+            "valid_rules": thaw_json(
+                definition.counterfactual_domain.valid_rules
+            ),
+            "invalid_rules": thaw_json(
+                definition.counterfactual_domain.invalid_rules
+            ),
+        },
+        "oracle_id": definition.oracle_id,
+        "resource_limits": _policy_limits_payload(
+            definition.resource_limits
+        ),
+    }
+
+
+def _eligibility_payload(benchmark_id, decision):
+    return {
+        "benchmark_id": benchmark_id,
+        "selector_fields": list(decision.selector_fields),
+        "disposition": decision.disposition,
+        "adapter_id": decision.adapter_id,
+        "oracle_id": decision.oracle_id,
+        "reason": decision.reason,
+    }
+
+
+def _adapter_policy_values(definition):
+    from validation import literature_evidence_isolation as isolation
+
+    definition_payload = _canonical_adapter_definition_payload(definition)
+    benchmark_id, decision = next(
+        (key, item)
+        for key, item in ADAPTER_ELIGIBILITY.items()
+        if item.adapter_id == definition.adapter_id
+    )
+    proof_bindings = _policy_output_payload(definition.output_schema)
+    domain = definition_payload["counterfactual_domain"]
+    size_policy = definition_payload["problem_size_policy"]
+    convergence = definition_payload["convergence_contract"]
+    catalog = {
+        key: _eligibility_payload(key, value)
+        for key, value in ADAPTER_ELIGIBILITY.items()
+    }
+    canonical_bytes = canonical_json_bytes(definition_payload)
+    values = {
+        "schema_version": "scientific_policy_commitment_v1",
+        "role": "adapter",
+        "definition_id": definition.adapter_id,
+        "canonical_definition_bytes": canonical_bytes,
+        "canonical_definition_sha256": hashlib.sha256(
+            canonical_bytes
+        ).hexdigest(),
+        "eligibility_row_sha256": canonical_sha256(
+            _eligibility_payload(benchmark_id, decision)
+        ),
+        "eligibility_catalog_sha256": canonical_sha256(catalog),
+        "entry_closure_sha256": _sha256_text("entry-closure-canary"),
+        "output_or_invariant_proof_bindings": proof_bindings,
+        "domain_sha256": canonical_sha256(domain),
+        "size_policy_sha256": canonical_sha256(size_policy),
+        "convergence_sha256": canonical_sha256(convergence),
+        "static_scan_sha256": _sha256_text("static-scan-canary"),
+    }
+    values["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(values)
+    )
+    return values
+
+
+def test_policy_accepts_real_canonical_adapter_definition_schema():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = _adapter_policy_values(definition)
+    accepted = isolation.ScientificPolicyCommitment(**values)
+    assert accepted.definition_id == definition.adapter_id
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "nested_definition",
+        "proof_bindings",
+        "domain",
+        "size_policy",
+        "convergence",
+        "eligibility_row",
+        "eligibility_catalog",
+    ),
+)
+def test_policy_recomputes_definition_derived_commitments(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = _adapter_policy_values(definition)
+    if mutation == "nested_definition":
+        payload = json.loads(values["canonical_definition_bytes"])
+        payload["scientific_input_schema"]["unknown_nested_field"] = True
+        canonical_bytes = canonical_json_bytes(payload)
+        values["canonical_definition_bytes"] = canonical_bytes
+        values["canonical_definition_sha256"] = hashlib.sha256(
+            canonical_bytes
+        ).hexdigest()
+    elif mutation == "proof_bindings":
+        values["output_or_invariant_proof_bindings"] = {
+            "fields": {
+                "tc_over_j": {
+                    "value_schema": _policy_value_schema_payload(
+                        definition.output_schema["tc_over_j"].value_schema
+                    ),
+                    "raw_field": "mutated_raw_field",
+                    "proof_kind": "bounded_numeric_value",
+                }
+            }
+        }
+    elif mutation == "domain":
+        values["domain_sha256"] = _sha256_text("mutated-domain")
+    elif mutation == "size_policy":
+        values["size_policy_sha256"] = _sha256_text("mutated-size")
+    elif mutation == "convergence":
+        values["convergence_sha256"] = _sha256_text(
+            "mutated-convergence"
+        )
+    elif mutation == "eligibility_row":
+        values["eligibility_row_sha256"] = _sha256_text("mutated-row")
+    else:
+        values["eligibility_catalog_sha256"] = _sha256_text(
+            "mutated-catalog"
+        )
+    values["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(values)
+    )
+    with pytest.raises(AdapterContractError, match=mutation.split("_")[0]):
+        isolation.ScientificPolicyCommitment(**values)
+
+
+def test_worker_request_direct_constructor_enforces_canonical_adapter_schema():
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(AdapterContractError, match="scientific_inputs|unknown"):
+        isolation.WorkerRequest(
+            schema_version="worker_request_v1",
+            opaque_run_nonce="direct-constructor-canary",
+            adapter_id="square_ising_self_dual_tc",
+            scientific_inputs={"exchange": 1.0, "target_answer": 2.0},
+            numerical_controls={
+                "maximum_refinement_iterations": 64,
+                "root_residual_threshold": 1e-12,
+            },
+            capsule_sha256=_sha256_text("capsule-canary"),
+        )
+
+
+def test_worker_request_serializer_revalidates_pre_tampered_record():
+    request = _valid_worker_request()
+    object.__setattr__(
+        request,
+        "scientific_inputs",
+        freeze_json({"exchange": 1.0, "target_answer": 2.0}),
+    )
+    with pytest.raises(AdapterContractError):
+        request.to_frozen_json()
+
+
+def test_authority_parameter_provenance_has_closed_requirement_and_locator():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    payload["parameter_provenance"] = {
+        "exchange": {
+            "kind": "canonical_model_parameter",
+            "requirement": {
+                "canonical_path": ["hamiltonian", "exchange"],
+                "physical_role": "isotropic ferromagnetic exchange",
+            },
+            "locator": {
+                "kind": "canonical_spec_path",
+                "path": ["hamiltonian", "exchange"],
+            },
+            "commitment_sha256": _sha256_text(
+                "parameter-provenance-canary"
+            ),
+            "target_equivalent": False,
+        }
+    }
+    payload = _rehash_authority_payload(payload)
+
+    accepted = isolation.validate_authority_context(
+        payload, allow_test_producer=True
+    )
+    assert accepted.parameter_provenance["exchange"]["requirement"] == {
+        "canonical_path": ("hamiltonian", "exchange"),
+        "physical_role": "isotropic ferromagnetic exchange",
+    }
+
+
+def test_worker_projection_binds_provenance_kind_to_canonical_definition():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _authority_context_payload()
+    payload["parameter_provenance"] = {
+        "exchange": {
+            "kind": "universal_probe",
+            "requirement": {"probe_role": "alternate probe canary"},
+            "locator": {
+                "kind": "universal_probe",
+                "probe_id": "alternate-probe-canary",
+            },
+            "commitment_sha256": _sha256_text(
+                "alternate-probe-commitment-canary"
+            ),
+            "target_equivalent": False,
+        }
+    }
+    authority = isolation.validate_authority_context(
+        _rehash_authority_payload(payload), allow_test_producer=True
+    )
+    with pytest.raises(AdapterContractError, match="provenance|kind"):
+        isolation.make_worker_request(
+            definition,
+            authority,
+            opaque_run_nonce="opaque-worker-run-nonce-provenance-canary",
+            capsule_sha256=_sha256_text("provenance-capsule-canary"),
+            allow_test_producer=True,
+        )
+
+
+def _strict_residual_local_payload():
+    payload = _local_observable_payload()
+    payload["raw_convergence_evidence"] = {
+        "kind": "residual_bound",
+        "samples": [2.26918531420, 2.269185314213022],
+        "residuals": [2e-11, 2e-14],
+        "controls": {
+            "maximum_refinement_iterations": 64,
+            "root_residual_threshold": 1e-12,
+        },
+        "error_bound": 2e-13,
+        "certificate": {
+            "kind": "residual_envelope",
+            "certificate_sha256": _sha256_text(
+                "residual-envelope-canary"
+            ),
+        },
+    }
+    payload["backend_diagnostics"] = {
+        "backend_kind": "analytic",
+        "interpreter_implementation": "cpython",
+        "interpreter_version": "canary-version",
+        "interpreter_binary_sha256": _sha256_text(
+            "python-binary-canary"
+        ),
+        "packages": {
+            "scipy": {
+                "version": "canary-version",
+                "binary_sha256": _sha256_text("scipy-binary-canary"),
+            }
+        },
+        "native_libraries": {},
+        "numerical_backend": {
+            "name": "not_applicable",
+            "version": None,
+            "binary_sha256": None,
+            "applicability": "not_applicable",
+        },
+        "backend_resources": {
+            "single_cpu_core": {"applicability": "used"}
+        },
+    }
+    return payload
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing_controls",
+        "missing_error_bound",
+        "backend_kind_mismatch",
+        "zero_approximate_uncertainty",
+    ),
+)
+def test_local_result_rejects_each_recalculation_contract_bypass(mutation):
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _strict_residual_local_payload()
+    if mutation == "missing_controls":
+        payload["raw_convergence_evidence"].pop("controls")
+    elif mutation == "missing_error_bound":
+        payload["raw_convergence_evidence"].pop("error_bound")
+    elif mutation == "backend_kind_mismatch":
+        payload["backend_diagnostics"]["backend_kind"] = "numpy_dense"
+    else:
+        payload["uncertainty"]["tc_over_j"] = 0.0
+    with pytest.raises(AdapterContractError, match="control|error|backend|uncertainty"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+FAILURE_LEAKAGE_MUTATIONS = (
+    ("diagnostic", "isolated_recomputation_succeeded"),
+    ("diagnostic", "strict_literature_match"),
+    ("attestation", "isolated_recomputation_succeeded"),
+    ("attestation", "strict_literature_match"),
+    ("attestation", "succeeded"),
+    ("attestation", "registry_operand"),
+    ("attestation", "target_value"),
+    ("attestation", "source_payload"),
+    ("attestation", "environment_secret"),
+    ("attestation", "report_content"),
+)
+
+
+@pytest.mark.parametrize(("location", "leak_key"), FAILURE_LEAKAGE_MUTATIONS)
+def test_failure_contract_rejects_each_answer_or_success_leak(
+    location,
+    leak_key,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _failure_payload()
+    if location == "diagnostic":
+        payload["diagnostic"] = leak_key
+    else:
+        payload["available_attestations"] = {leak_key: 7}
+    with pytest.raises(AdapterContractError, match="diagnostic|attestation"):
+        isolation.validate_failure(payload)
+
+
+def test_contract_modules_do_not_reverse_export_dependency_symbols():
+    with pytest.raises(ImportError):
+        exec(
+            "from validation.literature_evidence_isolation "
+            "import validate_adapter_definition",
+            {},
+        )
+    with pytest.raises(ImportError):
+        exec(
+            "from validation.literature_evidence_adapter_oracles "
+            "import ResourceLimits",
+            {},
+        )
+
+
+def test_task4_public_all_surfaces_are_exact():
+    from validation import literature_evidence_adapters as adapter_contracts
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    assert set(adapter_contracts.__all__) == {
+        "AdapterContractError",
+        "FrozenJsonObject",
+        "freeze_json",
+        "thaw_json",
+        "canonical_json_bytes",
+        "canonical_sha256",
+        "require_exact_keys",
+        "require_identifier",
+        "ValueSchema",
+        "OUTPUT_PROOF_KINDS",
+        "OutputFieldBinding",
+        "OutputSchema",
+        "ParameterSource",
+        "CounterfactualDomain",
+        "ConvergenceContract",
+        "ProblemSizePolicy",
+        "RuntimeRequirements",
+        "ResourceLimits",
+        "AdapterDefinition",
+        "SOURCE_PARSE_ONLY_REASONS",
+        "EligibilityDecision",
+        "ADAPTER_ELIGIBILITY",
+        "ADAPTER_DEFINITIONS",
+        "get_adapter_definition",
+        "validate_adapter_definition",
+        "adapter_definition_to_frozen_json",
+        "adapter_definition_from_frozen_json",
+        "adapter_eligibility_row_to_frozen_json",
+        "adapter_eligibility_catalog_to_frozen_json",
+        "validate_scientific_inputs",
+        "validate_numerical_controls",
+        "LocalObservableResult",
+        "validate_local_observable_result",
+    }
+    assert set(oracles.__all__) == {
+        "OracleDefinition",
+        "ORACLE_DEFINITIONS",
+        "get_oracle_definition",
+        "validate_oracle_definition",
+        "oracle_definition_to_frozen_json",
+        "oracle_definition_from_frozen_json",
+    }
+    assert set(isolation.__all__) == {
+        "AdapterAuthorityContext",
+        "WorkerRequest",
+        "ScientificClosure",
+        "ScientificPolicyCommitment",
+        "InfrastructureClosure",
+        "StaticScanReport",
+        "RuntimeResourceManifest",
+        "RuntimeSnapshot",
+        "CapabilityPreflightReport",
+        "ProcessAttestation",
+        "TracePolicyReport",
+        "PointExecutionEvidence",
+        "ConvergenceDecision",
+        "OracleDecision",
+        "AdapterExecutionEvidence",
+        "AdapterRunFailure",
+        "AdapterRunOutcome",
+        "EventRecord",
+        "FAILURE_STATUSES",
+        "FAILURE_STAGES",
+        "FAILURE_REASON_CODES",
+        "validate_authority_context",
+        "make_worker_request",
+        "scientific_policy_combined_sha256",
+        "validate_failure",
+    }
+
+
+def _synthetic_oracle_definition():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    return oracles.OracleDefinition(
+        oracle_id="synthetic_residual_oracle",
+        entry_symbol=(
+            "validation.literature_evidence_adapter_oracles:"
+            "oracle_synthetic_residual_oracle"
+        ),
+        input_schema=ValueSchema(
+            "object",
+            True,
+            None,
+            None,
+            None,
+            (("exchange", _number_schema(units="J")),),
+            "",
+        ),
+        result_schema=ValueSchema(
+            "object",
+            True,
+            None,
+            None,
+            None,
+            (("residual_norm", _number_schema(lower=0.0)),),
+            "",
+        ),
+        runtime_requirements=RuntimeRequirements(
+            "python3", ("numpy",), (), ("single_cpu_core",)
+        ),
+        convergence_invariant_contract={
+            "kind": "residual_bound",
+            "rule": "independent residual contracts under refinement",
+        },
+        resource_limits=ResourceLimits(
+            10, 20, 256_000_000, 100_000, 32, 1
+        ),
+    )
+
+
+def _oracle_policy_values(definition):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    payload = oracles.oracle_definition_to_frozen_json(definition)
+    canonical_bytes = canonical_json_bytes(payload)
+    not_applicable = {"kind": "not_applicable"}
+    values = {
+        "schema_version": "scientific_policy_commitment_v1",
+        "role": "oracle",
+        "definition_id": definition.oracle_id,
+        "canonical_definition_bytes": canonical_bytes,
+        "canonical_definition_sha256": hashlib.sha256(
+            canonical_bytes
+        ).hexdigest(),
+        "eligibility_row_sha256": None,
+        "eligibility_catalog_sha256": None,
+        "entry_closure_sha256": _sha256_text(
+            "oracle-entry-closure-canary"
+        ),
+        "output_or_invariant_proof_bindings": {
+            "result_schema": payload["result_schema"],
+            "convergence_invariant_contract": payload[
+                "convergence_invariant_contract"
+            ],
+        },
+        "domain_sha256": canonical_sha256(not_applicable),
+        "size_policy_sha256": canonical_sha256(not_applicable),
+        "convergence_sha256": canonical_sha256(
+            payload["convergence_invariant_contract"]
+        ),
+        "static_scan_sha256": _sha256_text(
+            "oracle-static-scan-canary"
+        ),
+    }
+    values["combined_sha256"] = isolation.scientific_policy_combined_sha256(
+        values
+    )
+    return values
+
+
+def test_definition_codecs_round_trip_all_adapters_and_synthetic_oracle():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    for definition in adapters.ADAPTER_DEFINITIONS.values():
+        frozen = adapters.adapter_definition_to_frozen_json(definition)
+        rebuilt = adapters.adapter_definition_from_frozen_json(frozen)
+        assert canonical_json_bytes(
+            adapters.adapter_definition_to_frozen_json(rebuilt)
+        ) == canonical_json_bytes(frozen)
+        assert rebuilt.adapter_id == definition.adapter_id
+
+    oracle = _synthetic_oracle_definition()
+    frozen_oracle = oracles.oracle_definition_to_frozen_json(oracle)
+    rebuilt_oracle = oracles.oracle_definition_from_frozen_json(
+        frozen_oracle
+    )
+    assert rebuilt_oracle.oracle_id == oracle.oracle_id
+    assert canonical_json_bytes(
+        oracles.oracle_definition_to_frozen_json(rebuilt_oracle)
+    ) == canonical_json_bytes(frozen_oracle)
+
+
+def test_definition_codecs_reject_nested_unknown_fields():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    adapter_payload = thaw_json(
+        adapters.adapter_definition_to_frozen_json(
+            adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+        )
+    )
+    adapter_payload["output_schema"]["fields"]["tc_over_j"][
+        "unknown_binding"
+    ] = True
+    with pytest.raises(AdapterContractError, match="unknown"):
+        adapters.adapter_definition_from_frozen_json(adapter_payload)
+
+    oracle_payload = thaw_json(
+        oracles.oracle_definition_to_frozen_json(
+            _synthetic_oracle_definition()
+        )
+    )
+    oracle_payload["result_schema"]["unknown_nested"] = True
+    with pytest.raises(AdapterContractError, match="unknown"):
+        oracles.oracle_definition_from_frozen_json(oracle_payload)
+
+
+def test_policy_accepts_synthetic_valid_oracle_with_locked_derivations():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = _synthetic_oracle_definition()
+    values = _oracle_policy_values(definition)
+    accepted = isolation.ScientificPolicyCommitment(**values)
+    assert accepted.definition_id == definition.oracle_id
+    assert accepted.eligibility_row_sha256 is None
+    assert accepted.eligibility_catalog_sha256 is None
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "eligibility_row",
+        "eligibility_catalog",
+        "invariant_bindings",
+        "domain",
+        "size_policy",
+        "convergence",
+    ),
+)
+def test_oracle_policy_rejects_adapter_eligibility_or_mutated_invariants(
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _oracle_policy_values(_synthetic_oracle_definition())
+    if mutation == "eligibility_row":
+        values["eligibility_row_sha256"] = _sha256_text("forbidden-row")
+    elif mutation == "eligibility_catalog":
+        values["eligibility_catalog_sha256"] = _sha256_text(
+            "forbidden-catalog"
+        )
+    elif mutation == "invariant_bindings":
+        values["output_or_invariant_proof_bindings"] = {
+            "result_schema": values[
+                "output_or_invariant_proof_bindings"
+            ]["result_schema"],
+            "convergence_invariant_contract": {
+                "kind": "mutated_invariant",
+                "rule": "mutated rule",
+            },
+        }
+    else:
+        values[f"{mutation}_sha256"] = _sha256_text(
+            f"mutated-oracle-{mutation}"
+        )
+    values["combined_sha256"] = isolation.scientific_policy_combined_sha256(
+        values
+    )
+    with pytest.raises(
+        AdapterContractError,
+        match="eligibility|invariant|domain|size policy|convergence",
+    ):
+        isolation.ScientificPolicyCommitment(**values)
+
+
+def _example_schema_value(schema):
+    if schema.kind == "boolean":
+        return True
+    if schema.kind == "integer":
+        if schema.lower is not None:
+            return int(schema.lower)
+        if schema.upper is not None and schema.upper < 1:
+            return int(schema.upper)
+        return 1
+    if schema.kind == "number":
+        if schema.lower is not None:
+            return float(schema.lower)
+        if schema.upper is not None and schema.upper < 1:
+            return float(schema.upper)
+        return 1.0
+    if schema.kind == "string":
+        return "calculation-canary"
+    if schema.kind == "list":
+        count = schema.lower if schema.lower is not None else 1
+        if count == 0 and schema.upper != 0:
+            count = 1
+        return [
+            _example_schema_value(schema.item_schema)
+            for _ in range(count)
+        ]
+    return {
+        name: _example_schema_value(child)
+        for name, child in schema.properties
+    }
+
+
+def _authority_payload_for_definition(definition):
+    scientific_inputs = _example_schema_value(
+        definition.scientific_input_schema
+    )
+    numerical_controls = _example_schema_value(
+        definition.numerical_control_schema
+    )
+    parameter_provenance = {}
+    for source in definition.parameter_sources:
+        requirement = thaw_json(source.details)
+        if source.kind == "canonical_model_parameter":
+            locator = {
+                "kind": "canonical_spec_path",
+                "path": requirement["canonical_path"],
+            }
+        elif source.kind == "universal_probe":
+            locator = {
+                "kind": "universal_probe",
+                "probe_id": f"{source.parameter_name}-probe-canary",
+            }
+        else:
+            locator = {
+                "kind": "source_model_path",
+                "source_id": "source-model-canary",
+                "path": requirement["source_path"],
+            }
+        parameter_provenance[source.parameter_name] = {
+            "kind": source.kind,
+            "requirement": requirement,
+            "locator": locator,
+            "commitment_sha256": _sha256_text(
+                f"{definition.adapter_id}-{source.parameter_name}-source"
+            ),
+            "target_equivalent": False,
+        }
+    control_provenance = {
+        name: {
+            "kind": "numerical_control",
+            "locator": f"{definition.adapter_id}-{name}-policy",
+            "commitment_sha256": _sha256_text(
+                f"{definition.adapter_id}-{name}-control"
+            ),
+            "registry_independent": True,
+        }
+        for name in numerical_controls
+    }
+    payload = {
+        "schema_version": "adapter_authority_context_v1",
+        "audit_run_id": f"{definition.adapter_id}-audit-canary",
+        "benchmark_name": f"{definition.adapter_id}_benchmark_canary",
+        "producer_id": "task7_test_authority_v1",
+        "producer_code_sha256": _sha256_text(
+            "independent-authority-producer-code-v1"
+        ),
+        "canonical_observable_id": f"{definition.adapter_id}-observable",
+        "observable_identity": thaw_json(definition.observable_identity),
+        "canonical_spec_path": (
+            f"canonical/specifications/{definition.adapter_id}.json"
+        ),
+        "canonical_spec_sha256": _sha256_text(
+            f"{definition.adapter_id}-canonical-spec"
+        ),
+        "scientific_inputs": scientific_inputs,
+        "parameter_provenance": parameter_provenance,
+        "numerical_controls": numerical_controls,
+        "numerical_control_provenance": control_provenance,
+        "registry_snapshot_sha256": _sha256_text(
+            f"{definition.adapter_id}-registry-snapshot"
+        ),
+        "selector_sha256": _sha256_text(
+            f"{definition.adapter_id}-selector"
+        ),
+        "forbidden_output_fingerprints": tuple(
+            sorted(
+                (
+                    _sha256_text(
+                        f"{definition.adapter_id}-forbidden-numeric"
+                    ),
+                    _sha256_text(
+                        f"{definition.adapter_id}-forbidden-categorical"
+                    ),
+                )
+            )
+        ),
+        "fingerprint_algorithm_version": "canonical_json_sha256_v1",
+    }
+    return _rehash_authority_payload(payload)
+
+
+@pytest.mark.parametrize(
+    "definition",
+    tuple(adapters.ADAPTER_DEFINITIONS.values()),
+    ids=tuple(adapters.ADAPTER_DEFINITIONS),
+)
+def test_worker_projection_accepts_exact_provenance_for_all_definitions(
+    definition,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    authority = isolation.validate_authority_context(
+        _authority_payload_for_definition(definition),
+        allow_test_producer=True,
+    )
+    request = isolation.make_worker_request(
+        definition,
+        authority,
+        opaque_run_nonce=f"{definition.adapter_id}-worker-nonce",
+        capsule_sha256=_sha256_text(
+            f"{definition.adapter_id}-capsule"
+        ),
+        allow_test_producer=True,
+    )
+    assert request.adapter_id == definition.adapter_id
+    assert request.scientific_inputs == authority.scientific_inputs
+    assert request.numerical_controls == authority.numerical_controls
+
+
+@pytest.mark.parametrize("mutation", ("kind", "requirement", "locator"))
+def test_provenance_mutations_reach_their_independent_guards(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _authority_payload_for_definition(definition)
+    provenance = payload["parameter_provenance"]["exchange"]
+    if mutation == "kind":
+        provenance.update(
+            {
+                "kind": "universal_probe",
+                "requirement": {"probe_role": "independent probe"},
+                "locator": {
+                    "kind": "universal_probe",
+                    "probe_id": "independent-probe-canary",
+                },
+            }
+        )
+    elif mutation == "requirement":
+        provenance["requirement"]["physical_role"] = "mutated role"
+    else:
+        provenance["locator"] = {
+            "kind": "canonical_spec_path",
+            "unexpected_path": ["hamiltonian", "exchange"],
+        }
+    payload = _rehash_authority_payload(payload)
+    if mutation == "locator":
+        with pytest.raises(AdapterContractError, match="locator|unknown|path"):
+            isolation.validate_authority_context(
+                payload, allow_test_producer=True
+            )
+        return
+    authority = isolation.validate_authority_context(
+        payload, allow_test_producer=True
+    )
+    with pytest.raises(AdapterContractError, match=mutation):
+        isolation.make_worker_request(
+            definition,
+            authority,
+            opaque_run_nonce="provenance-mutation-nonce",
+            capsule_sha256=_sha256_text("provenance-mutation-capsule"),
+            allow_test_producer=True,
+        )
+
+
+def test_control_provenance_registry_independence_guard_is_rehashed():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    payload["numerical_control_provenance"][
+        "root_residual_threshold"
+    ]["registry_independent"] = False
+    payload = _rehash_authority_payload(payload)
+    with pytest.raises(AdapterContractError, match="registry independent"):
+        isolation.validate_authority_context(
+            payload, allow_test_producer=True
+        )
+
+
+def _local_payload_for_definition(definition):
+    fields_payload = {
+        selector: _example_schema_value(binding.value_schema)
+        for selector, binding in definition.output_schema
+    }
+    units = {
+        selector: binding.value_schema.units
+        for selector, binding in definition.output_schema
+    }
+    uncertainty = {
+        selector: (
+            1e-9
+            if binding.proof_kind == "bounded_numeric_value"
+            else 0.0
+        )
+        for selector, binding in definition.output_schema
+    }
+    controls = _example_schema_value(definition.numerical_control_schema)
+    certificate = {
+        "kind": f"{definition.convergence_contract.kind}_certificate",
+        "certificate_sha256": _sha256_text(
+            f"{definition.adapter_id}-convergence-certificate"
+        ),
+    }
+    kind = definition.convergence_contract.kind
+    if kind == "exact":
+        convergence = {
+            "kind": kind,
+            "controls": controls,
+            "certificate": certificate,
+        }
+    elif kind == "residual_bound":
+        convergence = {
+            "kind": kind,
+            "controls": controls,
+            "certificate": certificate,
+            "samples": [1.0, 1.00000001],
+            "residuals": [1e-6, 1e-10],
+            "error_bound": 1e-9,
+        }
+    elif kind == "quadrature":
+        convergence = {
+            "kind": kind,
+            "controls": controls,
+            "certificate": certificate,
+            "estimates": [1.0, 1.00000001],
+            "error_bounds": [1e-5, 1e-9],
+            "error_bound": 1e-9,
+        }
+    elif kind == "finite_size":
+        convergence = {
+            "kind": kind,
+            "controls": controls,
+            "certificate": certificate,
+            "sizes": [8, 12],
+            "estimates": [1.0, 1.0],
+            "error_bound": 0.0,
+        }
+    else:
+        convergence = {
+            "kind": kind,
+            "controls": controls,
+            "certificate": certificate,
+            "estimates": [1.0, 1.00000001],
+            "residuals": [1e-5, 1e-9],
+            "refinement_iterations": 2,
+            "error_bound": 1e-9,
+        }
+    runtime = definition.runtime_requirements
+    backend = {
+        "backend_kind": definition.backend_kind,
+        "interpreter_implementation": "cpython",
+        "interpreter_version": "test-version",
+        "interpreter_binary_sha256": _sha256_text(
+            f"{definition.adapter_id}-python-binary"
+        ),
+        "packages": {
+            name: {
+                "version": "test-version",
+                "binary_sha256": _sha256_text(
+                    f"{definition.adapter_id}-{name}-package"
+                ),
+            }
+            for name in runtime.packages
+        },
+        "native_libraries": {
+            name: {
+                "version": "test-version",
+                "binary_sha256": _sha256_text(
+                    f"{definition.adapter_id}-{name}-native"
+                ),
+            }
+            for name in runtime.native_libraries
+        },
+        "numerical_backend": {
+            "name": "not_applicable",
+            "version": None,
+            "binary_sha256": None,
+            "applicability": "not_applicable",
+        },
+        "backend_resources": {
+            name: {"applicability": "used"}
+            for name in runtime.backend_resources
+        },
+    }
+    return {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": definition.adapter_id,
+        "capsule_sha256": _sha256_text(
+            f"{definition.adapter_id}-local-capsule"
+        ),
+        "request_sha256": _sha256_text(
+            f"{definition.adapter_id}-local-request"
+        ),
+        "observable_identity": thaw_json(definition.observable_identity),
+        "fields": fields_payload,
+        "units": units,
+        "uncertainty": uncertainty,
+        "raw_convergence_evidence": convergence,
+        "backend_diagnostics": backend,
+        "operation_counts_or_sizes": {"operations": 1},
+        "worker_started_monotonic_ns": 1_000,
+        "worker_finished_monotonic_ns": 2_000,
+    }
+
+
+@pytest.mark.parametrize(
+    "definition",
+    tuple(adapters.ADAPTER_DEFINITIONS.values()),
+    ids=tuple(adapters.ADAPTER_DEFINITIONS),
+)
+def test_local_result_contract_covers_all_definitions_outputs_and_kinds(
+    definition,
+):
+    payload = _local_payload_for_definition(definition)
+    accepted = adapters.validate_local_observable_result(
+        definition, payload
+    )
+    assert accepted["adapter_id"] == definition.adapter_id
+    assert set(accepted["fields"]) == set(
+        definition.output_schema.selector_fields
+    )
+
+
+def test_local_result_matrix_covers_all_42_outputs_10_proofs_and_5_kinds():
+    definitions = tuple(adapters.ADAPTER_DEFINITIONS.values())
+    bindings = tuple(
+        binding
+        for definition in definitions
+        for _selector, binding in definition.output_schema
+    )
+    assert len(definitions) == 29
+    assert len(bindings) == 42
+    assert {binding.proof_kind for binding in bindings} == set(
+        adapters.OUTPUT_PROOF_KINDS
+    )
+    assert {
+        definition.convergence_contract.kind for definition in definitions
+    } == {"exact", "residual_bound", "quadrature", "finite_size", "iterative"}
+    assert {binding.value_schema.kind for binding in bindings} == {
+        "boolean",
+        "integer",
+        "number",
+        "list",
+    }
+
+
+@pytest.mark.parametrize(
+    ("adapter_id", "selector", "wrong_value"),
+    (
+        ("square_ising_self_dual_tc", "tc_over_j", True),
+        (
+            "compass_line_symmetry_matrix",
+            "has_line_flip_symmetries",
+            1,
+        ),
+        (
+            "toric_code_stabilizer_rank",
+            "torus_ground_state_degeneracy",
+            True,
+        ),
+        (
+            "aklt_two_site_projector_ed",
+            "two_site_projector_eigenvalues",
+            "not-a-list",
+        ),
+    ),
+)
+def test_local_result_rejects_each_output_value_kind_mismatch(
+    adapter_id,
+    selector,
+    wrong_value,
+):
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    payload = _local_payload_for_definition(definition)
+    payload["fields"][selector] = wrong_value
+    with pytest.raises(AdapterContractError, match="fields"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+@pytest.mark.parametrize("mutation", ("negative_count", "negative_timestamp"))
+def test_local_result_rejects_negative_counts_and_timestamps(mutation):
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _local_payload_for_definition(definition)
+    if mutation == "negative_count":
+        payload["operation_counts_or_sizes"] = {"operations": -1}
+    else:
+        payload["worker_started_monotonic_ns"] = -1
+    with pytest.raises(AdapterContractError, match="nonnegative|count"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+def test_nonce_and_policy_definition_bytes_have_hard_size_limits():
+    from validation import literature_evidence_isolation as isolation
+
+    request = _valid_worker_request()
+    request_values = {
+        field.name: getattr(request, field.name)
+        for field in dataclasses.fields(type(request))
+    }
+    request_values["opaque_run_nonce"] = "n" * 257
+    with pytest.raises(AdapterContractError, match="nonce|long"):
+        isolation.WorkerRequest(**request_values)
+
+    values = _adapter_policy_values(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    )
+    oversized = b"{" + b" " * 1_048_576 + b"}"
+    values["canonical_definition_bytes"] = oversized
+    values["canonical_definition_sha256"] = hashlib.sha256(
+        oversized
+    ).hexdigest()
+    values["combined_sha256"] = isolation.scientific_policy_combined_sha256(
+        values
+    )
+    with pytest.raises(AdapterContractError, match="oversized"):
+        isolation.ScientificPolicyCommitment(**values)
+
+
+def test_actual_digest_canaries_bind_authority_request_and_policy_bytes():
+    authority_payload = _authority_context_payload()
+    authority_body = {
+        key: value
+        for key, value in authority_payload.items()
+        if key != "context_sha256"
+    }
+    assert authority_payload["context_sha256"] == hashlib.sha256(
+        canonical_json_bytes(authority_body)
+    ).hexdigest()
+
+    request = _valid_worker_request()
+    assert canonical_sha256(request.to_frozen_json()) == hashlib.sha256(
+        canonical_json_bytes(request.to_frozen_json())
+    ).hexdigest()
+
+    values = _adapter_policy_values(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    )
+    assert values["canonical_definition_sha256"] == hashlib.sha256(
+        values["canonical_definition_bytes"]
+    ).hexdigest()
+
+
+def test_task4_record_constructors_accept_closed_valid_snapshots():
+    from validation import literature_evidence_isolation as isolation
+
+    digest = _sha256_text("task4-record-canary")
+    adapter_policy = isolation.ScientificPolicyCommitment(
+        **_adapter_policy_values(
+            adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+        )
+    )
+    oracle_policy = isolation.ScientificPolicyCommitment(
+        **_oracle_policy_values(_synthetic_oracle_definition())
+    )
+    adapter_closure = isolation.ScientificClosure(
+        "scientific_closure_v1",
+        "adapter",
+        "validation.canary:adapter_entry",
+        ({"module": "validation.canary", "sha256": digest},),
+        (),
+        digest,
+        digest,
+    )
+    oracle_closure = isolation.ScientificClosure(
+        "scientific_closure_v1",
+        "oracle",
+        "validation.canary:oracle_entry",
+        ({"module": "validation.canary_oracle", "sha256": digest},),
+        (),
+        digest,
+        digest,
+    )
+    infrastructure = isolation.InfrastructureClosure(
+        "infrastructure_closure_v1",
+        ("validation.runner",),
+        ({"module": "validation.runner", "sha256": digest},),
+        (),
+        {"validation.runner": "transport"},
+        digest,
+    )
+    static_scan = isolation.StaticScanReport(
+        "static_scan_report_v1",
+        "adapter",
+        "scanner-v1",
+        digest,
+        digest,
+        digest,
+        {"forbidden_imports_absent": True},
+        True,
+        digest,
+    )
+    manifest = isolation.RuntimeResourceManifest(
+        "runtime_resource_manifest_v1",
+        ({"kind": "interpreter", "sha256": digest},),
+        digest,
+    )
+    runtime_snapshot = isolation.RuntimeSnapshot(
+        "runtime_snapshot_v1",
+        manifest,
+        "/runtime-snapshot",
+        ({"path": "python3", "sha256": digest},),
+        digest,
+    )
+    preflight = isolation.CapabilityPreflightReport(
+        "capability_preflight_report_v1",
+        "audit-run-canary",
+        True,
+        {"namespaces": True},
+        {"python3": digest},
+        {"mount": "isolated"},
+        {"root": "readonly"},
+        {"probe": 0},
+        digest,
+        digest,
+    )
+    process = isolation.ProcessAttestation(
+        "process_attestation_v1",
+        "adapter",
+        "point-canary",
+        {"pid_namespace": "isolated"},
+        {"root": "readonly"},
+        {"environment": "closed"},
+        {"cpu_seconds": 1},
+        {"chroot": True},
+        digest,
+    )
+    trace = isolation.TracePolicyReport(
+        "trace_policy_report_v1",
+        digest,
+        ({"operation": "read", "path": "/capsule"},),
+        (),
+        True,
+        digest,
+    )
+    point = isolation.PointExecutionEvidence(
+        "point_execution_evidence_v1",
+        "point-canary",
+        digest,
+        digest,
+        trace,
+        process,
+        {"backend_kind": "analytic"},
+        0,
+        digest,
+    )
+    convergence = isolation.ConvergenceDecision(
+        "convergence_decision_v1",
+        "residual_bound",
+        True,
+        digest,
+        "bound_satisfied",
+        digest,
+    )
+    oracle_decision = isolation.OracleDecision(
+        "oracle_decision_v1",
+        "synthetic_residual_oracle",
+        True,
+        (digest,),
+        {"residual_norm": 1e-12},
+        {"bound_satisfied": True},
+        "invariant_satisfied",
+        digest,
+    )
+    event = isolation.EventRecord(0, "worker_started", {"point": 0})
+    evidence = isolation.AdapterExecutionEvidence(
+        "adapter_execution_evidence_v1",
+        "isolated_recomputation_succeeded",
+        digest,
+        {"inputs_sha256": digest},
+        {"catalog_sha256": digest},
+        adapter_policy,
+        oracle_policy,
+        adapter_closure,
+        oracle_closure,
+        infrastructure,
+        (static_scan,),
+        runtime_snapshot,
+        (event,),
+        preflight.report_sha256,
+        (point,),
+        convergence,
+        oracle_decision,
+        "1" * 64,
+        digest,
+    )
+    outcome = isolation.AdapterRunOutcome(
+        "isolated_recomputation_succeeded", evidence, None
+    )
+
+    records = (
+        adapter_policy,
+        oracle_policy,
+        adapter_closure,
+        oracle_closure,
+        infrastructure,
+        static_scan,
+        manifest,
+        runtime_snapshot,
+        preflight,
+        process,
+        trace,
+        point,
+        convergence,
+        oracle_decision,
+        event,
+        evidence,
+        outcome,
+    )
+    assert all(dataclasses.is_dataclass(record) for record in records)
+    assert all(
+        type(record).__module__
+        == "validation.literature_evidence_isolation"
+        for record in records
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "unknown_field",
+        "missing_field",
+        "schema_version",
+        "unknown_adapter",
+        "scientific_input_schema",
+        "numerical_control_schema",
+        "capsule_hash",
+    ),
+)
+def test_worker_request_direct_construction_rejects_each_closed_case(
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    request = _valid_worker_request()
+    values = {
+        field.name: getattr(request, field.name)
+        for field in dataclasses.fields(type(request))
+    }
+    if mutation == "unknown_field":
+        values["answer_metadata"] = 7
+    elif mutation == "missing_field":
+        values.pop("opaque_run_nonce")
+    elif mutation == "schema_version":
+        values["schema_version"] = "worker_request_v2"
+    elif mutation == "unknown_adapter":
+        values["adapter_id"] = "unknown_adapter"
+    elif mutation == "scientific_input_schema":
+        values["scientific_inputs"] = {
+            "exchange": 1.0,
+            "target_answer": 2.0,
+        }
+    elif mutation == "numerical_control_schema":
+        values["numerical_controls"] = {
+            "maximum_refinement_iterations": 64,
+            "caller_tolerance": 1e-12,
+        }
+    else:
+        values["capsule_sha256"] = "f" * 63
+    with pytest.raises(AdapterContractError):
+        isolation.WorkerRequest(**values)
+
+
+def test_detached_definition_cannot_weaken_canonical_worker_validation():
+    from validation import literature_evidence_isolation as isolation
+
+    canonical = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(AdapterDefinition)
+    }
+    values["scientific_input_schema"] = _object_schema(
+        (("exchange", _number_schema(lower=None, units="J")),)
+    )
+    detached = AdapterDefinition(**values)
+    authority = isolation.validate_authority_context(
+        _authority_context_payload(), allow_test_producer=True
+    )
+    with pytest.raises(AdapterContractError, match="detached|canonical"):
+        isolation.make_worker_request(
+            detached,
+            authority,
+            opaque_run_nonce="detached-definition-nonce",
+            capsule_sha256=_sha256_text("detached-definition-capsule"),
+            allow_test_producer=True,
+        )
+
+
+def test_source_model_provenance_uses_its_own_closed_shape():
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _authority_context_payload()
+    payload["parameter_provenance"] = {
+        "exchange": {
+            "kind": "source_model_parameter",
+            "requirement": {
+                "source_path": ["model", "exchange"],
+                "physical_role": "source-model exchange",
+            },
+            "locator": {
+                "kind": "source_model_path",
+                "source_id": "source-model-canary",
+                "path": ["model", "exchange"],
+            },
+            "commitment_sha256": _sha256_text(
+                "source-model-provenance-canary"
+            ),
+            "target_equivalent": False,
+        }
+    }
+    accepted = isolation.validate_authority_context(
+        _rehash_authority_payload(payload), allow_test_producer=True
+    )
+    assert accepted.parameter_provenance["exchange"]["kind"] == (
+        "source_model_parameter"
+    )
+
+    malformed = thaw_json(accepted.to_frozen_json())
+    malformed["parameter_provenance"]["exchange"]["locator"][
+        "registry_path"
+    ] = malformed["parameter_provenance"]["exchange"]["locator"].pop(
+        "path"
+    )
+    malformed = _rehash_authority_payload(malformed)
+    with pytest.raises(AdapterContractError, match="locator|unknown|path"):
+        isolation.validate_authority_context(
+            malformed, allow_test_producer=True
+        )
+
+
+def test_dependency_public_symbols_are_not_reverse_module_attributes():
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    dependency_symbols = {
+        "AdapterContractError",
+        "AdapterDefinition",
+        "FrozenJsonObject",
+        "ResourceLimits",
+        "RuntimeRequirements",
+        "ValueSchema",
+        "canonical_json_bytes",
+        "canonical_sha256",
+        "require_exact_keys",
+        "require_identifier",
+        "validate_adapter_definition",
+        "validate_numerical_controls",
+        "validate_scientific_inputs",
+    }
+    assert not dependency_symbols.intersection(vars(oracles))
+    assert not dependency_symbols.intersection(vars(isolation))
+    for public_name in oracles.__all__:
+        value = getattr(oracles, public_name)
+        if callable(value):
+            assert value.__module__ == oracles.__name__
+    for public_name in isolation.__all__:
+        value = getattr(isolation, public_name)
+        if callable(value):
+            assert value.__module__ == isolation.__name__
