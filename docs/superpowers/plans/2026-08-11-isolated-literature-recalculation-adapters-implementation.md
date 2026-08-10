@@ -62,6 +62,8 @@ Create exactly these production and test files:
   functions, constants, formulas, or tables with the adapter module.
 - `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_isolation.py`
   owns authority-context validation, AST closure building, static scans,
+  a separately classified and hashed transport/isolation infrastructure
+  closure,
   fingerprint rejection, runtime-resource discovery/snapshot/revalidation,
   counterfactual generation, capability preflight, capsule/worker emission,
   namespace supervision, tracing, hardened output ingestion, convergence/oracle
@@ -113,6 +115,81 @@ Expected output:
 {"allowed_targets": [], "baseline_entries_verified": 471, "baseline_roots_verified": 143, "protected_files_verified": 6}
 ```
 
+The reviewed worktree already contains eleven ignored, user-owned
+`__pycache__` directories with 178 total directory/file entries. They cannot be
+deleted or treated as a Task 7 failure. Before and after every implementation
+commit and every external review, run this exact read-only cache-preservation
+command from the worktree root; it rejects any new, missing, or modified cache
+entry:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
+import hashlib
+import json
+import os
+import stat
+from pathlib import Path
+
+root = Path("translation-invariant-spin-model-simplifier")
+cache_dirs = sorted(
+    path
+    for path in root.rglob("*")
+    if path.is_dir() and path.name in {"__pycache__", ".pytest_cache"}
+)
+entries = []
+for base in cache_dirs:
+    for path in [base, *sorted(base.rglob("*"))]:
+        status = path.lstat()
+        relative = path.as_posix()
+        if stat.S_ISREG(status.st_mode):
+            payload = path.read_bytes()
+            row = [
+                relative,
+                "regular",
+                status.st_mode & 0o7777,
+                len(payload),
+                hashlib.sha256(payload).hexdigest(),
+            ]
+        elif stat.S_ISDIR(status.st_mode):
+            row = [relative, "directory", status.st_mode & 0o7777, None, None]
+        elif stat.S_ISLNK(status.st_mode):
+            row = [
+                relative,
+                "symlink",
+                status.st_mode & 0o7777,
+                None,
+                os.readlink(path),
+            ]
+        else:
+            row = [relative, "other", status.st_mode & 0o7777, None, None]
+        entries.append(row)
+manifest = json.dumps(
+    entries, sort_keys=True, separators=(",", ":")
+).encode("utf-8")
+actual = {
+    "cache_dirs": len(cache_dirs),
+    "entries": len(entries),
+    "manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+}
+expected = {
+    "cache_dirs": 11,
+    "entries": 178,
+    "manifest_sha256": (
+        "f66b98ea9404df076be51bd2e219f8fbf7a82e419c4fc4f27c32e6177789f620"
+    ),
+}
+if actual != expected:
+    raise SystemExit(f"repository cache baseline mismatch: {actual}")
+print(json.dumps(actual, sort_keys=True))
+PY
+```
+
+Expected output:
+
+```json
+{"cache_dirs": 11, "entries": 178, "manifest_sha256": "f66b98ea9404df076be51bd2e219f8fbf7a82e419c4fc4f27c32e6177789f620"}
+```
+
 Before every commit, also run:
 
 ```bash
@@ -144,6 +221,7 @@ get_oracle_definition(oracle_id: str) -> OracleDefinition
 # literature_evidence_isolation.py
 validate_authority_context(value, *, allow_test_producer=False) -> AdapterAuthorityContext
 build_scientific_closure(entry_symbol, *, role, source_roots) -> ScientificClosure
+build_infrastructure_closure(*, source_roots) -> InfrastructureClosure
 scan_scientific_closure(closure, *, forbidden_fingerprints) -> StaticScanReport
 build_runtime_snapshot(requirements, *, run_directory, event_recorder) -> RuntimeSnapshot
 run_capability_preflight(*, scratch_parent) -> CapabilityPreflightReport
@@ -157,9 +235,11 @@ The only successful flow is:
 ```text
 validated AdapterAuthorityContext
   -> adapter definition + exact eligibility decision
-  -> adapter closure + oracle closure + independent static scans
+  -> adapter closure + oracle closure + disjoint infrastructure closure
+  -> independent static scans and closure hashes
   -> immutable runtime snapshot
-  -> freeze every code/scanner/resource hash
+  -> fresh capability preflight and infrastructure-command hashes
+  -> freeze every code/scanner/resource/preflight hash
   -> acquire 32 random bytes and derive points
   -> fresh isolated adapter process per point
   -> fresh isolated oracle process per point
@@ -357,10 +437,39 @@ SCALABLE = {
     "compass_line_symmetry_matrix", "toric_code_stabilizer_rank",
     "majumdar_ghosh_dimer_ed", "shastry_sutherland_dimer_ed",
 }
+EXPECTED_SIZE_DATA = {
+    "spin_ice_tetrahedron_enumeration": {"spin_count": 4, "tetrahedra": 1},
+    "spin_ladder_rung_dense_ed": {"spin_count": 2, "rungs": 1},
+    "uls_two_site_su3_matrix": {"spin_count": 2, "spin_quantum_number": 1},
+    "aklt_two_site_projector_ed": {"spin_count": 2, "spin_quantum_number": 1},
+    "blume_capel_level_crossing": {
+        "unit_cell_sites": 1, "coordination_number": 4,
+    },
+    "checkerboard_plaquette_enumeration": {
+        "spin_count": 4, "crossed_plaquettes": 1,
+    },
+    "spin1_single_ion_dense_ed": {"spin_count": 1, "spin_quantum_number": 1},
+    "compass_line_symmetry_matrix": {
+        "lattice_shapes": ((2, 2), (2, 3)), "boundary_conditions": "open",
+    },
+    "toric_code_stabilizer_rank": {
+        "lattice_shapes": ((2, 2), (3, 3)), "boundary_conditions": "periodic",
+    },
+    "majumdar_ghosh_dimer_ed": {
+        "periodic_chain_lengths": (8, 10), "boundary_conditions": "periodic",
+    },
+    "shastry_sutherland_dimer_ed": {
+        "orthogonal_dimer_counts": (2, 4),
+        "spin_counts": (4, 8),
+        "boundary_conditions": "open_linked_cells",
+    },
+}
 ```
 
 The complement among the 29 must be exactly 18 `not_applicable` definitions.
-Test one-to-one catalog/definition/oracle-ID linkage, exact output selector
+The independent test fixture must compare `EXPECTED_SIZE_DATA` field for field
+with production metadata; it may not derive expected sizes from the production
+mapping. Test one-to-one catalog/definition/oracle-ID linkage, exact output selector
 fields, a nonempty complete `observable_identity`, one provenance record per
 scientific input, closed controls, one counterfactual domain, one convergence
 contract, runtime requirements, and bounded resource limits.
@@ -397,7 +506,9 @@ input to exactly one provenance kind. Put grids, sizes used only for numerical
 accuracy, quadrature thresholds, residual thresholds, and truncations in the
 numerical-control schema, not scientific inputs. Put identity-bound fixed sizes
 in `ProblemSizePolicy.fixed_sizes` and the exact same-observable sequences in
-`ProblemSizePolicy.allowed_sizes`.
+`ProblemSizePolicy.allowed_sizes`, using exactly the eleven entries and values
+in `EXPECTED_SIZE_DATA`. These sizes are scientific identity/realization data;
+do not replace them with numerical grids or an implementer-selected sequence.
 
 Do not implement science with placeholder constants in this task. Entry symbols
 may resolve only after Tasks 13–16; metadata validation must not execute them.
@@ -427,6 +538,8 @@ Run the protected baseline again.
 
 **Files:**
 
+- Modify: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapters.py`
+- Create: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapter_oracles.py`
 - Create: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_isolation.py`
 - Modify: `translation-invariant-spin-model-simplifier/tests/test_literature_evidence_adapters.py`
 
@@ -473,12 +586,20 @@ Add frozen records and exact validators for:
 
 ```python
 AdapterAuthorityContext, WorkerRequest, LocalObservableResult,
-ScientificClosure, StaticScanReport, RuntimeResourceManifest,
+ScientificClosure, InfrastructureClosure, StaticScanReport, RuntimeResourceManifest,
 RuntimeSnapshot, CapabilityPreflightReport, ProcessAttestation,
 TracePolicyReport, PointExecutionEvidence, ConvergenceDecision,
 OracleDecision, AdapterExecutionEvidence, AdapterRunFailure,
 AdapterRunOutcome, EventRecord
 ```
+
+Define the closed `OracleDefinition` contract and an initially empty immutable
+`ORACLE_DEFINITIONS` mapping in the oracle module. It contains oracle ID, entry
+symbol, input/result schemas, runtime requirements, convergence/invariant
+contract, and resource limits, but no scientific implementation or expected
+answer. Task 13 fills the mapping and entry points. This early contract lets
+Task 12 build a real synthetic oracle definition without inventing a parallel
+test-only shape.
 
 The context validator may structurally accept the closed producer ID
 `task8_canonical_authority_v1`; tests may opt into the separate
@@ -487,9 +608,11 @@ Context hashing covers all fields except the stored context hash itself.
 
 - [ ] **Step 5: Implement request projection and result validation**
 
-`make_worker_request` must project only answer-free inputs/controls. It must not
-accept arbitrary extra request metadata. `validate_local_observable_result`
-must check adapter ID, capsule/request hashes, exact output fields and units,
+`make_worker_request` in the isolation module must project only answer-free
+inputs/controls and must not accept arbitrary extra request metadata.
+`validate_local_observable_result` belongs in the adapter module, as promised
+by the locked public API; it must check adapter ID, capsule/request hashes,
+exact output fields and units,
 finite values, uncertainty for approximate fields, raw convergence evidence,
 backend diagnostics, and monotonic timestamp ordering.
 
@@ -499,7 +622,7 @@ Run the focused and full Task 7 tests. Run the protected baseline and commit
 gate, then:
 
 ```bash
-git add translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_isolation.py translation-invariant-spin-model-simplifier/tests/test_literature_evidence_adapters.py
+git add translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapters.py translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapter_oracles.py translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_isolation.py translation-invariant-spin-model-simplifier/tests/test_literature_evidence_adapters.py
 git commit -m "feat: add isolated recalculation evidence contracts"
 ```
 
@@ -519,6 +642,8 @@ a changed helper, an unresolved global, cyclic initializer, star import,
 dynamic import, mutable global, decorator side effect, descriptor/metaclass,
 module mutation, runtime closure, and source evaluation. Create fixtures under
 `tmp_path` with exclusive writes; do not add fixture files to the repository.
+Add a fixture that tries to classify a formula/result-derivation helper as
+transport infrastructure and require rejection.
 
 - [ ] **Step 2: Add closure-manifest assertions**
 
@@ -529,11 +654,19 @@ scanner version, and deterministic bundle hash. Extract a known pure synthetic
 helper while proving an unrelated registry-like assignment in the same source
 file is absent from emitted bytes.
 
+Independently test `build_infrastructure_closure`. Its exact roots are canonical
+JSON encoding/decoding, recursive type validators, fixed request/result
+transport, capsule/worker emission, namespace launching, trace parsing, and
+same-FD output ingestion. It records the same node/span/edge/hash manifest as a
+scientific closure plus an exact closed purpose tag per root. It rejects model
+Hamiltonians, equations, scientific constants, result-field derivations,
+adapter/oracle definitions, and any caller-designated extra root.
+
 - [ ] **Step 3: Verify RED**
 
 ```bash
 cd translation-invariant-spin-model-simplifier
-PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_literature_evidence_adapters.py -q -k 'scientific_closure or unresolved_dependency or transitive_hash'
+PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_literature_evidence_adapters.py -q -k 'scientific_closure or infrastructure_closure or unresolved_dependency or transitive_hash'
 ```
 
 - [ ] **Step 4: Implement source-only AST resolution**
@@ -554,7 +687,12 @@ source file.
 `build_scientific_closure(..., role="adapter")` must reject oracle-module
 scientific nodes; the oracle role must reject adapter-module scientific nodes.
 Add `assert_disjoint_scientific_closures` comparing qualified source nodes and
-span hashes while allowing only separately classified infrastructure nodes.
+span hashes. Shared scientific nodes are never allowed. Any shared node must be
+present in the separately built `InfrastructureClosure`, carry one allowed
+infrastructure-purpose tag, pass its own forbidden-vocabulary/dependency scan,
+and be absent from both scientific-node manifests. Hash the infrastructure
+closure and scanner report independently; changing one transport/isolation
+node must change its closure hash and later the final evidence hash.
 
 - [ ] **Step 6: Verify GREEN and commit**
 
@@ -582,7 +720,10 @@ discovery, dynamic import, `eval`/`exec`, reflection, file/network/process APIs,
 undeclared native-library access, benchmark-name branching, exact categorical
 canaries, high-precision numeric fingerprints, whole serialized operands,
 field/value structures, parameter/result lookup tables, and a transitive helper
-copy. Repeat each applicable mutation with `role="oracle"`.
+copy. Repeat each applicable mutation with `role="oracle"`. For the
+infrastructure closure, inject a scientific equation, Hamiltonian builder,
+result-field derivation, adapter/oracle definition, and undeclared root; each
+must fail the infrastructure-purpose scan rather than being exempted.
 
 - [ ] **Step 2: Write RED false-positive controls**
 
@@ -603,7 +744,9 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_litera
 Add explicit allowlists for safe builtins, standard-library symbols, and
 declared numerical-package imports. Add explicit forbidden module/symbol/token
 vocabularies. Scan raw AST, closure graph, literal context, emitted bytes, and
-canonical forbidden fingerprints. Fingerprints are validated outside the
+canonical forbidden fingerprints for adapter and oracle roles. Scan the
+infrastructure closure under its narrower exact-root/purpose policy and bind
+its report to the same scanner implementation/version. Fingerprints are validated outside the
 capsule and never emitted or mounted.
 
 The report must contain scanner version/hash, every check with a boolean and
@@ -708,14 +851,19 @@ Run the protected baseline again.
 - [ ] **Step 1: Write RED ordering tests**
 
 Inject an event recorder and a random-byte provider. Require the exact partial
-order:
+order. Until Task 9 implements the executed host preflight, this ordering unit
+test injects a structurally valid, freshly nonce-bound synthetic
+`CapabilityPreflightReport` plus exact synthetic command hashes through the
+internal event-test fixture; production `run_capability_preflight` is never
+stubbed in an integration or acceptance test:
 
 ```text
 definition/provenance validation
 < adapter and oracle closure hashes
-< both static scans
+< adapter, oracle, and infrastructure closure/scan hashes
 < runtime snapshot materialized/compared/hashed
 < adapter/oracle/worker capsule hashes
+< fresh capability-preflight report, report hash, and every infrastructure-command hash
 < frozen-hashes event
 < 32-byte random acquisition
 < point derivation
@@ -727,6 +875,10 @@ definition/provenance validation
 ```
 
 Force random acquisition at each earlier hook and require a hard failure.
+Also mutate one preflight result, external-command identity/hash, or
+infrastructure-closure hash after the frozen event and require the run to fail
+before point derivation. A cached design-time preflight cannot satisfy this
+ordering test.
 
 - [ ] **Step 2: Write RED generator tests for every backend/size family**
 
@@ -841,6 +993,11 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_litera
 ```
 
 Expected: `1 passed`; no skips or xfails.
+
+Also attach the real report to the event recorder with a random-provider canary
+and prove all fourteen probe results, command hashes, and the report hash are
+recorded before any random-byte call. Mutating or reusing the report under a
+different audit-run nonce must fail.
 
 - [ ] **Step 6: Run the full Task 7 module and commit**
 
@@ -1018,6 +1175,24 @@ Run the protected baseline again.
 
 - [ ] **Step 1: Write RED stage/failure matrix tests**
 
+At this point the Task 4 oracle contract module exists, but its production
+mapping is empty and none of the 29 scientific adapter/oracle implementations
+exist yet. Define one answer-free synthetic adapter and one independently
+implemented synthetic oracle as source files created exclusively under
+`tmp_path`. Build closed test `AdapterDefinition`/`OracleDefinition` objects and
+pass them only to a module-private coordinator core through a
+`TestCoordinatorHarness` in the test module. The pair must pass the real AST,
+static, snapshot, namespace, trace, output, convergence, and independence
+controls; it contains no expected output fixture.
+
+The production API keeps the locked three-argument signature. It lazily binds
+the immutable production adapter/oracle mappings and source roots, and it does
+not accept a resolver, definition, source root, service override, test flag, or
+harness. Add tests proving callers cannot activate the private seam through
+`run_isolated_recomputation`. The isolation module may import the closed Task 4
+oracle contract, but it must not assume a production mapping entry or resolve a
+scientific oracle symbol during Tasks 4–12.
+
 Inject a failure at definition, authority, eligibility, closure, static scan,
 snapshot, preflight, seed generation, request write, mount, worker launch,
 timeout/signal/nonzero exit, trace, output, result validation, convergence,
@@ -1045,7 +1220,9 @@ Top-level statuses must be exactly:
 
 Require the successful bundle to carry: authority-context hash and validated
 input/provenance bindings; adapter/oracle source nodes and disjoint graphs;
-capsule/worker/runtime hashes; both static scan reports; ordering trace;
+the separately classified infrastructure source-node manifest, purpose tags,
+closure hash, and static report; capsule/worker/runtime hashes; adapter and
+oracle static scan reports; ordering trace;
 preflight hash/report reference; per-process namespace/mount/environment/limit/
 chroot attestations; every request/result/trace hash; complete access-policy
 reports; interpreter/distribution/native/BLAS/backend identities; raw
@@ -1053,6 +1230,9 @@ convergence data/decision; oracle hashes/outputs/residuals/decision; disclosed
 seed; closed status; and final canonical bundle hash.
 
 Mutate or omit each field independently and require bundle validation failure.
+Move a scientific derivation node into the infrastructure manifest, introduce
+an uncommitted shared node, or change an infrastructure node/purpose/hash and
+require rejection.
 
 - [ ] **Step 3: Verify RED**
 
@@ -1062,6 +1242,14 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_litera
 ```
 
 - [ ] **Step 4: Implement `run_isolated_recomputation` as an explicit state machine**
+
+Implement a module-private `_run_isolated_recomputation_core` whose dependency
+bundle is a closed internal record accepted only by the test harness and the
+production wrapper. The test harness constructs it from the synthetic pair;
+the public wrapper constructs it internally from production immutable mappings
+and refuses all injection-shaped arguments. This seam exists only to exercise
+the full coordinator before Tasks 13–16 and is not serialized, mounted, or
+exposed as production authority.
 
 Do not catch all exceptions and relabel them generically. Each transition maps
 expected errors to one closed reason. Bound diagnostics by byte count and strip
@@ -1073,6 +1261,13 @@ contain only answer-free inputs and the already validated local result fields
 needed for invariants. Never mount the adapter output directory into an oracle
 root. Revalidate the runtime snapshot after every adapter and oracle process has
 exited and before success.
+
+Build and scan the exact infrastructure closure separately from both scientific
+closures. Require all shared nodes to be in that closure with allowed purpose
+tags, hash its nodes/edges/scanner report, and include the commitments in every
+successful or sufficiently advanced failure outcome. Run the fresh capability
+preflight and hash its report plus every command identity before the
+frozen-hashes event and before random-byte acquisition.
 
 - [ ] **Step 5: Implement outer convergence and oracle decisions**
 
@@ -1091,7 +1286,10 @@ flag.
 
 - [ ] **Step 7: Verify GREEN and commit**
 
-Run focused and full Task 7 tests. Run the protected baseline and commit gate,
+Run focused and full Task 7 tests. At this stage GREEN means the synthetic pair
+exercises the complete private core; the public production wrapper must return
+a closed dependency/unavailable failure until Tasks 13–16 supply its mappings,
+and it must never fall back or report success. Run the protected baseline and commit gate,
 then:
 
 ```bash
@@ -1106,7 +1304,7 @@ Run the protected baseline again.
 **Files:**
 
 - Modify: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapters.py`
-- Create: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapter_oracles.py`
+- Modify: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_adapter_oracles.py`
 - Modify: `translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_isolation.py`
 - Modify: `translation-invariant-spin-model-simplifier/tests/test_literature_evidence_adapters.py`
 
@@ -1154,7 +1352,8 @@ cd translation-invariant-spin-model-simplifier
 PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_literature_evidence_adapters.py -q -k 'analytic_and_enumeration or analytic_enum_mutation'
 ```
 
-Expected: oracle module import failure and missing scientific entry points.
+Expected: the oracle mapping is still empty and all production scientific entry
+points are missing.
 
 - [ ] **Step 3: Implement the eight analytic adapters without answer literals**
 
@@ -1163,10 +1362,10 @@ root, residual, scaling, and uncertainty diagnostics. Selector booleans are
 derived by the outer validator from raw diagnostics; the capsule must not
 return an unexamined status literal.
 
-1. `xxx_bethe_energy`: evaluate the Bethe expression as a function of arbitrary
-   positive exchange by numerically resolving its logarithmic/integral term,
-   not by returning a decimal benchmark. Report absolute-energy scaling and a
-   roundoff/quadrature bound.
+1. `xxx_bethe_energy`: derive the Bethe root-density expression and evaluate
+   `J*(1/4-log(2))` with the declared standard logarithm for arbitrary positive
+   exchange, not by returning a decimal benchmark or the oracle's series/
+   integral. Report absolute-energy scaling and a roundoff bound.
 2. `square_ising_self_dual_tc`: bracket and solve
    `sinh(2*K_c) - 1 = 0` on the positive branch, then compute physical
    temperature from arbitrary positive exchange. Report bracket history,
@@ -1214,8 +1413,8 @@ return an unexamined status literal.
 
 - [ ] **Step 5: Implement all 12 genuinely independent oracles**
 
-Create `OracleDefinition` and an immutable duplicate-detecting
-`ORACLE_DEFINITIONS` mapping. Implement:
+Populate the Task 4 `OracleDefinition` contract and immutable
+duplicate-detecting `ORACLE_DEFINITIONS` mapping with these twelve rows. Implement:
 
 - XXX via an alternating-series or Fermi-integral representation with a
   certified tail bound;
@@ -1320,17 +1519,19 @@ record it.
 2. ULS: build spin-one bilinear/biquadratic matrices, solve for the coefficient
    angle where the shifted Hamiltonian is permutation-equivalent, construct
    total generators, and report permutation residual and every commutator norm.
-3. Compass: on each declared periodic/open size, build X-bond and orthogonal
-   Y- or Z-bond Hamiltonians and every line-flip matrix; calculate all
-   commutator norms. Use exactly the scalable size sequence from metadata.
+3. Compass: on the declared open 2x2 and 2x3 rectangles, build horizontal
+   X-bond and vertical Y-bond Hamiltonians and every corresponding column-X and
+   row-Y line-flip matrix; calculate all commutator norms.
 4. AKLT: build two spin-one `S_total^2`, derive the spin-two spectral projector,
    diagonalize it, and calculate its kernel/local VBS energy.
 5. Majumdar-Ghosh: construct periodic spin-half J1-J2 Hamiltonians at one-half
    ratio for more than one declared even size, resolve the low spectrum, energy
    density, and overlap rank of two translated dimer coverings.
-6. Shastry-Sutherland: construct declared orthogonal-dimer cells at two allowed
-   same-observable sizes, diagonalize/check the singlet product, and calculate
-   interdimer cancellation plus per-dimer/per-spin normalization.
+6. Shastry-Sutherland: construct the declared open linked-cell realizations
+   with exactly two/four orthogonal dimers and four/eight spins. Generate each
+   dimer/interdimer bond once from the cell incidence rule, diagonalize/check
+   the tensor product of singlets, and calculate paired interdimer cancellation
+   plus per-dimer/per-spin normalization.
 7. Single-ion: construct `D*(S_z)^2` for arbitrary nonzero positive/negative
    anisotropy, diagonalize, group numerically equal levels, and report
    degeneracies.
@@ -1706,15 +1907,21 @@ From the worktree root:
 ```bash
 git diff --check
 git status --short
-git log --oneline --name-status ba62892..HEAD
-find translation-invariant-spin-model-simplifier -type d \
-  \( -name __pycache__ -o -name .pytest_cache \) -print
+git log --oneline --name-status 3bc8704^..9f23849
+git log --oneline --name-status 9f23849..HEAD
 ```
 
+Then run the exact read-only repository-cache preservation command in
+“Command conventions and commit gate.” Expected: the pinned 11 directories,
+178 entries, and SHA-256
+`f66b98ea9404df076be51bd2e219f8fbf7a82e419c4fc4f27c32e6177789f620`.
+
 Expected: no diff-check errors; only the six known protected WIP paths remain in
-status; Task 7 commits touch only the three new production modules and the one
-new test module (plus this reviewed plan commit); and no repository cache
-directory is printed.
+status. The first log range contains only the reviewed specification path and
+this implementation-plan path across specification/plan commits; the second
+range contains only the three new production modules and one new test module
+across Task 7 implementation commits. No repository cache entry is added,
+removed, or changed; the eleven pre-existing ignored directories remain.
 
 - [ ] **Step 7: Dispatch an independent specification-compliance reviewer**
 
