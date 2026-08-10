@@ -530,7 +530,9 @@ _METADATA_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 def _metadata_tokens(value: str, field_name: str) -> tuple[str, ...]:
     _require_utf8_string(value, field_name)
     separated = _CAMEL_BOUNDARY_RE.sub(" ", value)
-    return tuple(token.lower() for token in _METADATA_TOKEN_RE.findall(separated))
+    return tuple(
+        token.lower() for token in _METADATA_TOKEN_RE.findall(separated)
+    )
 
 
 def _is_numerical_control_identifier(tokens: tuple[str, ...]) -> bool:
@@ -575,7 +577,10 @@ def _validate_authored_string(
         raise AdapterContractError(
             f"{field_name} contains forbidden metadata vocabulary"
         )
-    if not allow_numerical_control and _is_numerical_control_identifier(tokens):
+    if (
+        not allow_numerical_control
+        and _is_numerical_control_identifier(tokens)
+    ):
         raise AdapterContractError(
             f"{field_name} contains a numerical control outside "
             "numerical_control_schema"
@@ -823,7 +828,9 @@ class OutputFieldBinding:
             raise AdapterContractError("proof_kind must be a string")
         _validate_authored_string(self.proof_kind, "proof_kind")
         if self.proof_kind not in OUTPUT_PROOF_KINDS:
-            raise AdapterContractError("proof_kind is not an approved output proof kind")
+            raise AdapterContractError(
+                "proof_kind is not an approved output proof kind"
+            )
         object.__setattr__(self, "value_schema", value_schema)
 
 
@@ -899,10 +906,14 @@ def _snapshot_value_schema_node(
             f"of {_MAX_VALUE_SCHEMA_NESTING}"
         )
     if type(schema) is not ValueSchema:
-        raise AdapterContractError(f"{field_name} must be an exact ValueSchema")
+        raise AdapterContractError(
+            f"{field_name} must be an exact ValueSchema"
+        )
     schema_id = id(schema)
     if schema_id in active_schema_ids:
-        raise AdapterContractError(f"{field_name} contains a ValueSchema cycle")
+        raise AdapterContractError(
+            f"{field_name} contains a ValueSchema cycle"
+        )
     active_schema_ids.add(schema_id)
     try:
         if type(schema.properties) is not tuple:
@@ -950,7 +961,10 @@ def _snapshot_value_schema_node(
         active_schema_ids.remove(schema_id)
 
 
-def _snapshot_value_schema(schema: ValueSchema, field_name: str) -> ValueSchema:
+def _snapshot_value_schema(
+    schema: ValueSchema,
+    field_name: str,
+) -> ValueSchema:
     try:
         return _snapshot_value_schema_node(
             schema,
@@ -970,10 +984,14 @@ def _snapshot_output_schema(
     output_schema: OutputSchema, field_name: str = "output_schema"
 ) -> OutputSchema:
     if type(output_schema) is not OutputSchema:
-        raise AdapterContractError(f"{field_name} must be an exact OutputSchema")
+        raise AdapterContractError(
+            f"{field_name} must be an exact OutputSchema"
+        )
     field_items = output_schema.fields
     if type(field_items) is not tuple:
-        raise AdapterContractError(f"{field_name}.fields must be an immutable tuple")
+        raise AdapterContractError(
+            f"{field_name}.fields must be an immutable tuple"
+        )
     snapshots = []
     for index, item in enumerate(field_items):
         if type(item) is not tuple or len(item) != 2:
@@ -983,7 +1001,8 @@ def _snapshot_output_schema(
         selector_field, binding = item
         if type(binding) is not OutputFieldBinding:
             raise AdapterContractError(
-                f"{field_name}.fields[{index}].binding must be an OutputFieldBinding"
+                f"{field_name}.fields[{index}].binding must be an "
+                "OutputFieldBinding"
             )
         snapshots.append(
             (
@@ -1205,7 +1224,8 @@ class AdapterDefinition:
                 "entry_symbol must be a fully qualified module:function symbol"
             )
         if self.entry_symbol != (
-            "validation.literature_evidence_adapters:adapter_" + self.adapter_id
+            "validation.literature_evidence_adapters:adapter_"
+            + self.adapter_id
         ):
             raise AdapterContractError(
                 "entry_symbol must be the exact unresolved adapter symbol"
@@ -1215,7 +1235,10 @@ class AdapterDefinition:
             _OBSERVABLE_IDENTITY_KEYS,
             "observable_identity",
         )
-        for field_name in ("scientific_input_schema", "numerical_control_schema"):
+        for field_name in (
+            "scientific_input_schema",
+            "numerical_control_schema",
+        ):
             schema = getattr(self, field_name)
             if type(schema) is not ValueSchema or schema.kind != "object":
                 raise AdapterContractError(
@@ -1283,13 +1306,20 @@ class AdapterDefinition:
         )
         for selector_field, binding in output_schema:
             _validate_authored_string(selector_field, "output_schema selector")
-            _validate_authored_string(binding.raw_field, "output_schema raw_field")
-            _validate_authored_string(binding.proof_kind, "output_schema proof_kind")
+            _validate_authored_string(
+                binding.raw_field,
+                "output_schema raw_field",
+            )
+            _validate_authored_string(
+                binding.proof_kind,
+                "output_schema proof_kind",
+            )
             _validate_authored_schema(
                 binding.value_schema, f"output_schema.{selector_field}"
             )
         _validate_authored_json(
-            self.problem_size_policy.fixed_sizes, "problem_size_policy.fixed_sizes"
+            self.problem_size_policy.fixed_sizes,
+            "problem_size_policy.fixed_sizes",
         )
         _validate_authored_json(
             self.problem_size_policy.allowed_sizes,
@@ -1838,7 +1868,10 @@ def _metadata_value_schema(
 
 
 def _metadata_object_schema(
-    specs: tuple[tuple[str, str, str, int | float | None, int | float | None], ...]
+    specs: tuple[
+        tuple[str, str, str, int | float | None, int | float | None],
+        ...,
+    ],
 ) -> ValueSchema:
     return ValueSchema(
         kind="object",
@@ -1930,7 +1963,11 @@ def _metadata_output_schema(
                     value_schema=_metadata_value_schema(
                         kind,
                         units,
-                        0 if selector in _NONNEGATIVE_OUTPUT_SELECTORS else None,
+                        (
+                            0
+                            if selector in _NONNEGATIVE_OUTPUT_SELECTORS
+                            else None
+                        ),
                         None,
                         list_length,
                     ),
@@ -2116,7 +2153,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="nearest-neighbor Ising exchange on the square lattice",
         parameter_regime="arbitrary strictly positive exchange",
         size_or_limit="infinite square lattice",
-        observable_definition="positive self-duality root followed by temperature inversion",
+        observable_definition=(
+            "positive self-duality root followed by temperature inversion"
+        ),
         conditions="zero field and isotropic bonds",
         input_specs=(
             (
@@ -2147,7 +2186,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("scipy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "duality equation residual lies below the declared control"
+            "bound_rule": (
+                "duality equation residual lies below the declared control"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2212,7 +2253,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="anisotropic XY exchange with a transverse field",
         parameter_regime="positive exchange with finite field and anisotropy",
         size_or_limit="thermodynamic momentum-space chain",
-        observable_definition="field and anisotropy coordinates of BdG gap closings",
+        observable_definition=(
+            "field and anisotropy coordinates of BdG gap closings"
+        ),
         conditions="translation invariance and periodic bulk convention",
         input_specs=(
             (
@@ -2256,7 +2299,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "neighboring momentum gaps and matrix residuals bound each closing"
+            "bound_rule": (
+                "neighboring momentum gaps and matrix residuals bound each "
+                "closing"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2268,10 +2314,19 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="spiral-surface onset coupling",
         system_or_material="classical Heisenberg model on the diamond lattice",
         hamiltonian="first- and second-neighbor isotropic exchange",
-        parameter_regime="positive first-neighbor scale and nonnegative second-neighbor scale",
+        parameter_regime=(
+            "positive first-neighbor scale and nonnegative second-neighbor "
+            "scale"
+        ),
         size_or_limit="infinite two-sublattice reciprocal lattice",
-        observable_definition="coupling ratio where the exchange-kernel minimum becomes a surface",
-        conditions="classical spins with translation-invariant single-wavevector probes",
+        observable_definition=(
+            "coupling ratio where the exchange-kernel minimum becomes a "
+            "surface"
+        ),
+        conditions=(
+            "classical spins with translation-invariant single-wavevector "
+            "probes"
+        ),
         input_specs=(
             (
                 "first_neighbor_exchange",
@@ -2301,7 +2356,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "kernel minima are bracketed from both coupling sides"
+            "bound_rule": (
+                "kernel minima are bracketed from both coupling sides"
+            )
         },
         valid_rules={
             "first_neighbor_exchange": {"kind": "strictly_positive_finite"}
@@ -2319,7 +2376,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="pair exchange among four local-axis Ising spins",
         parameter_regime="arbitrary finite exchange scale",
         size_or_limit="one four-spin tetrahedron",
-        observable_definition="complete sixteen-configuration sector enumeration",
+        observable_definition=(
+            "complete sixteen-configuration sector enumeration"
+        ),
         conditions="fixed local axes and no external field",
         input_specs=(
             (
@@ -2368,7 +2427,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=(),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "all sixteen configurations and all sectors are exhausted"
+            "closure_rule": (
+                "all sixteen configurations and all sectors are exhausted"
+            )
         },
         valid_rules={"exchange": {"kind": "finite"}},
         invalid_rules={"exchange": {"kind": "nonfinite"}},
@@ -2382,7 +2443,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="two-spin isotropic rung exchange",
         parameter_regime="strictly positive rung exchange",
         size_or_limit="one two-spin rung",
-        observable_definition="dense diagonalization of singlet and triplet sectors",
+        observable_definition=(
+            "dense diagonalization of singlet and triplet sectors"
+        ),
         conditions="isolated rung with no leg exchange or field",
         input_specs=(
             (
@@ -2417,7 +2480,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "complete four-dimensional spin basis is diagonalized"
+            "closure_rule": (
+                "complete four-dimensional spin basis is diagonalized"
+            )
         },
         valid_rules={"rung_exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"rung_exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2431,8 +2496,12 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="local two-in two-out constraint with shared spins",
         parameter_regime="tetrahedral local coordination",
         size_or_limit="thermodynamic shared-spin counting limit",
-        observable_definition="logarithmic local-state counting normalized per spin",
-        conditions="all allowed ice configurations carry equal statistical weight",
+        observable_definition=(
+            "logarithmic local-state counting normalized per spin"
+        ),
+        conditions=(
+            "all allowed ice configurations carry equal statistical weight"
+        ),
         input_specs=(
             (
                 "spins_per_tetrahedron",
@@ -2459,7 +2528,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=(),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "local combinatorics and shared-spin normalization are analytic"
+            "closure_rule": (
+                "local combinatorics and shared-spin normalization are "
+                "analytic"
+            )
         },
         valid_rules={
             "spins_per_tetrahedron": {"kind": "tetrahedral_positive_integer"}
@@ -2475,9 +2547,14 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="two-site SU3 permutation equivalence",
         system_or_material="spin-one bilinear-biquadratic bond",
         hamiltonian="spin-one bilinear and biquadratic exchange",
-        parameter_regime="positive common energy scale at the permutation-equivalent point",
+        parameter_regime=(
+            "positive common energy scale at the permutation-equivalent "
+            "point"
+        ),
         size_or_limit="one two-spin-one bond",
-        observable_definition="coefficient angle and generator commutator closure",
+        observable_definition=(
+            "coefficient angle and generator commutator closure"
+        ),
         conditions="complete spin-one product basis",
         input_specs=(
             (
@@ -2512,7 +2589,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "all total-spin sectors and generator identities are evaluated"
+            "closure_rule": (
+                "all total-spin sectors and generator identities are "
+                "evaluated"
+            )
         },
         valid_rules={"energy_scale": {"kind": "strictly_positive_finite"}},
         invalid_rules={"energy_scale": {"kind": "nonpositive_or_nonfinite"}},
@@ -2526,8 +2606,12 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="positive spin-two projector expanded in bilinear powers",
         parameter_regime="arbitrary strictly positive projector scale",
         size_or_limit="analytic two-spin-one bond identity",
-        observable_definition="bilinear-biquadratic coefficient ratio and angle",
-        conditions="constant energy shift separated from exchange coefficients",
+        observable_definition=(
+            "bilinear-biquadratic coefficient ratio and angle"
+        ),
+        conditions=(
+            "constant energy shift separated from exchange coefficients"
+        ),
         input_specs=(
             (
                 "projector_scale",
@@ -2561,10 +2645,15 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=(),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "spin-sector polynomial coefficients are derived symbolically"
+            "closure_rule": (
+                "spin-sector polynomial coefficients are derived "
+                "symbolically"
+            )
         },
         valid_rules={"projector_scale": {"kind": "strictly_positive_finite"}},
-        invalid_rules={"projector_scale": {"kind": "nonpositive_or_nonfinite"}},
+        invalid_rules={
+            "projector_scale": {"kind": "nonpositive_or_nonfinite"}
+        },
     ),
     _metadata_definition(
         adapter_id="compass_line_symmetry_matrix",
@@ -2572,7 +2661,9 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="dense_ed",
         subject="line-flip symmetry commutators",
         system_or_material="square-lattice quantum compass model",
-        hamiltonian="directional Pauli exchange on horizontal and vertical bonds",
+        hamiltonian=(
+            "directional Pauli exchange on horizontal and vertical bonds"
+        ),
         parameter_regime="finite directional exchange coefficients",
         size_or_limit="two declared open finite lattice shapes",
         observable_definition="every Hamiltonian and line-flip commutator",
@@ -2615,7 +2706,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "every declared line operator and both shapes are exhausted"
+            "closure_rule": (
+                "every declared line operator and both shapes are exhausted"
+            )
         },
         valid_rules={
             "horizontal_exchange": {"kind": "finite"},
@@ -2632,10 +2725,17 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="glt_fourier",
         subject="field-induced Majorana mass and odd topological parity",
         system_or_material="isotropic honeycomb Kitaev spin liquid",
-        hamiltonian="bond-directional Kitaev exchange with three field components",
-        parameter_regime="positive exchange and three finite nonzero field components",
+        hamiltonian=(
+            "bond-directional Kitaev exchange with three field components"
+        ),
+        parameter_regime=(
+            "positive exchange and three finite nonzero field components"
+        ),
         size_or_limit="thermodynamic two-band Majorana Brillouin zone",
-        observable_definition="third-order mass, bulk gap, and parity from lower-level band data",
+        observable_definition=(
+            "third-order mass, bulk gap, and parity from lower-level band "
+            "data"
+        ),
         conditions="weak-field perturbative regime with fixed flux sector",
         input_specs=(
             (
@@ -2693,7 +2793,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "gap lower bound is positive and band parity is stable under finer sampling"
+            "bound_rule": (
+                "gap lower bound is positive and band parity is stable "
+                "under finer sampling"
+            )
         },
         valid_rules={
             "kitaev_exchange": {"kind": "strictly_positive_finite"},
@@ -2714,10 +2817,14 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="enumeration",
         subject="torus ground-space dimension from stabilizer rank",
         system_or_material="square-lattice toric code",
-        hamiltonian="commuting star and plaquette stabilizers over edge qubits",
+        hamiltonian=(
+            "commuting star and plaquette stabilizers over edge qubits"
+        ),
         parameter_regime="nonzero commuting stabilizer coefficients",
         size_or_limit="two declared periodic torus shapes",
-        observable_definition="GF2 incidence-matrix rank and logical dimension",
+        observable_definition=(
+            "GF2 incidence-matrix rank and logical dimension"
+        ),
         conditions="periodic boundaries with both noncontractible cycles",
         input_specs=(
             (
@@ -2748,10 +2855,14 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=(),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "GF2 elimination and all stabilizer dependencies are exact"
+            "closure_rule": (
+                "GF2 elimination and all stabilizer dependencies are exact"
+            )
         },
         valid_rules={"stabilizer_scale": {"kind": "strictly_positive_finite"}},
-        invalid_rules={"stabilizer_scale": {"kind": "nonpositive_or_nonfinite"}},
+        invalid_rules={
+            "stabilizer_scale": {"kind": "nonpositive_or_nonfinite"}
+        },
     ),
     _metadata_definition(
         adapter_id="aklt_two_site_projector_ed",
@@ -2762,7 +2873,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="positive total-spin-two projector",
         parameter_regime="arbitrary strictly positive projector scale",
         size_or_limit="one two-spin-one bond",
-        observable_definition="complete projector spectrum and local VBS expectation",
+        observable_definition=(
+            "complete projector spectrum and local VBS expectation"
+        ),
         conditions="full nine-dimensional product basis",
         input_specs=(
             (
@@ -2798,10 +2911,15 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "all nine eigenvalues and spin-sector multiplicities are exhausted"
+            "closure_rule": (
+                "all nine eigenvalues and spin-sector multiplicities are "
+                "exhausted"
+            )
         },
         valid_rules={"projector_scale": {"kind": "strictly_positive_finite"}},
-        invalid_rules={"projector_scale": {"kind": "nonpositive_or_nonfinite"}},
+        invalid_rules={
+            "projector_scale": {"kind": "nonpositive_or_nonfinite"}
+        },
     ),
     _metadata_definition(
         adapter_id="blume_capel_level_crossing",
@@ -2809,10 +2927,14 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="enumeration",
         subject="uniform-state zero-temperature level crossing",
         system_or_material="square-lattice spin-one Blume-Capel model",
-        hamiltonian="nearest-neighbor Ising exchange plus single-ion anisotropy",
+        hamiltonian=(
+            "nearest-neighbor Ising exchange plus single-ion anisotropy"
+        ),
         parameter_regime="positive exchange and finite single-ion coefficient",
         size_or_limit="one-site uniform-state cell with square bond count",
-        observable_definition="uniform spin-state energies and their crossing ratio",
+        observable_definition=(
+            "uniform spin-state energies and their crossing ratio"
+        ),
         conditions="zero field and zero temperature",
         input_specs=(
             (
@@ -2840,7 +2962,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=(),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "all three uniform spin states and square bonds are counted"
+            "closure_rule": (
+                "all three uniform spin states and square bonds are counted"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2851,10 +2975,14 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="enumeration",
         subject="crossed-plaquette zero-spin minimum",
         system_or_material="classical checkerboard Heisenberg antiferromagnet",
-        hamiltonian="complete-graph exchange on one crossed four-spin plaquette",
+        hamiltonian=(
+            "complete-graph exchange on one crossed four-spin plaquette"
+        ),
         parameter_regime="strictly positive normalized exchange",
         size_or_limit="one crossed four-spin plaquette",
-        observable_definition="plaquette energy minimization and total-spin norms",
+        observable_definition=(
+            "plaquette energy minimization and total-spin norms"
+        ),
         conditions="unit-length classical spins",
         input_specs=(
             (
@@ -2882,7 +3010,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "total-spin identity and all pair bonds are evaluated"
+            "closure_rule": (
+                "total-spin identity and all pair bonds are evaluated"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2896,7 +3026,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="isotropic nearest-neighbor Ising exchange",
         parameter_regime="arbitrary strictly positive exchange",
         size_or_limit="infinite honeycomb lattice",
-        observable_definition="positive star-triangle root and temperature inversion",
+        observable_definition=(
+            "positive star-triangle root and temperature inversion"
+        ),
         conditions="zero field and isotropic bonds",
         input_specs=(
             (
@@ -2927,7 +3059,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("scipy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "star-triangle equation residual lies below the declared control"
+            "bound_rule": (
+                "star-triangle equation residual lies below the declared "
+                "control"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2941,7 +3076,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="nearest-neighbor antiferromagnetic Ising exchange",
         parameter_regime="strictly positive antiferromagnetic exchange",
         size_or_limit="infinite kagome lattice",
-        observable_definition="successive entropy estimates and a positive lower bound",
+        observable_definition=(
+            "successive entropy estimates and a positive lower bound"
+        ),
         conditions="zero field and zero-temperature limiting ensemble",
         input_specs=(
             (
@@ -2978,7 +3115,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("scipy",),
         convergence_kind="quadrature",
         convergence_requirements={
-            "bound_rule": "successive entropy intervals contract above a positive lower bound"
+            "bound_rule": (
+                "successive entropy intervals contract above a positive "
+                "lower bound"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -3023,7 +3163,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("scipy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "critical polynomial residual lies below the declared control"
+            "bound_rule": (
+                "critical polynomial residual lies below the declared control"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -3035,9 +3177,13 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="dimer-point energy density and translated ground-space rank",
         system_or_material="periodic spin-half J1-J2 chain",
         hamiltonian="nearest- and next-nearest-neighbor isotropic exchange",
-        parameter_regime="positive nearest exchange with dimer-point coupling relation",
+        parameter_regime=(
+            "positive nearest exchange with dimer-point coupling relation"
+        ),
         size_or_limit="two declared periodic even chain lengths",
-        observable_definition="ground energy density and rank of translated dimer coverings",
+        observable_definition=(
+            "ground energy density and rank of translated dimer coverings"
+        ),
         conditions="zero field and periodic boundary conditions",
         input_specs=(
             (
@@ -3075,7 +3221,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="finite_size",
         convergence_requirements={
-            "size_rule": "both declared lengths obey the same projector identity and rank rule"
+            "size_rule": (
+                "both declared lengths obey the same projector identity "
+                "and rank rule"
+            )
         },
         valid_rules={
             "nearest_exchange": {"kind": "strictly_positive_finite"}
@@ -3091,9 +3240,15 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="absence of a finite-temperature transfer-eigenvalue crossing",
         system_or_material="one-dimensional classical Ising chain",
         hamiltonian="nearest-neighbor Ising exchange at zero field",
-        parameter_regime="positive exchange and arbitrary finite positive inverse temperature",
+        parameter_regime=(
+            "positive exchange and arbitrary finite positive inverse "
+            "temperature"
+        ),
         size_or_limit="infinite chain transfer-matrix limit",
-        observable_definition="analytic eigenvalue separation and zero-temperature limiting point",
+        observable_definition=(
+            "analytic eigenvalue separation and zero-temperature limiting "
+            "point"
+        ),
         conditions="zero magnetic field and finite temperature",
         input_specs=(
             (
@@ -3137,7 +3292,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=(),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "both transfer eigenvalues and their analytic separation are explicit"
+            "closure_rule": (
+                "both transfer eigenvalues and their analytic separation "
+                "are explicit"
+            )
         },
         valid_rules={
             "exchange": {"kind": "strictly_positive_finite"},
@@ -3154,11 +3312,18 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="glt_fourier",
         subject="tetrahedron constraint and directional pinch-point limits",
         system_or_material="classical pyrochlore Heisenberg antiferromagnet",
-        hamiltonian="nearest-neighbor isotropic exchange on corner-sharing tetrahedra",
+        hamiltonian=(
+            "nearest-neighbor isotropic exchange on corner-sharing "
+            "tetrahedra"
+        ),
         parameter_regime="strictly positive exchange",
         size_or_limit="thermodynamic reciprocal-space Coulomb phase",
-        observable_definition="tetrahedron spin sums and two directional polarization limits",
-        conditions="zero field with two distinct normalized approach directions",
+        observable_definition=(
+            "tetrahedron spin sums and two directional polarization limits"
+        ),
+        conditions=(
+            "zero field with two distinct normalized approach directions"
+        ),
         input_specs=(
             (
                 "exchange",
@@ -3190,7 +3355,13 @@ _ADAPTER_DEFINITION_ROWS = (
         ),
         control_specs=(
             ("momentum_refinement_grid", "integer", "points", 16, 1000000),
-            ("constraint_residual_bound", "number", "dimensionless", 0.0, None),
+            (
+                "constraint_residual_bound",
+                "number",
+                "dimensionless",
+                0.0,
+                None,
+            ),
         ),
         output_specs=(
             (
@@ -3213,7 +3384,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "constraint residuals contract and directional limits remain distinct"
+            "bound_rule": (
+                "constraint residuals contract and directional limits "
+                "remain distinct"
+            )
         },
         valid_rules={
             "exchange": {"kind": "strictly_positive_finite"},
@@ -3223,7 +3397,9 @@ _ADAPTER_DEFINITION_ROWS = (
         invalid_rules={
             "exchange": {"kind": "nonpositive_or_nonfinite"},
             "approach_direction_a": {"kind": "unsupported_or_unnormalized"},
-            "approach_direction_b": {"kind": "unsupported_equal_or_unnormalized"},
+            "approach_direction_b": {
+                "kind": "unsupported_equal_or_unnormalized"
+            },
         },
     ),
     _metadata_definition(
@@ -3233,9 +3409,13 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="orthogonal-dimer product energy and interdimer cancellation",
         system_or_material="spin-half Shastry-Sutherland lattice cells",
         hamiltonian="intradimer and orthogonal interdimer Heisenberg exchange",
-        parameter_regime="positive intradimer scale with finite linked-cell coupling",
+        parameter_regime=(
+            "positive intradimer scale with finite linked-cell coupling"
+        ),
         size_or_limit="two declared open linked orthogonal-dimer cells",
-        observable_definition="singlet-product energy normalized per dimer and per spin",
+        observable_definition=(
+            "singlet-product energy normalized per dimer and per spin"
+        ),
         conditions="open linked cells in the exact product-state regime",
         input_specs=(
             (
@@ -3283,7 +3463,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "all intradimer expectations and linked-cell cancellations are exact"
+            "closure_rule": (
+                "all intradimer expectations and linked-cell cancellations "
+                "are exact"
+            )
         },
         valid_rules={
             "intradimer_exchange": {"kind": "strictly_positive_finite"},
@@ -3291,7 +3474,9 @@ _ADAPTER_DEFINITION_ROWS = (
         },
         invalid_rules={
             "intradimer_exchange": {"kind": "nonpositive_or_nonfinite"},
-            "interdimer_exchange": {"kind": "outside_product_state_regime_or_nonfinite"},
+            "interdimer_exchange": {
+                "kind": "outside_product_state_regime_or_nonfinite"
+            },
         },
     ),
     _metadata_definition(
@@ -3301,10 +3486,17 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="Néel-to-collinear exchange crossing",
         system_or_material="classical simple-cubic J1-J2 Heisenberg model",
         hamiltonian="first- and second-neighbor isotropic exchange",
-        parameter_regime="positive first-neighbor and nonnegative second-neighbor exchange",
+        parameter_regime=(
+            "positive first-neighbor and nonnegative second-neighbor "
+            "exchange"
+        ),
         size_or_limit="infinite simple-cubic reciprocal lattice",
-        observable_definition="crossing of minimized Néel and collinear Fourier branches",
-        conditions="classical unit spins and translation-invariant wavevectors",
+        observable_definition=(
+            "crossing of minimized Néel and collinear Fourier branches"
+        ),
+        conditions=(
+            "classical unit spins and translation-invariant wavevectors"
+        ),
         input_specs=(
             (
                 "first_neighbor_exchange",
@@ -3334,7 +3526,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "both Fourier branches are minimized and their crossing is bracketed"
+            "bound_rule": (
+                "both Fourier branches are minimized and their crossing is "
+                "bracketed"
+            )
         },
         valid_rules={
             "first_neighbor_exchange": {"kind": "strictly_positive_finite"}
@@ -3352,7 +3547,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="quadratic single-ion anisotropy",
         parameter_regime="arbitrary finite nonzero anisotropy",
         size_or_limit="one spin-one site",
-        observable_definition="complete three-state spectrum grouped by equal energies",
+        observable_definition=(
+            "complete three-state spectrum grouped by equal energies"
+        ),
         conditions="zero magnetic field",
         input_specs=(
             (
@@ -3389,7 +3586,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="exact",
         convergence_requirements={
-            "closure_rule": "all three magnetic quantum-number states are exhausted"
+            "closure_rule": (
+                "all three magnetic quantum-number states are exhausted"
+            )
         },
         valid_rules={"single_ion_anisotropy": {"kind": "finite_nonzero"}},
         invalid_rules={"single_ion_anisotropy": {"kind": "zero_or_nonfinite"}},
@@ -3400,10 +3599,14 @@ _ADAPTER_DEFINITION_ROWS = (
         backend_kind="iterative_numeric",
         subject="positive fully frustrated entropy density",
         system_or_material="fully frustrated square-lattice Ising model",
-        hamiltonian="nearest-neighbor Ising bonds with odd plaquette frustration",
+        hamiltonian=(
+            "nearest-neighbor Ising bonds with odd plaquette frustration"
+        ),
         parameter_regime="strictly positive common bond magnitude",
         size_or_limit="thermodynamic square-lattice limit",
-        observable_definition="successive entropy series bounds and positive limiting density",
+        observable_definition=(
+            "successive entropy series bounds and positive limiting density"
+        ),
         conditions="zero field and zero-temperature frustrated ensemble",
         input_specs=(
             (
@@ -3434,7 +3637,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="iterative",
         convergence_requirements={
-            "sequence_rule": "successive entropy bounds contract above a positive lower bound"
+            "sequence_rule": (
+                "successive entropy bounds contract above a positive lower "
+                "bound"
+            )
         },
         valid_rules={"bond_magnitude": {"kind": "strictly_positive_finite"}},
         invalid_rules={"bond_magnitude": {"kind": "nonpositive_or_nonfinite"}},
@@ -3448,7 +3654,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="nearest-neighbor Ising exchange with transverse field",
         parameter_regime="strictly positive exchange and field",
         size_or_limit="thermodynamic Jordan-Wigner momentum limit",
-        observable_definition="field-to-exchange coordinate of the BdG gap closing",
+        observable_definition=(
+            "field-to-exchange coordinate of the BdG gap closing"
+        ),
         conditions="periodic bulk convention and zero longitudinal field",
         input_specs=(
             (
@@ -3479,7 +3687,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "the BdG gap minimum is bracketed and closes under finer sampling"
+            "bound_rule": (
+                "the BdG gap minimum is bracketed and closes under finer "
+                "sampling"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -3493,7 +3704,9 @@ _ADAPTER_DEFINITION_ROWS = (
         hamiltonian="isotropic nearest-neighbor Ising exchange",
         parameter_regime="arbitrary strictly positive exchange",
         size_or_limit="infinite triangular lattice",
-        observable_definition="positive critical-equation root and temperature inversion",
+        observable_definition=(
+            "positive critical-equation root and temperature inversion"
+        ),
         conditions="zero field and isotropic bonds",
         input_specs=(
             (
@@ -3524,7 +3737,9 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("scipy",),
         convergence_kind="residual_bound",
         convergence_requirements={
-            "bound_rule": "critical-equation residual lies below the declared control"
+            "bound_rule": (
+                "critical-equation residual lies below the declared control"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -3536,9 +3751,13 @@ _ADAPTER_DEFINITION_ROWS = (
         subject="occupied-dispersion ground-state energy density",
         system_or_material="spin-half XX chain",
         hamiltonian="nearest-neighbor planar exchange mapped to free fermions",
-        parameter_regime="arbitrary strictly positive exchange at half filling",
+        parameter_regime=(
+            "arbitrary strictly positive exchange at half filling"
+        ),
         size_or_limit="thermodynamic occupied-momentum integral",
-        observable_definition="successive occupied-dispersion integral bounds per site",
+        observable_definition=(
+            "successive occupied-dispersion integral bounds per site"
+        ),
         conditions="zero field and zero temperature",
         input_specs=(
             (
@@ -3569,7 +3788,10 @@ _ADAPTER_DEFINITION_ROWS = (
         packages=("numpy",),
         convergence_kind="quadrature",
         convergence_requirements={
-            "bound_rule": "successive occupied-dispersion integral bounds overlap and contract"
+            "bound_rule": (
+                "successive occupied-dispersion integral bounds overlap "
+                "and contract"
+            )
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -3697,7 +3919,10 @@ def _build_adapter_definitions(
                 f"definition row {index} must be an exact AdapterDefinition"
             )
         definition_snapshot = AdapterDefinition(
-            *(getattr(definition, field.name) for field in fields(AdapterDefinition))
+            *(
+                getattr(definition, field.name)
+                for field in fields(AdapterDefinition)
+            )
         )
         if definition_snapshot.adapter_id in catalog:
             raise AdapterContractError(
@@ -3706,7 +3931,9 @@ def _build_adapter_definitions(
             )
         catalog[definition_snapshot.adapter_id] = definition_snapshot
     if len(catalog) != 29:
-        raise AdapterContractError("definition catalog must contain exactly 29 rows")
+        raise AdapterContractError(
+            "definition catalog must contain exactly 29 rows"
+        )
 
     eligible_by_id = {
         decision.adapter_id: decision
@@ -3724,14 +3951,21 @@ def _build_adapter_definitions(
         decision = eligible_by_id[adapter_id]
         if definition.oracle_id != decision.oracle_id:
             raise AdapterContractError(
-                f"definition oracle does not match eligibility for {adapter_id}"
+                "definition oracle does not match eligibility for "
+                f"{adapter_id}"
             )
-        if definition.output_schema.selector_fields != decision.selector_fields:
+        if (
+            definition.output_schema.selector_fields
+            != decision.selector_fields
+        ):
             raise AdapterContractError(
-                f"definition selector fields do not match eligibility for {adapter_id}"
+                "definition selector fields do not match eligibility for "
+                f"{adapter_id}"
             )
         if definition.oracle_id in oracle_ids:
-            raise AdapterContractError("definition catalog contains duplicate oracle ID")
+            raise AdapterContractError(
+                "definition catalog contains duplicate oracle ID"
+            )
         oracle_ids.add(definition.oracle_id)
 
     for backend_kind, expected_ids in _EXPECTED_BACKEND_IDS.items():
@@ -3764,7 +3998,9 @@ def _build_adapter_definitions(
         or scalable_ids != _EXPECTED_SCALABLE_IDS
         or len(not_applicable_ids) != 18
     ):
-        raise AdapterContractError("definition problem-size policy assignment mismatch")
+        raise AdapterContractError(
+            "definition problem-size policy assignment mismatch"
+        )
     for adapter_id, definition in catalog.items():
         expected_size_data = _EXPECTED_SIZE_DATA.get(adapter_id, {})
         policy = definition.problem_size_policy
@@ -3780,9 +4016,10 @@ def _build_adapter_definitions(
     return MappingProxyType(dict(catalog))
 
 
-ADAPTER_DEFINITIONS: Mapping[str, AdapterDefinition] = _build_adapter_definitions(
-    _ADAPTER_DEFINITION_ROWS
-)
+ADAPTER_DEFINITIONS: Mapping[
+    str,
+    AdapterDefinition,
+] = _build_adapter_definitions(_ADAPTER_DEFINITION_ROWS)
 
 
 def get_adapter_definition(adapter_id: str) -> AdapterDefinition:
@@ -3790,4 +4027,6 @@ def get_adapter_definition(adapter_id: str) -> AdapterDefinition:
     try:
         return ADAPTER_DEFINITIONS[adapter_id]
     except KeyError as error:
-        raise AdapterContractError(f"unknown adapter_id {adapter_id}") from error
+        raise AdapterContractError(
+            f"unknown adapter_id {adapter_id}"
+        ) from error

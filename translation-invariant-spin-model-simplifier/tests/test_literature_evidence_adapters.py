@@ -2392,13 +2392,16 @@ def _fresh_adapter_values():
     )
 
 
-def test_adapter_definitions_cover_exact_eligible_ids_and_link_field_for_field():
+def test_adapter_definitions_cover_exact_eligible_ids_and_link_field_for_field(
+):
     definitions = adapters.ADAPTER_DEFINITIONS
 
     assert type(definitions) is MappingProxyType
     assert set(definitions) == set(EXPECTED_ELIGIBLE_BY_ADAPTER)
     assert len(definitions) == 29
-    assert all(type(item) is AdapterDefinition for item in definitions.values())
+    assert all(
+        type(item) is AdapterDefinition for item in definitions.values()
+    )
     for adapter_id, definition in definitions.items():
         selector_fields, oracle_id = EXPECTED_ELIGIBLE_BY_ADAPTER[adapter_id]
         assert definition.adapter_id == adapter_id
@@ -2441,7 +2444,13 @@ def test_adapter_definition_backend_map_is_exact_and_independent():
     }
 
     assert actual == EXPECTED_BACKENDS
-    assert tuple(len(actual[name]) for name in EXPECTED_BACKENDS) == (8, 4, 7, 6, 4)
+    assert tuple(len(actual[name]) for name in EXPECTED_BACKENDS) == (
+        8,
+        4,
+        7,
+        6,
+        4,
+    )
 
 
 def test_adapter_definition_size_policy_assignments_and_data_are_exact():
@@ -2477,11 +2486,15 @@ def test_adapter_definition_size_policy_assignments_and_data_are_exact():
     for adapter_id, definition in definitions.items():
         policy = definition.problem_size_policy
         if adapter_id in FIXED_LOCAL:
-            assert policy.fixed_sizes == freeze_json(EXPECTED_SIZE_DATA[adapter_id])
+            assert policy.fixed_sizes == freeze_json(
+                EXPECTED_SIZE_DATA[adapter_id]
+            )
             assert not policy.allowed_sizes
         elif adapter_id in SCALABLE:
             assert not policy.fixed_sizes
-            assert policy.allowed_sizes == freeze_json(EXPECTED_SIZE_DATA[adapter_id])
+            assert policy.allowed_sizes == freeze_json(
+                EXPECTED_SIZE_DATA[adapter_id]
+            )
         else:
             assert not policy.fixed_sizes
             assert not policy.allowed_sizes
@@ -2503,7 +2516,10 @@ def test_adapter_definition_observable_identity_is_complete_and_nonempty():
     for definition in adapters.ADAPTER_DEFINITIONS.values():
         identity = definition.observable_identity
         assert set(identity) == exact_keys
-        assert all(value not in (None, "", (), False) for value in identity.values())
+        assert all(
+            value not in (None, "", (), False)
+            for value in identity.values()
+        )
         identities.append(canonical_sha256(identity))
     assert len(set(identities)) == 29
 
@@ -2526,9 +2542,9 @@ def test_output_schema_records_are_exact_sealed_and_match_every_selector():
     assert tuple(
         field.name for field in dataclasses.fields(adapters.OutputFieldBinding)
     ) == ("value_schema", "raw_field", "proof_kind")
-    assert tuple(field.name for field in dataclasses.fields(adapters.OutputSchema)) == (
-        "fields",
-    )
+    assert tuple(
+        field.name for field in dataclasses.fields(adapters.OutputSchema)
+    ) == ("fields",)
     for contract_type in (adapters.OutputFieldBinding, adapters.OutputSchema):
         with pytest.raises(TypeError, match="sealed|subclass"):
             type(f"Unsafe{contract_type.__name__}", (contract_type,), {})
@@ -2538,7 +2554,9 @@ def test_output_schema_records_are_exact_sealed_and_match_every_selector():
         output_schema = definition.output_schema
         assert type(output_schema) is adapters.OutputSchema
         expected_fields = EXPECTED_OUTPUT_CONTRACTS[adapter_id]
-        assert tuple(name for name, _binding in output_schema) == tuple(expected_fields)
+        assert tuple(name for name, _binding in output_schema) == tuple(
+            expected_fields
+        )
         assert output_schema.selector_fields == tuple(expected_fields)
         assert tuple(output_schema.items()) == output_schema.fields
 
@@ -2546,9 +2564,12 @@ def test_output_schema_records_are_exact_sealed_and_match_every_selector():
         assert type(detached_lookup) is MappingProxyType
         assert tuple(detached_lookup) == tuple(expected_fields)
         for selector_field, binding in output_schema:
-            expected_kind, expected_units, raw_field, proof_kind = expected_fields[
-                selector_field
-            ]
+            (
+                expected_kind,
+                expected_units,
+                raw_field,
+                proof_kind,
+            ) = expected_fields[selector_field]
             assert type(binding) is adapters.OutputFieldBinding
             assert type(binding.value_schema) is ValueSchema
             assert binding.value_schema.required is True
@@ -2573,7 +2594,10 @@ def test_output_schema_records_are_exact_sealed_and_match_every_selector():
                 ]
                 assert binding.value_schema.lower == exact_length
                 assert binding.value_schema.upper == exact_length
-            assert (binding.raw_field, binding.proof_kind) == (raw_field, proof_kind)
+            assert (binding.raw_field, binding.proof_kind) == (
+                raw_field,
+                proof_kind,
+            )
             assert output_schema[selector_field] is binding
             all_raw_fields.append(binding.raw_field)
             if binding.value_schema.kind == "boolean":
@@ -2601,7 +2625,10 @@ def test_list_value_schema_uses_nonnegative_integer_item_count_bounds():
 
     assert (exact_three.lower, exact_three.upper) == (3, 3)
     for lower, upper in ((True, 3), (1.5, 3), (-1, 3), (4, 3)):
-        with pytest.raises(AdapterContractError, match="lower|upper|item.count"):
+        with pytest.raises(
+            AdapterContractError,
+            match="lower|upper|item.count",
+        ):
             ValueSchema(
                 kind="list",
                 required=True,
@@ -2658,7 +2685,9 @@ def test_adapter_definition_revalidates_tampered_output_bindings(
         "raw_bethe_energy_expression",
         "direct_exact_value",
     )
-    output_schema = adapters.OutputSchema(fields=(("energy_per_site", binding),))
+    output_schema = adapters.OutputSchema(
+        fields=(("energy_per_site", binding),)
+    )
     object.__setattr__(binding, field_name, tampered_value)
     values = _fresh_adapter_values()
     values["output_schema"] = output_schema
@@ -2679,7 +2708,9 @@ def test_adapter_definition_revalidates_tampered_output_schema_fields(
         "raw_bethe_energy_expression",
         "direct_exact_value",
     )
-    output_schema = adapters.OutputSchema(fields=(("energy_per_site", binding),))
+    output_schema = adapters.OutputSchema(
+        fields=(("energy_per_site", binding),)
+    )
     if tampered_fields == "duplicate":
         tampered_fields = (
             ("energy_per_site", binding),
@@ -2691,7 +2722,10 @@ def test_adapter_definition_revalidates_tampered_output_schema_fields(
     values = _fresh_adapter_values()
     values["output_schema"] = output_schema
 
-    with pytest.raises(AdapterContractError, match="output_schema|fields|binding"):
+    with pytest.raises(
+        AdapterContractError,
+        match="output_schema|fields|binding",
+    ):
         AdapterDefinition(**values)
 
 
@@ -2701,7 +2735,9 @@ def test_adapter_definition_snapshots_output_schema_and_binding_aliases():
         "raw_bethe_energy_expression",
         "direct_exact_value",
     )
-    output_schema = adapters.OutputSchema(fields=(("energy_per_site", binding),))
+    output_schema = adapters.OutputSchema(
+        fields=(("energy_per_site", binding),)
+    )
     values = _fresh_adapter_values()
     values["output_schema"] = output_schema
 
@@ -2742,7 +2778,10 @@ def test_output_schema_snapshot_rejects_value_schema_cycles(cycle_kind):
     else:
         schema = _object_schema((("child", _number_schema(units="J")),))
         object.__setattr__(schema, "properties", (("child", schema),))
-        snapshot = lambda: adapters._snapshot_value_schema(schema, "value_schema")
+        snapshot = lambda: adapters._snapshot_value_schema(
+            schema,
+            "value_schema",
+        )
 
     with pytest.raises(AdapterContractError, match="cycle|nesting|recursion"):
         snapshot()
@@ -2755,7 +2794,10 @@ def test_output_schema_snapshot_enforces_128_level_nesting_boundary():
 
     assert type(accepted) is ValueSchema
     with pytest.raises(AdapterContractError, match="nesting|128"):
-        adapters._snapshot_value_schema(_nested_list_schema(129), "value_schema")
+        adapters._snapshot_value_schema(
+            _nested_list_schema(129),
+            "value_schema",
+        )
 
 
 def test_output_schema_snapshot_allows_shared_noncyclic_subschemas():
@@ -2764,7 +2806,10 @@ def test_output_schema_snapshot_allows_shared_noncyclic_subschemas():
 
     snapshot = adapters._snapshot_value_schema(schema, "value_schema")
 
-    assert tuple(name for name, _child in snapshot.properties) == ("left", "right")
+    assert tuple(name for name, _child in snapshot.properties) == (
+        "left",
+        "right",
+    )
 
 
 def test_adapter_definition_provenance_is_complete_exact_and_disjoint():
@@ -2780,7 +2825,9 @@ def test_adapter_definition_provenance_is_complete_exact_and_disjoint():
         controls = definition.numerical_control_schema
         assert type(scientific) is ValueSchema and scientific.kind == "object"
         assert type(controls) is ValueSchema and controls.kind == "object"
-        scientific_names = tuple(name for name, _schema in scientific.properties)
+        scientific_names = tuple(
+            name for name, _schema in scientific.properties
+        )
         control_names = tuple(name for name, _schema in controls.properties)
         source_names = tuple(
             source.parameter_name for source in definition.parameter_sources
@@ -2789,7 +2836,9 @@ def test_adapter_definition_provenance_is_complete_exact_and_disjoint():
         assert set(scientific_names) == EXPECTED_SCIENTIFIC_INPUT_NAMES[
             definition.adapter_id
         ]
-        assert set(control_names) == EXPECTED_CONTROL_NAMES[definition.adapter_id]
+        assert set(control_names) == EXPECTED_CONTROL_NAMES[
+            definition.adapter_id
+        ]
         assert len(source_names) == len(set(source_names))
         assert set(source_names) == set(scientific_names)
         assert set(scientific_names).isdisjoint(control_names)
@@ -2801,7 +2850,8 @@ def test_adapter_definition_provenance_is_complete_exact_and_disjoint():
         )
 
 
-def test_adapter_definition_domains_convergence_runtime_and_resources_are_closed():
+def test_adapter_definition_domains_convergence_runtime_and_resources_are_closed(  # noqa: E501
+):
     convergence_kinds = {
         "exact",
         "residual_bound",
@@ -2812,7 +2862,8 @@ def test_adapter_definition_domains_convergence_runtime_and_resources_are_closed
 
     for definition in adapters.ADAPTER_DEFINITIONS.values():
         scientific_names = {
-            name for name, _schema in definition.scientific_input_schema.properties
+            name
+            for name, _schema in definition.scientific_input_schema.properties
         }
         domain = definition.counterfactual_domain
         assert bool(domain.valid_rules)
@@ -2883,7 +2934,8 @@ def _definition_values_from(definition):
     }
 
 
-def test_adapter_definition_builder_rejects_type_cardinality_and_linkage_drift():
+def test_adapter_definition_builder_rejects_type_cardinality_and_linkage_drift(
+):
     definitions = tuple(adapters.ADAPTER_DEFINITIONS.values())
 
     with pytest.raises(AdapterContractError, match="AdapterDefinition"):
@@ -2902,7 +2954,10 @@ def test_adapter_definition_builder_rejects_type_cardinality_and_linkage_drift()
             ),
         }
     )
-    with pytest.raises(AdapterContractError, match="eligible.*adapter|key set"):
+    with pytest.raises(
+        AdapterContractError,
+        match="eligible.*adapter|key set",
+    ):
         adapters._build_adapter_definitions((wrong_id, *definitions[1:]))
 
     wrong_oracle = AdapterDefinition(
@@ -2955,7 +3010,8 @@ def test_adapter_definition_builder_rejects_type_cardinality_and_linkage_drift()
         adapters._build_adapter_definitions(replaced)
 
 
-def test_adapter_definition_rejects_entry_symbol_mismatch_without_resolving_it():
+def test_adapter_definition_rejects_entry_symbol_mismatch_without_resolving_it(
+):
     values = _fresh_adapter_values()
     values["entry_symbol"] = (
         "validation.literature_evidence_adapters:adapter_unlinked_symbol"
@@ -2987,7 +3043,11 @@ FORBIDDEN_METADATA_CASES = (
         id="provenance_nested_punctuation_alias",
     ),
     pytest.param("fixed_sizes", "RegistryTag", id="size_data_camel_alias"),
-    pytest.param("convergence", "comparison.tag", id="convergence_punctuation"),
+    pytest.param(
+        "convergence",
+        "comparison.tag",
+        id="convergence_punctuation",
+    ),
     pytest.param("counterfactual", "sourceOperand", id="domain_camel_pair"),
     pytest.param(
         "counterfactual",
@@ -3001,14 +3061,21 @@ FORBIDDEN_METADATA_CASES = (
         "numeric-tolerance-tag",
         id="tolerance_punctuation_alias",
     ),
-    pytest.param("output_selector", "expected_value", id="selector_identifier"),
+    pytest.param(
+        "output_selector",
+        "expected_value",
+        id="selector_identifier",
+    ),
     pytest.param("raw_field", "raw_target_value", id="raw_identifier"),
     pytest.param("proof_kind", "answer-proof", id="proof_binding"),
     pytest.param("output_units", "result/unit", id="schema_units"),
 )
 
 
-@pytest.mark.parametrize(("location", "forbidden_value"), FORBIDDEN_METADATA_CASES)
+@pytest.mark.parametrize(
+    ("location", "forbidden_value"),
+    FORBIDDEN_METADATA_CASES,
+)
 def test_adapter_definition_rejects_forbidden_vocabulary_at_arbitrary_nesting(
     location, forbidden_value
 ):
@@ -3075,7 +3142,9 @@ def test_adapter_definition_rejects_forbidden_vocabulary_at_arbitrary_nesting(
                         (
                             selector,
                             adapters.OutputFieldBinding(
-                                _number_schema(units=units), raw_field, proof_kind
+                                _number_schema(units=units),
+                                raw_field,
+                                proof_kind,
                             ),
                         ),
                     )
@@ -3136,7 +3205,10 @@ NUMERICAL_CONTROL_ONLY_NAMES = (
 def test_numerical_control_only_names_are_accepted_in_control_schema():
     values = _fresh_adapter_values()
     values["numerical_control_schema"] = _object_schema(
-        tuple((name, _number_schema()) for name in NUMERICAL_CONTROL_ONLY_NAMES)
+        tuple(
+            (name, _number_schema())
+            for name in NUMERICAL_CONTROL_ONLY_NAMES
+        )
     )
     values["convergence_contract"] = ConvergenceContract(
         "iterative",
@@ -3146,11 +3218,13 @@ def test_numerical_control_only_names_are_accepted_in_control_schema():
     definition = AdapterDefinition(**values)
 
     assert tuple(
-        name for name, _schema in definition.numerical_control_schema.properties
+        name
+        for name, _schema in definition.numerical_control_schema.properties
     ) == tuple(sorted(NUMERICAL_CONTROL_ONLY_NAMES))
 
 
-def test_physical_threshold_terms_are_not_misclassified_as_numerical_controls():
+def test_physical_threshold_terms_are_not_misclassified_as_numerical_controls(
+):
     values = _fresh_adapter_values()
     identity = _observable_identity()
     identity["conditions"] = {"spiral_threshold": "calculated_boundary"}
@@ -3234,10 +3308,21 @@ def test_numerical_control_only_names_are_rejected_outside_control_schema(
             "python3", (control_name,), (), ()
         )
     else:
-        selector = control_name if location == "output_selector" else "energy_per_site"
-        raw_field = control_name if location == "raw_field" else "raw_energy_value"
+        selector = (
+            control_name
+            if location == "output_selector"
+            else "energy_per_site"
+        )
+        raw_field = (
+            control_name
+            if location == "raw_field"
+            else "raw_energy_value"
+        )
         if location in {"output_selector", "raw_field"}:
-            with pytest.raises(AdapterContractError, match="numerical.control"):
+            with pytest.raises(
+                AdapterContractError,
+                match="numerical.control",
+            ):
                 adapters.OutputSchema(
                     fields=(
                         (
