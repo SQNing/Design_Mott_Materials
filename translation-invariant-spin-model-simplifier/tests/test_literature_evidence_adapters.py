@@ -259,6 +259,37 @@ def test_canonical_json_is_sorted_compact_utf8_and_rejects_nan():
         canonical_json_bytes({"nested": [1.0, math.nan]})
 
 
+SURROGATE_JSON_VALUES = (
+    pytest.param({"value": "\ud800"}, id="surrogate_string_value"),
+    pytest.param({"\ud800": "value"}, id="surrogate_mapping_key"),
+)
+
+
+@pytest.mark.parametrize("value", SURROGATE_JSON_VALUES)
+def test_freeze_json_rejects_non_utf8_unicode_strings(value):
+    with pytest.raises(AdapterContractError, match="UTF-8"):
+        freeze_json(value)
+
+
+@pytest.mark.parametrize("value", SURROGATE_JSON_VALUES)
+@pytest.mark.parametrize(
+    "operation", (canonical_json_bytes, canonical_sha256), ids=("bytes", "sha256")
+)
+def test_canonical_json_normalizes_non_utf8_unicode_failures(value, operation):
+    with pytest.raises(AdapterContractError, match="UTF-8"):
+        operation(value)
+
+
+def test_accepted_frozen_json_remains_reflexive_and_hashable():
+    frozen = freeze_json({"label": "自旋", "nested": ["λ", {"spin": 1}]})
+    digest = canonical_sha256(frozen)
+
+    assert frozen == frozen
+    assert hash(frozen) == hash(frozen)
+    assert {frozen} == {freeze_json({"label": "自旋", "nested": ["λ", {"spin": 1}]})}
+    assert canonical_sha256(frozen) == digest
+
+
 def test_adapter_definition_rejects_missing_unknown_and_mutable_fields():
     observable_identity = {
         "subject": "ground-state energy",

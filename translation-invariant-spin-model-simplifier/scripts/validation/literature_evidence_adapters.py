@@ -67,6 +67,16 @@ class FrozenJsonObject(Mapping[str, object]):
         return f"FrozenJsonObject({dict(self._items)!r})"
 
 
+def _require_utf8_string(value: str, field_name: str) -> str:
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise AdapterContractError(
+            f"{field_name} must be a UTF-8-encodable Unicode scalar string"
+        ) from error
+    return value
+
+
 def freeze_json(value: object, field_name: str = "value") -> object:
     """Return an isolated, recursively immutable representation of JSON data."""
 
@@ -78,7 +88,9 @@ def freeze_json(value: object, field_name: str = "value") -> object:
         raise AdapterContractError(
             f"{field_name} contains an unsupported FrozenJsonObject subclass"
         )
-    if value is None or type(value) in (str, bool, int):
+    if type(value) is str:
+        return _require_utf8_string(value, field_name)
+    if value is None or type(value) in (bool, int):
         return value
     if type(value) is float:
         if not math.isfinite(value):
@@ -91,6 +103,7 @@ def freeze_json(value: object, field_name: str = "value") -> object:
                 raise AdapterContractError(
                     f"{field_name} contains a non-string mapping key"
                 )
+            _require_utf8_string(key, f"{field_name} mapping key")
             frozen_items.append((key, freeze_json(item, f"{field_name}.{key}")))
         frozen_items.sort(key=lambda item: item[0])
         return FrozenJsonObject._from_frozen_items(tuple(frozen_items))
@@ -146,9 +159,13 @@ def canonical_json_bytes(value: object) -> bytes:
             separators=(",", ":"),
             sort_keys=True,
         )
+        return encoded.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise AdapterContractError(
+            "value contains a string that is not UTF-8 encodable"
+        ) from error
     except (TypeError, ValueError) as error:
         raise AdapterContractError(f"value is not canonical JSON: {error}") from error
-    return encoded.encode("utf-8")
 
 
 def canonical_sha256(value: object) -> str:
