@@ -340,7 +340,7 @@ def _require_finite_number(
 ) -> int | float:
     if type(value) not in (int, float):
         raise AdapterContractError(f"{field_name} must be a finite number")
-    if not math.isfinite(value):
+    if type(value) is float and not math.isfinite(value):
         raise AdapterContractError(f"{field_name} must be a finite number")
     if positive and value <= 0:
         raise AdapterContractError(f"{field_name} must be positive")

@@ -722,3 +722,69 @@ def test_schema_rejects_bool_where_numeric_is_required():
             properties=(),
             units=None,
         )
+
+
+def test_value_schema_accepts_arbitrary_precision_integer_bounds():
+    huge = 10**10000
+
+    schema = ValueSchema(
+        kind="number",
+        required=True,
+        lower=-huge,
+        upper=huge,
+        item_schema=None,
+        properties=(),
+        units="J",
+    )
+
+    assert schema.lower == -huge
+    assert schema.upper == huge
+
+
+def test_resource_limits_accept_arbitrary_precision_integer_time_limits():
+    huge = 10**10000
+
+    limits = ResourceLimits(
+        cpu_seconds=huge,
+        wall_seconds=huge + 1,
+        address_space_bytes=256_000_000,
+        output_bytes=64_000,
+        file_descriptors=16,
+        process_count=1,
+    )
+
+    assert limits.cpu_seconds == huge
+    assert limits.wall_seconds == huge + 1
+
+
+@pytest.mark.parametrize("field_name", ("cpu_seconds", "wall_seconds"))
+def test_resource_limits_normalize_arbitrary_precision_negative_times(field_name):
+    values = {
+        "cpu_seconds": 10,
+        "wall_seconds": 20,
+        "address_space_bytes": 256_000_000,
+        "output_bytes": 64_000,
+        "file_descriptors": 16,
+        "process_count": 1,
+    }
+    values[field_name] = -(10**10000)
+
+    with pytest.raises(AdapterContractError, match=f"{field_name} must be positive"):
+        ResourceLimits(**values)
+
+
+@pytest.mark.parametrize("field_name", ("cpu_seconds", "wall_seconds"))
+@pytest.mark.parametrize("value", (True, math.nan, math.inf, -math.inf))
+def test_resource_limits_reject_bool_and_nonfinite_float_times(field_name, value):
+    values = {
+        "cpu_seconds": 10,
+        "wall_seconds": 20,
+        "address_space_bytes": 256_000_000,
+        "output_bytes": 64_000,
+        "file_descriptors": 16,
+        "process_count": 1,
+    }
+    values[field_name] = value
+
+    with pytest.raises(AdapterContractError, match=field_name):
+        ResourceLimits(**values)
