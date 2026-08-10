@@ -201,6 +201,24 @@ git diff --cached --name-status
 The cached path list must contain only the exact files named by that task. Stage
 with exact paths; never use `git add .`, `git add -A`, or a broad force-add.
 
+Immediately before Task 1, require the reviewed plan to be the tip commit and
+record that commit as the implementation boundary:
+
+```bash
+task7_implementation_base="$(
+  git log -1 --format=%H -- \
+    docs/superpowers/plans/2026-08-11-isolated-literature-recalculation-adapters-implementation.md
+)"
+test -n "$task7_implementation_base"
+test "$(git rev-parse HEAD)" = "$task7_implementation_base"
+git show --no-patch --oneline "$task7_implementation_base"
+```
+
+Do not hard-code an earlier plan commit: review amendments are part of the
+reviewed documentation range, not implementation. The final scope gate
+recomputes the last commit touching this plan and requires that no implementation
+commit modified it.
+
 ## Public API and data-flow map
 
 The implementation must expose these stable entry points:
@@ -1907,8 +1925,13 @@ From the worktree root:
 ```bash
 git diff --check
 git status --short
-git log --oneline --name-status 3bc8704^..9f23849
-git log --oneline --name-status 9f23849..HEAD
+task7_implementation_base="$(
+  git log -1 --format=%H -- \
+    docs/superpowers/plans/2026-08-11-isolated-literature-recalculation-adapters-implementation.md
+)"
+test -n "$task7_implementation_base"
+git log --oneline --name-status 3bc8704^.."$task7_implementation_base"
+git log --oneline --name-status "$task7_implementation_base"..HEAD
 ```
 
 Then run the exact read-only repository-cache preservation command in
@@ -1920,7 +1943,8 @@ Expected: no diff-check errors; only the six known protected WIP paths remain in
 status. The first log range contains only the reviewed specification path and
 this implementation-plan path across specification/plan commits; the second
 range contains only the three new production modules and one new test module
-across Task 7 implementation commits. No repository cache entry is added,
+across Task 7 implementation commits. The plan path must not occur in the
+second range. No repository cache entry is added,
 removed, or changed; the eleven pre-existing ignored directories remain.
 
 - [ ] **Step 7: Dispatch an independent specification-compliance reviewer**
