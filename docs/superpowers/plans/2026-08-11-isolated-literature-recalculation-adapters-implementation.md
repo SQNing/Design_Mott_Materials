@@ -239,6 +239,7 @@ get_oracle_definition(oracle_id: str) -> OracleDefinition
 # literature_evidence_isolation.py
 validate_authority_context(value, *, allow_test_producer=False) -> AdapterAuthorityContext
 build_scientific_closure(entry_symbol, *, role, source_roots) -> ScientificClosure
+build_scientific_policy_commitment(definition, closure, *, role) -> ScientificPolicyCommitment
 build_infrastructure_closure(*, source_roots) -> InfrastructureClosure
 scan_scientific_closure(closure, *, forbidden_fingerprints) -> StaticScanReport
 build_runtime_snapshot(requirements, *, run_directory, event_recorder) -> RuntimeSnapshot
@@ -253,8 +254,9 @@ The only successful flow is:
 ```text
 validated AdapterAuthorityContext
   -> adapter definition + exact eligibility decision
-  -> adapter closure + oracle closure + disjoint infrastructure closure
-  -> independent static scans and closure hashes
+  -> canonical adapter/oracle definitions + scientific execution closures
+  -> adapter/oracle scientific-policy commitments + complete infrastructure closure
+  -> disjoint dependency partition, independent static scans, and hashes
   -> immutable runtime snapshot
   -> fresh capability preflight and infrastructure-command hashes
   -> freeze every code/scanner/resource/preflight hash
@@ -528,6 +530,35 @@ in `ProblemSizePolicy.fixed_sizes` and the exact same-observable sequences in
 in `EXPECTED_SIZE_DATA`. These sizes are scientific identity/realization data;
 do not replace them with numerical grids or an implementer-selected sequence.
 
+For every output field, make `output_schema` bind its exact type/shape/units to
+one raw calculated field and one of this exact generic proof-kind set:
+
+```python
+OUTPUT_PROOF_KINDS = frozenset({
+    "direct_exact_value",
+    "bounded_numeric_value",
+    "grouped_exact_sequence",
+    "rank_derived_integer",
+    "all_residuals_within_bound_boolean",
+    "positive_lower_bound_boolean",
+    "positive_gap_and_odd_parity_boolean",
+    "directional_limits_differ_boolean",
+    "no_finite_crossing_boolean",
+    "no_finite_crossing_zero_limit",
+})
+```
+
+These generic mechanisms contain
+no expected value, benchmark branch, formula table, or arbitrary expression.
+All method-specific formulas stay in the adapter entry closure. The generic
+proof interpreter belongs to the complete infrastructure closure and may not
+branch on adapter ID. The entire canonical `AdapterDefinition`, including
+observable identity, all schemas, provenance requirements, runtime/resource
+requirements, size policy, counterfactual domain, convergence contract, output
+proof bindings, oracle ID, and limits, becomes part of the adapter-side
+scientific-policy commitment in Task 5, together with the exact canonical
+`EligibilityDecision` row and whole-catalog hash.
+
 Do not implement science with placeholder constants in this task. Entry symbols
 may resolve only after Tasks 13–16; metadata validation must not execute them.
 
@@ -604,7 +635,8 @@ Add frozen records and exact validators for:
 
 ```python
 AdapterAuthorityContext, WorkerRequest, LocalObservableResult,
-ScientificClosure, InfrastructureClosure, StaticScanReport, RuntimeResourceManifest,
+ScientificClosure, ScientificPolicyCommitment, InfrastructureClosure,
+StaticScanReport, RuntimeResourceManifest,
 RuntimeSnapshot, CapabilityPreflightReport, ProcessAttestation,
 TracePolicyReport, PointExecutionEvidence, ConvergenceDecision,
 OracleDecision, AdapterExecutionEvidence, AdapterRunFailure,
@@ -618,6 +650,13 @@ contract, and resource limits, but no scientific implementation or expected
 answer. Task 13 fills the mapping and entry points. This early contract lets
 Task 12 build a real synthetic oracle definition without inventing a parallel
 test-only shape.
+
+Canonical definition serialization is a first-class commitment, not ordinary
+transport metadata. `ScientificPolicyCommitment` records role, ID, canonical
+definition bytes/hash, the adapter eligibility-row/catalog hashes when
+applicable, entry-closure hash, exact output/invariant proof bindings,
+domain/size/convergence hashes, static-scan report hash, and one combined hash.
+Unknown definition fields or noncanonical bytes fail before capsule emission.
 
 The context validator may structurally accept the closed producer ID
 `task8_canonical_authority_v1`; tests may opt into the separate
@@ -672,13 +711,84 @@ scanner version, and deterministic bundle hash. Extract a known pure synthetic
 helper while proving an unrelated registry-like assignment in the same source
 file is absent from emitted bytes.
 
-Independently test `build_infrastructure_closure`. Its exact roots are canonical
-JSON encoding/decoding, recursive type validators, fixed request/result
-transport, capsule/worker emission, namespace launching, trace parsing, and
-same-FD output ingestion. It records the same node/span/edge/hash manifest as a
-scientific closure plus an exact closed purpose tag per root. It rejects model
-Hamiltonians, equations, scientific constants, result-field derivations,
-adapter/oracle definitions, and any caller-designated extra root.
+Independently test `build_infrastructure_closure`. Lock an independent test
+fixture containing the complete trusted root-symbol set, not a set imported
+from production. The final set covers all of these categories and every
+transitive project dependency:
+
+- canonical JSON, recursive immutability, and closed contract validators;
+- authority validation, worker/request/result transport, and failure shaping;
+- AST closure construction, policy construction, static/fingerprint scanners,
+  capsule and fixed-worker emission;
+- runtime-resource discovery, no-follow snapshot copy, hashing, and post-run
+  revalidation;
+- event ordering, OS randomness acquisition, deterministic counterfactual
+  generation, request creation, and metamorphic checks;
+- capability-preflight orchestration, command identity/version/hash checks, and
+  preflight report validation;
+- run-directory/dirfd validation, mount-tree construction, namespace supervisor,
+  tracer, tracee launcher, chroot, capability/no-new-privilege/resource-limit/
+  environment/mount attestation, and bounded pipe handling;
+- strace invocation/parsing/access adjudication and descriptor-pinned output/
+  scratch ingestion;
+- backend/environment diagnostics, generic proof interpreter, convergence and
+  oracle adjudication;
+- coordinator state machine, dependency partition enforcement, snapshot final
+  validation, seed disclosure, evidence validation, and canonical final hashing.
+
+The independent fixture hard-codes these concrete root names (module prefixes
+omitted here only for readability):
+
+```python
+EXPECTED_INFRASTRUCTURE_ROOTS = {
+    "freeze_json", "thaw_json", "canonical_json_bytes", "canonical_sha256",
+    "validate_adapter_definition", "validate_oracle_definition",
+    "validate_scientific_inputs", "validate_numerical_controls",
+    "validate_local_observable_result", "validate_authority_context",
+    "make_worker_request", "validate_failure",
+    "build_scientific_closure", "build_scientific_policy_commitment",
+    "build_infrastructure_closure", "scan_scientific_closure",
+    "discover_runtime_resources", "build_runtime_snapshot",
+    "revalidate_runtime_snapshot", "record_and_freeze_hashes",
+    "acquire_run_seed", "derive_counterfactual_points",
+    "write_worker_request_exclusive", "run_capability_preflight",
+    "emit_scientific_capsule", "emit_fixed_worker",
+    "create_run_directories", "construct_private_root",
+    "run_namespace_supervisor", "launch_traced_tracee",
+    "apply_tracee_security_policy", "validate_process_attestation",
+    "evaluate_strace", "ingest_worker_output",
+    "collect_backend_diagnostics", "interpret_output_proofs",
+    "derive_convergence_decision", "derive_oracle_decision",
+    "assert_complete_dependency_partition",
+    "validate_adapter_execution_evidence",
+    "_run_isolated_recomputation_core", "run_isolated_recomputation",
+}
+```
+
+The test fixture stores fully qualified module/symbol pairs so same-named roots
+cannot alias. A later task may split a root only by amending this independent
+set and proving that all replacements are included; it may never silently add
+an uncommitted success-determining helper.
+
+The fixture names the concrete root functions introduced across Tasks 4–12.
+Task 5 tests the builder against synthetic implementations of the full root set;
+each later infrastructure task adds its concrete root and a category-level
+closure test. Task 12 requires every named production root to resolve, no extra
+root to exist, and the full transitive union to be closed before its successful
+synthetic run. Thus Task 5 does not require future functions to exist early.
+
+The manifest records the same node/span/edge/hash data as a scientific closure
+plus an exact closed purpose tag per root. It rejects model Hamiltonians,
+scientific equations/constants, adapter/oracle definitions or policy bytes,
+method-specific result derivations, and any caller-designated extra root.
+
+Also build synthetic adapter/oracle `ScientificPolicyCommitment` objects. Prove
+that changing any canonical definition field, counterfactual rule, size,
+convergence threshold, output/invariant proof binding, runtime requirement,
+resource limit, oracle ID, or entry-closure node changes the combined hash.
+Reject target fingerprints, benchmark/result lookup structures, categorical
+answer literals, arbitrary expressions, adapter-ID branches, unknown proof
+kinds, and noncanonical encodings in either role.
 
 - [ ] **Step 3: Verify RED**
 
@@ -712,6 +822,25 @@ and be absent from both scientific-node manifests. Hash the infrastructure
 closure and scanner report independently; changing one transport/isolation
 node must change its closure hash and later the final evidence hash.
 
+Add `assert_complete_dependency_partition`. For one run, every project source
+node used or referenced by the adapter capsule, oracle capsule, outer policies,
+counterfactual/convergence/oracle decisions, or coordinator/isolation path must
+occur exactly once in the adapter execution closure, adapter policy commitment,
+oracle execution closure, oracle policy commitment, or infrastructure closure.
+Only pre-hashed external interpreter/library resources are outside this project
+partition. Missing, multiply classified, dynamically resolved, or uncommitted
+nodes fail before the random seed is acquired.
+
+When an infrastructure root looks up `ADAPTER_ELIGIBILITY`,
+`ADAPTER_DEFINITIONS`, or `ORACLE_DEFINITIONS`, the closure graph records a
+typed edge to the already canonicalized catalog/policy commitment instead of
+silently absorbing or ignoring the concrete scientific mapping assignment.
+Those three immutable mappings are the only permitted committed-data edges;
+every other loaded project global must resolve to a source node in exactly one
+closure. Changing a row, definition, or mapping membership therefore changes
+the frozen catalog/policy/partition hash without misclassifying scientific data
+as infrastructure.
+
 - [ ] **Step 6: Verify GREEN and commit**
 
 Run focused tests and the full Task 7 module. Run the protected baseline and
@@ -719,7 +848,7 @@ commit gate, then:
 
 ```bash
 git add translation-invariant-spin-model-simplifier/scripts/validation/literature_evidence_isolation.py translation-invariant-spin-model-simplifier/tests/test_literature_evidence_adapters.py
-git commit -m "feat: build deterministic scientific capsules"
+git commit -m "feat: bind scientific and infrastructure closures"
 ```
 
 Run the protected baseline again.
@@ -740,8 +869,14 @@ canaries, high-precision numeric fingerprints, whole serialized operands,
 field/value structures, parameter/result lookup tables, and a transitive helper
 copy. Repeat each applicable mutation with `role="oracle"`. For the
 infrastructure closure, inject a scientific equation, Hamiltonian builder,
-result-field derivation, adapter/oracle definition, and undeclared root; each
+method-specific or adapter-ID result-field derivation, adapter/oracle
+definition, and undeclared root; each
 must fail the infrastructure-purpose scan rather than being exempted.
+Mutate canonical adapter/oracle definition bytes independently with a target
+numeric/string fingerprint, benchmark-conditioned proof binding, answer table,
+fixed canonical point list, arbitrary derivation expression, weakened domain,
+or post-hoc convergence threshold and require its scientific-policy scan to
+reject the definition before hashing succeeds.
 
 - [ ] **Step 2: Write RED false-positive controls**
 
@@ -762,9 +897,13 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_litera
 Add explicit allowlists for safe builtins, standard-library symbols, and
 declared numerical-package imports. Add explicit forbidden module/symbol/token
 vocabularies. Scan raw AST, closure graph, literal context, emitted bytes, and
-canonical forbidden fingerprints for adapter and oracle roles. Scan the
-infrastructure closure under its narrower exact-root/purpose policy and bind
-its report to the same scanner implementation/version. Fingerprints are validated outside the
+canonical forbidden fingerprints for adapter, oracle, and infrastructure
+roles. Scan the infrastructure closure additionally under its narrower exact-root/purpose policy and bind
+its report to the same scanner implementation/version. Scan canonical
+`AdapterDefinition`/`OracleDefinition` bytes and every nested domain, size,
+schema, proof, convergence, runtime, and resource object as the corresponding
+role's scientific policy; bind that scan report and canonical-definition hash
+into `ScientificPolicyCommitment`. Fingerprints are validated outside the
 capsule and never emitted or mounted.
 
 The report must contain scanner version/hash, every check with a boolean and
@@ -878,7 +1017,8 @@ stubbed in an integration or acceptance test:
 ```text
 definition/provenance validation
 < adapter and oracle closure hashes
-< adapter, oracle, and infrastructure closure/scan hashes
+< canonical adapter/oracle definition and scientific-policy commitment hashes
+< complete infrastructure closure/scan and dependency-partition hashes
 < runtime snapshot materialized/compared/hashed
 < adapter/oracle/worker capsule hashes
 < fresh capability-preflight report, report hash, and every infrastructure-command hash
@@ -893,7 +1033,8 @@ definition/provenance validation
 ```
 
 Force random acquisition at each earlier hook and require a hard failure.
-Also mutate one preflight result, external-command identity/hash, or
+Also mutate one definition/domain/size/output proof/convergence rule, preflight
+result, external-command identity/hash, dependency-partition commitment, or
 infrastructure-closure hash after the frozen event and require the run to fail
 before point derivation. A cached design-time preflight cannot satisfy this
 ordering test.
@@ -1197,8 +1338,9 @@ At this point the Task 4 oracle contract module exists, but its production
 mapping is empty and none of the 29 scientific adapter/oracle implementations
 exist yet. Define one answer-free synthetic adapter and one independently
 implemented synthetic oracle as source files created exclusively under
-`tmp_path`. Build closed test `AdapterDefinition`/`OracleDefinition` objects and
-pass them only to a module-private coordinator core through a
+`tmp_path`. Build a closed test-only `EligibilityDecision` plus
+`AdapterDefinition`/`OracleDefinition` objects and pass them only to a
+module-private coordinator core through a
 `TestCoordinatorHarness` in the test module. The pair must pass the real AST,
 static, snapshot, namespace, trace, output, convergence, and independence
 controls; it contains no expected output fixture.
@@ -1212,7 +1354,8 @@ oracle contract, but it must not assume a production mapping entry or resolve a
 scientific oracle symbol during Tasks 4–12.
 
 Inject a failure at definition, authority, eligibility, closure, static scan,
-snapshot, preflight, seed generation, request write, mount, worker launch,
+scientific-policy commitment, infrastructure-root resolution, dependency
+partition, snapshot, preflight, seed generation, request write, mount, worker launch,
 timeout/signal/nonzero exit, trace, output, result validation, convergence,
 oracle closure/isolation/output/decision, snapshot revalidation, and final
 bundle hashing. Assert the exact top-level status/stage/reason and prove no
@@ -1237,10 +1380,13 @@ Top-level statuses must be exactly:
 - [ ] **Step 2: Write RED evidence completeness tests**
 
 Require the successful bundle to carry: authority-context hash and validated
-input/provenance bindings; adapter/oracle source nodes and disjoint graphs;
-the separately classified infrastructure source-node manifest, purpose tags,
-closure hash, and static report; capsule/worker/runtime hashes; adapter and
-oracle static scan reports; ordering trace;
+input/provenance bindings; canonical eligibility row/catalog and adapter/oracle
+definition bytes and hashes;
+adapter/oracle execution source nodes and disjoint graphs; both complete
+scientific-policy commitments and scan reports; the complete separately
+classified infrastructure root list, transitive source-node manifest, purpose
+tags, closure hash, static report, and dependency-partition hash;
+capsule/worker/runtime hashes; ordering trace;
 preflight hash/report reference; per-process namespace/mount/environment/limit/
 chroot attestations; every request/result/trace hash; complete access-policy
 reports; interpreter/distribution/native/BLAS/backend identities; raw
@@ -1251,6 +1397,9 @@ Mutate or omit each field independently and require bundle validation failure.
 Move a scientific derivation node into the infrastructure manifest, introduce
 an uncommitted shared node, or change an infrastructure node/purpose/hash and
 require rejection.
+Also mutate any adapter/oracle definition, domain, physical-size rule, output
+proof binding, convergence/invariant rule, or scientific-policy hash and require
+rejection without reusing prior static-scan evidence.
 
 - [ ] **Step 3: Verify RED**
 
@@ -1265,7 +1414,9 @@ Implement a module-private `_run_isolated_recomputation_core` whose dependency
 bundle is a closed internal record accepted only by the test harness and the
 production wrapper. The test harness constructs it from the synthetic pair;
 the public wrapper constructs it internally from production immutable mappings
-and refuses all injection-shaped arguments. This seam exists only to exercise
+including the exact eligibility catalog and refuses all injection-shaped
+arguments. The synthetic eligibility row is never added to
+`ADAPTER_ELIGIBILITY` and cannot be selected by the public wrapper. This seam exists only to exercise
 the full coordinator before Tasks 13–16 and is not serialized, mounted, or
 exposed as production authority.
 
@@ -1280,10 +1431,13 @@ needed for invariants. Never mount the adapter output directory into an oracle
 root. Revalidate the runtime snapshot after every adapter and oracle process has
 exited and before success.
 
-Build and scan the exact infrastructure closure separately from both scientific
-closures. Require all shared nodes to be in that closure with allowed purpose
-tags, hash its nodes/edges/scanner report, and include the commitments in every
-successful or sufficiently advanced failure outcome. Run the fresh capability
+Build and scan both canonical scientific-policy commitments and the complete
+infrastructure closure separately from the scientific execution closures.
+Resolve every independent-test-fixture infrastructure root named in Task 5 and
+all of its transitive project nodes. Require the full project dependency
+partition to be exact and disjoint, hash definitions, policies, nodes, edges,
+purposes, scans, and partition, and include the commitments in every successful
+or sufficiently advanced failure outcome. Run the fresh capability
 preflight and hash its report plus every command identity before the
 frozen-hashes event and before random-byte acquisition.
 
@@ -1295,12 +1449,22 @@ and raw samples. Require oracle project-scientific closure disjointness, its own
 static scan/isolation/trace evidence, and contract-specific residual/bound
 acceptance for every point.
 
+Use one fully infrastructure-hashed generic proof interpreter for outer selected
+fields. It consumes only the frozen output/invariant proof bindings and raw
+certificates, supports the closed proof-kind set, and cannot dispatch on
+adapter/benchmark ID or evaluate arbitrary expressions. Every method-specific
+formula or certificate construction remains in that role's scientific entry
+closure; changing either code or policy changes the frozen commitment.
+
 - [ ] **Step 6: Implement final seed disclosure and evidence hashing**
 
 Disclose the seed only after all decisions. Canonically hash the entire bundle
 except its stored final hash, store it, freeze the object, and revalidate it.
 Successful Task 7 output contains no literature comparison and no strict-match
 flag.
+The final hash covers adapter/oracle definition bytes, both scientific-policy
+commitments, the complete infrastructure closure/scan, and the exact dependency
+partition in addition to all runtime evidence.
 
 - [ ] **Step 7: Verify GREEN and commit**
 
@@ -1463,6 +1627,10 @@ operands and records the derivation. It requires zero uncertainty for integer,
 GF(2), and exact enumeration results; a declared residual/roundoff bound for
 root solves; exact sizes for fixed-local rows; and all declared scalable sizes
 for toric code. It rejects helper-provided `converged=True` without raw proof.
+Populate only closed generic proof kinds/bindings in each canonical definition;
+do not add an adapter-ID branch or method-specific formula to the outer
+interpreter. Rebuild, scan, and freeze all twelve adapter/oracle
+`ScientificPolicyCommitment` objects before their first production-style run.
 
 - [ ] **Step 7: Run focused real isolation tests**
 
@@ -1574,6 +1742,10 @@ declared eigensolver identity, exact matrix dimension, and size-policy evidence.
 For scalable rows require every declared size and cross-size invariant; for
 fixed-local rows reject even a scientifically plausible second physical size as
 `observable_identity_mismatch`.
+Express those decisions through canonical convergence/proof bindings interpreted
+by the generic infrastructure root; matrix construction, sector grouping, and
+method-specific predicates stay inside the disjoint adapter/oracle scientific
+closures. Rebuild and freeze each pair's policy commitments before randomness.
 
 - [ ] **Step 7: Verify GREEN and commit**
 
@@ -1666,6 +1838,10 @@ Require analytic stationary-point proof or declared nested grids with raw
 minimum sequences and a resolution bound, reciprocal-space symmetry residuals,
 direct-energy invariants, and all required directional limits. A numerically
 close result at a representative point fails.
+Commit these requirements canonically in each definition and policy scan. The
+outer generic interpreter may apply closed residual/bound/parity proof kinds but
+may not contain a Fourier-adapter ID switch, lattice formula, candidate q, or
+selected-field literal outside the scientific closures.
 
 - [ ] **Step 6: Verify GREEN and commit**
 
@@ -1747,6 +1923,10 @@ Check strict control ordering, minimum sample count, all raw samples, finite
 values, declared error-bound formula, final bound below the pre-frozen
 threshold, oracle envelope overlap, and metamorphic exchange scaling. Positive
 boolean outputs are derived only from certified lower bounds.
+The nested control sequence, thresholds, proof bindings, and oracle invariant
+contract are canonical scientific-policy bytes frozen before the seed. The
+generic interpreter contains no adapter-ID dispatch or method-specific series/
+integrand; those remain in the separately scanned scientific closures.
 
 - [ ] **Step 6: Verify GREEN and commit**
 
@@ -1783,7 +1963,9 @@ counterfactual points through real production isolation, and require:
 - exact adapter/oracle/selector identity;
 - one fresh process/namespace/trace per adapter and oracle point;
 - exact field map, units, uncertainty, raw convergence, backend diagnostics;
-- disjoint scientific closures and two passing static reports;
+- disjoint scientific execution closures, canonical adapter/oracle definitions,
+  two passing scientific-policy scans/commitments, and the complete hashed
+  infrastructure closure/dependency partition;
 - post-execution snapshot revalidation;
 - complete evidence validation and reproducible disclosed seed;
 - no expected-output fixture or authority-only value in capsule/request/mounts;
@@ -1954,7 +2136,9 @@ Use a fresh subagent configured explicitly as `gpt-5.6-sol` with
 implementation plan, Task 7 commit range, four Task 7 paths, and verification
 outputs. Ask it to check every acceptance criterion, exact 42/29/13 and 7/4/18
 mapping, all security controls, real scientific methods, oracle independence,
-and the Task8 authority boundary. It is read-only.
+complete infrastructure-root/dependency-partition coverage, frozen canonical
+scientific-policy commitments and generic proof interpretation, and the Task8
+authority boundary. It is read-only.
 
 If it finds a blocking issue, add a RED regression, implement the narrow fix,
 run affected/full tests, commit exact paths, rerun baseline, and redispatch a
