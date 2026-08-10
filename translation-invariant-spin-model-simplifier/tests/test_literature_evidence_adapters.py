@@ -1,6 +1,7 @@
 import dataclasses
 import math
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -108,6 +109,101 @@ def _adapter_values(observable_identity, fixed_sizes, valid_rules):
     }
 
 
+def _observable_identity():
+    return {
+        "subject": "ground-state energy",
+        "system_or_material": "spin-half XXX chain",
+        "hamiltonian": {"terms": ["exchange"]},
+        "parameter_regime": {"exchange": [1.0]},
+        "size_or_limit": {"kind": "thermodynamic_limit"},
+        "observable_definition": {"field": "energy_per_site"},
+        "units": {"energy_per_site": "J"},
+        "conditions": {"temperature": [0.0]},
+    }
+
+
+class _CustomItemsMapping(Mapping):
+    def __init__(self, visible, yielded_items):
+        self._visible = visible
+        self._yielded_items = yielded_items
+
+    def __getitem__(self, key):
+        return self._visible[key]
+
+    def __iter__(self):
+        return iter(self._visible)
+
+    def __len__(self):
+        return len(self._visible)
+
+    def keys(self):
+        return self._visible.keys()
+
+    def items(self):
+        return iter(self._yielded_items)
+
+
+class _BrokenItemsMapping(Mapping):
+    def __getitem__(self, key):
+        raise KeyError(key)
+
+    def __iter__(self):
+        return iter(())
+
+    def __len__(self):
+        return 0
+
+    def items(self):
+        raise RuntimeError("broken items traversal")
+
+
+class _PartiallyMutatingItemsMapping(Mapping):
+    def __init__(self):
+        self._backing = {"first": 1}
+
+    def __getitem__(self, key):
+        return self._backing[key]
+
+    def __iter__(self):
+        return iter(self._backing)
+
+    def __len__(self):
+        return len(self._backing)
+
+    def items(self):
+        yield "first", 1
+        self._backing["injected"] = 2
+        raise RuntimeError("mapping mutated during traversal")
+
+
+class _CallerBackedTuple(tuple):
+    def __new__(cls, backing):
+        instance = tuple.__new__(cls, ())
+        instance._backing = backing
+        return instance
+
+    def __iter__(self):
+        return iter(self._backing)
+
+    def __len__(self):
+        return len(self._backing)
+
+    def __getitem__(self, index):
+        return self._backing[index]
+
+
+def _list_cycle():
+    value = []
+    value.append(value)
+    return value
+
+
+def _mapping_cycle():
+    value = {}
+    value["self"] = value
+    return value
+
+
 def test_freeze_json_rejects_non_string_keys_unknown_objects_and_nonfinite_numbers():
     class Unknown:
         pass
@@ -174,6 +270,65 @@ def test_freeze_json_rejects_callable_containers_and_frozen_subclasses():
     exact_frozen = freeze_json({"x": [1]})
     assert type(exact_frozen) is FrozenJsonObject
     assert freeze_json(exact_frozen) is exact_frozen
+
+
+def test_freeze_json_rejects_duplicate_mapping_items():
+    duplicate_mapping = _CustomItemsMapping(
+        {"x": 1},
+        (("x", 1), ("x", 2)),
+    )
+
+    with pytest.raises(AdapterContractError, match="duplicate"):
+        freeze_json(duplicate_mapping)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    (_BrokenItemsMapping(), _PartiallyMutatingItemsMapping()),
+    ids=("broken_items", "mutation_then_exception"),
+)
+@pytest.mark.parametrize(
+    "operation", (freeze_json, canonical_json_bytes), ids=("freeze", "canonical")
+)
+def test_malformed_mapping_traversal_is_normalized(mapping, operation):
+    with pytest.raises(AdapterContractError):
+        operation(mapping)
+
+
+@pytest.mark.parametrize(
+    "cycle_factory", (_list_cycle, _mapping_cycle), ids=("list", "mapping")
+)
+@pytest.mark.parametrize(
+    "operation", (freeze_json, canonical_json_bytes), ids=("freeze", "canonical")
+)
+def test_recursive_json_containers_are_rejected(cycle_factory, operation):
+    with pytest.raises(AdapterContractError, match="cycle"):
+        operation(cycle_factory())
+
+
+@pytest.mark.parametrize(
+    "operation", (freeze_json, canonical_json_bytes), ids=("freeze", "canonical")
+)
+def test_excessive_json_nesting_is_rejected(operation):
+    value = 0
+    for _ in range(256):
+        value = [value]
+
+    with pytest.raises(AdapterContractError, match="nesting"):
+        operation(value)
+
+
+def test_shared_noncyclic_json_aliases_are_copied_and_accepted():
+    shared = {"values": [1, 2]}
+
+    frozen = freeze_json({"left": shared, "right": shared})
+
+    assert frozen["left"] == frozen["right"]
+    assert frozen["left"] is not frozen["right"]
+    assert thaw_json(frozen) == {
+        "left": {"values": [1, 2]},
+        "right": {"values": [1, 2]},
+    }
 
 
 def test_frozen_json_equality_and_hash_use_canonical_types():
@@ -288,6 +443,128 @@ def test_accepted_frozen_json_remains_reflexive_and_hashable():
     assert hash(frozen) == hash(frozen)
     assert {frozen} == {freeze_json({"label": "自旋", "nested": ["λ", {"spin": 1}]})}
     assert canonical_sha256(frozen) == digest
+
+
+def test_thaw_json_rejects_non_utf8_unicode_strings():
+    with pytest.raises(AdapterContractError, match="UTF-8"):
+        thaw_json("\ud800")
+
+
+def test_value_schema_units_reject_non_utf8_unicode_strings():
+    with pytest.raises(AdapterContractError, match="UTF-8"):
+        _number_schema(units="\ud800")
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ("interpreter", "packages", "native_libraries", "backend_resources"),
+)
+def test_runtime_requirement_strings_reject_non_utf8_unicode(field_name):
+    values = {
+        "interpreter": "python3",
+        "packages": (),
+        "native_libraries": (),
+        "backend_resources": (),
+    }
+    values[field_name] = "\ud800" if field_name == "interpreter" else ("\ud800",)
+
+    with pytest.raises(AdapterContractError, match="UTF-8"):
+        RuntimeRequirements(**values)
+
+
+@pytest.mark.parametrize(
+    "contract_type",
+    (
+        ValueSchema,
+        ParameterSource,
+        CounterfactualDomain,
+        ConvergenceContract,
+        ProblemSizePolicy,
+        RuntimeRequirements,
+        ResourceLimits,
+        AdapterDefinition,
+        EligibilityDecision,
+    ),
+    ids=lambda contract_type: contract_type.__name__,
+)
+def test_closed_contract_records_are_runtime_sealed(contract_type):
+    with pytest.raises(TypeError, match="sealed|subclass"):
+        type(f"Unsafe{contract_type.__name__}", (contract_type,), {})
+
+
+def test_adapter_rejects_validation_bypassing_schema_subclass():
+    try:
+        bypass_type = type(
+            "BypassingValueSchema",
+            (ValueSchema,),
+            {"__post_init__": lambda self: None},
+        )
+    except TypeError:
+        return
+    bypass = bypass_type(
+        kind="object",
+        required="not-boolean",
+        lower=math.nan,
+        upper=None,
+        item_schema=None,
+        properties=(("exchange", _number_schema()),),
+        units=None,
+    )
+    values = _adapter_values(
+        _observable_identity(),
+        {"spin_count": [2]},
+        {"exchange": {"kind": "finite_interval", "bounds": [0.1, 3.0]}},
+    )
+    values["scientific_input_schema"] = bypass
+
+    with pytest.raises(AdapterContractError, match="scientific_input_schema"):
+        AdapterDefinition(**values)
+
+
+@pytest.mark.parametrize(
+    "field_name", ("packages", "native_libraries", "backend_resources")
+)
+def test_runtime_requirements_reject_caller_backed_tuple_subclasses(field_name):
+    values = {
+        "interpreter": "python3",
+        "packages": (),
+        "native_libraries": (),
+        "backend_resources": (),
+    }
+    values[field_name] = _CallerBackedTuple(["mutable_requirement"])
+
+    with pytest.raises(AdapterContractError, match=field_name):
+        RuntimeRequirements(**values)
+
+
+def test_adapter_rejects_caller_backed_parameter_source_tuple_subclass():
+    values = _adapter_values(
+        _observable_identity(),
+        {"spin_count": [2]},
+        {"exchange": {"kind": "finite_interval", "bounds": [0.1, 3.0]}},
+    )
+    values["parameter_sources"] = _CallerBackedTuple(
+        list(values["parameter_sources"])
+    )
+
+    with pytest.raises(AdapterContractError, match="parameter_sources"):
+        AdapterDefinition(**values)
+
+
+def test_adapter_observable_identity_uses_one_exact_frozen_snapshot():
+    visible = _observable_identity()
+    inconsistent = _CustomItemsMapping(
+        visible,
+        (*visible.items(), ("target", -math.log(2.0))),
+    )
+    values = _adapter_values(
+        inconsistent,
+        {"spin_count": [2]},
+        {"exchange": {"kind": "finite_interval", "bounds": [0.1, 3.0]}},
+    )
+
+    with pytest.raises(AdapterContractError, match="observable_identity|target"):
+        AdapterDefinition(**values)
 
 
 def test_adapter_definition_rejects_missing_unknown_and_mutable_fields():

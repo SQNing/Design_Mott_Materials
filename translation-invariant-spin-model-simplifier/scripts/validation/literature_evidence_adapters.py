@@ -27,7 +27,7 @@ class FrozenJsonObject(Mapping[str, object]):
 
     def __init__(self, value: Mapping[str, object]):
         frozen = freeze_json(value)
-        if not isinstance(frozen, FrozenJsonObject):
+        if type(frozen) is not FrozenJsonObject:
             raise AdapterContractError("FrozenJsonObject value must be a mapping")
         object.__setattr__(self, "_items", frozen._items)
 
@@ -77,8 +77,19 @@ def _require_utf8_string(value: str, field_name: str) -> str:
     return value
 
 
-def freeze_json(value: object, field_name: str = "value") -> object:
-    """Return an isolated, recursively immutable representation of JSON data."""
+_MAX_JSON_NESTING = 128
+
+
+def _freeze_json(
+    value: object,
+    field_name: str,
+    active_container_ids: set[int],
+    depth: int,
+) -> object:
+    if depth > _MAX_JSON_NESTING:
+        raise AdapterContractError(
+            f"{field_name} exceeds the maximum JSON nesting of {_MAX_JSON_NESTING}"
+        )
 
     if callable(value):
         raise AdapterContractError(f"{field_name} contains a callable value")
@@ -97,24 +108,120 @@ def freeze_json(value: object, field_name: str = "value") -> object:
             raise AdapterContractError(f"{field_name} contains a non-finite number")
         return value
     if isinstance(value, Mapping):
+        container_id = id(value)
+        if container_id in active_container_ids:
+            raise AdapterContractError(f"{field_name} contains a JSON cycle")
+        active_container_ids.add(container_id)
         frozen_items = []
-        for key, item in value.items():
-            if type(key) is not str:
+        seen_keys = set()
+        try:
+            try:
+                item_iterator = iter(value.items())
+            except AdapterContractError:
+                raise
+            except Exception as error:
                 raise AdapterContractError(
-                    f"{field_name} contains a non-string mapping key"
+                    f"{field_name} mapping traversal failed"
+                ) from error
+            while True:
+                try:
+                    pair = next(item_iterator)
+                except StopIteration:
+                    break
+                except AdapterContractError:
+                    raise
+                except Exception as error:
+                    raise AdapterContractError(
+                        f"{field_name} mapping traversal failed"
+                    ) from error
+                try:
+                    key, item = pair
+                except Exception as error:
+                    raise AdapterContractError(
+                        f"{field_name} contains a malformed mapping item"
+                    ) from error
+                if type(key) is not str:
+                    raise AdapterContractError(
+                        f"{field_name} contains a non-string mapping key"
+                    )
+                _require_utf8_string(key, f"{field_name} mapping key")
+                if key in seen_keys:
+                    raise AdapterContractError(
+                        f"{field_name} contains duplicate mapping key {key!r}"
+                    )
+                seen_keys.add(key)
+                frozen_items.append(
+                    (
+                        key,
+                        _freeze_json(
+                            item,
+                            f"{field_name}.{key}",
+                            active_container_ids,
+                            depth + 1,
+                        ),
+                    )
                 )
-            _require_utf8_string(key, f"{field_name} mapping key")
-            frozen_items.append((key, freeze_json(item, f"{field_name}.{key}")))
+        finally:
+            active_container_ids.remove(container_id)
         frozen_items.sort(key=lambda item: item[0])
         return FrozenJsonObject._from_frozen_items(tuple(frozen_items))
     if isinstance(value, (list, tuple)):
-        return tuple(
-            freeze_json(item, f"{field_name}[{index}]")
-            for index, item in enumerate(value)
-        )
+        container_id = id(value)
+        if container_id in active_container_ids:
+            raise AdapterContractError(f"{field_name} contains a JSON cycle")
+        active_container_ids.add(container_id)
+        frozen_items = []
+        try:
+            try:
+                item_iterator = iter(value)
+            except AdapterContractError:
+                raise
+            except Exception as error:
+                raise AdapterContractError(
+                    f"{field_name} sequence traversal failed"
+                ) from error
+            index = 0
+            while True:
+                try:
+                    item = next(item_iterator)
+                except StopIteration:
+                    break
+                except AdapterContractError:
+                    raise
+                except Exception as error:
+                    raise AdapterContractError(
+                        f"{field_name} sequence traversal failed"
+                    ) from error
+                frozen_items.append(
+                    _freeze_json(
+                        item,
+                        f"{field_name}[{index}]",
+                        active_container_ids,
+                        depth + 1,
+                    )
+                )
+                index += 1
+        finally:
+            active_container_ids.remove(container_id)
+        return tuple(frozen_items)
     raise AdapterContractError(
         f"{field_name} contains unsupported JSON value {type(value).__name__}"
     )
+
+
+def freeze_json(value: object, field_name: str = "value") -> object:
+    """Return an isolated, recursively immutable representation of JSON data."""
+
+    try:
+        return _freeze_json(value, field_name, set(), 0)
+    except AdapterContractError:
+        raise
+    except RecursionError as error:
+        raise AdapterContractError(
+            f"{field_name} exceeds safe JSON recursion limits"
+        ) from error
+    except Exception as error:
+        raise AdapterContractError(f"{field_name} JSON traversal failed") from error
 
 
 def thaw_json(value: object, field_name: str = "value") -> object:
@@ -125,7 +232,7 @@ def thaw_json(value: object, field_name: str = "value") -> object:
     if type(value) is FrozenJsonObject:
         return {
             key: thaw_json(item, f"{field_name}.{key}")
-            for key, item in value.items()
+            for key, item in value._items
         }
     if isinstance(value, FrozenJsonObject):
         raise AdapterContractError(
@@ -136,7 +243,9 @@ def thaw_json(value: object, field_name: str = "value") -> object:
             thaw_json(item, f"{field_name}[{index}]")
             for index, item in enumerate(value)
         ]
-    if value is None or type(value) in (str, bool, int):
+    if type(value) is str:
+        return _require_utf8_string(value, field_name)
+    if value is None or type(value) in (bool, int):
         return value
     if type(value) is float:
         if not math.isfinite(value):
@@ -183,14 +292,11 @@ _ENTRY_SYMBOL_RE = re.compile(
 
 def require_exact_keys(
     value: Mapping[str, object], expected: Iterable[str], field_name: str
-) -> Mapping[str, object]:
-    """Require a mapping to contain exactly the named string keys."""
+) -> FrozenJsonObject:
+    """Freeze one mapping snapshot and require exactly the named keys."""
 
-    if not isinstance(value, Mapping):
-        raise AdapterContractError(f"{field_name} must be a mapping")
-    actual_keys = tuple(value.keys())
-    if any(type(key) is not str for key in actual_keys):
-        raise AdapterContractError(f"{field_name} contains a non-string mapping key")
+    snapshot = _freeze_mapping(value, field_name)
+    actual_keys = tuple(snapshot)
     expected_keys = tuple(expected)
     if any(type(key) is not str for key in expected_keys):
         raise AdapterContractError(f"{field_name} expected keys must be strings")
@@ -206,7 +312,7 @@ def require_exact_keys(
         )
     if unknown:
         raise AdapterContractError(f"{field_name} contains unknown field {unknown[0]}")
-    return value
+    return snapshot
 
 
 def require_identifier(value: object, field_name: str) -> str:
@@ -222,7 +328,7 @@ def require_identifier(value: object, field_name: str) -> str:
 def _require_nonempty_string(value: object, field_name: str) -> str:
     if type(value) is not str or not value.strip() or value != value.strip():
         raise AdapterContractError(f"{field_name} must be a nonempty string")
-    return value
+    return _require_utf8_string(value, field_name)
 
 
 def _require_finite_number(
@@ -250,7 +356,7 @@ def _require_positive_integer(value: object, field_name: str) -> int:
 
 
 def _require_tuple(value: object, field_name: str) -> tuple:
-    if not isinstance(value, tuple):
+    if type(value) is not tuple:
         raise AdapterContractError(f"{field_name} must be an immutable tuple")
     return value
 
@@ -268,13 +374,30 @@ def _freeze_mapping(value: object, field_name: str) -> FrozenJsonObject:
     if not isinstance(value, Mapping):
         raise AdapterContractError(f"{field_name} must be a mapping")
     frozen = freeze_json(value, field_name)
-    if not isinstance(frozen, FrozenJsonObject):
+    if type(frozen) is not FrozenJsonObject:
         raise AdapterContractError(f"{field_name} must be a mapping")
     return frozen
 
 
-def _initialize_closed(instance: object, args: tuple, kwargs: dict[str, Any]) -> None:
-    field_names = tuple(field.name for field in fields(instance))
+def _seal_contract(contract_type):
+    def reject_subclass(cls, **kwargs):
+        raise TypeError(f"{contract_type.__name__} is sealed and cannot be subclassed")
+
+    contract_type.__init_subclass__ = classmethod(reject_subclass)
+    return contract_type
+
+
+def _initialize_closed(
+    instance: object,
+    args: tuple,
+    kwargs: dict[str, Any],
+    contract_type: type,
+) -> None:
+    if type(instance) is not contract_type:
+        raise AdapterContractError(
+            f"{contract_type.__name__} does not allow subclasses"
+        )
+    field_names = tuple(field.name for field in fields(contract_type))
     if len(args) > len(field_names):
         raise AdapterContractError(
             f"too many positional fields for {type(instance).__name__}"
@@ -295,7 +418,7 @@ def _initialize_closed(instance: object, args: tuple, kwargs: dict[str, Any]) ->
         )
     for name in field_names:
         object.__setattr__(instance, name, values[name])
-    instance.__post_init__()
+    contract_type.__post_init__(instance)
 
 
 _VALUE_SCHEMA_KINDS = frozenset(
@@ -303,6 +426,7 @@ _VALUE_SCHEMA_KINDS = frozenset(
 )
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class ValueSchema:
     kind: str
@@ -314,7 +438,7 @@ class ValueSchema:
     units: str
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, ValueSchema)
 
     def __post_init__(self) -> None:
         if type(self.kind) is not str or self.kind not in _VALUE_SCHEMA_KINDS:
@@ -339,15 +463,13 @@ class ValueSchema:
             raise AdapterContractError(
                 "lower and upper are allowed only for integer or number schemas"
             )
-        if self.item_schema is not None and not isinstance(
-            self.item_schema, ValueSchema
-        ):
+        if self.item_schema is not None and type(self.item_schema) is not ValueSchema:
             raise AdapterContractError("item_schema must be a ValueSchema or None")
         properties = _require_tuple(self.properties, "properties")
         normalized_properties = []
         seen = set()
         for index, item in enumerate(properties):
-            if not isinstance(item, tuple) or len(item) != 2:
+            if type(item) is not tuple or len(item) != 2:
                 raise AdapterContractError(
                     f"properties[{index}] must be a (name, ValueSchema) tuple"
                 )
@@ -357,7 +479,7 @@ class ValueSchema:
                 raise AdapterContractError(
                     f"properties contains duplicate field {name}"
                 )
-            if not isinstance(schema, ValueSchema):
+            if type(schema) is not ValueSchema:
                 raise AdapterContractError(
                     f"properties[{index}].schema must be a ValueSchema"
                 )
@@ -393,6 +515,7 @@ _PARAMETER_SOURCE_KINDS = frozenset(
 )
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class ParameterSource:
     parameter_name: str
@@ -400,7 +523,7 @@ class ParameterSource:
     details: FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, ParameterSource)
 
     def __post_init__(self) -> None:
         require_identifier(self.parameter_name, "parameter_name")
@@ -411,13 +534,14 @@ class ParameterSource:
         object.__setattr__(self, "details", _freeze_mapping(self.details, "details"))
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class CounterfactualDomain:
     valid_rules: FrozenJsonObject
     invalid_rules: FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, CounterfactualDomain)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -433,13 +557,14 @@ _CONVERGENCE_KINDS = frozenset(
 )
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class ConvergenceContract:
     kind: str
     requirements: FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, ConvergenceContract)
 
     def __post_init__(self) -> None:
         if type(self.kind) is not str or self.kind not in _CONVERGENCE_KINDS:
@@ -456,6 +581,7 @@ _PROBLEM_SIZE_KINDS = frozenset(
 )
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class ProblemSizePolicy:
     kind: str
@@ -463,7 +589,7 @@ class ProblemSizePolicy:
     allowed_sizes: FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, ProblemSizePolicy)
 
     def __post_init__(self) -> None:
         if type(self.kind) is not str or self.kind not in _PROBLEM_SIZE_KINDS:
@@ -488,6 +614,7 @@ class ProblemSizePolicy:
         object.__setattr__(self, "allowed_sizes", allowed_sizes)
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class RuntimeRequirements:
     interpreter: str
@@ -496,7 +623,7 @@ class RuntimeRequirements:
     backend_resources: tuple[str, ...]
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, RuntimeRequirements)
 
     def __post_init__(self) -> None:
         _require_nonempty_string(self.interpreter, "interpreter")
@@ -504,6 +631,7 @@ class RuntimeRequirements:
             _require_string_tuple(getattr(self, field_name), field_name)
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class ResourceLimits:
     cpu_seconds: int | float
@@ -514,7 +642,7 @@ class ResourceLimits:
     process_count: int
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, ResourceLimits)
 
     def __post_init__(self) -> None:
         _require_finite_number(self.cpu_seconds, "cpu_seconds", positive=True)
@@ -545,6 +673,7 @@ _OBSERVABLE_IDENTITY_KEYS = frozenset(
 )
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class AdapterDefinition:
     adapter_id: str
@@ -563,7 +692,7 @@ class AdapterDefinition:
     resource_limits: ResourceLimits
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, AdapterDefinition)
 
     def __post_init__(self) -> None:
         require_identifier(self.adapter_id, "adapter_id")
@@ -573,15 +702,10 @@ class AdapterDefinition:
             raise AdapterContractError(
                 "entry_symbol must be a fully qualified module:function symbol"
             )
-        if not isinstance(self.observable_identity, Mapping):
-            raise AdapterContractError("observable_identity must be a mapping")
-        require_exact_keys(
+        observable_identity = require_exact_keys(
             self.observable_identity,
             _OBSERVABLE_IDENTITY_KEYS,
             "observable_identity",
-        )
-        observable_identity = _freeze_mapping(
-            self.observable_identity, "observable_identity"
         )
         for field_name in (
             "scientific_input_schema",
@@ -589,12 +713,12 @@ class AdapterDefinition:
             "output_schema",
         ):
             schema = getattr(self, field_name)
-            if not isinstance(schema, ValueSchema) or schema.kind != "object":
+            if type(schema) is not ValueSchema or schema.kind != "object":
                 raise AdapterContractError(
                     f"{field_name} must be an object ValueSchema"
                 )
         parameter_sources = _require_tuple(self.parameter_sources, "parameter_sources")
-        if any(not isinstance(item, ParameterSource) for item in parameter_sources):
+        if any(type(item) is not ParameterSource for item in parameter_sources):
             raise AdapterContractError(
                 "parameter_sources must contain only ParameterSource records"
             )
@@ -622,7 +746,7 @@ class AdapterDefinition:
             ("counterfactual_domain", CounterfactualDomain),
             ("resource_limits", ResourceLimits),
         ):
-            if not isinstance(getattr(self, field_name), expected_type):
+            if type(getattr(self, field_name)) is not expected_type:
                 raise AdapterContractError(
                     f"{field_name} must be a {expected_type.__name__}"
                 )
@@ -645,6 +769,7 @@ _SOURCE_PARSE_ONLY_REASONS = frozenset(
 )
 
 
+@_seal_contract
 @dataclass(frozen=True, init=False)
 class EligibilityDecision:
     disposition: str
@@ -653,7 +778,7 @@ class EligibilityDecision:
     reason: str | None
 
     def __init__(self, *args, **kwargs):
-        _initialize_closed(self, args, kwargs)
+        _initialize_closed(self, args, kwargs, EligibilityDecision)
 
     def __post_init__(self) -> None:
         if (
