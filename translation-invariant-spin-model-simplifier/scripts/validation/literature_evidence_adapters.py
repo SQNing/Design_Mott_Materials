@@ -904,7 +904,9 @@ class EligibilityDecision:
         _initialize_closed(self, args, kwargs, EligibilityDecision)
 
     def __post_init__(self) -> None:
-        selector_fields = _require_tuple(self.selector_fields, "selector_fields")
+        selector_fields = _require_tuple(
+            self.selector_fields, "selector_fields"
+        )
         if not selector_fields:
             raise AdapterContractError("selector_fields must be nonempty")
         for index, selector_field in enumerate(selector_fields):
@@ -912,7 +914,9 @@ class EligibilityDecision:
         if len(set(selector_fields)) != len(selector_fields):
             raise AdapterContractError("selector_fields contains a duplicate")
         if type(self.disposition) is not str:
-            raise AdapterContractError("eligibility disposition must be a string")
+            raise AdapterContractError(
+                "eligibility disposition must be a string"
+            )
         if self.disposition not in _ELIGIBILITY_DISPOSITIONS:
             raise AdapterContractError(
                 f"unknown eligibility disposition {self.disposition!r}"
@@ -921,14 +925,19 @@ class EligibilityDecision:
             require_identifier(self.adapter_id, "adapter_id")
             require_identifier(self.oracle_id, "oracle_id")
             if self.reason is not None:
-                raise AdapterContractError("eligible decision cannot have a reason")
+                raise AdapterContractError(
+                    "eligible decision cannot have a reason"
+                )
             return
         if self.adapter_id is not None or self.oracle_id is not None:
             raise AdapterContractError(
-                "source_parse_only decision cannot resolve an adapter or oracle"
+                "source_parse_only decision cannot resolve an "
+                "adapter or oracle"
             )
         if type(self.reason) is not str:
-            raise AdapterContractError("source_parse_only reason must be a string")
+            raise AdapterContractError(
+                "source_parse_only reason must be a string"
+            )
         if self.reason not in SOURCE_PARSE_ONLY_REASONS:
             raise AdapterContractError(
                 f"unknown source_parse_only reason {self.reason!r}"
@@ -961,10 +970,13 @@ def _build_adapter_eligibility(
             oracle_id,
             reason,
         ) = row
-        require_identifier(benchmark_name, f"eligibility row {index} benchmark_name")
+        require_identifier(
+            benchmark_name, f"eligibility row {index} benchmark_name"
+        )
         if benchmark_name in decisions:
             raise AdapterContractError(
-                f"duplicate benchmark ID in eligibility catalog: {benchmark_name}"
+                "duplicate benchmark ID in eligibility catalog: "
+                f"{benchmark_name}"
             )
         decisions[benchmark_name] = EligibilityDecision(
             selector_fields=selector_fields,
@@ -974,7 +986,9 @@ def _build_adapter_eligibility(
             reason=reason,
         )
     if len(decisions) != 42:
-        raise AdapterContractError("eligibility catalog must contain exactly 42 rows")
+        raise AdapterContractError(
+            "eligibility catalog must contain exactly 42 rows"
+        )
     eligible_count = sum(
         decision.disposition == "eligible" for decision in decisions.values()
     )
@@ -990,7 +1004,9 @@ def _build_adapter_eligibility(
     return MappingProxyType(decisions)
 
 
-ADAPTER_ELIGIBILITY: Mapping[str, EligibilityDecision] = _build_adapter_eligibility(
+ADAPTER_ELIGIBILITY: Mapping[
+    str, EligibilityDecision
+] = _build_adapter_eligibility(
     (
         (
             "xxx_spin_half_chain_bethe_ground_state",

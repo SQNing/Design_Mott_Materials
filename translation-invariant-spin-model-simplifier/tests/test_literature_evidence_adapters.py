@@ -4,6 +4,7 @@ import math
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -411,10 +412,14 @@ MIGRATION_CANDIDATE_SOURCES = frozenset(
 
 def _legacy_local_recompute_candidate_names():
     runtime_source = (
-        PROJECT_ROOT / "scripts" / "validation" / "literature_runtime_evidence.py"
+        PROJECT_ROOT
+        / "scripts"
+        / "validation"
+        / "literature_runtime_evidence.py"
     )
     tree = ast.parse(
-        runtime_source.read_text(encoding="utf-8"), filename=str(runtime_source)
+        runtime_source.read_text(encoding="utf-8"),
+        filename=str(runtime_source),
     )
     collectors = [
         node
@@ -473,7 +478,9 @@ def test_eligibility_catalog_matches_all_42_normative_rows_field_for_field():
     )
 
     assert actual == EXPECTED_ELIGIBILITY
-    assert tuple(field.name for field in dataclasses.fields(EligibilityDecision)) == (
+    assert tuple(
+        field.name for field in dataclasses.fields(EligibilityDecision)
+    ) == (
         "selector_fields",
         "disposition",
         "adapter_id",
@@ -538,10 +545,11 @@ def test_candidate_sources_union_matches_normative_catalog():
 
 
 def test_eligibility_catalog_is_immutable():
-    existing = ADAPTER_ELIGIBILITY["xxx_spin_half_chain_bethe_ground_state"]
+    benchmark_name = "xxx_spin_half_chain_bethe_ground_state"
+    existing = ADAPTER_ELIGIBILITY[benchmark_name]
 
     with pytest.raises(TypeError):
-        ADAPTER_ELIGIBILITY["xxx_spin_half_chain_bethe_ground_state"] = existing
+        ADAPTER_ELIGIBILITY[benchmark_name] = existing
     with pytest.raises(dataclasses.FrozenInstanceError):
         existing.disposition = "source_parse_only"
 
@@ -551,6 +559,120 @@ def test_eligibility_builder_rejects_a_duplicate_benchmark_id():
 
     with pytest.raises(AdapterContractError, match="duplicate.*benchmark"):
         _build_adapter_eligibility((duplicated_row, duplicated_row))
+
+
+VALID_UNIQUE_EXTRA_ELIGIBILITY_ROW = (
+    "unique_extra_eligibility_reference",
+    ("status",),
+    "eligible",
+    "unique_extra_adapter",
+    "unique_extra_oracle",
+    None,
+)
+
+
+@pytest.mark.parametrize(
+    ("rows", "diagnostic"),
+    (
+        pytest.param(
+            (list(EXPECTED_ELIGIBILITY[0]), *EXPECTED_ELIGIBILITY[1:]),
+            "exact six-field tuple",
+            id="row_is_list",
+        ),
+        pytest.param(
+            (EXPECTED_ELIGIBILITY[0][:-1], *EXPECTED_ELIGIBILITY[1:]),
+            "exact six-field tuple",
+            id="wrong_row_arity",
+        ),
+        pytest.param(
+            (
+                (
+                    EXPECTED_ELIGIBILITY[0][0],
+                    list(EXPECTED_ELIGIBILITY[0][1]),
+                    *EXPECTED_ELIGIBILITY[0][2:],
+                ),
+                *EXPECTED_ELIGIBILITY[1:],
+            ),
+            "selector_fields",
+            id="selector_fields_is_list",
+        ),
+        pytest.param(
+            (
+                (
+                    EXPECTED_ELIGIBILITY[0][0],
+                    EXPECTED_ELIGIBILITY[0][1],
+                    "candidate",
+                    *EXPECTED_ELIGIBILITY[0][3:],
+                ),
+                *EXPECTED_ELIGIBILITY[1:],
+            ),
+            "disposition",
+            id="invalid_disposition",
+        ),
+        pytest.param(
+            EXPECTED_ELIGIBILITY[:-1],
+            "exactly 42 rows",
+            id="only_41_rows",
+        ),
+        pytest.param(
+            (*EXPECTED_ELIGIBILITY, VALID_UNIQUE_EXTRA_ELIGIBILITY_ROW),
+            "exactly 42 rows",
+            id="43_unique_rows",
+        ),
+        pytest.param(
+            (
+                (
+                    EXPECTED_ELIGIBILITY[0][0],
+                    EXPECTED_ELIGIBILITY[0][1],
+                    "source_parse_only",
+                    None,
+                    None,
+                    "no_independent_oracle",
+                ),
+                *EXPECTED_ELIGIBILITY[1:],
+            ),
+            "exactly 29 eligible and 13 source_parse_only rows",
+            id="wrong_29_13_split",
+        ),
+    ),
+)
+def test_eligibility_builder_rejects_malformed_or_miscounted_catalogs(
+    rows, diagnostic
+):
+    with pytest.raises(AdapterContractError, match=diagnostic):
+        _build_adapter_eligibility(rows)
+
+
+def test_eligibility_builder_returns_exact_immutable_contract_types():
+    catalog = _build_adapter_eligibility(EXPECTED_ELIGIBILITY)
+
+    assert type(catalog) is MappingProxyType
+    assert len(catalog) == 42
+    assert all(
+        type(decision) is EligibilityDecision for decision in catalog.values()
+    )
+
+
+def test_eligibility_builder_isolated_mapping_survives_caller_list_mutation():
+    caller_rows = list(EXPECTED_ELIGIBILITY)
+    catalog = _build_adapter_eligibility(caller_rows)
+
+    caller_rows.clear()
+    caller_rows.append(VALID_UNIQUE_EXTRA_ELIGIBILITY_ROW)
+
+    actual = tuple(
+        (
+            benchmark_name,
+            decision.selector_fields,
+            decision.disposition,
+            decision.adapter_id,
+            decision.oracle_id,
+            decision.reason,
+        )
+        for benchmark_name, decision in catalog.items()
+    )
+    assert len(catalog) == 42
+    assert actual == EXPECTED_ELIGIBILITY
 
 
 def _number_schema(*, lower=0.0, upper=None, units="dimensionless"):
