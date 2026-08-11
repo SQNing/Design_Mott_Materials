@@ -9710,6 +9710,287 @@ def test_scientific_closure_keeps_project_importfrom_semantics(tmp_path):
     )
 
 
+@pytest.mark.parametrize(
+    "export_name, expression",
+    (
+        ("len", "len((value,))"),
+        ("tuple", "tuple((value,))"),
+        ("object", "object()"),
+    ),
+    ids=("len", "tuple", "object"),
+)
+def test_scientific_closure_rejects_missing_project_builtin_export(
+    tmp_path,
+    export_name,
+    expression,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "OTHER = 2\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        f"from synthetic_science.helpers import {export_name}\n"
+        "def adapter_entry(value):\n"
+        f"    return {expression}\n",
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="binding|dependency|export|import|unresolved",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
+def test_scientific_closure_allows_imported_immutable_default(tmp_path):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "BASE = 2\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import BASE\n"
+        "def adapter_entry(value=BASE):\n"
+        "    return value\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes
+    ) == (
+        "synthetic_science.helpers.BASE",
+        "synthetic_science.adapters.adapter_entry",
+    )
+    assert closure.dependency_edges == (
+        (
+            "synthetic_science.adapters.adapter_entry",
+            "synthetic_science.helpers.BASE",
+        ),
+    )
+
+
+def test_scientific_closure_allows_imported_immutable_initializer(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "BASE = 2\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import BASE\n"
+        "SCALE = BASE + 1\n"
+        "def adapter_entry(value):\n"
+        "    return value * SCALE\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes
+    ) == (
+        "synthetic_science.helpers.BASE",
+        "synthetic_science.adapters.SCALE",
+        "synthetic_science.adapters.adapter_entry",
+    )
+    assert closure.dependency_edges == (
+        (
+            "synthetic_science.adapters.SCALE",
+            "synthetic_science.helpers.BASE",
+        ),
+        (
+            "synthetic_science.adapters.adapter_entry",
+            "synthetic_science.adapters.SCALE",
+        ),
+    )
+
+
+def test_scientific_closure_allows_multi_hop_imported_immutable(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.constants",
+        "BASE = 2\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "from synthetic_science.constants import BASE\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import BASE\n"
+        "def adapter_entry(value=BASE):\n"
+        "    return value + BASE\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes
+    ) == (
+        "synthetic_science.constants.BASE",
+        "synthetic_science.adapters.adapter_entry",
+    )
+    assert closure.dependency_edges == (
+        (
+            "synthetic_science.adapters.adapter_entry",
+            "synthetic_science.constants.BASE",
+        ),
+    )
+
+
+def test_scientific_closure_rejects_project_import_binding_cycle(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.left",
+        "from synthetic_science.right import BASE\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.right",
+        "from synthetic_science.left import BASE\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.left import BASE\n"
+        "def adapter_entry(value=BASE):\n"
+        "    return value\n",
+    )
+
+    with pytest.raises(AdapterContractError, match="cycle|cyclic"):
+        _build_task5_scientific_closure(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "helper_source, imported_name",
+    (
+        (
+            "def helper(value):\n"
+            "    return value\n",
+            "helper",
+        ),
+        (
+            "class Payload:\n"
+            "    pass\n",
+            "Payload",
+        ),
+        ("from math import sqrt\n", "sqrt"),
+    ),
+    ids=("function", "class", "external_import"),
+)
+def test_scientific_closure_rejects_imported_runtime_binding_as_default(
+    tmp_path,
+    helper_source,
+    imported_name,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        helper_source,
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        f"from synthetic_science.helpers import {imported_name}\n"
+        f"def adapter_entry(value={imported_name}):\n"
+        "    return value\n",
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="binding|callable|class|immutable|import|runtime",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
+def test_scientific_closure_allows_runtime_imported_project_function(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "def helper(value):\n"
+        "    return value + 1\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import helper\n"
+        "def adapter_entry(value):\n"
+        "    return helper(value)\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert {
+        node["qualified_name"] for node in closure.nodes
+    } == {
+        "synthetic_science.helpers.helper",
+        "synthetic_science.adapters.adapter_entry",
+    }
+    assert closure.dependency_edges == (
+        (
+            "synthetic_science.adapters.adapter_entry",
+            "synthetic_science.helpers.helper",
+        ),
+    )
+
+
+def test_scientific_closure_rejects_aliased_project_import(tmp_path):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "def helper(value):\n"
+        "    return value\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import helper as renamed\n"
+        "def adapter_entry(value):\n"
+        "    return renamed(value)\n",
+    )
+
+    with pytest.raises(AdapterContractError, match="alias|import|static"):
+        _build_task5_scientific_closure(tmp_path)
+
+
+def test_scientific_closure_rejects_missing_project_annotation_export(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "OTHER = 2\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import int\n"
+        "def adapter_entry(value: int):\n"
+        "    return value\n",
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="annotation|binding|dependency|export|import|unresolved",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
 TASK5_FORBIDDEN_INFRASTRUCTURE_CONTENT = (
     (
         "neutral_numeric_equation",

@@ -2207,6 +2207,8 @@ class _AstClosureResolver:
         *,
         requirements: frozenset[str],
         source_qualified_name: str | None = None,
+        explicit_project_export: bool = False,
+        project_import_chain: tuple[tuple[str, str], ...] = (),
     ) -> str | None:
         if not requirements or not requirements <= {
             _AST_BINDING_RUNTIME,
@@ -2218,6 +2220,11 @@ class _AstClosureResolver:
         try:
             binding = module.bindings[global_name]
         except KeyError as error:
+            if explicit_project_export:
+                raise _ContractError(
+                    "unresolved explicit project import "
+                    f"{module_name}.{global_name}"
+                ) from error
             if _AST_BINDING_IMMUTABLE in requirements:
                 raise _ContractError(
                     "immutable initializer cannot use a runtime "
@@ -2246,6 +2253,60 @@ class _AstClosureResolver:
             raise _ContractError(
                 f"unresolved global dependency {module_name}.{global_name}"
             ) from error
+        if isinstance(binding, _ProjectSymbolImport):
+            if binding.local_name != binding.target_symbol:
+                raise _ContractError(
+                    "project import alias cannot be statically resolved"
+                )
+            target_binding = (
+                binding.target_module,
+                binding.target_symbol,
+            )
+            if target_binding in project_import_chain:
+                cycle = " -> ".join(
+                    f"{target_module}.{target_symbol}"
+                    for target_module, target_symbol in (
+                        project_import_chain + (target_binding,)
+                    )
+                )
+                raise _ContractError(
+                    f"cyclic project import binding: {cycle}"
+                )
+            committed_destination = _COMMITTED_DATA_OWNERS.get(
+                target_binding
+            )
+            if (
+                self.role == "infrastructure"
+                and requirements
+                == frozenset({_AST_BINDING_RUNTIME})
+                and committed_destination is not None
+            ):
+                target_module = self._load_module(
+                    binding.target_module
+                )
+                owner_binding = target_module.bindings.get(
+                    binding.target_symbol
+                )
+                if (
+                    isinstance(owner_binding, _AstSourceNode)
+                    and owner_binding.node_kind == "immutable_constant"
+                    and owner_binding.qualified_name
+                    == (
+                        f"{binding.target_module}."
+                        f"{binding.target_symbol}"
+                    )
+                ):
+                    return committed_destination
+            return self._resolve_binding(
+                binding.target_module,
+                binding.target_symbol,
+                requirements=requirements,
+                source_qualified_name=source_qualified_name,
+                explicit_project_export=True,
+                project_import_chain=(
+                    project_import_chain + (target_binding,)
+                ),
+            )
         if _AST_BINDING_ANNOTATION in requirements:
             raise _ContractError(
                 "annotation cannot use a project binding; only "
@@ -2258,23 +2319,6 @@ class _AstClosureResolver:
             raise _ContractError(
                 "immutable initializer cannot use a runtime, callable, class, "
                 "or import binding"
-            )
-        if isinstance(binding, _ProjectSymbolImport):
-            if binding.local_name != binding.target_symbol:
-                raise _ContractError(
-                    "project import alias cannot be statically resolved"
-                )
-            committed_destination = _COMMITTED_DATA_OWNERS.get(
-                (binding.target_module, binding.target_symbol)
-            )
-            if self.role == "infrastructure" and (
-                committed_destination is not None
-            ):
-                return committed_destination
-            return self._resolve_binding(
-                binding.target_module,
-                binding.target_symbol,
-                requirements=frozenset({_AST_BINDING_RUNTIME}),
             )
         if isinstance(binding, _ProjectModuleImport):
             raise _ContractError(
