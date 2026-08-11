@@ -3373,6 +3373,11 @@ _INFRASTRUCTURE_NUMERIC_PERMISSIONS = frozenset(
         ),
         (
             "contract_validation",
+            "builtins.len",
+            "if_test",
+        ),
+        (
+            "contract_validation",
             "identity.none",
             "if_expression_test",
         ),
@@ -4068,6 +4073,50 @@ def _is_input_none_identity_comparison(
     ) and not bool(state & ~permitted_state)
 
 
+def _is_direct_structural_cardinality_comparison(
+    node: ast.AST,
+    state: _InfrastructureNumericProvenance,
+) -> bool:
+    if not (
+        isinstance(node, ast.Compare)
+        and len(node.ops) == 1
+        and isinstance(
+            node.ops[0],
+            (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE),
+        )
+        and len(node.comparators) == 1
+    ):
+        return False
+    operands = (node.left, node.comparators[0])
+    calls = tuple(
+        operand for operand in operands if isinstance(operand, ast.Call)
+    )
+    literals = tuple(
+        operand
+        for operand in operands
+        if isinstance(operand, ast.Constant)
+        and type(operand.value) is int
+        and 0 <= operand.value <= _INFRASTRUCTURE_AST_NODE_LIMIT
+    )
+    if not (len(calls) == 1 and len(literals) == 1):
+        return False
+    call = calls[0]
+    if not (
+        isinstance(call.func, ast.Name)
+        and call.func.id == "len"
+        and len(call.args) == 1
+        and not call.keywords
+    ):
+        return False
+    exact_state = (
+        _InfrastructureNumericProvenance.STRUCTURAL_CARDINALITY
+        | _InfrastructureNumericProvenance.NUMERIC_LITERAL
+        | _InfrastructureNumericProvenance.COMPARISON_RESULT
+        | _InfrastructureNumericProvenance.UNAPPROVED_COMPARISON
+    )
+    return state == exact_state
+
+
 def _numeric_frozen_threshold_names(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> frozenset[str]:
@@ -4199,6 +4248,22 @@ def _validate_numeric_control_sink(
             )
         ):
             return
+        if (
+            _is_direct_structural_cardinality_comparison(node, state)
+            and _numeric_permission(
+                purpose,
+                "builtins.len",
+                position,
+            )
+        ):
+            return
+        if state & (
+            _InfrastructureNumericProvenance.
+            UNAPPROVED_COMPARISON
+        ):
+            raise _ContractError(
+                "infrastructure comparison control violates its purpose"
+            )
         if (
             not bool(
                 state & _InfrastructureNumericProvenance.UNKNOWN

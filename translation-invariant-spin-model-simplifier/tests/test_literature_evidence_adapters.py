@@ -11126,6 +11126,99 @@ def test_infrastructure_builder_rejects_mixed_proof_comparisons_through_call(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+@pytest.mark.parametrize(
+    "control_expression",
+    (
+        "(value is None) or len(value)",
+        "(value is None) and len(value)",
+        "len(value) or (value is None)",
+        "len(value) and (value is None)",
+        "(len(value) != 64) or (value is None)",
+        "(len(value) != 64) and (value is None)",
+        "(value is None) or (len(value) != 64)",
+        "(value is None) and (len(value) != 64)",
+    ),
+)
+def test_infrastructure_builder_rejects_mixed_none_and_len_control(
+    tmp_path,
+    control_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    return value if {control_expression} else None\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|control|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "control_expression",
+    (
+        "value is None",
+        "value is not None",
+        "len(value)",
+    ),
+)
+def test_infrastructure_builder_allows_exact_none_or_len_control(
+    tmp_path,
+    control_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    return value if {control_expression} else None\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+def test_infrastructure_builder_rejects_imported_len_comparison_control(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "from math import floor as len\n"
+            )
+        },
+        body_by_root={
+            "validate_failure": (
+                "    if len(value) != 64:\n"
+                "        return None\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|control|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 def test_infrastructure_builder_allows_small_integer_protocol_control(
     tmp_path,
 ):
