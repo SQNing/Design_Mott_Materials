@@ -11400,6 +11400,12 @@ def test_infrastructure_builder_rejects_comparison_bearing_call_inputs(
             "    return value\n",
         ),
         (
+            "subscript_annassign",
+            "",
+            '    value["factor"]: object = 1 / 2\n'
+            "    return value\n",
+        ),
+        (
             "tuple_destructuring",
             "",
             '    (value.factor, value["factor"]) = (\n'
@@ -11413,6 +11419,18 @@ def test_infrastructure_builder_rejects_comparison_bearing_call_inputs(
             '    [value.factor, value["factor"]] = [\n'
             "        value * 2, 1 / 2\n"
             "    ]\n"
+            "    return value\n",
+        ),
+        (
+            "starred_nested_attribute_destructuring",
+            "",
+            '    (*value["nested"].factors,) = [1 / 2]\n'
+            "    return value\n",
+        ),
+        (
+            "starred_nested_subscript_destructuring",
+            "",
+            '    (*value["nested"]["factors"],) = [value is None]\n'
             "    return value\n",
         ),
     ),
@@ -11494,6 +11512,40 @@ def test_infrastructure_builder_rejects_unsafe_mutation_bindings(
             "infrastructure|numeric|mutation|provenance|purpose|control|"
             "comprehension|scope"
         ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "root_body",
+    (
+        "    for value.factor in external(value):\n"
+        "        pass\n"
+        "    return value\n",
+        "    with external(value) as value.factor:\n"
+        "        pass\n"
+        "    return value\n",
+    ),
+)
+def test_infrastructure_builder_rejects_unknown_mutation_bindings(
+    tmp_path,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "from math import floor as external\n"
+            )
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
     ):
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
