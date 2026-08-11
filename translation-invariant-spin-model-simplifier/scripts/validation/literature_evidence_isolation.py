@@ -148,7 +148,14 @@ def _mapping_or_exact_record_values(
 ) -> dict[str, object]:
     names = _record_field_names(record_type)
     if type(value) is record_type:
-        return {name: getattr(value, name) for name in names}
+        try:
+            return {name: getattr(value, name) for name in names}
+        except _ContractError:
+            raise
+        except Exception as error:
+            raise _ContractError(
+                f"{field_name} attribute extraction failed"
+            ) from error
     if isinstance(value, Mapping):
         snapshot = _exact_keys(value, names, field_name)
         return {name: snapshot[name] for name in names}
@@ -175,11 +182,11 @@ def _record_to_frozen_json(
         raise _ContractError(
             f"value must be an exact {record_type.__name__}"
         )
+    raw_values = _mapping_or_exact_record_values(
+        value, record_type, record_type.__name__
+    )
     return _snapshot_json(
-        {
-            field.name: getattr(value, field.name)
-            for field in fields(record_type)
-        },
+        raw_values,
         record_type.__name__,
     )
 
@@ -536,15 +543,19 @@ class AdapterAuthorityContext:
             raise _ContractError("authority context hash mismatch")
 
     def calculated_context_sha256(self) -> str:
-        payload = {
-            field.name: getattr(self, field.name)
-            for field in fields(AdapterAuthorityContext)
-            if field.name != "context_sha256"
-        }
+        payload = _mapping_or_exact_record_values(
+            self,
+            AdapterAuthorityContext,
+            "authority_context",
+        )
+        payload.pop("context_sha256")
         return _canonical_sha256(payload)
 
     def to_frozen_json(self) -> _FrozenJsonObject:
-        return _record_to_frozen_json(self, AdapterAuthorityContext)
+        revalidated = _snapshot_authority_context(self)
+        return _record_to_frozen_json(
+            revalidated, AdapterAuthorityContext
+        )
 
 
 def _snapshot_authority_context(value: object) -> AdapterAuthorityContext:
@@ -619,11 +630,11 @@ class WorkerRequest:
         object.__setattr__(self, "numerical_controls", numerical_controls)
 
     def to_frozen_json(self) -> _FrozenJsonObject:
-        revalidated = WorkerRequest(
-            **{
-                field.name: getattr(self, field.name)
-                for field in fields(WorkerRequest)
-            }
+        raw_values = _mapping_or_exact_record_values(
+            self, WorkerRequest, "worker_request"
+        )
+        revalidated = _normalize_record_error(
+            "worker_request", lambda: WorkerRequest(**raw_values)
         )
         return _record_to_frozen_json(revalidated, WorkerRequest)
 
@@ -824,7 +835,12 @@ def _parse_canonical_definition_bytes(value: object, role: str) -> object:
                 ValueError(f"non-finite JSON constant {token}")
             ),
         )
-    except (UnicodeDecodeError, ValueError, TypeError) as error:
+    except (
+        UnicodeDecodeError,
+        ValueError,
+        TypeError,
+        RecursionError,
+    ) as error:
         raise _ContractError(
             "canonical_definition_bytes is not canonical JSON"
         ) from error

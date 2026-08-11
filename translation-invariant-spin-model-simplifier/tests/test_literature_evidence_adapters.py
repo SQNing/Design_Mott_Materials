@@ -4148,7 +4148,13 @@ def _local_observable_payload():
                 "single_cpu_core": {"applicability": "used"}
             },
         },
-        "operation_counts_or_sizes": {"root_iterations": 12},
+        "operation_counts_or_sizes": {
+            "operation_counts": {"root_iterations": 12},
+            "problem_size": {
+                "policy_kind": "not_applicable",
+                "values": {},
+            },
+        },
         "worker_started_monotonic_ns": 10_000,
         "worker_finished_monotonic_ns": 20_000,
     }
@@ -5825,6 +5831,18 @@ def _local_payload_for_definition(definition):
             for name in runtime.backend_resources
         },
     }
+    size_policy = definition.problem_size_policy
+    if size_policy.kind == "fixed_local":
+        size_values = thaw_json(size_policy.fixed_sizes)
+    elif size_policy.kind == "scalable_same_observable":
+        size_values = {}
+        for name, allowed in size_policy.allowed_sizes.items():
+            if type(allowed) is tuple:
+                size_values[name] = thaw_json(allowed[0])
+            else:
+                size_values[name] = thaw_json(allowed)
+    else:
+        size_values = {}
     return {
         "schema_version": "local_observable_result_v1",
         "adapter_id": definition.adapter_id,
@@ -5840,7 +5858,13 @@ def _local_payload_for_definition(definition):
         "uncertainty": uncertainty,
         "raw_convergence_evidence": convergence,
         "backend_diagnostics": backend,
-        "operation_counts_or_sizes": {"operations": 1},
+        "operation_counts_or_sizes": {
+            "operation_counts": {"operations": 1},
+            "problem_size": {
+                "policy_kind": size_policy.kind,
+                "values": size_values,
+            },
+        },
         "worker_started_monotonic_ns": 1_000,
         "worker_finished_monotonic_ns": 2_000,
     }
@@ -5925,10 +5949,233 @@ def test_local_result_rejects_negative_counts_and_timestamps(mutation):
     definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
     payload = _local_payload_for_definition(definition)
     if mutation == "negative_count":
-        payload["operation_counts_or_sizes"] = {"operations": -1}
+        payload["operation_counts_or_sizes"]["operation_counts"] = {
+            "operations": -1
+        }
     else:
         payload["worker_started_monotonic_ns"] = -1
     with pytest.raises(AdapterContractError, match="nonnegative|count"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+ITERATIVE_NUMERIC_DEFINITIONS = tuple(
+    definition
+    for definition in adapters.ADAPTER_DEFINITIONS.values()
+    if definition.backend_kind == "iterative_numeric"
+)
+
+
+@pytest.mark.parametrize(
+    "definition",
+    ITERATIVE_NUMERIC_DEFINITIONS,
+    ids=tuple(
+        definition.adapter_id
+        for definition in ITERATIVE_NUMERIC_DEFINITIONS
+    ),
+)
+@pytest.mark.parametrize("evidence_position", (0, -1), ids=("first", "last"))
+def test_iterative_numeric_evidence_rejects_negative_residual_norms(
+    definition,
+    evidence_position,
+):
+    payload = _local_payload_for_definition(definition)
+    convergence = payload["raw_convergence_evidence"]
+    sequence_name = (
+        "residuals"
+        if convergence["kind"] == "iterative"
+        else "error_bounds"
+    )
+    convergence[sequence_name][evidence_position] = -1e-9
+
+    with pytest.raises(AdapterContractError, match="nonnegative|positive"):
+        adapters._validate_raw_convergence_evidence(
+            definition,
+            freeze_json(convergence),
+        )
+
+
+FIXED_LOCAL_DEFINITIONS = tuple(
+    definition
+    for definition in adapters.ADAPTER_DEFINITIONS.values()
+    if definition.problem_size_policy.kind == "fixed_local"
+)
+SCALABLE_DEFINITIONS = tuple(
+    definition
+    for definition in adapters.ADAPTER_DEFINITIONS.values()
+    if definition.problem_size_policy.kind == "scalable_same_observable"
+)
+NOT_APPLICABLE_SIZE_DEFINITIONS = tuple(
+    definition
+    for definition in adapters.ADAPTER_DEFINITIONS.values()
+    if definition.problem_size_policy.kind == "not_applicable"
+)
+
+
+FIXED_SIZE_TRANSPORT_MUTATIONS = (
+    ("empty_transport", "operation_counts|problem_size"),
+    ("irrelevant_count_only", "operation_counts|problem_size"),
+    ("fixed_value_mismatch", "fixed|problem_size.values|match"),
+    ("missing_fixed_dimension", "problem_size.values|missing"),
+    ("wrong_policy_kind", "policy_kind does not match definition"),
+    ("malformed_values", "problem_size.values|mapping"),
+)
+
+
+@pytest.mark.parametrize(
+    "definition",
+    FIXED_LOCAL_DEFINITIONS,
+    ids=tuple(
+        definition.adapter_id for definition in FIXED_LOCAL_DEFINITIONS
+    ),
+)
+@pytest.mark.parametrize(
+    "mutation, expected_guard",
+    FIXED_SIZE_TRANSPORT_MUTATIONS,
+    ids=tuple(item[0] for item in FIXED_SIZE_TRANSPORT_MUTATIONS),
+)
+def test_fixed_local_result_size_transport_is_exact_and_honest(
+    definition,
+    mutation,
+    expected_guard,
+):
+    payload = _local_payload_for_definition(definition)
+    transport = payload["operation_counts_or_sizes"]
+    size_values = transport["problem_size"]["values"]
+    if mutation == "empty_transport":
+        payload["operation_counts_or_sizes"] = {}
+    elif mutation == "irrelevant_count_only":
+        payload["operation_counts_or_sizes"] = {"operations": 1}
+    elif mutation == "fixed_value_mismatch":
+        dimension = next(iter(size_values))
+        size_values[dimension] += 1
+    elif mutation == "missing_fixed_dimension":
+        size_values.pop(next(iter(size_values)))
+    elif mutation == "wrong_policy_kind":
+        transport["problem_size"][
+            "policy_kind"
+        ] = "scalable_same_observable"
+    else:
+        transport["problem_size"]["values"] = []
+
+    with pytest.raises(AdapterContractError, match=expected_guard):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+SCALABLE_SIZE_TRANSPORT_MUTATIONS = (
+    ("empty_transport", "operation_counts|problem_size"),
+    ("irrelevant_count_only", "operation_counts|problem_size"),
+    ("disallowed_selected_size", "allowed|problem_size.values"),
+    ("missing_size_dimension", "problem_size.values|missing"),
+    ("wrong_policy_kind", "policy_kind does not match definition"),
+    ("malformed_values", "problem_size.values|mapping"),
+)
+
+
+@pytest.mark.parametrize(
+    "definition",
+    SCALABLE_DEFINITIONS,
+    ids=tuple(definition.adapter_id for definition in SCALABLE_DEFINITIONS),
+)
+@pytest.mark.parametrize(
+    "mutation, expected_guard",
+    SCALABLE_SIZE_TRANSPORT_MUTATIONS,
+    ids=tuple(item[0] for item in SCALABLE_SIZE_TRANSPORT_MUTATIONS),
+)
+def test_scalable_result_size_transport_selects_only_allowed_sizes(
+    definition,
+    mutation,
+    expected_guard,
+):
+    payload = _local_payload_for_definition(definition)
+    transport = payload["operation_counts_or_sizes"]
+    size_values = transport["problem_size"]["values"]
+    if mutation == "empty_transport":
+        payload["operation_counts_or_sizes"] = {}
+    elif mutation == "irrelevant_count_only":
+        payload["operation_counts_or_sizes"] = {"operations": 1}
+    elif mutation == "disallowed_selected_size":
+        dimension, allowed = next(
+            (name, choices)
+            for name, choices in definition.problem_size_policy.allowed_sizes.items()
+            if type(choices) is tuple
+        )
+        first_allowed = allowed[0]
+        size_values[dimension] = (
+            [999, 999]
+            if type(first_allowed) is tuple
+            else 999
+        )
+    elif mutation == "missing_size_dimension":
+        size_values.pop(next(iter(size_values)))
+    elif mutation == "wrong_policy_kind":
+        transport["problem_size"]["policy_kind"] = "fixed_local"
+    else:
+        transport["problem_size"]["values"] = []
+
+    with pytest.raises(AdapterContractError, match=expected_guard):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+@pytest.mark.parametrize(
+    "definition",
+    NOT_APPLICABLE_SIZE_DEFINITIONS,
+    ids=tuple(
+        definition.adapter_id
+        for definition in NOT_APPLICABLE_SIZE_DEFINITIONS
+    ),
+)
+@pytest.mark.parametrize(
+    "mutation",
+    ("nonempty_values", "wrong_policy_kind"),
+)
+def test_not_applicable_result_size_transport_has_exact_empty_values(
+    definition,
+    mutation,
+):
+    payload = _local_payload_for_definition(definition)
+    problem_size = payload["operation_counts_or_sizes"]["problem_size"]
+    if mutation == "nonempty_values":
+        problem_size["values"] = {"operations": 1}
+    else:
+        problem_size["policy_kind"] = "fixed_local"
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "problem_size.values must be empty"
+            if mutation == "nonempty_values"
+            else "policy_kind does not match definition"
+        ),
+    ):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+@pytest.mark.parametrize(
+    "operation_counts, expected_guard",
+    (
+        ({"nested": {"operations": 1}}, "operation_counts must be flat"),
+        (
+            {"not an identifier": 1},
+            "operation_counts key.*must be an identifier",
+        ),
+        (
+            {"operations": True},
+            "operation_counts.operations must be a nonnegative integer",
+        ),
+    ),
+    ids=("nested", "nonidentifier", "boolean"),
+)
+def test_local_result_operation_counts_are_flat_identifier_integer_pairs(
+    operation_counts,
+    expected_guard,
+):
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    payload = _local_payload_for_definition(definition)
+    payload["operation_counts_or_sizes"][
+        "operation_counts"
+    ] = operation_counts
+
+    with pytest.raises(AdapterContractError, match=expected_guard):
         adapters.validate_local_observable_result(definition, payload)
 
 
@@ -6375,3 +6622,170 @@ def test_dependency_public_symbols_are_not_reverse_module_attributes():
         value = getattr(isolation, public_name)
         if callable(value):
             assert value.__module__ == isolation.__name__
+
+
+EXACT_BOUNDARY_MISSING_FIELD_CASES = tuple(
+    ("authority", field_name)
+    for field_name in sorted(AUTHORITY_CONTEXT_FIELDS)
+) + tuple(
+    ("failure", field_name)
+    for field_name in sorted(FAILURE_CONTRACT_FIELDS)
+) + tuple(
+    ("local", field_name)
+    for field_name in sorted(LOCAL_OBSERVABLE_RESULT_FIELDS)
+) + tuple(
+    ("worker", field_name)
+    for field_name in sorted(WORKER_REQUEST_FIELDS)
+)
+
+
+def _exact_public_boundary_record(record_kind):
+    from validation import literature_evidence_isolation as isolation
+
+    if record_kind == "authority":
+        return isolation.validate_authority_context(
+            _authority_context_payload(),
+            allow_test_producer=True,
+        )
+    if record_kind == "failure":
+        return isolation.validate_failure(_failure_payload())
+    if record_kind == "local":
+        return adapters.LocalObservableResult(**_local_observable_payload())
+    return _valid_worker_request()
+
+
+def _invoke_exact_public_boundary(record_kind, record):
+    from validation import literature_evidence_isolation as isolation
+
+    if record_kind == "authority":
+        return isolation.validate_authority_context(
+            record,
+            allow_test_producer=True,
+        )
+    if record_kind == "failure":
+        return isolation.validate_failure(record)
+    if record_kind == "local":
+        definition = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        return adapters.validate_local_observable_result(definition, record)
+    return record.to_frozen_json()
+
+
+@pytest.mark.parametrize(
+    "record_kind, missing_field",
+    EXACT_BOUNDARY_MISSING_FIELD_CASES,
+    ids=tuple(
+        f"{record_kind}-{field_name}"
+        for record_kind, field_name in EXACT_BOUNDARY_MISSING_FIELD_CASES
+    ),
+)
+def test_exact_public_boundaries_normalize_every_missing_attribute(
+    record_kind,
+    missing_field,
+):
+    record = _exact_public_boundary_record(record_kind)
+    object.__delattr__(record, missing_field)
+
+    with pytest.raises(AdapterContractError):
+        _invoke_exact_public_boundary(record_kind, record)
+
+
+@pytest.mark.parametrize(
+    "record_kind",
+    ("authority", "failure", "local", "worker"),
+)
+def test_exact_public_boundaries_normalize_blank_exact_records(record_kind):
+    from validation import literature_evidence_isolation as isolation
+
+    record_types = {
+        "authority": isolation.AdapterAuthorityContext,
+        "failure": isolation.AdapterRunFailure,
+        "local": adapters.LocalObservableResult,
+        "worker": isolation.WorkerRequest,
+    }
+    blank_record = object.__new__(record_types[record_kind])
+
+    with pytest.raises(AdapterContractError):
+        _invoke_exact_public_boundary(record_kind, blank_record)
+
+
+@pytest.mark.parametrize(
+    "record_kind",
+    ("authority", "local", "worker"),
+)
+def test_public_record_serializers_freshly_revalidate_semantic_tampering(
+    record_kind,
+):
+    record = _exact_public_boundary_record(record_kind)
+    if record_kind == "authority":
+        object.__setattr__(
+            record,
+            "scientific_inputs",
+            freeze_json({"exchange": 2.0}),
+        )
+    elif record_kind == "local":
+        object.__setattr__(record, "worker_finished_monotonic_ns", 0)
+    else:
+        object.__setattr__(
+            record,
+            "scientific_inputs",
+            freeze_json({"exchange": "not-a-number"}),
+        )
+
+    with pytest.raises(AdapterContractError):
+        record.to_frozen_json()
+
+
+CANONICAL_DEFINITION_BYTE_FAILURES = (
+    (
+        "deep_json",
+        b"[" * 2_000 + b"0" + b"]" * 2_000,
+    ),
+    (
+        "oversized",
+        b"{" + b" " * 1_048_576 + b"}",
+    ),
+    (
+        "huge_integer",
+        b'{"value":' + b"9" * 5_000 + b"}",
+    ),
+    (
+        "duplicate_key",
+        b'{"adapter_id":"a","adapter_id":"b"}',
+    ),
+    (
+        "noncanonical",
+        b'{ "adapter_id":"a"}',
+    ),
+    (
+        "nonfinite",
+        b'{"value":NaN}',
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, malformed_bytes",
+    CANONICAL_DEFINITION_BYTE_FAILURES,
+    ids=tuple(case[0] for case in CANONICAL_DEFINITION_BYTE_FAILURES),
+)
+def test_canonical_definition_byte_failures_are_contract_errors(
+    case_name,
+    malformed_bytes,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _adapter_policy_values(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    )
+    values["canonical_definition_bytes"] = malformed_bytes
+    values["canonical_definition_sha256"] = hashlib.sha256(
+        malformed_bytes
+    ).hexdigest()
+    values["combined_sha256"] = isolation.scientific_policy_combined_sha256(
+        values
+    )
+
+    with pytest.raises(AdapterContractError):
+        isolation.ScientificPolicyCommitment(**values)

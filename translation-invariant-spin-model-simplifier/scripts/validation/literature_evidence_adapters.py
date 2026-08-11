@@ -4903,9 +4903,10 @@ class LocalObservableResult:
         object.__setattr__(self, "observable_identity", observable_identity)
 
     def to_frozen_json(self) -> FrozenJsonObject:
+        revalidated = _snapshot_local_observable_result(self)
         return _snapshot_json_mapping(
             {
-                field.name: getattr(self, field.name)
+                field.name: getattr(revalidated, field.name)
                 for field in fields(LocalObservableResult)
             },
             "local_observable_result",
@@ -4914,18 +4915,20 @@ class LocalObservableResult:
 
 def _snapshot_local_observable_result(value: object) -> LocalObservableResult:
     field_names = tuple(field.name for field in fields(LocalObservableResult))
-    if type(value) is LocalObservableResult:
-        raw_values = {name: getattr(value, name) for name in field_names}
-    elif isinstance(value, Mapping):
-        snapshot = require_exact_keys(
-            value, field_names, "local_observable_result"
-        )
-        raw_values = thaw_json(snapshot, "local_observable_result")
-    else:
-        raise AdapterContractError(
-            "local_observable_result must be a mapping or exact record"
-        )
     try:
+        if type(value) is LocalObservableResult:
+            raw_values = {
+                name: getattr(value, name) for name in field_names
+            }
+        elif isinstance(value, Mapping):
+            snapshot = require_exact_keys(
+                value, field_names, "local_observable_result"
+            )
+            raw_values = thaw_json(snapshot, "local_observable_result")
+        else:
+            raise AdapterContractError(
+                "local_observable_result must be a mapping or exact record"
+            )
         return LocalObservableResult(**raw_values)
     except AdapterContractError:
         raise
@@ -4944,21 +4947,92 @@ def _require_numeric_sequence(value: object, field_name: str) -> None:
         _require_finite_number(item, f"{field_name}[{index}]")
 
 
-def _validate_nonnegative_counts(value: object, field_name: str) -> None:
-    if type(value) is FrozenJsonObject:
-        for key, item in value._items:
-            _validate_nonnegative_counts(item, f"{field_name}.{key}")
-        return
-    if type(value) is tuple:
-        for index, item in enumerate(value):
-            _validate_nonnegative_counts(item, f"{field_name}[{index}]")
-        return
-    if type(value) is not int or value < 0:
+def _validate_operation_counts(value: object) -> FrozenJsonObject:
+    counts = _snapshot_json_mapping(value, "operation_counts")
+    for key, count in counts._items:
+        try:
+            require_identifier(key, "operation_counts key")
+        except AdapterContractError as error:
+            raise AdapterContractError(
+                "operation_counts key must be an identifier"
+            ) from error
+        if type(count) in (FrozenJsonObject, tuple):
+            raise AdapterContractError("operation_counts must be flat")
+        if type(count) is not int or count < 0:
+            raise AdapterContractError(
+                f"operation_counts.{key} must be a nonnegative integer"
+            )
+        _require_json_integer_magnitude(count, f"operation_counts.{key}")
+    return counts
+
+
+def _validate_operation_counts_and_problem_size(
+    definition: AdapterDefinition,
+    value: object,
+) -> None:
+    transport = require_exact_keys(
+        value,
+        ("operation_counts", "problem_size"),
+        "operation_counts_or_sizes",
+    )
+    _validate_operation_counts(transport["operation_counts"])
+    problem_size = require_exact_keys(
+        transport["problem_size"],
+        ("policy_kind", "values"),
+        "problem_size",
+    )
+    policy = definition.problem_size_policy
+    if problem_size["policy_kind"] != policy.kind:
         raise AdapterContractError(
-            f"{field_name} must contain only nonnegative integer "
-            "counts or sizes"
+            "problem_size policy_kind does not match definition"
         )
-    _require_json_integer_magnitude(value, field_name)
+
+    if policy.kind == "not_applicable":
+        values = _snapshot_json_mapping(
+            problem_size["values"], "problem_size.values"
+        )
+        if values:
+            raise AdapterContractError(
+                "not_applicable problem_size.values must be empty"
+            )
+        return
+
+    if policy.kind == "fixed_local":
+        values = require_exact_keys(
+            problem_size["values"],
+            tuple(policy.fixed_sizes),
+            "problem_size.values",
+        )
+        if canonical_json_bytes(values) != canonical_json_bytes(
+            policy.fixed_sizes
+        ):
+            raise AdapterContractError(
+                "fixed_local problem_size.values must match definition"
+            )
+        return
+
+    values = require_exact_keys(
+        problem_size["values"],
+        tuple(policy.allowed_sizes),
+        "problem_size.values",
+    )
+    for dimension, allowed in policy.allowed_sizes._items:
+        selected = values[dimension]
+        if type(allowed) is tuple:
+            selection_is_allowed = any(
+                canonical_json_bytes(selected)
+                == canonical_json_bytes(candidate)
+                for candidate in allowed
+            )
+        else:
+            selection_is_allowed = (
+                canonical_json_bytes(selected)
+                == canonical_json_bytes(allowed)
+            )
+        if not selection_is_allowed:
+            raise AdapterContractError(
+                f"problem_size.values.{dimension} is not an allowed size"
+            )
 
 
 def _validate_convergence_certificate(
@@ -5099,6 +5173,11 @@ def _validate_raw_convergence_evidence(
         convergence["residuals"],
         "convergence.residuals",
     )
+    for index, residual in enumerate(convergence["residuals"]):
+        if residual < 0:
+            raise AdapterContractError(
+                f"convergence.residuals[{index}] must be nonnegative"
+            )
     _require_positive_integer(
         convergence["refinement_iterations"],
         "convergence.refinement_iterations",
@@ -5279,8 +5358,8 @@ def validate_local_observable_result(
     _validate_backend_diagnostics(
         validated_definition, result.backend_diagnostics
     )
-    _validate_nonnegative_counts(
+    _validate_operation_counts_and_problem_size(
+        validated_definition,
         result.operation_counts_or_sizes,
-        "operation_counts_or_sizes",
     )
     return result.to_frozen_json()
