@@ -5334,6 +5334,7 @@ def test_task4_public_all_surfaces_are_exact():
         "build_scientific_closure",
         "build_scientific_policy_commitment",
         "build_infrastructure_closure",
+        "scan_scientific_closure",
         "assert_disjoint_scientific_closures",
         "assert_complete_dependency_partition",
         "scientific_policy_combined_sha256",
@@ -6447,17 +6448,33 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         {"validation.runner": "transport"},
         digest,
     )
-    static_scan = isolation.StaticScanReport(
-        "static_scan_report_v1",
-        "adapter",
-        "scanner-v1",
-        digest,
-        digest,
-        digest,
-        {"forbidden_imports_absent": True},
-        True,
-        digest,
+    static_scan_checks = {
+        check_name: {"passed": True, "reason": "closed"}
+        for check_name in (
+            "raw_ast_closed",
+            "dependency_graph_closed",
+            "imports_closed",
+            "capabilities_closed",
+            "literal_context_closed",
+            "emitted_bytes_closed",
+            "fingerprints_absent",
+            "role_policy_closed",
+        )
+    }
+    static_scan_values = {
+        "schema_version": "static_scan_report_v1",
+        "role": "adapter",
+        "scanner_version": "scanner-v1",
+        "scanner_sha256": digest,
+        "scanned_closure_sha256": digest,
+        "fingerprint_commitment_sha256": digest,
+        "checks": static_scan_checks,
+        "passed": True,
+    }
+    static_scan_values["report_sha256"] = canonical_sha256(
+        static_scan_values
     )
+    static_scan = isolation.StaticScanReport(**static_scan_values)
     manifest = isolation.RuntimeResourceManifest(
         "runtime_resource_manifest_v1",
         ({"kind": "interpreter", "sha256": digest},),
@@ -7916,7 +7933,9 @@ def _task5_policy_record_for_closure(values, closure):
     values["entry_closure_sha256"] = closure.bundle_sha256
     values["static_scan_sha256"] = canonical_sha256(
         {
-            "schema_version": "task5_policy_structure_scan_v1",
+            "schema_version": "scientific_definition_policy_scan_v2",
+            "scanner_version": isolation._STATIC_SCANNER_VERSION,
+            "scanner_sha256": isolation._STATIC_SCANNER_SHA256,
             "role": values["role"],
             "canonical_definition_sha256": values[
                 "canonical_definition_sha256"
@@ -8611,7 +8630,7 @@ def test_task5_builder_public_signatures_are_exact_and_not_overridable():
         )
 
 
-def _task5_expected_structure_scan(commitment, closure):
+def _task5_legacy_structure_scan(commitment, closure):
     return {
         "schema_version": "task5_policy_structure_scan_v1",
         "role": commitment.role,
@@ -8629,6 +8648,16 @@ def _task5_expected_structure_scan(commitment, closure):
             "forbidden_structures_absent": True,
         },
     }
+
+
+def _task5_expected_structure_scan(commitment, closure):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _task5_legacy_structure_scan(commitment, closure)
+    payload["schema_version"] = "scientific_definition_policy_scan_v2"
+    payload["scanner_version"] = isolation._STATIC_SCANNER_VERSION
+    payload["scanner_sha256"] = isolation._STATIC_SCANNER_SHA256
+    return payload
 
 
 def test_policy_builder_binds_canonical_adapter_and_internal_structure_scan():
@@ -14281,3 +14310,1799 @@ def test_dependency_partition_rejects_nontext_definition_catalog_key(
 
     with pytest.raises(AdapterContractError, match="catalog|key|identifier"):
         _assert_task5_partition(fixture, fixture[5])
+
+
+def _task6_build_scientific_closure(tmp_path, role, source):
+    from validation import literature_evidence_isolation as isolation
+
+    module_name = (
+        "task6_science.adapters"
+        if role == "adapter"
+        else "task6_science.adapter_oracles"
+    )
+    _write_task5_source(tmp_path, module_name, source)
+    return isolation.build_scientific_closure(
+        f"{module_name}:scientific_entry",
+        role=role,
+        source_roots=(tmp_path,),
+    )
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_forbidden_import_rejects_registry_source(tmp_path, role):
+    source = (
+        "from validation.literature_benchmark_registry "
+        "import LITERATURE_STANDARD_RESULTS\n"
+        "def scientific_entry(value):\n"
+        "    return LITERATURE_STANDARD_RESULTS\n"
+    )
+
+    with pytest.raises(AdapterContractError, match="import|approved|project"):
+        _task6_build_scientific_closure(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_static_scan_rejects_eval(tmp_path, role):
+    source = (
+        "def scientific_entry(value):\n"
+        "    return eval('value')\n"
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="dynamic|source|evaluation|capability|API",
+    ):
+        _task6_build_scientific_closure(tmp_path, role, source)
+
+
+def test_task6_static_scan_rejects_closure_without_private_material(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(
+        tmp_path,
+        "adapter",
+        "def scientific_entry(value):\n"
+        "    return value + 1\n",
+    )
+    rebuilt = isolation.ScientificClosure(
+        **{
+            field.name: getattr(closure, field.name)
+            for field in dataclasses.fields(type(closure))
+        }
+    )
+    assert rebuilt == closure
+    assert "_static_scan_material" not in vars(rebuilt)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|material|builder|closure",
+    ):
+        isolation.scan_scientific_closure(
+            rebuilt,
+            forbidden_fingerprints=(
+                canonical_sha256("task6-absent-output-canary"),
+            ),
+        )
+
+
+TASK6_ENVIRONMENT_AND_GIT_SOURCES = (
+    pytest.param(
+        "import os\n"
+        "def scientific_entry(value):\n"
+        "    return os.environ.get('SCIENTIFIC_ANSWER')\n",
+        id="os-environ",
+    ),
+    pytest.param(
+        "import os\n"
+        "def scientific_entry(value):\n"
+        "    return os.getenv('SCIENTIFIC_ANSWER')\n",
+        id="os-getenv",
+    ),
+    pytest.param(
+        "from pathlib import Path\n"
+        "def scientific_entry(value):\n"
+        "    return Path.cwd(), Path.home()\n",
+        id="pathlib-cwd-home",
+    ),
+    pytest.param(
+        "import git\n"
+        "def scientific_entry(value):\n"
+        "    return git.Repo(search_parent_directories=True)\n",
+        id="git-discovery",
+    ),
+    pytest.param(
+        "import subprocess\n"
+        "def scientific_entry(value):\n"
+        "    return subprocess.check_output(\n"
+        "        ('git', 'rev-parse', '--show-toplevel')\n"
+        "    )\n",
+        id="subprocess-git-probe",
+    ),
+)
+
+
+TASK6_DYNAMIC_CAPABILITY_SOURCES = (
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return __import__('math').sqrt(value)\n",
+        id="dynamic-import",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return compile('value + 1', '<answer>', 'eval')\n",
+        id="compile",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    exec('value = 1')\n"
+        "    return value\n",
+        id="exec",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    namespace = (globals(), locals(), vars(value))\n"
+        "    return namespace\n",
+        id="namespace-reflection",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    item = getattr(value, 'real')\n"
+        "    setattr(value, 'answer', item)\n"
+        "    delattr(value, 'answer')\n"
+        "    return item\n",
+        id="attribute-reflection",
+    ),
+    pytest.param(
+        "import io\n"
+        "from pathlib import Path\n"
+        "def scientific_entry(value):\n"
+        "    with open(Path('previous-output.json'), 'rb') as stream:\n"
+        "        return io.BytesIO(stream.read()).read()\n",
+        id="open-io-path-read",
+    ),
+    pytest.param(
+        "import http.client\n"
+        "import socket\n"
+        "import urllib.request\n"
+        "def scientific_entry(value):\n"
+        "    return (\n"
+        "        socket.create_connection(('127.0.0.1', 80)),\n"
+        "        urllib.request.urlopen('http://127.0.0.1'),\n"
+        "        http.client.HTTPConnection('127.0.0.1'),\n"
+        "    )\n",
+        id="socket-urllib-http",
+    ),
+    pytest.param(
+        "import subprocess\n"
+        "def scientific_entry(value):\n"
+        "    return subprocess.run(('git', 'status'), check=True)\n",
+        id="subprocess",
+    ),
+    pytest.param(
+        "import os\n"
+        "def scientific_entry(value):\n"
+        "    return os.system('git status'), os.popen('git status').read()\n",
+        id="os-system-popen",
+    ),
+    pytest.param(
+        "import ctypes\n"
+        "def scientific_entry(value):\n"
+        "    return ctypes.CDLL('libanswer.so')\n",
+        id="ctypes",
+    ),
+    pytest.param(
+        "import cffi\n"
+        "def scientific_entry(value):\n"
+        "    return cffi.FFI().dlopen('libanswer.so')\n",
+        id="cffi",
+    ),
+    pytest.param(
+        "import numpy\n"
+        "def scientific_entry(value):\n"
+        "    return numpy.ctypeslib.load_library('libanswer', '.')\n",
+        id="numpy-native-loader",
+    ),
+    pytest.param(
+        "import scipy\n"
+        "def scientific_entry(value):\n"
+        "    return scipy.LowLevelCallable.from_cython(\n"
+        "        'answer_backend', 'answer_symbol'\n"
+        "    )\n",
+        id="scipy-native-symbol",
+    ),
+)
+
+
+def _task6_absent_fingerprints():
+    return (canonical_sha256("task6-absent-output-canary"),)
+
+
+def _task6_build_and_scan(tmp_path, role, source):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    return isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("source", TASK6_ENVIRONMENT_AND_GIT_SOURCES)
+def test_task6_forbidden_import_environment_and_git_discovery_is_rejected(
+    tmp_path,
+    role,
+    source,
+):
+    with pytest.raises(
+        AdapterContractError,
+        match="import|approved|environment|Git|process|discovery",
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("source", TASK6_DYNAMIC_CAPABILITY_SOURCES)
+def test_task6_static_scan_dynamic_capability_and_native_access_is_rejected(
+    tmp_path,
+    role,
+    source,
+):
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "dynamic|source|evaluation|import|approved|capability|native|"
+            "network|process|file|reflection|API"
+        ),
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+def test_task6_static_scan_declares_exact_string_parser_dependency(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    source = (
+        "import string\n"
+        "def scientific_entry(value):\n"
+        "    return tuple(string.Formatter().parse(value))\n"
+    )
+    closure = _task6_build_scientific_closure(
+        tmp_path, "adapter", source
+    )
+    report = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+
+    assert "string" in isolation._SAFE_EXTERNAL_IMPORT_PREFIXES
+    assert report.passed is True
+
+
+def _task6_safe_scan_closure(tmp_path, *, role="adapter", offset=""):
+    source = (
+        "from math import sqrt\n"
+        "SCALE = (2.0, 0.5)\n"
+        "def safe_helper(value):\n"
+        f"    return sqrt(value{offset}) * SCALE[1]\n"
+        "def scientific_entry(value):\n"
+        "    return safe_helper(value)\n"
+    )
+    return _task6_build_scientific_closure(tmp_path, role, source)
+
+
+TASK6_STATIC_SCAN_CHECKS = frozenset(
+    {
+        "raw_ast_closed",
+        "dependency_graph_closed",
+        "imports_closed",
+        "capabilities_closed",
+        "literal_context_closed",
+        "emitted_bytes_closed",
+        "fingerprints_absent",
+        "role_policy_closed",
+    }
+)
+
+
+def _task6_static_scan_payload(report):
+    return {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+        if field.name != "report_sha256"
+    }
+
+
+def test_task6_static_scan_builder_material_report_is_closed_and_deterministic(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    fingerprints = _task6_absent_fingerprints()
+
+    first = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=fingerprints
+    )
+    second = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=fingerprints
+    )
+
+    assert first == second
+    assert set(first.checks) == TASK6_STATIC_SCAN_CHECKS
+    assert first.role == "adapter"
+    assert first.schema_version == "static_scan_report_v1"
+    assert first.scanned_closure_sha256 == closure.bundle_sha256
+    assert first.fingerprint_commitment_sha256 == canonical_sha256(
+        {
+            "algorithm_version": "canonical_json_sha256_v1",
+            "fingerprints": fingerprints,
+        }
+    )
+    assert first.passed is True
+    assert first.report_sha256 == canonical_sha256(
+        _task6_static_scan_payload(first)
+    )
+    assert first.scanner_version
+    assert len(first.scanner_sha256) == 64
+    for check in first.checks.values():
+        assert set(check) == {"passed", "reason"}
+        assert type(check["passed"]) is bool
+        assert check["passed"] is True
+        assert type(check["reason"]) is str
+        assert 0 < len(check["reason"].encode("utf-8")) <= 160
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("raw_span", "emitted_node", "emitted_source", "node_order"),
+)
+def test_task6_static_scan_rejects_private_material_tamper_or_reorder(
+    tmp_path,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    public_bundle_sha256 = closure.bundle_sha256
+    assert "_static_scan_material" in vars(closure)
+    material = closure._static_scan_material
+    assert type(material.nodes) is tuple
+    assert len(material.nodes) > 1
+    if mutation == "raw_span":
+        node = material.nodes[0]
+        object.__setattr__(
+            node,
+            "raw_source_span",
+            node.raw_source_span + b" ",
+        )
+    elif mutation == "emitted_node":
+        node = material.nodes[0]
+        object.__setattr__(
+            node,
+            "emitted_node",
+            node.emitted_node + b" ",
+        )
+    elif mutation == "emitted_source":
+        object.__setattr__(
+            material,
+            "emitted_source",
+            material.emitted_source + b" ",
+        )
+    else:
+        object.__setattr__(
+            material,
+            "nodes",
+            tuple(reversed(material.nodes)),
+        )
+    assert closure.bundle_sha256 == public_bundle_sha256
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|material|hash|order|closure",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+def test_task6_static_scan_rejects_cross_closure_private_material_replay(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    first = _task6_safe_scan_closure(tmp_path / "first")
+    second = _task6_safe_scan_closure(
+        tmp_path / "second", offset=" + 1.0"
+    )
+    assert first.bundle_sha256 != second.bundle_sha256
+    assert "_static_scan_material" in vars(second)
+    object.__setattr__(
+        first,
+        "_static_scan_material",
+        second._static_scan_material,
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|material|hash|closure|replay",
+    ):
+        isolation.scan_scientific_closure(
+            first,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+@pytest.mark.parametrize(
+    "fingerprints",
+    (
+        pytest.param((), id="empty"),
+        pytest.param(("a" * 64, "a" * 64), id="duplicate"),
+        pytest.param(("f" * 64, "0" * 64), id="unsorted"),
+        pytest.param(("f" * 63,), id="malformed"),
+    ),
+)
+def test_task6_static_scan_rejects_noncanonical_fingerprint_set(
+    tmp_path,
+    fingerprints,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    with pytest.raises(
+        AdapterContractError,
+        match="fingerprint|nonempty|duplicate|ordering|SHA-256|canonical",
+    ):
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+
+
+def test_task6_static_scan_report_does_not_echo_forbidden_operand(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    secret_operand = "TASK6_SECRET_REGISTERED_OPERAND_DO_NOT_ECHO"
+    closure = _task6_safe_scan_closure(tmp_path)
+    report = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=(canonical_sha256(secret_operand),),
+    )
+    report_bytes = canonical_json_bytes(
+        {
+            **_task6_static_scan_payload(report),
+            "report_sha256": report.report_sha256,
+        }
+    )
+
+    assert secret_operand.encode("utf-8") not in report_bytes
+
+
+TASK6_REGISTERED_OPERAND = {
+    "critical_temperature": 2.269185314213022,
+    "phase": "ordered_phase",
+}
+TASK6_NESTED_REGISTERED_OPERAND = {
+    "fields": {
+        "critical_temperature": 2.269185314213022,
+        "phase": "ordered_phase",
+    },
+    "units": {"critical_temperature": "J"},
+}
+TASK6_PARAMETER_RESULT_TABLE = {
+    "0.5": 1.134592657106511,
+    "1.0": 2.269185314213022,
+}
+TASK6_FIXED_ANSWER_SEQUENCE = (
+    1.134592657106511,
+    2.269185314213022,
+    "ordered_phase",
+)
+
+
+TASK6_EMBEDDED_OUTPUT_CASES = (
+    pytest.param(
+        "def scientific_entry(value, benchmark_name):\n"
+        "    if benchmark_name == "
+        "'two_dimensional_square_ising_onsager_tc':\n"
+        "        return 2.269185314213022\n"
+        "    return value\n",
+        (2.269185314213022,),
+        (
+            "two_dimensional_square_ising_onsager_tc",
+            "2.269185314213022",
+        ),
+        id="benchmark-name-literal-branch",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 'ordered_phase'\n",
+        ("ordered_phase",),
+        ("ordered_phase",),
+        id="exact-categorical-canary",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 2.269185314213022\n",
+        (2.269185314213022,),
+        ("2.269185314213022",),
+        id="high-precision-numeric",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return (\n"
+        "        '{\"critical_temperature\":2.269185314213022,'\n"
+        "        '\"phase\":\"ordered_phase\"}'\n"
+        "    )\n",
+        (TASK6_REGISTERED_OPERAND,),
+        ("2.269185314213022", "ordered_phase"),
+        id="whole-canonical-serialized-string",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return (\n"
+        "        b'{\"critical_temperature\":2.269185314213022,'\n"
+        "        b'\"phase\":\"ordered_phase\"}'\n"
+        "    )\n",
+        (TASK6_REGISTERED_OPERAND,),
+        ("2.269185314213022", "ordered_phase"),
+        id="whole-canonical-serialized-bytes",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return {\n"
+        "        'fields': {\n"
+        "            'critical_temperature': 2.269185314213022,\n"
+        "            'phase': 'ordered_phase',\n"
+        "        },\n"
+        "        'units': {'critical_temperature': 'J'},\n"
+        "    }\n",
+        (
+            TASK6_NESTED_REGISTERED_OPERAND,
+            TASK6_NESTED_REGISTERED_OPERAND["fields"],
+        ),
+        ("2.269185314213022", "ordered_phase"),
+        id="nested-field-value-structure",
+    ),
+    pytest.param(
+        "def scientific_entry(parameter):\n"
+        "    lookup_table = {\n"
+        "        '0.5': 1.134592657106511,\n"
+        "        '1.0': 2.269185314213022,\n"
+        "    }\n"
+        "    return lookup_table[str(parameter)]\n",
+        (TASK6_PARAMETER_RESULT_TABLE,),
+        ("1.134592657106511", "2.269185314213022"),
+        id="parameter-result-lookup-table",
+    ),
+    pytest.param(
+        "FIXED_VALUES = (\n"
+        "    1.134592657106511,\n"
+        "    2.269185314213022,\n"
+        "    'ordered_phase',\n"
+        ")\n"
+        "def scientific_entry(value):\n"
+        "    return FIXED_VALUES\n",
+        (TASK6_FIXED_ANSWER_SEQUENCE,),
+        (
+            "1.134592657106511",
+            "2.269185314213022",
+            "ordered_phase",
+        ),
+        id="fixed-answer-sequence-raw-and-emitted",
+    ),
+    pytest.param(
+        "def copied_operand():\n"
+        "    return {\n"
+        "        'critical_temperature': 2.269185314213022,\n"
+        "        'phase': 'ordered_phase',\n"
+        "    }\n"
+        "def copied_alias():\n"
+        "    return copied_operand()\n"
+        "def scientific_entry(value):\n"
+        "    return copied_alias()\n",
+        (TASK6_REGISTERED_OPERAND,),
+        ("2.269185314213022", "ordered_phase"),
+        id="transitive-helper-copy-alias",
+    ),
+)
+
+
+def _task6_fingerprints(*values):
+    return tuple(sorted({canonical_sha256(value) for value in values}))
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "source, forbidden_values, diagnostic_canaries",
+    TASK6_EMBEDDED_OUTPUT_CASES,
+)
+def test_task6_embedded_output_rejects_actual_fingerprint_member(
+    tmp_path,
+    role,
+    source,
+    forbidden_values,
+    diagnostic_canaries,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    fingerprints = _task6_fingerprints(*forbidden_values)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|embedded|fingerprint|literal|lookup|branch|output",
+    ) as captured:
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+
+    diagnostic = str(captured.value)
+    for canary in diagnostic_canaries:
+        assert canary not in diagnostic
+    for fingerprint in fingerprints:
+        assert fingerprint not in diagnostic
+
+
+TASK6_CONSTANT_EXPRESSION_BYPASSES = (
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 'ordered_' + 'phase'\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="string-concatenation",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return '%s_phase' % 'ordered'\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="constant-percent-formatting",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return f\"{'ordered'}_{'phase'}\"\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="constant-f-string",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return dict(\n"
+        "        critical_temperature=2.269185314213022,\n"
+        "        phase='ordered_phase',\n"
+        "    )\n",
+        TASK6_REGISTERED_OPERAND,
+        ("2.269185314213022", "ordered_phase"),
+        id="keyword-only-dict-construction",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 'xordered_phase'[1:]\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="constant-string-slice",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return ''.join(('ordered', '_', 'phase'))\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="constant-string-join",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return '{}_{}'.format('ordered', 'phase')\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="constant-string-format",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 'ordered-X'.replace('-X', '_phase')\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="unsupported-constant-string-method-fails-closed",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return f\"{('ordered', '_', 'phase')}\"\n",
+        "('ordered', '_', 'phase')",
+        ("ordered", "phase"),
+        id="constant-f-string-container-operand-fails-closed",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return '%s' % ['ordered_phase']\n",
+        "['ordered_phase']",
+        ("ordered_phase",),
+        id="percent-container-operand-fails-closed",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return '{}'.format(['ordered_phase'])\n",
+        "['ordered_phase']",
+        ("ordered_phase",),
+        id="format-container-operand-fails-closed",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return {\n"
+        "        **{'critical_temperature': 2.269185314213022},\n"
+        "        **{'phase': 'ordered_phase'},\n"
+        "    }\n",
+        TASK6_REGISTERED_OPERAND,
+        ("2.269185314213022", "ordered_phase"),
+        id="constant-dict-unpack",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return dict([\n"
+        "        ('critical_temperature', 2.269185314213022),\n"
+        "        ('phase', 'ordered_phase'),\n"
+        "    ])\n",
+        TASK6_REGISTERED_OPERAND,
+        ("2.269185314213022", "ordered_phase"),
+        id="constant-positional-dict-construction",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "source, forbidden_value, diagnostic_canaries",
+    TASK6_CONSTANT_EXPRESSION_BYPASSES,
+)
+def test_task6_embedded_output_rejects_bounded_constant_expression_bypass(
+    tmp_path,
+    role,
+    source,
+    forbidden_value,
+    diagnostic_canaries,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    fingerprints = _task6_fingerprints(forbidden_value)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|embedded|fingerprint|literal|output",
+    ) as captured:
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+
+    diagnostic = str(captured.value)
+    for canary in diagnostic_canaries:
+        assert canary not in diagnostic
+    for fingerprint in fingerprints:
+        assert fingerprint not in diagnostic
+
+
+TASK6_PROPAGATED_CONSTANT_BYPASSES = (
+    pytest.param(
+        "PREFIX = 'ordered_'\n"
+        "SUFFIX = 'phase'\n"
+        "def scientific_entry(value):\n"
+        "    return PREFIX + SUFFIX\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="immutable-module-bindings",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    prefix = 'ordered_'\n"
+        "    suffix = 'phase'\n"
+        "    return prefix + suffix\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="straight-line-local-bindings",
+    ),
+    pytest.param(
+        "def prefix_piece():\n"
+        "    return 'ordered_'\n"
+        "def suffix_piece():\n"
+        "    return 'phase'\n"
+        "def scientific_entry(value):\n"
+        "    return prefix_piece() + suffix_piece()\n",
+        "ordered_phase",
+        ("ordered_phase",),
+        id="zero-argument-constant-helpers",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    first = {\n"
+        "        'critical_temperature': 2.269185314213022,\n"
+        "    }\n"
+        "    second = {'phase': 'ordered_phase'}\n"
+        "    return first | second\n",
+        TASK6_REGISTERED_OPERAND,
+        ("2.269185314213022", "ordered_phase"),
+        id="straight-line-dict-union",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "source, forbidden_value, diagnostic_canaries",
+    TASK6_PROPAGATED_CONSTANT_BYPASSES,
+)
+def test_task6_embedded_output_rejects_propagated_constant_composition(
+    tmp_path,
+    role,
+    source,
+    forbidden_value,
+    diagnostic_canaries,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    fingerprints = _task6_fingerprints(forbidden_value)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|embedded|fingerprint|literal|output|constant",
+    ) as captured:
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+
+    diagnostic = str(captured.value)
+    for canary in diagnostic_canaries:
+        assert canary not in diagnostic
+    for fingerprint in fingerprints:
+        assert fingerprint not in diagnostic
+
+
+TASK6_EMBEDDED_OUTPUT_CONTROLS = (
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 2.269185314213021\n",
+        (2.269185314213022,),
+        id="adjacent-high-precision-value",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return 'ordered_phases'\n",
+        ("ordered_phase",),
+        id="nearby-categorical-value",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    transport = {'payload': value}\n"
+        "    return transport\n",
+        (TASK6_REGISTERED_OPERAND,),
+        id="pure-transport",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "source, forbidden_values", TASK6_EMBEDDED_OUTPUT_CONTROLS
+)
+def test_task6_embedded_output_allows_nonmember_and_transport_controls(
+    tmp_path,
+    role,
+    source,
+    forbidden_values,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    report = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_fingerprints(*forbidden_values),
+    )
+
+    assert report.role == role
+    assert report.passed is True
+
+
+def test_task6_lookup_table_rejects_literal_results_without_whole_table_hash(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = (
+        "def scientific_entry(parameter):\n"
+        "    lookup_table = {'0.5': 1.0, '1.0': 2.0}\n"
+        "    return lookup_table[str(parameter)]\n"
+    )
+    closure = _task6_build_scientific_closure(
+        tmp_path, "adapter", source
+    )
+    fingerprints = _task6_fingerprints(1.0, 2.0)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|lookup|literal|result|output",
+    ):
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+
+
+TASK6_INFRASTRUCTURE_PURPOSE_INJECTIONS = (
+    pytest.param(
+        "    scientific_energy = value * value\n"
+        "    return scientific_energy\n",
+        "",
+        id="scientific-equation",
+    ),
+    pytest.param(
+        "    return build_model_hamiltonian(value)\n",
+        "def build_model_hamiltonian(value):\n"
+        "    return value * value\n",
+        id="hamiltonian-builder",
+    ),
+    pytest.param(
+        "    return derive_method_specific_result_field(value)\n",
+        "def derive_method_specific_result_field(value):\n"
+        "    return value + value\n",
+        id="method-specific-result-field",
+    ),
+    pytest.param(
+        "    if value['adapter_id'] == 'detached_adapter':\n"
+        "        return {'computed_field': 1}\n"
+        "    return value\n",
+        "",
+        id="adapter-id-result-derivation",
+    ),
+    pytest.param(
+        "    adapter_definition = {'AdapterDefinition': 'detached'}\n"
+        "    return adapter_definition\n",
+        "",
+        id="adapter-definition",
+    ),
+    pytest.param(
+        "    oracle_definition = {'OracleDefinition': 'detached'}\n"
+        "    return oracle_definition\n",
+        "",
+        id="oracle-definition",
+    ),
+    pytest.param(
+        "    return b'{\"policy\":\"detached\"}'\n",
+        "",
+        id="policy-bytes",
+    ),
+    pytest.param(
+        "    return caller_designated_extra_root(value)\n",
+        "def caller_designated_extra_root(value):\n"
+        "    return value\n",
+        id="undeclared-extra-root",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "root_body, extra_source", TASK6_INFRASTRUCTURE_PURPOSE_INJECTIONS
+)
+def test_task6_static_scan_infrastructure_rejects_nontransport_purpose(
+    tmp_path,
+    root_body,
+    extra_source,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "(?i)infrastructure.*purpose.*"
+            "(scientific|hamiltonian|result|adapter|oracle|policy|root)"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def _task6_clean_infrastructure_closure(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(tmp_path)
+    return isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+
+def test_task6_static_scan_infrastructure_report_is_closed_and_deterministic(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_clean_infrastructure_closure(tmp_path)
+    fingerprints = _task6_absent_fingerprints()
+    first = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=fingerprints
+    )
+    second = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=fingerprints
+    )
+
+    assert first == second
+    assert first.role == "infrastructure"
+    assert first.scanned_closure_sha256 == closure.bundle_sha256
+    assert set(first.checks) == (
+        TASK6_STATIC_SCAN_CHECKS | {"infrastructure_purpose_closed"}
+    )
+    assert first.passed is True
+
+
+@pytest.mark.parametrize("mutation", ("missing", "emitted_source"))
+def test_task6_static_scan_infrastructure_rejects_material_tamper(
+    tmp_path,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_clean_infrastructure_closure(tmp_path)
+    if mutation == "missing":
+        closure = isolation.InfrastructureClosure(
+            **{
+                field.name: getattr(closure, field.name)
+                for field in dataclasses.fields(type(closure))
+            }
+        )
+        assert "_static_scan_material" not in vars(closure)
+    else:
+        assert "_static_scan_material" in vars(closure)
+        material = closure._static_scan_material
+        object.__setattr__(
+            material,
+            "emitted_source",
+            material.emitted_source + b" ",
+        )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|infrastructure|material|hash|builder",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+TASK6_DEFINITION_POLICY_MUTATIONS = (
+    "numeric_fingerprint",
+    "numeric_string_fingerprint",
+    "categorical_fingerprint",
+    "benchmark_proof_binding",
+    "answer_lookup_table",
+    "fixed_canonical_points",
+    "arbitrary_derivation",
+    "weakened_domain",
+    "post_hoc_threshold",
+)
+
+
+def _task6_mutated_adapter_definition(mutation):
+    canonical = adapters.ADAPTER_DEFINITIONS[
+        "square_ising_self_dual_tc"
+    ]
+    payload = thaw_json(
+        adapters.adapter_definition_to_frozen_json(canonical)
+    )
+    requirements = payload["convergence_contract"]["requirements"]
+    if mutation == "numeric_fingerprint":
+        payload["resource_limits"]["cpu_seconds"] = 2.269185314213022
+        canaries = ("2.269185314213022",)
+    elif mutation == "numeric_string_fingerprint":
+        payload["runtime_requirements"]["backend_resources"].append(
+            "2.269185314213022"
+        )
+        canaries = ("2.269185314213022",)
+    elif mutation == "categorical_fingerprint":
+        payload["runtime_requirements"]["backend_resources"].append(
+            "ordered_phase"
+        )
+        canaries = ("ordered_phase",)
+    elif mutation == "benchmark_proof_binding":
+        requirements["benchmark_branch"] = {
+            "square_ising_self_dual_tc": "tc_over_j"
+        }
+        canaries = ("square_ising_self_dual_tc",)
+    elif mutation == "answer_lookup_table":
+        requirements["lookup_table"] = {
+            "exchange_1": 2.269185314213022
+        }
+        canaries = ("2.269185314213022",)
+    elif mutation == "fixed_canonical_points":
+        requirements["canonical_points"] = (-2, -1, 0, 1, 2)
+        canaries = ("[-2,-1,0,1,2]",)
+    elif mutation == "arbitrary_derivation":
+        requirements["derivation_expression"] = (
+            "lambda exchange: exchange + 2.269185314213022"
+        )
+        canaries = ("2.269185314213022",)
+    elif mutation == "weakened_domain":
+        payload["counterfactual_domain"]["valid_rules"]["exchange"] = {
+            "kind": "weakened_domain_task6"
+        }
+        canaries = ("weakened_domain_task6",)
+    else:
+        requirements["post_hoc_threshold"] = 1e-12
+        canaries = ("1e-12",)
+    definition = adapters.adapter_definition_from_frozen_json(
+        freeze_json(payload)
+    )
+    return definition, canaries
+
+
+def _task6_oracle_result_schema(canonical, name, schema):
+    return ValueSchema(
+        kind="object",
+        required=canonical.result_schema.required,
+        lower=None,
+        upper=None,
+        item_schema=None,
+        properties=canonical.result_schema.properties + ((name, schema),),
+        units="",
+    )
+
+
+def _task6_mutated_oracle_definition(mutation):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    if mutation == "numeric_fingerprint":
+        limits = canonical.resource_limits
+        values["resource_limits"] = ResourceLimits(
+            2.269185314213022,
+            limits.wall_seconds,
+            limits.address_space_bytes,
+            limits.output_bytes,
+            limits.file_descriptors,
+            limits.process_count,
+        )
+        canaries = ("2.269185314213022",)
+    elif mutation == "numeric_string_fingerprint":
+        runtime = canonical.runtime_requirements
+        values["runtime_requirements"] = RuntimeRequirements(
+            runtime.interpreter,
+            runtime.packages,
+            runtime.native_libraries,
+            runtime.backend_resources + ("2.269185314213022",),
+        )
+        canaries = ("2.269185314213022",)
+    elif mutation == "categorical_fingerprint":
+        runtime = canonical.runtime_requirements
+        values["runtime_requirements"] = RuntimeRequirements(
+            runtime.interpreter,
+            runtime.packages,
+            runtime.native_libraries,
+            runtime.backend_resources + ("ordered_phase",),
+        )
+        canaries = ("ordered_phase",)
+    elif mutation == "benchmark_proof_binding":
+        values["result_schema"] = _task6_oracle_result_schema(
+            canonical,
+            "benchmark_branch",
+            ValueSchema("boolean", True, None, None, None, (), ""),
+        )
+        canaries = ("benchmark_branch",)
+    elif mutation == "answer_lookup_table":
+        values["result_schema"] = _task6_oracle_result_schema(
+            canonical,
+            "lookup_table",
+            _number_schema(
+                lower=2.269185314213022,
+                upper=2.269185314213022,
+            ),
+        )
+        canaries = ("2.269185314213022",)
+    elif mutation == "fixed_canonical_points":
+        point_schema = _number_schema(lower=-2, upper=2)
+        values["result_schema"] = _task6_oracle_result_schema(
+            canonical,
+            "canonical_points",
+            ValueSchema("list", True, 5, 5, point_schema, (), ""),
+        )
+        canaries = ("canonical_points",)
+    elif mutation == "arbitrary_derivation":
+        values["result_schema"] = _task6_oracle_result_schema(
+            canonical,
+            "derivation_expression",
+            _number_schema(lower=None),
+        )
+        canaries = ("derivation_expression",)
+    elif mutation == "weakened_domain":
+        schema = canonical.input_schema
+        values["input_schema"] = ValueSchema(
+            schema.kind,
+            False,
+            schema.lower,
+            schema.upper,
+            schema.item_schema,
+            schema.properties,
+            schema.units,
+        )
+        canaries = ()
+    else:
+        values["result_schema"] = _task6_oracle_result_schema(
+            canonical,
+            "post_hoc_threshold",
+            _number_schema(lower=1e-12, upper=1e-12),
+        )
+        canaries = ("1e-12",)
+    return oracles.OracleDefinition(**values), canaries
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("mutation", TASK6_DEFINITION_POLICY_MUTATIONS)
+def test_task6_definition_static_scan_rejects_valid_canonical_mutation(
+    monkeypatch,
+    role,
+    mutation,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    if role == "adapter":
+        definition, canaries = _task6_mutated_adapter_definition(mutation)
+        validated = adapters.validate_adapter_definition(definition)
+        encoded = adapters.adapter_definition_to_frozen_json(validated)
+        assert adapters.adapter_definition_from_frozen_json(encoded) == (
+            validated
+        )
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        catalog[validated.adapter_id] = validated
+        monkeypatch.setattr(
+            adapters,
+            "ADAPTER_DEFINITIONS",
+            MappingProxyType(catalog),
+        )
+        closure = _task5_adapter_closure()
+    else:
+        definition, canaries = _task6_mutated_oracle_definition(mutation)
+        validated = oracles.validate_oracle_definition(definition)
+        encoded = oracles.oracle_definition_to_frozen_json(validated)
+        assert oracles.oracle_definition_from_frozen_json(encoded) == (
+            validated
+        )
+        closure = _task5_oracle_closure()
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "definition|scientific|policy|fingerprint|categorical|benchmark|"
+            "lookup|points|derivation|domain|threshold"
+        ),
+    ) as captured:
+        isolation.build_scientific_policy_commitment(
+            validated, closure, role=role
+        )
+    diagnostic = str(captured.value)
+    for canary in canaries:
+        assert canary not in diagnostic
+
+
+def _task6_safely_changed_definition(role):
+    if role == "adapter":
+        canonical = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        values = {
+            field.name: getattr(canonical, field.name)
+            for field in dataclasses.fields(AdapterDefinition)
+        }
+        limits = canonical.resource_limits
+        values["resource_limits"] = ResourceLimits(
+            limits.cpu_seconds + 1,
+            limits.wall_seconds,
+            limits.address_space_bytes,
+            limits.output_bytes,
+            limits.file_descriptors,
+            limits.process_count,
+        )
+        return AdapterDefinition(**values)
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    limits = canonical.resource_limits
+    values["resource_limits"] = ResourceLimits(
+        limits.cpu_seconds + 1,
+        limits.wall_seconds,
+        limits.address_space_bytes,
+        limits.output_bytes,
+        limits.file_descriptors,
+        limits.process_count,
+    )
+    return type(canonical)(**values)
+
+
+def _task6_safely_versioned_resource_definition(role):
+    if role == "adapter":
+        canonical = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        values = {
+            field.name: getattr(canonical, field.name)
+            for field in dataclasses.fields(AdapterDefinition)
+        }
+    else:
+        canonical = _synthetic_oracle_definition()
+        values = {
+            field.name: getattr(canonical, field.name)
+            for field in dataclasses.fields(type(canonical))
+        }
+    runtime = canonical.runtime_requirements
+    values["runtime_requirements"] = RuntimeRequirements(
+        runtime.interpreter,
+        runtime.packages,
+        runtime.native_libraries,
+        runtime.backend_resources + ("3.11",),
+    )
+    return type(canonical)(**values)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_definition_static_scan_allows_ordinary_numeric_version_text(
+    monkeypatch,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = _task6_safely_versioned_resource_definition(role)
+    if role == "adapter":
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        catalog[definition.adapter_id] = definition
+        monkeypatch.setattr(
+            adapters,
+            "ADAPTER_DEFINITIONS",
+            MappingProxyType(catalog),
+        )
+        closure = _task5_adapter_closure()
+    else:
+        closure = _task5_oracle_closure()
+
+    commitment = isolation.build_scientific_policy_commitment(
+        definition, closure, role=role
+    )
+
+    expected_id = (
+        definition.adapter_id
+        if role == "adapter"
+        else definition.oracle_id
+    )
+    assert commitment.definition_id == expected_id
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_definition_static_scan_hash_is_deterministic_and_versioned(
+    monkeypatch,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    if role == "adapter":
+        baseline_definition = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        closure = _task5_adapter_closure()
+    else:
+        baseline_definition = _synthetic_oracle_definition()
+        closure = _task5_oracle_closure()
+    baseline = isolation.build_scientific_policy_commitment(
+        baseline_definition, closure, role=role
+    )
+    changed_definition = _task6_safely_changed_definition(role)
+    if role == "adapter":
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        catalog[changed_definition.adapter_id] = changed_definition
+        monkeypatch.setattr(
+            adapters,
+            "ADAPTER_DEFINITIONS",
+            MappingProxyType(catalog),
+        )
+    first = isolation.build_scientific_policy_commitment(
+        changed_definition, closure, role=role
+    )
+    second = isolation.build_scientific_policy_commitment(
+        changed_definition, closure, role=role
+    )
+
+    assert first == second
+    assert first.canonical_definition_sha256 != (
+        baseline.canonical_definition_sha256
+    )
+    assert first.static_scan_sha256 != baseline.static_scan_sha256
+    assert first.combined_sha256 != baseline.combined_sha256
+    assert first.static_scan_sha256 != canonical_sha256(
+        _task5_legacy_structure_scan(first, closure)
+    )
+
+
+TASK6_SMALL_MATHEMATICAL_VALUES = (-2, -1, -0.5, 0, 0.5, 1, 2)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_static_scan_allows_small_values_in_mathematical_context(
+    tmp_path,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = (
+        "SMALL_VALUES = (-2, -1, -0.5, 0, 0.5, 1, 2)\n"
+        "def scientific_entry(value, matrix):\n"
+        "    dimension = 2\n"
+        "    total = 0\n"
+        "    for row_index in range(dimension):\n"
+        "        total += matrix[row_index][0] + SMALL_VALUES[row_index]\n"
+        "    return value + total - matrix[0][1]\n"
+    )
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    report = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_fingerprints(
+            *TASK6_SMALL_MATHEMATICAL_VALUES
+        ),
+    )
+
+    assert report.role == role
+    assert report.passed is True
+
+
+TASK6_SMALL_VALUE_REJECT_CONTEXTS = (
+    pytest.param(
+        "def scientific_entry(value, benchmark_name):\n"
+        "    if benchmark_name == 'task6_benchmark':\n"
+        "        return 2\n"
+        "    return value\n",
+        (2,),
+        id="benchmark-literal-return",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return {'phase_code': 2, 'degeneracy': 1}\n",
+        ({"degeneracy": 1, "phase_code": 2},),
+        id="field-value-structure",
+    ),
+    pytest.param(
+        "def scientific_entry(parameter):\n"
+        "    lookup_table = {'-2': -1, '0': 1, '2': 2}\n"
+        "    return lookup_table[str(parameter)]\n",
+        (-1, 1, 2),
+        id="parameter-result-lookup",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "source, forbidden_values", TASK6_SMALL_VALUE_REJECT_CONTEXTS
+)
+def test_task6_lookup_table_rejects_small_values_in_answer_context(
+    tmp_path,
+    role,
+    source,
+    forbidden_values,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|lookup|branch|literal|field|output|answer",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_fingerprints(*forbidden_values),
+        )
+
+
+TASK6_STATIC_SCAN_BOUND_SOURCES = (
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return '" + "x" * 1_048_577 + "'\n",
+        id="oversized-literal",
+    ),
+    pytest.param(
+        "def scientific_entry(value):\n"
+        "    return " + " + ".join("1" for _ in range(1_500)) + "\n",
+        id="deep-expression",
+    ),
+    pytest.param(
+        "def scientific_entry(parameter):\n"
+        "    lookup_table = {\n"
+        + "".join(
+            f"        '{index}': {index},\n" for index in range(3_000)
+        )
+        + "    }\n"
+        "    return lookup_table[str(parameter)]\n",
+        id="oversized-lookup",
+    ),
+)
+
+
+TASK6_EVALUATED_OUTPUT_BOUND_EXPRESSIONS = (
+    pytest.param("'abcdefgh' * 5", 32, id="string-multiplication"),
+    pytest.param(
+        "''.join(('abcdefgh', 'abcdefgh', 'abcdefgh', 'abcdefgh', 'a'))",
+        32,
+        id="constant-join",
+    ),
+    pytest.param(
+        "'%10s%10s%10s%10s' % ('a', 'b', 'c', 'd')",
+        32,
+        id="percent-formatting",
+    ),
+    pytest.param(
+        "f\"{'abcdefgh'}{'abcdefgh'}{'abcdefgh'}{'abcdefgh'}{'a'}\"",
+        32,
+        id="constant-f-string",
+    ),
+    pytest.param(
+        "'{:>10}{:>10}{:>10}{:>10}'.format('a', 'b', 'c', 'd')",
+        32,
+        id="constant-format-method",
+    ),
+    pytest.param("'你你' + '你你'", 10, id="utf8-byte-accounting"),
+    pytest.param(
+        "{'dictionary_key_definitely_exceeds_tiny_limit': 1}",
+        32,
+        id="dict-key-accounting",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "expression, evaluated_output_limit",
+    TASK6_EVALUATED_OUTPUT_BOUND_EXPRESSIONS,
+)
+def test_task6_static_scan_preflights_constant_output_allocation_bound(
+    tmp_path,
+    monkeypatch,
+    expression,
+    evaluated_output_limit,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = (
+        "def scientific_entry(value):\n"
+        f"    return {expression}\n"
+    )
+    closure = _task6_build_scientific_closure(
+        tmp_path, "adapter", source
+    )
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_EVALUATED_OUTPUT_BYTES_LIMIT",
+        evaluated_output_limit,
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|constant|output|byte|bound|format|allocation",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+def test_task6_static_scan_rejects_fingerprint_count_before_items(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    monkeypatch.setattr(
+        isolation, "_STATIC_SCAN_FINGERPRINT_COUNT_LIMIT", 2
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="fingerprint.*count|count.*bound|fingerprint.*bound",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=("not-a-digest",) * 3,
+        )
+
+
+def test_task6_closure_builder_preflights_aggregate_material_before_join(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    monkeypatch.setattr(
+        isolation, "_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT", 64
+    )
+    source = (
+        "def helper(value):\n"
+        "    return value + 1\n"
+        "def scientific_entry(value):\n"
+        "    return helper(value)\n"
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="aggregate|material|emitted|raw|byte|bound|source",
+    ):
+        _task6_build_scientific_closure(
+            tmp_path, "adapter", source
+        )
+
+
+def test_task6_static_scan_revalidates_aggregate_material_bound(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    material = closure._static_scan_material
+    aggregate_size = max(
+        sum(len(node.raw_source_span) for node in material.nodes),
+        len(material.emitted_source),
+    )
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT",
+        aggregate_size - 1,
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="aggregate|material|emitted|raw|byte|bound|source",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+def test_task6_static_scan_bounds_combined_ast_before_raw_node_scans(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    monkeypatch.setattr(
+        isolation, "_STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT", 1
+    )
+    raw_scan_calls = []
+
+    def unexpected_raw_scan(*args, **kwargs):
+        raw_scan_calls.append((args, kwargs))
+        raise AssertionError("raw scan ran before aggregate AST preflight")
+
+    monkeypatch.setattr(isolation, "_scan_static_ast", unexpected_raw_scan)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|combined|aggregate|AST|node|bound",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+    assert raw_scan_calls == []
+
+
+def test_task6_combined_ast_scan_uses_aggregate_not_per_node_budget(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = (
+        "def helper(value):\n"
+        "    return value + 1\n"
+        "def scientific_entry(value):\n"
+        "    return helper(value)\n"
+    )
+    closure = _task6_build_scientific_closure(
+        tmp_path, "adapter", source
+    )
+    material = closure._static_scan_material
+    raw_counts = tuple(
+        sum(
+            1
+            for _node in ast.walk(
+                ast.parse(item.raw_source_span.decode("utf-8"))
+            )
+        )
+        for item in material.nodes
+    )
+    combined_count = sum(
+        1
+        for _node in ast.walk(
+            ast.parse(material.emitted_source.decode("utf-8"))
+        )
+    )
+    per_node_limit = max(raw_counts)
+    assert combined_count > per_node_limit
+    monkeypatch.setattr(
+        isolation, "_STATIC_SCAN_NODE_LIMIT", per_node_limit
+    )
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT",
+        combined_count,
+    )
+
+    report = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+
+    assert report.passed is True
+
+
+@pytest.mark.parametrize("source", TASK6_STATIC_SCAN_BOUND_SOURCES)
+def test_task6_static_scan_bounds_literal_depth_and_lookup_size(
+    tmp_path,
+    source,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|literal|lookup|bound|oversized|depth|source",
+    ):
+        closure = _task6_build_scientific_closure(
+            tmp_path, "adapter", source
+        )
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+@pytest.mark.parametrize("mutation", ("too_many_checks", "long_reason"))
+def test_task6_static_scan_report_rejects_unbounded_checks_and_reasons(
+    tmp_path,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    report = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    values = {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    if mutation == "too_many_checks":
+        values["checks"] = {
+            f"closed_check_{index}": {"passed": True, "reason": "closed"}
+            for index in range(257)
+        }
+    else:
+        values["checks"] = thaw_json(report.checks)
+        first_key = sorted(values["checks"])[0]
+        values["checks"][first_key]["reason"] = "r" * 161
+    values["report_sha256"] = canonical_sha256(
+        {
+            key: item
+            for key, item in values.items()
+            if key != "report_sha256"
+        }
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|check|reason|bound|oversized",
+    ):
+        isolation.StaticScanReport(**values)
