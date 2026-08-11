@@ -1838,33 +1838,63 @@ class _AstClosureResolver:
             raise _ContractError("asynchronous scientific functions are forbidden")
         if node.decorator_list:
             raise _ContractError("function decorators are forbidden")
+        if getattr(node, "type_params", ()):
+            raise _ContractError(
+                "function type parameters are unsupported definition-time state"
+            )
         self._validate_no_dynamic_constructs(node)
+        arguments = (
+            tuple(node.args.posonlyargs)
+            + tuple(node.args.args)
+            + tuple(node.args.kwonlyargs)
+        )
+        definition_expressions = list(node.args.defaults)
+        definition_expressions.extend(
+            default
+            for default in node.args.kw_defaults
+            if default is not None
+        )
+        definition_expressions.extend(
+            argument.annotation
+            for argument in arguments
+            if argument.annotation is not None
+        )
+        for argument in (node.args.vararg, node.args.kwarg):
+            if argument is not None and argument.annotation is not None:
+                definition_expressions.append(argument.annotation)
+        if node.returns is not None:
+            definition_expressions.append(node.returns)
+        loaded = self._immutable_expression_loaded_globals(
+            *definition_expressions
+        )
         local_names = {
             argument.arg
-            for argument in (
-                tuple(node.args.posonlyargs)
-                + tuple(node.args.args)
-                + tuple(node.args.kwonlyargs)
-            )
+            for argument in arguments
         }
         if node.args.vararg is not None:
             local_names.add(node.args.vararg.arg)
         if node.args.kwarg is not None:
             local_names.add(node.args.kwarg.arg)
-        for candidate in ast.walk(node):
+        body_nodes = tuple(
+            candidate
+            for statement in node.body
+            for candidate in ast.walk(statement)
+        )
+        for candidate in body_nodes:
             if isinstance(candidate, ast.Name) and isinstance(
                 candidate.ctx, (ast.Store, ast.Del)
             ):
                 local_names.add(candidate.id)
             if isinstance(candidate, ast.ExceptHandler) and candidate.name:
                 local_names.add(candidate.name)
-        return {
+        loaded.update(
             candidate.id
-            for candidate in ast.walk(node)
+            for candidate in body_nodes
             if isinstance(candidate, ast.Name)
             and isinstance(candidate.ctx, ast.Load)
             and candidate.id not in local_names
-        }
+        )
+        return loaded
 
     def _validate_immutable_expression(self, value: ast.AST) -> None:
         allowed = (
@@ -1876,8 +1906,6 @@ class _AstClosureResolver:
             ast.IfExp,
             ast.Load,
             ast.Name,
-            ast.Slice,
-            ast.Subscript,
             ast.Tuple,
             ast.UnaryOp,
         )
@@ -1895,16 +1923,26 @@ class _AstClosureResolver:
             ) not in (type(None), bool, int, float, complex, str, bytes):
                 raise _ContractError("constant initializer is not immutable")
 
+    def _immutable_expression_loaded_globals(
+        self, *values: ast.AST
+    ) -> set[str]:
+        loaded = set()
+        for value in values:
+            self._validate_immutable_expression(value)
+            loaded.update(
+                candidate.id
+                for candidate in ast.walk(value)
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+            )
+        return loaded
+
     def _constant_loaded_globals(self, source: _AstSourceNode) -> set[str]:
         node = source.node
-        value = node.value
-        self._validate_immutable_expression(value)
-        return {
-            candidate.id
-            for candidate in ast.walk(value)
-            if isinstance(candidate, ast.Name)
-            and isinstance(candidate.ctx, ast.Load)
-        }
+        values = [node.value]
+        if isinstance(node, ast.AnnAssign):
+            values.insert(0, node.annotation)
+        return self._immutable_expression_loaded_globals(*values)
 
     def _class_loaded_globals(self, node: ast.ClassDef) -> set[str]:
         if node.decorator_list or node.keywords:
@@ -1930,6 +1968,7 @@ class _AstClosureResolver:
                     "__delete__",
                     "__init_subclass__",
                     "__set_name__",
+                    "__class_getitem__",
                 }:
                     raise _ContractError(
                         "descriptor or definition-time class hook is forbidden"
@@ -1957,13 +1996,10 @@ class _AstClosureResolver:
                 value = statement.value
             if value is None:
                 raise _ContractError("class contains unsupported descriptor state")
-            self._validate_immutable_expression(value)
-            loaded.update(
-                candidate.id
-                for candidate in ast.walk(value)
-                if isinstance(candidate, ast.Name)
-                and isinstance(candidate.ctx, ast.Load)
-            )
+            values = [value]
+            if isinstance(statement, ast.AnnAssign):
+                values.insert(0, statement.annotation)
+            loaded.update(self._immutable_expression_loaded_globals(*values))
         return loaded
 
     def _loaded_globals(self, source: _AstSourceNode) -> set[str]:
@@ -2813,8 +2849,9 @@ def _literal_may_flow_expression(
         operands = tuple(node.args) + tuple(
             keyword.value for keyword in node.keywords
         )
-        if isinstance(node.func, ast.Attribute):
-            operands += (node.func.value,)
+        operands += (node.func,)
+    elif isinstance(node, ast.Attribute):
+        operands = (node.value,)
     elif isinstance(node, ast.Subscript):
         operands = (node.value,)
     elif isinstance(node, (ast.NamedExpr, ast.Starred)):

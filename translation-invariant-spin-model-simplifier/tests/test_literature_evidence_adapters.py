@@ -7300,6 +7300,139 @@ def test_scientific_closure_rejects_each_unsupported_ast_construct(
         _build_task5_scientific_closure(tmp_path)
 
 
+TASK5_DEFINITION_TIME_EXECUTION_SOURCES = (
+    (
+        "helper_call_in_positional_default",
+        "def make_default():\n"
+        "    return 1\n"
+        "def adapter_entry(value=make_default()):\n"
+        "    return value\n",
+    ),
+    (
+        "helper_call_in_keyword_default",
+        "def make_default():\n"
+        "    return 1\n"
+        "def adapter_entry(value, *, control=make_default()):\n"
+        "    return value\n",
+    ),
+    (
+        "helper_call_in_argument_annotation",
+        "def make_annotation():\n"
+        "    return object\n"
+        "def adapter_entry(value: make_annotation()):\n"
+        "    return value\n",
+    ),
+    (
+        "helper_call_in_return_annotation",
+        "def make_annotation():\n"
+        "    return object\n"
+        "def adapter_entry(value) -> make_annotation():\n"
+        "    return value\n",
+    ),
+    (
+        "module_annotated_assignment_execution",
+        "PAYLOAD: __import__('os').system('blocked') = (1,)\n"
+        "def adapter_entry(value):\n"
+        "    return value + PAYLOAD[0]\n",
+    ),
+    (
+        "class_annotated_assignment_execution",
+        "class Payload:\n"
+        "    item: __import__('os').system('blocked') = 1\n"
+        "def adapter_entry(value):\n"
+        "    return value, Payload\n",
+    ),
+    (
+        "subscripted_function_default",
+        "DEFAULTS = (1,)\n"
+        "def adapter_entry(value=DEFAULTS[0]):\n"
+        "    return value\n",
+    ),
+    (
+        "class_getitem_initializer",
+        "class Hook:\n"
+        "    def __class_getitem__(cls, item):\n"
+        "        return (item,)\n"
+        "PAYLOAD = Hook[0]\n"
+        "def adapter_entry(value):\n"
+        "    return value + PAYLOAD[0]\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, source",
+    TASK5_DEFINITION_TIME_EXECUTION_SOURCES,
+    ids=tuple(case[0] for case in TASK5_DEFINITION_TIME_EXECUTION_SOURCES),
+)
+def test_scientific_closure_rejects_definition_time_expression_execution(
+    tmp_path,
+    case_name,
+    source,
+):
+    del case_name
+    _write_task5_source(tmp_path, "synthetic_science.adapters", source)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="definition|initializer|immutable|source|hook|unsupported",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "case_name, source",
+    (
+        (
+            "constant_defaults_and_annotations",
+            "def adapter_entry(\n"
+            "    value: object = None, *, control: float = 2.0\n"
+            ") -> object:\n"
+            "    return value\n",
+        ),
+        (
+            "annotated_immutable_module_and_class_state",
+            "SCALE: tuple = (2.0, 3.0)\n"
+            "class Plain:\n"
+            "    label: str = 'transport'\n"
+            "def adapter_entry(value):\n"
+            "    return value * SCALE[0], Plain\n",
+        ),
+        (
+            "named_immutable_initializer",
+            "BASE = 2\n"
+            "SCALE = (BASE, 3)\n"
+            "def adapter_entry(value):\n"
+            "    return value * SCALE[0]\n",
+        ),
+        (
+            "tuple_default",
+            "def adapter_entry(value=(1, 2)):\n"
+            "    return value[0]\n",
+        ),
+    ),
+    ids=(
+        "constant_defaults_and_annotations",
+        "annotated_immutable_module_and_class_state",
+        "named_immutable_initializer",
+        "tuple_default",
+    ),
+)
+def test_scientific_closure_allows_inert_definition_time_control(
+    tmp_path,
+    case_name,
+    source,
+):
+    del case_name
+    _write_task5_source(tmp_path, "synthetic_science.adapters", source)
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert closure.entry_symbol == (
+        "synthetic_science.adapters:adapter_entry"
+    )
+
+
 def test_scientific_closure_parses_source_without_executing_module(tmp_path):
     source = (
         "EXECUTION_CANARY = 1 / 0\n"
@@ -9539,6 +9672,23 @@ TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT = (
         "    energy = coefficients[0]\n"
         "    return energy\n",
     ),
+    (
+        "split_bound_numeric_method",
+        "    method = (2).__int__\n"
+        "    energy = method()\n"
+        "    return energy\n",
+    ),
+    (
+        "direct_numeric_attribute",
+        "    energy = (2).real\n"
+        "    return energy\n",
+    ),
+    (
+        "subscripted_bound_numeric_method",
+        "    methods = ((2).__int__,)\n"
+        "    energy = methods[0]()\n"
+        "    return energy\n",
+    ),
 )
 
 
@@ -9632,6 +9782,23 @@ TASK5_ALLOWED_INFRASTRUCTURE_CONTENT = (
         "    matrix = value\n"
         "    energy = matrix[0]\n"
         "    return energy\n",
+    ),
+    (
+        "computed_bound_method_transport",
+        "    method = value.strip\n"
+        "    policy_payload = method()\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "computed_attribute_transport",
+        "    energy = value.real\n"
+        "    return energy\n",
+    ),
+    (
+        "computed_subscripted_method_transport",
+        "    methods = (value.strip,)\n"
+        "    policy_payload = methods[0]()\n"
+        "    return policy_payload\n",
     ),
     (
         "scientific_words_in_docstring",
@@ -9975,6 +10142,26 @@ TASK5_LITERAL_POLICY_BYTES_FLOWS = (
         "subscripted_policy_container_literal",
         '    payloads = (b"detached",)\n'
         "    policy_payload = payloads[0]\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "split_bound_policy_method",
+        '    method = b"detached".strip\n'
+        "    policy_payload = method()\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "aliased_split_bound_policy_method",
+        '    receiver = b"detached"\n'
+        "    method = receiver.strip\n"
+        "    alias = method\n"
+        "    policy_payload = alias()\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "subscripted_bound_policy_method",
+        '    methods = (b"detached".strip,)\n'
+        "    policy_payload = methods[0]()\n"
         "    return policy_payload\n",
     ),
 )
