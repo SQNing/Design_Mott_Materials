@@ -16351,6 +16351,68 @@ TASK6_REVIEW_CAPABILITY_OBJECT_SOURCES = (
 )
 
 
+TASK6_REVIEW3_MODULE_OBJECT_ESCAPE_SOURCES = (
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    modules = ({numpy_name},)\n"
+        "    return modules[0].load('detached.npy')\n",
+        id="tuple-contained-numpy-module",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    modules = [{numpy_name}]\n"
+        "    return modules[0].load('detached.npy')\n",
+        id="list-contained-numpy-module",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    modules = {{'array': {numpy_name}}}\n"
+        "    return modules['array'].load('detached.npy')\n",
+        id="dict-contained-numpy-module",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def consume(array_module):\n"
+        "    return array_module.load('detached.npy')\n"
+        "def scientific_entry(parameter):\n"
+        "    return consume({numpy_name})\n",
+        id="numpy-module-helper-argument",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    array_module = {numpy_name}\n"
+        "    payload = array_module.load('detached.npy')\n"
+        "    array_module = parameter\n"
+        "    return payload\n",
+        id="later-store-does-not-erase-numpy-flow",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def unrelated_shadow({numpy_name}):\n"
+        "    return {numpy_name}\n"
+        "def scientific_entry(parameter):\n"
+        "    return {numpy_name}.load('detached.npy')\n",
+        id="other-function-parameter-does-not-shadow-numpy-import",
+    ),
+    pytest.param(
+        "{import_scipy}"
+        "def scientific_entry(parameter):\n"
+        "    return ({scipy_name},)[0].io.loadmat('detached.mat')\n",
+        id="subscripted-scipy-module",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    return {numpy_name}\n",
+        id="returned-numpy-module",
+    ),
+)
+
+
 @pytest.mark.parametrize("role", ("adapter", "oracle"))
 @pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
 @pytest.mark.parametrize(
@@ -16392,6 +16454,141 @@ def test_task6_review_rejects_reused_external_capability_objects(
 
 
 @pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+@pytest.mark.parametrize(
+    "source_template", TASK6_REVIEW3_MODULE_OBJECT_ESCAPE_SOURCES
+)
+def test_task6_review3_rejects_external_module_object_escape(
+    tmp_path,
+    role,
+    scan_scope,
+    source_template,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    if scan_scope == "raw":
+        imports = {
+            "import_numpy": "import numpy\n",
+            "numpy_name": "numpy",
+            "import_scipy": "import scipy\n",
+            "scipy_name": "scipy",
+        }
+    else:
+        imports = {
+            "import_numpy": "import numpy as np\n",
+            "numpy_name": "np",
+            "import_scipy": "import scipy as sp\n",
+            "scipy_name": "sp",
+        }
+    source = source_template.format(**imports)
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|module|capability|escape|import|file|reader",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+def test_task6_review3_current_scope_parameter_shadows_module_import(
+    tmp_path,
+    role,
+    scan_scope,
+):
+    if scan_scope == "raw":
+        import_source = "import numpy\n"
+        module_name = "numpy"
+    else:
+        import_source = "import numpy as np\n"
+        module_name = "np"
+    source = (
+        import_source
+        + f"def scientific_entry({module_name}, parameter):\n"
+        + f"    return {module_name}.sin(parameter)\n"
+    )
+
+    report = _task6_build_and_scan(tmp_path, role, source)
+
+    assert report.passed is True
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+def test_task6_review3_later_store_does_not_erase_prior_direct_capability(
+    tmp_path,
+    role,
+    scan_scope,
+):
+    if scan_scope == "raw":
+        import_source = "import numpy\n"
+        module_name = "numpy"
+    else:
+        import_source = "import numpy as np\n"
+        module_name = "np"
+    source = (
+        import_source
+        + "def scientific_entry(parameter):\n"
+        + f"    payload = {module_name}.load('detached.npy')\n"
+        + f"    {module_name} = parameter\n"
+        + "    return payload\n"
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|capability|file|reader|import|call",
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+def test_task6_review3_prior_store_shadows_later_module_spelling(
+    tmp_path,
+    role,
+    scan_scope,
+):
+    if scan_scope == "raw":
+        import_source = "import numpy\n"
+        module_name = "numpy"
+    else:
+        import_source = "import numpy as np\n"
+        module_name = "np"
+    source = (
+        import_source
+        + "def scientific_entry(parameter):\n"
+        + f"    {module_name} = parameter\n"
+        + f"    return {module_name}.sin(parameter)\n"
+    )
+
+    report = _task6_build_and_scan(tmp_path, role, source)
+
+    assert report.passed is True
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review3_unknown_external_constant_fails_closed(
+    tmp_path,
+    role,
+):
+    source = (
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.not_a_committed_constant + parameter\n"
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|external|constant|allow|approved|reference",
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
 def test_task6_review_keeps_approved_pure_numeric_capabilities(
     tmp_path,
     role,
@@ -16403,6 +16600,23 @@ def test_task6_review_keeps_approved_pure_numeric_capabilities(
         "    eigenvalues = np.linalg.eigvalsh(matrix)\n"
         "    integral, error = quad(np.sin, 0.0, parameter)\n"
         "    return np.sqrt(eigenvalues[0] ** 2) + integral + error\n"
+    )
+
+    report = _task6_build_and_scan(tmp_path, role, source)
+
+    assert report.role == role
+    assert report.passed is True
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review3_keeps_exactly_allowlisted_numeric_constants(
+    tmp_path,
+    role,
+):
+    source = (
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.pi + np.e + np.inf + parameter\n"
     )
 
     report = _task6_build_and_scan(tmp_path, role, source)
@@ -16612,6 +16826,157 @@ def test_task6_review2_uninspectable_policy_callable_fails_closed(
         match="scanner|implementation|commit|normalize|callable|source",
     ):
         isolation._current_static_scanner_sha256()
+
+
+def test_task6_review3_commitment_tracks_builder_import_validator(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    original = isolation._AstClosureResolver._validate_external_import
+
+    def replacement(self, source):
+        return original(self, source)
+
+    monkeypatch.setattr(
+        isolation._AstClosureResolver,
+        "_validate_external_import",
+        replacement,
+    )
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review3_commitment_tracks_bounded_source_reader(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    original = isolation._bounded_read_python_source
+
+    def replacement(source_root, relative_path, module_name):
+        return original(source_root, relative_path, module_name)
+
+    monkeypatch.setattr(
+        isolation,
+        "_bounded_read_python_source",
+        replacement,
+    )
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review3_commitment_tracks_ast_walk_binding(monkeypatch):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    original = ast.walk
+
+    def replacement(node):
+        return original(node)
+
+    monkeypatch.setattr(ast, "walk", replacement)
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review3_commitment_tracks_os_open_binding(monkeypatch):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    original = os.open
+
+    def replacement(path, flags, mode=0o777, *, dir_fd=None):
+        return original(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", replacement)
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review3_commitment_tracks_path_inherited_method_binding(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    original = Path.is_absolute
+
+    def replacement(self):
+        return original(self)
+
+    monkeypatch.setattr(Path, "is_absolute", replacement)
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review3_commitment_ignores_unreferenced_ast_binding(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    original = ast.dump
+
+    def replacement(node, *args, **kwargs):
+        return original(node, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "dump", replacement)
+
+    assert isolation._current_static_scanner_sha256() == baseline
+
+
+@pytest.mark.parametrize(
+    "limit_name, diagnostic",
+    (
+        ("_STATIC_SCANNER_COMMITMENT_EDGE_LIMIT", "edge"),
+        ("_STATIC_SCANNER_COMMITMENT_ATTRIBUTE_LIMIT", "attribute"),
+    ),
+)
+def test_task6_review3_commitment_enforces_independent_graph_bounds(
+    monkeypatch,
+    limit_name,
+    diagnostic,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    monkeypatch.setattr(isolation, limit_name, 0, raising=False)
+
+    with pytest.raises(
+        AdapterContractError,
+        match=f"scanner|semantic|dependency|{diagnostic}|bound",
+    ):
+        isolation._current_static_scanner_sha256()
+
+
+def test_task6_review3_old_report_fails_after_external_binding_change(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.scan_scientific_closure(
+        _task6_safe_scan_closure(tmp_path),
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    values = {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    original = ast.walk
+
+    def replacement(node):
+        return original(node)
+
+    monkeypatch.setattr(ast, "walk", replacement)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scanner|commitment|unsupported|hash",
+    ):
+        isolation.StaticScanReport(**values)
 
 
 def test_task6_review_static_scan_report_rejects_forged_scanner_identity(

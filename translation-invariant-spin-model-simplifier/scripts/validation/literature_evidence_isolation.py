@@ -8,9 +8,11 @@ process, capsule, or scientific operation at import time or during validation.
 from __future__ import annotations
 
 import ast
+import builtins as _builtins
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
+import dis
 from enum import IntFlag
 import hashlib
 import json
@@ -20,7 +22,18 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 import string
-from types import CodeType, FunctionType, MappingProxyType, ModuleType
+from types import (
+    BuiltinFunctionType,
+    ClassMethodDescriptorType,
+    CodeType,
+    FunctionType,
+    GetSetDescriptorType,
+    MappingProxyType,
+    MemberDescriptorType,
+    MethodDescriptorType,
+    ModuleType,
+    WrapperDescriptorType,
+)
 from validation import literature_evidence_adapters as _adapters
 from validation import literature_evidence_adapter_oracles as _oracles
 from validation.literature_evidence_adapters import (
@@ -1195,6 +1208,8 @@ _STATIC_SCAN_FORMAT_WIDTH_LIMIT = 4_096
 _STATIC_SCAN_CHECK_LIMIT = 64
 _STATIC_SCAN_REASON_BYTES_LIMIT = 160
 _STATIC_SCANNER_COMMITMENT_NODE_LIMIT = 131_072
+_STATIC_SCANNER_COMMITMENT_EDGE_LIMIT = 262_144
+_STATIC_SCANNER_COMMITMENT_ATTRIBUTE_LIMIT = 131_072
 _STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT = 512
 _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT = 16_777_216
 _STATIC_SCANNER_COMMITMENT_INTEGER_BITS_LIMIT = 65_536
@@ -2255,6 +2270,7 @@ class _AstClosureResolver:
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         *,
         future_annotations: bool,
+        prebinding_global_names: frozenset[str] = frozenset(),
     ) -> dict[str, set[str]]:
         if isinstance(node, ast.AsyncFunctionDef):
             raise _ContractError("asynchronous scientific functions are forbidden")
@@ -2315,6 +2331,29 @@ class _AstClosureResolver:
             local_names.add(node.args.vararg.arg)
         if node.args.kwarg is not None:
             local_names.add(node.args.kwarg.arg)
+        statement_order_bound_names = set(local_names)
+        loaded_before_local_binding = set()
+        for statement in node.body:
+            statement_nodes = tuple(ast.walk(statement))
+            loaded_before_local_binding.update(
+                candidate.id
+                for candidate in statement_nodes
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+                and candidate.id not in statement_order_bound_names
+            )
+            statement_order_bound_names.update(
+                candidate.id
+                for candidate in statement_nodes
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, (ast.Store, ast.Del))
+            )
+            statement_order_bound_names.update(
+                candidate.name
+                for candidate in statement_nodes
+                if isinstance(candidate, ast.ExceptHandler)
+                and candidate.name
+            )
         body_nodes = tuple(
             candidate
             for statement in node.body
@@ -2334,7 +2373,14 @@ class _AstClosureResolver:
                 for candidate in body_nodes
                 if isinstance(candidate, ast.Name)
                 and isinstance(candidate.ctx, ast.Load)
-                and candidate.id not in local_names
+                and (
+                    candidate.id not in local_names
+                    or candidate.id
+                    in (
+                        loaded_before_local_binding
+                        & prebinding_global_names
+                    )
+                )
             ),
             _AST_BINDING_RUNTIME,
         )
@@ -2526,9 +2572,17 @@ class _AstClosureResolver:
                 future_annotations=future_annotations,
             )
         if source.node_kind == "function":
+            prebinding_global_names = frozenset(
+                name
+                for name, binding in module.bindings.items()
+                if isinstance(binding, _AstSourceNode)
+                and binding.node_kind == "import"
+                and binding.import_module != "__future__"
+            )
             return self._function_loaded_globals(
                 source.node,
                 future_annotations=future_annotations,
+                prebinding_global_names=prebinding_global_names,
             )
         if source.node_kind == "class":
             return self._class_loaded_globals(
@@ -7191,6 +7245,19 @@ _STATIC_NUMPY_FILE_CALLABLES = frozenset(
 _STATIC_FORBIDDEN_CAPABILITY_NAMESPACES = (
     ("scipy", "io"),
 )
+_STATIC_SAFE_NUMERIC_CONSTANT_PATHS = frozenset(
+    {
+        ("numpy", "e"),
+        ("numpy", "inf"),
+        ("numpy", "nan"),
+        ("numpy", "pi"),
+    }
+)
+_STATIC_SAFE_NUMERIC_OBJECT_PATHS = frozenset(
+    {
+        ("numpy", "sin"),
+    }
+)
 
 
 def _validate_static_fingerprints(value: object) -> tuple[str, ...]:
@@ -7343,23 +7410,6 @@ def _static_import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
     nodes = tuple(ast.walk(tree))
     if len(nodes) > _STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT:
         raise _ContractError("static scan alias graph exceeds the node bound")
-    parameter_names = {
-        argument.arg.lower()
-        for candidate in nodes
-        if isinstance(candidate, (ast.FunctionDef, ast.AsyncFunctionDef))
-        for argument in (
-            *candidate.args.posonlyargs,
-            *candidate.args.args,
-            *candidate.args.kwonlyargs,
-        )
-    }
-    store_counts: dict[str, int] = {}
-    for candidate in nodes:
-        if isinstance(candidate, ast.Name) and isinstance(
-            candidate.ctx, (ast.Store, ast.Del)
-        ):
-            name = candidate.id.lower()
-            store_counts[name] = store_counts.get(name, 0) + 1
     aliases: dict[str, tuple[str, ...]] = {}
     for statement in tree.body:
         if isinstance(statement, ast.Import):
@@ -7383,26 +7433,6 @@ def _static_import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
                     *module,
                     alias.name.lower(),
                 )
-    external_roots = {
-        module_name.split(".", 1)[0]
-        for module_name in _SAFE_EXTERNAL_IMPORT_MODULES
-    }
-    for candidate in nodes:
-        if not isinstance(candidate, ast.stmt):
-            continue
-        assignment = _static_simple_name_assignment(candidate)
-        if assignment is None:
-            continue
-        target_name, expression = assignment
-        normalized_name = target_name.lower()
-        if (
-            store_counts.get(normalized_name) != 1
-            or normalized_name in parameter_names
-        ):
-            continue
-        resolved = _static_resolved_reference_path(expression, aliases)
-        if resolved and resolved[0] in external_roots:
-            aliases[normalized_name] = resolved
     return aliases
 
 
@@ -7437,6 +7467,199 @@ def _static_forbidden_capability_path(path: tuple[str, ...]) -> bool:
         path[: len(namespace)] == namespace
         for namespace in _STATIC_FORBIDDEN_CAPABILITY_NAMESPACES
     )
+
+
+def _static_module_object_path(path: tuple[str, ...]) -> bool:
+    return ".".join(path) in _SAFE_EXTERNAL_IMPORT_MODULES
+
+
+def _static_numpy_scipy_path(path: tuple[str, ...]) -> bool:
+    return bool(path) and path[0] in {"numpy", "scipy"}
+
+
+def _static_target_names(target: ast.AST) -> tuple[str, ...]:
+    if isinstance(target, ast.Name):
+        return (target.id.lower(),)
+    if isinstance(target, (ast.List, ast.Tuple)):
+        return tuple(
+            name
+            for element in target.elts
+            for name in _static_target_names(element)
+        )
+    if isinstance(target, ast.Starred):
+        return _static_target_names(target.value)
+    return ()
+
+
+def _static_statement_bound_names(statement: ast.stmt) -> tuple[str, ...]:
+    if isinstance(statement, ast.Assign):
+        return tuple(
+            name
+            for target in statement.targets
+            for name in _static_target_names(target)
+        )
+    if isinstance(statement, (ast.AnnAssign, ast.AugAssign)):
+        return _static_target_names(statement.target)
+    if isinstance(
+        statement,
+        (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+    ):
+        return (statement.name.lower(),)
+    return ()
+
+
+def _scan_static_external_module_flows(
+    tree: ast.AST,
+    aliases: Mapping[str, tuple[str, ...]],
+) -> None:
+    """Reject numpy/scipy module objects outside direct approved paths."""
+
+    def validate_reference(
+        candidate: ast.AST,
+        parent: ast.AST | None,
+        active_aliases: Mapping[str, tuple[str, ...]],
+        shadowed_names: frozenset[str],
+    ) -> None:
+        authored = _static_call_path(candidate)
+        if not authored or authored[0] in shadowed_names:
+            return
+        path = _static_resolved_reference_path(candidate, active_aliases)
+        if not _static_numpy_scipy_path(path):
+            return
+        if _static_forbidden_capability_path(path):
+            raise _ContractError(
+                "static scan rejected unapproved file-capable reference"
+            )
+        if _static_module_object_path(path):
+            raise _ContractError(
+                "static scan rejected external module object escape"
+            )
+        if isinstance(parent, ast.Call) and parent.func is candidate:
+            return
+        if path in _STATIC_SAFE_NUMERIC_CONSTANT_PATHS or path in (
+            _STATIC_SAFE_NUMERIC_OBJECT_PATHS
+        ):
+            return
+        raise _ContractError(
+            "static scan rejected unapproved external numeric reference"
+        )
+
+    def scan_node(
+        candidate: ast.AST,
+        parent: ast.AST | None,
+        active_aliases: dict[str, tuple[str, ...]],
+        shadowed_names: frozenset[str],
+    ) -> None:
+        if isinstance(candidate, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for decorator in candidate.decorator_list:
+                scan_node(
+                    decorator,
+                    candidate,
+                    active_aliases,
+                    shadowed_names,
+                )
+            for default in (
+                *candidate.args.defaults,
+                *(
+                    item
+                    for item in candidate.args.kw_defaults
+                    if item is not None
+                ),
+            ):
+                scan_node(
+                    default,
+                    candidate,
+                    active_aliases,
+                    shadowed_names,
+                )
+            parameter_names = {
+                argument.arg.lower()
+                for argument in (
+                    *candidate.args.posonlyargs,
+                    *candidate.args.args,
+                    *candidate.args.kwonlyargs,
+                )
+            }
+            if candidate.args.vararg is not None:
+                parameter_names.add(candidate.args.vararg.arg.lower())
+            if candidate.args.kwarg is not None:
+                parameter_names.add(candidate.args.kwarg.arg.lower())
+            local_aliases = {
+                name: path
+                for name, path in active_aliases.items()
+                if name not in parameter_names
+            }
+            scan_statements(
+                candidate.body,
+                local_aliases,
+                frozenset((*shadowed_names, *parameter_names)),
+            )
+            return
+        if isinstance(candidate, ast.Name):
+            if not isinstance(candidate.ctx, ast.Load):
+                return
+            if isinstance(parent, ast.Attribute) and (
+                parent.value is candidate
+            ):
+                return
+            validate_reference(
+                candidate,
+                parent,
+                active_aliases,
+                shadowed_names,
+            )
+            return
+        if isinstance(candidate, ast.Attribute):
+            if isinstance(candidate.ctx, ast.Load) and not (
+                isinstance(parent, ast.Attribute)
+                and parent.value is candidate
+            ):
+                validate_reference(
+                    candidate,
+                    parent,
+                    active_aliases,
+                    shadowed_names,
+                )
+            scan_node(
+                candidate.value,
+                candidate,
+                active_aliases,
+                shadowed_names,
+            )
+            return
+        for child in ast.iter_child_nodes(candidate):
+            scan_node(
+                child,
+                candidate,
+                active_aliases,
+                shadowed_names,
+            )
+
+    def scan_statements(
+        statements: list[ast.stmt],
+        active_aliases: dict[str, tuple[str, ...]],
+        initial_shadowed_names: frozenset[str],
+    ) -> None:
+        shadowed_names = initial_shadowed_names
+        for statement in statements:
+            scan_node(
+                statement,
+                None,
+                active_aliases,
+                shadowed_names,
+            )
+            bound_names = _static_statement_bound_names(statement)
+            if bound_names:
+                shadowed_names = frozenset(
+                    (*shadowed_names, *bound_names)
+                )
+                for name in bound_names:
+                    active_aliases.pop(name, None)
+
+    if isinstance(tree, ast.Module):
+        scan_statements(list(tree.body), dict(aliases), frozenset())
+    else:
+        scan_node(tree, None, dict(aliases), frozenset())
 
 
 _STATIC_CONSTANT_UNAVAILABLE = object()
@@ -9249,19 +9472,10 @@ def _scan_static_ast(
     _scan_static_parameter_indexed_literals(tree, entry_function_name)
     nodes = tuple(ast.walk(tree))
     import_aliases = _static_import_aliases(tree)
+    _scan_static_external_module_flows(tree, import_aliases)
     constant_cache: dict[ast.AST, object] = {}
     constant_steps = [0, node_limit]
     for candidate in nodes:
-        if isinstance(candidate, (ast.Name, ast.Attribute)) and isinstance(
-            candidate.ctx, ast.Load
-        ):
-            reference_path = _static_resolved_reference_path(
-                candidate, import_aliases
-            )
-            if _static_forbidden_capability_path(reference_path):
-                raise _ContractError(
-                    "static scan rejected unapproved file-capable reference"
-                )
         if role != "infrastructure" and isinstance(
             candidate, (ast.Name, ast.Attribute)
         ):
@@ -9461,17 +9675,67 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
 
 _STATIC_SCANNER_ENTRYPOINT_NAMES = (
     "_validate_task5_policy_commitment",
+    "build_infrastructure_closure",
+    "build_scientific_closure",
     "build_scientific_policy_commitment",
     "scan_scientific_closure",
 )
 _STATIC_SCANNER_SEMANTIC_MODULES = frozenset(
     {__name__, _adapters.__name__, _oracles.__name__}
 )
+_STATIC_SCANNER_BUILTIN_BINDINGS = frozenset(
+    set(_SAFE_AST_BUILTINS)
+    | {
+        "ArithmeticError",
+        "AttributeError",
+        "Exception",
+        "Ellipsis",
+        "IndexError",
+        "KeyError",
+        "LookupError",
+        "NotImplementedError",
+        "NotImplemented",
+        "OSError",
+        "OverflowError",
+        "RecursionError",
+        "RuntimeError",
+        "StopIteration",
+        "SyntaxError",
+        "TypeError",
+        "UnicodeDecodeError",
+        "UnicodeEncodeError",
+        "UnicodeError",
+        "ValueError",
+        "abs",
+        "all",
+        "any",
+        "ascii",
+        "callable",
+        "classmethod",
+        "format",
+        "getattr",
+        "globals",
+        "hasattr",
+        "hash",
+        "hex",
+        "id",
+        "repr",
+        "staticmethod",
+        "super",
+        "vars",
+    }
+)
+_STATIC_SCANNER_RECEIVER_CLASS_BINDINGS = frozenset(
+    {
+        (__name__, "_AstClosureResolver"),
+        ("pathlib", "Path"),
+    }
+)
 
 
 def _static_scanner_rule_manifest() -> dict[str, object]:
     return {
-        "commitment_version": "transitive_semantic_commitment_v3",
+        "commitment_version": "transitive_semantic_commitment_v4",
         "scanner_version": _STATIC_SCANNER_VERSION,
         "constant_evaluator_version": _STATIC_CONSTANT_EVALUATOR_VERSION,
         "ast_closure_version": _AST_CLOSURE_VERSION,
@@ -9499,6 +9763,10 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
         },
         "semantic_commitment_limits": {
             "node_count": _STATIC_SCANNER_COMMITMENT_NODE_LIMIT,
+            "edge_count": _STATIC_SCANNER_COMMITMENT_EDGE_LIMIT,
+            "attribute_count": (
+                _STATIC_SCANNER_COMMITMENT_ATTRIBUTE_LIMIT
+            ),
             "depth": _STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT,
             "value_bytes": _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT,
             "integer_bits": _STATIC_SCANNER_COMMITMENT_INTEGER_BITS_LIMIT,
@@ -9523,6 +9791,14 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
             list(path)
             for path in _STATIC_FORBIDDEN_CAPABILITY_NAMESPACES
         ],
+        "safe_numeric_constant_paths": [
+            list(path)
+            for path in sorted(_STATIC_SAFE_NUMERIC_CONSTANT_PATHS)
+        ],
+        "safe_numeric_object_paths": [
+            list(path)
+            for path in sorted(_STATIC_SAFE_NUMERIC_OBJECT_PATHS)
+        ],
         "safe_external_import_prefixes": list(
             _SAFE_EXTERNAL_IMPORT_PREFIXES
         ),
@@ -9530,6 +9806,13 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
             _SAFE_EXTERNAL_IMPORT_MODULES
         ),
         "safe_ast_builtins": sorted(_SAFE_AST_BUILTINS),
+        "semantic_builtin_bindings": sorted(
+            _STATIC_SCANNER_BUILTIN_BINDINGS
+        ),
+        "semantic_receiver_class_bindings": [
+            list(item)
+            for item in sorted(_STATIC_SCANNER_RECEIVER_CLASS_BINDINGS)
+        ],
         "forbidden_dynamic_calls": sorted(_FORBIDDEN_DYNAMIC_CALLS),
         "entrypoints": list(_STATIC_SCANNER_ENTRYPOINT_NAMES),
     }
@@ -9546,6 +9829,23 @@ def _static_semantic_step(state: dict[str, object], depth: int) -> None:
             "static scanner semantic dependency exceeds the node bound"
         )
     state["steps"] = steps
+    edges = state["edges"] + 1
+    if edges > _STATIC_SCANNER_COMMITMENT_EDGE_LIMIT:
+        raise _ContractError(
+            "static scanner semantic dependency exceeds the edge bound"
+        )
+    state["edges"] = edges
+
+
+def _static_semantic_attribute_step(
+    state: dict[str, object],
+) -> None:
+    attributes = state["attributes"] + 1
+    if attributes > _STATIC_SCANNER_COMMITMENT_ATTRIBUTE_LIMIT:
+        raise _ContractError(
+            "static scanner semantic dependency exceeds the attribute bound"
+        )
+    state["attributes"] = attributes
 
 
 def _static_semantic_register(
@@ -9613,9 +9913,16 @@ def _static_semantic_code(
     return summary
 
 
-def _static_code_global_names(value: CodeType) -> tuple[str, ...]:
+def _static_code_binding_accesses(
+    value: CodeType,
+    namespace: Mapping[str, object],
+) -> tuple[
+    dict[str, tuple[tuple[str, ...], ...]],
+    dict[str, tuple[str, ...]],
+]:
     pending = [value]
-    names = set()
+    accesses: dict[str, set[tuple[str, ...]]] = {}
+    class_members: dict[str, set[str]] = {}
     steps = 0
     while pending:
         code = pending.pop()
@@ -9624,13 +9931,194 @@ def _static_code_global_names(value: CodeType) -> tuple[str, ...]:
             raise _ContractError(
                 "static scanner code dependency exceeds the node bound"
             )
-        names.update(code.co_names)
+        try:
+            instructions = tuple(dis.get_instructions(code))
+        except (TypeError, ValueError) as error:
+            raise _ContractError(
+                "static scanner cannot inspect dependency bytecode"
+            ) from error
+        local_classes: dict[str, set[str]] = {}
+        for index, instruction in enumerate(instructions):
+            if instruction.opname not in {"LOAD_GLOBAL", "LOAD_NAME"}:
+                continue
+            name = instruction.argval
+            if type(name) is not str:
+                raise _ContractError(
+                    "static scanner global bytecode name is not exact"
+                )
+            path = []
+            cursor = index + 1
+            while cursor < len(instructions) and instructions[
+                cursor
+            ].opname in {"LOAD_ATTR", "LOAD_METHOD"}:
+                attribute_name = instructions[cursor].argval
+                if type(attribute_name) is not str:
+                    raise _ContractError(
+                        "static scanner attribute bytecode name is not exact"
+                    )
+                path.append(attribute_name)
+                cursor += 1
+            accesses.setdefault(name, set()).add(tuple(path))
+            dependency = namespace.get(name)
+            if not isinstance(dependency, type) or (
+                type.__getattribute__(dependency, "__module__"),
+                type.__getattribute__(dependency, "__qualname__"),
+            ) not in _STATIC_SCANNER_RECEIVER_CLASS_BINDINGS:
+                continue
+            for call_index in range(
+                index + 1, min(index + 17, len(instructions))
+            ):
+                if instructions[call_index].opname not in {
+                    "CALL_FUNCTION",
+                    "CALL_FUNCTION_KW",
+                    "CALL_FUNCTION_EX",
+                    "CALL_METHOD",
+                }:
+                    continue
+                for store_index in range(
+                    call_index + 1,
+                    min(call_index + 4, len(instructions)),
+                ):
+                    if instructions[store_index].opname == "STORE_FAST":
+                        local_name = instructions[store_index].argval
+                        if type(local_name) is str:
+                            local_classes.setdefault(local_name, set()).add(
+                                name
+                            )
+                        break
+                break
+        for index, instruction in enumerate(instructions):
+            if not (
+                instruction.opname in {"LOAD_GLOBAL", "LOAD_NAME"}
+                and instruction.argval == "isinstance"
+            ):
+                continue
+            local_names = set()
+            class_names = set()
+            for cursor in range(
+                index + 1, min(index + 17, len(instructions))
+            ):
+                current = instructions[cursor]
+                if current.opname == "LOAD_FAST" and type(
+                    current.argval
+                ) is str:
+                    local_names.add(current.argval)
+                elif current.opname in {"LOAD_GLOBAL", "LOAD_NAME"}:
+                    class_name = current.argval
+                    if type(class_name) is str and isinstance(
+                        namespace.get(class_name), type
+                    ) and (
+                        type.__getattribute__(
+                            namespace[class_name], "__module__"
+                        ),
+                        type.__getattribute__(
+                            namespace[class_name], "__qualname__"
+                        ),
+                    ) in _STATIC_SCANNER_RECEIVER_CLASS_BINDINGS:
+                        class_names.add(class_name)
+                elif current.opname in {
+                    "CALL_FUNCTION",
+                    "CALL_FUNCTION_KW",
+                    "CALL_FUNCTION_EX",
+                    "CALL_METHOD",
+                }:
+                    for local_name in local_names:
+                        local_classes.setdefault(local_name, set()).update(
+                            class_names
+                        )
+                    break
+        for index, instruction in enumerate(instructions[:-1]):
+            if instruction.opname != "LOAD_FAST":
+                continue
+            local_name = instruction.argval
+            if local_name not in local_classes:
+                continue
+            attribute = instructions[index + 1]
+            if attribute.opname != "LOAD_METHOD" or type(
+                attribute.argval
+            ) is not str:
+                continue
+            for class_name in local_classes[local_name]:
+                class_members.setdefault(class_name, set()).add(
+                    attribute.argval
+                )
         pending.extend(
             constant
             for constant in code.co_consts
             if type(constant) is CodeType
         )
-    return tuple(sorted(names))
+    return (
+        {
+            name: tuple(sorted(paths))
+            for name, paths in sorted(accesses.items())
+        },
+        {
+            name: tuple(sorted(members))
+            for name, members in sorted(class_members.items())
+        },
+    )
+
+
+def _static_exact_class_member(
+    value: type,
+    name: str,
+) -> tuple[type, object]:
+    try:
+        mro = type.__getattribute__(value, "__mro__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError(
+            "static scanner class hierarchy is not exact"
+        ) from error
+    if type(mro) is not tuple:
+        raise _ContractError("static scanner class hierarchy is not exact")
+    for owner in mro:
+        if not isinstance(owner, type):
+            raise _ContractError(
+                "static scanner class hierarchy is not exact"
+            )
+        namespace = type.__getattribute__(owner, "__dict__")
+        if type(namespace) is not MappingProxyType:
+            raise _ContractError(
+                "static scanner class namespace is not exact"
+            )
+        if name in namespace:
+            return owner, namespace[name]
+    raise _ContractError(
+        "static scanner referenced class attribute is unavailable"
+    )
+
+
+def _static_resolve_attribute_path(
+    value: object,
+    path: tuple[str, ...],
+    state: dict[str, object],
+) -> tuple[object, tuple[str, ...]]:
+    current = value
+    owners = []
+    for name in path:
+        _static_semantic_attribute_step(state)
+        if type(current) is ModuleType:
+            namespace = current.__dict__
+            if type(namespace) is not dict or name not in namespace:
+                raise _ContractError(
+                    "static scanner referenced module attribute is unavailable: "
+                    f"{current.__name__}.{name}"
+                )
+            owners.append(current.__name__)
+            current = namespace[name]
+            continue
+        if isinstance(current, type):
+            owner, current = _static_exact_class_member(current, name)
+            owners.append(
+                f"{type.__getattribute__(owner, '__module__')}."
+                f"{type.__getattribute__(owner, '__qualname__')}"
+            )
+            continue
+        raise _ContractError(
+            "static scanner cannot statically resolve attribute dependency: "
+            f"{'.'.join(path)}"
+        )
+    return current, tuple(owners)
 
 
 def _static_semantic_module(
@@ -9638,7 +10126,7 @@ def _static_semantic_module(
     state: dict[str, object],
     depth: int,
     *,
-    candidate_attributes: tuple[str, ...],
+    attribute_paths: tuple[tuple[str, ...], ...],
     binding_name: str,
 ) -> dict[str, object]:
     if type(value) is not ModuleType or type(value.__name__) is not str:
@@ -9647,34 +10135,65 @@ def _static_semantic_module(
         "kind": "module",
         "name": value.__name__,
     }
-    if value.__name__ not in _STATIC_SCANNER_SEMANTIC_MODULES:
-        return summary
-    namespace = value.__dict__
-    if type(namespace) is not dict:
-        raise _ContractError(
-            "static scanner module namespace is not an exact mapping"
-        )
-    attributes = {}
-    for name in candidate_attributes:
-        if name not in namespace:
+    bindings = []
+    for path in attribute_paths:
+        if not path:
             continue
         committed_owner = _COMMITTED_DATA_OWNERS.get(
-            (value.__name__, name)
+            (value.__name__, path[0])
         )
         if committed_owner is not None:
-            attributes[name] = {
+            for _name in path:
+                _static_semantic_attribute_step(state)
+            binding = {
                 "kind": "separately_committed_data",
                 "owner": committed_owner,
+                "access_path": list(path[1:]),
             }
         else:
-            attributes[name] = _static_semantic_value(
-                namespace[name],
+            resolved, owners = _static_resolve_attribute_path(
+                value, path, state
+            )
+            binding = _static_semantic_value(
+                resolved,
                 state,
                 depth + 1,
-                binding_name=f"{binding_name}.{name}",
+                binding_name=f"{binding_name}.{'.'.join(path)}",
             )
-    summary["attributes"] = attributes
+            binding = {
+                "kind": "live_binding",
+                "owners": list(owners),
+                "value": binding,
+            }
+        bindings.append({"path": list(path), "binding": binding})
+    summary["bindings"] = bindings
     return summary
+
+
+def _static_code_receiver_methods(value: CodeType) -> tuple[str, ...]:
+    if not value.co_varnames or value.co_argcount < 1:
+        return ()
+    receiver_name = value.co_varnames[0]
+    methods = set()
+    try:
+        instructions = tuple(dis.get_instructions(value))
+    except (TypeError, ValueError) as error:
+        raise _ContractError(
+            "static scanner cannot inspect receiver bytecode"
+        ) from error
+    for index, instruction in enumerate(instructions[:-1]):
+        if not (
+            instruction.opname == "LOAD_FAST"
+            and instruction.argval == receiver_name
+            and instructions[index + 1].opname in {
+                "LOAD_ATTR",
+                "LOAD_METHOD",
+            }
+            and type(instructions[index + 1].argval) is str
+        ):
+            continue
+        methods.add(instructions[index + 1].argval)
+    return tuple(sorted(methods))
 
 
 def _static_semantic_function(
@@ -9741,11 +10260,30 @@ def _static_semantic_function(
             ),
         }
     code = value.__code__
-    global_names = _static_code_global_names(code)
+    global_accesses, class_members = _static_code_binding_accesses(
+        code, value.__globals__
+    )
     dependencies = {}
-    for name in global_names:
-        if name not in value.__globals__:
-            continue
+    for name, attribute_paths in global_accesses.items():
+        if name in value.__globals__:
+            dependency = value.__globals__[name]
+            if type(dependency) is BuiltinFunctionType:
+                raise _ContractError(
+                    "static scanner project callable binding was replaced "
+                    "by an uninspectable builtin"
+                )
+        elif name in _STATIC_SCANNER_BUILTIN_BINDINGS:
+            namespace = vars(_builtins)
+            if type(namespace) is not dict or name not in namespace:
+                raise _ContractError(
+                    "static scanner allowlisted builtin binding is unavailable"
+                )
+            dependency = namespace[name]
+        else:
+            raise _ContractError(
+                "static scanner global dependency is not explicitly bound: "
+                f"{binding_name}.{name}"
+            )
         committed_owner = _COMMITTED_DATA_OWNERS.get((module_name, name))
         if committed_owner is not None:
             dependencies[name] = {
@@ -9753,13 +10291,12 @@ def _static_semantic_function(
                 "owner": committed_owner,
             }
             continue
-        dependency = value.__globals__[name]
         if type(dependency) is ModuleType:
             dependencies[name] = _static_semantic_module(
                 dependency,
                 state,
                 depth + 1,
-                candidate_attributes=global_names,
+                attribute_paths=attribute_paths,
                 binding_name=f"{binding_name}.{name}",
             )
         else:
@@ -9768,7 +10305,31 @@ def _static_semantic_function(
                 state,
                 depth + 1,
                 binding_name=f"{binding_name}.{name}",
+                class_member_names=class_members.get(name, ()),
             )
+    receiver_methods = {}
+    qualname_parts = qualname.split(".")
+    if len(qualname_parts) >= 2:
+        owner = value.__globals__.get(qualname_parts[-2])
+        if isinstance(owner, type):
+            for name in _static_code_receiver_methods(code):
+                try:
+                    _member_owner, member = _static_exact_class_member(
+                        owner, name
+                    )
+                except _ContractError:
+                    continue
+                if type(member) in (staticmethod, classmethod):
+                    member = member.__func__
+                if type(member) is not FunctionType:
+                    continue
+                _static_semantic_attribute_step(state)
+                receiver_methods[name] = _static_semantic_value(
+                    member,
+                    state,
+                    depth + 1,
+                    binding_name=f"{binding_name}.receiver.{name}",
+                )
     closure_values = []
     for cell in value.__closure__ or ():
         try:
@@ -9811,6 +10372,7 @@ def _static_semantic_function(
             binding_name=f"{binding_name}.annotations",
         ),
         "globals": dependencies,
+        "receiver_methods": receiver_methods,
     }
 
 
@@ -9821,6 +10383,7 @@ def _static_semantic_class(
     *,
     token: str,
     binding_name: str,
+    member_names: tuple[str, ...],
 ) -> dict[str, object]:
     module_name = value.__module__
     qualname = value.__qualname__
@@ -9832,35 +10395,22 @@ def _static_semantic_class(
         "module": module_name,
         "qualname": qualname,
     }
-    if module_name not in _STATIC_SCANNER_SEMANTIC_MODULES:
-        return summary
-    namespace = value.__dict__
-    if type(namespace) is not MappingProxyType:
-        raise _ContractError(
-            "static scanner class namespace is not an exact mapping"
-        )
     members = {}
-    for name in sorted(namespace):
-        member = namespace[name]
-        function = None
-        if type(member) is FunctionType:
-            function = member
-        elif type(member) in (staticmethod, classmethod):
-            function = member.__func__
-        if function is not None:
-            members[name] = _static_semantic_value(
-                function,
-                state,
-                depth + 1,
-                binding_name=f"{binding_name}.{name}",
-            )
-        elif name == "__annotations__":
-            members[name] = _static_semantic_value(
+    for name in member_names:
+        _static_semantic_attribute_step(state)
+        owner, member = _static_exact_class_member(value, name)
+        if type(member) in (staticmethod, classmethod):
+            member = member.__func__
+        members[name] = {
+            "owner_module": type.__getattribute__(owner, "__module__"),
+            "owner_qualname": type.__getattribute__(owner, "__qualname__"),
+            "value": _static_semantic_value(
                 member,
                 state,
                 depth + 1,
                 binding_name=f"{binding_name}.{name}",
-            )
+            ),
+        }
     summary["members"] = members
     return summary
 
@@ -9941,12 +10491,63 @@ def _static_semantic_set_sort_key(value: object, depth: int) -> object:
     )
 
 
+def _static_semantic_native_callable(value: object) -> dict[str, object]:
+    value_type = type(value)
+    allowed_types = {
+        BuiltinFunctionType,
+        ClassMethodDescriptorType,
+        GetSetDescriptorType,
+        MemberDescriptorType,
+        MethodDescriptorType,
+        WrapperDescriptorType,
+    }
+    if value_type not in allowed_types:
+        raise _ContractError(
+            "static scanner native binding type is not allowlisted"
+        )
+    identity = {}
+    for name in ("__module__", "__qualname__", "__name__"):
+        try:
+            item = object.__getattribute__(value, name)
+        except AttributeError:
+            item = None
+        if item is not None and type(item) is not str:
+            raise _ContractError(
+                "static scanner native binding identity is not exact"
+            )
+        identity[name.removeprefix("__").removesuffix("__")] = item
+    try:
+        owner = object.__getattribute__(value, "__objclass__")
+    except AttributeError:
+        owner = None
+    if owner is not None:
+        if not isinstance(owner, type):
+            raise _ContractError(
+                "static scanner native binding owner is not exact"
+            )
+        identity["owner_module"] = type.__getattribute__(
+            owner, "__module__"
+        )
+        identity["owner_qualname"] = type.__getattribute__(
+            owner, "__qualname__"
+        )
+    identity["kind"] = "native_binding"
+    identity["type_module"] = type.__getattribute__(
+        value_type, "__module__"
+    )
+    identity["type_qualname"] = type.__getattribute__(
+        value_type, "__qualname__"
+    )
+    return identity
+
+
 def _static_semantic_value(
     value: object,
     state: dict[str, object],
     depth: int,
     *,
     binding_name: str,
+    class_member_names: tuple[str, ...] = (),
 ) -> object:
     _static_semantic_step(state, depth)
     value_type = type(value)
@@ -10001,11 +10602,35 @@ def _static_semantic_value(
             value,
             state,
             depth + 1,
-            candidate_attributes=(),
+            attribute_paths=(),
             binding_name=binding_name,
         )
+    if type(value) in {
+        BuiltinFunctionType,
+        ClassMethodDescriptorType,
+        GetSetDescriptorType,
+        MemberDescriptorType,
+        MethodDescriptorType,
+        WrapperDescriptorType,
+    }:
+        return _static_semantic_native_callable(value)
     if type(value) is object:
         return {"kind": "sentinel", "binding": binding_name}
+    if isinstance(value, type):
+        module_name = type.__getattribute__(value, "__module__")
+        qualname = type.__getattribute__(value, "__qualname__")
+        if type(module_name) is not str or type(qualname) is not str:
+            raise _ContractError(
+                "static scanner class dependency identity is not exact"
+            )
+        return _static_semantic_class(
+            value,
+            state,
+            depth + 1,
+            token=f"class:{module_name}.{qualname}",
+            binding_name=binding_name,
+            member_names=class_member_names,
+        )
     if type(value) in (
         tuple,
         list,
@@ -10014,7 +10639,7 @@ def _static_semantic_value(
         frozenset,
         MappingProxyType,
         FunctionType,
-    ) or isinstance(value, type) or type(value) is _FrozenJsonObject or (
+    ) or type(value) is _FrozenJsonObject or (
         semantic_instance
     ):
         token, is_new = _static_semantic_register(value, state)
@@ -10022,14 +10647,6 @@ def _static_semantic_value(
             return {"kind": "reference", "token": token}
         if type(value) is FunctionType:
             return _static_semantic_function(
-                value,
-                state,
-                depth + 1,
-                token=token,
-                binding_name=binding_name,
-            )
-        if isinstance(value, type):
-            return _static_semantic_class(
                 value,
                 state,
                 depth + 1,
@@ -10162,7 +10779,12 @@ def _static_semantic_value(
 
 
 def _static_scanner_dependency_manifest() -> dict[str, object]:
-    state: dict[str, object] = {"steps": 0, "memo": {}}
+    state: dict[str, object] = {
+        "steps": 0,
+        "edges": 0,
+        "attributes": 0,
+        "memo": {},
+    }
     entrypoints = {}
     for name in _STATIC_SCANNER_ENTRYPOINT_NAMES:
         value = globals().get(name)
@@ -10179,6 +10801,8 @@ def _static_scanner_dependency_manifest() -> dict[str, object]:
     return {
         "entrypoints": entrypoints,
         "semantic_nodes": state["steps"],
+        "semantic_edges": state["edges"],
+        "semantic_attributes": state["attributes"],
     }
 
 
