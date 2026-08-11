@@ -1490,6 +1490,7 @@ class _AstClosureResolver:
         self.role = role
         self.module_cache: dict[str, _AstModuleIndex] = {}
         self.resolved: dict[str, _ResolvedAstNode] = {}
+        self.external_import_usage: dict[str, set[str]] = {}
         self.visiting: list[str] = []
 
     def _find_module_path(
@@ -1614,11 +1615,6 @@ class _AstClosureResolver:
                         module_name,
                     )
                 return
-            if len(node.names) != 1:
-                raise _ContractError(
-                    "multi-alias external ImportFrom cannot be "
-                    "statically emitted"
-                )
             local_names = tuple(
                 alias.asname or alias.name for alias in node.names
             )
@@ -2024,6 +2020,12 @@ class _AstClosureResolver:
             )
         if not isinstance(binding, _AstSourceNode):
             raise _ContractError("global dependency has an unknown binding")
+        if binding.node_kind == "import" and isinstance(
+            binding.node, ast.ImportFrom
+        ):
+            self.external_import_usage.setdefault(
+                binding.qualified_name, set()
+            ).add(global_name)
         return self._resolve_node(binding)
 
     def _resolve_node(self, source: _AstSourceNode) -> str:
@@ -2044,9 +2046,20 @@ class _AstClosureResolver:
                     source_qualified_name=source.qualified_name,
                 )
                 if resolved_name is not None:
+                    if resolved_name in dependencies:
+                        resolved_item = self.resolved.get(resolved_name)
+                        if not (
+                            resolved_item is not None
+                            and isinstance(
+                                resolved_item.source.node, ast.ImportFrom
+                            )
+                            and len(resolved_item.source.bound_names) > 1
+                        ):
+                            raise _ContractError(
+                                "AST node has duplicate dependency edges"
+                            )
+                        continue
                     dependencies.append(resolved_name)
-            if len(set(dependencies)) != len(dependencies):
-                raise _ContractError("AST node has duplicate dependency edges")
             self.resolved[qualified_name] = _ResolvedAstNode(
                 source=source,
                 dependencies=tuple(sorted(dependencies)),
@@ -2060,6 +2073,22 @@ class _AstClosureResolver:
         if resolved is None or resolved.startswith("committed_data:"):
             raise _ContractError("entry/root symbol must resolve to source code")
         return resolved
+
+    def validate_external_import_usage(self) -> None:
+        for qualified_name, item in self.resolved.items():
+            source = item.source
+            if not isinstance(source.node, ast.ImportFrom):
+                continue
+            used_names = self.external_import_usage.get(
+                qualified_name, set()
+            )
+            expected_names = set(source.bound_names)
+            if used_names != expected_names:
+                missing_names = sorted(expected_names - used_names)
+                raise _ContractError(
+                    "external import-from statement has unused bound name "
+                    f"{missing_names[0]}"
+                )
 
 
 def _topological_resolved_nodes(
@@ -2457,6 +2486,7 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
         raise _ContractError("entry symbol cannot be an imported alias")
     if resolver.resolved[resolved_entry].source.node_kind != "function":
         raise _ContractError("scientific closure entry must be a function")
+    resolver.validate_external_import_usage()
     _assert_no_emitted_binding_collisions(resolver.resolved)
     nodes, dependency_edges, emitted_source = _manifest_from_resolved(
         resolver.resolved
@@ -2610,7 +2640,7 @@ _INFRASTRUCTURE_PURPOSE_BINDINGS = {
 _EXPECTED_INFRASTRUCTURE_ROOTS = tuple(
     sorted(_INFRASTRUCTURE_PURPOSE_BINDINGS)
 )
-_INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS = frozenset(
+_INFRASTRUCTURE_STRONG_SCIENTIFIC_TOKENS = frozenset(
     {
         "answer",
         "coupling",
@@ -2620,13 +2650,13 @@ _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS = frozenset(
         "formula",
         "hamiltonian",
         "magnetization",
-        "model",
-        "observable",
         "phase",
-        "result",
-        "scientific",
         "spectrum",
     }
+)
+_INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS = frozenset(
+    set(_INFRASTRUCTURE_STRONG_SCIENTIFIC_TOKENS)
+    | {"model", "observable", "scientific"}
 )
 
 
@@ -2645,6 +2675,12 @@ def _infrastructure_name_tokens(qualified_name: str) -> set[str]:
     return _lexical_tokens(leaf)
 
 
+def _is_method_result_derivation(tokens: set[str]) -> bool:
+    return {"method", "result"} <= tokens and bool(
+        tokens & {"compute", "derive", "specific"}
+    )
+
+
 def _reject_scientific_infrastructure_nodes(
     nodes: tuple[_FrozenJsonObject, ...]
 ) -> None:
@@ -2653,8 +2689,10 @@ def _reject_scientific_infrastructure_nodes(
         qualified_name = node["qualified_name"]
         if qualified_name in expected:
             continue
-        if _infrastructure_name_tokens(qualified_name) & (
-            _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS
+        tokens = _infrastructure_name_tokens(qualified_name)
+        if (
+            tokens & _INFRASTRUCTURE_STRONG_SCIENTIFIC_TOKENS
+            or _is_method_result_derivation(tokens)
         ):
             raise _ContractError(
                 "infrastructure closure contains a scientific or result "
@@ -2662,25 +2700,68 @@ def _reject_scientific_infrastructure_nodes(
             )
 
 
+def _docstring_value_ids(node: ast.AST) -> set[int]:
+    docstrings = set()
+    for candidate in ast.walk(node):
+        if not isinstance(
+            candidate,
+            (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+        ):
+            continue
+        if not candidate.body:
+            continue
+        first = candidate.body[0]
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and type(first.value.value) is str
+        ):
+            docstrings.add(id(first.value))
+    return docstrings
+
+
 def _scan_infrastructure_ast_content(
     resolved: Mapping[str, _ResolvedAstNode],
 ) -> None:
     for item in resolved.values():
         tokens = set()
+        literal_tokens = set()
+        has_arithmetic = False
+        has_policy_bytes_literal = False
+        docstring_ids = _docstring_value_ids(item.source.node)
         for candidate in ast.walk(item.source.node):
             if isinstance(candidate, ast.BinOp):
+                has_arithmetic = True
+            if (
+                isinstance(candidate, ast.Constant)
+                and type(candidate.value) in (float, complex)
+            ):
                 raise _ContractError(
-                    "infrastructure closure contains a scientific equation"
+                    "infrastructure closure contains a scientific constant"
                 )
             if isinstance(candidate, (ast.Assign, ast.AnnAssign)):
-                assigned_value = candidate.value
-                if (
-                    isinstance(assigned_value, ast.Constant)
-                    and type(assigned_value.value) in (float, complex)
-                ):
-                    raise _ContractError(
-                        "infrastructure closure contains a scientific constant"
+                targets = (
+                    candidate.targets
+                    if isinstance(candidate, ast.Assign)
+                    else (candidate.target,)
+                )
+                target_tokens = {
+                    token
+                    for target in targets
+                    for target_node in ast.walk(target)
+                    if isinstance(target_node, (ast.Name, ast.Attribute))
+                    for token in _lexical_tokens(
+                        target_node.id
+                        if isinstance(target_node, ast.Name)
+                        else target_node.attr
                     )
+                }
+                if (
+                    {"policy", "bytes"} <= target_tokens
+                    and isinstance(candidate.value, ast.Constant)
+                    and type(candidate.value.value) is bytes
+                ):
+                    has_policy_bytes_literal = True
             authored_value = None
             if isinstance(candidate, ast.Name):
                 authored_value = candidate.id
@@ -2689,6 +2770,8 @@ def _scan_infrastructure_ast_content(
             elif isinstance(candidate, ast.Constant) and isinstance(
                 candidate.value, (str, bytes)
             ):
+                if id(candidate) in docstring_ids:
+                    continue
                 if type(candidate.value) is bytes:
                     authored_value = candidate.value.decode(
                         "utf-8", errors="ignore"
@@ -2696,19 +2779,37 @@ def _scan_infrastructure_ast_content(
                 else:
                     authored_value = candidate.value
             if authored_value is not None:
-                tokens.update(_lexical_tokens(authored_value))
-        if tokens & _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS:
+                authored_tokens = _lexical_tokens(authored_value)
+                tokens.update(authored_tokens)
+                if isinstance(candidate, ast.Constant):
+                    literal_tokens.update(authored_tokens)
+                    if (
+                        type(candidate.value) is bytes
+                        and "policy" in authored_tokens
+                    ):
+                        has_policy_bytes_literal = True
+        if tokens & {"formula", "hamiltonian"}:
             raise _ContractError(
-                "infrastructure AST contains scientific or result content"
+                "infrastructure AST contains strong scientific content"
+            )
+        if has_arithmetic and (
+            tokens & _INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS
+        ):
+            raise _ContractError(
+                "infrastructure AST contains a scientific equation"
+            )
+        if _is_method_result_derivation(tokens):
+            raise _ContractError(
+                "infrastructure AST contains a method result derivation"
             )
         if (
-            {"adapter", "definition"} <= tokens
-            or {"oracle", "definition"} <= tokens
+            {"adapter", "definition"} <= literal_tokens
+            or {"oracle", "definition"} <= literal_tokens
         ):
             raise _ContractError(
                 "infrastructure AST contains a scientific definition"
             )
-        if {"policy", "bytes"} <= tokens:
+        if has_policy_bytes_literal:
             raise _ContractError(
                 "infrastructure AST contains scientific policy bytes"
             )
@@ -2730,6 +2831,7 @@ def build_infrastructure_closure(*, source_roots):
             raise _ContractError(
                 f"infrastructure root {qualified_root} must be a function"
             )
+    resolver.validate_external_import_usage()
     _scan_infrastructure_ast_content(resolver.resolved)
     nodes, dependency_edges, _emitted_source = _manifest_from_resolved(
         resolver.resolved
@@ -2830,6 +2932,54 @@ def _scan_policy_forbidden_structures(value: object, field_name: str) -> None:
         ):
             raise _ContractError(
                 f"{field_name} contains an arbitrary expression"
+            )
+
+
+_ORACLE_CONVERGENCE_REQUIRED_FIELDS = frozenset({"kind", "rule"})
+_ORACLE_CONVERGENCE_ALLOWED_FIELDS = frozenset(
+    {"kind", "rule", "secondary_bound"}
+)
+_ORACLE_CONVERGENCE_KIND = "residual_bound"
+_ORACLE_CONVERGENCE_RULE = (
+    "independent residual contracts under refinement"
+)
+
+
+def _validate_closed_oracle_convergence_contract(value: object) -> None:
+    field_name = "oracle convergence policy contract"
+    if type(value) is not _FrozenJsonObject:
+        raise _ContractError(f"{field_name} must be an exact frozen object")
+    supplied_fields = set(value)
+    missing_fields = _ORACLE_CONVERGENCE_REQUIRED_FIELDS - supplied_fields
+    unknown_fields = supplied_fields - _ORACLE_CONVERGENCE_ALLOWED_FIELDS
+    if missing_fields:
+        raise _ContractError(
+            f"{field_name} is missing required field "
+            f"{sorted(missing_fields)[0]}"
+        )
+    if unknown_fields:
+        raise _ContractError(
+            f"{field_name} contains unknown closed-policy field "
+            f"{sorted(unknown_fields)[0]}"
+        )
+    if (
+        type(value["kind"]) is not str
+        or value["kind"] != _ORACLE_CONVERGENCE_KIND
+    ):
+        raise _ContractError(f"{field_name}.kind is not closed")
+    if (
+        type(value["rule"]) is not str
+        or value["rule"] != _ORACLE_CONVERGENCE_RULE
+    ):
+        raise _ContractError(f"{field_name}.rule is not closed")
+    if "secondary_bound" in value:
+        secondary_bound = value["secondary_bound"]
+        if (
+            type(secondary_bound) not in (int, float)
+            or secondary_bound <= 0
+        ):
+            raise _ContractError(
+                f"{field_name}.secondary_bound must be a positive number"
             )
 
 
@@ -2981,6 +3131,9 @@ def build_scientific_policy_commitment(definition, closure, *, role):
         ) = _adapter_policy_derivations(canonical_definition)
     else:
         canonical_definition = _oracles.validate_oracle_definition(definition)
+        _validate_closed_oracle_convergence_contract(
+            canonical_definition.convergence_invariant_contract
+        )
         canonical_payload = _oracles.oracle_definition_to_frozen_json(
             canonical_definition
         )

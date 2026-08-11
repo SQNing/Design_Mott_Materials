@@ -9163,6 +9163,76 @@ def test_scientific_closure_rejects_external_importfrom_piggyback(tmp_path):
         _build_task5_scientific_closure(tmp_path)
 
 
+def test_scientific_closure_allows_fully_used_external_importfrom(tmp_path):
+    source = (
+        "from math import sin, cos\n"
+        "def adapter_entry(value):\n"
+        "    return sin(value) + cos(value)\n"
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        source,
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    import_nodes = tuple(
+        node for node in closure.nodes if node["node_kind"] == "import"
+    )
+    assert len(import_nodes) == 1
+    import_node = import_nodes[0]
+    assert import_node["emitted_node_sha256"] == hashlib.sha256(
+        b"from math import sin, cos\n"
+    ).hexdigest()
+    entry_name = "synthetic_science.adapters.adapter_entry"
+    entry_node = next(
+        node
+        for node in closure.nodes
+        if node["qualified_name"] == entry_name
+    )
+    assert entry_node["dependency_edges"] == (
+        (entry_name, import_node["qualified_name"]),
+    )
+    emitted_source = (
+        b"from math import sin, cos\n\n"
+        b"def adapter_entry(value):\n"
+        b"    return sin(value) + cos(value)\n"
+    )
+    assert closure.emitted_source_sha256 == hashlib.sha256(
+        emitted_source
+    ).hexdigest()
+
+
+def test_scientific_closure_keeps_project_importfrom_semantics(tmp_path):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "def left(value):\n"
+        "    return value + 1\n"
+        "def right(value):\n"
+        "    return value - 1\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.helpers import left, right\n"
+        "def adapter_entry(value):\n"
+        "    return left(value) + right(value)\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    node_names = {node["qualified_name"] for node in closure.nodes}
+    assert {
+        "synthetic_science.helpers.left",
+        "synthetic_science.helpers.right",
+    } <= node_names
+    assert not any(
+        node["node_kind"] == "import" for node in closure.nodes
+    )
+
+
 TASK5_FORBIDDEN_INFRASTRUCTURE_CONTENT = (
     (
         "neutral_numeric_equation",
@@ -9256,6 +9326,177 @@ def test_infrastructure_builder_allows_small_integer_protocol_control(
     assert len(closure.roots) == 42
 
 
+TASK5_ALLOWED_INFRASTRUCTURE_CONTENT = (
+    (
+        "bounded_size",
+        "    bounded_size = len(value) + 1\n"
+        "    return bounded_size\n",
+    ),
+    (
+        "generic_result_transport",
+        "    result = value\n"
+        "    return result\n",
+    ),
+    (
+        "generic_model_transport",
+        "    model = value\n"
+        "    return model\n",
+    ),
+    (
+        "generic_observable_transport",
+        "    observable = value\n"
+        "    return observable\n",
+    ),
+    (
+        "sha256_prefix_transport",
+        '    return b"sha256:" + value\n',
+    ),
+    (
+        "scientific_closure_metadata",
+        "    scientific_closure_hash = value\n"
+        "    return scientific_closure_hash\n",
+    ),
+    (
+        "freeze_style_depth",
+        "    next_depth = value + 1\n"
+        "    return next_depth\n",
+    ),
+    (
+        "scientific_words_in_docstring",
+        '    """Compute a method result without deriving it here."""\n'
+        "    return value\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    TASK5_ALLOWED_INFRASTRUCTURE_CONTENT,
+    ids=tuple(case[0] for case in TASK5_ALLOWED_INFRASTRUCTURE_CONTENT),
+)
+def test_infrastructure_builder_allows_structural_transport_content(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "helper_name",
+    ("_validate_scientific_closure", "_transport_result"),
+)
+def test_infrastructure_builder_allows_transport_helper_names(
+    tmp_path,
+    helper_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        helper_name=helper_name,
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert any(
+        node["qualified_name"].endswith(f".{helper_name}")
+        for node in closure.nodes
+    )
+
+
+def test_infrastructure_builder_allows_transitive_transport_arithmetic(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_source(
+        tmp_path,
+        "validation.task5_transport_helpers",
+        "def advance_depth(depth):\n"
+        "    next_depth = depth + 1\n"
+        "    return next_depth\n",
+    )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "from validation.task5_transport_helpers "
+                "import advance_depth\n"
+            )
+        },
+        body_by_root={
+            "validate_failure": "    return advance_depth(value)\n"
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert "validation.task5_transport_helpers.advance_depth" in {
+        node["qualified_name"] for node in closure.nodes
+    }
+
+
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "adapter_definition_symbol",
+            "class AdapterDefinition:\n"
+            "    pass\n",
+            "    validated = AdapterDefinition()\n"
+            "    return validated\n",
+        ),
+        (
+            "policy_bytes_transport",
+            "def encode(value):\n"
+            "    return value\n",
+            "    policy_payload = value\n"
+            "    canonical_bytes = encode(policy_payload)\n"
+            "    return canonical_bytes\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_definition_and_policy_transport(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
 TASK5_NEUTRAL_KEY_POLICY_BYPASSES = (
     ("categorical_invariant", {"invariant_rule": "ordered_phase"}),
     ("arbitrary_derivation", {"derivation": "value ** 2 + 1"}),
@@ -9295,6 +9536,60 @@ def test_policy_builder_rejects_each_neutral_key_oracle_bypass(
         isolation.build_scientific_policy_commitment(
             bypass, _task5_oracle_closure(), role="oracle"
         )
+
+
+TASK5_ORACLE_CONVERGENCE_GRAMMAR_BYPASSES = (
+    ("categorical_rule", {"rule": "ferromagnetic"}),
+    ("expression_rule", {"rule": "value ** 2 + 1"}),
+    ("benchmark_selector", {"selector": {"synthetic_benchmark": 1.25}}),
+    ("proof_kind_alias", {"proofKind": "caller_expression"}),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, mutation",
+    TASK5_ORACLE_CONVERGENCE_GRAMMAR_BYPASSES,
+    ids=tuple(
+        case[0] for case in TASK5_ORACLE_CONVERGENCE_GRAMMAR_BYPASSES
+    ),
+)
+def test_policy_builder_rejects_oracle_convergence_grammar_bypass(
+    case_name,
+    mutation,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    contract = thaw_json(canonical.convergence_invariant_contract)
+    contract.update(mutation)
+    values["convergence_invariant_contract"] = contract
+    bypass = oracles.OracleDefinition(**values)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="policy|convergence|contract|closed|rule|selector|proof",
+    ):
+        isolation.build_scientific_policy_commitment(
+            bypass, _task5_oracle_closure(), role="oracle"
+        )
+
+
+def test_policy_builder_accepts_closed_oracle_secondary_bound_extension():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = _task5_mutated_oracle("convergence")
+
+    commitment = isolation.build_scientific_policy_commitment(
+        definition, _task5_oracle_closure(), role="oracle"
+    )
+
+    assert commitment.definition_id == definition.oracle_id
 
 
 def _task5_unrelated_adapter_definition():
