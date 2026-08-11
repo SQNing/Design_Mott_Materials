@@ -3835,10 +3835,14 @@ def _numeric_expression_state(
                     _InfrastructureNumericProvenance.
                     UNAPPROVED_COMPARISON
                 )
-        elif isinstance(candidate, (ast.NamedExpr, ast.Starred)):
+        elif isinstance(candidate, ast.NamedExpr):
             state = states.get(
                 id(candidate.value), _InfrastructureNumericProvenance.NONE
             )
+        elif isinstance(candidate, ast.Starred):
+            state = states.get(
+                id(candidate.value), _InfrastructureNumericProvenance.NONE
+            ) | _InfrastructureNumericProvenance.UNKNOWN
         else:
             state = child_state
         states[id(candidate)] = state
@@ -4539,42 +4543,89 @@ def _numeric_binding_result_states(
             "infrastructure binding target is unsupported"
         )
 
-    # A source descriptor is ``(state, expression, exact_elements)``.
-    # ``exact_elements`` is non-None only for a syntactically exact sequence
-    # or for the synthetic pair/list produced by enumerate/starred binding.
+    # A source descriptor is ``(state, expression, elements, exactness)``.
+    # Exactness keeps ordinary opaque values distinct from exact sequences,
+    # exact synthetic scalars, and invalid source-side star expansion.
+    opaque_source = "opaque"
+    exact_source = "exact"
+    invalid_source = "invalid"
+
+    def has_starred_sequence_expansion(expression: ast.AST) -> bool:
+        pending = [expression]
+        steps = 0
+        while pending:
+            candidate = pending.pop()
+            if not isinstance(candidate, (ast.List, ast.Tuple)):
+                continue
+            for element in candidate.elts:
+                steps += 1
+                if steps > _INFRASTRUCTURE_AST_NODE_LIMIT:
+                    raise _ContractError(
+                        "infrastructure binding source exceeds its bound"
+                    )
+                if isinstance(element, ast.Starred):
+                    return True
+                if isinstance(element, (ast.List, ast.Tuple)):
+                    pending.append(element)
+        return False
+
     def expression_source(expression: ast.AST, state=None):
+        exactness = opaque_source
+        if isinstance(expression, (ast.List, ast.Tuple)):
+            exactness = (
+                invalid_source
+                if any(
+                    isinstance(element, ast.Starred)
+                    for element in expression.elts
+                )
+                else exact_source
+            )
         return (
             expression_state(expression) if state is None else state,
             expression,
             None,
+            exactness,
         )
 
-    def fixed_source(state):
-        return state, None, None
+    def fixed_source(state, exactness):
+        return state, None, None, exactness
 
-    def exact_elements(descriptor):
-        _state, expression, elements = descriptor
+    def source_elements(descriptor):
+        _state, expression, elements, exactness = descriptor
+        if exactness != exact_source:
+            return exactness, None
         if elements is not None:
-            return elements
+            return exactness, elements
         if not isinstance(expression, (ast.List, ast.Tuple)):
-            return None
-        if any(isinstance(element, ast.Starred) for element in expression.elts):
-            return None
-        return tuple(expression_source(element) for element in expression.elts)
+            return exactness, None
+        return exactness, tuple(
+            expression_source(element) for element in expression.elts
+        )
 
     def sequence_source(elements):
         state = _InfrastructureNumericProvenance.NONE
         for element in elements:
             state |= element[0]
-        return state, None, tuple(elements)
+        return state, None, tuple(elements), exact_source
 
     unknown_source = fixed_source(
-        _InfrastructureNumericProvenance.UNKNOWN
+        _InfrastructureNumericProvenance.UNKNOWN,
+        opaque_source,
     )
     structural_source = fixed_source(
-        _InfrastructureNumericProvenance.STRUCTURAL_INDEX_OR_BOUND
+        _InfrastructureNumericProvenance.STRUCTURAL_INDEX_OR_BOUND,
+        exact_source,
     )
     root_source = expression_source(source, source_state)
+    structural_unpack = isinstance(target, (ast.List, ast.Tuple, ast.Starred))
+    if (
+        binding_kind == "for"
+        or binding_kind in {"assignment", "augmented_assignment"}
+        and structural_unpack
+    ) and has_starred_sequence_expansion(source):
+        raise _ContractError(
+            "infrastructure exact binding source expansion is unsupported"
+        )
     if binding_kind in {"assignment", "augmented_assignment"}:
         source_variants = (root_source,)
     elif binding_kind in {"with", "async_for"}:
@@ -4616,18 +4667,41 @@ def _numeric_binding_result_states(
         if exact_range:
             source_variants = (structural_source,)
         elif exact_enumerate:
+            if has_starred_sequence_expansion(source.args[0]):
+                raise _ContractError(
+                    "infrastructure exact binding source expansion is "
+                    "unsupported"
+                )
             item_source = expression_source(source.args[0])
-            item_variants = exact_elements(item_source)
-            if item_variants is None:
+            item_kind, item_variants = source_elements(item_source)
+            if item_kind == invalid_source:
+                raise _ContractError(
+                    "infrastructure exact binding source expansion is "
+                    "unsupported"
+                )
+            if item_kind == opaque_source:
                 item_variants = (unknown_source,)
+            elif item_variants is None:
+                raise _ContractError(
+                    "infrastructure exact binding source shape is invalid"
+                )
             source_variants = tuple(
                 sequence_source((structural_source, item_variant))
                 for item_variant in item_variants
             )
         else:
-            source_variants = exact_elements(root_source)
-            if source_variants is None:
+            source_kind, source_variants = source_elements(root_source)
+            if source_kind == invalid_source:
+                raise _ContractError(
+                    "infrastructure exact binding source expansion is "
+                    "unsupported"
+                )
+            if source_kind == opaque_source:
                 source_variants = (unknown_source,)
+            elif source_variants is None:
+                raise _ContractError(
+                    "infrastructure exact binding source shape is invalid"
+                )
     else:
         raise _ContractError(
             "infrastructure binding provenance kind is unsupported"
@@ -4653,46 +4727,60 @@ def _numeric_binding_result_states(
             continue
         if isinstance(candidate, (ast.List, ast.Tuple)):
             target_elements = tuple(candidate.elts)
-            source_elements = exact_elements(descriptor)
+            source_kind, exact_elements = source_elements(descriptor)
             starred_indices = tuple(
                 index
                 for index, element in enumerate(target_elements)
                 if isinstance(element, ast.Starred)
             )
-            pairs = None
-            if source_elements is not None and not starred_indices:
-                if len(target_elements) == len(source_elements):
-                    pairs = tuple(zip(target_elements, source_elements))
+            if source_kind == invalid_source:
+                raise _ContractError(
+                    "infrastructure exact binding source expansion is "
+                    "unsupported"
+                )
+            if source_kind == opaque_source:
+                pairs = tuple(
+                    (element, unknown_source)
+                    for element in target_elements
+                )
+            elif exact_elements is None:
+                raise _ContractError(
+                    "infrastructure exact binding source shape is invalid"
+                )
+            elif not starred_indices:
+                if len(target_elements) != len(exact_elements):
+                    raise _ContractError(
+                        "infrastructure exact binding arity is invalid"
+                    )
+                pairs = tuple(zip(target_elements, exact_elements))
             elif (
-                source_elements is not None
-                and len(starred_indices) == 1
-                and len(source_elements) >= len(target_elements) - 1
+                len(starred_indices) == 1
+                and len(exact_elements) >= len(target_elements) - 1
             ):
                 starred_index = starred_indices[0]
                 suffix_length = len(target_elements) - starred_index - 1
-                middle_end = len(source_elements) - suffix_length
+                middle_end = len(exact_elements) - suffix_length
                 pairs = tuple(
                     zip(
                         target_elements[:starred_index],
-                        source_elements[:starred_index],
+                        exact_elements[:starred_index],
                     )
                 ) + (
                     (
                         target_elements[starred_index],
                         sequence_source(
-                            source_elements[starred_index:middle_end]
+                            exact_elements[starred_index:middle_end]
                         ),
                     ),
                 ) + tuple(
                     zip(
                         target_elements[starred_index + 1:],
-                        source_elements[middle_end:],
+                        exact_elements[middle_end:],
                     )
                 )
-            if pairs is None:
-                pairs = tuple(
-                    (element, unknown_source)
-                    for element in target_elements
+            else:
+                raise _ContractError(
+                    "infrastructure exact starred binding arity is invalid"
                 )
             pending.extend(reversed(pairs))
             continue

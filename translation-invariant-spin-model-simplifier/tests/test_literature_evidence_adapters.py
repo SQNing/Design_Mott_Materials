@@ -11868,6 +11868,237 @@ def test_infrastructure_builder_allows_exact_binding_element_provenance(
 
 
 @pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "exact_assignment_too_few",
+            "    left, right = (value,)\n"
+            "    return value\n",
+        ),
+        (
+            "exact_assignment_too_many",
+            "    left, right = (value, value, value)\n"
+            "    return value\n",
+        ),
+        (
+            "exact_starred_assignment_below_minimum",
+            "    left, *middle, right = (value,)\n"
+            "    return value\n",
+        ),
+        (
+            "nested_exact_tuple_mismatch",
+            "    ((left, right),) = ((value,),)\n"
+            "    return value\n",
+        ),
+        (
+            "nested_exact_list_mismatch",
+            "    [[left, right], tail] = [[value], value]\n"
+            "    return value\n",
+        ),
+        (
+            "exact_for_element_mismatch",
+            "    for left, right in ((value,),):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "mixed_exact_for_element_mismatch",
+            "    for left, right in (\n"
+            "        (value, value), (value,)\n"
+            "    ):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "enumerate_target_too_many",
+            "    for index, element, extra in enumerate([value]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "enumerate_target_too_few",
+            "    for (only,) in enumerate([value]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "enumerate_starred_target_below_minimum",
+            "    for index, *middle, element, extra in enumerate([value]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "range_target_mismatch",
+            "    for left, right in range(len(value)):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "tuple_source_starred_unpack",
+            "    left, right = (*value,)\n"
+            "    return value\n",
+        ),
+        (
+            "list_source_starred_unpack",
+            "    [left, right] = [*value]\n"
+            "    return value\n",
+        ),
+        (
+            "nested_source_starred_unpack",
+            "    ((left, right),) = ((*value,),)\n"
+            "    return value\n",
+        ),
+        (
+            "exact_for_nested_source_star",
+            "    for left, right in ((*value,),):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "exact_for_top_level_source_star",
+            "    for item in (*value,):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "source_star_mutation_laundering",
+            "    expanded = (*value,)\n"
+            "    value.factor = expanded\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_invalid_exact_binding_shapes(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|numeric|binding|provenance|shape|exact|"
+            "unsupported|mismatch|unknown|mutation"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "matching_tuple_assignment",
+            "    left, right = (value, value)\n"
+            "    return value\n",
+        ),
+        (
+            "matching_list_assignment",
+            "    [left, right] = [value, value]\n"
+            "    return value\n",
+        ),
+        (
+            "starred_target_zero_middle",
+            "    left, *middle, right = (value, value)\n"
+            "    return value\n",
+        ),
+        (
+            "starred_target_one_middle",
+            "    left, *middle, right = (value, value, value)\n"
+            "    return value\n",
+        ),
+        (
+            "starred_target_many_middle",
+            "    left, *middle, right = (\n"
+            "        value, value, value, value\n"
+            "    )\n"
+            "    return value\n",
+        ),
+        (
+            "matching_nested_tuple",
+            "    ((left, right),) = ((value, value),)\n"
+            "    return value\n",
+        ),
+        (
+            "matching_nested_list",
+            "    [[left, right], tail] = [[value, value], value]\n"
+            "    return value\n",
+        ),
+        (
+            "matching_exact_for",
+            "    for left, right in ((value, value),):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "matching_starred_exact_for",
+            "    for left, *middle, right in (\n"
+            "        (value, value),\n"
+            "        (value, value, value),\n"
+            "        (value, value, value, value),\n"
+            "    ):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "matching_enumerate",
+            "    for index, element in enumerate([value]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "matching_range",
+            "    for index in range(len(value)):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "unused_opaque_unpack",
+            "    left, right = value\n"
+            "    return value\n",
+        ),
+        (
+            "unused_opaque_for_item",
+            "    for item in value:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "unused_opaque_for_unpack",
+            "    for left, right in value:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_valid_or_opaque_binding_shapes(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
     "mutation_statement",
     (
         "    value.factor += value\n",
