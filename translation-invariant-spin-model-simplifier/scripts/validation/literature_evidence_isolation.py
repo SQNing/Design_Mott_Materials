@@ -3679,6 +3679,35 @@ def _numeric_expression_state(
             exact_builtin = (
                 call_name is not None and call_name not in global_names
             )
+            replaces_argument_state = (
+                project_function is not None
+                or exact_builtin
+                and candidate.func.id == "len"
+                and _numeric_permission(
+                    purpose, "builtins.len", "call_result"
+                )
+                or exact_builtin
+                and candidate.func.id in {"range", "enumerate"}
+                and _numeric_permission(
+                    purpose,
+                    f"builtins.{candidate.func.id}",
+                    "iterator_result",
+                )
+                or call_name in approved_project_classes
+            )
+            if (
+                replaces_argument_state
+                and argument_state
+                & (
+                    _InfrastructureNumericProvenance.COMPARISON_RESULT
+                    | _InfrastructureNumericProvenance.
+                    UNAPPROVED_COMPARISON
+                )
+            ):
+                raise _ContractError(
+                    "infrastructure comparison-bearing call input "
+                    "violates its purpose"
+                )
             if project_function is not None:
                 callee_name, callee_node = project_function
                 if evaluated_project_calls is not None:

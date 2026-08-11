@@ -11167,6 +11167,7 @@ def test_infrastructure_builder_rejects_mixed_none_and_len_control(
         "value is None",
         "value is not None",
         "len(value)",
+        "len([value])",
     ),
 )
 def test_infrastructure_builder_allows_exact_none_or_len_control(
@@ -11215,6 +11216,100 @@ def test_infrastructure_builder_rejects_imported_len_comparison_control(
     with pytest.raises(
         AdapterContractError,
         match="infrastructure|numeric|comparison|control|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "len_list",
+            "",
+            "    if len([value is None]) != 64:\n"
+            "        return None\n"
+            "    return value\n",
+        ),
+        (
+            "len_nested_tuple",
+            "",
+            "    if len(((value is None,),)) != 64:\n"
+            "        return None\n"
+            "    return value\n",
+        ),
+        (
+            "len_nested_dict",
+            "",
+            '    if len({"nested": [value is None]}) != 64:\n'
+            "        return None\n"
+            "    return value\n",
+        ),
+        (
+            "range_argument",
+            "",
+            "    for index in range(value is None):\n"
+            "        value[index]\n"
+            "    return value\n",
+        ),
+        (
+            "enumerate_argument",
+            "",
+            "    for index, item in enumerate([value is None]):\n"
+            "        value[index]\n"
+            "    return value\n",
+        ),
+        (
+            "index_helper",
+            "",
+            "    return value[len([value is None])]\n",
+        ),
+        (
+            "bound_helper",
+            "",
+            '    return value[:len({"nested": value is None})]\n',
+        ),
+        (
+            "approved_constructor",
+            "class Transport:\n"
+            "    pass\n",
+            "    return Transport(value is None)\n",
+        ),
+        (
+            "project_helper_argument",
+            "def ignore(item):\n"
+            "    return None\n",
+            "    return ignore(value is None)\n",
+        ),
+        (
+            "project_helper_result",
+            "def boxed(item):\n"
+            "    return [item is None]\n",
+            "    if len(boxed(value)) != 64:\n"
+            "        return None\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_comparison_bearing_call_inputs(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|provenance|purpose",
     ):
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
