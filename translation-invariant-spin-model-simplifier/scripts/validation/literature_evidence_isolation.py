@@ -3342,6 +3342,7 @@ class _InfrastructureNumericProvenance(IntFlag):
     CALLABLE_TRANSPORT = 64
     COMPARISON_RESULT = 128
     FROZEN_THRESHOLD_COMPARISON = 256
+    UNAPPROVED_COMPARISON = 512
 
 
 _NUMERIC_LITERAL_PROVENANCE = (
@@ -3369,6 +3370,11 @@ _INFRASTRUCTURE_NUMERIC_PERMISSIONS = frozenset(
             "contract_validation",
             "builtins.len",
             "control_comparison",
+        ),
+        (
+            "contract_validation",
+            "identity.none",
+            "if_expression_test",
         ),
         (
             "contract_validation",
@@ -3790,6 +3796,11 @@ def _numeric_expression_state(
                     _InfrastructureNumericProvenance.
                     FROZEN_THRESHOLD_COMPARISON
                 )
+            else:
+                state |= (
+                    _InfrastructureNumericProvenance.
+                    UNAPPROVED_COMPARISON
+                )
         elif isinstance(candidate, (ast.NamedExpr, ast.Starred)):
             state = states.get(
                 id(candidate.value), _InfrastructureNumericProvenance.NONE
@@ -4025,6 +4036,38 @@ def _is_frozen_threshold_comparison(
     )
 
 
+def _is_input_none_identity_comparison(
+    node: ast.AST,
+    state: _InfrastructureNumericProvenance,
+) -> bool:
+    if not (
+        isinstance(node, ast.Compare)
+        and len(node.ops) == 1
+        and isinstance(node.ops[0], (ast.Is, ast.IsNot))
+        and len(node.comparators) == 1
+    ):
+        return False
+    operands = (node.left, node.comparators[0])
+    if not (
+        sum(
+            isinstance(operand, ast.Constant)
+            and operand.value is None
+            for operand in operands
+        )
+        == 1
+        and any(isinstance(operand, ast.Name) for operand in operands)
+    ):
+        return False
+    permitted_state = (
+        _InfrastructureNumericProvenance.INPUT_OR_POLICY
+        | _InfrastructureNumericProvenance.COMPARISON_RESULT
+        | _InfrastructureNumericProvenance.UNAPPROVED_COMPARISON
+    )
+    return bool(
+        state & _InfrastructureNumericProvenance.INPUT_OR_POLICY
+    ) and not bool(state & ~permitted_state)
+
+
 def _numeric_frozen_threshold_names(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> frozenset[str]:
@@ -4077,6 +4120,11 @@ def _validate_numeric_return_sink(
             and state
             & _InfrastructureNumericProvenance.
             FROZEN_THRESHOLD_COMPARISON
+            and not bool(
+                state
+                & _InfrastructureNumericProvenance.
+                UNAPPROVED_COMPARISON
+            )
             and _numeric_permission(
                 purpose,
                 "frozen_policy.threshold",
@@ -4116,27 +4164,54 @@ def _validate_numeric_control_sink(
     *,
     position: str,
 ) -> None:
-    if (
-        state
-        & _InfrastructureNumericProvenance.FROZEN_THRESHOLD_COMPARISON
-    ):
-        if (
-            not bool(
-                state
-                & (
-                    _NUMERIC_LITERAL_PROVENANCE
-                    | _InfrastructureNumericProvenance.UNKNOWN
+    if state & _InfrastructureNumericProvenance.COMPARISON_RESULT:
+        if state & (
+            _InfrastructureNumericProvenance.
+            FROZEN_THRESHOLD_COMPARISON
+        ):
+            if (
+                not bool(
+                    state
+                    & (
+                        _NUMERIC_LITERAL_PROVENANCE
+                        | _InfrastructureNumericProvenance.UNKNOWN
+                        | _InfrastructureNumericProvenance.
+                        UNAPPROVED_COMPARISON
+                    )
                 )
+                and _numeric_permission(
+                    purpose,
+                    "frozen_policy.threshold",
+                    position,
+                )
+            ):
+                return
+            raise _ContractError(
+                "infrastructure numeric threshold control "
+                "violates its purpose"
             )
+        if (
+            _is_input_none_identity_comparison(node, state)
             and _numeric_permission(
                 purpose,
-                "frozen_policy.threshold",
+                "identity.none",
                 position,
             )
         ):
             return
+        if (
+            not bool(
+                state & _InfrastructureNumericProvenance.UNKNOWN
+            )
+            and state
+            & _InfrastructureNumericProvenance.STRUCTURAL_CARDINALITY
+            and _numeric_permission(
+                purpose, "builtins.len", "control_comparison"
+            )
+        ):
+            return
         raise _ContractError(
-            "infrastructure numeric threshold control violates its purpose"
+            "infrastructure comparison control violates its purpose"
         )
     if state & _InfrastructureNumericProvenance.UNKNOWN:
         raise _ContractError(
@@ -4151,15 +4226,6 @@ def _validate_numeric_control_sink(
         )
     ):
         return
-    if (
-        isinstance(node, ast.Compare)
-        and state
-        & _InfrastructureNumericProvenance.STRUCTURAL_CARDINALITY
-        and _numeric_permission(
-            purpose, "builtins.len", "control_comparison"
-        )
-    ):
-        return
     raise _ContractError(
         "infrastructure numeric control violates its purpose"
     )
@@ -4171,7 +4237,30 @@ def _validate_numeric_general_sink(
     *,
     position: str,
 ) -> None:
-    del purpose, position
+    if state & _InfrastructureNumericProvenance.COMPARISON_RESULT:
+        if (
+            state
+            & _InfrastructureNumericProvenance.
+            FROZEN_THRESHOLD_COMPARISON
+            and not bool(
+                state
+                & (
+                    _InfrastructureNumericProvenance.
+                    UNAPPROVED_COMPARISON
+                    | _NUMERIC_LITERAL_PROVENANCE
+                    | _InfrastructureNumericProvenance.UNKNOWN
+                )
+            )
+            and _numeric_permission(
+                purpose,
+                "frozen_policy.threshold",
+                position,
+            )
+        ):
+            return
+        raise _ContractError(
+            "infrastructure comparison provenance violates its purpose"
+        )
     if state & _InfrastructureNumericProvenance.UNKNOWN:
         raise _ContractError(
             "infrastructure unknown expression provenance violates its purpose"
@@ -4187,6 +4276,10 @@ def _validate_numeric_index_sink(
     node: ast.AST,
     purpose: str,
 ) -> None:
+    if state & _InfrastructureNumericProvenance.COMPARISON_RESULT:
+        raise _ContractError(
+            "infrastructure comparison index provenance violates its purpose"
+        )
     if not bool(
         state
         & (

@@ -11008,6 +11008,124 @@ def test_infrastructure_builder_scans_helper_call_in_mutation_target_base(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+@pytest.mark.parametrize(
+    "root_name",
+    ("validate_failure", "derive_convergence_decision"),
+)
+def test_infrastructure_builder_rejects_bare_frozen_comparison_expression(
+    tmp_path,
+    root_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    root_body = (
+        '    threshold = value["frozen_policy"]["threshold"]\n'
+        '    result = value["result"]\n'
+        "    result <= threshold\n"
+        "    return value\n"
+    )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={root_name: root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, return_expression",
+    (
+        (
+            "boolean_and",
+            "(result <= threshold) and (left == right)",
+        ),
+        (
+            "boolean_or",
+            "(left == right) or (result <= threshold)",
+        ),
+        (
+            "if_expression_branches",
+            "(result <= threshold) if choice else (left == right)",
+        ),
+        (
+            "tuple_wrapper",
+            "(result <= threshold, left == right)",
+        ),
+        (
+            "list_wrapper",
+            "[result <= threshold, left == right]",
+        ),
+        (
+            "dict_wrapper",
+            '{"frozen": result <= threshold, "other": left == right}',
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_mixed_proof_comparisons(
+    tmp_path,
+    case_name,
+    return_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    root_body = (
+        '    threshold = value["frozen_policy"]["threshold"]\n'
+        '    result = value["result"]\n'
+        '    left = value["left"]\n'
+        '    right = value["right"]\n'
+        '    choice = value["choice"]\n'
+        f"    return {return_expression}\n"
+    )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"derive_convergence_decision": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|threshold|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_rejects_mixed_proof_comparisons_through_call(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "def carry(*items):\n"
+                "    return items\n"
+            )
+        },
+        body_by_root={
+            "derive_convergence_decision": (
+                '    threshold = value["frozen_policy"]["threshold"]\n'
+                '    result = value["result"]\n'
+                '    left = value["left"]\n'
+                '    right = value["right"]\n'
+                "    return carry(\n"
+                "        result <= threshold, left == right\n"
+                "    )\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|threshold|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 def test_infrastructure_builder_allows_small_integer_protocol_control(
     tmp_path,
 ):
