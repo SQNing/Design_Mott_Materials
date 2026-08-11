@@ -7,11 +7,13 @@ process, capsule, or scientific operation at import time or during validation.
 
 from __future__ import annotations
 
+import ast
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 import hashlib
 import json
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+import re
 from validation import literature_evidence_adapters as _adapters
 from validation import literature_evidence_adapter_oracles as _oracles
 from validation.literature_evidence_adapters import (
@@ -61,6 +63,11 @@ __all__ = (
     "FAILURE_REASON_CODES",
     "validate_authority_context",
     "make_worker_request",
+    "build_scientific_closure",
+    "build_scientific_policy_commitment",
+    "build_infrastructure_closure",
+    "assert_disjoint_scientific_closures",
+    "assert_complete_dependency_partition",
     "scientific_policy_combined_sha256",
     "validate_failure",
 )
@@ -1159,6 +1166,1758 @@ class InfrastructureClosure:
             _snapshot_json(self.purpose_bindings, "purpose_bindings"),
         )
         _require_sha256(self.bundle_sha256, "bundle_sha256")
+
+
+_AST_CLOSURE_VERSION = "deterministic_ast_closure_v1"
+_POLICY_STRUCTURE_SCAN_VERSION = "task5_policy_structure_scan_v1"
+_AST_NODE_FIELDS = frozenset(
+    {
+        "relative_path",
+        "raw_file_sha256",
+        "node_kind",
+        "qualified_name",
+        "source_span_sha256",
+        "emitted_node_sha256",
+        "dependency_edges",
+        "scanner_version",
+    }
+)
+_AST_NODE_KINDS = frozenset(
+    {"import", "immutable_constant", "function", "class"}
+)
+_ENTRY_SYMBOL_PATTERN = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+"
+    r":[A-Za-z_][A-Za-z0-9_]*$"
+)
+_QUALIFIED_NODE_PATTERN = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$"
+)
+_SAFE_AST_BUILTINS = frozenset(
+    {
+        "abs",
+        "all",
+        "any",
+        "bool",
+        "bytes",
+        "complex",
+        "dict",
+        "divmod",
+        "enumerate",
+        "filter",
+        "float",
+        "frozenset",
+        "int",
+        "isinstance",
+        "issubclass",
+        "iter",
+        "len",
+        "list",
+        "map",
+        "max",
+        "min",
+        "next",
+        "object",
+        "pow",
+        "range",
+        "reversed",
+        "round",
+        "set",
+        "slice",
+        "sorted",
+        "str",
+        "sum",
+        "tuple",
+        "type",
+        "zip",
+    }
+)
+_SAFE_EXTERNAL_IMPORT_PREFIXES = (
+    "cmath",
+    "decimal",
+    "fractions",
+    "functools",
+    "itertools",
+    "math",
+    "numpy",
+    "operator",
+    "scipy",
+    "statistics",
+)
+_FORBIDDEN_DYNAMIC_CALLS = frozenset(
+    {
+        "__import__",
+        "compile",
+        "delattr",
+        "dir",
+        "eval",
+        "exec",
+        "getattr",
+        "globals",
+        "hasattr",
+        "locals",
+        "open",
+        "setattr",
+        "vars",
+    }
+)
+_COMMITTED_DATA_TARGETS = {
+    "ADAPTER_ELIGIBILITY": (
+        "committed_data:validation.literature_evidence_adapters."
+        "ADAPTER_ELIGIBILITY"
+    ),
+    "ADAPTER_DEFINITIONS": (
+        "committed_data:validation.literature_evidence_adapters."
+        "ADAPTER_DEFINITIONS"
+    ),
+    "ORACLE_DEFINITIONS": (
+        "committed_data:"
+        "validation.literature_evidence_adapter_oracles."
+        "ORACLE_DEFINITIONS"
+    ),
+}
+_COMMITTED_DATA_EDGES = frozenset(_COMMITTED_DATA_TARGETS.values())
+_COMMITTED_DATA_OWNERS = {
+    (
+        "validation.literature_evidence_adapters",
+        "ADAPTER_ELIGIBILITY",
+    ): _COMMITTED_DATA_TARGETS["ADAPTER_ELIGIBILITY"],
+    (
+        "validation.literature_evidence_adapters",
+        "ADAPTER_DEFINITIONS",
+    ): _COMMITTED_DATA_TARGETS["ADAPTER_DEFINITIONS"],
+    (
+        "validation.literature_evidence_adapter_oracles",
+        "ORACLE_DEFINITIONS",
+    ): _COMMITTED_DATA_TARGETS["ORACLE_DEFINITIONS"],
+}
+_BARE_COMMITTED_DATA_USERS = {
+    (
+        "validation.literature_evidence_isolation."
+        "_run_isolated_recomputation_core",
+        name,
+    ): destination
+    for name, destination in _COMMITTED_DATA_TARGETS.items()
+}
+_COMMITTED_DATA_ROOT = (
+    "validation.literature_evidence_isolation."
+    "_run_isolated_recomputation_core"
+)
+_EXPECTED_COMMITTED_DATA_EDGES = frozenset(
+    (_COMMITTED_DATA_ROOT, destination)
+    for destination in _COMMITTED_DATA_EDGES
+)
+
+
+@dataclass(frozen=True)
+class _AstSourceNode:
+    module_name: str
+    relative_path: str
+    raw_file_sha256: str
+    node: ast.AST
+    node_kind: str
+    qualified_name: str
+    bound_names: tuple[str, ...]
+    source_span: bytes
+    import_module: str | None = None
+
+
+@dataclass(frozen=True)
+class _ProjectSymbolImport:
+    target_module: str
+    target_symbol: str
+    local_name: str
+
+
+@dataclass(frozen=True)
+class _ProjectModuleImport:
+    target_module: str
+    local_name: str
+
+
+@dataclass
+class _AstModuleIndex:
+    module_name: str
+    relative_path: str
+    raw_bytes: bytes
+    raw_file_sha256: str
+    bindings: dict[str, object]
+
+
+@dataclass(frozen=True)
+class _ResolvedAstNode:
+    source: _AstSourceNode
+    dependencies: tuple[str, ...]
+
+
+def _assert_no_symlink_components(path: Path, field_name: str) -> None:
+    absolute = path.absolute()
+    current = Path(absolute.anchor)
+    try:
+        for component in absolute.parts[1:]:
+            current /= component
+            if current.is_symlink():
+                raise _ContractError(
+                    f"{field_name} cannot contain a symlink component"
+                )
+    except OSError as error:
+        raise _ContractError(
+            f"{field_name} cannot be inspected without following symlinks"
+        ) from error
+
+
+def _normalize_source_roots(source_roots: object) -> tuple[Path, ...]:
+    if type(source_roots) is not tuple or not source_roots:
+        raise _ContractError("source_roots must be a nonempty exact tuple")
+    normalized = []
+    for index, item in enumerate(source_roots):
+        if not isinstance(item, (str, Path)):
+            raise _ContractError(
+                f"source_roots[{index}] must be a filesystem path"
+            )
+        supplied_root = Path(item)
+        _assert_no_symlink_components(
+            supplied_root, f"source_roots[{index}]"
+        )
+        try:
+            root = supplied_root.resolve(strict=True)
+        except (OSError, RuntimeError) as error:
+            raise _ContractError(
+                f"source_roots[{index}] cannot be resolved"
+            ) from error
+        if not root.is_dir():
+            raise _ContractError(
+                f"source_roots[{index}] must resolve to a directory"
+            )
+        normalized.append(root)
+    if len(set(normalized)) != len(normalized):
+        raise _ContractError("source_roots contains a duplicate")
+    return tuple(normalized)
+
+
+def _validate_entry_symbol(value: object) -> tuple[str, str]:
+    if type(value) is not str or _ENTRY_SYMBOL_PATTERN.fullmatch(value) is None:
+        raise _ContractError(
+            "entry_symbol must be an exact fully qualified module:function"
+        )
+    module_name, symbol_name = value.split(":", 1)
+    return module_name, symbol_name
+
+
+def _normalized_emitted_node(source_span: bytes) -> bytes:
+    normalized = source_span.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return normalized.rstrip(b"\n") + b"\n"
+
+
+def _node_source_span(raw_bytes: bytes, node: ast.AST) -> bytes:
+    if not all(
+        hasattr(node, attribute)
+        for attribute in ("lineno", "col_offset", "end_lineno", "end_col_offset")
+    ):
+        raise _ContractError("AST node has no exact source span")
+    lines = raw_bytes.splitlines(keepends=True)
+    start_line = node.lineno - 1
+    end_line = node.end_lineno - 1
+    if (
+        start_line < 0
+        or end_line < start_line
+        or end_line >= len(lines)
+    ):
+        raise _ContractError("AST node source span lies outside the raw file")
+    line_offsets = []
+    offset = 0
+    for line in lines:
+        line_offsets.append(offset)
+        offset += len(line)
+    start = line_offsets[start_line] + node.col_offset
+    end = line_offsets[end_line] + node.end_col_offset
+    if end <= start or end > len(raw_bytes):
+        raise _ContractError("AST node has an empty or invalid source span")
+    return raw_bytes[start:end]
+
+
+def _resolve_relative_import(
+    current_module: str,
+    imported_module: str | None,
+    level: int,
+) -> str:
+    if level == 0:
+        if not imported_module:
+            raise _ContractError("import has no resolvable module")
+        return imported_module
+    package_parts = current_module.split(".")[:-1]
+    if level > len(package_parts):
+        raise _ContractError("relative import escapes its source package")
+    retained = package_parts[: len(package_parts) - level + 1]
+    if imported_module:
+        retained.extend(imported_module.split("."))
+    if not retained:
+        raise _ContractError("relative import has no resolvable module")
+    return ".".join(retained)
+
+
+class _AstClosureResolver:
+    def __init__(
+        self,
+        source_roots: tuple[Path, ...],
+        *,
+        role: str,
+    ) -> None:
+        self.source_roots = source_roots
+        self.role = role
+        self.module_cache: dict[str, _AstModuleIndex] = {}
+        self.resolved: dict[str, _ResolvedAstNode] = {}
+        self.visiting: list[str] = []
+
+    def _find_module_path(
+        self, module_name: str, *, required: bool
+    ) -> tuple[Path, Path] | None:
+        relative_path = Path(*module_name.split(".")).with_suffix(".py")
+        matches = []
+        for root in self.source_roots:
+            candidate = root / relative_path
+            current = root
+            for component in relative_path.parts:
+                current /= component
+                if current.is_symlink():
+                    raise _ContractError(
+                        f"source module {module_name} has a symlinked path"
+                    )
+            if candidate.is_file():
+                try:
+                    resolved = candidate.resolve(strict=True)
+                    resolved.relative_to(root)
+                except (OSError, RuntimeError, ValueError) as error:
+                    raise _ContractError(
+                        f"source module {module_name} escapes its source root"
+                    ) from error
+                if candidate.is_symlink():
+                    raise _ContractError(
+                        f"source module {module_name} cannot be a symlink"
+                    )
+                matches.append((candidate, root))
+        if len(matches) > 1:
+            raise _ContractError(
+                f"source module {module_name} is ambiguous across source_roots"
+            )
+        if not matches:
+            if required:
+                raise _ContractError(
+                    f"source module {module_name} cannot be resolved"
+                )
+            return None
+        return matches[0]
+
+    def _is_project_module(self, module_name: str) -> bool:
+        return self._find_module_path(module_name, required=False) is not None
+
+    def _check_module_role(self, module_name: str) -> None:
+        if self.role == "infrastructure":
+            return
+        leaf = module_name.rsplit(".", 1)[-1]
+        is_oracle = (
+            "adapter_oracles" in leaf
+            or leaf == "oracles"
+            or leaf.endswith("_oracles")
+        )
+        is_adapter = (
+            not is_oracle
+            and (leaf == "adapters" or leaf.endswith("_adapters"))
+        )
+        if self.role == "adapter" and is_oracle:
+            raise _ContractError(
+                "adapter scientific closure cannot contain oracle-module nodes"
+            )
+        if self.role == "oracle" and is_adapter:
+            raise _ContractError(
+                "oracle scientific closure cannot contain adapter-module nodes"
+            )
+
+    def _add_binding(
+        self,
+        bindings: dict[str, object],
+        name: str,
+        value: object,
+        module_name: str,
+    ) -> None:
+        if name in bindings:
+            raise _ContractError(
+                f"source module {module_name} redefines global {name}"
+            )
+        bindings[name] = value
+
+    def _source_node(
+        self,
+        *,
+        module_name: str,
+        relative_path: str,
+        raw_bytes: bytes,
+        raw_file_sha256: str,
+        node: ast.AST,
+        node_kind: str,
+        qualified_name: str,
+        bound_names: tuple[str, ...],
+        import_module: str | None = None,
+    ) -> _AstSourceNode:
+        return _AstSourceNode(
+            module_name=module_name,
+            relative_path=relative_path,
+            raw_file_sha256=raw_file_sha256,
+            node=node,
+            node_kind=node_kind,
+            qualified_name=qualified_name,
+            bound_names=bound_names,
+            source_span=_node_source_span(raw_bytes, node),
+            import_module=import_module,
+        )
+
+    def _index_import(
+        self,
+        module_name: str,
+        relative_path: str,
+        raw_bytes: bytes,
+        raw_file_sha256: str,
+        node: ast.Import | ast.ImportFrom,
+        bindings: dict[str, object],
+    ) -> None:
+        if isinstance(node, ast.Import) and len(node.names) != 1:
+            raise _ContractError(
+                "multi-alias import cannot be statically emitted"
+            )
+        if isinstance(node, ast.ImportFrom) and any(
+            alias.name == "*" for alias in node.names
+        ):
+            raise _ContractError("star import is forbidden in a closure source")
+        if isinstance(node, ast.ImportFrom):
+            target_module = _resolve_relative_import(
+                module_name, node.module, node.level
+            )
+            if self._is_project_module(target_module):
+                for alias in node.names:
+                    local_name = alias.asname or alias.name
+                    if local_name != alias.name:
+                        raise _ContractError(
+                            "project import alias cannot be statically emitted"
+                        )
+                    self._add_binding(
+                        bindings,
+                        local_name,
+                        _ProjectSymbolImport(
+                            target_module, alias.name, local_name
+                        ),
+                        module_name,
+                    )
+                return
+            local_names = tuple(
+                alias.asname or alias.name for alias in node.names
+            )
+            qualified_name = (
+                f"{module_name}.{local_names[0]}"
+                if len(local_names) == 1
+                else (
+                    f"{module_name}.__import_{node.lineno}_"
+                    f"{node.col_offset}"
+                )
+            )
+            source_node = self._source_node(
+                module_name=module_name,
+                relative_path=relative_path,
+                raw_bytes=raw_bytes,
+                raw_file_sha256=raw_file_sha256,
+                node=node,
+                node_kind="import",
+                qualified_name=qualified_name,
+                bound_names=local_names,
+                import_module=target_module,
+            )
+            for local_name in local_names:
+                self._add_binding(
+                    bindings, local_name, source_node, module_name
+                )
+            return
+        for alias in node.names:
+            local_name = alias.asname or alias.name.split(".", 1)[0]
+            if self._is_project_module(alias.name):
+                self._add_binding(
+                    bindings,
+                    local_name,
+                    _ProjectModuleImport(alias.name, local_name),
+                    module_name,
+                )
+                continue
+            source_node = self._source_node(
+                module_name=module_name,
+                relative_path=relative_path,
+                raw_bytes=raw_bytes,
+                raw_file_sha256=raw_file_sha256,
+                node=node,
+                node_kind="import",
+                qualified_name=f"{module_name}.{local_name}",
+                bound_names=(local_name,),
+                import_module=alias.name,
+            )
+            self._add_binding(
+                bindings, local_name, source_node, module_name
+            )
+
+    def _load_module(self, module_name: str) -> _AstModuleIndex:
+        if module_name in self.module_cache:
+            return self.module_cache[module_name]
+        self._check_module_role(module_name)
+        located = self._find_module_path(module_name, required=True)
+        if located is None:
+            raise _ContractError(
+                f"source module {module_name} cannot be resolved"
+            )
+        source_path, source_root = located
+        try:
+            raw_bytes = source_path.read_bytes()
+            source = raw_bytes.decode("utf-8")
+            tree = ast.parse(source, filename=str(source_path), mode="exec")
+        except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as error:
+            raise _ContractError(
+                f"source module {module_name} cannot be parsed as UTF-8 Python"
+            ) from error
+        relative_path = source_path.relative_to(source_root).as_posix()
+        raw_file_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+        bindings: dict[str, object] = {}
+        for statement in tree.body:
+            if isinstance(statement, (ast.Import, ast.ImportFrom)):
+                self._index_import(
+                    module_name,
+                    relative_path,
+                    raw_bytes,
+                    raw_file_sha256,
+                    statement,
+                    bindings,
+                )
+                continue
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                source_node = self._source_node(
+                    module_name=module_name,
+                    relative_path=relative_path,
+                    raw_bytes=raw_bytes,
+                    raw_file_sha256=raw_file_sha256,
+                    node=statement,
+                    node_kind="function",
+                    qualified_name=f"{module_name}.{statement.name}",
+                    bound_names=(statement.name,),
+                )
+                self._add_binding(
+                    bindings, statement.name, source_node, module_name
+                )
+                continue
+            if isinstance(statement, ast.ClassDef):
+                source_node = self._source_node(
+                    module_name=module_name,
+                    relative_path=relative_path,
+                    raw_bytes=raw_bytes,
+                    raw_file_sha256=raw_file_sha256,
+                    node=statement,
+                    node_kind="class",
+                    qualified_name=f"{module_name}.{statement.name}",
+                    bound_names=(statement.name,),
+                )
+                self._add_binding(
+                    bindings, statement.name, source_node, module_name
+                )
+                continue
+            assignment_name = None
+            if (
+                isinstance(statement, ast.Assign)
+                and len(statement.targets) == 1
+                and isinstance(statement.targets[0], ast.Name)
+            ):
+                assignment_name = statement.targets[0].id
+            elif (
+                isinstance(statement, ast.AnnAssign)
+                and isinstance(statement.target, ast.Name)
+                and statement.value is not None
+            ):
+                assignment_name = statement.target.id
+            if assignment_name is not None:
+                source_node = self._source_node(
+                    module_name=module_name,
+                    relative_path=relative_path,
+                    raw_bytes=raw_bytes,
+                    raw_file_sha256=raw_file_sha256,
+                    node=statement,
+                    node_kind="immutable_constant",
+                    qualified_name=f"{module_name}.{assignment_name}",
+                    bound_names=(assignment_name,),
+                )
+                self._add_binding(
+                    bindings, assignment_name, source_node, module_name
+                )
+                continue
+            if (
+                isinstance(statement, ast.Expr)
+                and isinstance(statement.value, ast.Constant)
+                and type(statement.value.value) is str
+            ):
+                continue
+            if isinstance(statement, (ast.AugAssign, ast.Delete)):
+                raise _ContractError(
+                    f"source module {module_name} mutates module state"
+                )
+            raise _ContractError(
+                f"source module {module_name} has unsupported top-level code"
+            )
+        indexed = _AstModuleIndex(
+            module_name=module_name,
+            relative_path=relative_path,
+            raw_bytes=raw_bytes,
+            raw_file_sha256=raw_file_sha256,
+            bindings=bindings,
+        )
+        self.module_cache[module_name] = indexed
+        return indexed
+
+    def _validate_external_import(self, source: _AstSourceNode) -> None:
+        module_name = source.import_module or ""
+        if not any(
+            module_name == prefix or module_name.startswith(prefix + ".")
+            for prefix in _SAFE_EXTERNAL_IMPORT_PREFIXES
+        ):
+            raise _ContractError(
+                f"external import {module_name} is not approved"
+            )
+
+    def _validate_no_dynamic_constructs(self, node: ast.AST) -> None:
+        for candidate in ast.walk(node):
+            if isinstance(
+                candidate,
+                (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp),
+            ):
+                raise _ContractError(
+                    "comprehension scope cannot be statically emitted"
+                )
+            if candidate is not node and isinstance(
+                candidate,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
+            ):
+                raise _ContractError(
+                    "runtime closure or nested definition is forbidden"
+                )
+            if isinstance(
+                candidate,
+                (ast.Global, ast.Nonlocal, ast.Yield, ast.YieldFrom, ast.Await),
+            ):
+                raise _ContractError(
+                    "runtime closure or mutable runtime state is forbidden"
+                )
+            if isinstance(candidate, (ast.Import, ast.ImportFrom)):
+                raise _ContractError("imports must be top-level and static")
+            if isinstance(candidate, ast.Call):
+                if (
+                    isinstance(candidate.func, ast.Name)
+                    and candidate.func.id in _FORBIDDEN_DYNAMIC_CALLS
+                ):
+                    raise _ContractError(
+                        "dynamic resolution or source evaluation is forbidden"
+                    )
+                if isinstance(candidate.func, ast.Attribute) and (
+                    candidate.func.attr
+                    in {"import_module", "reload", "eval", "exec"}
+                ):
+                    raise _ContractError(
+                        "dynamic resolution or source evaluation is forbidden"
+                    )
+
+    def _function_loaded_globals(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> set[str]:
+        if isinstance(node, ast.AsyncFunctionDef):
+            raise _ContractError("asynchronous scientific functions are forbidden")
+        if node.decorator_list:
+            raise _ContractError("function decorators are forbidden")
+        self._validate_no_dynamic_constructs(node)
+        local_names = {
+            argument.arg
+            for argument in (
+                tuple(node.args.posonlyargs)
+                + tuple(node.args.args)
+                + tuple(node.args.kwonlyargs)
+            )
+        }
+        if node.args.vararg is not None:
+            local_names.add(node.args.vararg.arg)
+        if node.args.kwarg is not None:
+            local_names.add(node.args.kwarg.arg)
+        for candidate in ast.walk(node):
+            if isinstance(candidate, ast.Name) and isinstance(
+                candidate.ctx, (ast.Store, ast.Del)
+            ):
+                local_names.add(candidate.id)
+            if isinstance(candidate, ast.ExceptHandler) and candidate.name:
+                local_names.add(candidate.name)
+        return {
+            candidate.id
+            for candidate in ast.walk(node)
+            if isinstance(candidate, ast.Name)
+            and isinstance(candidate.ctx, ast.Load)
+            and candidate.id not in local_names
+        }
+
+    def _validate_immutable_expression(self, value: ast.AST) -> None:
+        allowed = (
+            ast.BinOp,
+            ast.BoolOp,
+            ast.Compare,
+            ast.Constant,
+            ast.Expr,
+            ast.IfExp,
+            ast.Load,
+            ast.Name,
+            ast.Slice,
+            ast.Subscript,
+            ast.Tuple,
+            ast.UnaryOp,
+        )
+        nodes = tuple(ast.walk(value))
+        if len(nodes) > 256 or any(
+            not isinstance(candidate, allowed + (ast.operator, ast.boolop, ast.cmpop, ast.unaryop))
+            for candidate in nodes
+        ):
+            raise _ContractError(
+                "mutable global or unsupported constant initializer"
+            )
+        for candidate in nodes:
+            if isinstance(candidate, ast.Constant) and type(
+                candidate.value
+            ) not in (type(None), bool, int, float, complex, str, bytes):
+                raise _ContractError("constant initializer is not immutable")
+
+    def _constant_loaded_globals(self, source: _AstSourceNode) -> set[str]:
+        node = source.node
+        value = node.value
+        self._validate_immutable_expression(value)
+        return {
+            candidate.id
+            for candidate in ast.walk(value)
+            if isinstance(candidate, ast.Name)
+            and isinstance(candidate.ctx, ast.Load)
+        }
+
+    def _class_loaded_globals(self, node: ast.ClassDef) -> set[str]:
+        if node.decorator_list or any(
+            keyword.arg == "metaclass" for keyword in node.keywords
+        ):
+            raise _ContractError("decorated or metaclass class is forbidden")
+        loaded = set()
+        for expression in tuple(node.bases) + tuple(
+            keyword.value for keyword in node.keywords
+        ):
+            loaded.update(
+                candidate.id
+                for candidate in ast.walk(expression)
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+            )
+        for statement in node.body:
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if statement.name in {"__get__", "__set__", "__delete__"}:
+                    raise _ContractError("descriptor class is forbidden")
+                loaded.update(self._function_loaded_globals(statement))
+                continue
+            if (
+                isinstance(statement, ast.Expr)
+                and isinstance(statement.value, ast.Constant)
+                and type(statement.value.value) is str
+            ) or isinstance(statement, ast.Pass):
+                continue
+            value = None
+            if (
+                isinstance(statement, ast.Assign)
+                and len(statement.targets) == 1
+                and isinstance(statement.targets[0], ast.Name)
+            ):
+                value = statement.value
+            elif (
+                isinstance(statement, ast.AnnAssign)
+                and isinstance(statement.target, ast.Name)
+                and statement.value is not None
+            ):
+                value = statement.value
+            if value is None:
+                raise _ContractError("class contains unsupported descriptor state")
+            self._validate_immutable_expression(value)
+            loaded.update(
+                candidate.id
+                for candidate in ast.walk(value)
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+            )
+        return loaded
+
+    def _loaded_globals(self, source: _AstSourceNode) -> set[str]:
+        if source.node_kind == "import":
+            self._validate_external_import(source)
+            return set()
+        if source.node_kind == "immutable_constant":
+            return self._constant_loaded_globals(source)
+        if source.node_kind == "function":
+            return self._function_loaded_globals(source.node)
+        if source.node_kind == "class":
+            return self._class_loaded_globals(source.node)
+        raise _ContractError("AST source node has unknown kind")
+
+    def _resolve_binding(
+        self,
+        module_name: str,
+        global_name: str,
+        *,
+        source_qualified_name: str | None = None,
+    ) -> str | None:
+        module = self._load_module(module_name)
+        try:
+            binding = module.bindings[global_name]
+        except KeyError as error:
+            if global_name in _SAFE_AST_BUILTINS:
+                return None
+            committed_destination = _BARE_COMMITTED_DATA_USERS.get(
+                (source_qualified_name, global_name)
+            )
+            if self.role == "infrastructure" and (
+                committed_destination is not None
+            ):
+                return committed_destination
+            raise _ContractError(
+                f"unresolved global dependency {module_name}.{global_name}"
+            ) from error
+        if isinstance(binding, _ProjectSymbolImport):
+            if binding.local_name != binding.target_symbol:
+                raise _ContractError(
+                    "project import alias cannot be statically resolved"
+                )
+            committed_destination = _COMMITTED_DATA_OWNERS.get(
+                (binding.target_module, binding.target_symbol)
+            )
+            if self.role == "infrastructure" and (
+                committed_destination is not None
+            ):
+                return committed_destination
+            return self.resolve_symbol(binding.target_module, binding.target_symbol)
+        if isinstance(binding, _ProjectModuleImport):
+            raise _ContractError(
+                "project module alias cannot be statically resolved"
+            )
+        if not isinstance(binding, _AstSourceNode):
+            raise _ContractError("global dependency has an unknown binding")
+        return self._resolve_node(binding)
+
+    def _resolve_node(self, source: _AstSourceNode) -> str:
+        qualified_name = source.qualified_name
+        if qualified_name in self.resolved:
+            return qualified_name
+        if qualified_name in self.visiting:
+            cycle = " -> ".join(self.visiting + [qualified_name])
+            raise _ContractError(f"cyclic initializer or dependency: {cycle}")
+        self._check_module_role(source.module_name)
+        self.visiting.append(qualified_name)
+        try:
+            dependencies = []
+            for global_name in sorted(self._loaded_globals(source)):
+                resolved_name = self._resolve_binding(
+                    source.module_name,
+                    global_name,
+                    source_qualified_name=source.qualified_name,
+                )
+                if resolved_name is not None:
+                    dependencies.append(resolved_name)
+            if len(set(dependencies)) != len(dependencies):
+                raise _ContractError("AST node has duplicate dependency edges")
+            self.resolved[qualified_name] = _ResolvedAstNode(
+                source=source,
+                dependencies=tuple(sorted(dependencies)),
+            )
+        finally:
+            self.visiting.pop()
+        return qualified_name
+
+    def resolve_symbol(self, module_name: str, symbol_name: str) -> str:
+        resolved = self._resolve_binding(module_name, symbol_name)
+        if resolved is None or resolved.startswith("committed_data:"):
+            raise _ContractError("entry/root symbol must resolve to source code")
+        return resolved
+
+
+def _topological_resolved_nodes(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> tuple[_ResolvedAstNode, ...]:
+    pending = set(resolved)
+    ordered = []
+    priority = {
+        "import": 0,
+        "immutable_constant": 1,
+        "class": 2,
+        "function": 3,
+    }
+    while pending:
+        ready = [
+            resolved[name]
+            for name in pending
+            if not (
+                set(resolved[name].dependencies) & pending
+            )
+        ]
+        if not ready:
+            raise _ContractError("closure dependency graph contains a cycle")
+        ready.sort(
+            key=lambda item: (
+                priority[item.source.node_kind],
+                item.source.qualified_name,
+            )
+        )
+        for item in ready:
+            ordered.append(item)
+            pending.remove(item.source.qualified_name)
+    return tuple(ordered)
+
+
+def _assert_no_emitted_binding_collisions(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> None:
+    emitted_bindings = {}
+    for qualified_name, item in resolved.items():
+        for bound_name in item.source.bound_names:
+            previous = emitted_bindings.get(bound_name)
+            if previous is not None and previous != qualified_name:
+                raise _ContractError(
+                    "cross-module emitted binding collision for "
+                    f"{bound_name}"
+                )
+            emitted_bindings[bound_name] = qualified_name
+
+
+def _manifest_from_resolved(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> tuple[tuple[_FrozenJsonObject, ...], tuple[tuple[str, str], ...], bytes]:
+    ordered = _topological_resolved_nodes(resolved)
+    manifests = []
+    emitted_nodes = []
+    all_edges = []
+    for item in ordered:
+        source = item.source
+        emitted_node = _normalized_emitted_node(source.source_span)
+        edges = tuple(
+            (source.qualified_name, dependency)
+            for dependency in item.dependencies
+        )
+        all_edges.extend(edges)
+        manifests.append(
+            _snapshot_json(
+                {
+                    "relative_path": source.relative_path,
+                    "raw_file_sha256": source.raw_file_sha256,
+                    "node_kind": source.node_kind,
+                    "qualified_name": source.qualified_name,
+                    "source_span_sha256": hashlib.sha256(
+                        source.source_span
+                    ).hexdigest(),
+                    "emitted_node_sha256": hashlib.sha256(
+                        emitted_node
+                    ).hexdigest(),
+                    "dependency_edges": edges,
+                    "scanner_version": _AST_CLOSURE_VERSION,
+                },
+                "closure_node",
+            )
+        )
+        emitted_nodes.append(emitted_node)
+    emitted_source = b"\n".join(emitted_nodes)
+    return tuple(manifests), tuple(all_edges), emitted_source
+
+
+def _validate_ast_node_manifest(
+    value: object, field_name: str
+) -> _FrozenJsonObject:
+    node = _exact_keys(value, _AST_NODE_FIELDS, field_name)
+    relative_path = _require_text(
+        node["relative_path"], f"{field_name}.relative_path"
+    )
+    parsed_path = PurePosixPath(relative_path)
+    if (
+        parsed_path.is_absolute()
+        or ".." in parsed_path.parts
+        or str(parsed_path) != relative_path
+    ):
+        raise _ContractError(
+            f"{field_name}.relative_path must be normalized and relative"
+        )
+    _require_sha256(
+        node["raw_file_sha256"], f"{field_name}.raw_file_sha256"
+    )
+    if node["node_kind"] not in _AST_NODE_KINDS:
+        raise _ContractError(f"{field_name}.node_kind is not closed")
+    qualified_name = _require_text(
+        node["qualified_name"], f"{field_name}.qualified_name"
+    )
+    if _QUALIFIED_NODE_PATTERN.fullmatch(qualified_name) is None:
+        raise _ContractError(
+            f"{field_name}.qualified_name must be fully qualified"
+        )
+    _require_sha256(
+        node["source_span_sha256"],
+        f"{field_name}.source_span_sha256",
+    )
+    _require_sha256(
+        node["emitted_node_sha256"],
+        f"{field_name}.emitted_node_sha256",
+    )
+    edges = _require_edge_tuple(
+        node["dependency_edges"], f"{field_name}.dependency_edges"
+    )
+    if any(source != qualified_name for source, _destination in edges):
+        raise _ContractError(
+            f"{field_name}.dependency_edges has a foreign source"
+        )
+    if node["scanner_version"] != _AST_CLOSURE_VERSION:
+        raise _ContractError(f"{field_name}.scanner_version is unknown")
+    return node
+
+
+def _validate_manifest_graph(
+    manifests: tuple[_FrozenJsonObject, ...],
+    *,
+    allow_committed_data: bool,
+) -> None:
+    by_name = {node["qualified_name"]: node for node in manifests}
+    if len(by_name) != len(manifests):
+        raise _ContractError("closure manifest contains duplicate nodes")
+    raw_hash_by_path = {}
+    all_edges = []
+    for node in manifests:
+        qualified_name = node["qualified_name"]
+        module_name = qualified_name.rsplit(".", 1)[0]
+        expected_path = module_name.replace(".", "/") + ".py"
+        if node["relative_path"] != expected_path:
+            raise _ContractError(
+                "closure node path does not match its qualified module"
+            )
+        previous_raw_hash = raw_hash_by_path.setdefault(
+            node["relative_path"], node["raw_file_sha256"]
+        )
+        if previous_raw_hash != node["raw_file_sha256"]:
+            raise _ContractError(
+                "closure nodes from one file disagree on raw file hash"
+            )
+        edges = node["dependency_edges"]
+        if edges != tuple(sorted(edges)) or len(set(edges)) != len(edges):
+            raise _ContractError(
+                "closure node dependency edges are not canonical"
+            )
+        for _source, destination in edges:
+            if destination in by_name:
+                continue
+            if (
+                allow_committed_data
+                and destination in _COMMITTED_DATA_EDGES
+            ):
+                continue
+            raise _ContractError(
+                "closure dependency edge has an uncommitted destination"
+            )
+        all_edges.extend(edges)
+    if len(set(all_edges)) != len(all_edges):
+        raise _ContractError("closure contains duplicate dependency edges")
+
+    priority = {
+        "import": 0,
+        "immutable_constant": 1,
+        "class": 2,
+        "function": 3,
+    }
+    pending = set(by_name)
+    expected_order = []
+    while pending:
+        ready = [
+            by_name[name]
+            for name in pending
+            if not {
+                destination
+                for _source, destination in by_name[name][
+                    "dependency_edges"
+                ]
+                if destination in by_name
+            }
+            & pending
+        ]
+        if not ready:
+            raise _ContractError("closure manifest dependency graph is cyclic")
+        ready.sort(
+            key=lambda node: (
+                priority[node["node_kind"]],
+                node["qualified_name"],
+            )
+        )
+        for node in ready:
+            qualified_name = node["qualified_name"]
+            expected_order.append(qualified_name)
+            pending.remove(qualified_name)
+    supplied_order = tuple(node["qualified_name"] for node in manifests)
+    if supplied_order != tuple(expected_order):
+        raise _ContractError("closure manifest node ordering is not canonical")
+
+
+def _validate_scientific_closure_record(
+    value: object, *, expected_role: str | None = None
+) -> ScientificClosure:
+    if type(value) is not ScientificClosure:
+        raise _ContractError("closure must be an exact ScientificClosure")
+    closure = ScientificClosure(
+        value.schema_version,
+        value.role,
+        value.entry_symbol,
+        value.nodes,
+        value.dependency_edges,
+        value.emitted_source_sha256,
+        value.bundle_sha256,
+    )
+    if expected_role is not None and closure.role != expected_role:
+        raise _ContractError("scientific closure role mismatch")
+    module_name, symbol_name = _validate_entry_symbol(closure.entry_symbol)
+    manifests = tuple(
+        _validate_ast_node_manifest(node, f"nodes[{index}]")
+        for index, node in enumerate(closure.nodes)
+    )
+    qualified_names = tuple(
+        node["qualified_name"] for node in manifests
+    )
+    if len(set(qualified_names)) != len(qualified_names):
+        raise _ContractError("scientific closure has duplicate nodes")
+    _validate_manifest_graph(manifests, allow_committed_data=False)
+    if f"{module_name}.{symbol_name}" not in qualified_names:
+        raise _ContractError("scientific closure does not contain its entry")
+    flattened_edges = tuple(
+        edge for node in manifests for edge in node["dependency_edges"]
+    )
+    if flattened_edges != closure.dependency_edges:
+        raise _ContractError(
+            "scientific closure node edges do not match closure edges"
+        )
+    expected_bundle_sha256 = _canonical_sha256(
+        {
+            "schema_version": closure.schema_version,
+            "role": closure.role,
+            "entry_symbol": closure.entry_symbol,
+            "nodes": closure.nodes,
+            "dependency_edges": closure.dependency_edges,
+            "emitted_source_sha256": closure.emitted_source_sha256,
+            "builder_version": _AST_CLOSURE_VERSION,
+        }
+    )
+    if closure.bundle_sha256 != expected_bundle_sha256:
+        raise _ContractError("scientific closure bundle hash mismatch")
+    return closure
+
+
+def _validate_infrastructure_closure_record(
+    value: object,
+) -> InfrastructureClosure:
+    if type(value) is not InfrastructureClosure:
+        raise _ContractError(
+            "infrastructure_closure must be an exact InfrastructureClosure"
+        )
+    closure = InfrastructureClosure(
+        value.schema_version,
+        value.roots,
+        value.nodes,
+        value.dependency_edges,
+        value.purpose_bindings,
+        value.bundle_sha256,
+    )
+    manifests = tuple(
+        _validate_ast_node_manifest(node, f"nodes[{index}]")
+        for index, node in enumerate(closure.nodes)
+    )
+    qualified_names = tuple(
+        node["qualified_name"] for node in manifests
+    )
+    if len(set(qualified_names)) != len(qualified_names):
+        raise _ContractError("infrastructure closure has duplicate nodes")
+    _validate_manifest_graph(manifests, allow_committed_data=True)
+    flattened_edges = tuple(
+        edge for node in manifests for edge in node["dependency_edges"]
+    )
+    if flattened_edges != closure.dependency_edges:
+        raise _ContractError(
+            "infrastructure node edges do not match closure edges"
+        )
+    if closure.roots != _EXPECTED_INFRASTRUCTURE_ROOTS:
+        raise _ContractError("infrastructure closure root set mismatch")
+    if _canonical_bytes(closure.purpose_bindings) != _canonical_bytes(
+        _INFRASTRUCTURE_PURPOSE_BINDINGS
+    ):
+        raise _ContractError(
+            "infrastructure closure purpose bindings mismatch"
+        )
+    if not set(closure.roots) <= set(qualified_names):
+        raise _ContractError("infrastructure closure is missing a root node")
+    committed_edges = {
+        (source, destination)
+        for source, destination in closure.dependency_edges
+        if destination.startswith("committed_data:")
+    }
+    if committed_edges != _EXPECTED_COMMITTED_DATA_EDGES:
+        raise _ContractError(
+            "infrastructure closure committed-data edge set mismatch"
+        )
+    expected_bundle_sha256 = _canonical_sha256(
+        {
+            "schema_version": closure.schema_version,
+            "roots": closure.roots,
+            "nodes": closure.nodes,
+            "dependency_edges": closure.dependency_edges,
+            "purpose_bindings": closure.purpose_bindings,
+            "builder_version": _AST_CLOSURE_VERSION,
+        }
+    )
+    if closure.bundle_sha256 != expected_bundle_sha256:
+        raise _ContractError("infrastructure closure bundle hash mismatch")
+    return closure
+
+
+def build_scientific_closure(entry_symbol, *, role, source_roots):
+    """Build one deterministic scientific AST closure without importing it."""
+
+    normalized_role = _require_role(role)
+    module_name, symbol_name = _validate_entry_symbol(entry_symbol)
+    roots = _normalize_source_roots(source_roots)
+    resolver = _AstClosureResolver(roots, role=normalized_role)
+    resolved_entry = resolver.resolve_symbol(module_name, symbol_name)
+    if resolved_entry != f"{module_name}.{symbol_name}":
+        raise _ContractError("entry symbol cannot be an imported alias")
+    _assert_no_emitted_binding_collisions(resolver.resolved)
+    nodes, dependency_edges, emitted_source = _manifest_from_resolved(
+        resolver.resolved
+    )
+    emitted_source_sha256 = hashlib.sha256(emitted_source).hexdigest()
+    bundle_payload = {
+        "schema_version": "scientific_closure_v1",
+        "role": normalized_role,
+        "entry_symbol": entry_symbol,
+        "nodes": nodes,
+        "dependency_edges": dependency_edges,
+        "emitted_source_sha256": emitted_source_sha256,
+        "builder_version": _AST_CLOSURE_VERSION,
+    }
+    return ScientificClosure(
+        schema_version="scientific_closure_v1",
+        role=normalized_role,
+        entry_symbol=entry_symbol,
+        nodes=nodes,
+        dependency_edges=dependency_edges,
+        emitted_source_sha256=emitted_source_sha256,
+        bundle_sha256=_canonical_sha256(bundle_payload),
+    )
+
+
+def assert_disjoint_scientific_closures(
+    adapter_closure, oracle_closure
+):
+    """Fail when adapter and oracle share a project scientific source node."""
+
+    adapter = _validate_scientific_closure_record(
+        adapter_closure, expected_role="adapter"
+    )
+    oracle = _validate_scientific_closure_record(
+        oracle_closure, expected_role="oracle"
+    )
+    adapter_names = {
+        node["qualified_name"] for node in adapter.nodes
+    }
+    oracle_names = {node["qualified_name"] for node in oracle.nodes}
+    adapter_spans = {
+        node["source_span_sha256"] for node in adapter.nodes
+    }
+    oracle_spans = {
+        node["source_span_sha256"] for node in oracle.nodes
+    }
+    if adapter_names & oracle_names or adapter_spans & oracle_spans:
+        raise _ContractError(
+            "adapter and oracle scientific closures overlap or share a node"
+        )
+
+
+_INFRASTRUCTURE_MODULES = {
+    "adapters": "validation.literature_evidence_adapters",
+    "oracles": "validation.literature_evidence_adapter_oracles",
+    "isolation": "validation.literature_evidence_isolation",
+}
+_INFRASTRUCTURE_PURPOSE_NAMES = {
+    "canonical_transport": (
+        "freeze_json",
+        "thaw_json",
+        "canonical_json_bytes",
+        "canonical_sha256",
+    ),
+    "contract_validation": (
+        "validate_adapter_definition",
+        "validate_oracle_definition",
+        "validate_scientific_inputs",
+        "validate_numerical_controls",
+        "validate_local_observable_result",
+        "validate_authority_context",
+        "make_worker_request",
+        "validate_failure",
+    ),
+    "closure_and_policy_transport": (
+        "build_scientific_closure",
+        "build_scientific_policy_commitment",
+        "build_infrastructure_closure",
+        "scan_scientific_closure",
+        "emit_scientific_capsule",
+        "emit_fixed_worker",
+        "assert_complete_dependency_partition",
+    ),
+    "runtime_resource_integrity": (
+        "discover_runtime_resources",
+        "build_runtime_snapshot",
+        "revalidate_runtime_snapshot",
+    ),
+    "event_and_counterfactual_transport": (
+        "record_and_freeze_hashes",
+        "acquire_run_seed",
+        "derive_counterfactual_points",
+        "write_worker_request_exclusive",
+    ),
+    "capability_isolation_transport": (
+        "run_capability_preflight",
+        "create_run_directories",
+        "construct_private_root",
+        "run_namespace_supervisor",
+        "launch_traced_tracee",
+        "apply_tracee_security_policy",
+        "validate_process_attestation",
+    ),
+    "trace_and_output_transport": (
+        "evaluate_strace",
+        "ingest_worker_output",
+    ),
+    "proof_adjudication_transport": (
+        "collect_backend_diagnostics",
+        "interpret_output_proofs",
+        "derive_convergence_decision",
+        "derive_oracle_decision",
+    ),
+    "coordinator_transport": (
+        "validate_adapter_execution_evidence",
+        "_run_isolated_recomputation_core",
+        "run_isolated_recomputation",
+    ),
+}
+_ADAPTER_INFRASTRUCTURE_NAMES = frozenset(
+    {
+        "freeze_json",
+        "thaw_json",
+        "canonical_json_bytes",
+        "canonical_sha256",
+        "validate_adapter_definition",
+        "validate_scientific_inputs",
+        "validate_numerical_controls",
+        "validate_local_observable_result",
+    }
+)
+_ORACLE_INFRASTRUCTURE_NAMES = frozenset({"validate_oracle_definition"})
+
+
+def _infrastructure_module_for_root(root_name: str) -> str:
+    if root_name in _ADAPTER_INFRASTRUCTURE_NAMES:
+        return _INFRASTRUCTURE_MODULES["adapters"]
+    if root_name in _ORACLE_INFRASTRUCTURE_NAMES:
+        return _INFRASTRUCTURE_MODULES["oracles"]
+    return _INFRASTRUCTURE_MODULES["isolation"]
+
+
+_INFRASTRUCTURE_PURPOSE_BINDINGS = {
+    f"{_infrastructure_module_for_root(root_name)}.{root_name}": purpose
+    for purpose, root_names in _INFRASTRUCTURE_PURPOSE_NAMES.items()
+    for root_name in root_names
+}
+_EXPECTED_INFRASTRUCTURE_ROOTS = tuple(
+    sorted(_INFRASTRUCTURE_PURPOSE_BINDINGS)
+)
+_INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS = frozenset(
+    {
+        "answer",
+        "energy",
+        "formula",
+        "hamiltonian",
+        "model",
+        "observable",
+        "phase",
+        "result",
+        "scientific",
+        "spectrum",
+    }
+)
+
+
+def _infrastructure_name_tokens(qualified_name: str) -> set[str]:
+    leaf = qualified_name.rsplit(".", 1)[-1]
+    return {
+        token.lower()
+        for token in re.findall(r"[A-Za-z0-9]+", leaf.replace("_", " "))
+    }
+
+
+def _reject_scientific_infrastructure_nodes(
+    nodes: tuple[_FrozenJsonObject, ...]
+) -> None:
+    expected = set(_EXPECTED_INFRASTRUCTURE_ROOTS)
+    for node in nodes:
+        qualified_name = node["qualified_name"]
+        if qualified_name in expected:
+            continue
+        if _infrastructure_name_tokens(qualified_name) & (
+            _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS
+        ):
+            raise _ContractError(
+                "infrastructure closure contains a scientific or result "
+                "derivation helper"
+            )
+
+
+def build_infrastructure_closure(*, source_roots):
+    """Build the exact planned transport/isolation dependency closure."""
+
+    roots = _normalize_source_roots(source_roots)
+    resolver = _AstClosureResolver(roots, role="infrastructure")
+    for qualified_root in _EXPECTED_INFRASTRUCTURE_ROOTS:
+        module_name, root_name = qualified_root.rsplit(".", 1)
+        resolved_root = resolver.resolve_symbol(module_name, root_name)
+        if resolved_root != qualified_root:
+            raise _ContractError(
+                f"infrastructure root {qualified_root} resolves by alias"
+            )
+    nodes, dependency_edges, _emitted_source = _manifest_from_resolved(
+        resolver.resolved
+    )
+    _reject_scientific_infrastructure_nodes(nodes)
+    purpose_bindings = _snapshot_json(
+        _INFRASTRUCTURE_PURPOSE_BINDINGS,
+        "infrastructure purpose bindings",
+    )
+    bundle_payload = {
+        "schema_version": "infrastructure_closure_v1",
+        "roots": _EXPECTED_INFRASTRUCTURE_ROOTS,
+        "nodes": nodes,
+        "dependency_edges": dependency_edges,
+        "purpose_bindings": purpose_bindings,
+        "builder_version": _AST_CLOSURE_VERSION,
+    }
+    closure = InfrastructureClosure(
+        schema_version="infrastructure_closure_v1",
+        roots=_EXPECTED_INFRASTRUCTURE_ROOTS,
+        nodes=nodes,
+        dependency_edges=dependency_edges,
+        purpose_bindings=purpose_bindings,
+        bundle_sha256=_canonical_sha256(bundle_payload),
+    )
+    return _validate_infrastructure_closure_record(closure)
+
+
+def _scan_policy_forbidden_structures(value: object, field_name: str) -> None:
+    if type(value) is _FrozenJsonObject:
+        for key, item in value._items:
+            tokens = {
+                token.lower()
+                for token in re.findall(
+                    r"[A-Za-z0-9]+", key.replace("_", " ")
+                )
+            }
+            if tokens & {"fingerprint", "fingerprints", "lookup", "categorical"}:
+                raise _ContractError(
+                    f"{field_name} contains a forbidden policy structure"
+                )
+            if {"adapter", "id", "branch"} <= tokens:
+                raise _ContractError(
+                    f"{field_name} contains an adapter-ID branch"
+                )
+            _scan_policy_forbidden_structures(
+                item, f"{field_name}.{key}"
+            )
+        return
+    if type(value) is tuple:
+        for index, item in enumerate(value):
+            _scan_policy_forbidden_structures(
+                item, f"{field_name}[{index}]"
+            )
+        return
+    if type(value) is str:
+        normalized = value.strip().lower()
+        if any(
+            marker in normalized
+            for marker in (
+                "lambda ",
+                "eval(",
+                "exec(",
+                "compile(",
+                "__import__",
+                "importlib.",
+            )
+        ):
+            raise _ContractError(
+                f"{field_name} contains an arbitrary expression"
+            )
+
+
+def _task5_policy_structure_scan_sha256(
+    *,
+    role: str,
+    canonical_definition_sha256: str,
+    entry_closure_sha256: str,
+) -> str:
+    return _canonical_sha256(
+        {
+            "schema_version": _POLICY_STRUCTURE_SCAN_VERSION,
+            "role": role,
+            "canonical_definition_sha256": canonical_definition_sha256,
+            "entry_closure_sha256": entry_closure_sha256,
+            "checks": {
+                "canonical_definition_valid": True,
+                "role_and_entry_bound": True,
+                "proof_bindings_closed": True,
+                "domain_policy_closed": True,
+                "size_policy_closed": True,
+                "convergence_policy_closed": True,
+                "forbidden_structures_absent": True,
+            },
+        }
+    )
+
+
+def _validate_task5_policy_commitment(
+    value: object,
+    closure: ScientificClosure,
+    *,
+    expected_role: str,
+) -> ScientificPolicyCommitment:
+    if type(value) is not ScientificPolicyCommitment:
+        raise _ContractError(
+            f"{expected_role} policy must be an exact "
+            "ScientificPolicyCommitment"
+        )
+    policy = ScientificPolicyCommitment(
+        **{
+            field.name: getattr(value, field.name)
+            for field in fields(ScientificPolicyCommitment)
+        }
+    )
+    if (
+        policy.role != expected_role
+        or policy.entry_closure_sha256 != closure.bundle_sha256
+    ):
+        raise _ContractError(
+            f"{expected_role} policy does not bind its scientific closure"
+        )
+    expected_scan_sha256 = _task5_policy_structure_scan_sha256(
+        role=expected_role,
+        canonical_definition_sha256=policy.canonical_definition_sha256,
+        entry_closure_sha256=closure.bundle_sha256,
+    )
+    if policy.static_scan_sha256 != expected_scan_sha256:
+        raise _ContractError(
+            f"{expected_role} policy has an invalid Task 5 structure scan"
+        )
+    return policy
+
+
+def build_scientific_policy_commitment(definition, closure, *, role):
+    """Bind a closed definition to its closure and Task 5 structural scan."""
+
+    normalized_role = _require_role(role)
+    validated_closure = _validate_scientific_closure_record(
+        closure, expected_role=normalized_role
+    )
+    if normalized_role == "adapter":
+        supplied = _validate_adapter_definition(definition)
+        try:
+            canonical_definition = _adapters.get_adapter_definition(
+                supplied.adapter_id
+            )
+        except _ContractError as error:
+            raise _ContractError(
+                "adapter definition is absent from the canonical catalog"
+            ) from error
+        supplied_bytes = _canonical_bytes(
+            _adapters.adapter_definition_to_frozen_json(supplied)
+        )
+        canonical_payload = (
+            _adapters.adapter_definition_to_frozen_json(
+                canonical_definition
+            )
+        )
+        canonical_bytes = _canonical_bytes(canonical_payload)
+        if supplied_bytes != canonical_bytes:
+            raise _ContractError(
+                "adapter definition does not match the canonical catalog"
+            )
+        definition_id = canonical_definition.adapter_id
+        definition_entry = canonical_definition.entry_symbol
+        (
+            proof_bindings,
+            domain_sha256,
+            size_policy_sha256,
+            convergence_sha256,
+            eligibility_row_sha256,
+            eligibility_catalog_sha256,
+        ) = _adapter_policy_derivations(canonical_definition)
+    else:
+        canonical_definition = _oracles.validate_oracle_definition(definition)
+        canonical_payload = _oracles.oracle_definition_to_frozen_json(
+            canonical_definition
+        )
+        canonical_bytes = _canonical_bytes(canonical_payload)
+        definition_id = canonical_definition.oracle_id
+        definition_entry = canonical_definition.entry_symbol
+        (
+            proof_bindings,
+            domain_sha256,
+            size_policy_sha256,
+            convergence_sha256,
+        ) = _oracle_policy_derivations(canonical_definition)
+        eligibility_row_sha256 = None
+        eligibility_catalog_sha256 = None
+    if validated_closure.entry_symbol != definition_entry:
+        raise _ContractError(
+            "definition entry_symbol does not match scientific closure entry"
+        )
+    _scan_policy_forbidden_structures(
+        canonical_payload, "canonical_definition"
+    )
+    canonical_definition_sha256 = hashlib.sha256(
+        canonical_bytes
+    ).hexdigest()
+    values = {
+        "schema_version": "scientific_policy_commitment_v1",
+        "role": normalized_role,
+        "definition_id": definition_id,
+        "canonical_definition_bytes": canonical_bytes,
+        "canonical_definition_sha256": canonical_definition_sha256,
+        "eligibility_row_sha256": eligibility_row_sha256,
+        "eligibility_catalog_sha256": eligibility_catalog_sha256,
+        "entry_closure_sha256": validated_closure.bundle_sha256,
+        "output_or_invariant_proof_bindings": proof_bindings,
+        "domain_sha256": domain_sha256,
+        "size_policy_sha256": size_policy_sha256,
+        "convergence_sha256": convergence_sha256,
+        "static_scan_sha256": _task5_policy_structure_scan_sha256(
+            role=normalized_role,
+            canonical_definition_sha256=canonical_definition_sha256,
+            entry_closure_sha256=validated_closure.bundle_sha256,
+        ),
+    }
+    values["combined_sha256"] = scientific_policy_combined_sha256(values)
+    return ScientificPolicyCommitment(**values)
+
+
+def assert_complete_dependency_partition(
+    adapter_closure,
+    adapter_policy_commitment,
+    oracle_closure,
+    oracle_policy_commitment,
+    infrastructure_closure,
+    *,
+    referenced_project_nodes,
+):
+    """Require every referenced project node to have one committed owner."""
+
+    adapter = _validate_scientific_closure_record(
+        adapter_closure, expected_role="adapter"
+    )
+    oracle = _validate_scientific_closure_record(
+        oracle_closure, expected_role="oracle"
+    )
+    assert_disjoint_scientific_closures(adapter, oracle)
+    adapter_policy = _validate_task5_policy_commitment(
+        adapter_policy_commitment,
+        adapter,
+        expected_role="adapter",
+    )
+    oracle_policy = _validate_task5_policy_commitment(
+        oracle_policy_commitment,
+        oracle,
+        expected_role="oracle",
+    )
+    infrastructure = _validate_infrastructure_closure_record(
+        infrastructure_closure
+    )
+    if type(referenced_project_nodes) is not tuple:
+        raise _ContractError(
+            "referenced_project_nodes must be an exact tuple"
+        )
+    referenced = tuple(
+        _require_text(item, f"referenced_project_nodes[{index}]")
+        for index, item in enumerate(referenced_project_nodes)
+    )
+    if len(set(referenced)) != len(referenced):
+        raise _ContractError("referenced_project_nodes contains a duplicate")
+    if referenced != tuple(sorted(referenced)):
+        raise _ContractError(
+            "referenced_project_nodes must use canonical ordering"
+        )
+    if any(
+        any(marker in item for marker in ("*", "<dynamic>", "__import__"))
+        for item in referenced
+    ):
+        raise _ContractError("dynamically resolved project node is forbidden")
+    occurrences: dict[str, int] = {}
+    for owned_closure in (adapter, oracle, infrastructure):
+        for node in owned_closure.nodes:
+            qualified_name = node["qualified_name"]
+            occurrences[qualified_name] = occurrences.get(qualified_name, 0) + 1
+    duplicates = {
+        name for name, count in occurrences.items() if count != 1
+    }
+    if duplicates:
+        raise _ContractError(
+            "project source node is multiply classified in dependency partition"
+        )
+    if set(referenced) != set(occurrences):
+        raise _ContractError(
+            "dependency partition has a missing or extra project source node"
+        )
+    ordinary_nodes = set(occurrences)
+    for owned_closure in (adapter, oracle, infrastructure):
+        for source, destination in owned_closure.dependency_edges:
+            if destination.startswith("committed_data:"):
+                if (
+                    owned_closure is not infrastructure
+                    or destination not in _COMMITTED_DATA_EDGES
+                ):
+                    raise _ContractError(
+                        "dependency partition contains an uncommitted data edge"
+                    )
+            elif destination not in ordinary_nodes:
+                raise _ContractError(
+                    "dependency partition edge resolves outside committed nodes"
+                )
+            if source not in ordinary_nodes:
+                raise _ContractError(
+                    "dependency partition edge has an unknown source"
+                )
+    commitment_payload = {
+        "schema_version": "complete_dependency_partition_v1",
+        "referenced_project_nodes": referenced,
+        "adapter_closure_sha256": adapter.bundle_sha256,
+        "adapter_policy_sha256": adapter_policy.combined_sha256,
+        "oracle_closure_sha256": oracle.bundle_sha256,
+        "oracle_policy_sha256": oracle_policy.combined_sha256,
+        "infrastructure_closure_sha256": infrastructure.bundle_sha256,
+        "committed_data": {
+            _COMMITTED_DATA_TARGETS["ADAPTER_ELIGIBILITY"]: (
+                adapter_policy.eligibility_catalog_sha256
+            ),
+            _COMMITTED_DATA_TARGETS["ADAPTER_DEFINITIONS"]: (
+                adapter_policy.combined_sha256
+            ),
+            _COMMITTED_DATA_TARGETS["ORACLE_DEFINITIONS"]: (
+                oracle_policy.combined_sha256
+            ),
+        },
+    }
+    return _canonical_sha256(commitment_payload)
 
 
 @_seal_contract

@@ -1,6 +1,7 @@
 import ast
 import dataclasses
 import hashlib
+import inspect
 from itertools import product
 import json
 import math
@@ -5330,6 +5331,11 @@ def test_task4_public_all_surfaces_are_exact():
         "FAILURE_REASON_CODES",
         "validate_authority_context",
         "make_worker_request",
+        "build_scientific_closure",
+        "build_scientific_policy_commitment",
+        "build_infrastructure_closure",
+        "assert_disjoint_scientific_closures",
+        "assert_complete_dependency_partition",
         "scientific_policy_combined_sha256",
         "validate_failure",
     }
@@ -6962,3 +6968,1874 @@ def test_canonical_definition_byte_failures_are_contract_errors(
 
     with pytest.raises(AdapterContractError):
         isolation.ScientificPolicyCommitment(**values)
+
+
+TASK5_NODE_FIELDS = {
+    "relative_path",
+    "raw_file_sha256",
+    "node_kind",
+    "qualified_name",
+    "source_span_sha256",
+    "emitted_node_sha256",
+    "dependency_edges",
+    "scanner_version",
+}
+
+
+def _write_task5_source(source_root, module_name, source_bytes):
+    source_path = source_root.joinpath(*module_name.split(".")).with_suffix(
+        ".py"
+    )
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    if type(source_bytes) is str:
+        source_bytes = source_bytes.encode("utf-8")
+    with source_path.open("xb") as stream:
+        stream.write(source_bytes)
+    return source_path
+
+
+def _task5_pure_scientific_source(helper_increment=""):
+    return (
+        "from math import sqrt as square_root\n"
+        "\n"
+        "SCALE = (2.0, 3.0)\n"
+        "UNRELATED_REGISTRY_RESULTS = {\"phase_label\": \"canary\"}\n"
+        "\n"
+        "def normalize(value):\n"
+        f"    return square_root(value{helper_increment}) * SCALE[0]\n"
+        "\n"
+        "def adapter_entry(value):\n"
+        "    return normalize(value)\n"
+    )
+
+
+def _build_task5_scientific_closure(source_root):
+    from validation import literature_evidence_isolation as isolation
+
+    return isolation.build_scientific_closure(
+        "synthetic_science.adapters:adapter_entry",
+        role="adapter",
+        source_roots=(source_root,),
+    )
+
+
+def test_scientific_closure_has_exact_deterministic_transitive_manifest(
+    tmp_path,
+):
+    source = _task5_pure_scientific_source()
+    source_path = _write_task5_source(
+        tmp_path, "synthetic_science.adapters", source
+    )
+
+    first = _build_task5_scientific_closure(tmp_path)
+    second = _build_task5_scientific_closure(tmp_path)
+
+    assert first == second
+    assert first.role == "adapter"
+    assert first.entry_symbol == (
+        "synthetic_science.adapters:adapter_entry"
+    )
+    assert first.bundle_sha256 == second.bundle_sha256
+    assert first.emitted_source_sha256 == second.emitted_source_sha256
+    assert all(set(node) == TASK5_NODE_FIELDS for node in first.nodes)
+    assert all(
+        node["relative_path"] == "synthetic_science/adapters.py"
+        for node in first.nodes
+    )
+    raw_file_sha256 = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    assert {node["raw_file_sha256"] for node in first.nodes} == {
+        raw_file_sha256
+    }
+    assert {node["scanner_version"] for node in first.nodes} == {
+        "deterministic_ast_closure_v1"
+    }
+
+    by_name = {node["qualified_name"]: node for node in first.nodes}
+    assert set(by_name) == {
+        "synthetic_science.adapters.square_root",
+        "synthetic_science.adapters.SCALE",
+        "synthetic_science.adapters.normalize",
+        "synthetic_science.adapters.adapter_entry",
+    }
+    assert {node["node_kind"] for node in first.nodes} == {
+        "import",
+        "immutable_constant",
+        "function",
+    }
+    assert (
+        "synthetic_science.adapters.adapter_entry",
+        "synthetic_science.adapters.normalize",
+    ) in first.dependency_edges
+    assert (
+        "synthetic_science.adapters.normalize",
+        "synthetic_science.adapters.square_root",
+    ) in first.dependency_edges
+    assert (
+        "synthetic_science.adapters.normalize",
+        "synthetic_science.adapters.SCALE",
+    ) in first.dependency_edges
+    assert tuple(
+        edge
+        for node in first.nodes
+        for edge in node["dependency_edges"]
+    ) == first.dependency_edges
+
+    emitted_source = (
+        "from math import sqrt as square_root\n"
+        "\n"
+        "SCALE = (2.0, 3.0)\n"
+        "\n"
+        "def normalize(value):\n"
+        "    return square_root(value) * SCALE[0]\n"
+        "\n"
+        "def adapter_entry(value):\n"
+        "    return normalize(value)\n"
+    ).encode("utf-8")
+    assert b"UNRELATED_REGISTRY_RESULTS" not in emitted_source
+    assert first.emitted_source_sha256 == hashlib.sha256(
+        emitted_source
+    ).hexdigest()
+
+
+def test_scientific_closure_normalizes_only_emitted_line_endings(tmp_path):
+    lf_root = tmp_path / "lf"
+    crlf_root = tmp_path / "crlf"
+    source = _task5_pure_scientific_source()
+    _write_task5_source(lf_root, "synthetic_science.adapters", source)
+    _write_task5_source(
+        crlf_root,
+        "synthetic_science.adapters",
+        source.replace("\n", "\r\n"),
+    )
+
+    lf_closure = _build_task5_scientific_closure(lf_root)
+    crlf_closure = _build_task5_scientific_closure(crlf_root)
+
+    assert lf_closure.emitted_source_sha256 == (
+        crlf_closure.emitted_source_sha256
+    )
+    assert {
+        node["qualified_name"]: node["emitted_node_sha256"]
+        for node in lf_closure.nodes
+    } == {
+        node["qualified_name"]: node["emitted_node_sha256"]
+        for node in crlf_closure.nodes
+    }
+    assert {
+        node["raw_file_sha256"] for node in lf_closure.nodes
+    } != {node["raw_file_sha256"] for node in crlf_closure.nodes}
+    assert {
+        node["source_span_sha256"] for node in lf_closure.nodes
+    } != {node["source_span_sha256"] for node in crlf_closure.nodes}
+    assert lf_closure.bundle_sha256 != crlf_closure.bundle_sha256
+
+
+def test_transitive_hash_changes_when_only_helper_source_changes(tmp_path):
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    _write_task5_source(
+        first_root,
+        "synthetic_science.adapters",
+        _task5_pure_scientific_source(),
+    )
+    _write_task5_source(
+        second_root,
+        "synthetic_science.adapters",
+        _task5_pure_scientific_source(" + 1.0"),
+    )
+
+    first = _build_task5_scientific_closure(first_root)
+    second = _build_task5_scientific_closure(second_root)
+    first_nodes = {
+        node["qualified_name"]: node for node in first.nodes
+    }
+    second_nodes = {
+        node["qualified_name"]: node for node in second.nodes
+    }
+
+    helper = "synthetic_science.adapters.normalize"
+    entry = "synthetic_science.adapters.adapter_entry"
+    assert first_nodes[helper]["source_span_sha256"] != (
+        second_nodes[helper]["source_span_sha256"]
+    )
+    assert first_nodes[helper]["emitted_node_sha256"] != (
+        second_nodes[helper]["emitted_node_sha256"]
+    )
+    assert first_nodes[entry]["source_span_sha256"] == (
+        second_nodes[entry]["source_span_sha256"]
+    )
+    assert first.emitted_source_sha256 != second.emitted_source_sha256
+    assert first.bundle_sha256 != second.bundle_sha256
+
+
+def test_scientific_closure_rejects_cross_module_emitted_binding_collision(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.left_helper",
+        "SCALE = 2.0\n"
+        "def left(value):\n"
+        "    return value * SCALE\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.right_helper",
+        "SCALE = 3.0\n"
+        "def right(value):\n"
+        "    return value * SCALE\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from synthetic_science.left_helper import left\n"
+        "from synthetic_science.right_helper import right\n"
+        "def adapter_entry(value):\n"
+        "    return left(value) + right(value)\n",
+    )
+
+    with pytest.raises(AdapterContractError, match="binding|collision|module"):
+        _build_task5_scientific_closure(tmp_path)
+
+
+TASK5_UNSUPPORTED_SCIENTIFIC_SOURCES = (
+    (
+        "unresolved_dependency",
+        "def adapter_entry(value):\n"
+        "    return missing_helper(value)\n",
+    ),
+    (
+        "cyclic_initializer",
+        "LEFT = RIGHT + 1\n"
+        "RIGHT = LEFT + 1\n"
+        "def adapter_entry(value):\n"
+        "    return value + LEFT\n",
+    ),
+    (
+        "star_import",
+        "from math import *\n"
+        "def adapter_entry(value):\n"
+        "    return sqrt(value)\n",
+    ),
+    (
+        "dynamic_import",
+        "def adapter_entry(value):\n"
+        "    return __import__(\"math\").sqrt(value)\n",
+    ),
+    (
+        "mutable_global",
+        "CACHE = []\n"
+        "def adapter_entry(value):\n"
+        "    return value + len(CACHE)\n",
+    ),
+    (
+        "decorator_side_effect",
+        "def register():\n"
+        "    return lambda function: function\n"
+        "@register()\n"
+        "def adapter_entry(value):\n"
+        "    return value\n",
+    ),
+    (
+        "descriptor",
+        "class Descriptor:\n"
+        "    def __get__(self, instance, owner):\n"
+        "        return 1\n"
+        "def adapter_entry(value):\n"
+        "    return Descriptor()\n",
+    ),
+    (
+        "metaclass",
+        "class Meta(type):\n"
+        "    pass\n"
+        "class Scientific(metaclass=Meta):\n"
+        "    pass\n"
+        "def adapter_entry(value):\n"
+        "    return Scientific()\n",
+    ),
+    (
+        "module_mutation",
+        "VALUE = 1\n"
+        "VALUE += 1\n"
+        "def adapter_entry(value):\n"
+        "    return value + VALUE\n",
+    ),
+    (
+        "runtime_closure",
+        "def adapter_entry(value):\n"
+        "    def hidden():\n"
+        "        return value\n"
+        "    return hidden()\n",
+    ),
+    (
+        "source_evaluation",
+        "def adapter_entry(value):\n"
+        "    return eval(\"value\")\n",
+    ),
+    (
+        "comprehension_scope",
+        "HELPERS = (1, 2)\n"
+        "def helper(value):\n"
+        "    return value + 1\n"
+        "def adapter_entry(value):\n"
+        "    return [helper(item) for helper in HELPERS]\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, source",
+    TASK5_UNSUPPORTED_SCIENTIFIC_SOURCES,
+    ids=tuple(case[0] for case in TASK5_UNSUPPORTED_SCIENTIFIC_SOURCES),
+)
+def test_scientific_closure_rejects_each_unsupported_ast_construct(
+    tmp_path,
+    case_name,
+    source,
+):
+    del case_name
+    _write_task5_source(tmp_path, "synthetic_science.adapters", source)
+
+    with pytest.raises(AdapterContractError):
+        _build_task5_scientific_closure(tmp_path)
+
+
+def test_scientific_closure_parses_source_without_executing_module(tmp_path):
+    source = (
+        "EXECUTION_CANARY = 1 / 0\n"
+        "def adapter_entry(value):\n"
+        "    return value + 1\n"
+    )
+    _write_task5_source(tmp_path, "synthetic_science.adapters", source)
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes
+    ) == ("synthetic_science.adapters.adapter_entry",)
+
+
+def test_scientific_closure_rejects_multi_alias_import_piggyback(tmp_path):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "import math, os\n"
+        "def adapter_entry(value):\n"
+        "    return math.sqrt(value)\n",
+    )
+
+    with pytest.raises(AdapterContractError, match="import|alias|static"):
+        _build_task5_scientific_closure(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "role, module_name, entry_name",
+    (
+        (
+            "adapter",
+            "synthetic_science.adapter_oracles",
+            "oracle_entry",
+        ),
+        ("oracle", "synthetic_science.adapters", "adapter_entry"),
+    ),
+)
+def test_scientific_closure_rejects_opposite_role_modules(
+    tmp_path,
+    role,
+    module_name,
+    entry_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_source(
+        tmp_path,
+        module_name,
+        f"def {entry_name}(value):\n    return value + 1\n",
+    )
+
+    with pytest.raises(AdapterContractError, match="role|adapter|oracle"):
+        isolation.build_scientific_closure(
+            f"{module_name}:{entry_name}",
+            role=role,
+            source_roots=(tmp_path,),
+        )
+
+
+def _build_task5_shared_closures(source_root, *, share_helper):
+    from validation import literature_evidence_isolation as isolation
+
+    shared_import = (
+        "from synthetic_science.shared import shared_helper\n"
+        if share_helper
+        else ""
+    )
+    adapter_expression = "shared_helper(value)" if share_helper else "value + 1"
+    oracle_expression = "shared_helper(value)" if share_helper else "value - 1"
+    if share_helper:
+        _write_task5_source(
+            source_root,
+            "synthetic_science.shared",
+            "def shared_helper(value):\n    return value * value\n",
+        )
+    _write_task5_source(
+        source_root,
+        "synthetic_science.adapters",
+        shared_import
+        + "def adapter_entry(value):\n"
+        + f"    return {adapter_expression}\n",
+    )
+    _write_task5_source(
+        source_root,
+        "synthetic_science.adapter_oracles",
+        shared_import
+        + "def oracle_entry(value):\n"
+        + f"    return {oracle_expression}\n",
+    )
+    adapter_closure = isolation.build_scientific_closure(
+        "synthetic_science.adapters:adapter_entry",
+        role="adapter",
+        source_roots=(source_root,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        "synthetic_science.adapter_oracles:oracle_entry",
+        role="oracle",
+        source_roots=(source_root,),
+    )
+    return adapter_closure, oracle_closure
+
+
+def test_disjoint_scientific_closures_reject_shared_transitive_node(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_closure, oracle_closure = _build_task5_shared_closures(
+        tmp_path, share_helper=True
+    )
+
+    with pytest.raises(AdapterContractError, match="overlap|disjoint|shared"):
+        isolation.assert_disjoint_scientific_closures(
+            adapter_closure, oracle_closure
+        )
+
+
+def test_disjoint_scientific_closures_accept_independent_nodes(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_closure, oracle_closure = _build_task5_shared_closures(
+        tmp_path, share_helper=False
+    )
+
+    assert (
+        isolation.assert_disjoint_scientific_closures(
+            adapter_closure, oracle_closure
+        )
+        is None
+    )
+
+
+def _task5_policy_record_for_closure(values, closure):
+    from validation import literature_evidence_isolation as isolation
+
+    values = dict(values)
+    values["entry_closure_sha256"] = closure.bundle_sha256
+    values["static_scan_sha256"] = canonical_sha256(
+        {
+            "schema_version": "task5_policy_structure_scan_v1",
+            "role": values["role"],
+            "canonical_definition_sha256": values[
+                "canonical_definition_sha256"
+            ],
+            "entry_closure_sha256": closure.bundle_sha256,
+            "checks": {
+                "canonical_definition_valid": True,
+                "role_and_entry_bound": True,
+                "proof_bindings_closed": True,
+                "domain_policy_closed": True,
+                "size_policy_closed": True,
+                "convergence_policy_closed": True,
+                "forbidden_structures_absent": True,
+            },
+        }
+    )
+    values["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(values)
+    )
+    return isolation.ScientificPolicyCommitment(**values)
+
+
+def _task5_partition_fixture(tmp_path, *, shared_science=False):
+    from validation import literature_evidence_isolation as isolation
+
+    shared_import = (
+        "from validation.task5_shared import shared_helper\n"
+        if shared_science
+        else ""
+    )
+    extra_source_by_module = {
+        "validation.literature_evidence_adapters": (
+            shared_import
+            + "def adapter_square_ising_self_dual_tc(value):\n"
+            + (
+                "    return shared_helper(value)\n"
+                if shared_science
+                else "    return value + 1\n"
+            )
+        ),
+        "validation.literature_evidence_adapter_oracles": (
+            shared_import
+            + "def oracle_synthetic_residual_oracle(value):\n"
+            + (
+                "    return shared_helper(value)\n"
+                if shared_science
+                else "    return value - 1\n"
+            )
+        ),
+    }
+    if shared_science:
+        _write_task5_source(
+            tmp_path,
+            "validation.task5_shared",
+            "def shared_helper(value):\n    return value * value\n",
+        )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module=extra_source_by_module,
+    )
+    adapter_closure = isolation.build_scientific_closure(
+        (
+            "validation.literature_evidence_adapters:"
+            "adapter_square_ising_self_dual_tc"
+        ),
+        role="adapter",
+        source_roots=(tmp_path,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        (
+            "validation.literature_evidence_adapter_oracles:"
+            "oracle_synthetic_residual_oracle"
+        ),
+        role="oracle",
+        source_roots=(tmp_path,),
+    )
+    adapter_policy = _task5_policy_record_for_closure(
+        _adapter_policy_values(
+            adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+        ),
+        adapter_closure,
+    )
+    oracle_policy = _task5_policy_record_for_closure(
+        _oracle_policy_values(_synthetic_oracle_definition()),
+        oracle_closure,
+    )
+    infrastructure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+    referenced = tuple(
+        sorted(
+            node["qualified_name"]
+            for closure in (
+                adapter_closure,
+                oracle_closure,
+                infrastructure,
+            )
+            for node in closure.nodes
+        )
+    )
+    return (
+        adapter_closure,
+        adapter_policy,
+        oracle_closure,
+        oracle_policy,
+        infrastructure,
+        referenced,
+    )
+
+
+def _assert_task5_partition(fixture, referenced_project_nodes):
+    from validation import literature_evidence_isolation as isolation
+
+    return isolation.assert_complete_dependency_partition(
+        *fixture[:5],
+        referenced_project_nodes=referenced_project_nodes,
+    )
+
+
+def test_complete_dependency_partition_returns_deterministic_hash(tmp_path):
+    fixture = _task5_partition_fixture(tmp_path)
+
+    first = _assert_task5_partition(fixture, fixture[5])
+    second = _assert_task5_partition(fixture, fixture[5])
+
+    assert first == second
+    assert len(first) == 64
+    assert set(first) <= set("0123456789abcdef")
+
+
+def test_dependency_partition_rejects_caller_chosen_policy_scan_hash(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _task5_partition_fixture(tmp_path)
+    policy_values = {
+        field.name: getattr(fixture[1], field.name)
+        for field in dataclasses.fields(type(fixture[1]))
+    }
+    policy_values["static_scan_sha256"] = _sha256_text(
+        "caller-chosen-policy-structure-scan"
+    )
+    policy_values["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(policy_values)
+    )
+    forged_policy = isolation.ScientificPolicyCommitment(**policy_values)
+    forged_fixture = (
+        fixture[0],
+        forged_policy,
+        *fixture[2:],
+    )
+
+    with pytest.raises(AdapterContractError, match="policy|scan|commitment"):
+        _assert_task5_partition(forged_fixture, fixture[5])
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing", "multiple", "dynamic", "uncommitted"),
+)
+def test_complete_dependency_partition_rejects_each_incomplete_case(
+    tmp_path,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _task5_partition_fixture(
+        tmp_path, shared_science=mutation == "multiple"
+    )
+    referenced = fixture[5]
+    if mutation == "missing":
+        referenced = referenced[:-1]
+    elif mutation == "dynamic":
+        referenced = referenced + ("validation.dynamic.*",)
+    elif mutation == "uncommitted":
+        infrastructure = isolation.InfrastructureClosure(
+            "infrastructure_closure_v1",
+            fixture[4].roots,
+            fixture[4].nodes,
+            (
+                (
+                    "validation.task5_infrastructure.transport",
+                    "committed_data:validation.task5.UNKNOWN_MAPPING",
+                ),
+            ),
+            fixture[4].purpose_bindings,
+            fixture[4].bundle_sha256,
+        )
+        fixture = (*fixture[:4], infrastructure, referenced)
+
+    with pytest.raises(AdapterContractError):
+        _assert_task5_partition(fixture, referenced)
+
+
+EXPECTED_INFRASTRUCTURE_ROOTS = frozenset(
+    {
+        "validation.literature_evidence_adapters.freeze_json",
+        "validation.literature_evidence_adapters.thaw_json",
+        "validation.literature_evidence_adapters.canonical_json_bytes",
+        "validation.literature_evidence_adapters.canonical_sha256",
+        (
+            "validation.literature_evidence_adapters."
+            "validate_adapter_definition"
+        ),
+        (
+            "validation.literature_evidence_adapter_oracles."
+            "validate_oracle_definition"
+        ),
+        (
+            "validation.literature_evidence_adapters."
+            "validate_scientific_inputs"
+        ),
+        (
+            "validation.literature_evidence_adapters."
+            "validate_numerical_controls"
+        ),
+        (
+            "validation.literature_evidence_adapters."
+            "validate_local_observable_result"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "validate_authority_context"
+        ),
+        "validation.literature_evidence_isolation.make_worker_request",
+        "validation.literature_evidence_isolation.validate_failure",
+        (
+            "validation.literature_evidence_isolation."
+            "build_scientific_closure"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "build_scientific_policy_commitment"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "build_infrastructure_closure"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "scan_scientific_closure"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "discover_runtime_resources"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "build_runtime_snapshot"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "revalidate_runtime_snapshot"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "record_and_freeze_hashes"
+        ),
+        "validation.literature_evidence_isolation.acquire_run_seed",
+        (
+            "validation.literature_evidence_isolation."
+            "derive_counterfactual_points"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "write_worker_request_exclusive"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "run_capability_preflight"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "emit_scientific_capsule"
+        ),
+        "validation.literature_evidence_isolation.emit_fixed_worker",
+        (
+            "validation.literature_evidence_isolation."
+            "create_run_directories"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "construct_private_root"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "run_namespace_supervisor"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "launch_traced_tracee"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "apply_tracee_security_policy"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "validate_process_attestation"
+        ),
+        "validation.literature_evidence_isolation.evaluate_strace",
+        (
+            "validation.literature_evidence_isolation."
+            "ingest_worker_output"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "collect_backend_diagnostics"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "interpret_output_proofs"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "derive_convergence_decision"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "derive_oracle_decision"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "assert_complete_dependency_partition"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "validate_adapter_execution_evidence"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "_run_isolated_recomputation_core"
+        ),
+        (
+            "validation.literature_evidence_isolation."
+            "run_isolated_recomputation"
+        ),
+    }
+)
+
+
+EXPECTED_INFRASTRUCTURE_PURPOSES = {
+    "canonical_transport": frozenset(
+        {
+            "freeze_json",
+            "thaw_json",
+            "canonical_json_bytes",
+            "canonical_sha256",
+        }
+    ),
+    "contract_validation": frozenset(
+        {
+            "validate_adapter_definition",
+            "validate_oracle_definition",
+            "validate_scientific_inputs",
+            "validate_numerical_controls",
+            "validate_local_observable_result",
+            "validate_authority_context",
+            "make_worker_request",
+            "validate_failure",
+        }
+    ),
+    "closure_and_policy_transport": frozenset(
+        {
+            "build_scientific_closure",
+            "build_scientific_policy_commitment",
+            "build_infrastructure_closure",
+            "scan_scientific_closure",
+            "emit_scientific_capsule",
+            "emit_fixed_worker",
+            "assert_complete_dependency_partition",
+        }
+    ),
+    "runtime_resource_integrity": frozenset(
+        {
+            "discover_runtime_resources",
+            "build_runtime_snapshot",
+            "revalidate_runtime_snapshot",
+        }
+    ),
+    "event_and_counterfactual_transport": frozenset(
+        {
+            "record_and_freeze_hashes",
+            "acquire_run_seed",
+            "derive_counterfactual_points",
+            "write_worker_request_exclusive",
+        }
+    ),
+    "capability_isolation_transport": frozenset(
+        {
+            "run_capability_preflight",
+            "create_run_directories",
+            "construct_private_root",
+            "run_namespace_supervisor",
+            "launch_traced_tracee",
+            "apply_tracee_security_policy",
+            "validate_process_attestation",
+        }
+    ),
+    "trace_and_output_transport": frozenset(
+        {"evaluate_strace", "ingest_worker_output"}
+    ),
+    "proof_adjudication_transport": frozenset(
+        {
+            "collect_backend_diagnostics",
+            "interpret_output_proofs",
+            "derive_convergence_decision",
+            "derive_oracle_decision",
+        }
+    ),
+    "coordinator_transport": frozenset(
+        {
+            "validate_adapter_execution_evidence",
+            "_run_isolated_recomputation_core",
+            "run_isolated_recomputation",
+        }
+    ),
+}
+
+
+def _task5_expected_purpose_bindings():
+    bindings = {}
+    for purpose, root_names in EXPECTED_INFRASTRUCTURE_PURPOSES.items():
+        for qualified_name in EXPECTED_INFRASTRUCTURE_ROOTS:
+            if qualified_name.rsplit(".", 1)[1] in root_names:
+                assert qualified_name not in bindings
+                bindings[qualified_name] = purpose
+    assert set(bindings) == EXPECTED_INFRASTRUCTURE_ROOTS
+    return bindings
+
+
+def _write_task5_infrastructure_sources(
+    source_root,
+    *,
+    omit_root=None,
+    helper_name="_transport_identity",
+    extra_source_by_module=None,
+):
+    if extra_source_by_module is None:
+        extra_source_by_module = {}
+    roots_by_module = {}
+    for qualified_name in EXPECTED_INFRASTRUCTURE_ROOTS:
+        module_name, root_name = qualified_name.rsplit(".", 1)
+        roots_by_module.setdefault(module_name, []).append(root_name)
+    for module_name, root_names in roots_by_module.items():
+        source = (
+            'INFRASTRUCTURE_PROTOCOL = "task5-v1"\n'
+            f"def {helper_name}(value=None):\n"
+            "    return value if INFRASTRUCTURE_PROTOCOL else None\n"
+        )
+        for root_name in sorted(root_names):
+            if root_name == omit_root:
+                continue
+            source += f"def {root_name}(value=None):\n"
+            if root_name == "_run_isolated_recomputation_core":
+                source += (
+                    f"    return {helper_name}(value), "
+                    "ADAPTER_ELIGIBILITY, ADAPTER_DEFINITIONS, "
+                    "ORACLE_DEFINITIONS\n"
+                )
+            else:
+                source += f"    return {helper_name}(value)\n"
+        source += extra_source_by_module.get(module_name, "")
+        _write_task5_source(source_root, module_name, source)
+
+
+def test_infrastructure_closure_has_exact_roots_purposes_and_dependencies(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(tmp_path)
+
+    first = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+    second = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert first == second
+    assert first.roots == tuple(sorted(EXPECTED_INFRASTRUCTURE_ROOTS))
+    assert set(first.purpose_bindings) == EXPECTED_INFRASTRUCTURE_ROOTS
+    assert first.purpose_bindings == _task5_expected_purpose_bindings()
+    assert all(set(node) == TASK5_NODE_FIELDS for node in first.nodes)
+    node_names = {node["qualified_name"] for node in first.nodes}
+    assert EXPECTED_INFRASTRUCTURE_ROOTS <= node_names
+    for module_name in {
+        root.rsplit(".", 1)[0] for root in EXPECTED_INFRASTRUCTURE_ROOTS
+    }:
+        assert f"{module_name}._transport_identity" in node_names
+        assert f"{module_name}.INFRASTRUCTURE_PROTOCOL" in node_names
+    for root in EXPECTED_INFRASTRUCTURE_ROOTS:
+        module_name = root.rsplit(".", 1)[0]
+        assert (
+            root,
+            f"{module_name}._transport_identity",
+        ) in first.dependency_edges
+
+    committed_edges = {
+        edge
+        for edge in first.dependency_edges
+        if edge[1].startswith("committed_data:")
+    }
+    core = (
+        "validation.literature_evidence_isolation."
+        "_run_isolated_recomputation_core"
+    )
+    assert committed_edges == {
+        (
+            core,
+            (
+                "committed_data:validation.literature_evidence_adapters."
+                "ADAPTER_ELIGIBILITY"
+            ),
+        ),
+        (
+            core,
+            (
+                "committed_data:validation.literature_evidence_adapters."
+                "ADAPTER_DEFINITIONS"
+            ),
+        ),
+        (
+            core,
+            (
+                "committed_data:"
+                "validation.literature_evidence_adapter_oracles."
+                "ORACLE_DEFINITIONS"
+            ),
+        ),
+    }
+    assert not any(
+        node["qualified_name"].rsplit(".", 1)[-1]
+        in {
+            "ADAPTER_ELIGIBILITY",
+            "ADAPTER_DEFINITIONS",
+            "ORACLE_DEFINITIONS",
+        }
+        for node in first.nodes
+    )
+
+
+def test_infrastructure_closure_rejects_local_committed_data_shadow(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                'ADAPTER_DEFINITIONS = "malicious-local-shadow"\n'
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError, match="committed|data|shadow|edge"
+    ):
+        isolation.build_infrastructure_closure(
+            source_roots=(tmp_path,)
+        )
+
+
+def test_infrastructure_closure_rejects_missing_root_and_caller_extras(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path, omit_root="collect_backend_diagnostics"
+    )
+    with pytest.raises(AdapterContractError, match="root|missing|resolve"):
+        isolation.build_infrastructure_closure(
+            source_roots=(tmp_path,)
+        )
+    with pytest.raises(TypeError):
+        isolation.build_infrastructure_closure(
+            source_roots=(tmp_path,),
+            roots=("validation.caller.extra",),
+        )
+
+
+@pytest.mark.parametrize(
+    "helper_name",
+    ("_build_model_hamiltonian", "_derive_method_result"),
+)
+def test_infrastructure_closure_rejects_scientific_or_result_helper(
+    tmp_path,
+    helper_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path, helper_name=helper_name
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|scientific|result|Hamiltonian|purpose",
+    ):
+        isolation.build_infrastructure_closure(
+            source_roots=(tmp_path,)
+        )
+
+
+def _task5_minimal_scientific_closure(entry_symbol, role, seed):
+    from validation import literature_evidence_isolation as isolation
+
+    module_name, function_name = entry_symbol.split(":", 1)
+    source_bytes = (
+        f"def {function_name}(value):\n"
+        f"    return value  # {seed}\n"
+    ).encode("utf-8")
+    source_sha256 = hashlib.sha256(source_bytes).hexdigest()
+    qualified_name = f"{module_name}.{function_name}"
+    node = {
+        "relative_path": module_name.replace(".", "/") + ".py",
+        "raw_file_sha256": source_sha256,
+        "node_kind": "function",
+        "qualified_name": qualified_name,
+        "source_span_sha256": source_sha256,
+        "emitted_node_sha256": source_sha256,
+        "dependency_edges": (),
+        "scanner_version": "deterministic_ast_closure_v1",
+    }
+    emitted_source_sha256 = source_sha256
+    payload = {
+        "schema_version": "scientific_closure_v1",
+        "role": role,
+        "entry_symbol": entry_symbol,
+        "nodes": (node,),
+        "dependency_edges": (),
+        "emitted_source_sha256": emitted_source_sha256,
+        "builder_version": "deterministic_ast_closure_v1",
+    }
+    return isolation.ScientificClosure(
+        "scientific_closure_v1",
+        role,
+        entry_symbol,
+        (node,),
+        (),
+        emitted_source_sha256,
+        canonical_sha256(payload),
+    )
+
+
+def _task5_adapter_closure(seed="canonical"):
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    return _task5_minimal_scientific_closure(
+        definition.entry_symbol, "adapter", seed
+    )
+
+
+def _task5_oracle_closure(seed="canonical"):
+    definition = _synthetic_oracle_definition()
+    return _task5_minimal_scientific_closure(
+        definition.entry_symbol, "oracle", seed
+    )
+
+
+def test_task5_builder_public_signatures_are_exact_and_not_overridable():
+    from validation import literature_evidence_isolation as isolation
+
+    assert str(inspect.signature(isolation.build_scientific_closure)) == (
+        "(entry_symbol, *, role, source_roots)"
+    )
+    assert str(
+        inspect.signature(isolation.build_scientific_policy_commitment)
+    ) == "(definition, closure, *, role)"
+    assert str(inspect.signature(isolation.build_infrastructure_closure)) == (
+        "(*, source_roots)"
+    )
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    closure = _task5_adapter_closure()
+    with pytest.raises(TypeError):
+        isolation.build_scientific_policy_commitment(
+            definition,
+            closure,
+            role="adapter",
+            static_scan_sha256=_sha256_text("caller-forged-scan"),
+        )
+
+
+def _task5_expected_structure_scan(commitment, closure):
+    return {
+        "schema_version": "task5_policy_structure_scan_v1",
+        "role": commitment.role,
+        "canonical_definition_sha256": (
+            commitment.canonical_definition_sha256
+        ),
+        "entry_closure_sha256": closure.bundle_sha256,
+        "checks": {
+            "canonical_definition_valid": True,
+            "role_and_entry_bound": True,
+            "proof_bindings_closed": True,
+            "domain_policy_closed": True,
+            "size_policy_closed": True,
+            "convergence_policy_closed": True,
+            "forbidden_structures_absent": True,
+        },
+    }
+
+
+def test_policy_builder_binds_canonical_adapter_and_internal_structure_scan():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    closure = _task5_adapter_closure()
+
+    commitment = isolation.build_scientific_policy_commitment(
+        definition, closure, role="adapter"
+    )
+
+    assert commitment.role == "adapter"
+    assert commitment.definition_id == definition.adapter_id
+    assert commitment.entry_closure_sha256 == closure.bundle_sha256
+    assert commitment.static_scan_sha256 == canonical_sha256(
+        _task5_expected_structure_scan(commitment, closure)
+    )
+    assert commitment == isolation.ScientificPolicyCommitment(
+        **{
+            field.name: getattr(commitment, field.name)
+            for field in dataclasses.fields(type(commitment))
+        }
+    )
+
+
+def test_policy_builder_allows_closed_synthetic_oracle_and_binds_role():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = _synthetic_oracle_definition()
+    closure = _task5_oracle_closure()
+
+    commitment = isolation.build_scientific_policy_commitment(
+        definition, closure, role="oracle"
+    )
+
+    assert commitment.definition_id == definition.oracle_id
+    assert commitment.eligibility_row_sha256 is None
+    assert commitment.eligibility_catalog_sha256 is None
+    assert commitment.static_scan_sha256 == canonical_sha256(
+        _task5_expected_structure_scan(commitment, closure)
+    )
+    with pytest.raises(AdapterContractError, match="role|entry"):
+        isolation.build_scientific_policy_commitment(
+            definition, closure, role="adapter"
+        )
+
+
+def _task5_detached_adapter(mutation):
+    canonical = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(AdapterDefinition)
+    }
+    if mutation == "definition":
+        identity = thaw_json(canonical.observable_identity)
+        identity["conditions"]["rule"] += " and a detached condition"
+        values["observable_identity"] = identity
+    elif mutation == "domain":
+        valid = thaw_json(canonical.counterfactual_domain.valid_rules)
+        valid["additional_probe_count"] = 5
+        values["counterfactual_domain"] = CounterfactualDomain(
+            valid, canonical.counterfactual_domain.invalid_rules
+        )
+    elif mutation == "size":
+        values["problem_size_policy"] = ProblemSizePolicy(
+            "fixed_local", {"sites": 2}, {}
+        )
+    elif mutation == "convergence":
+        requirements = thaw_json(
+            canonical.convergence_contract.requirements
+        )
+        requirements["bound_rule"] += " under two detached checks"
+        values["convergence_contract"] = ConvergenceContract(
+            canonical.convergence_contract.kind, requirements
+        )
+    elif mutation == "proof":
+        selector, binding = canonical.output_schema.fields[0]
+        values["output_schema"] = adapters.OutputSchema(
+            (
+                (
+                    selector,
+                    adapters.OutputFieldBinding(
+                        binding.value_schema,
+                        "alternate_local_value",
+                        binding.proof_kind,
+                    ),
+                ),
+            )
+        )
+    elif mutation == "runtime":
+        runtime = canonical.runtime_requirements
+        values["runtime_requirements"] = RuntimeRequirements(
+            runtime.interpreter,
+            runtime.packages + ("numpy",),
+            runtime.native_libraries,
+            runtime.backend_resources,
+        )
+    elif mutation == "resource":
+        limits = canonical.resource_limits
+        values["resource_limits"] = ResourceLimits(
+            limits.cpu_seconds + 1,
+            limits.wall_seconds,
+            limits.address_space_bytes,
+            limits.output_bytes,
+            limits.file_descriptors,
+            limits.process_count,
+        )
+    else:
+        values["oracle_id"] = "detached_oracle_id"
+    return AdapterDefinition(**values)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "definition",
+        "domain",
+        "size",
+        "convergence",
+        "proof",
+        "runtime",
+        "resource",
+        "oracle_id",
+    ),
+)
+def test_policy_builder_rejects_each_detached_adapter_commitment(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(AdapterContractError, match="canonical|catalog"):
+        isolation.build_scientific_policy_commitment(
+            _task5_detached_adapter(mutation),
+            _task5_adapter_closure(),
+            role="adapter",
+        )
+
+
+def _task5_mutated_oracle(mutation):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    if mutation == "runtime":
+        runtime = canonical.runtime_requirements
+        values["runtime_requirements"] = RuntimeRequirements(
+            runtime.interpreter,
+            runtime.packages + ("scipy",),
+            runtime.native_libraries,
+            runtime.backend_resources,
+        )
+    elif mutation == "resource":
+        limits = canonical.resource_limits
+        values["resource_limits"] = ResourceLimits(
+            limits.cpu_seconds + 1,
+            limits.wall_seconds,
+            limits.address_space_bytes,
+            limits.output_bytes,
+            limits.file_descriptors,
+            limits.process_count,
+        )
+    elif mutation == "convergence":
+        contract = thaw_json(canonical.convergence_invariant_contract)
+        contract["secondary_bound"] = 1e-12
+        values["convergence_invariant_contract"] = contract
+    else:
+        values["result_schema"] = ValueSchema(
+            "object",
+            True,
+            None,
+            None,
+            None,
+            canonical.result_schema.properties
+            + (("secondary_residual", _number_schema(lower=0.0)),),
+            "",
+        )
+    return oracles.OracleDefinition(**values)
+
+
+@pytest.mark.parametrize(
+    "mutation", ("runtime", "resource", "convergence", "proof")
+)
+def test_policy_builder_commits_each_synthetic_oracle_change(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task5_oracle_closure()
+    canonical = isolation.build_scientific_policy_commitment(
+        _synthetic_oracle_definition(), closure, role="oracle"
+    )
+    changed = isolation.build_scientific_policy_commitment(
+        _task5_mutated_oracle(mutation), closure, role="oracle"
+    )
+
+    assert changed.canonical_definition_sha256 != (
+        canonical.canonical_definition_sha256
+    )
+    assert changed.static_scan_sha256 != canonical.static_scan_sha256
+    assert changed.combined_sha256 != canonical.combined_sha256
+
+
+def test_policy_builder_commits_entry_closure_changes():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = _synthetic_oracle_definition()
+    first = isolation.build_scientific_policy_commitment(
+        definition, _task5_oracle_closure("first"), role="oracle"
+    )
+    second = isolation.build_scientific_policy_commitment(
+        definition, _task5_oracle_closure("second"), role="oracle"
+    )
+
+    assert first.entry_closure_sha256 != second.entry_closure_sha256
+    assert first.static_scan_sha256 != second.static_scan_sha256
+    assert first.combined_sha256 != second.combined_sha256
+
+
+TASK5_FORBIDDEN_POLICY_STRUCTURES = (
+    ("fingerprints", {"fingerprints": ("a" * 64,)}),
+    ("lookup", {"lookup_table": {"probe": 1.25}}),
+    ("categorical", {"categorical_label": "ordered_phase"}),
+    ("expression", {"derivation": "lambda value: value + 1"}),
+    (
+        "adapter_id_branch",
+        {"adapter_id_branch": {"synthetic_adapter": "alternate"}},
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, forbidden_contract",
+    TASK5_FORBIDDEN_POLICY_STRUCTURES,
+    ids=tuple(case[0] for case in TASK5_FORBIDDEN_POLICY_STRUCTURES),
+)
+def test_policy_builder_rejects_each_forbidden_definition_structure(
+    case_name,
+    forbidden_contract,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    values["convergence_invariant_contract"] = forbidden_contract
+    definition = oracles.OracleDefinition(**values)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="policy|forbidden|fingerprint|lookup|categorical|expression|branch",
+    ):
+        isolation.build_scientific_policy_commitment(
+            definition, _task5_oracle_closure(), role="oracle"
+        )
+
+
+def test_policy_builder_rejects_target_fingerprint_and_unknown_proof_kind():
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    oracle = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(oracle, field.name)
+        for field in dataclasses.fields(type(oracle))
+    }
+    values["convergence_invariant_contract"] = {
+        "target_fingerprints": ("a" * 64,)
+    }
+    with pytest.raises(AdapterContractError, match="forbidden"):
+        oracles.OracleDefinition(**values)
+
+    payload = adapters.adapter_definition_to_frozen_json(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    )
+    detached = adapters.adapter_definition_from_frozen_json(payload)
+    binding = detached.output_schema.fields[0][1]
+    object.__setattr__(binding, "proof_kind", "caller_expression")
+    with pytest.raises(AdapterContractError, match="proof|approved"):
+        isolation.build_scientific_policy_commitment(
+            detached, _task5_adapter_closure(), role="adapter"
+        )
+
+
+def test_policy_builder_rejects_nonrecord_encoding_and_entry_mismatch():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    with pytest.raises(AdapterContractError, match="definition|exact"):
+        isolation.build_scientific_policy_commitment(
+            canonical_json_bytes(
+                adapters.adapter_definition_to_frozen_json(definition)
+            ),
+            _task5_adapter_closure(),
+            role="adapter",
+        )
+    mismatched = _task5_minimal_scientific_closure(
+        "validation.synthetic:adapter_other", "adapter", "mismatch"
+    )
+    with pytest.raises(AdapterContractError, match="entry|closure"):
+        isolation.build_scientific_policy_commitment(
+            definition, mismatched, role="adapter"
+        )
+
+
+def test_scientific_closure_rejects_symlink_escape_from_source_root(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = tmp_path / "source-root"
+    module_parent = source_root / "synthetic_science"
+    module_parent.mkdir(parents=True)
+    outside_source = tmp_path / "outside-adapters.py"
+    with outside_source.open("xb") as stream:
+        stream.write(
+            b"def adapter_entry(value):\n    return value + 1\n"
+        )
+    (module_parent / "adapters.py").symlink_to(outside_source)
+
+    with pytest.raises(AdapterContractError, match="symlink|escape|root"):
+        isolation.build_scientific_closure(
+            "synthetic_science.adapters:adapter_entry",
+            role="adapter",
+            source_roots=(source_root,),
+        )
+
+
+def test_scientific_closure_rejects_symlinked_source_root(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    real_root = tmp_path / "real-root"
+    _write_task5_source(
+        real_root,
+        "synthetic_science.adapters",
+        "def adapter_entry(value):\n    return value + 1\n",
+    )
+    linked_root = tmp_path / "linked-root"
+    linked_root.symlink_to(real_root, target_is_directory=True)
+
+    with pytest.raises(AdapterContractError, match="symlink|root"):
+        isolation.build_scientific_closure(
+            "synthetic_science.adapters:adapter_entry",
+            role="adapter",
+            source_roots=(linked_root,),
+        )
+
+
+def test_scientific_closure_rejects_symlinked_intermediate_directory(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = tmp_path / "source-root"
+    real_package = source_root / "real-package"
+    _write_task5_source(
+        real_package,
+        "adapters",
+        "def adapter_entry(value):\n    return value + 1\n",
+    )
+    synthetic_package = source_root / "synthetic_science"
+    synthetic_package.symlink_to(real_package, target_is_directory=True)
+
+    with pytest.raises(AdapterContractError, match="symlink|root"):
+        isolation.build_scientific_closure(
+            "synthetic_science.adapters:adapter_entry",
+            role="adapter",
+            source_roots=(source_root,),
+        )
+
+
+def test_scientific_closure_rejects_ambiguous_duplicate_module_roots(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    first_root = tmp_path / "first-root"
+    second_root = tmp_path / "second-root"
+    source = "def adapter_entry(value):\n    return value + 1\n"
+    _write_task5_source(
+        first_root, "synthetic_science.adapters", source
+    )
+    _write_task5_source(
+        second_root, "synthetic_science.adapters", source
+    )
+
+    with pytest.raises(AdapterContractError, match="ambiguous|duplicate"):
+        isolation.build_scientific_closure(
+            "synthetic_science.adapters:adapter_entry",
+            role="adapter",
+            source_roots=(first_root, second_root),
+        )
+
+
+def test_scientific_closure_rejects_entry_path_traversal(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(AdapterContractError, match="entry_symbol|qualified"):
+        isolation.build_scientific_closure(
+            "synthetic_science..adapters:adapter_entry",
+            role="adapter",
+            source_roots=(tmp_path,),
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("bundle", "raw_hash", "emitted_hash", "edge", "path_traversal"),
+)
+def test_scientific_policy_rejects_each_tampered_closure_record(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    closure = _task5_adapter_closure("record-integrity")
+    nodes = [dict(node.items()) for node in closure.nodes]
+    edges = closure.dependency_edges
+    bundle_sha256 = closure.bundle_sha256
+    if mutation == "bundle":
+        bundle_sha256 = _sha256_text("forged-closure-bundle")
+    elif mutation == "raw_hash":
+        nodes[0]["raw_file_sha256"] = _sha256_text("forged-raw-file")
+    elif mutation == "emitted_hash":
+        nodes[0]["emitted_node_sha256"] = _sha256_text(
+            "forged-emitted-node"
+        )
+    elif mutation == "edge":
+        edge = (nodes[0]["qualified_name"], "validation.dynamic.ghost")
+        nodes[0]["dependency_edges"] = (edge,)
+        edges = (edge,)
+    else:
+        nodes[0]["relative_path"] = "../outside.py"
+    tampered = isolation.ScientificClosure(
+        closure.schema_version,
+        closure.role,
+        closure.entry_symbol,
+        tuple(nodes),
+        edges,
+        closure.emitted_source_sha256,
+        bundle_sha256,
+    )
+
+    with pytest.raises(AdapterContractError, match="closure|bundle|path"):
+        isolation.build_scientific_policy_commitment(
+            definition, tampered, role="adapter"
+        )
+
+
+def _task5_rehashed_scientific_closure(closure, nodes):
+    from validation import literature_evidence_isolation as isolation
+
+    nodes = tuple(nodes)
+    edges = tuple(
+        edge for node in nodes for edge in node["dependency_edges"]
+    )
+    payload = {
+        "schema_version": closure.schema_version,
+        "role": closure.role,
+        "entry_symbol": closure.entry_symbol,
+        "nodes": nodes,
+        "dependency_edges": edges,
+        "emitted_source_sha256": closure.emitted_source_sha256,
+        "builder_version": "deterministic_ast_closure_v1",
+    }
+    return isolation.ScientificClosure(
+        closure.schema_version,
+        closure.role,
+        closure.entry_symbol,
+        nodes,
+        edges,
+        closure.emitted_source_sha256,
+        canonical_sha256(payload),
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("node_order", "edge_destination", "edge_order", "path_module", "raw_hash"),
+)
+def test_scientific_policy_rejects_rehashed_structural_closure_tampering(
+    tmp_path,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_source(
+        tmp_path,
+        "validation.literature_evidence_adapters",
+        _task5_pure_scientific_source().replace(
+            "adapter_entry", "adapter_square_ising_self_dual_tc"
+        ),
+    )
+    closure = isolation.build_scientific_closure(
+        (
+            "validation.literature_evidence_adapters:"
+            "adapter_square_ising_self_dual_tc"
+        ),
+        role="adapter",
+        source_roots=(tmp_path,),
+    )
+    nodes = [dict(node.items()) for node in closure.nodes]
+    if mutation == "node_order":
+        nodes.reverse()
+    elif mutation == "edge_destination":
+        node = next(item for item in nodes if item["dependency_edges"])
+        source, _destination = node["dependency_edges"][0]
+        node["dependency_edges"] = (
+            (source, "validation.uncommitted.ghost"),
+            *node["dependency_edges"][1:],
+        )
+    elif mutation == "edge_order":
+        node = next(
+            item for item in nodes if len(item["dependency_edges"]) > 1
+        )
+        node["dependency_edges"] = tuple(
+            reversed(node["dependency_edges"])
+        )
+    elif mutation == "path_module":
+        nodes[0]["relative_path"] = "validation/wrong_module.py"
+    else:
+        nodes[1]["raw_file_sha256"] = _sha256_text(
+            "coherently-rehashed-raw-file"
+        )
+    tampered = _task5_rehashed_scientific_closure(closure, nodes)
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+
+    with pytest.raises(AdapterContractError, match="closure|node|edge|path|file"):
+        isolation.build_scientific_policy_commitment(
+            definition, tampered, role="adapter"
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("roots", "purpose", "bundle", "node_hash", "committed_edge"),
+)
+def test_dependency_partition_rejects_each_tampered_infrastructure_record(
+    tmp_path,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _task5_partition_fixture(tmp_path)
+    infrastructure = fixture[4]
+    roots = infrastructure.roots
+    nodes = [dict(node.items()) for node in infrastructure.nodes]
+    edges = infrastructure.dependency_edges
+    purposes = dict(infrastructure.purpose_bindings.items())
+    bundle_sha256 = infrastructure.bundle_sha256
+    if mutation == "roots":
+        roots = roots[:-1]
+    elif mutation == "purpose":
+        purposes[roots[0]] = "caller_defined_purpose"
+    elif mutation == "bundle":
+        bundle_sha256 = _sha256_text("forged-infrastructure-bundle")
+    elif mutation == "node_hash":
+        nodes[0]["source_span_sha256"] = _sha256_text(
+            "forged-infrastructure-node"
+        )
+    else:
+        edges = tuple(
+            edge
+            for edge in edges
+            if not edge[1].startswith("committed_data:")
+        )
+        for node in nodes:
+            node["dependency_edges"] = tuple(
+                edge
+                for edge in node["dependency_edges"]
+                if not edge[1].startswith("committed_data:")
+            )
+    tampered = isolation.InfrastructureClosure(
+        infrastructure.schema_version,
+        roots,
+        tuple(nodes),
+        edges,
+        purposes,
+        bundle_sha256,
+    )
+    tampered_fixture = (*fixture[:4], tampered, fixture[5])
+
+    with pytest.raises(AdapterContractError):
+        _assert_task5_partition(tampered_fixture, fixture[5])
+
+
+def _task5_rehashed_infrastructure_closure(infrastructure, nodes, roots=None):
+    from validation import literature_evidence_isolation as isolation
+
+    nodes = tuple(nodes)
+    edges = tuple(
+        edge for node in nodes for edge in node["dependency_edges"]
+    )
+    if roots is None:
+        roots = infrastructure.roots
+    payload = {
+        "schema_version": infrastructure.schema_version,
+        "roots": roots,
+        "nodes": nodes,
+        "dependency_edges": edges,
+        "purpose_bindings": infrastructure.purpose_bindings,
+        "builder_version": "deterministic_ast_closure_v1",
+    }
+    return isolation.InfrastructureClosure(
+        infrastructure.schema_version,
+        roots,
+        nodes,
+        edges,
+        infrastructure.purpose_bindings,
+        canonical_sha256(payload),
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("node_order", "edge_destination", "path_module", "raw_hash", "root_order"),
+)
+def test_dependency_partition_rejects_rehashed_infrastructure_tampering(
+    tmp_path,
+    mutation,
+):
+    fixture = _task5_partition_fixture(tmp_path)
+    infrastructure = fixture[4]
+    nodes = [dict(node.items()) for node in infrastructure.nodes]
+    roots = infrastructure.roots
+    if mutation == "node_order":
+        nodes.reverse()
+    elif mutation == "edge_destination":
+        node = next(item for item in nodes if item["dependency_edges"])
+        source, _destination = node["dependency_edges"][0]
+        node["dependency_edges"] = (
+            (source, "validation.uncommitted.ghost"),
+            *node["dependency_edges"][1:],
+        )
+    elif mutation == "path_module":
+        nodes[0]["relative_path"] = "validation/wrong_module.py"
+    elif mutation == "raw_hash":
+        path = nodes[0]["relative_path"]
+        same_file = [
+            node for node in nodes if node["relative_path"] == path
+        ]
+        assert len(same_file) > 1
+        same_file[0]["raw_file_sha256"] = _sha256_text(
+            "coherently-rehashed-infrastructure-file"
+        )
+    else:
+        roots = tuple(reversed(roots))
+    tampered = _task5_rehashed_infrastructure_closure(
+        infrastructure, nodes, roots
+    )
+    tampered_fixture = (*fixture[:4], tampered, fixture[5])
+
+    with pytest.raises(AdapterContractError, match="infrastructure|node|edge|path|file|root"):
+        _assert_task5_partition(tampered_fixture, fixture[5])
+
+
+def test_dependency_partition_rejects_rehashed_committed_data_source_rebinding(
+    tmp_path,
+):
+    fixture = _task5_partition_fixture(tmp_path)
+    infrastructure = fixture[4]
+    nodes = [dict(node.items()) for node in infrastructure.nodes]
+    committed_edges = tuple(
+        edge
+        for edge in infrastructure.dependency_edges
+        if edge[1].startswith("committed_data:")
+    )
+    original_source = committed_edges[0][0]
+    original_node = next(
+        node for node in nodes if node["qualified_name"] == original_source
+    )
+    original_node["dependency_edges"] = tuple(
+        edge
+        for edge in original_node["dependency_edges"]
+        if not edge[1].startswith("committed_data:")
+    )
+    rebound_node = next(
+        node
+        for node in nodes
+        if node["node_kind"] == "function"
+        and node["qualified_name"] != original_source
+    )
+    rebound_source = rebound_node["qualified_name"]
+    rebound_node["dependency_edges"] = tuple(
+        sorted(
+            rebound_node["dependency_edges"]
+            + tuple(
+                (rebound_source, destination)
+                for _source, destination in committed_edges
+            )
+        )
+    )
+    tampered = _task5_rehashed_infrastructure_closure(
+        infrastructure, nodes
+    )
+    tampered_fixture = (*fixture[:4], tampered, fixture[5])
+
+    with pytest.raises(AdapterContractError, match="committed|data|edge|source"):
+        _assert_task5_partition(tampered_fixture, fixture[5])
