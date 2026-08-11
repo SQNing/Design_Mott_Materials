@@ -7876,9 +7876,15 @@ def _write_task5_infrastructure_sources(
     omit_root=None,
     helper_name="_transport_identity",
     extra_source_by_module=None,
+    body_by_root=None,
+    declaration_by_root=None,
 ):
     if extra_source_by_module is None:
         extra_source_by_module = {}
+    if body_by_root is None:
+        body_by_root = {}
+    if declaration_by_root is None:
+        declaration_by_root = {}
     roots_by_module = {}
     for qualified_name in EXPECTED_INFRASTRUCTURE_ROOTS:
         module_name, root_name = qualified_name.rsplit(".", 1)
@@ -7892,8 +7898,13 @@ def _write_task5_infrastructure_sources(
         for root_name in sorted(root_names):
             if root_name == omit_root:
                 continue
+            if root_name in declaration_by_root:
+                source += declaration_by_root[root_name]
+                continue
             source += f"def {root_name}(value=None):\n"
-            if root_name == "_run_isolated_recomputation_core":
+            if root_name in body_by_root:
+                source += body_by_root[root_name]
+            elif root_name == "_run_isolated_recomputation_core":
                 source += (
                     f"    return {helper_name}(value), "
                     "ADAPTER_ELIGIBILITY, ADAPTER_DEFINITIONS, "
@@ -8589,10 +8600,17 @@ def test_scientific_policy_rejects_each_tampered_closure_record(mutation):
         )
 
 
-def _task5_rehashed_scientific_closure(closure, nodes):
+def _task5_rehashed_scientific_closure(
+    closure,
+    nodes,
+    *,
+    emitted_source_sha256=None,
+):
     from validation import literature_evidence_isolation as isolation
 
     nodes = tuple(nodes)
+    if emitted_source_sha256 is None:
+        emitted_source_sha256 = closure.emitted_source_sha256
     edges = tuple(
         edge for node in nodes for edge in node["dependency_edges"]
     )
@@ -8602,7 +8620,7 @@ def _task5_rehashed_scientific_closure(closure, nodes):
         "entry_symbol": closure.entry_symbol,
         "nodes": nodes,
         "dependency_edges": edges,
-        "emitted_source_sha256": closure.emitted_source_sha256,
+        "emitted_source_sha256": emitted_source_sha256,
         "builder_version": "deterministic_ast_closure_v1",
     }
     return isolation.ScientificClosure(
@@ -8611,7 +8629,7 @@ def _task5_rehashed_scientific_closure(closure, nodes):
         closure.entry_symbol,
         nodes,
         edges,
-        closure.emitted_source_sha256,
+        emitted_source_sha256,
         canonical_sha256(payload),
     )
 
@@ -8839,3 +8857,548 @@ def test_dependency_partition_rejects_rehashed_committed_data_source_rebinding(
 
     with pytest.raises(AdapterContractError, match="committed|data|edge|source"):
         _assert_task5_partition(tampered_fixture, fixture[5])
+
+
+def _task5_synthetic_manifest_node(
+    qualified_name,
+    *,
+    node_kind="function",
+    seed="synthetic-node",
+    dependency_edges=(),
+):
+    source_bytes = (
+        f"{qualified_name}:{node_kind}:{seed}\n"
+    ).encode("utf-8")
+    node_sha256 = hashlib.sha256(source_bytes).hexdigest()
+    module_name = qualified_name.rsplit(".", 1)[0]
+    return {
+        "relative_path": module_name.replace(".", "/") + ".py",
+        "raw_file_sha256": node_sha256,
+        "node_kind": node_kind,
+        "qualified_name": qualified_name,
+        "source_span_sha256": node_sha256,
+        "emitted_node_sha256": node_sha256,
+        "dependency_edges": tuple(dependency_edges),
+        "scanner_version": "deterministic_ast_closure_v1",
+    }
+
+
+def _task5_canonical_manifest_order(nodes):
+    by_name = {node["qualified_name"]: node for node in nodes}
+    assert len(by_name) == len(nodes)
+    priority = {
+        "import": 0,
+        "immutable_constant": 1,
+        "class": 2,
+        "function": 3,
+    }
+    pending = set(by_name)
+    ordered = []
+    while pending:
+        ready = [
+            by_name[name]
+            for name in pending
+            if not {
+                destination
+                for _source, destination in by_name[name][
+                    "dependency_edges"
+                ]
+                if destination in by_name
+            }
+            & pending
+        ]
+        assert ready
+        ready.sort(
+            key=lambda node: (
+                priority[node["node_kind"]],
+                node["qualified_name"],
+            )
+        )
+        for node in ready:
+            ordered.append(node)
+            pending.remove(node["qualified_name"])
+    return tuple(ordered)
+
+
+@pytest.mark.parametrize(
+    "detached_module",
+    (
+        "validation.detached_adapters",
+        "validation.detached_oracles",
+    ),
+    ids=("same_role", "opposite_role"),
+)
+def test_partition_rejects_rehashed_disconnected_scientific_node(
+    tmp_path,
+    detached_module,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _task5_partition_fixture(tmp_path)
+    adapter = fixture[0]
+    detached_name = f"{detached_module}.detached_helper"
+    detached = _task5_synthetic_manifest_node(
+        detached_name,
+        seed=detached_module,
+    )
+    nodes = _task5_canonical_manifest_order(
+        tuple(dict(node.items()) for node in adapter.nodes) + (detached,)
+    )
+    tampered = _task5_rehashed_scientific_closure(
+        adapter,
+        nodes,
+        emitted_source_sha256=_sha256_text(
+            f"emitted:{detached_module}"
+        ),
+    )
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+
+    with pytest.raises(
+        AdapterContractError, match="closure|reachable|role|disconnected"
+    ):
+        policy = isolation.build_scientific_policy_commitment(
+            definition, tampered, role="adapter"
+        )
+        tampered_fixture = (
+            tampered,
+            policy,
+            *fixture[2:5],
+            tuple(sorted(fixture[5] + (detached_name,))),
+        )
+        _assert_task5_partition(tampered_fixture, tampered_fixture[5])
+
+
+def test_partition_rejects_rehashed_disconnected_infrastructure_formula_node(
+    tmp_path,
+):
+    fixture = _task5_partition_fixture(tmp_path)
+    infrastructure = fixture[4]
+    detached_name = "validation.detached_transport.derive_formula_result"
+    detached = _task5_synthetic_manifest_node(
+        detached_name,
+        seed="scientific-formula-result",
+    )
+    nodes = _task5_canonical_manifest_order(
+        tuple(dict(node.items()) for node in infrastructure.nodes)
+        + (detached,)
+    )
+    tampered = _task5_rehashed_infrastructure_closure(
+        infrastructure, nodes
+    )
+    referenced = tuple(sorted(fixture[5] + (detached_name,)))
+    tampered_fixture = (*fixture[:4], tampered, referenced)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|reachable|formula|result|disconnected",
+    ):
+        _assert_task5_partition(tampered_fixture, referenced)
+
+
+@pytest.mark.parametrize("entry_kind", ("immutable_constant", "class"))
+def test_fresh_scientific_validator_requires_function_entry(
+    entry_kind,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task5_adapter_closure(f"fresh-{entry_kind}")
+    nodes = [dict(node.items()) for node in closure.nodes]
+    nodes[0]["node_kind"] = entry_kind
+    nodes = _task5_canonical_manifest_order(nodes)
+    tampered = _task5_rehashed_scientific_closure(closure, nodes)
+
+    with pytest.raises(AdapterContractError, match="entry|function|kind"):
+        isolation.build_scientific_policy_commitment(
+            adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"],
+            tampered,
+            role="adapter",
+        )
+
+
+def test_fresh_infrastructure_validator_requires_function_roots(tmp_path):
+    fixture = _task5_partition_fixture(tmp_path)
+    infrastructure = fixture[4]
+    root_name = infrastructure.roots[0]
+    nodes = [dict(node.items()) for node in infrastructure.nodes]
+    root_node = next(
+        node for node in nodes if node["qualified_name"] == root_name
+    )
+    root_node["node_kind"] = "immutable_constant"
+    nodes = _task5_canonical_manifest_order(nodes)
+    tampered = _task5_rehashed_infrastructure_closure(
+        infrastructure, nodes
+    )
+    tampered_fixture = (*fixture[:4], tampered, fixture[5])
+
+    with pytest.raises(AdapterContractError, match="root|function|kind"):
+        _assert_task5_partition(tampered_fixture, fixture[5])
+
+
+@pytest.mark.parametrize(
+    "entry_source",
+    (
+        "adapter_entry = 1\n",
+        "class adapter_entry:\n    pass\n",
+    ),
+    ids=("constant", "class"),
+)
+def test_scientific_builder_requires_function_entry(tmp_path, entry_source):
+    _write_task5_source(
+        tmp_path, "synthetic_science.adapters", entry_source
+    )
+
+    with pytest.raises(AdapterContractError, match="entry|function|kind"):
+        _build_task5_scientific_closure(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "root_declaration",
+    (
+        "validate_failure = 1\n",
+        "class validate_failure:\n    pass\n",
+    ),
+    ids=("constant", "class"),
+)
+def test_infrastructure_builder_requires_function_roots(
+    tmp_path,
+    root_declaration,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        declaration_by_root={"validate_failure": root_declaration},
+    )
+
+    with pytest.raises(AdapterContractError, match="root|function|kind"):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "class Meta(type):\n"
+        "    pass\n"
+        "def adapter_entry(value):\n"
+        "    return Meta()\n",
+        "class Base:\n"
+        "    def __init_subclass__(cls):\n"
+        "        return None\n"
+        "def adapter_entry(value):\n"
+        "    return Base\n",
+        "class Descriptor:\n"
+        "    def __set_name__(self, owner, name):\n"
+        "        return None\n"
+        "def adapter_entry(value):\n"
+        "    return Descriptor()\n",
+        "def make_base():\n"
+        "    return object\n"
+        "class Computed(make_base()):\n"
+        "    pass\n"
+        "def adapter_entry(value):\n"
+        "    return Computed()\n",
+    ),
+    ids=(
+        "metaclass_definition",
+        "init_subclass_hook",
+        "set_name_hook",
+        "computed_base",
+    ),
+)
+def test_scientific_closure_rejects_definition_time_class_execution(
+    tmp_path,
+    source,
+):
+    _write_task5_source(
+        tmp_path, "synthetic_science.adapters", source
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="class|base|metaclass|descriptor|hook|definition",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "class_declaration",
+    (
+        "class Plain:\n    pass\n",
+        "class Plain(object):\n    pass\n",
+    ),
+    ids=("plain", "object_base"),
+)
+def test_scientific_closure_allows_plain_nonexecuting_class_control(
+    tmp_path,
+    class_declaration,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        class_declaration
+        + "def adapter_entry(value):\n"
+        + "    return Plain()\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert {
+        node["qualified_name"] for node in closure.nodes
+    } == {
+        "synthetic_science.adapters.Plain",
+        "synthetic_science.adapters.adapter_entry",
+    }
+
+
+def test_scientific_closure_rejects_external_importfrom_piggyback(tmp_path):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from numpy import sqrt, load\n"
+        "def adapter_entry(value):\n"
+        "    return sqrt(value)\n",
+    )
+
+    with pytest.raises(AdapterContractError, match="import|alias|static"):
+        _build_task5_scientific_closure(tmp_path)
+
+
+TASK5_FORBIDDEN_INFRASTRUCTURE_CONTENT = (
+    (
+        "neutral_numeric_equation",
+        "    return value * 1.23456789\n",
+    ),
+    (
+        "neutral_numeric_constant",
+        "    coefficient = 0.3141592653589793\n"
+        "    return coefficient\n",
+    ),
+    (
+        "scientific_equation",
+        "    scientific_constant = 2.0\n"
+        "    return value ** scientific_constant\n",
+    ),
+    (
+        "hamiltonian_builder",
+        "    hamiltonian_builder = value\n"
+        "    return hamiltonian_builder\n",
+    ),
+    (
+        "method_result_derivation",
+        "    method_specific_result = value\n"
+        "    return method_specific_result\n",
+    ),
+    (
+        "adapter_definition",
+        '    definition_type = "AdapterDefinition"\n'
+        "    return definition_type\n",
+    ),
+    (
+        "oracle_definition",
+        '    definition_type = "OracleDefinition"\n'
+        "    return definition_type\n",
+    ),
+    (
+        "policy_bytes",
+        '    canonical_policy_bytes = b"detached-policy"\n'
+        "    return canonical_policy_bytes\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    TASK5_FORBIDDEN_INFRASTRUCTURE_CONTENT,
+    ids=tuple(case[0] for case in TASK5_FORBIDDEN_INFRASTRUCTURE_CONTENT),
+)
+def test_infrastructure_builder_rejects_forbidden_neutral_root_ast_content(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|scientific|equation|Hamiltonian|result|"
+            "definition|policy"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_allows_small_integer_protocol_control(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    protocol_revision = 1\n"
+                "    return value if protocol_revision else None\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+TASK5_NEUTRAL_KEY_POLICY_BYPASSES = (
+    ("categorical_invariant", {"invariant_rule": "ordered_phase"}),
+    ("arbitrary_derivation", {"derivation": "value ** 2 + 1"}),
+    ("benchmark_branch", {"branch": {"synthetic_benchmark": 1.25}}),
+    ("unknown_proof_kind", {"proof_kind": "caller_expression"}),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, convergence_contract",
+    TASK5_NEUTRAL_KEY_POLICY_BYPASSES,
+    ids=tuple(case[0] for case in TASK5_NEUTRAL_KEY_POLICY_BYPASSES),
+)
+def test_policy_builder_rejects_each_neutral_key_oracle_bypass(
+    case_name,
+    convergence_contract,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    values["convergence_invariant_contract"] = convergence_contract
+    bypass = oracles.OracleDefinition(**values)
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "policy|categorical|derivation|expression|branch|benchmark|"
+            "proof"
+        ),
+    ):
+        isolation.build_scientific_policy_commitment(
+            bypass, _task5_oracle_closure(), role="oracle"
+        )
+
+
+def _task5_unrelated_adapter_definition():
+    canonical = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    values["adapter_id"] = "unrelated_membership_adapter"
+    values["entry_symbol"] = (
+        "validation.literature_evidence_adapters:"
+        "adapter_unrelated_membership_adapter"
+    )
+    return AdapterDefinition(**values)
+
+
+def _task5_unrelated_oracle_definition():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    canonical = _synthetic_oracle_definition()
+    values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(type(canonical))
+    }
+    values["oracle_id"] = "unrelated_membership_oracle"
+    values["entry_symbol"] = (
+        "validation.literature_evidence_adapter_oracles:"
+        "oracle_unrelated_membership_oracle"
+    )
+    return oracles.OracleDefinition(**values)
+
+
+@pytest.mark.parametrize("catalog_role", ("adapter", "oracle"))
+def test_dependency_partition_commits_whole_definition_catalog_membership(
+    tmp_path,
+    monkeypatch,
+    catalog_role,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    fixture = _task5_partition_fixture(tmp_path)
+    baseline = _assert_task5_partition(fixture, fixture[5])
+    if catalog_role == "adapter":
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        unrelated = _task5_unrelated_adapter_definition()
+        catalog[unrelated.adapter_id] = unrelated
+        monkeypatch.setattr(
+            adapters, "ADAPTER_DEFINITIONS", MappingProxyType(catalog)
+        )
+    else:
+        catalog = dict(oracles.ORACLE_DEFINITIONS)
+        unrelated = _task5_unrelated_oracle_definition()
+        catalog[unrelated.oracle_id] = unrelated
+        monkeypatch.setattr(
+            oracles, "ORACLE_DEFINITIONS", MappingProxyType(catalog)
+        )
+
+    changed = _assert_task5_partition(fixture, fixture[5])
+
+    assert changed != baseline
+
+
+@pytest.mark.parametrize("catalog_role", ("adapter", "oracle"))
+def test_dependency_partition_rejects_definition_catalog_key_id_mismatch(
+    tmp_path,
+    monkeypatch,
+    catalog_role,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    fixture = _task5_partition_fixture(tmp_path)
+    if catalog_role == "adapter":
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        catalog["mismatched_adapter_key"] = (
+            _task5_unrelated_adapter_definition()
+        )
+        monkeypatch.setattr(
+            adapters,
+            "ADAPTER_DEFINITIONS",
+            MappingProxyType(catalog),
+        )
+    else:
+        monkeypatch.setattr(
+            oracles,
+            "ORACLE_DEFINITIONS",
+            MappingProxyType(
+                {"mismatched_oracle_key": _task5_unrelated_oracle_definition()}
+            ),
+        )
+
+    with pytest.raises(AdapterContractError, match="catalog|key|ID|definition"):
+        _assert_task5_partition(fixture, fixture[5])
+
+
+def test_dependency_partition_rejects_nontext_definition_catalog_key(
+    tmp_path,
+    monkeypatch,
+):
+    fixture = _task5_partition_fixture(tmp_path)
+    catalog = dict(adapters.ADAPTER_DEFINITIONS)
+    catalog[7] = _task5_unrelated_adapter_definition()
+    monkeypatch.setattr(
+        adapters, "ADAPTER_DEFINITIONS", MappingProxyType(catalog)
+    )
+
+    with pytest.raises(AdapterContractError, match="catalog|key|identifier"):
+        _assert_task5_partition(fixture, fixture[5])

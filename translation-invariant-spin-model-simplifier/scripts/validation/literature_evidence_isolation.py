@@ -14,6 +14,7 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
+from types import MappingProxyType
 from validation import literature_evidence_adapters as _adapters
 from validation import literature_evidence_adapter_oracles as _oracles
 from validation.literature_evidence_adapters import (
@@ -1403,6 +1404,29 @@ def _validate_entry_symbol(value: object) -> tuple[str, str]:
     return module_name, symbol_name
 
 
+def _scientific_module_role(module_name: str) -> str | None:
+    leaf = module_name.rsplit(".", 1)[-1]
+    is_oracle = (
+        "adapter_oracles" in leaf
+        or leaf == "oracles"
+        or leaf.endswith("_oracles")
+    )
+    if is_oracle:
+        return "oracle"
+    if leaf == "adapters" or leaf.endswith("_adapters"):
+        return "adapter"
+    return None
+
+
+def _require_scientific_module_role(module_name: str, role: str) -> None:
+    module_role = _scientific_module_role(module_name)
+    if module_role is not None and module_role != role:
+        raise _ContractError(
+            f"{role} scientific closure cannot contain "
+            f"{module_role}-module nodes"
+        )
+
+
 def _normalized_emitted_node(source_span: bytes) -> bytes:
     normalized = source_span.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     return normalized.rstrip(b"\n") + b"\n"
@@ -1513,24 +1537,7 @@ class _AstClosureResolver:
     def _check_module_role(self, module_name: str) -> None:
         if self.role == "infrastructure":
             return
-        leaf = module_name.rsplit(".", 1)[-1]
-        is_oracle = (
-            "adapter_oracles" in leaf
-            or leaf == "oracles"
-            or leaf.endswith("_oracles")
-        )
-        is_adapter = (
-            not is_oracle
-            and (leaf == "adapters" or leaf.endswith("_adapters"))
-        )
-        if self.role == "adapter" and is_oracle:
-            raise _ContractError(
-                "adapter scientific closure cannot contain oracle-module nodes"
-            )
-        if self.role == "oracle" and is_adapter:
-            raise _ContractError(
-                "oracle scientific closure cannot contain adapter-module nodes"
-            )
+        _require_scientific_module_role(module_name, self.role)
 
     def _add_binding(
         self,
@@ -1607,6 +1614,11 @@ class _AstClosureResolver:
                         module_name,
                     )
                 return
+            if len(node.names) != 1:
+                raise _ContractError(
+                    "multi-alias external ImportFrom cannot be "
+                    "statically emitted"
+                )
             local_names = tuple(
                 alias.asname or alias.name for alias in node.names
             )
@@ -1899,24 +1911,33 @@ class _AstClosureResolver:
         }
 
     def _class_loaded_globals(self, node: ast.ClassDef) -> set[str]:
-        if node.decorator_list or any(
-            keyword.arg == "metaclass" for keyword in node.keywords
-        ):
-            raise _ContractError("decorated or metaclass class is forbidden")
-        loaded = set()
-        for expression in tuple(node.bases) + tuple(
-            keyword.value for keyword in node.keywords
-        ):
-            loaded.update(
-                candidate.id
-                for candidate in ast.walk(expression)
-                if isinstance(candidate, ast.Name)
-                and isinstance(candidate.ctx, ast.Load)
+        if node.decorator_list or node.keywords:
+            raise _ContractError(
+                "decorated, keyword, or metaclass class is forbidden"
             )
+        if len(node.bases) > 1 or (
+            node.bases
+            and not (
+                isinstance(node.bases[0], ast.Name)
+                and node.bases[0].id == "object"
+            )
+        ):
+            raise _ContractError(
+                "computed, nontrivial, or metaclass base is forbidden"
+            )
+        loaded = set()
         for statement in node.body:
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if statement.name in {"__get__", "__set__", "__delete__"}:
-                    raise _ContractError("descriptor class is forbidden")
+                if statement.name in {
+                    "__get__",
+                    "__set__",
+                    "__delete__",
+                    "__init_subclass__",
+                    "__set_name__",
+                }:
+                    raise _ContractError(
+                        "descriptor or definition-time class hook is forbidden"
+                    )
                 loaded.update(self._function_loaded_globals(statement))
                 continue
             if (
@@ -2259,6 +2280,36 @@ def _validate_manifest_graph(
         raise _ContractError("closure manifest node ordering is not canonical")
 
 
+def _validate_exact_manifest_reachability(
+    manifests: tuple[_FrozenJsonObject, ...],
+    roots: tuple[str, ...],
+    field_name: str,
+) -> None:
+    by_name = {node["qualified_name"]: node for node in manifests}
+    reachable = set()
+    pending = list(roots)
+    while pending:
+        qualified_name = pending.pop()
+        if qualified_name in reachable:
+            continue
+        try:
+            node = by_name[qualified_name]
+        except KeyError as error:
+            raise _ContractError(
+                f"{field_name} is missing a reachability root"
+            ) from error
+        reachable.add(qualified_name)
+        pending.extend(
+            destination
+            for _source, destination in node["dependency_edges"]
+            if destination in by_name
+        )
+    if reachable != set(by_name):
+        raise _ContractError(
+            f"{field_name} contains a disconnected or unreachable node"
+        )
+
+
 def _validate_scientific_closure_record(
     value: object, *, expected_role: str | None = None
 ) -> ScientificClosure:
@@ -2286,8 +2337,18 @@ def _validate_scientific_closure_record(
     if len(set(qualified_names)) != len(qualified_names):
         raise _ContractError("scientific closure has duplicate nodes")
     _validate_manifest_graph(manifests, allow_committed_data=False)
-    if f"{module_name}.{symbol_name}" not in qualified_names:
+    entry_name = f"{module_name}.{symbol_name}"
+    if entry_name not in qualified_names:
         raise _ContractError("scientific closure does not contain its entry")
+    by_name = {node["qualified_name"]: node for node in manifests}
+    if by_name[entry_name]["node_kind"] != "function":
+        raise _ContractError("scientific closure entry must be a function")
+    for node in manifests:
+        node_module = node["qualified_name"].rsplit(".", 1)[0]
+        _require_scientific_module_role(node_module, closure.role)
+    _validate_exact_manifest_reachability(
+        manifests, (entry_name,), "scientific closure"
+    )
     flattened_edges = tuple(
         edge for node in manifests for edge in node["dependency_edges"]
     )
@@ -2353,6 +2414,13 @@ def _validate_infrastructure_closure_record(
         )
     if not set(closure.roots) <= set(qualified_names):
         raise _ContractError("infrastructure closure is missing a root node")
+    by_name = {node["qualified_name"]: node for node in manifests}
+    if any(by_name[root]["node_kind"] != "function" for root in closure.roots):
+        raise _ContractError("every infrastructure root must be a function")
+    _validate_exact_manifest_reachability(
+        manifests, closure.roots, "infrastructure closure"
+    )
+    _reject_scientific_infrastructure_nodes(manifests)
     committed_edges = {
         (source, destination)
         for source, destination in closure.dependency_edges
@@ -2387,6 +2455,8 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
     resolved_entry = resolver.resolve_symbol(module_name, symbol_name)
     if resolved_entry != f"{module_name}.{symbol_name}":
         raise _ContractError("entry symbol cannot be an imported alias")
+    if resolver.resolved[resolved_entry].source.node_kind != "function":
+        raise _ContractError("scientific closure entry must be a function")
     _assert_no_emitted_binding_collisions(resolver.resolved)
     nodes, dependency_edges, emitted_source = _manifest_from_resolved(
         resolver.resolved
@@ -2401,7 +2471,7 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
         "emitted_source_sha256": emitted_source_sha256,
         "builder_version": _AST_CLOSURE_VERSION,
     }
-    return ScientificClosure(
+    closure = ScientificClosure(
         schema_version="scientific_closure_v1",
         role=normalized_role,
         entry_symbol=entry_symbol,
@@ -2409,6 +2479,9 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
         dependency_edges=dependency_edges,
         emitted_source_sha256=emitted_source_sha256,
         bundle_sha256=_canonical_sha256(bundle_payload),
+    )
+    return _validate_scientific_closure_record(
+        closure, expected_role=normalized_role
     )
 
 
@@ -2540,9 +2613,13 @@ _EXPECTED_INFRASTRUCTURE_ROOTS = tuple(
 _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS = frozenset(
     {
         "answer",
+        "coupling",
         "energy",
+        "equation",
+        "exchange",
         "formula",
         "hamiltonian",
+        "magnetization",
         "model",
         "observable",
         "phase",
@@ -2553,12 +2630,19 @@ _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS = frozenset(
 )
 
 
-def _infrastructure_name_tokens(qualified_name: str) -> set[str]:
-    leaf = qualified_name.rsplit(".", 1)[-1]
+def _lexical_tokens(value: str) -> set[str]:
+    separated = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
     return {
         token.lower()
-        for token in re.findall(r"[A-Za-z0-9]+", leaf.replace("_", " "))
+        for token in re.findall(
+            r"[A-Za-z0-9]+", separated.replace("_", " ")
+        )
     }
+
+
+def _infrastructure_name_tokens(qualified_name: str) -> set[str]:
+    leaf = qualified_name.rsplit(".", 1)[-1]
+    return _lexical_tokens(leaf)
 
 
 def _reject_scientific_infrastructure_nodes(
@@ -2578,6 +2662,58 @@ def _reject_scientific_infrastructure_nodes(
             )
 
 
+def _scan_infrastructure_ast_content(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> None:
+    for item in resolved.values():
+        tokens = set()
+        for candidate in ast.walk(item.source.node):
+            if isinstance(candidate, ast.BinOp):
+                raise _ContractError(
+                    "infrastructure closure contains a scientific equation"
+                )
+            if isinstance(candidate, (ast.Assign, ast.AnnAssign)):
+                assigned_value = candidate.value
+                if (
+                    isinstance(assigned_value, ast.Constant)
+                    and type(assigned_value.value) in (float, complex)
+                ):
+                    raise _ContractError(
+                        "infrastructure closure contains a scientific constant"
+                    )
+            authored_value = None
+            if isinstance(candidate, ast.Name):
+                authored_value = candidate.id
+            elif isinstance(candidate, ast.Attribute):
+                authored_value = candidate.attr
+            elif isinstance(candidate, ast.Constant) and isinstance(
+                candidate.value, (str, bytes)
+            ):
+                if type(candidate.value) is bytes:
+                    authored_value = candidate.value.decode(
+                        "utf-8", errors="ignore"
+                    )
+                else:
+                    authored_value = candidate.value
+            if authored_value is not None:
+                tokens.update(_lexical_tokens(authored_value))
+        if tokens & _INFRASTRUCTURE_FORBIDDEN_HELPER_TOKENS:
+            raise _ContractError(
+                "infrastructure AST contains scientific or result content"
+            )
+        if (
+            {"adapter", "definition"} <= tokens
+            or {"oracle", "definition"} <= tokens
+        ):
+            raise _ContractError(
+                "infrastructure AST contains a scientific definition"
+            )
+        if {"policy", "bytes"} <= tokens:
+            raise _ContractError(
+                "infrastructure AST contains scientific policy bytes"
+            )
+
+
 def build_infrastructure_closure(*, source_roots):
     """Build the exact planned transport/isolation dependency closure."""
 
@@ -2590,6 +2726,11 @@ def build_infrastructure_closure(*, source_roots):
             raise _ContractError(
                 f"infrastructure root {qualified_root} resolves by alias"
             )
+        if resolver.resolved[resolved_root].source.node_kind != "function":
+            raise _ContractError(
+                f"infrastructure root {qualified_root} must be a function"
+            )
+    _scan_infrastructure_ast_content(resolver.resolved)
     nodes, dependency_edges, _emitted_source = _manifest_from_resolved(
         resolver.resolved
     )
@@ -2630,9 +2771,24 @@ def _scan_policy_forbidden_structures(value: object, field_name: str) -> None:
                 raise _ContractError(
                     f"{field_name} contains a forbidden policy structure"
                 )
+            if tokens & {"derivation", "expression", "formula"}:
+                raise _ContractError(
+                    f"{field_name} contains an arbitrary derivation expression"
+                )
+            if "branch" in tokens:
+                raise _ContractError(
+                    f"{field_name} contains a benchmark or adapter branch"
+                )
             if {"adapter", "id", "branch"} <= tokens:
                 raise _ContractError(
                     f"{field_name} contains an adapter-ID branch"
+                )
+            if {"proof", "kind"} <= tokens and (
+                type(item) is not str
+                or item not in _adapters.OUTPUT_PROOF_KINDS
+            ):
+                raise _ContractError(
+                    f"{field_name} contains an unknown proof kind"
                 )
             _scan_policy_forbidden_structures(
                 item, f"{field_name}.{key}"
@@ -2646,6 +2802,21 @@ def _scan_policy_forbidden_structures(value: object, field_name: str) -> None:
         return
     if type(value) is str:
         normalized = value.strip().lower()
+        categorical_answer_literals = frozenset(
+            {
+                "ordered_phase",
+                "disordered_phase",
+                "ferromagnetic_phase",
+                "antiferromagnetic_phase",
+                "topological_phase",
+                "critical_phase",
+            }
+        )
+        normalized_literal = re.sub(r"[\s-]+", "_", normalized)
+        if normalized_literal in categorical_answer_literals:
+            raise _ContractError(
+                f"{field_name} contains a categorical answer literal"
+            )
         if any(
             marker in normalized
             for marker in (
@@ -2721,6 +2892,51 @@ def _validate_task5_policy_commitment(
             f"{expected_role} policy has an invalid Task 5 structure scan"
         )
     return policy
+
+
+def _definition_catalog_sha256(catalog: object, *, role: str) -> str:
+    if type(catalog) is not MappingProxyType:
+        raise _ContractError(
+            f"{role} definition catalog must be an exact immutable mapping"
+        )
+    catalog_keys = tuple(catalog)
+    for index, key in enumerate(catalog_keys):
+        _identifier(key, f"{role} definition catalog key[{index}]")
+    canonical_catalog = {}
+    for key in sorted(catalog_keys):
+        definition = catalog[key]
+        if role == "adapter":
+            validated = _validate_adapter_definition(definition)
+            definition_id = validated.adapter_id
+            payload = _adapters.adapter_definition_to_frozen_json(
+                validated
+            )
+            round_tripped = (
+                _adapters.adapter_definition_from_frozen_json(payload)
+            )
+            reencoded = _adapters.adapter_definition_to_frozen_json(
+                round_tripped
+            )
+        else:
+            validated = _oracles.validate_oracle_definition(definition)
+            definition_id = validated.oracle_id
+            payload = _oracles.oracle_definition_to_frozen_json(validated)
+            round_tripped = (
+                _oracles.oracle_definition_from_frozen_json(payload)
+            )
+            reencoded = _oracles.oracle_definition_to_frozen_json(
+                round_tripped
+            )
+        if key != definition_id:
+            raise _ContractError(
+                f"{role} definition catalog key does not match definition ID"
+            )
+        if _canonical_bytes(payload) != _canonical_bytes(reencoded):
+            raise _ContractError(
+                f"{role} definition catalog has a noncanonical record"
+            )
+        canonical_catalog[key] = payload
+    return _canonical_sha256(canonical_catalog)
 
 
 def build_scientific_policy_commitment(definition, closure, *, role):
@@ -2843,6 +3059,12 @@ def assert_complete_dependency_partition(
     infrastructure = _validate_infrastructure_closure_record(
         infrastructure_closure
     )
+    adapter_definition_catalog_sha256 = _definition_catalog_sha256(
+        _adapters.ADAPTER_DEFINITIONS, role="adapter"
+    )
+    oracle_definition_catalog_sha256 = _definition_catalog_sha256(
+        _oracles.ORACLE_DEFINITIONS, role="oracle"
+    )
     if type(referenced_project_nodes) is not tuple:
         raise _ContractError(
             "referenced_project_nodes must be an exact tuple"
@@ -2910,10 +3132,10 @@ def assert_complete_dependency_partition(
                 adapter_policy.eligibility_catalog_sha256
             ),
             _COMMITTED_DATA_TARGETS["ADAPTER_DEFINITIONS"]: (
-                adapter_policy.combined_sha256
+                adapter_definition_catalog_sha256
             ),
             _COMMITTED_DATA_TARGETS["ORACLE_DEFINITIONS"]: (
-                oracle_policy.combined_sha256
+                oracle_definition_catalog_sha256
             ),
         },
     }
