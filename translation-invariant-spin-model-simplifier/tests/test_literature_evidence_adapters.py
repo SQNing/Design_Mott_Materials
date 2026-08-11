@@ -5,8 +5,11 @@ import inspect
 from itertools import product
 import json
 import math
+import os
 import string
+import subprocess
 import sys
+import tracemalloc
 from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
@@ -16181,7 +16184,7 @@ def test_task6_review_rejects_constant_flow_bypasses_without_operand_leak(
 
 
 @pytest.mark.parametrize("role", ("adapter", "oracle"))
-def test_task6_review_rejects_anonymously_named_literal_mapping_indexed_by_parameter(
+def test_task6_review_rejects_anonymous_mapping_indexed_by_parameter(
     tmp_path,
     role,
 ):
@@ -16286,6 +16289,108 @@ def test_task6_review_rejects_file_capabilities_by_exact_callable_path(
         _task6_build_and_scan(tmp_path, role, source)
 
 
+TASK6_REVIEW_CAPABILITY_OBJECT_SOURCES = (
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    load_array = {numpy_name}.load\n"
+        "    return load_array('detached.npy')\n",
+        id="assigned-numpy-load",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    operations = ({numpy_name}.load,)\n"
+        "    return operations[0]('detached.npy')\n",
+        id="tuple-contained-numpy-load",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    operations = [{numpy_name}.load]\n"
+        "    return operations[0]('detached.npy')\n",
+        id="list-contained-numpy-load",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    operations = {{'read': {numpy_name}.load}}\n"
+        "    return operations['read']('detached.npy')\n",
+        id="dict-contained-numpy-load",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    array_module = {numpy_name}\n"
+        "    load_array = array_module.load\n"
+        "    return load_array('detached.npy')\n",
+        id="reused-numpy-module-name-and-attribute",
+    ),
+    pytest.param(
+        "import numpy as local_array_lib\n"
+        "def unrelated_shadow(local_array_lib):\n"
+        "    return local_array_lib\n"
+        "def scientific_entry(parameter):\n"
+        "    unrelated_shadow(parameter)\n"
+        "    return local_array_lib.load('detached.npy')\n",
+        id="module-alias-shadowed-only-in-unrelated-function",
+    ),
+    pytest.param(
+        "{import_numpy}"
+        "def scientific_entry(parameter):\n"
+        "    return {numpy_name}.load.__call__('detached.npy')\n",
+        id="numpy-load-call-attribute",
+    ),
+    pytest.param(
+        "{import_scipy}"
+        "def scientific_entry(parameter):\n"
+        "    load_matrix = {scipy_name}.io.loadmat\n"
+        "    return load_matrix('detached.mat')\n",
+        id="assigned-scipy-io-loadmat",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+@pytest.mark.parametrize(
+    "source_template", TASK6_REVIEW_CAPABILITY_OBJECT_SOURCES
+)
+def test_task6_review_rejects_reused_external_capability_objects(
+    tmp_path,
+    role,
+    scan_scope,
+    source_template,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    if scan_scope == "raw":
+        imports = {
+            "import_numpy": "import numpy\n",
+            "numpy_name": "numpy",
+            "import_scipy": "import scipy\n",
+            "scipy_name": "scipy",
+        }
+    else:
+        imports = {
+            "import_numpy": "import numpy as np\n",
+            "numpy_name": "np",
+            "import_scipy": "import scipy as sp\n",
+            "scipy_name": "sp",
+        }
+    source = source_template.format(**imports)
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="approved|capability|file|reader|import|call|static",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+
+
 @pytest.mark.parametrize("role", ("adapter", "oracle"))
 def test_task6_review_keeps_approved_pure_numeric_capabilities(
     tmp_path,
@@ -16357,6 +16462,156 @@ def test_task6_review_scanner_commitment_changes_with_implementation(
     )
 
     assert changed.scanner_sha256 != baseline.scanner_sha256
+
+
+@pytest.mark.parametrize(
+    "helper_name",
+    (
+        "_lexical_tokens",
+        "_ast_authored_tokens",
+        "_assignment_parts",
+        "_target_tokens",
+    ),
+)
+def test_task6_review2_commitment_tracks_transitive_helper_rebinding(
+    monkeypatch,
+    helper_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+
+    def replacement(*_args, **_kwargs):
+        return frozenset()
+
+    monkeypatch.setattr(isolation, helper_name, replacement)
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review2_commitment_tracks_helper_that_changes_verdict(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(
+        tmp_path,
+        "adapter",
+        "def scientific_entry(parameter):\n"
+        "    verdict = parameter + 1\n"
+        "    return verdict\n",
+    )
+    baseline = isolation._current_static_scanner_sha256()
+    with pytest.raises(AdapterContractError, match="vocabulary|static|scan"):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+    monkeypatch.setattr(
+        isolation,
+        "_lexical_tokens",
+        lambda _value: frozenset(),
+    )
+
+    changed = isolation.scan_scientific_closure(
+        closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+
+    assert changed.scanner_sha256 != baseline
+
+
+def test_task6_review2_commitment_tracks_in_place_code_replacement(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    target = isolation._static_call_path
+    baseline = isolation._current_static_scanner_sha256()
+
+    def replacement(_value):
+        return ("changed",)
+
+    monkeypatch.setattr(target, "__code__", replacement.__code__)
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+@pytest.mark.parametrize("mutation", ("defaults", "kwdefaults", "closure"))
+def test_task6_review2_commitment_tracks_function_state_mutation(
+    monkeypatch,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure_state = ["closed"]
+
+    def stateful_helper(value, marker="first", *, mode="strict"):
+        if closure_state and marker and mode:
+            return {value.lower()}
+        return set()
+
+    monkeypatch.setattr(isolation, "_lexical_tokens", stateful_helper)
+    baseline = isolation._current_static_scanner_sha256()
+    if mutation == "defaults":
+        monkeypatch.setattr(stateful_helper, "__defaults__", ("second",))
+    elif mutation == "kwdefaults":
+        monkeypatch.setattr(
+            stateful_helper,
+            "__kwdefaults__",
+            {"mode": "relaxed"},
+        )
+    else:
+        closure_state.append("mutated")
+
+    assert isolation._current_static_scanner_sha256() != baseline
+
+
+def test_task6_review2_commitment_is_stable_without_semantic_mutation():
+    from validation import literature_evidence_isolation as isolation
+
+    first = isolation._current_static_scanner_sha256()
+    second = isolation._current_static_scanner_sha256()
+
+    assert second == first
+
+
+def test_task6_review2_commitment_is_stable_across_hash_seeds():
+    environment = dict(os.environ)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONPATH"] = str(PROJECT_ROOT / "scripts")
+    command = (
+        "from validation import literature_evidence_isolation as m; "
+        "print(m._current_static_scanner_sha256())"
+    )
+    commitments = []
+    for seed in ("0", "1"):
+        environment["PYTHONHASHSEED"] = seed
+        completed = subprocess.run(
+            (sys.executable, "-c", command),
+            check=True,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+        commitments.append(completed.stdout.strip())
+
+    assert commitments[1] == commitments[0]
+
+
+def test_task6_review2_uninspectable_policy_callable_fails_closed(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    monkeypatch.setattr(isolation, "_scan_policy_forbidden_structures", len)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scanner|implementation|commit|normalize|callable|source",
+    ):
+        isolation._current_static_scanner_sha256()
 
 
 def test_task6_review_static_scan_report_rejects_forged_scanner_identity(
@@ -16487,6 +16742,143 @@ def test_task6_review_builder_fstats_source_before_read_allocation(
             source_roots=(tmp_path,),
         )
     assert read_calls == []
+
+
+def test_task6_review2_reason_rejects_large_unicode_before_utf8_allocation():
+    from validation import literature_evidence_isolation as isolation
+
+    reason = "界" * 250_000
+    encoded_size = len(reason.encode("utf-8"))
+    checks = {
+        name: {"passed": True, "reason": "closed"}
+        for name in isolation._STATIC_SCAN_COMMON_CHECKS
+    }
+    first_name = sorted(checks)[0]
+    checks[first_name]["reason"] = reason
+
+    tracemalloc.start()
+    try:
+        with pytest.raises(
+            AdapterContractError,
+            match="static|scan|reason|bound|oversized",
+        ):
+            isolation._preflight_static_scan_checks(checks, "adapter")
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert peak < encoded_size // 2
+
+
+def test_task6_review2_source_read_rejects_intermediate_symlink_swap(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = tmp_path / "source-root"
+    module_name = "task6_science.adapters"
+    source = (
+        "def scientific_entry(parameter):\n"
+        "    return parameter + 1\n"
+    )
+    source_path = _write_task5_source(source_root, module_name, source)
+    package_path = source_path.parent
+    parked_package = tmp_path / "parked-package"
+    outside_package = tmp_path / "outside-package"
+    _write_task5_source(outside_package, "adapters", source)
+    original_read = isolation._bounded_read_python_source
+    swapped = []
+
+    def swap_before_open(*args, **kwargs):
+        package_path.rename(parked_package)
+        package_path.symlink_to(outside_package, target_is_directory=True)
+        swapped.append(True)
+        return original_read(*args, **kwargs)
+
+    monkeypatch.setattr(
+        isolation, "_bounded_read_python_source", swap_before_open
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="source|symlink|open|safe|changed|root",
+    ):
+        isolation.build_scientific_closure(
+            f"{module_name}:scientific_entry",
+            role="adapter",
+            source_roots=(source_root,),
+        )
+    assert swapped == [True]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("same_size_content", "mode", "link_count", "timestamp"),
+)
+def test_task6_review2_source_read_rejects_in_place_change(
+    tmp_path,
+    monkeypatch,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    module_name = "task6_science.adapters"
+    source = (
+        "def scientific_entry(parameter):\n"
+        "    return parameter + 1\n"
+    )
+    source_path = _write_task5_source(tmp_path, module_name, source)
+    replacement = source.replace("+ 1", "+ 2").encode("utf-8")
+    assert len(replacement) == source_path.stat().st_size
+    original_read = isolation.os.read
+    mutation_calls = []
+
+    def mutate_after_read(descriptor, count):
+        chunk = original_read(descriptor, count)
+        if chunk and not mutation_calls:
+            if mutation == "same_size_content":
+                writer = os.open(source_path, os.O_WRONLY)
+                try:
+                    os.pwrite(writer, replacement, 0)
+                finally:
+                    os.close(writer)
+            elif mutation == "mode":
+                os.chmod(source_path, source_path.stat().st_mode ^ 0o100)
+            elif mutation == "link_count":
+                os.link(source_path, tmp_path / "linked-source.py")
+            else:
+                before = source_path.stat()
+                os.utime(
+                    source_path,
+                    ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000),
+                )
+            mutation_calls.append(mutation)
+        return chunk
+
+    monkeypatch.setattr(isolation.os, "read", mutate_after_read)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="source|changed|read|safe",
+    ):
+        isolation.build_scientific_closure(
+            f"{module_name}:scientific_entry",
+            role="adapter",
+            source_roots=(tmp_path,),
+        )
+    assert mutation_calls == [mutation]
+
+
+def test_task6_review2_source_read_accepts_unchanged_regular_file(tmp_path):
+    closure = _task6_build_scientific_closure(
+        tmp_path,
+        "adapter",
+        "def scientific_entry(parameter):\n"
+        "    return parameter + 1\n",
+    )
+
+    assert closure.role == "adapter"
 
 
 def test_task6_review_formatter_stops_before_unbounded_materialization(

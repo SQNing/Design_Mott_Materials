@@ -13,7 +13,6 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
 from enum import IntFlag
 import hashlib
-import inspect
 import json
 import math
 import os
@@ -21,8 +20,7 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 import string
-import textwrap
-from types import MappingProxyType
+from types import CodeType, FunctionType, MappingProxyType, ModuleType
 from validation import literature_evidence_adapters as _adapters
 from validation import literature_evidence_adapter_oracles as _oracles
 from validation.literature_evidence_adapters import (
@@ -1179,7 +1177,7 @@ class InfrastructureClosure:
 
 
 _AST_CLOSURE_VERSION = "deterministic_ast_closure_v1"
-_STATIC_SCANNER_VERSION = "scientific_static_scan_v2"
+_STATIC_SCANNER_VERSION = "scientific_static_scan_v3"
 _STATIC_CONSTANT_EVALUATOR_VERSION = "bounded_constant_expression_v2"
 _POLICY_STRUCTURE_SCAN_VERSION = "scientific_definition_policy_scan_v2"
 _STATIC_SCAN_NODE_LIMIT = 16_384
@@ -1196,6 +1194,11 @@ _STATIC_SCAN_INTEGER_BITS_LIMIT = 4_096
 _STATIC_SCAN_FORMAT_WIDTH_LIMIT = 4_096
 _STATIC_SCAN_CHECK_LIMIT = 64
 _STATIC_SCAN_REASON_BYTES_LIMIT = 160
+_STATIC_SCANNER_COMMITMENT_NODE_LIMIT = 131_072
+_STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT = 512
+_STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT = 16_777_216
+_STATIC_SCANNER_COMMITMENT_INTEGER_BITS_LIMIT = 65_536
+_STATIC_SCANNER_COMMITMENT_MATERIAL_BYTES_LIMIT = 33_554_432
 _STATIC_SCAN_COMMON_CHECKS = frozenset(
     {
         "raw_ast_closed",
@@ -1622,23 +1625,58 @@ def _resolve_relative_import(
     return ".".join(retained)
 
 
-def _bounded_read_python_source(path: Path, module_name: str) -> bytes:
+def _bounded_read_python_source(
+    source_root: Path,
+    relative_path: Path,
+    module_name: str,
+) -> bytes:
     byte_limit = min(
         _STATIC_SCAN_SOURCE_FILE_BYTES_LIMIT,
         _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT,
     )
-    flags = os.O_RDONLY
-    if hasattr(os, "O_CLOEXEC"):
-        flags |= os.O_CLOEXEC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    try:
-        descriptor = os.open(path, flags)
-    except OSError as error:
+    if (
+        not isinstance(source_root, Path)
+        or not source_root.is_absolute()
+        or not isinstance(relative_path, Path)
+        or relative_path.is_absolute()
+        or not relative_path.parts
+        or any(part in {"", ".", ".."} for part in relative_path.parts)
+    ):
         raise _ContractError(
-            f"source module {module_name} cannot be opened safely"
-        ) from error
+            f"source module {module_name} has an unsafe relative path"
+        )
     try:
+        directory_flags = (
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | os.O_CLOEXEC
+        )
+        file_flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+    except AttributeError as error:
+        raise _ContractError(
+            f"source module {module_name} requires safe descriptor flags"
+        ) from error
+    directory_descriptor = None
+    descriptor = None
+    try:
+        directory_descriptor = os.open(source_root.anchor, directory_flags)
+        directory_components = (
+            source_root.parts[1:] + relative_path.parts[:-1]
+        )
+        for component in directory_components:
+            next_descriptor = os.open(
+                component,
+                directory_flags,
+                dir_fd=directory_descriptor,
+            )
+            os.close(directory_descriptor)
+            directory_descriptor = next_descriptor
+        descriptor = os.open(
+            relative_path.parts[-1],
+            file_flags,
+            dir_fd=directory_descriptor,
+        )
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             raise _ContractError(
@@ -1650,36 +1688,110 @@ def _bounded_read_python_source(path: Path, module_name: str) -> bytes:
             )
         chunks = []
         total = 0
+        read_count = 0
+        read_count_limit = (byte_limit + 65_535) // 65_536 + 1
         while True:
+            read_count += 1
+            if read_count > read_count_limit:
+                raise _ContractError(
+                    f"source module {module_name} exceeds the read bound"
+                )
             remaining = byte_limit + 1 - total
             if remaining <= 0:
                 raise _ContractError(
                     f"source module {module_name} exceeds the file byte bound"
                 )
             chunk = os.read(descriptor, min(65_536, remaining))
+            if type(chunk) is not bytes:
+                raise _ContractError(
+                    f"source module {module_name} returned an unsafe read"
+                )
             if not chunk:
                 break
             total += len(chunk)
             chunks.append(chunk)
         after = os.fstat(descriptor)
+        before_signature = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mode,
+            before.st_nlink,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        after_signature = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mode,
+            after.st_nlink,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
         if (
-            before.st_dev != after.st_dev
-            or before.st_ino != after.st_ino
-            or before.st_size != after.st_size
+            before_signature != after_signature
             or total != before.st_size
         ):
             raise _ContractError(
                 f"source module {module_name} changed during bounded read"
             )
-        return b"".join(chunks)
+        raw_bytes = b"".join(chunks)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        verification_digest = hashlib.sha256()
+        verification_total = 0
+        verification_read_count = 0
+        while True:
+            verification_read_count += 1
+            if verification_read_count > read_count_limit:
+                raise _ContractError(
+                    f"source module {module_name} exceeds the read bound"
+                )
+            remaining = byte_limit + 1 - verification_total
+            if remaining <= 0:
+                raise _ContractError(
+                    f"source module {module_name} exceeds the file byte bound"
+                )
+            chunk = os.read(descriptor, min(65_536, remaining))
+            if type(chunk) is not bytes:
+                raise _ContractError(
+                    f"source module {module_name} returned an unsafe read"
+                )
+            if not chunk:
+                break
+            verification_total += len(chunk)
+            verification_digest.update(chunk)
+        verified = os.fstat(descriptor)
+        verified_signature = (
+            verified.st_dev,
+            verified.st_ino,
+            verified.st_size,
+            verified.st_mode,
+            verified.st_nlink,
+            verified.st_mtime_ns,
+            verified.st_ctime_ns,
+        )
+        if (
+            after_signature != verified_signature
+            or verification_total != total
+            or verification_digest.digest()
+            != hashlib.sha256(raw_bytes).digest()
+        ):
+            raise _ContractError(
+                f"source module {module_name} changed during bounded read"
+            )
+        return raw_bytes
     except _ContractError:
         raise
-    except OSError as error:
+    except (OSError, TypeError, NotImplementedError) as error:
         raise _ContractError(
             f"source module {module_name} cannot be read safely"
         ) from error
     finally:
-        os.close(descriptor)
+        if descriptor is not None:
+            os.close(descriptor)
+        if directory_descriptor is not None:
+            os.close(directory_descriptor)
 
 
 def _bounded_parse_utf8_python(
@@ -1904,8 +2016,9 @@ class _AstClosureResolver:
             )
         source_path, source_root = located
         try:
+            relative_source_path = source_path.relative_to(source_root)
             raw_bytes = _bounded_read_python_source(
-                source_path, module_name
+                source_root, relative_source_path, module_name
             )
             tree = _bounded_parse_utf8_python(
                 raw_bytes,
@@ -6910,9 +7023,12 @@ def _preflight_static_scan_checks(
                 raise _ContractError(
                     "static scan check reason must be nonempty text"
                 )
-            if (
-                len(reason.encode("utf-8"))
-                > _STATIC_SCAN_REASON_BYTES_LIMIT
+            if len(reason) > _STATIC_SCAN_REASON_BYTES_LIMIT:
+                raise _ContractError(
+                    "static scan check reason exceeds the closed bound"
+                )
+            if len(reason.encode("utf-8")) > (
+                _STATIC_SCAN_REASON_BYTES_LIMIT
             ):
                 raise _ContractError(
                     "static scan check reason exceeds the closed bound"
@@ -6957,10 +7073,6 @@ class StaticScanReport:
             raise _ContractError(
                 "StaticScanReport has an unsupported scanner version"
             )
-        if self.scanner_sha256 != _current_static_scanner_sha256():
-            raise _ContractError(
-                "StaticScanReport has an unsupported scanner commitment"
-            )
         for field_name in (
             "scanner_sha256",
             "scanned_closure_sha256",
@@ -6971,6 +7083,10 @@ class StaticScanReport:
         preflight_checks = _preflight_static_scan_checks(
             self.checks, self.role
         )
+        if self.scanner_sha256 != _current_static_scanner_sha256():
+            raise _ContractError(
+                "StaticScanReport has an unsupported scanner commitment"
+            )
         checks = _snapshot_json(preflight_checks, "checks")
         closed_checks = all(
             type(item) is _FrozenJsonObject for item in checks.values()
@@ -6995,9 +7111,12 @@ class StaticScanReport:
             reason = _require_text(
                 check["reason"], "static scan check reason"
             )
-            if (
-                len(reason.encode("utf-8"))
-                > _STATIC_SCAN_REASON_BYTES_LIMIT
+            if len(reason) > _STATIC_SCAN_REASON_BYTES_LIMIT:
+                raise _ContractError(
+                    "static scan check reason exceeds the closed bound"
+                )
+            if len(reason.encode("utf-8")) > (
+                _STATIC_SCAN_REASON_BYTES_LIMIT
             ):
                 raise _ContractError(
                     "static scan check reason exceeds the closed bound"
@@ -7221,6 +7340,26 @@ def _static_call_path(value: ast.AST) -> tuple[str, ...]:
 def _static_import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
     if not isinstance(tree, ast.Module):
         return {}
+    nodes = tuple(ast.walk(tree))
+    if len(nodes) > _STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT:
+        raise _ContractError("static scan alias graph exceeds the node bound")
+    parameter_names = {
+        argument.arg.lower()
+        for candidate in nodes
+        if isinstance(candidate, (ast.FunctionDef, ast.AsyncFunctionDef))
+        for argument in (
+            *candidate.args.posonlyargs,
+            *candidate.args.args,
+            *candidate.args.kwonlyargs,
+        )
+    }
+    store_counts: dict[str, int] = {}
+    for candidate in nodes:
+        if isinstance(candidate, ast.Name) and isinstance(
+            candidate.ctx, (ast.Store, ast.Del)
+        ):
+            name = candidate.id.lower()
+            store_counts[name] = store_counts.get(name, 0) + 1
     aliases: dict[str, tuple[str, ...]] = {}
     for statement in tree.body:
         if isinstance(statement, ast.Import):
@@ -7244,10 +7383,37 @@ def _static_import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
                     *module,
                     alias.name.lower(),
                 )
+    external_roots = {
+        module_name.split(".", 1)[0]
+        for module_name in _SAFE_EXTERNAL_IMPORT_MODULES
+    }
+    for candidate in nodes:
+        if not isinstance(candidate, ast.stmt):
+            continue
+        assignment = _static_simple_name_assignment(candidate)
+        if assignment is None:
+            continue
+        target_name, expression = assignment
+        normalized_name = target_name.lower()
+        if (
+            store_counts.get(normalized_name) != 1
+            or normalized_name in parameter_names
+        ):
+            continue
+        resolved = _static_resolved_reference_path(expression, aliases)
+        if resolved and resolved[0] in external_roots:
+            aliases[normalized_name] = resolved
     return aliases
 
 
 def _static_resolved_call_path(
+    value: ast.AST,
+    aliases: Mapping[str, tuple[str, ...]],
+) -> tuple[str, ...]:
+    return _static_resolved_reference_path(value, aliases)
+
+
+def _static_resolved_reference_path(
     value: ast.AST,
     aliases: Mapping[str, tuple[str, ...]],
 ) -> tuple[str, ...]:
@@ -7263,7 +7429,9 @@ def _static_resolved_call_path(
 def _static_forbidden_capability_path(path: tuple[str, ...]) -> bool:
     if not path:
         return False
-    if path[0] == "numpy" and path[-1] in _STATIC_NUMPY_FILE_CALLABLES:
+    if path[0] == "numpy" and any(
+        part in _STATIC_NUMPY_FILE_CALLABLES for part in path[1:]
+    ):
         return True
     return any(
         path[: len(namespace)] == namespace
@@ -7934,7 +8102,8 @@ def _static_constant_builtin_call(
             if not arguments:
                 if keywords:
                     raise _ContractError(
-                        "static scan rejected unsupported constant-producing call"
+                        "static scan rejected unsupported "
+                        "constant-producing call"
                     )
                 return b""
             source = arguments[0]
@@ -7950,7 +8119,8 @@ def _static_constant_builtin_call(
                 source_size = _static_constant_size_upper(source)
                 if source_size is None:
                     raise _ContractError(
-                        "static scan rejected unsupported constant-producing call"
+                        "static scan rejected unsupported "
+                        "constant-producing call"
                     )
                 _static_preflight_output_size(source_size * 4 + 16)
             return bytes(*arguments, **keywords)
@@ -7962,7 +8132,8 @@ def _static_constant_builtin_call(
             if not arguments:
                 if keywords:
                     raise _ContractError(
-                        "static scan rejected unsupported constant-producing call"
+                        "static scan rejected unsupported "
+                        "constant-producing call"
                     )
                 return ""
             source_size = _static_constant_size_upper(arguments[0])
@@ -8151,7 +8322,11 @@ def _static_constant_type_method_call(
         return _STATIC_CONSTANT_UNAVAILABLE
     try:
         if owner == "bytes" and method == "fromhex":
-            if len(arguments) != 1 or keywords or type(arguments[0]) is not str:
+            if (
+                len(arguments) != 1
+                or keywords
+                or type(arguments[0]) is not str
+            ):
                 raise _ContractError(
                     "static scan rejected unsupported constant-producing call"
                 )
@@ -9077,6 +9252,16 @@ def _scan_static_ast(
     constant_cache: dict[ast.AST, object] = {}
     constant_steps = [0, node_limit]
     for candidate in nodes:
+        if isinstance(candidate, (ast.Name, ast.Attribute)) and isinstance(
+            candidate.ctx, ast.Load
+        ):
+            reference_path = _static_resolved_reference_path(
+                candidate, import_aliases
+            )
+            if _static_forbidden_capability_path(reference_path):
+                raise _ContractError(
+                    "static scan rejected unapproved file-capable reference"
+                )
         if role != "infrastructure" and isinstance(
             candidate, (ast.Name, ast.Attribute)
         ):
@@ -9095,10 +9280,6 @@ def _scan_static_ast(
             path = _static_resolved_call_path(
                 candidate.func, import_aliases
             )
-            if _static_forbidden_capability_path(path):
-                raise _ContractError(
-                    "static scan rejected unapproved file-capable call"
-                )
             if path and (
                 path[-1] in _STATIC_NATIVE_CALL_SUFFIXES
                 or any(part in {"ctypes", "cffi"} for part in path)
@@ -9278,82 +9459,19 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
     return StaticScanReport(**values)
 
 
-_STATIC_SCANNER_IMPLEMENTATION_NAMES = (
-    "_bounded_read_python_source",
-    "_bounded_parse_utf8_python",
-    "_node_source_span",
-    "_AstClosureResolver._load_module",
-    "_AstClosureResolver._validate_external_import",
-    "_AstClosureResolver._validate_no_dynamic_constructs",
-    "_manifest_from_resolved",
-    "_preflight_static_material_totals",
-    "_static_scan_material_from_resolved",
-    "_normalized_emitted_node",
-    "_preflight_static_scan_checks",
-    "StaticScanReport.__post_init__",
-    "_validate_static_fingerprints",
-    "_validate_static_scan_material",
-    "_static_ast_depth",
-    "_static_call_path",
-    "_static_import_aliases",
-    "_static_resolved_call_path",
-    "_static_forbidden_capability_path",
-    "_static_constant_size_upper",
-    "_static_constant_is_bounded",
-    "_static_preflight_output_size",
-    "_static_format_decimal_value",
-    "_static_closed_format_template",
-    "_static_closed_percent_template",
-    "_static_safe_format_scalar",
-    "_static_scalar_render_size_upper",
-    "_static_format_output_size_upper",
-    "_static_percent_output_size_upper",
-    "_static_constant_slice",
-    "_static_safe_truth_value",
-    "_static_constant_compare",
-    "_static_preflight_mapping_merge",
-    "_static_constant_binop",
-    "_static_constant_joined_string",
-    "_static_constant_dict_call",
-    "_static_constant_builtin_call",
-    "_static_constant_method_call",
-    "_static_constant_type_method_call",
-    "_static_constant_expression",
-    "_static_literal_fingerprints",
-    "_StaticConstantBindingSubstituter.visit_Name",
-    "_StaticConstantBindingSubstituter.visit_Call",
-    "_static_constant_with_bindings",
-    "_static_same_value",
-    "_static_function_parameter_names",
-    "_static_expression_value",
-    "_static_apply_container_mutation",
-    "_static_execute_statements",
-    "_static_evaluate_helper_call",
-    "_static_immutable_binding_value",
-    "_static_simple_name_assignment",
-    "_static_reject_propagated_fingerprint",
-    "_scan_static_propagated_constants",
-    "_static_expression_has_literal",
-    "_scan_static_parameter_indexed_literals",
-    "_scan_static_ast",
-    "_scan_static_material_content",
-    "_static_scan_checks",
-    "_scan_policy_forbidden_structures",
-    "_task5_policy_structure_scan_sha256",
+_STATIC_SCANNER_ENTRYPOINT_NAMES = (
     "_validate_task5_policy_commitment",
     "build_scientific_policy_commitment",
     "scan_scientific_closure",
-    "_static_scanner_rule_manifest",
-    "_static_scanner_implementation_object",
-    "_static_normalized_implementation_sha256",
-    "_current_static_scanner_sha256",
 )
-_STATIC_SCANNER_HASH_CACHE: dict[tuple[object, ...], str] = {}
+_STATIC_SCANNER_SEMANTIC_MODULES = frozenset(
+    {__name__, _adapters.__name__, _oracles.__name__}
+)
 
 
 def _static_scanner_rule_manifest() -> dict[str, object]:
     return {
-        "commitment_version": "canonical_scanner_commitment_v2",
+        "commitment_version": "transitive_semantic_commitment_v3",
         "scanner_version": _STATIC_SCANNER_VERSION,
         "constant_evaluator_version": _STATIC_CONSTANT_EVALUATOR_VERSION,
         "ast_closure_version": _AST_CLOSURE_VERSION,
@@ -9379,6 +9497,20 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
             "check_count": _STATIC_SCAN_CHECK_LIMIT,
             "reason_bytes": _STATIC_SCAN_REASON_BYTES_LIMIT,
         },
+        "semantic_commitment_limits": {
+            "node_count": _STATIC_SCANNER_COMMITMENT_NODE_LIMIT,
+            "depth": _STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT,
+            "value_bytes": _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT,
+            "integer_bits": _STATIC_SCANNER_COMMITMENT_INTEGER_BITS_LIMIT,
+            "material_bytes": (
+                _STATIC_SCANNER_COMMITMENT_MATERIAL_BYTES_LIMIT
+            ),
+        },
+        "separately_committed_data": sorted(
+            f"{module_name}.{attribute_name}->{owner}"
+            for (module_name, attribute_name), owner
+            in _COMMITTED_DATA_OWNERS.items()
+        ),
         "common_checks": sorted(_STATIC_SCAN_COMMON_CHECKS),
         "infrastructure_check": _STATIC_SCAN_INFRASTRUCTURE_CHECK,
         "small_mathematical_literals": sorted(
@@ -9399,73 +9531,675 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
         ),
         "safe_ast_builtins": sorted(_SAFE_AST_BUILTINS),
         "forbidden_dynamic_calls": sorted(_FORBIDDEN_DYNAMIC_CALLS),
-        "implementation_names": list(
-            _STATIC_SCANNER_IMPLEMENTATION_NAMES
-        ),
+        "entrypoints": list(_STATIC_SCANNER_ENTRYPOINT_NAMES),
     }
 
 
-def _static_scanner_implementation_object(name: str) -> object:
-    parts = name.split(".")
-    value = globals().get(parts[0])
-    if value is None:
+def _static_semantic_step(state: dict[str, object], depth: int) -> None:
+    if depth > _STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT:
         raise _ContractError(
-            "static scanner implementation manifest is incomplete"
+            "static scanner semantic dependency exceeds the depth bound"
         )
-    for part in parts[1:]:
-        try:
-            value = getattr(value, part)
-        except AttributeError as error:
-            raise _ContractError(
-                "static scanner implementation manifest is incomplete"
-            ) from error
-    return value
-
-
-def _static_normalized_implementation_sha256(value: object) -> str:
-    try:
-        source = textwrap.dedent(inspect.getsource(value))
-        tree = ast.parse(source, mode="exec")
-    except (OSError, TypeError, SyntaxError, ValueError) as error:
+    steps = state["steps"] + 1
+    if steps > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
         raise _ContractError(
-            "static scanner implementation cannot be committed"
-        ) from error
-    normalized = ast.dump(
-        tree,
-        annotate_fields=True,
-        include_attributes=False,
+            "static scanner semantic dependency exceeds the node bound"
+        )
+    state["steps"] = steps
+
+
+def _static_semantic_register(
+    value: object,
+    state: dict[str, object],
+) -> tuple[str, bool]:
+    identity = id(value)
+    memo = state["memo"]
+    existing = memo.get(identity)
+    if existing is not None:
+        return existing, False
+    token = f"node_{len(memo):05d}"
+    memo[identity] = token
+    return token, True
+
+
+def _static_semantic_code(
+    value: CodeType,
+    state: dict[str, object],
+    depth: int,
+) -> dict[str, object]:
+    if type(value) is not CodeType:
+        raise _ContractError("static scanner callable has no exact code")
+    _static_semantic_step(state, depth)
+    constants = []
+    for constant in value.co_consts:
+        if type(constant) is CodeType:
+            constants.append(
+                {
+                    "kind": "code",
+                    "value": _static_semantic_code(
+                        constant, state, depth + 1
+                    ),
+                }
+            )
+        else:
+            constants.append(
+                _static_semantic_value(
+                    constant,
+                    state,
+                    depth + 1,
+                    binding_name="code_constant",
+                )
+            )
+    summary = {
+        "argcount": value.co_argcount,
+        "posonlyargcount": value.co_posonlyargcount,
+        "kwonlyargcount": value.co_kwonlyargcount,
+        "nlocals": value.co_nlocals,
+        "stacksize": value.co_stacksize,
+        "flags": value.co_flags,
+        "bytecode": value.co_code.hex(),
+        "constants": constants,
+        "names": list(value.co_names),
+        "varnames": list(value.co_varnames),
+        "freevars": list(value.co_freevars),
+        "cellvars": list(value.co_cellvars),
+    }
+    exception_table = getattr(value, "co_exceptiontable", b"")
+    if type(exception_table) is not bytes:
+        raise _ContractError(
+            "static scanner code exception table is not exact bytes"
+        )
+    summary["exception_table"] = exception_table.hex()
+    return summary
+
+
+def _static_code_global_names(value: CodeType) -> tuple[str, ...]:
+    pending = [value]
+    names = set()
+    steps = 0
+    while pending:
+        code = pending.pop()
+        steps += 1
+        if steps > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+            raise _ContractError(
+                "static scanner code dependency exceeds the node bound"
+            )
+        names.update(code.co_names)
+        pending.extend(
+            constant
+            for constant in code.co_consts
+            if type(constant) is CodeType
+        )
+    return tuple(sorted(names))
+
+
+def _static_semantic_module(
+    value: ModuleType,
+    state: dict[str, object],
+    depth: int,
+    *,
+    candidate_attributes: tuple[str, ...],
+    binding_name: str,
+) -> dict[str, object]:
+    if type(value) is not ModuleType or type(value.__name__) is not str:
+        raise _ContractError("static scanner module dependency is not exact")
+    summary: dict[str, object] = {
+        "kind": "module",
+        "name": value.__name__,
+    }
+    if value.__name__ not in _STATIC_SCANNER_SEMANTIC_MODULES:
+        return summary
+    namespace = value.__dict__
+    if type(namespace) is not dict:
+        raise _ContractError(
+            "static scanner module namespace is not an exact mapping"
+        )
+    attributes = {}
+    for name in candidate_attributes:
+        if name not in namespace:
+            continue
+        committed_owner = _COMMITTED_DATA_OWNERS.get(
+            (value.__name__, name)
+        )
+        if committed_owner is not None:
+            attributes[name] = {
+                "kind": "separately_committed_data",
+                "owner": committed_owner,
+            }
+        else:
+            attributes[name] = _static_semantic_value(
+                namespace[name],
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.{name}",
+            )
+    summary["attributes"] = attributes
+    return summary
+
+
+def _static_semantic_function(
+    value: FunctionType,
+    state: dict[str, object],
+    depth: int,
+    *,
+    token: str,
+    binding_name: str,
+) -> dict[str, object]:
+    if type(value) is not FunctionType or type(value.__globals__) is not dict:
+        raise _ContractError(
+            "static scanner callable cannot be safely normalized"
+        )
+    module_name = value.__module__
+    qualname = value.__qualname__
+    if type(module_name) is not str or type(qualname) is not str:
+        raise _ContractError(
+            "static scanner callable identity is not exact"
+        )
+    if module_name not in _STATIC_SCANNER_SEMANTIC_MODULES:
+        closure_values = []
+        for cell in value.__closure__ or ():
+            try:
+                cell_value = cell.cell_contents
+            except ValueError as error:
+                raise _ContractError(
+                    "static scanner callable has an empty closure cell"
+                ) from error
+            closure_values.append(
+                _static_semantic_value(
+                    cell_value,
+                    state,
+                    depth + 1,
+                    binding_name=f"{binding_name}.closure",
+                )
+            )
+        return {
+            "kind": "external_function",
+            "token": token,
+            "module": module_name,
+            "qualname": qualname,
+            "code": _static_semantic_code(
+                value.__code__, state, depth + 1
+            ),
+            "defaults": _static_semantic_value(
+                value.__defaults__,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.defaults",
+            ),
+            "kwdefaults": _static_semantic_value(
+                value.__kwdefaults__,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.kwdefaults",
+            ),
+            "closure": closure_values,
+            "annotations": _static_semantic_value(
+                value.__annotations__,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.annotations",
+            ),
+        }
+    code = value.__code__
+    global_names = _static_code_global_names(code)
+    dependencies = {}
+    for name in global_names:
+        if name not in value.__globals__:
+            continue
+        committed_owner = _COMMITTED_DATA_OWNERS.get((module_name, name))
+        if committed_owner is not None:
+            dependencies[name] = {
+                "kind": "separately_committed_data",
+                "owner": committed_owner,
+            }
+            continue
+        dependency = value.__globals__[name]
+        if type(dependency) is ModuleType:
+            dependencies[name] = _static_semantic_module(
+                dependency,
+                state,
+                depth + 1,
+                candidate_attributes=global_names,
+                binding_name=f"{binding_name}.{name}",
+            )
+        else:
+            dependencies[name] = _static_semantic_value(
+                dependency,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.{name}",
+            )
+    closure_values = []
+    for cell in value.__closure__ or ():
+        try:
+            cell_value = cell.cell_contents
+        except ValueError as error:
+            raise _ContractError(
+                "static scanner callable has an empty closure cell"
+            ) from error
+        closure_values.append(
+            _static_semantic_value(
+                cell_value,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.closure",
+            )
+        )
+    return {
+        "kind": "function",
+        "token": token,
+        "module": module_name,
+        "qualname": qualname,
+        "code": _static_semantic_code(code, state, depth + 1),
+        "defaults": _static_semantic_value(
+            value.__defaults__,
+            state,
+            depth + 1,
+            binding_name=f"{binding_name}.defaults",
+        ),
+        "kwdefaults": _static_semantic_value(
+            value.__kwdefaults__,
+            state,
+            depth + 1,
+            binding_name=f"{binding_name}.kwdefaults",
+        ),
+        "closure": closure_values,
+        "annotations": _static_semantic_value(
+            value.__annotations__,
+            state,
+            depth + 1,
+            binding_name=f"{binding_name}.annotations",
+        ),
+        "globals": dependencies,
+    }
+
+
+def _static_semantic_class(
+    value: type,
+    state: dict[str, object],
+    depth: int,
+    *,
+    token: str,
+    binding_name: str,
+) -> dict[str, object]:
+    module_name = value.__module__
+    qualname = value.__qualname__
+    if type(module_name) is not str or type(qualname) is not str:
+        raise _ContractError("static scanner class identity is not exact")
+    summary: dict[str, object] = {
+        "kind": "class",
+        "token": token,
+        "module": module_name,
+        "qualname": qualname,
+    }
+    if module_name not in _STATIC_SCANNER_SEMANTIC_MODULES:
+        return summary
+    namespace = value.__dict__
+    if type(namespace) is not MappingProxyType:
+        raise _ContractError(
+            "static scanner class namespace is not an exact mapping"
+        )
+    members = {}
+    for name in sorted(namespace):
+        member = namespace[name]
+        function = None
+        if type(member) is FunctionType:
+            function = member
+        elif type(member) in (staticmethod, classmethod):
+            function = member.__func__
+        if function is not None:
+            members[name] = _static_semantic_value(
+                function,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.{name}",
+            )
+        elif name == "__annotations__":
+            members[name] = _static_semantic_value(
+                member,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.{name}",
+            )
+    summary["members"] = members
+    return summary
+
+
+def _static_semantic_set_sort_key(value: object, depth: int) -> object:
+    if depth > _STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT:
+        raise _ContractError(
+            "static scanner semantic set key exceeds the depth bound"
+        )
+    if value is None or type(value) in (bool, str):
+        if type(value) is str:
+            if len(value) > _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT:
+                raise _ContractError(
+                    "static scanner semantic set text exceeds the bound"
+                )
+            if len(value.encode("utf-8")) > (
+                _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT
+            ):
+                raise _ContractError(
+                    "static scanner semantic set text exceeds the bound"
+                )
+        return {"kind": type(value).__name__, "value": value}
+    if value is Ellipsis:
+        return {"kind": "ellipsis"}
+    if type(value) is bytes:
+        if len(value) > _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT:
+            raise _ContractError(
+                "static scanner semantic set bytes exceed the bound"
+            )
+        return {"kind": "bytes", "value": value.hex()}
+    if type(value) is int:
+        if value.bit_length() > _STATIC_SCANNER_COMMITMENT_INTEGER_BITS_LIMIT:
+            raise _ContractError(
+                "static scanner semantic set integer exceeds the bound"
+            )
+        return {"kind": "int", "value": value}
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise _ContractError(
+                "static scanner semantic set float must be finite"
+            )
+        return {"kind": "float", "value": value}
+    if type(value) is complex:
+        if not math.isfinite(value.real) or not math.isfinite(value.imag):
+            raise _ContractError(
+                "static scanner semantic set complex value must be finite"
+            )
+        return {
+            "kind": "complex",
+            "real": value.real,
+            "imag": value.imag,
+        }
+    if type(value) is tuple:
+        if len(value) > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+            raise _ContractError(
+                "static scanner semantic set tuple exceeds the bound"
+            )
+        return {
+            "kind": "tuple",
+            "items": [
+                _static_semantic_set_sort_key(item, depth + 1)
+                for item in value
+            ],
+        }
+    if type(value) is frozenset:
+        if len(value) > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+            raise _ContractError(
+                "static scanner nested frozen set exceeds the bound"
+            )
+        items = [
+            _static_semantic_set_sort_key(item, depth + 1)
+            for item in value
+        ]
+        items.sort(key=_canonical_bytes)
+        return {"kind": "frozenset", "items": items}
+    raise _ContractError(
+        "static scanner semantic set element cannot be safely ordered"
     )
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _static_semantic_value(
+    value: object,
+    state: dict[str, object],
+    depth: int,
+    *,
+    binding_name: str,
+) -> object:
+    _static_semantic_step(state, depth)
+    value_type = type(value)
+    value_type_module = type.__getattribute__(value_type, "__module__")
+    semantic_instance = (
+        type(value_type_module) is str
+        and value_type_module in _STATIC_SCANNER_SEMANTIC_MODULES
+        and value_type is not type
+        and value_type is not _FrozenJsonObject
+    )
+    if value is None or type(value) in (bool, str):
+        if type(value) is str and len(value.encode("utf-8")) > (
+            _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT
+        ):
+            raise _ContractError(
+                "static scanner semantic text exceeds the byte bound"
+            )
+        return value
+    if value is Ellipsis:
+        return {"kind": "ellipsis"}
+    if type(value) is bytes:
+        if len(value) > _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT:
+            raise _ContractError(
+                "static scanner semantic bytes exceed the byte bound"
+            )
+        return {"kind": "bytes", "hex": value.hex()}
+    if type(value) is int:
+        if value.bit_length() > _STATIC_SCANNER_COMMITMENT_INTEGER_BITS_LIMIT:
+            raise _ContractError(
+                "static scanner semantic integer exceeds the bound"
+            )
+        return value
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise _ContractError(
+                "static scanner semantic float must be finite"
+            )
+        return value
+    if type(value) is complex:
+        if not math.isfinite(value.real) or not math.isfinite(value.imag):
+            raise _ContractError(
+                "static scanner semantic complex value must be finite"
+            )
+        return {"kind": "complex", "real": value.real, "imag": value.imag}
+    if type(value) is CodeType:
+        return {
+            "kind": "code",
+            "value": _static_semantic_code(value, state, depth + 1),
+        }
+    if type(value) is ModuleType:
+        return _static_semantic_module(
+            value,
+            state,
+            depth + 1,
+            candidate_attributes=(),
+            binding_name=binding_name,
+        )
+    if type(value) is object:
+        return {"kind": "sentinel", "binding": binding_name}
+    if type(value) in (
+        tuple,
+        list,
+        dict,
+        set,
+        frozenset,
+        MappingProxyType,
+        FunctionType,
+    ) or isinstance(value, type) or type(value) is _FrozenJsonObject or (
+        semantic_instance
+    ):
+        token, is_new = _static_semantic_register(value, state)
+        if not is_new:
+            return {"kind": "reference", "token": token}
+        if type(value) is FunctionType:
+            return _static_semantic_function(
+                value,
+                state,
+                depth + 1,
+                token=token,
+                binding_name=binding_name,
+            )
+        if isinstance(value, type):
+            return _static_semantic_class(
+                value,
+                state,
+                depth + 1,
+                token=token,
+                binding_name=binding_name,
+            )
+        if type(value) is _FrozenJsonObject:
+            items = value._items
+            if type(items) is not tuple:
+                raise _ContractError(
+                    "static scanner frozen dependency is not exact"
+                )
+            value = dict(items)
+        if semantic_instance:
+            try:
+                namespace = object.__getattribute__(value, "__dict__")
+            except AttributeError as error:
+                raise _ContractError(
+                    "static scanner project dependency has no exact state"
+                ) from error
+            if type(namespace) is not dict or any(
+                type(name) is not str for name in namespace
+            ):
+                raise _ContractError(
+                    "static scanner project dependency state is not exact"
+                )
+            return {
+                "kind": "project_instance",
+                "token": token,
+                "module": value_type_module,
+                "qualname": type.__getattribute__(
+                    value_type, "__qualname__"
+                ),
+                "state": [
+                    [
+                        name,
+                        _static_semantic_value(
+                            namespace[name],
+                            state,
+                            depth + 1,
+                            binding_name=f"{binding_name}.{name}",
+                        ),
+                    ]
+                    for name in sorted(namespace)
+                ],
+            }
+        if type(value) in (tuple, list):
+            if len(value) > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+                raise _ContractError(
+                    "static scanner semantic sequence exceeds the bound"
+                )
+            return {
+                "kind": type(value).__name__,
+                "token": token,
+                "items": [
+                    _static_semantic_value(
+                        item,
+                        state,
+                        depth + 1,
+                        binding_name=f"{binding_name}.item",
+                    )
+                    for item in value
+                ],
+            }
+        if type(value) in (set, frozenset):
+            if len(value) > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+                raise _ContractError(
+                    "static scanner semantic set exceeds the bound"
+                )
+            ordered_values = sorted(
+                value,
+                key=lambda item: _canonical_bytes(
+                    _static_semantic_set_sort_key(item, depth + 1)
+                ),
+            )
+            items = [
+                _static_semantic_value(
+                    item,
+                    state,
+                    depth + 1,
+                    binding_name=f"{binding_name}.item",
+                )
+                for item in ordered_values
+            ]
+            return {
+                "kind": type(value).__name__,
+                "token": token,
+                "items": items,
+            }
+        if type(value) in (dict, MappingProxyType):
+            if len(value) > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+                raise _ContractError(
+                    "static scanner semantic mapping exceeds the bound"
+                )
+            return {
+                "kind": "mapping",
+                "token": token,
+                "items": [
+                    [
+                        _static_semantic_value(
+                            key,
+                            state,
+                            depth + 1,
+                            binding_name=f"{binding_name}.key",
+                        ),
+                        _static_semantic_value(
+                            item,
+                            state,
+                            depth + 1,
+                            binding_name=f"{binding_name}.value",
+                        ),
+                    ]
+                    for key, item in value.items()
+                ],
+            }
+    if type(value) is type(_ENTRY_SYMBOL_PATTERN):
+        if type(value.pattern) is not str or type(value.flags) is not int:
+            raise _ContractError(
+                "static scanner regular expression is not exact"
+            )
+        return {
+            "kind": "regular_expression",
+            "pattern": value.pattern,
+            "flags": value.flags,
+        }
+    raise _ContractError(
+        "static scanner dependency cannot be safely normalized: "
+        f"{binding_name}"
+    )
+
+
+def _static_scanner_dependency_manifest() -> dict[str, object]:
+    state: dict[str, object] = {"steps": 0, "memo": {}}
+    entrypoints = {}
+    for name in _STATIC_SCANNER_ENTRYPOINT_NAMES:
+        value = globals().get(name)
+        if type(value) is not FunctionType:
+            raise _ContractError(
+                "static scanner entrypoint is not an exact Python callable"
+            )
+        entrypoints[name] = _static_semantic_value(
+            value,
+            state,
+            0,
+            binding_name=name,
+        )
+    return {
+        "entrypoints": entrypoints,
+        "semantic_nodes": state["steps"],
+    }
 
 
 def _current_static_scanner_sha256() -> str:
-    rules = _static_scanner_rule_manifest()
-    rules_sha256 = _canonical_sha256(rules)
-    implementations = tuple(
-        _static_scanner_implementation_object(name)
-        for name in _STATIC_SCANNER_IMPLEMENTATION_NAMES
-    )
-    cache_key = (
-        rules_sha256,
-        *(id(implementation) for implementation in implementations),
-    )
-    cached = _STATIC_SCANNER_HASH_CACHE.get(cache_key)
-    if cached is not None:
-        return cached
-    implementation_hashes = {
-        name: _static_normalized_implementation_sha256(implementation)
-        for name, implementation in zip(
-            _STATIC_SCANNER_IMPLEMENTATION_NAMES, implementations
-        )
+    commitment = {
+        "rules": _static_scanner_rule_manifest(),
+        "dependencies": _static_scanner_dependency_manifest(),
     }
-    commitment = _canonical_sha256(
-        {
-            "rules": rules,
-            "implementation_sha256": implementation_hashes,
-        }
-    )
-    _STATIC_SCANNER_HASH_CACHE[cache_key] = commitment
-    return commitment
+    try:
+        commitment_bytes = _canonical_bytes(commitment)
+    except (TypeError, ValueError, RecursionError) as error:
+        raise _ContractError(
+            "static scanner semantic commitment is not canonical"
+        ) from error
+    if len(commitment_bytes) > (
+        _STATIC_SCANNER_COMMITMENT_MATERIAL_BYTES_LIMIT
+    ):
+        raise _ContractError(
+            "static scanner semantic commitment exceeds the byte bound"
+        )
+    return hashlib.sha256(commitment_bytes).hexdigest()
 
 
 _STATIC_SCANNER_SHA256 = _current_static_scanner_sha256()
