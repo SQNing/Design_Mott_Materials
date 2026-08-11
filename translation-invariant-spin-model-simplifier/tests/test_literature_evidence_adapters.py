@@ -10853,6 +10853,161 @@ def test_infrastructure_builder_limits_frozen_threshold_to_proof_purpose(
         )
 
 
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "if_statement_test",
+            '    threshold = value["frozen_policy"]["threshold"]\n'
+            '    result = value["result"]\n'
+            "    if result <= threshold:\n"
+            "        return value\n"
+            "    return None\n",
+        ),
+        (
+            "if_expression_test",
+            '    threshold = value["frozen_policy"]["threshold"]\n'
+            '    result = value["result"]\n'
+            "    return value if result <= threshold else None\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_contract_frozen_threshold_control(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|threshold|control|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "returned_comparison",
+            '    threshold = value["frozen_policy"]["threshold"]\n'
+            '    result = value["result"]\n'
+            "    return result <= threshold\n",
+        ),
+        (
+            "if_statement_test",
+            '    threshold = value["frozen_policy"]["threshold"]\n'
+            '    result = value["result"]\n'
+            "    if result <= threshold:\n"
+            "        return True\n"
+            "    return False\n",
+        ),
+        (
+            "if_expression_test",
+            '    threshold = value["frozen_policy"]["threshold"]\n'
+            '    result = value["result"]\n'
+            "    return True if result <= threshold else False\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_proof_frozen_threshold_positions(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"derive_convergence_decision": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+def test_infrastructure_builder_scans_helper_call_in_exception_type(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "def transform():\n"
+                "    numerator = 1\n"
+                "    denominator = 2\n"
+                "    return numerator / denominator\n"
+            )
+        },
+        body_by_root={
+            "validate_failure": (
+                "    try:\n"
+                "        return value\n"
+                "    except transform():\n"
+                "        return None\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|literal|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, target_statement",
+    (
+        ("attribute_assignment", "    transform().field = value\n"),
+        ("subscript_assignment", "    transform()[0] = value\n"),
+        ("attribute_deletion", "    del transform().field\n"),
+        ("subscript_deletion", "    del transform()[0]\n"),
+    ),
+)
+def test_infrastructure_builder_scans_helper_call_in_mutation_target_base(
+    tmp_path,
+    case_name,
+    target_statement,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "def transform():\n"
+                "    numerator = 1\n"
+                "    denominator = 2\n"
+                "    return numerator / denominator\n"
+            )
+        },
+        body_by_root={
+            "validate_failure": target_statement + "    return value\n"
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|literal|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 def test_infrastructure_builder_allows_small_integer_protocol_control(
     tmp_path,
 ):

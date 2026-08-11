@@ -3390,6 +3390,16 @@ _INFRASTRUCTURE_NUMERIC_PERMISSIONS = frozenset(
             "frozen_policy.threshold",
             "returned_comparison",
         ),
+        (
+            "proof_adjudication_transport",
+            "frozen_policy.threshold",
+            "if_test",
+        ),
+        (
+            "proof_adjudication_transport",
+            "frozen_policy.threshold",
+            "if_expression_test",
+        ),
     }
 )
 
@@ -3504,6 +3514,7 @@ def _numeric_expression_state(
     ] | None = None,
     class_receiver_names: frozenset[str] = frozenset(),
     frozen_threshold_names: frozenset[str] = frozenset(),
+    evaluated_project_calls: set[int] | None = None,
     summaries: Mapping[
         _NumericAnalysisKey, _InfrastructureNumericProvenance
     ] | None = None,
@@ -3659,6 +3670,8 @@ def _numeric_expression_state(
             )
             if project_function is not None:
                 callee_name, callee_node = project_function
+                if evaluated_project_calls is not None:
+                    evaluated_project_calls.add(id(candidate))
                 key = _numeric_helper_analysis_key(
                     callee_name,
                     callee_node,
@@ -4100,7 +4113,31 @@ def _validate_numeric_control_sink(
     state: _InfrastructureNumericProvenance,
     node: ast.AST,
     purpose: str,
+    *,
+    position: str,
 ) -> None:
+    if (
+        state
+        & _InfrastructureNumericProvenance.FROZEN_THRESHOLD_COMPARISON
+    ):
+        if (
+            not bool(
+                state
+                & (
+                    _NUMERIC_LITERAL_PROVENANCE
+                    | _InfrastructureNumericProvenance.UNKNOWN
+                )
+            )
+            and _numeric_permission(
+                purpose,
+                "frozen_policy.threshold",
+                position,
+            )
+        ):
+            return
+        raise _ContractError(
+            "infrastructure numeric threshold control violates its purpose"
+        )
     if state & _InfrastructureNumericProvenance.UNKNOWN:
         raise _ContractError(
             "infrastructure unknown control provenance violates its purpose"
@@ -4128,6 +4165,23 @@ def _validate_numeric_control_sink(
     )
 
 
+def _validate_numeric_general_sink(
+    state: _InfrastructureNumericProvenance,
+    purpose: str,
+    *,
+    position: str,
+) -> None:
+    del purpose, position
+    if state & _InfrastructureNumericProvenance.UNKNOWN:
+        raise _ContractError(
+            "infrastructure unknown expression provenance violates its purpose"
+        )
+    if _numeric_state_has_literal(state):
+        raise _ContractError(
+            "infrastructure numeric expression provenance violates its purpose"
+        )
+
+
 def _validate_numeric_index_sink(
     state: _InfrastructureNumericProvenance,
     node: ast.AST,
@@ -4150,6 +4204,82 @@ def _validate_numeric_index_sink(
         raise _ContractError(
             "infrastructure numeric index provenance violates its purpose"
         )
+
+
+def _numeric_runtime_parent_fields(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[
+    tuple[ast.AST, ...],
+    Mapping[int, tuple[ast.AST, str, int | None]],
+]:
+    nodes = []
+    parent_fields = {}
+    pending = deque(
+        (statement, node, "body", index)
+        for index, statement in enumerate(node.body)
+    )
+    while pending:
+        candidate, parent, field, index = pending.popleft()
+        nodes.append(candidate)
+        parent_fields[id(candidate)] = (parent, field, index)
+        if len(nodes) > _INFRASTRUCTURE_AST_NODE_LIMIT:
+            raise _ContractError(
+                "infrastructure numeric provenance exceeds its bound"
+            )
+        for child_field, value in ast.iter_fields(candidate):
+            if isinstance(value, ast.AST):
+                pending.append((value, candidate, child_field, None))
+                continue
+            if isinstance(value, list):
+                pending.extend(
+                    (child, candidate, child_field, child_index)
+                    for child_index, child in enumerate(value)
+                    if isinstance(child, ast.AST)
+                )
+    return tuple(nodes), parent_fields
+
+
+def _numeric_target_evaluation_roots(
+    target: ast.AST,
+) -> tuple[ast.AST, ...]:
+    roots = []
+    pending = [target]
+    visited = 0
+    while pending:
+        candidate = pending.pop()
+        visited += 1
+        if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
+            raise _ContractError(
+                "infrastructure numeric provenance exceeds its bound"
+            )
+        if isinstance(candidate, ast.Attribute):
+            roots.append(candidate.value)
+            continue
+        if isinstance(candidate, ast.Subscript):
+            roots.extend((candidate.value, candidate.slice))
+            continue
+        if isinstance(candidate, ast.Starred):
+            pending.append(candidate.value)
+            continue
+        if isinstance(candidate, (ast.List, ast.Tuple)):
+            pending.extend(reversed(candidate.elts))
+            continue
+        if isinstance(candidate, ast.Name):
+            continue
+        roots.append(candidate)
+    return tuple(roots)
+
+
+def _numeric_target_inert_expressions(target: ast.AST) -> frozenset[int]:
+    return frozenset(
+        id(candidate)
+        for candidate in _bounded_infrastructure_ast_nodes(target)
+        if isinstance(candidate, ast.expr)
+        and isinstance(
+            getattr(candidate, "ctx", None),
+            (ast.Store, ast.Del),
+        )
+    )
 
 
 def _validate_numeric_function_for_purpose(
@@ -4229,10 +4359,42 @@ def _validate_numeric_function_for_purpose(
     })
     counter_names = _event_counter_names(node, purpose)
     frozen_threshold_names = _numeric_frozen_threshold_names(node)
+    runtime_nodes, parent_fields = _numeric_runtime_parent_fields(node)
+    covered_expression_ids = set()
+    sink_expression_ids = set()
+    inert_expression_ids = {
+        id(candidate)
+        for candidate in runtime_nodes
+        if isinstance(candidate, ast.expr)
+        and isinstance(
+            getattr(candidate, "ctx", None),
+            (ast.Store, ast.Del),
+        )
+    }
+    evaluated_project_calls = set()
+
+    def mark_expression_tree(expression: ast.AST) -> None:
+        covered_expression_ids.update(
+            id(candidate)
+            for candidate in _bounded_infrastructure_ast_nodes(expression)
+            if isinstance(candidate, ast.expr)
+            and not isinstance(
+                getattr(candidate, "ctx", None),
+                (ast.Store, ast.Del),
+            )
+        )
+
+    def mark_inert_tree(expression: ast.AST) -> None:
+        inert_expression_ids.update(
+            id(candidate)
+            for candidate in _bounded_infrastructure_ast_nodes(expression)
+            if isinstance(candidate, ast.expr)
+        )
 
     def expression_state(
         expression: ast.AST,
     ) -> _InfrastructureNumericProvenance:
+        mark_expression_tree(expression)
         return _numeric_expression_state(
             expression,
             names,
@@ -4247,9 +4409,18 @@ def _validate_numeric_function_for_purpose(
             class_attribute_states=class_attribute_states,
             class_receiver_names=class_receiver_names,
             frozen_threshold_names=frozen_threshold_names,
+            evaluated_project_calls=evaluated_project_calls,
             summaries=summaries,
             requested=requested,
         )
+
+    def sink_state(
+        expression: ast.AST,
+    ) -> _InfrastructureNumericProvenance:
+        state = expression_state(expression)
+        if isinstance(expression, ast.expr):
+            sink_expression_ids.add(id(expression))
+        return state
 
     assignments = _scope_assignments(node)
     parts_by_index = tuple(
@@ -4343,59 +4514,200 @@ def _validate_numeric_function_for_purpose(
                     pending.append(dependent)
                     queued.add(dependent)
     return_state = _InfrastructureNumericProvenance.NONE
-    for candidate in _bounded_infrastructure_ast_nodes(node):
+    for candidate in runtime_nodes:
         if isinstance(candidate, ast.Return):
             if candidate.value is None:
                 continue
             state = expression_state(candidate.value)
             return_state |= state
             if enforce_return:
+                sink_expression_ids.add(id(candidate.value))
                 _validate_numeric_return_sink(
                     state, candidate.value, purpose, counter_names
                 )
             continue
         if isinstance(candidate, ast.IfExp):
             _validate_numeric_control_sink(
-                expression_state(candidate.test), candidate.test, purpose
+                sink_state(candidate.test),
+                candidate.test,
+                purpose,
+                position="if_expression_test",
             )
             continue
-        if isinstance(candidate, (ast.If, ast.While, ast.Assert)):
+        if isinstance(candidate, ast.If):
             _validate_numeric_control_sink(
-                expression_state(candidate.test), candidate.test, purpose
+                sink_state(candidate.test),
+                candidate.test,
+                purpose,
+                position="if_test",
             )
+            continue
+        if isinstance(candidate, ast.While):
+            _validate_numeric_control_sink(
+                sink_state(candidate.test),
+                candidate.test,
+                purpose,
+                position="while_test",
+            )
+            continue
+        if isinstance(candidate, ast.Assert):
+            _validate_numeric_control_sink(
+                sink_state(candidate.test),
+                candidate.test,
+                purpose,
+                position="assert_test",
+            )
+            if candidate.msg is not None:
+                _validate_numeric_general_sink(
+                    sink_state(candidate.msg),
+                    purpose,
+                    position="assert_message",
+                )
             continue
         if isinstance(candidate, ast.withitem):
             _validate_numeric_control_sink(
-                expression_state(candidate.context_expr),
+                sink_state(candidate.context_expr),
                 candidate.context_expr,
                 purpose,
+                position="with_context",
             )
+            if candidate.optional_vars is not None:
+                inert_expression_ids.update(
+                    _numeric_target_inert_expressions(
+                        candidate.optional_vars
+                    )
+                )
+                for expression in _numeric_target_evaluation_roots(
+                    candidate.optional_vars
+                ):
+                    _validate_numeric_general_sink(
+                        sink_state(expression),
+                        purpose,
+                        position="with_target",
+                    )
             continue
         if isinstance(candidate, (ast.For, ast.AsyncFor)):
             _validate_numeric_control_sink(
-                expression_state(candidate.iter), candidate.iter, purpose
+                sink_state(candidate.iter),
+                candidate.iter,
+                purpose,
+                position="for_iterator",
             )
+            inert_expression_ids.update(
+                _numeric_target_inert_expressions(candidate.target)
+            )
+            for expression in _numeric_target_evaluation_roots(
+                candidate.target
+            ):
+                _validate_numeric_general_sink(
+                    sink_state(expression),
+                    purpose,
+                    position="for_target",
+                )
             continue
         if isinstance(candidate, ast.Subscript):
             _validate_numeric_index_sink(
-                expression_state(candidate.slice), candidate.slice, purpose
+                sink_state(candidate.slice), candidate.slice, purpose
             )
             continue
         if isinstance(candidate, ast.Expr):
-            state = expression_state(candidate.value)
-            if state & _InfrastructureNumericProvenance.UNKNOWN:
-                raise _ContractError(
-                    "infrastructure unknown expression provenance "
-                    "violates its purpose"
-                )
+            _validate_numeric_general_sink(
+                sink_state(candidate.value),
+                purpose,
+                position="expression_statement",
+            )
             continue
         if isinstance(candidate, ast.Raise):
             for expression in (candidate.exc, candidate.cause):
                 if expression is None:
                     continue
                 _validate_numeric_control_sink(
-                    expression_state(expression), expression, purpose
+                    sink_state(expression),
+                    expression,
+                    purpose,
+                    position="raise_expression",
                 )
+            continue
+        if isinstance(candidate, ast.ExceptHandler):
+            if candidate.type is not None:
+                _validate_numeric_general_sink(
+                    sink_state(candidate.type),
+                    purpose,
+                    position="except_handler_type",
+                )
+            continue
+        if isinstance(candidate, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            targets = (
+                tuple(candidate.targets)
+                if isinstance(candidate, ast.Assign)
+                else (candidate.target,)
+            )
+            for target in targets:
+                inert_expression_ids.update(
+                    _numeric_target_inert_expressions(target)
+                )
+                for expression in _numeric_target_evaluation_roots(target):
+                    _validate_numeric_general_sink(
+                        sink_state(expression),
+                        purpose,
+                        position="assignment_target",
+                    )
+            if isinstance(candidate, ast.AnnAssign):
+                mark_inert_tree(candidate.annotation)
+            continue
+        if isinstance(candidate, ast.Delete):
+            for target in candidate.targets:
+                inert_expression_ids.update(
+                    _numeric_target_inert_expressions(target)
+                )
+                for expression in _numeric_target_evaluation_roots(target):
+                    _validate_numeric_general_sink(
+                        sink_state(expression),
+                        purpose,
+                        position="deletion_target",
+                    )
+            continue
+
+    runtime_expressions = tuple(
+        candidate
+        for candidate in runtime_nodes
+        if isinstance(candidate, ast.expr)
+    )
+    for expression in runtime_expressions:
+        if id(expression) in covered_expression_ids | inert_expression_ids:
+            continue
+        parent, field, _index = parent_fields[id(expression)]
+        _validate_numeric_general_sink(
+            sink_state(expression),
+            purpose,
+            position=f"{type(parent).__name__}.{field}",
+        )
+
+    project_call_ids = {
+        id(candidate)
+        for candidate in runtime_nodes
+        if isinstance(candidate, ast.Call)
+        and isinstance(candidate.func, ast.Name)
+        and candidate.func.id not in local_names
+        and candidate.func.id in project_functions
+    }
+    if project_call_ids - evaluated_project_calls:
+        raise _ContractError(
+            "infrastructure helper call evaluation coverage is incomplete"
+        )
+    classified_expression_ids = (
+        covered_expression_ids | inert_expression_ids
+    )
+    if {
+        id(expression) for expression in runtime_expressions
+    } - classified_expression_ids:
+        raise _ContractError(
+            "infrastructure expression evaluation coverage is incomplete"
+        )
+    if sink_expression_ids - covered_expression_ids:
+        raise _ContractError(
+            "infrastructure expression sink coverage is inconsistent"
+        )
     return return_state
 
 
