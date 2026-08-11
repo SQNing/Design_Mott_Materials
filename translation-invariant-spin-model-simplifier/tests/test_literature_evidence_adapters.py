@@ -9533,6 +9533,12 @@ TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT = (
         '    energy = {"transport": value, "fallback": 2}\n'
         "    return energy\n",
     ),
+    (
+        "subscripted_integer_energy",
+        "    coefficients = (2,)\n"
+        "    energy = coefficients[0]\n"
+        "    return energy\n",
+    ),
 )
 
 
@@ -9620,6 +9626,12 @@ TASK5_ALLOWED_INFRASTRUCTURE_CONTENT = (
         "freeze_style_depth",
         "    next_depth = value + 1\n"
         "    return next_depth\n",
+    ),
+    (
+        "matrix_index_transport",
+        "    matrix = value\n"
+        "    energy = matrix[0]\n"
+        "    return energy\n",
     ),
     (
         "scientific_words_in_docstring",
@@ -9953,6 +9965,18 @@ TASK5_LITERAL_POLICY_BYTES_FLOWS = (
         "        return policy_payload\n"
         "    return value\n",
     ),
+    (
+        "subscripted_policy_literal",
+        '    payload = b"detached"\n'
+        "    policy_payload = payload[:]\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "subscripted_policy_container_literal",
+        '    payloads = (b"detached",)\n'
+        "    policy_payload = payloads[0]\n"
+        "    return policy_payload\n",
+    ),
 )
 
 
@@ -10134,6 +10158,20 @@ def test_infrastructure_builder_rejects_literal_policy_call_argument(
             "",
             '    payload = b"%s" % value\n'
             "    return payload\n",
+        ),
+        (
+            "computed_policy_subscript",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    policy_payload = canonical_json_bytes(value)[0]\n"
+            "    return policy_payload\n",
+        ),
+        (
+            "nonliteral_policy_subscript",
+            "",
+            "    payload = value\n"
+            "    policy_payload = payload[0]\n"
+            "    return policy_payload\n",
         ),
     ),
 )

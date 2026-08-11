@@ -2815,6 +2815,8 @@ def _literal_may_flow_expression(
         )
         if isinstance(node.func, ast.Attribute):
             operands += (node.func.value,)
+    elif isinstance(node, ast.Subscript):
+        operands = (node.value,)
     elif isinstance(node, (ast.NamedExpr, ast.Starred)):
         operands = (node.value,)
     else:
