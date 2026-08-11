@@ -8,8 +8,10 @@ process, capsule, or scientific operation at import time or during validation.
 from __future__ import annotations
 
 import ast
+from collections import deque
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
+from enum import IntFlag
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -3129,50 +3131,77 @@ def _literal_may_flow_expression(
     *,
     allow_signed_numeric: bool,
 ) -> bool:
-    if isinstance(node, ast.Constant):
-        return type(node.value) in literal_types
-    if isinstance(node, ast.Name):
-        return node.id in literal_names
+    values: dict[int, bool] = {}
+    pending: list[tuple[ast.AST, bool]] = [(node, False)]
+    visited = 0
+    while pending:
+        candidate, expanded = pending.pop()
+        if not expanded:
+            visited += 1
+            if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
+                raise _ContractError(
+                    "infrastructure literal provenance exceeds its bound"
+                )
+            pending.append((candidate, True))
+            pending.extend(
+                (child, False)
+                for child in reversed(_literal_flow_operands(
+                    candidate, allow_signed_numeric=allow_signed_numeric
+                ))
+            )
+            continue
+        if isinstance(candidate, ast.Constant):
+            values[id(candidate)] = type(candidate.value) in literal_types
+        elif isinstance(candidate, ast.Name):
+            values[id(candidate)] = candidate.id in literal_names
+        else:
+            values[id(candidate)] = any(
+                values.get(id(child), False)
+                for child in _literal_flow_operands(
+                    candidate, allow_signed_numeric=allow_signed_numeric
+                )
+            )
+    return values.get(id(node), False)
+
+
+_INFRASTRUCTURE_AST_NODE_LIMIT = 16_384
+_INFRASTRUCTURE_DEF_USE_EDGE_LIMIT = 32_768
+_INFRASTRUCTURE_ANALYSIS_STATE_LIMIT = 8_192
+_INFRASTRUCTURE_ANALYSIS_STEP_LIMIT = 131_072
+
+
+def _literal_flow_operands(
+    node: ast.AST, *, allow_signed_numeric: bool
+) -> tuple[ast.AST, ...]:
     if (
         allow_signed_numeric
         and isinstance(node, ast.UnaryOp)
         and isinstance(node.op, (ast.UAdd, ast.USub))
     ):
-        operands = (node.operand,)
-    elif isinstance(node, ast.BinOp):
-        operands = (node.left, node.right)
-    elif isinstance(node, ast.IfExp):
-        operands = (node.body, node.orelse)
-    elif isinstance(node, ast.BoolOp):
-        operands = tuple(node.values)
-    elif isinstance(node, (ast.List, ast.Tuple, ast.Set)):
-        operands = tuple(node.elts)
-    elif isinstance(node, ast.Dict):
-        operands = tuple(
-            key for key in node.keys if key is not None
-        ) + tuple(node.values)
-    elif isinstance(node, ast.Call):
-        operands = tuple(node.args) + tuple(
+        return (node.operand,)
+    if isinstance(node, ast.BinOp):
+        return (node.left, node.right)
+    if isinstance(node, ast.IfExp):
+        return (node.body, node.orelse)
+    if isinstance(node, ast.BoolOp):
+        return tuple(node.values)
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return tuple(node.elts)
+    if isinstance(node, ast.Dict):
+        return tuple(key for key in node.keys if key is not None) + tuple(
+            node.values
+        )
+    if isinstance(node, ast.Call):
+        return (node.func,) + tuple(node.args) + tuple(
             keyword.value for keyword in node.keywords
         )
-        operands += (node.func,)
-    elif isinstance(node, ast.Attribute):
-        operands = (node.value,)
-    elif isinstance(node, ast.Subscript):
-        operands = (node.value,)
-    elif isinstance(node, (ast.NamedExpr, ast.Starred)):
-        operands = (node.value,)
-    else:
-        return False
-    return any(
-        _literal_may_flow_expression(
-            operand,
-            literal_names,
-            literal_types,
-            allow_signed_numeric=allow_signed_numeric,
-        )
-        for operand in operands
-    )
+    if isinstance(node, ast.Attribute):
+        return (node.value,)
+    if isinstance(node, ast.Subscript):
+        return (node.value,)
+    if isinstance(node, (ast.NamedExpr, ast.Starred)):
+        return (node.value,)
+    return ()
 
 
 def _literal_bytes_expression(
@@ -3201,32 +3230,51 @@ def _literal_provenance_names(
     expression_test: Callable[[ast.AST, set[str]], bool],
 ) -> set[str]:
     literal_names: set[str] = set()
-    changed = True
-    while changed:
-        changed = False
-        for assignment in assignments:
-            parts = _assignment_parts(assignment)
-            if parts is None:
+    reverse_uses: dict[str, set[int]] = {}
+    parts_by_index = []
+    edge_count = 0
+    for index, assignment in enumerate(assignments):
+        parts = _assignment_parts(assignment)
+        parts_by_index.append(parts)
+        if parts is None:
+            continue
+        for candidate in ast.walk(parts[1]):
+            if not (
+                isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+            ):
                 continue
-            targets, value = parts
-            if not expression_test(value, literal_names):
-                continue
-            new_names = _assigned_local_names(targets) - literal_names
-            if new_names:
-                literal_names.update(new_names)
-                changed = True
+            reverse_uses.setdefault(candidate.id, set()).add(index)
+            edge_count += 1
+            if edge_count > _INFRASTRUCTURE_DEF_USE_EDGE_LIMIT:
+                raise _ContractError(
+                    "infrastructure literal provenance exceeds its bound"
+                )
+    pending = deque(range(len(assignments)))
+    queued = set(pending)
+    steps = 0
+    while pending:
+        steps += 1
+        if steps > _INFRASTRUCTURE_ANALYSIS_STEP_LIMIT:
+            raise _ContractError(
+                "infrastructure literal provenance exceeds its bound"
+            )
+        index = pending.popleft()
+        queued.discard(index)
+        parts = parts_by_index[index]
+        if parts is None:
+            continue
+        targets, value = parts
+        if not expression_test(value, literal_names):
+            continue
+        new_names = _assigned_local_names(targets) - literal_names
+        literal_names.update(new_names)
+        for name in new_names:
+            for dependent in reverse_uses.get(name, ()):
+                if dependent not in queued:
+                    pending.append(dependent)
+                    queued.add(dependent)
     return literal_names
-
-
-def _numeric_literal_expression(
-    node: ast.AST, literal_names: set[str]
-) -> bool:
-    return _literal_may_flow_expression(
-        node,
-        literal_names,
-        (int, float, complex),
-        allow_signed_numeric=True,
-    )
 
 
 def _target_tokens(target: ast.expr) -> set[str]:
@@ -3242,33 +3290,8 @@ def _target_tokens(target: ast.expr) -> set[str]:
     }
 
 
-def _is_scientific_numeric_target(targets: tuple[ast.expr, ...]) -> bool:
-    return any(
-        _target_tokens(target)
-        & _INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS
-        for target in targets
-    )
-
-
 def _is_policy_literal_target(targets: tuple[ast.expr, ...]) -> bool:
     return any("policy" in _target_tokens(target) for target in targets)
-
-
-def _scope_has_scientific_numeric_literal_flow(node: ast.AST) -> bool:
-    assignments = _scope_assignments(node)
-    literal_names = _literal_provenance_names(
-        assignments, _numeric_literal_expression
-    )
-    for assignment in assignments:
-        parts = _assignment_parts(assignment)
-        if parts is None:
-            continue
-        targets, value = parts
-        if _is_scientific_numeric_target(
-            targets
-        ) and _numeric_literal_expression(value, literal_names):
-            return True
-    return False
 
 
 def _scope_has_literal_policy_bytes_flow(node: ast.AST) -> bool:
@@ -3306,11 +3329,846 @@ def _has_literal_policy_bytes_flow(node: ast.AST) -> bool:
     )
 
 
-def _has_scientific_numeric_literal_flow(node: ast.AST) -> bool:
-    return any(
-        _scope_has_scientific_numeric_literal_flow(scope)
-        for scope in _assignment_scopes(node)
+class _InfrastructureNumericProvenance(IntFlag):
+    NONE = 0
+    INPUT_OR_POLICY = 1
+    NUMERIC_LITERAL = 2
+    STRUCTURAL_CARDINALITY = 4
+    STRUCTURAL_INDEX_OR_BOUND = 8
+    LITERAL_DERIVED_ARITHMETIC = 16
+    UNKNOWN = 32
+
+
+_NUMERIC_LITERAL_PROVENANCE = (
+    _InfrastructureNumericProvenance.NUMERIC_LITERAL
+    | _InfrastructureNumericProvenance.LITERAL_DERIVED_ARITHMETIC
+)
+_NUMERIC_STRUCTURAL_PROVENANCE = (
+    _InfrastructureNumericProvenance.STRUCTURAL_CARDINALITY
+    | _InfrastructureNumericProvenance.STRUCTURAL_INDEX_OR_BOUND
+)
+_CARDINALITY_PURPOSES = frozenset(_INFRASTRUCTURE_PURPOSE_NAMES)
+
+
+def _infrastructure_reaching_purposes(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> dict[str, frozenset[str]]:
+    reaching: dict[str, set[str]] = {
+        qualified_name: set() for qualified_name in resolved
+    }
+    pending = deque()
+    for root, purpose in sorted(_INFRASTRUCTURE_PURPOSE_BINDINGS.items()):
+        if root not in resolved:
+            raise _ContractError(
+                "infrastructure numeric provenance is missing a root"
+            )
+        reaching[root].add(purpose)
+        pending.append((root, purpose))
+    steps = 0
+    while pending:
+        steps += 1
+        if steps > _INFRASTRUCTURE_ANALYSIS_STEP_LIMIT:
+            raise _ContractError(
+                "infrastructure numeric provenance exceeds its bound"
+            )
+        source, purpose = pending.popleft()
+        for destination in resolved[source].dependencies:
+            if destination not in resolved:
+                continue
+            if purpose in reaching[destination]:
+                continue
+            reaching[destination].add(purpose)
+            pending.append((destination, purpose))
+    return {
+        name: frozenset(purposes)
+        for name, purposes in reaching.items()
+    }
+
+
+def _numeric_state_has_literal(
+    state: _InfrastructureNumericProvenance,
+) -> bool:
+    return bool(state & _NUMERIC_LITERAL_PROVENANCE)
+
+
+def _numeric_state_is_safe_structural(
+    state: _InfrastructureNumericProvenance,
+    purpose: str,
+) -> bool:
+    return bool(state & _NUMERIC_STRUCTURAL_PROVENANCE) and not bool(
+        state
+        & (
+            _InfrastructureNumericProvenance.NUMERIC_LITERAL
+            | _InfrastructureNumericProvenance.UNKNOWN
+        )
+    ) and purpose in _CARDINALITY_PURPOSES
+
+
+def _bounded_infrastructure_ast_nodes(node: ast.AST) -> tuple[ast.AST, ...]:
+    nodes = []
+    pending = [node]
+    while pending:
+        candidate = pending.pop()
+        nodes.append(candidate)
+        if len(nodes) > _INFRASTRUCTURE_AST_NODE_LIMIT:
+            raise _ContractError(
+                "infrastructure numeric provenance exceeds its bound"
+            )
+        pending.extend(reversed(tuple(ast.iter_child_nodes(candidate))))
+    return tuple(nodes)
+
+
+def _numeric_expression_state(
+    node: ast.AST,
+    names: Mapping[str, _InfrastructureNumericProvenance],
+    *,
+    purpose: str,
+    local_names: frozenset[str],
+    global_names: frozenset[str] = frozenset(),
+    project_functions: Mapping[
+        str, tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]
+    ] | None = None,
+    summaries: Mapping[
+        tuple[str, str, tuple[int, ...]],
+        _InfrastructureNumericProvenance,
+    ] | None = None,
+    requested: set[tuple[str, str, tuple[int, ...]]] | None = None,
+) -> _InfrastructureNumericProvenance:
+    if project_functions is None:
+        project_functions = {}
+    if summaries is None:
+        summaries = {}
+    states: dict[int, _InfrastructureNumericProvenance] = {}
+    pending: list[tuple[ast.AST, bool]] = [(node, False)]
+    visited = 0
+    while pending:
+        candidate, expanded = pending.pop()
+        if not expanded:
+            visited += 1
+            if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
+                raise _ContractError(
+                    "infrastructure numeric provenance exceeds its bound"
+                )
+            pending.append((candidate, True))
+            pending.extend(
+                (child, False)
+                for child in reversed(tuple(ast.iter_child_nodes(candidate)))
+            )
+            continue
+        child_state = _InfrastructureNumericProvenance.NONE
+        for child in ast.iter_child_nodes(candidate):
+            child_state |= states.get(
+                id(child), _InfrastructureNumericProvenance.NONE
+            )
+        state = _InfrastructureNumericProvenance.NONE
+        if isinstance(candidate, ast.Constant):
+            if type(candidate.value) in (int, float, complex):
+                state = _InfrastructureNumericProvenance.NUMERIC_LITERAL
+        elif isinstance(candidate, ast.Name):
+            state = names.get(
+                candidate.id, _InfrastructureNumericProvenance.NONE
+            )
+        elif isinstance(candidate, ast.UnaryOp):
+            state = states.get(
+                id(candidate.operand), _InfrastructureNumericProvenance.NONE
+            )
+        elif isinstance(candidate, ast.BinOp):
+            left = states.get(
+                id(candidate.left), _InfrastructureNumericProvenance.NONE
+            )
+            right = states.get(
+                id(candidate.right), _InfrastructureNumericProvenance.NONE
+            )
+            combined = left | right
+            categorical_operation = (
+                isinstance(candidate.op, (ast.Add, ast.Mod))
+                and (
+                    isinstance(candidate.left, ast.Constant)
+                    and type(candidate.left.value) in (str, bytes)
+                    or isinstance(candidate.right, ast.Constant)
+                    and type(candidate.right.value) in (str, bytes)
+                )
+            )
+            structural_offset = (
+                isinstance(candidate.op, (ast.Add, ast.Sub))
+                and bool(combined & _NUMERIC_STRUCTURAL_PROVENANCE)
+                and not bool(
+                    combined
+                    & (
+                        _InfrastructureNumericProvenance.INPUT_OR_POLICY
+                        | _InfrastructureNumericProvenance.UNKNOWN
+                    )
+                )
+                and purpose in _CARDINALITY_PURPOSES
+            )
+            if categorical_operation:
+                state = combined
+            elif structural_offset:
+                state = (
+                    combined
+                    & ~_InfrastructureNumericProvenance.NUMERIC_LITERAL
+                ) | _InfrastructureNumericProvenance.LITERAL_DERIVED_ARITHMETIC
+            else:
+                if (
+                    combined
+                    & _InfrastructureNumericProvenance.INPUT_OR_POLICY
+                    and combined
+                    & (
+                        _NUMERIC_LITERAL_PROVENANCE
+                        | _NUMERIC_STRUCTURAL_PROVENANCE
+                    )
+                ):
+                    raise _ContractError(
+                        "infrastructure numeric provenance violates its purpose"
+                    )
+                state = combined
+                if _numeric_state_has_literal(combined):
+                    state |= (
+                        _InfrastructureNumericProvenance.
+                        LITERAL_DERIVED_ARITHMETIC
+                    )
+        elif isinstance(candidate, ast.IfExp):
+            state = states.get(
+                id(candidate.body), _InfrastructureNumericProvenance.NONE
+            ) | states.get(
+                id(candidate.orelse), _InfrastructureNumericProvenance.NONE
+            )
+        elif isinstance(candidate, ast.BoolOp):
+            state = child_state
+        elif isinstance(candidate, (ast.List, ast.Tuple, ast.Set)):
+            state = child_state
+        elif isinstance(candidate, ast.Dict):
+            state = child_state
+        elif isinstance(candidate, ast.Attribute):
+            state = states.get(
+                id(candidate.value), _InfrastructureNumericProvenance.NONE
+            )
+        elif isinstance(candidate, ast.Subscript):
+            state = states.get(
+                id(candidate.value), _InfrastructureNumericProvenance.NONE
+            )
+        elif isinstance(candidate, ast.Call):
+            function_state = states.get(
+                id(candidate.func), _InfrastructureNumericProvenance.NONE
+            )
+            argument_state = _InfrastructureNumericProvenance.NONE
+            for argument in candidate.args:
+                argument_state |= states.get(
+                    id(argument), _InfrastructureNumericProvenance.NONE
+                )
+            for keyword in candidate.keywords:
+                argument_state |= states.get(
+                    id(keyword.value),
+                    _InfrastructureNumericProvenance.NONE,
+                )
+            call_name = (
+                candidate.func.id
+                if isinstance(candidate.func, ast.Name)
+                and candidate.func.id not in local_names
+                else None
+            )
+            project_function = project_functions.get(call_name or "")
+            exact_builtin = (
+                call_name is not None and call_name not in global_names
+            )
+            if project_function is not None:
+                callee_name, callee_node = project_function
+                key = _numeric_helper_analysis_key(
+                    callee_name,
+                    callee_node,
+                    purpose,
+                    tuple(
+                        states.get(
+                            id(argument),
+                            _InfrastructureNumericProvenance.NONE,
+                        )
+                        for argument in candidate.args
+                    ),
+                    tuple(
+                        (
+                            keyword.arg,
+                            states.get(
+                                id(keyword.value),
+                                _InfrastructureNumericProvenance.NONE,
+                            ),
+                        )
+                        for keyword in candidate.keywords
+                    ),
+                )
+                if requested is not None:
+                    requested.add(key)
+                state = summaries.get(
+                    key, _InfrastructureNumericProvenance.NONE
+                )
+            elif exact_builtin and candidate.func.id == "len":
+                if _numeric_state_has_literal(argument_state):
+                    raise _ContractError(
+                        "infrastructure numeric provenance violates its purpose"
+                    )
+                state = (
+                    _InfrastructureNumericProvenance.STRUCTURAL_CARDINALITY
+                )
+            elif exact_builtin and candidate.func.id in {"range", "enumerate"}:
+                state = (
+                    _InfrastructureNumericProvenance.
+                    STRUCTURAL_INDEX_OR_BOUND
+                )
+            else:
+                if _numeric_state_has_literal(
+                    function_state | argument_state
+                ):
+                    raise _ContractError(
+                        "infrastructure numeric provenance violates its purpose"
+                    )
+                state = argument_state | function_state
+        elif isinstance(candidate, ast.Compare):
+            state = child_state
+        elif isinstance(candidate, (ast.NamedExpr, ast.Starred)):
+            state = states.get(
+                id(candidate.value), _InfrastructureNumericProvenance.NONE
+            )
+        else:
+            state = child_state
+        states[id(candidate)] = state
+    return states.get(id(node), _InfrastructureNumericProvenance.NONE)
+
+
+def _numeric_function_local_names(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> frozenset[str]:
+    names = {
+        argument.arg
+        for argument in (
+            tuple(node.args.posonlyargs)
+            + tuple(node.args.args)
+            + tuple(node.args.kwonlyargs)
+        )
+    }
+    for argument in (node.args.vararg, node.args.kwarg):
+        if argument is not None:
+            names.add(argument.arg)
+    for candidate in _bounded_infrastructure_ast_nodes(node):
+        if isinstance(candidate, ast.Name) and isinstance(
+            candidate.ctx, (ast.Store, ast.Del)
+        ):
+            names.add(candidate.id)
+    return frozenset(names)
+
+
+def _numeric_function_parameter_names(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> tuple[str, ...]:
+    names = tuple(
+        argument.arg
+        for argument in (
+            tuple(node.args.posonlyargs)
+            + tuple(node.args.args)
+            + tuple(node.args.kwonlyargs)
+        )
     )
+    if node.args.vararg is not None:
+        names += (node.args.vararg.arg,)
+    if node.args.kwarg is not None:
+        names += (node.args.kwarg.arg,)
+    return names
+
+
+def _numeric_helper_analysis_key(
+    qualified_name: str,
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    purpose: str,
+    positional: tuple[_InfrastructureNumericProvenance, ...],
+    keywords: tuple[
+        tuple[str | None, _InfrastructureNumericProvenance], ...
+    ],
+) -> tuple[str, str, tuple[int, ...]]:
+    ordinary = tuple(node.args.posonlyargs) + tuple(node.args.args)
+    keyword_only = tuple(node.args.kwonlyargs)
+    states = {
+        name: _InfrastructureNumericProvenance.NONE
+        for name in _numeric_function_parameter_names(node)
+    }
+    bound_names = set()
+    for index, state in enumerate(positional[:len(ordinary)]):
+        states[ordinary[index].arg] |= state
+        bound_names.add(ordinary[index].arg)
+    remaining = positional[len(ordinary):]
+    if node.args.vararg is not None:
+        for state in remaining:
+            states[node.args.vararg.arg] |= state
+        if remaining:
+            bound_names.add(node.args.vararg.arg)
+    elif remaining:
+        raise _ContractError(
+            "infrastructure helper call has incompatible arguments"
+        )
+    allowed_keywords = {
+        argument.arg for argument in ordinary + keyword_only
+    }
+    for name, state in keywords:
+        if name is None:
+            if node.args.kwarg is None:
+                raise _ContractError(
+                    "infrastructure helper call has incompatible arguments"
+                )
+            states[node.args.kwarg.arg] |= state
+        elif name in allowed_keywords:
+            states[name] |= state
+            bound_names.add(name)
+        elif node.args.kwarg is not None:
+            states[node.args.kwarg.arg] |= state
+        else:
+            raise _ContractError(
+                "infrastructure helper call has incompatible arguments"
+            )
+    positional_defaults = zip(
+        ordinary[len(ordinary) - len(node.args.defaults):],
+        node.args.defaults,
+    )
+    keyword_defaults = zip(keyword_only, node.args.kw_defaults)
+    for argument, default in tuple(positional_defaults) + tuple(
+        keyword_defaults
+    ):
+        if argument.arg in bound_names or default is None:
+            continue
+        states[argument.arg] |= _numeric_expression_state(
+            default,
+            {},
+            purpose=purpose,
+            local_names=frozenset(),
+        )
+    return (
+        qualified_name,
+        purpose,
+        tuple(
+            int(states[name])
+            for name in _numeric_function_parameter_names(node)
+        ),
+    )
+
+
+def _event_counter_names(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    purpose: str,
+) -> frozenset[str]:
+    if purpose != "event_and_counterfactual_transport":
+        return frozenset()
+    nodes = _bounded_infrastructure_ast_nodes(node)
+    parents: dict[int, ast.AST] = {}
+    for parent in nodes:
+        for child in ast.iter_child_nodes(parent):
+            parents[id(child)] = parent
+    zero_initialized = {
+        target.id
+        for candidate in nodes
+        if isinstance(candidate, (ast.Assign, ast.AnnAssign))
+        for parts in (_assignment_parts(candidate),)
+        if parts is not None
+        for target in parts[0]
+        if isinstance(target, ast.Name)
+        if isinstance(parts[1], ast.Constant)
+        if type(parts[1].value) is int and parts[1].value == 0
+    }
+    incremented_in_loop = set()
+    for candidate in nodes:
+        if not (
+            isinstance(candidate, ast.AugAssign)
+            and isinstance(candidate.target, ast.Name)
+            and isinstance(candidate.op, ast.Add)
+            and isinstance(candidate.value, ast.Constant)
+            and type(candidate.value.value) is int
+            and candidate.value.value == 1
+        ):
+            continue
+        parent = parents.get(id(candidate))
+        while parent is not None and parent is not node:
+            if isinstance(parent, (ast.For, ast.AsyncFor)):
+                incremented_in_loop.add(candidate.target.id)
+                break
+            parent = parents.get(id(parent))
+    return frozenset(zero_initialized & incremented_in_loop)
+
+
+def _validate_numeric_function_for_purpose(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    purpose: str,
+    *,
+    parameter_states: tuple[int, ...] | None = None,
+    global_states: Mapping[
+        str, _InfrastructureNumericProvenance
+    ] | None = None,
+    global_names: frozenset[str] = frozenset(),
+    project_functions: Mapping[
+        str, tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]
+    ] | None = None,
+    summaries: Mapping[
+        tuple[str, str, tuple[int, ...]],
+        _InfrastructureNumericProvenance,
+    ] | None = None,
+    requested: set[tuple[str, str, tuple[int, ...]]] | None = None,
+) -> _InfrastructureNumericProvenance:
+    if project_functions is None:
+        project_functions = {}
+    if summaries is None:
+        summaries = {}
+    if global_states is None:
+        global_states = {}
+    local_names = _numeric_function_local_names(node)
+    argument_names = _numeric_function_parameter_names(node)
+    if parameter_states is None:
+        parameter_states = tuple(
+            int(_InfrastructureNumericProvenance.INPUT_OR_POLICY)
+            for _name in argument_names
+        )
+    if len(parameter_states) != len(argument_names):
+        raise _ContractError(
+            "infrastructure helper summary has incompatible parameters"
+        )
+    names = dict(global_states)
+    names.update({
+        name: _InfrastructureNumericProvenance(state)
+        for name, state in zip(argument_names, parameter_states)
+    })
+    counter_names = _event_counter_names(node, purpose)
+    assignments = _scope_assignments(node)
+    parts_by_index = tuple(
+        _assignment_parts(assignment) for assignment in assignments
+    )
+    reverse_uses: dict[str, set[int]] = {}
+    edge_count = 0
+    for index, parts in enumerate(parts_by_index):
+        if parts is None:
+            continue
+        for candidate in ast.walk(parts[1]):
+            if isinstance(candidate, ast.Name) and isinstance(
+                candidate.ctx, ast.Load
+            ):
+                reverse_uses.setdefault(candidate.id, set()).add(index)
+                edge_count += 1
+                if edge_count > _INFRASTRUCTURE_DEF_USE_EDGE_LIMIT:
+                    raise _ContractError(
+                        "infrastructure numeric provenance exceeds its bound"
+                    )
+    pending = deque(range(len(assignments)))
+    queued = set(pending)
+    steps = 0
+    while pending:
+        steps += 1
+        if steps > _INFRASTRUCTURE_ANALYSIS_STEP_LIMIT:
+            raise _ContractError(
+                "infrastructure numeric provenance exceeds its bound"
+            )
+        index = pending.popleft()
+        queued.discard(index)
+        parts = parts_by_index[index]
+        if parts is None:
+            continue
+        targets, value = parts
+        state = _numeric_expression_state(
+            value,
+            names,
+            purpose=purpose,
+            local_names=local_names,
+            global_names=global_names,
+            project_functions=project_functions,
+            summaries=summaries,
+            requested=requested,
+        )
+        target_names = _assigned_local_names(targets)
+        if (
+            target_names & counter_names
+            and isinstance(value, ast.Constant)
+            and type(value.value) is int
+            and value.value == 0
+        ):
+            state = (
+                _InfrastructureNumericProvenance.
+                STRUCTURAL_INDEX_OR_BOUND
+                | _InfrastructureNumericProvenance.
+                LITERAL_DERIVED_ARITHMETIC
+            )
+        if isinstance(assignments[index], ast.AugAssign):
+            counter_increment = (
+                bool(target_names & counter_names)
+                and isinstance(value, ast.Constant)
+                and type(value.value) is int
+                and value.value == 1
+                and isinstance(assignments[index].op, ast.Add)
+            )
+            if counter_increment:
+                state = (
+                    _InfrastructureNumericProvenance.
+                    STRUCTURAL_INDEX_OR_BOUND
+                    | _InfrastructureNumericProvenance.
+                    LITERAL_DERIVED_ARITHMETIC
+                )
+            for target_name in target_names:
+                previous = names.get(
+                    target_name,
+                    _InfrastructureNumericProvenance.NONE,
+                )
+                if (
+                    not counter_increment
+                    and previous
+                    & _InfrastructureNumericProvenance.INPUT_OR_POLICY
+                    and _numeric_state_has_literal(state)
+                ):
+                    raise _ContractError(
+                        "infrastructure numeric provenance violates its purpose"
+                    )
+                state |= previous
+                if not counter_increment and _numeric_state_has_literal(state):
+                    state |= (
+                        _InfrastructureNumericProvenance.
+                        LITERAL_DERIVED_ARITHMETIC
+                    )
+        for target_name in target_names:
+            previous = names.get(
+                target_name, _InfrastructureNumericProvenance.NONE
+            )
+            updated = previous | state
+            if updated == previous:
+                continue
+            names[target_name] = updated
+            for dependent in reverse_uses.get(target_name, ()):
+                if dependent not in queued:
+                    pending.append(dependent)
+                    queued.add(dependent)
+    return_state = _InfrastructureNumericProvenance.NONE
+    for candidate in _bounded_infrastructure_ast_nodes(node):
+        expression = None
+        if isinstance(candidate, (ast.Return, ast.Expr)):
+            expression = candidate.value
+        elif isinstance(candidate, (ast.If, ast.While, ast.Assert)):
+            expression = candidate.test
+        if expression is None:
+            continue
+        state = _numeric_expression_state(
+            expression,
+            names,
+            purpose=purpose,
+            local_names=local_names,
+            global_names=global_names,
+            project_functions=project_functions,
+            summaries=summaries,
+            requested=requested,
+        )
+        if isinstance(candidate, ast.Return):
+            return_state |= state
+            if _numeric_state_has_literal(
+                state
+            ) and not _numeric_state_is_safe_structural(state, purpose):
+                raise _ContractError(
+                    "infrastructure numeric provenance violates its purpose"
+                )
+    return return_state
+
+
+def _validate_infrastructure_numeric_provenance(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> None:
+    reaching = _infrastructure_reaching_purposes(resolved)
+    constant_states: dict[
+        str, _InfrastructureNumericProvenance
+    ] = {}
+    for item in _topological_resolved_nodes(resolved):
+        if item.source.node_kind != "immutable_constant":
+            continue
+        node = item.source.node
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            raise _ContractError(
+                "infrastructure constant provenance has an invalid node"
+            )
+        dependency_states = {}
+        dependency_names = set()
+        for dependency in item.dependencies:
+            if dependency not in resolved:
+                continue
+            for bound_name in resolved[dependency].source.bound_names:
+                dependency_names.add(bound_name)
+                if dependency in constant_states:
+                    dependency_states[bound_name] = constant_states[
+                        dependency
+                    ]
+        constant_states[item.source.qualified_name] = (
+            _numeric_expression_state(
+                node.value,
+                dependency_states,
+                purpose="canonical_transport",
+                local_names=frozenset(),
+                global_names=frozenset(dependency_names),
+            )
+        )
+    functions = {
+        name: item.source.node
+        for name, item in resolved.items()
+        if isinstance(
+            item.source.node, (ast.FunctionDef, ast.AsyncFunctionDef)
+        )
+    }
+    project_functions: dict[
+        str,
+        dict[str, tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]],
+    ] = {}
+    function_global_states: dict[
+        str, dict[str, _InfrastructureNumericProvenance]
+    ] = {}
+    function_global_names: dict[str, frozenset[str]] = {}
+    directly_called = set()
+    for name, node in functions.items():
+        bindings = {}
+        global_states = {}
+        global_names = set()
+        for dependency in resolved[name].dependencies:
+            if dependency not in resolved:
+                continue
+            for bound_name in resolved[dependency].source.bound_names:
+                global_names.add(bound_name)
+                if dependency in constant_states:
+                    global_states[bound_name] = constant_states[dependency]
+            dependency_node = functions.get(dependency)
+            if dependency_node is None:
+                continue
+            for bound_name in resolved[dependency].source.bound_names:
+                bindings[bound_name] = (dependency, dependency_node)
+        project_functions[name] = bindings
+        function_global_states[name] = global_states
+        function_global_names[name] = frozenset(global_names)
+        for candidate in _bounded_infrastructure_ast_nodes(node):
+            if (
+                isinstance(candidate, ast.Call)
+                and isinstance(candidate.func, ast.Name)
+                and candidate.func.id in bindings
+            ):
+                directly_called.add(
+                    (bindings[candidate.func.id][0], name)
+                )
+    class_analyses = 0
+    for name, item in sorted(resolved.items()):
+        class_node = item.source.node
+        if not isinstance(class_node, ast.ClassDef):
+            continue
+        global_states = {}
+        global_names = set()
+        class_project_functions = {}
+        for dependency in item.dependencies:
+            if dependency not in resolved:
+                continue
+            for bound_name in resolved[dependency].source.bound_names:
+                global_names.add(bound_name)
+                if dependency in constant_states:
+                    global_states[bound_name] = constant_states[dependency]
+                if dependency in functions:
+                    class_project_functions[bound_name] = (
+                        dependency,
+                        functions[dependency],
+                    )
+        for method in class_node.body:
+            if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for purpose in sorted(reaching[name]):
+                class_analyses += 1
+                if class_analyses > _INFRASTRUCTURE_ANALYSIS_STATE_LIMIT:
+                    raise _ContractError(
+                        "infrastructure numeric provenance exceeds its bound"
+                    )
+                _validate_numeric_function_for_purpose(
+                    method,
+                    purpose,
+                    global_states=global_states,
+                    global_names=frozenset(global_names),
+                    project_functions=class_project_functions,
+                )
+    summaries: dict[
+        tuple[str, str, tuple[int, ...]],
+        _InfrastructureNumericProvenance,
+    ] = {}
+    callers: dict[
+        tuple[str, str, tuple[int, ...]],
+        set[tuple[str, str, tuple[int, ...]]],
+    ] = {}
+    pending = deque()
+    queued = set()
+
+    def enqueue(key: tuple[str, str, tuple[int, ...]]) -> None:
+        if key not in summaries:
+            if len(summaries) >= _INFRASTRUCTURE_ANALYSIS_STATE_LIMIT:
+                raise _ContractError(
+                    "infrastructure numeric provenance exceeds its bound"
+                )
+            summaries[key] = _InfrastructureNumericProvenance.NONE
+        if key not in queued:
+            pending.append(key)
+            queued.add(key)
+
+    for root, purpose in sorted(_INFRASTRUCTURE_PURPOSE_BINDINGS.items()):
+        node = functions[root]
+        enqueue(
+            (
+                root,
+                purpose,
+                tuple(
+                    int(_InfrastructureNumericProvenance.INPUT_OR_POLICY)
+                    for _name in _numeric_function_parameter_names(node)
+                ),
+            )
+        )
+    for name, node in sorted(functions.items()):
+        if any(destination == name for destination, _source in directly_called):
+            continue
+        if name in _INFRASTRUCTURE_PURPOSE_BINDINGS:
+            continue
+        for purpose in sorted(reaching[name]):
+            enqueue(
+                (
+                    name,
+                    purpose,
+                    tuple(
+                        int(
+                            _InfrastructureNumericProvenance.INPUT_OR_POLICY
+                        )
+                        for _name in _numeric_function_parameter_names(node)
+                    ),
+                )
+            )
+    steps = 0
+    while pending:
+        steps += 1
+        if steps > _INFRASTRUCTURE_ANALYSIS_STEP_LIMIT:
+            raise _ContractError(
+                "infrastructure numeric provenance exceeds its bound"
+            )
+        key = pending.popleft()
+        queued.discard(key)
+        name, purpose, parameter_states = key
+        if purpose not in reaching[name]:
+            raise _ContractError(
+                "infrastructure helper purpose context is inconsistent"
+            )
+        requested: set[tuple[str, str, tuple[int, ...]]] = set()
+        result = _validate_numeric_function_for_purpose(
+            functions[name],
+            purpose,
+            parameter_states=parameter_states,
+            global_states=function_global_states[name],
+            global_names=function_global_names[name],
+            project_functions=project_functions[name],
+            summaries=summaries,
+            requested=requested,
+        )
+        for callee in sorted(requested):
+            if callee[0] not in functions:
+                raise _ContractError(
+                    "infrastructure helper summary target is unavailable"
+                )
+            callers.setdefault(callee, set()).add(key)
+            enqueue(callee)
+        updated = summaries[key] | result
+        if updated == summaries[key]:
+            continue
+        summaries[key] = updated
+        for caller in sorted(callers.get(key, ())):
+            enqueue(caller)
 
 
 def _ast_authored_tokens(node: ast.AST) -> set[str]:
@@ -3359,15 +4217,13 @@ def _arithmetic_target_tokens(node: ast.AST) -> dict[int, set[str]]:
 def _scan_infrastructure_ast_content(
     resolved: Mapping[str, _ResolvedAstNode],
 ) -> None:
+    _validate_infrastructure_numeric_provenance(resolved)
     for item in resolved.values():
         tokens = set()
         literal_tokens = set()
         has_power = False
         has_policy_bytes_literal = _has_literal_policy_bytes_flow(
             item.source.node
-        )
-        has_scientific_numeric_literal = (
-            _has_scientific_numeric_literal_flow(item.source.node)
         )
         arithmetic_target_tokens = _arithmetic_target_tokens(
             item.source.node
@@ -3429,10 +4285,6 @@ def _scan_infrastructure_ast_content(
         if {"scientific", "constant"} <= tokens:
             raise _ContractError(
                 "infrastructure AST contains a scientific constant"
-            )
-        if has_scientific_numeric_literal:
-            raise _ContractError(
-                "infrastructure AST contains a scientific numeric constant"
             )
         if has_power:
             raise _ContractError(

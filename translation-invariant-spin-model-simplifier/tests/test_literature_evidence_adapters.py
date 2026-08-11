@@ -10345,6 +10345,219 @@ def test_infrastructure_builder_rejects_equivalent_scientific_ast_content(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+TASK5_PURPOSE_PROVENANCE_REJECTIONS = (
+    (
+        "neutral_direct_ratio",
+        "",
+        "    numerator = 1\n"
+        "    denominator = 2\n"
+        "    return numerator / denominator\n",
+    ),
+    (
+        "neutral_input_factor_alias",
+        "",
+        "    factor = 2\n"
+        "    renamed = factor\n"
+        "    return value * renamed\n",
+    ),
+    (
+        "neutral_helper_literal_return",
+        "def transform():\n"
+        "    left = 1\n"
+        "    right = 2\n"
+        "    return left / right\n",
+        "    return transform()\n",
+    ),
+    (
+        "parameterized_helper_unconstrained_input",
+        "def transform(item):\n"
+        "    return item + 1\n",
+        "    return transform(value)\n",
+    ),
+    ("tuple_flow", "", "    return (value, 2)\n"),
+    ("list_flow", "", "    return [value, 2]\n"),
+    ("set_flow", "", "    return {value, 2}\n"),
+    (
+        "dict_flow",
+        "",
+        '    return {"primary": value, "fallback": 2}\n',
+    ),
+    (
+        "conditional_flow",
+        "",
+        "    return 2 if value is None else value\n",
+    ),
+    ("boolean_flow", "", "    return value or 2\n"),
+    (
+        "subscripted_container_flow",
+        "",
+        "    candidates = (2,)\n"
+        "    return candidates[0]\n",
+    ),
+    ("direct_attribute_flow", "", "    return (2).real\n"),
+    (
+        "split_bound_method_flow",
+        "",
+        "    operation = (2).__int__\n"
+        "    return operation()\n",
+    ),
+    (
+        "subscripted_bound_method_flow",
+        "",
+        "    operations = ((2).__int__,)\n"
+        "    return operations[0]()\n",
+    ),
+    (
+        "general_call_argument_flow",
+        "def select(*items):\n"
+        "    return items[0]\n",
+        "    return select(value, 2)\n",
+    ),
+    (
+        "multi_helper_flow",
+        "def first(item):\n"
+        "    return item + 1\n"
+        "def second(item):\n"
+        "    return first(item)\n",
+        "    return second(value)\n",
+    ),
+    (
+        "neutral_renaming",
+        "def a(b):\n"
+        "    c = 2\n"
+        "    return b * c\n",
+        "    return a(value)\n",
+    ),
+    (
+        "resolved_module_constant_alias",
+        "MULTIPLIER = 2\n",
+        "    renamed = MULTIPLIER\n"
+        "    return value * renamed\n",
+    ),
+    (
+        "imported_len_is_not_builtin",
+        "from math import floor as len\n",
+        "    return len(value) + 1\n",
+    ),
+    (
+        "helper_numeric_default",
+        "def transform(item=2):\n"
+        "    return item\n",
+        "    return transform()\n",
+    ),
+    (
+        "reachable_class_method",
+        "class Transport:\n"
+        "    def transform(self, item):\n"
+        "        return item * 2\n",
+        "    return Transport()\n",
+    ),
+    (
+        "returned_literal_comparison",
+        "",
+        "    return value < 2\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, helper_source, root_body",
+    TASK5_PURPOSE_PROVENANCE_REJECTIONS,
+    ids=tuple(case[0] for case in TASK5_PURPOSE_PROVENANCE_REJECTIONS),
+)
+def test_infrastructure_builder_rejects_numeric_provenance_by_structure(
+    tmp_path,
+    case_name,
+    helper_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": helper_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|literal|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_intersects_shared_helper_purposes(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    helper_source = (
+        "def occurrence_total(items):\n"
+        "    total = 0\n"
+        "    for item in items:\n"
+        "        total += 1\n"
+        "    return total\n"
+    )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": helper_source
+        },
+        body_by_root={
+            "record_and_freeze_hashes": (
+                "    return occurrence_total(value)\n"
+            ),
+            "validate_failure": "    return occurrence_total(value)\n",
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|literal|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_bounds_deep_numeric_expression(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    expression = "value" + " + 1" * 1200
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": f"    return {expression}\n"},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|literal|provenance|bound|complex",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_bounds_long_reverse_alias_chain(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    alias_count = 1200
+    root_body = "    output = alias_0\n"
+    root_body += "".join(
+        f"    alias_{index} = alias_{index + 1}\n"
+        for index in range(alias_count - 1)
+    )
+    root_body += f"    alias_{alias_count - 1} = 2\n"
+    root_body += "    return output\n"
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|literal|provenance|bound|complex",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 def test_infrastructure_builder_allows_small_integer_protocol_control(
     tmp_path,
 ):
@@ -10399,7 +10612,10 @@ TASK5_ALLOWED_INFRASTRUCTURE_CONTENT = (
     ),
     (
         "freeze_style_depth",
-        "    next_depth = value + 1\n"
+        # A depth increment is structural only after its input is proven to be
+        # a cardinality; unconstrained ``value + 1`` is scientific-shaped.
+        "    depth = len(value)\n"
+        "    next_depth = depth + 1\n"
         "    return next_depth\n",
     ),
     (
@@ -10566,7 +10782,8 @@ def test_infrastructure_builder_allows_transitive_transport_arithmetic(
             )
         },
         body_by_root={
-            "validate_failure": "    return advance_depth(value)\n"
+            # The helper formal is structurally proven at this call site.
+            "validate_failure": "    return advance_depth(len(value))\n"
         },
     )
 
@@ -10577,6 +10794,77 @@ def test_infrastructure_builder_allows_transitive_transport_arithmetic(
     assert "validation.task5_transport_helpers.advance_depth" in {
         node["qualified_name"] for node in closure.nodes
     }
+
+
+@pytest.mark.parametrize(
+    "case_name, root_name, root_body",
+    (
+        (
+            "fixed_nested_index",
+            "validate_failure",
+            "    return value[0][1]\n",
+        ),
+        (
+            "range_and_index",
+            "validate_failure",
+            "    for index in range(len(value)):\n"
+            "        value[index]\n"
+            "    return value\n",
+        ),
+        (
+            "enumerate_ordinal",
+            "validate_failure",
+            "    for index, item in enumerate(value):\n"
+            "        value[index]\n"
+            "    return value\n",
+        ),
+        (
+            "hash_length_guard",
+            "validate_failure",
+            "    if len(value) != 64:\n"
+            "        return None\n"
+            "    return value\n",
+        ),
+        (
+            "byte_bound_slice",
+            "validate_failure",
+            "    return value[:256]\n",
+        ),
+        (
+            "event_occurrence_counter",
+            "record_and_freeze_hashes",
+            "    total = 0\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "    return total\n",
+        ),
+        (
+            "frozen_policy_threshold",
+            "derive_convergence_decision",
+            '    threshold = value["threshold"]\n'
+            '    return value["result"] <= threshold\n',
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_bound_structural_numeric_sinks(
+    tmp_path,
+    case_name,
+    root_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={root_name: root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
 
 
 @pytest.mark.parametrize(
