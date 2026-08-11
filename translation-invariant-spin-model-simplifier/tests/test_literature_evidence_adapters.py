@@ -11314,6 +11314,271 @@ def test_infrastructure_builder_rejects_comparison_bearing_call_inputs(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "instance_attribute_literal_ratio",
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.factor = 1 / 2\n"
+            "    def reveal(self):\n"
+            "        return self.factor\n",
+            "    return Transport(value)\n",
+        ),
+        (
+            "instance_attribute_input_times_literal",
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.factor = value * 2\n"
+            "    def reveal(self):\n"
+            "        return self.factor\n",
+            "    return Transport(value)\n",
+        ),
+        (
+            "instance_attribute_unknown",
+            "from math import floor as external\n"
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.factor = external(value)\n"
+            "    def reveal(self):\n"
+            "        return self.factor\n",
+            "    return Transport(value)\n",
+        ),
+        (
+            "instance_attribute_comparison",
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.factor = value is None\n"
+            "    def reveal(self):\n"
+            "        return self.factor\n",
+            "    return Transport(value)\n",
+        ),
+        (
+            "instance_attribute_annassign",
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.factor: object = 1 / 2\n",
+            "    return Transport(value)\n",
+        ),
+        (
+            "instance_attribute_augassign",
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.factor = value\n"
+            "        self.factor += 1 / 2\n",
+            "    return Transport(value)\n",
+        ),
+        (
+            "subscript_literal_ratio",
+            "",
+            '    value["factor"] = 1 / 2\n'
+            "    return value\n",
+        ),
+        (
+            "subscript_input_times_literal",
+            "",
+            '    value["factor"] = value * 2\n'
+            "    return value\n",
+        ),
+        (
+            "nested_subscript_unknown",
+            "from math import floor as external\n",
+            '    value["nested"]["factor"] = external(value)\n'
+            "    return value\n",
+        ),
+        (
+            "nested_attribute_comparison",
+            "",
+            '    value["nested"].factor = value is None\n'
+            "    return value\n",
+        ),
+        (
+            "subscript_augassign",
+            "",
+            '    value["factor"] += 1 / 2\n'
+            "    return value\n",
+        ),
+        (
+            "tuple_destructuring",
+            "",
+            '    (value.factor, value["factor"]) = (\n'
+            "        1 / 2, value is None\n"
+            "    )\n"
+            "    return value\n",
+        ),
+        (
+            "list_destructuring",
+            "",
+            '    [value.factor, value["factor"]] = [\n'
+            "        value * 2, 1 / 2\n"
+            "    ]\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_unsafe_mutation_values(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "for_literal",
+            "    for value.factor in [1 / 2]:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "for_comparison",
+            "    for value.factor in [value is None]:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "with_literal",
+            "    with (1 / 2) as value.factor:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "with_comparison",
+            "    with (value is None) as value.factor:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "comprehension_comparison",
+            "    [None for value.factor in [value is None]]\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_unsafe_mutation_bindings(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|numeric|mutation|provenance|purpose|control|"
+            "comprehension|scope"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_rejects_unsafe_async_for_mutation_binding(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        declaration_by_root={
+            "validate_failure": (
+                "async def validate_failure(value=None):\n"
+                "    async for value.factor in [value is None]:\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|numeric|mutation|provenance|purpose|control|"
+            "asynchronous|forbidden"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "attribute_input",
+            "",
+            "    value.factor = value\n"
+            "    return value\n",
+        ),
+        (
+            "subscript_input",
+            "",
+            '    value["factor"] = value\n'
+            "    return value\n",
+        ),
+        (
+            "local_numeric_assignment",
+            "",
+            "    local = 1 / 2\n"
+            "    return value\n",
+        ),
+        (
+            "clean_approved_constructor",
+            "class Transport:\n"
+            "    def __init__(self, value):\n"
+            "        self.value = value\n",
+            "    return Transport(value)\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_safe_mutation_and_local_bindings(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
 def test_infrastructure_builder_allows_small_integer_protocol_control(
     tmp_path,
 ):

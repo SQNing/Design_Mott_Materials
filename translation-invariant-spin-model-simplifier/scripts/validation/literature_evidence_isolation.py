@@ -4365,6 +4365,25 @@ def _validate_numeric_general_sink(
         )
 
 
+def _validate_numeric_mutation_sink(
+    state: _InfrastructureNumericProvenance,
+    purpose: str,
+    *,
+    position: str,
+) -> None:
+    del purpose, position
+    if state & (
+        _NUMERIC_LITERAL_PROVENANCE
+        | _NUMERIC_STRUCTURAL_PROVENANCE
+        | _InfrastructureNumericProvenance.UNKNOWN
+        | _InfrastructureNumericProvenance.COMPARISON_RESULT
+        | _InfrastructureNumericProvenance.UNAPPROVED_COMPARISON
+    ):
+        raise _ContractError(
+            "infrastructure mutation value provenance violates its purpose"
+        )
+
+
 def _validate_numeric_index_sink(
     state: _InfrastructureNumericProvenance,
     node: ast.AST,
@@ -4469,6 +4488,45 @@ def _numeric_target_inert_expressions(target: ast.AST) -> frozenset[int]:
     )
 
 
+def _numeric_binding_target_parts(
+    target: ast.AST,
+) -> tuple[tuple[ast.expr, ...], frozenset[int]]:
+    mutation_targets = []
+    classified_store_ids = set()
+    pending = [target]
+    visited = 0
+    while pending:
+        candidate = pending.pop()
+        visited += 1
+        if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
+            raise _ContractError(
+                "infrastructure mutation target exceeds its bound"
+            )
+        if not (
+            isinstance(candidate, ast.expr)
+            and isinstance(getattr(candidate, "ctx", None), ast.Store)
+        ):
+            raise _ContractError(
+                "infrastructure mutation target is unsupported"
+            )
+        classified_store_ids.add(id(candidate))
+        if isinstance(candidate, ast.Name):
+            continue
+        if isinstance(candidate, (ast.Attribute, ast.Subscript)):
+            mutation_targets.append(candidate)
+            continue
+        if isinstance(candidate, ast.Starred):
+            pending.append(candidate.value)
+            continue
+        if isinstance(candidate, (ast.List, ast.Tuple)):
+            pending.extend(reversed(candidate.elts))
+            continue
+        raise _ContractError(
+            "infrastructure mutation target is unsupported"
+        )
+    return tuple(mutation_targets), frozenset(classified_store_ids)
+
+
 def _validate_numeric_function_for_purpose(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     purpose: str,
@@ -4558,6 +4616,13 @@ def _validate_numeric_function_for_purpose(
             (ast.Store, ast.Del),
         )
     }
+    expected_store_target_ids = {
+        id(candidate)
+        for candidate in runtime_nodes
+        if isinstance(candidate, ast.expr)
+        and isinstance(getattr(candidate, "ctx", None), ast.Store)
+    }
+    classified_store_target_ids = set()
     evaluated_project_calls = set()
 
     def mark_expression_tree(expression: ast.AST) -> None:
@@ -4608,6 +4673,25 @@ def _validate_numeric_function_for_purpose(
         if isinstance(expression, ast.expr):
             sink_expression_ids.add(id(expression))
         return state
+
+    def validate_binding_target(
+        target: ast.AST,
+        state: _InfrastructureNumericProvenance,
+        *,
+        position: str,
+    ) -> bool:
+        mutation_targets, classified_ids = _numeric_binding_target_parts(
+            target
+        )
+        classified_store_target_ids.update(classified_ids)
+        if not mutation_targets:
+            return False
+        _validate_numeric_mutation_sink(
+            state,
+            purpose,
+            position=position,
+        )
+        return True
 
     assignments = _scope_assignments(node)
     parts_by_index = tuple(
@@ -4752,8 +4836,9 @@ def _validate_numeric_function_for_purpose(
                 )
             continue
         if isinstance(candidate, ast.withitem):
+            context_state = sink_state(candidate.context_expr)
             _validate_numeric_control_sink(
-                sink_state(candidate.context_expr),
+                context_state,
                 candidate.context_expr,
                 purpose,
                 position="with_context",
@@ -4772,10 +4857,16 @@ def _validate_numeric_function_for_purpose(
                         purpose,
                         position="with_target",
                     )
+                validate_binding_target(
+                    candidate.optional_vars,
+                    context_state,
+                    position="with_binding",
+                )
             continue
         if isinstance(candidate, (ast.For, ast.AsyncFor)):
+            iterator_state = sink_state(candidate.iter)
             _validate_numeric_control_sink(
-                sink_state(candidate.iter),
+                iterator_state,
                 candidate.iter,
                 purpose,
                 position="for_iterator",
@@ -4791,6 +4882,20 @@ def _validate_numeric_function_for_purpose(
                     purpose,
                     position="for_target",
                 )
+            validate_binding_target(
+                candidate.target,
+                iterator_state,
+                position="for_binding",
+            )
+            continue
+        if isinstance(candidate, ast.NamedExpr):
+            value_state = expression_state(candidate.value)
+            if validate_binding_target(
+                candidate.target,
+                value_state,
+                position="named_expression_binding",
+            ):
+                sink_expression_ids.add(id(candidate.value))
             continue
         if isinstance(candidate, ast.Subscript):
             _validate_numeric_index_sink(
@@ -4839,6 +4944,23 @@ def _validate_numeric_function_for_purpose(
                         purpose,
                         position="assignment_target",
                     )
+            value_state = expression_state(candidate.value)
+            if isinstance(candidate, ast.AugAssign):
+                value_state |= expression_state(candidate.target)
+            mutation_bindings = tuple(
+                validate_binding_target(
+                    target,
+                    value_state,
+                    position=(
+                        "augmented_assignment_binding"
+                        if isinstance(candidate, ast.AugAssign)
+                        else "assignment_binding"
+                    ),
+                )
+                for target in targets
+            )
+            if any(mutation_bindings):
+                sink_expression_ids.add(id(candidate.value))
             if isinstance(candidate, ast.AnnAssign):
                 mark_inert_tree(candidate.annotation)
             continue
@@ -4854,6 +4976,11 @@ def _validate_numeric_function_for_purpose(
                         position="deletion_target",
                     )
             continue
+
+    if expected_store_target_ids - classified_store_target_ids:
+        raise _ContractError(
+            "infrastructure mutation target coverage is incomplete"
+        )
 
     runtime_expressions = tuple(
         candidate
