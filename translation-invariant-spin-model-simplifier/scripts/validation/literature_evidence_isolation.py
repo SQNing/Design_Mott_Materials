@@ -13,11 +13,15 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
 from enum import IntFlag
 import hashlib
+import inspect
 import json
 import math
+import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 import string
+import textwrap
 from types import MappingProxyType
 from validation import literature_evidence_adapters as _adapters
 from validation import literature_evidence_adapter_oracles as _oracles
@@ -1175,12 +1179,13 @@ class InfrastructureClosure:
 
 
 _AST_CLOSURE_VERSION = "deterministic_ast_closure_v1"
-_STATIC_SCANNER_VERSION = "scientific_static_scan_v1"
-_STATIC_CONSTANT_EVALUATOR_VERSION = "bounded_constant_expression_v1"
+_STATIC_SCANNER_VERSION = "scientific_static_scan_v2"
+_STATIC_CONSTANT_EVALUATOR_VERSION = "bounded_constant_expression_v2"
 _POLICY_STRUCTURE_SCAN_VERSION = "scientific_definition_policy_scan_v2"
 _STATIC_SCAN_NODE_LIMIT = 16_384
 _STATIC_SCAN_DEPTH_LIMIT = 256
 _STATIC_SCAN_LITERAL_BYTES_LIMIT = 1_048_576
+_STATIC_SCAN_SOURCE_FILE_BYTES_LIMIT = 16_777_216
 _STATIC_SCAN_EVALUATED_OUTPUT_BYTES_LIMIT = 1_048_576
 _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT = 16_777_216
 _STATIC_SCAN_FINGERPRINT_COUNT_LIMIT = 256
@@ -1324,6 +1329,36 @@ _SAFE_EXTERNAL_IMPORT_PREFIXES = (
     "scipy",
     "statistics",
     "string",
+)
+_SAFE_EXTERNAL_IMPORT_MODULES = frozenset(
+    {
+        "cmath",
+        "decimal",
+        "fractions",
+        "functools",
+        "itertools",
+        "math",
+        "numpy",
+        "numpy.fft",
+        "numpy.linalg",
+        "numpy.polynomial",
+        "numpy.typing",
+        "operator",
+        "scipy",
+        "scipy.fft",
+        "scipy.integrate",
+        "scipy.interpolate",
+        "scipy.linalg",
+        "scipy.optimize",
+        "scipy.signal",
+        "scipy.sparse",
+        "scipy.sparse.linalg",
+        "scipy.spatial",
+        "scipy.special",
+        "scipy.stats",
+        "statistics",
+        "string",
+    }
 )
 _FORBIDDEN_DYNAMIC_CALLS = frozenset(
     {
@@ -1525,6 +1560,17 @@ def _require_scientific_module_role(module_name: str, role: str) -> None:
 
 
 def _normalized_emitted_node(source_span: bytes) -> bytes:
+    if type(source_span) is not bytes:
+        raise _ContractError(
+            "static scan emitted normalization requires exact bytes"
+        )
+    projected_size = len(source_span) + (
+        not source_span.endswith((b"\n", b"\r"))
+    )
+    if projected_size > _STATIC_SCAN_LITERAL_BYTES_LIMIT:
+        raise _ContractError(
+            "static scan emitted normalization exceeds the byte bound"
+        )
     normalized = source_span.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     return normalized.rstrip(b"\n") + b"\n"
 
@@ -1574,6 +1620,89 @@ def _resolve_relative_import(
     if not retained:
         raise _ContractError("relative import has no resolvable module")
     return ".".join(retained)
+
+
+def _bounded_read_python_source(path: Path, module_name: str) -> bytes:
+    byte_limit = min(
+        _STATIC_SCAN_SOURCE_FILE_BYTES_LIMIT,
+        _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT,
+    )
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise _ContractError(
+            f"source module {module_name} cannot be opened safely"
+        ) from error
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise _ContractError(
+                f"source module {module_name} is not a regular file"
+            )
+        if before.st_size < 0 or before.st_size > byte_limit:
+            raise _ContractError(
+                f"source module {module_name} exceeds the file byte bound"
+            )
+        chunks = []
+        total = 0
+        while True:
+            remaining = byte_limit + 1 - total
+            if remaining <= 0:
+                raise _ContractError(
+                    f"source module {module_name} exceeds the file byte bound"
+                )
+            chunk = os.read(descriptor, min(65_536, remaining))
+            if not chunk:
+                break
+            total += len(chunk)
+            chunks.append(chunk)
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev != after.st_dev
+            or before.st_ino != after.st_ino
+            or before.st_size != after.st_size
+            or total != before.st_size
+        ):
+            raise _ContractError(
+                f"source module {module_name} changed during bounded read"
+            )
+        return b"".join(chunks)
+    except _ContractError:
+        raise
+    except OSError as error:
+        raise _ContractError(
+            f"source module {module_name} cannot be read safely"
+        ) from error
+    finally:
+        os.close(descriptor)
+
+
+def _bounded_parse_utf8_python(
+    raw_bytes: bytes,
+    *,
+    byte_limit: int,
+    field_name: str,
+    filename: str = "<static-scan>",
+) -> ast.Module:
+    if type(raw_bytes) is not bytes or len(raw_bytes) > byte_limit:
+        raise _ContractError(f"{field_name} exceeds the byte bound")
+    try:
+        source = raw_bytes.decode("utf-8")
+        return ast.parse(source, filename=filename, mode="exec")
+    except (
+        UnicodeDecodeError,
+        SyntaxError,
+        ValueError,
+        RecursionError,
+    ) as error:
+        raise _ContractError(
+            f"{field_name} cannot be parsed as bounded UTF-8 Python"
+        ) from error
 
 
 class _AstClosureResolver:
@@ -1775,9 +1904,20 @@ class _AstClosureResolver:
             )
         source_path, source_root = located
         try:
-            raw_bytes = source_path.read_bytes()
-            source = raw_bytes.decode("utf-8")
-            tree = ast.parse(source, filename=str(source_path), mode="exec")
+            raw_bytes = _bounded_read_python_source(
+                source_path, module_name
+            )
+            tree = _bounded_parse_utf8_python(
+                raw_bytes,
+                byte_limit=min(
+                    _STATIC_SCAN_SOURCE_FILE_BYTES_LIMIT,
+                    _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT,
+                ),
+                field_name=f"source module {module_name}",
+                filename=str(source_path),
+            )
+        except _ContractError:
+            raise
         except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as error:
             raise _ContractError(
                 f"source module {module_name} cannot be parsed as UTF-8 Python"
@@ -1931,13 +2071,21 @@ class _AstClosureResolver:
                     "future import is not the approved annotations import"
                 )
             return
-        if not any(
-            module_name == prefix or module_name.startswith(prefix + ".")
-            for prefix in _SAFE_EXTERNAL_IMPORT_PREFIXES
-        ):
+        if module_name not in _SAFE_EXTERNAL_IMPORT_MODULES:
             raise _ContractError(
                 f"external import {module_name} is not approved"
             )
+        if isinstance(source.node, ast.ImportFrom):
+            for alias in source.node.names:
+                symbol_path = tuple(
+                    part.lower()
+                    for part in (*module_name.split("."), alias.name)
+                )
+                if _static_forbidden_capability_path(symbol_path):
+                    raise _ContractError(
+                        "external import requests an unapproved file "
+                        "capability"
+                    )
 
     def _validate_no_dynamic_constructs(self, node: ast.AST) -> None:
         for candidate in ast.walk(node):
@@ -6374,7 +6522,7 @@ def _task5_policy_structure_scan_sha256(
         {
             "schema_version": _POLICY_STRUCTURE_SCAN_VERSION,
             "scanner_version": _STATIC_SCANNER_VERSION,
-            "scanner_sha256": _STATIC_SCANNER_SHA256,
+            "scanner_sha256": _current_static_scanner_sha256(),
             "role": role,
             "canonical_definition_sha256": canonical_definition_sha256,
             "entry_closure_sha256": entry_closure_sha256,
@@ -6679,6 +6827,109 @@ def assert_complete_dependency_partition(
     return _canonical_sha256(commitment_payload)
 
 
+def _preflight_static_scan_checks(
+    value: object,
+    role: str,
+) -> dict[str, dict[str, object]]:
+    def bounded_keys(
+        mapping: Mapping[object, object],
+        claimed_count: int,
+        absolute_limit: int,
+    ) -> list[object]:
+        if claimed_count > absolute_limit:
+            raise _ContractError(
+                "static scan checks exceed the closed bound"
+            )
+        keys = []
+        try:
+            iterator = iter(mapping)
+            for _index in range(claimed_count + 1):
+                try:
+                    key = next(iterator)
+                except StopIteration:
+                    break
+                keys.append(key)
+        except Exception as error:
+            raise _ContractError(
+                "static scan checks cannot be inspected"
+            ) from error
+        if len(keys) != claimed_count:
+            raise _ContractError(
+                "static scan checks have an inconsistent cardinality"
+            )
+        return keys
+
+    if not isinstance(value, Mapping):
+        raise _ContractError("static scan checks have an unknown shape")
+    try:
+        check_count = len(value)
+    except Exception as error:
+        raise _ContractError(
+            "static scan checks cannot be bounded"
+        ) from error
+    expected_checks = set(_STATIC_SCAN_COMMON_CHECKS)
+    if role == "infrastructure":
+        expected_checks.add(_STATIC_SCAN_INFRASTRUCTURE_CHECK)
+    try:
+        supplied_checks = set(
+            bounded_keys(
+                value,
+                check_count,
+                _STATIC_SCAN_CHECK_LIMIT,
+            )
+        )
+    except Exception as error:
+        raise _ContractError(
+            "static scan checks cannot be inspected"
+        ) from error
+    if supplied_checks != expected_checks:
+        raise _ContractError(
+            "static scan checks are not the exact closed set"
+        )
+    normalized = {}
+    try:
+        for check_name in expected_checks:
+            item = value[check_name]
+            if not isinstance(item, Mapping):
+                raise _ContractError(
+                    "static scan checks have an unknown shape"
+                )
+            item_count = len(item)
+            if set(bounded_keys(item, item_count, 2)) != {
+                "passed",
+                "reason",
+            }:
+                raise _ContractError(
+                    "static scan checks have an unknown shape"
+                )
+            passed = _require_bool(
+                item["passed"], "static scan check passed"
+            )
+            reason = item["reason"]
+            if type(reason) is not str or not reason:
+                raise _ContractError(
+                    "static scan check reason must be nonempty text"
+                )
+            if (
+                len(reason.encode("utf-8"))
+                > _STATIC_SCAN_REASON_BYTES_LIMIT
+            ):
+                raise _ContractError(
+                    "static scan check reason exceeds the closed bound"
+                )
+            normalized[check_name] = {
+                "passed": passed,
+                "reason": reason,
+            }
+    except _ContractError:
+        raise
+    except Exception as error:
+        raise _ContractError(
+            "static scan checks cannot be inspected"
+        ) from error
+    return normalized
+
+
 @_seal_contract
 @dataclass(frozen=True, init=False)
 class StaticScanReport:
@@ -6702,7 +6953,14 @@ class StaticScanReport:
             )
         if self.role not in {"adapter", "oracle", "infrastructure"}:
             raise _ContractError("StaticScanReport has unknown role")
-        _require_text(self.scanner_version, "scanner_version")
+        if self.scanner_version != _STATIC_SCANNER_VERSION:
+            raise _ContractError(
+                "StaticScanReport has an unsupported scanner version"
+            )
+        if self.scanner_sha256 != _current_static_scanner_sha256():
+            raise _ContractError(
+                "StaticScanReport has an unsupported scanner commitment"
+            )
         for field_name in (
             "scanner_sha256",
             "scanned_closure_sha256",
@@ -6710,9 +6968,10 @@ class StaticScanReport:
             "report_sha256",
         ):
             _require_sha256(getattr(self, field_name), field_name)
-        checks = _snapshot_json(self.checks, "checks")
-        if len(checks) > _STATIC_SCAN_CHECK_LIMIT:
-            raise _ContractError("static scan checks exceed the closed bound")
+        preflight_checks = _preflight_static_scan_checks(
+            self.checks, self.role
+        )
+        checks = _snapshot_json(preflight_checks, "checks")
         closed_checks = all(
             type(item) is _FrozenJsonObject for item in checks.values()
         )
@@ -6789,6 +7048,29 @@ _STATIC_NATIVE_CALL_SUFFIXES = frozenset(
         "loadlibrary",
         "lowlevelcallable",
     }
+)
+_STATIC_NUMPY_FILE_CALLABLES = frozenset(
+    {
+        "datasource",
+        "fromfile",
+        "fromregex",
+        "genfromtxt",
+        "load",
+        "loadtxt",
+        "memmap",
+        "npzfile",
+        "open_memmap",
+        "recfromcsv",
+        "recfromtxt",
+        "save",
+        "savetxt",
+        "savez",
+        "savez_compressed",
+        "tofile",
+    }
+)
+_STATIC_FORBIDDEN_CAPABILITY_NAMESPACES = (
+    ("scipy", "io"),
 )
 
 
@@ -6936,6 +7218,59 @@ def _static_call_path(value: ast.AST) -> tuple[str, ...]:
     return tuple(reversed(parts))
 
 
+def _static_import_aliases(tree: ast.AST) -> dict[str, tuple[str, ...]]:
+    if not isinstance(tree, ast.Module):
+        return {}
+    aliases: dict[str, tuple[str, ...]] = {}
+    for statement in tree.body:
+        if isinstance(statement, ast.Import):
+            for alias in statement.names:
+                target = tuple(part.lower() for part in alias.name.split("."))
+                local_name = alias.asname or target[0]
+                aliases[local_name.lower()] = (
+                    target if alias.asname else (target[0],)
+                )
+        elif isinstance(statement, ast.ImportFrom) and statement.level == 0:
+            if statement.module is None:
+                continue
+            module = tuple(
+                part.lower() for part in statement.module.split(".")
+            )
+            for alias in statement.names:
+                if alias.name == "*":
+                    continue
+                local_name = alias.asname or alias.name
+                aliases[local_name.lower()] = (
+                    *module,
+                    alias.name.lower(),
+                )
+    return aliases
+
+
+def _static_resolved_call_path(
+    value: ast.AST,
+    aliases: Mapping[str, tuple[str, ...]],
+) -> tuple[str, ...]:
+    authored = _static_call_path(value)
+    if not authored:
+        return ()
+    prefix = aliases.get(authored[0])
+    if prefix is None:
+        return authored
+    return (*prefix, *authored[1:])
+
+
+def _static_forbidden_capability_path(path: tuple[str, ...]) -> bool:
+    if not path:
+        return False
+    if path[0] == "numpy" and path[-1] in _STATIC_NUMPY_FILE_CALLABLES:
+        return True
+    return any(
+        path[: len(namespace)] == namespace
+        for namespace in _STATIC_FORBIDDEN_CAPABILITY_NAMESPACES
+    )
+
+
 _STATIC_CONSTANT_UNAVAILABLE = object()
 
 
@@ -7020,26 +7355,33 @@ def _static_format_decimal_value(digits: str) -> int:
 
 def _static_closed_format_template(template: str) -> bool:
     try:
-        parsed = tuple(string.Formatter().parse(template))
+        parsed = string.Formatter().parse(template)
     except ValueError:
         return False
-    if len(parsed) > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT:
-        raise _ContractError(
-            "static scan constant format exceeds the field bound"
-        )
-    for _literal, field_name, format_spec, conversion in parsed:
-        if field_name is None:
-            continue
-        if field_name and not (
-            field_name.isdecimal() or field_name.isidentifier()
-        ):
-            return False
-        if conversion not in (None, "a", "r", "s"):
-            return False
-        if "{" in format_spec or "}" in format_spec:
-            return False
-        for digits in re.findall(r"[0-9]+", format_spec):
-            _static_format_decimal_value(digits)
+    field_count = 0
+    try:
+        for _literal, field_name, format_spec, conversion in parsed:
+            if field_name is None:
+                continue
+            field_count += 1
+            if field_count > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT:
+                raise _ContractError(
+                    "static scan constant format exceeds the field bound"
+                )
+            if field_name and not (
+                field_name.isdecimal() or field_name.isidentifier()
+            ):
+                return False
+            if conversion not in (None, "a", "r", "s"):
+                return False
+            if "{" in format_spec or "}" in format_spec:
+                return False
+            for digits in re.findall(r"[0-9]+", format_spec):
+                _static_format_decimal_value(digits)
+    except _ContractError:
+        raise
+    except ValueError:
+        return False
     return True
 
 
@@ -7085,7 +7427,7 @@ def _static_format_output_size_upper(
     ):
         return None
     try:
-        parsed = tuple(string.Formatter().parse(template))
+        parsed = string.Formatter().parse(template)
     except ValueError:
         return None
     render_bounds = tuple(
@@ -7096,17 +7438,28 @@ def _static_format_output_size_upper(
         return None
     maximum_render = max(render_bounds, default=0)
     total = 0
-    for literal, field_name, format_spec, _conversion in parsed:
-        total += len(literal.encode("utf-8"))
-        if field_name is None:
-            continue
-        total += maximum_render
-        total += 4 * sum(
-            _static_format_decimal_value(digits)
-            for digits in re.findall(r"[0-9]+", format_spec)
-        )
-        total += 128
-        _static_preflight_output_size(total)
+    field_count = 0
+    try:
+        for literal, field_name, format_spec, _conversion in parsed:
+            total += len(literal.encode("utf-8"))
+            if field_name is None:
+                continue
+            field_count += 1
+            if field_count > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT:
+                raise _ContractError(
+                    "static scan constant format exceeds the field bound"
+                )
+            total += maximum_render
+            total += 4 * sum(
+                _static_format_decimal_value(digits)
+                for digits in re.findall(r"[0-9]+", format_spec)
+            )
+            total += 128
+            _static_preflight_output_size(total)
+    except _ContractError:
+        raise
+    except ValueError:
+        return None
     return total
 
 
@@ -7176,9 +7529,97 @@ def _static_constant_slice(
             return _STATIC_CONSTANT_UNAVAILABLE
         return slice(*values)
     index = _static_constant_expression(node, cache, steps)
-    if type(index) is not int:
+    if type(index) not in (int, str):
         return _STATIC_CONSTANT_UNAVAILABLE
     return index
+
+
+def _static_safe_truth_value(value: object) -> bool | None:
+    if value is None or type(value) in (
+        bool,
+        int,
+        float,
+        str,
+        bytes,
+        tuple,
+        list,
+        dict,
+    ):
+        return bool(value)
+    return None
+
+
+def _static_constant_compare(
+    node: ast.Compare,
+    cache: dict[ast.AST, object],
+    steps: list[int],
+) -> object:
+    values = [
+        _static_constant_expression(node.left, cache, steps),
+        *(
+            _static_constant_expression(item, cache, steps)
+            for item in node.comparators
+        ),
+    ]
+    if any(value is _STATIC_CONSTANT_UNAVAILABLE for value in values):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    try:
+        for left, operator, right in zip(values, node.ops, values[1:]):
+            if isinstance(operator, ast.Eq):
+                passed = type(left) is type(right) and left == right
+            elif isinstance(operator, ast.NotEq):
+                passed = type(left) is not type(right) or left != right
+            elif isinstance(operator, ast.Lt):
+                passed = left < right
+            elif isinstance(operator, ast.LtE):
+                passed = left <= right
+            elif isinstance(operator, ast.Gt):
+                passed = left > right
+            elif isinstance(operator, ast.GtE):
+                passed = left >= right
+            elif isinstance(operator, ast.In):
+                passed = left in right
+            elif isinstance(operator, ast.NotIn):
+                passed = left not in right
+            elif isinstance(operator, ast.Is):
+                passed = left is right
+            elif isinstance(operator, ast.IsNot):
+                passed = left is not right
+            else:
+                return _STATIC_CONSTANT_UNAVAILABLE
+            if not passed:
+                return False
+        return True
+    except (TypeError, ValueError):
+        return _STATIC_CONSTANT_UNAVAILABLE
+
+
+def _static_preflight_mapping_merge(
+    left: Mapping[str, object],
+    right: Mapping[str, object],
+    *,
+    reject_overlap: bool,
+) -> int:
+    left_keys = set(left)
+    right_keys = set(right)
+    overlap = left_keys & right_keys
+    if reject_overlap and overlap:
+        raise _ContractError(
+            "static scan constant mapping has ambiguous keys"
+        )
+    projected_entries = len(left_keys) + len(right_keys) - len(overlap)
+    if projected_entries > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT:
+        raise _ContractError(
+            "static scan mapping projected cardinality exceeds the bound"
+        )
+    left_size = _static_constant_size_upper(left)
+    right_size = _static_constant_size_upper(right)
+    if left_size is None or right_size is None:
+        raise _ContractError(
+            "static scan rejected unsupported constant mapping merge"
+        )
+    _static_preflight_output_size(left_size + right_size)
+    return projected_entries
 
 
 def _static_constant_binop(
@@ -7310,6 +7751,9 @@ def _static_constant_binop(
             and type(left) is dict
             and type(right) is dict
         ):
+            _static_preflight_mapping_merge(
+                left, right, reject_overlap=False
+            )
             return left | right
     except _ContractError:
         raise
@@ -7392,10 +7836,9 @@ def _static_constant_dict_call(
     if node.args:
         source = _static_constant_expression(node.args[0], cache, steps)
         if type(source) is dict:
-            if len(source) > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT:
-                raise _ContractError(
-                    "static scan constant mapping exceeds the lookup bound"
-                )
+            _static_preflight_mapping_merge(
+                result, source, reject_overlap=False
+            )
             result.update(source)
         elif type(source) in (tuple, list):
             if len(source) > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT:
@@ -7408,6 +7851,9 @@ def _static_constant_dict_call(
                 key, value = pair
                 if type(key) is not str:
                     return _STATIC_CONSTANT_UNAVAILABLE
+                _static_preflight_mapping_merge(
+                    result, {key: value}, reject_overlap=False
+                )
                 result[key] = value
         else:
             return _STATIC_CONSTANT_UNAVAILABLE
@@ -7418,17 +7864,128 @@ def _static_constant_dict_call(
             )
             if type(value) is not dict:
                 return _STATIC_CONSTANT_UNAVAILABLE
-            if set(result) & set(value):
-                raise _ContractError(
-                    "static scan constant mapping has ambiguous keys"
-                )
+            _static_preflight_mapping_merge(
+                result, value, reject_overlap=True
+            )
             result.update(value)
             continue
         value = _static_constant_expression(keyword.value, cache, steps)
         if value is _STATIC_CONSTANT_UNAVAILABLE:
             return _STATIC_CONSTANT_UNAVAILABLE
+        _static_preflight_mapping_merge(
+            result, {keyword.arg: value}, reject_overlap=False
+        )
         result[keyword.arg] = value
     return result
+
+
+def _static_constant_builtin_call(
+    node: ast.Call,
+    cache: dict[ast.AST, object],
+    steps: list[int],
+) -> object:
+    if not isinstance(node.func, ast.Name):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    name = node.func.id
+    if name not in {"bool", "bytes", "float", "int", "list", "str", "tuple"}:
+        return _STATIC_CONSTANT_UNAVAILABLE
+    if any(keyword.arg is None for keyword in node.keywords):
+        raise _ContractError(
+            "static scan rejected unsupported constant-producing call"
+        )
+    arguments = tuple(
+        _static_constant_expression(argument, cache, steps)
+        for argument in node.args
+    )
+    keywords = {
+        keyword.arg: _static_constant_expression(
+            keyword.value, cache, steps
+        )
+        for keyword in node.keywords
+    }
+    if any(
+        value is _STATIC_CONSTANT_UNAVAILABLE
+        for value in (*arguments, *keywords.values())
+    ):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    try:
+        if name in {"tuple", "list"}:
+            if keywords or len(arguments) > 1:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            source = arguments[0] if arguments else ()
+            if type(source) not in (str, bytes, tuple, list, dict):
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            source_size = _static_constant_size_upper(source)
+            if source_size is None:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            _static_preflight_output_size(source_size)
+            return tuple(source) if name == "tuple" else list(source)
+        if name == "bytes":
+            if set(keywords) - {"encoding", "errors"}:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            if not arguments:
+                if keywords:
+                    raise _ContractError(
+                        "static scan rejected unsupported constant-producing call"
+                    )
+                return b""
+            source = arguments[0]
+            if len(arguments) > 3:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            if type(source) is int:
+                if source < 0:
+                    return _STATIC_CONSTANT_UNAVAILABLE
+                _static_preflight_output_size(source)
+            else:
+                source_size = _static_constant_size_upper(source)
+                if source_size is None:
+                    raise _ContractError(
+                        "static scan rejected unsupported constant-producing call"
+                    )
+                _static_preflight_output_size(source_size * 4 + 16)
+            return bytes(*arguments, **keywords)
+        if name == "str":
+            if set(keywords) - {"encoding", "errors"} or len(arguments) > 3:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            if not arguments:
+                if keywords:
+                    raise _ContractError(
+                        "static scan rejected unsupported constant-producing call"
+                    )
+                return ""
+            source_size = _static_constant_size_upper(arguments[0])
+            if source_size is None:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            _static_preflight_output_size(source_size * 12 + 128)
+            return str(*arguments, **keywords)
+        if keywords or len(arguments) > 1:
+            raise _ContractError(
+                "static scan rejected unsupported constant-producing call"
+            )
+        argument = arguments[0] if arguments else None
+        if name == "bool":
+            return bool(argument) if arguments else False
+        if name == "int":
+            return int(argument) if arguments else 0
+        return float(argument) if arguments else 0.0
+    except _ContractError:
+        raise
+    except (LookupError, TypeError, ValueError, OverflowError):
+        return _STATIC_CONSTANT_UNAVAILABLE
 
 
 def _static_constant_method_call(
@@ -7439,6 +7996,47 @@ def _static_constant_method_call(
     if not isinstance(node.func, ast.Attribute):
         return _STATIC_CONSTANT_UNAVAILABLE
     receiver = _static_constant_expression(node.func.value, cache, steps)
+    if node.func.attr in {"decode", "encode"} and type(receiver) in (
+        str,
+        bytes,
+    ):
+        arguments = tuple(
+            _static_constant_expression(argument, cache, steps)
+            for argument in node.args
+        )
+        keyword_values = {
+            keyword.arg: _static_constant_expression(
+                keyword.value, cache, steps
+            )
+            for keyword in node.keywords
+            if keyword.arg is not None
+        }
+        if (
+            len(keyword_values) != len(node.keywords)
+            or any(
+                value is _STATIC_CONSTANT_UNAVAILABLE
+                for value in (*arguments, *keyword_values.values())
+            )
+        ):
+            raise _ContractError(
+                "static scan rejected unsupported constant-producing call"
+            )
+        receiver_size = _static_constant_size_upper(receiver)
+        if receiver_size is None:
+            raise _ContractError(
+                "static scan rejected unsupported constant-producing call"
+            )
+        _static_preflight_output_size(receiver_size * 4 + 16)
+        try:
+            if node.func.attr == "decode" and type(receiver) is bytes:
+                return receiver.decode(*arguments, **keyword_values)
+            if node.func.attr == "encode" and type(receiver) is str:
+                return receiver.encode(*arguments, **keyword_values)
+        except (LookupError, TypeError, UnicodeError, ValueError):
+            return _STATIC_CONSTANT_UNAVAILABLE
+        raise _ContractError(
+            "static scan rejected unsupported constant-producing call"
+        )
     if node.func.attr == "join" and type(receiver) in (str, bytes):
         if len(node.args) != 1 or node.keywords:
             return _STATIC_CONSTANT_UNAVAILABLE
@@ -7519,6 +8117,75 @@ def _static_constant_method_call(
     return _STATIC_CONSTANT_UNAVAILABLE
 
 
+def _static_constant_type_method_call(
+    node: ast.Call,
+    cache: dict[ast.AST, object],
+    steps: list[int],
+) -> object:
+    if not (
+        isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id in {"bytes", "int", "str"}
+    ):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    owner = node.func.value.id
+    method = node.func.attr
+    arguments = tuple(
+        _static_constant_expression(argument, cache, steps)
+        for argument in node.args
+    )
+    keywords = {
+        keyword.arg: _static_constant_expression(
+            keyword.value, cache, steps
+        )
+        for keyword in node.keywords
+        if keyword.arg is not None
+    }
+    if (
+        len(keywords) != len(node.keywords)
+        or any(
+            value is _STATIC_CONSTANT_UNAVAILABLE
+            for value in (*arguments, *keywords.values())
+        )
+    ):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    try:
+        if owner == "bytes" and method == "fromhex":
+            if len(arguments) != 1 or keywords or type(arguments[0]) is not str:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            source_size = _static_constant_size_upper(arguments[0])
+            if source_size is None:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            _static_preflight_output_size((source_size // 2) + 1)
+            return bytes.fromhex(arguments[0])
+        if owner == "int" and method == "from_bytes":
+            if not arguments or type(arguments[0]) is not bytes:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            source_size = _static_constant_size_upper(arguments[0])
+            if source_size is None:
+                raise _ContractError(
+                    "static scan rejected unsupported constant-producing call"
+                )
+            if source_size * 8 > _STATIC_SCAN_INTEGER_BITS_LIMIT:
+                raise _ContractError(
+                    "static scan constant integer exceeds the bound"
+                )
+            return int.from_bytes(*arguments, **keywords)
+    except _ContractError:
+        raise
+    except (LookupError, TypeError, ValueError, OverflowError):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    raise _ContractError(
+        "static scan rejected unsupported constant-producing call"
+    )
+
+
 def _static_constant_expression(
     node: ast.AST,
     cache: dict[ast.AST, object],
@@ -7558,11 +8225,17 @@ def _static_constant_expression(
             if key_node is None:
                 if type(value) is not dict:
                     break
+                _static_preflight_mapping_merge(
+                    mapping, value, reject_overlap=False
+                )
                 mapping.update(value)
                 continue
             key = _static_constant_expression(key_node, cache, steps)
             if type(key) is not str:
                 break
+            _static_preflight_mapping_merge(
+                mapping, {key: value}, reject_overlap=False
+            )
             mapping[key] = value
         else:
             result = mapping
@@ -7573,8 +8246,42 @@ def _static_constant_expression(
                 result = +operand
             elif isinstance(node.op, ast.USub):
                 result = -operand
+        if isinstance(node.op, ast.Not):
+            truth = _static_safe_truth_value(operand)
+            if truth is not None:
+                result = not truth
     elif isinstance(node, ast.BinOp):
         result = _static_constant_binop(node, cache, steps)
+    elif isinstance(node, ast.BoolOp):
+        values = []
+        for expression in node.values:
+            value = _static_constant_expression(expression, cache, steps)
+            if value is _STATIC_CONSTANT_UNAVAILABLE:
+                break
+            values.append(value)
+            truth = _static_safe_truth_value(value)
+            if truth is None:
+                break
+            if isinstance(node.op, ast.And) and not truth:
+                result = value
+                break
+            if isinstance(node.op, ast.Or) and truth:
+                result = value
+                break
+        else:
+            if values:
+                result = values[-1]
+    elif isinstance(node, ast.Compare):
+        result = _static_constant_compare(node, cache, steps)
+    elif isinstance(node, ast.IfExp):
+        test = _static_constant_expression(node.test, cache, steps)
+        truth = _static_safe_truth_value(test)
+        if truth is not None:
+            result = _static_constant_expression(
+                node.body if truth else node.orelse,
+                cache,
+                steps,
+            )
     elif isinstance(node, ast.JoinedStr):
         result = _static_constant_joined_string(node, cache, steps)
     elif isinstance(node, ast.Subscript):
@@ -7588,12 +8295,24 @@ def _static_constant_expression(
                 result = value[index]
             except (IndexError, TypeError, ValueError):
                 pass
+        elif type(value) is dict and type(index) is str:
+            result = value.get(index, _STATIC_CONSTANT_UNAVAILABLE)
     elif isinstance(node, ast.Call):
         if (
             isinstance(node.func, ast.Name)
             and node.func.id == "dict"
         ):
             result = _static_constant_dict_call(node, cache, steps)
+        elif isinstance(node.func, ast.Name):
+            result = _static_constant_builtin_call(node, cache, steps)
+        elif (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id in {"bytes", "int", "str"}
+        ):
+            result = _static_constant_type_method_call(
+                node, cache, steps
+            )
         else:
             result = _static_constant_method_call(node, cache, steps)
     if result is not _STATIC_CONSTANT_UNAVAILABLE:
@@ -7647,9 +8366,14 @@ class _StaticConstantBindingSubstituter(ast.NodeTransformer):
         self,
         bindings: Mapping[str, object],
         helpers: Mapping[str, object],
+        *,
+        node_limit: int,
+        call_stack: frozenset[str],
     ) -> None:
         self._bindings = bindings
         self._helpers = helpers
+        self._node_limit = node_limit
+        self._call_stack = call_stack
 
     def visit_Name(self, node: ast.Name) -> ast.AST:
         if isinstance(node.ctx, ast.Load) and node.id in self._bindings:
@@ -7659,16 +8383,32 @@ class _StaticConstantBindingSubstituter(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
+        visited = self.generic_visit(node)
+        if not isinstance(visited, ast.Call):
+            return visited
         if (
-            isinstance(node.func, ast.Name)
-            and node.func.id in self._helpers
-            and not node.args
-            and not node.keywords
+            isinstance(visited.func, ast.Name)
+            and visited.func.id in self._helpers
         ):
-            return ast.copy_location(
-                ast.Constant(value=self._helpers[node.func.id]), node
-            )
-        return self.generic_visit(node)
+            helper = self._helpers[visited.func.id]
+            if isinstance(helper, ast.FunctionDef):
+                value = _static_evaluate_helper_call(
+                    helper,
+                    visited,
+                    self._bindings,
+                    self._helpers,
+                    node_limit=self._node_limit,
+                    call_stack=self._call_stack,
+                )
+            elif not visited.args and not visited.keywords:
+                value = helper
+            else:
+                value = _STATIC_CONSTANT_UNAVAILABLE
+            if value is not _STATIC_CONSTANT_UNAVAILABLE:
+                return ast.copy_location(
+                    ast.Constant(value=value), visited
+                )
+        return visited
 
 
 def _static_constant_with_bindings(
@@ -7677,6 +8417,7 @@ def _static_constant_with_bindings(
     helpers: Mapping[str, object],
     *,
     node_limit: int,
+    call_stack: frozenset[str] = frozenset(),
 ) -> object:
     if (
         len(bindings) > node_limit
@@ -7703,19 +8444,397 @@ def _static_constant_with_bindings(
             "static scan could not parse constant expression"
         ) from error
     substituted = _StaticConstantBindingSubstituter(
-        bindings, helpers
+        bindings,
+        helpers,
+        node_limit=node_limit,
+        call_stack=call_stack,
     ).visit(copied)
     return _static_constant_expression(
         substituted, {}, [0, node_limit]
     )
 
 
-def _static_immutable_binding_value(value: object) -> bool:
-    if value is None or type(value) in (bool, int, float, str, bytes):
+def _static_same_value(left: object, right: object) -> bool:
+    if type(left) is not type(right):
+        return False
+    try:
+        return bool(left == right)
+    except (TypeError, ValueError):
+        return False
+
+
+def _static_function_parameter_names(
+    function: ast.FunctionDef,
+) -> tuple[str, ...] | None:
+    arguments = function.args
+    if arguments.vararg is not None or arguments.kwarg is not None:
+        return None
+    return tuple(
+        argument.arg
+        for argument in (
+            *arguments.posonlyargs,
+            *arguments.args,
+            *arguments.kwonlyargs,
+        )
+    )
+
+
+def _static_expression_value(
+    expression: ast.AST,
+    bindings: Mapping[str, object],
+    helpers: Mapping[str, object],
+    *,
+    node_limit: int,
+    call_stack: frozenset[str],
+) -> object:
+    return _static_constant_with_bindings(
+        expression,
+        bindings,
+        helpers,
+        node_limit=node_limit,
+        call_stack=call_stack,
+    )
+
+
+def _static_apply_container_mutation(
+    statement: ast.stmt,
+    bindings: dict[str, object],
+    helpers: Mapping[str, object],
+    *,
+    node_limit: int,
+    call_stack: frozenset[str],
+) -> bool:
+    parts = _assignment_parts(statement)
+    if parts is not None:
+        targets, expression = parts
+        if len(targets) == 1 and isinstance(targets[0], ast.Subscript):
+            target = targets[0]
+            if not isinstance(target.value, ast.Name):
+                return False
+            name = target.value.id
+            current = bindings.get(name, _STATIC_CONSTANT_UNAVAILABLE)
+            key = _static_expression_value(
+                target.slice,
+                bindings,
+                helpers,
+                node_limit=node_limit,
+                call_stack=call_stack,
+            )
+            value = _static_expression_value(
+                expression,
+                bindings,
+                helpers,
+                node_limit=node_limit,
+                call_stack=call_stack,
+            )
+            if (
+                type(current) is not dict
+                or type(key) is not str
+                or value is _STATIC_CONSTANT_UNAVAILABLE
+            ):
+                return False
+            addition = {key: value}
+            _static_preflight_mapping_merge(
+                current, addition, reject_overlap=False
+            )
+            updated = dict(current)
+            updated[key] = value
+            bindings[name] = updated
+            return True
+    if not isinstance(statement, ast.Expr) or not isinstance(
+        statement.value, ast.Call
+    ):
+        return False
+    call = statement.value
+    if not isinstance(call.func, ast.Attribute) or not isinstance(
+        call.func.value, ast.Name
+    ):
+        return False
+    name = call.func.value.id
+    current = bindings.get(name, _STATIC_CONSTANT_UNAVAILABLE)
+    if call.func.attr == "update" and type(current) is dict:
+        if len(call.args) != 1 or call.keywords:
+            return False
+        update = _static_expression_value(
+            call.args[0],
+            bindings,
+            helpers,
+            node_limit=node_limit,
+            call_stack=call_stack,
+        )
+        if type(update) is not dict:
+            return False
+        _static_preflight_mapping_merge(
+            current, update, reject_overlap=False
+        )
+        updated = dict(current)
+        updated.update(update)
+        bindings[name] = updated
         return True
-    if type(value) is tuple:
-        return all(_static_immutable_binding_value(item) for item in value)
+    if call.func.attr in {"append", "extend"} and type(current) is list:
+        if len(call.args) != 1 or call.keywords:
+            return False
+        value = _static_expression_value(
+            call.args[0],
+            bindings,
+            helpers,
+            node_limit=node_limit,
+            call_stack=call_stack,
+        )
+        if value is _STATIC_CONSTANT_UNAVAILABLE:
+            return False
+        additions = value if call.func.attr == "extend" else [value]
+        if type(additions) not in (tuple, list):
+            return False
+        projected_size = _static_constant_size_upper(current)
+        addition_size = _static_constant_size_upper(additions)
+        if projected_size is None or addition_size is None:
+            return False
+        if len(current) + len(additions) > _STATIC_SCAN_NODE_LIMIT:
+            raise _ContractError(
+                "static scan incremental container exceeds the node bound"
+            )
+        _static_preflight_output_size(projected_size + addition_size)
+        bindings[name] = [*current, *additions]
+        return True
     return False
+
+
+def _static_execute_statements(
+    statements: Iterable[ast.stmt],
+    initial_bindings: Mapping[str, object],
+    helpers: Mapping[str, object],
+    *,
+    node_limit: int,
+    call_stack: frozenset[str],
+) -> tuple[bool, object, dict[str, object]]:
+    bindings = dict(initial_bindings)
+    for index, statement in enumerate(statements):
+        if (
+            index == 0
+            and isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Constant)
+            and type(statement.value.value) is str
+        ):
+            continue
+        assignment = _static_simple_name_assignment(statement)
+        if assignment is not None:
+            name, expression = assignment
+            value = _static_expression_value(
+                expression,
+                bindings,
+                helpers,
+                node_limit=node_limit,
+                call_stack=call_stack,
+            )
+            if value is _STATIC_CONSTANT_UNAVAILABLE:
+                bindings.pop(name, None)
+            else:
+                bindings[name] = value
+            continue
+        if _static_apply_container_mutation(
+            statement,
+            bindings,
+            helpers,
+            node_limit=node_limit,
+            call_stack=call_stack,
+        ):
+            continue
+        if isinstance(statement, ast.If):
+            test = _static_expression_value(
+                statement.test,
+                bindings,
+                helpers,
+                node_limit=node_limit,
+                call_stack=call_stack,
+            )
+            truth = _static_safe_truth_value(test)
+            if truth is not None:
+                returned, value, branch_bindings = (
+                    _static_execute_statements(
+                        statement.body if truth else statement.orelse,
+                        bindings,
+                        helpers,
+                        node_limit=node_limit,
+                        call_stack=call_stack,
+                    )
+                )
+                if returned:
+                    return True, value, branch_bindings
+                bindings = branch_bindings
+                continue
+            left = _static_execute_statements(
+                statement.body,
+                bindings,
+                helpers,
+                node_limit=node_limit,
+                call_stack=call_stack,
+            )
+            right = _static_execute_statements(
+                statement.orelse,
+                bindings,
+                helpers,
+                node_limit=node_limit,
+                call_stack=call_stack,
+            )
+            if left[0] and right[0]:
+                if _static_same_value(left[1], right[1]):
+                    return True, left[1], bindings
+                return True, _STATIC_CONSTANT_UNAVAILABLE, bindings
+            if left[0] != right[0]:
+                return False, _STATIC_CONSTANT_UNAVAILABLE, {}
+            bindings = {
+                name: value
+                for name, value in left[2].items()
+                if name in right[2]
+                and _static_same_value(value, right[2][name])
+            }
+            continue
+        if isinstance(statement, ast.Return):
+            if statement.value is None:
+                return True, None, bindings
+            return (
+                True,
+                _static_expression_value(
+                    statement.value,
+                    bindings,
+                    helpers,
+                    node_limit=node_limit,
+                    call_stack=call_stack,
+                ),
+                bindings,
+            )
+        return False, _STATIC_CONSTANT_UNAVAILABLE, {}
+    return False, _STATIC_CONSTANT_UNAVAILABLE, bindings
+
+
+def _static_evaluate_helper_call(
+    function: ast.FunctionDef,
+    call: ast.Call,
+    global_bindings: Mapping[str, object],
+    helpers: Mapping[str, object],
+    *,
+    node_limit: int,
+    call_stack: frozenset[str],
+) -> object:
+    if function.name in call_stack:
+        return _STATIC_CONSTANT_UNAVAILABLE
+    if len(call_stack) >= _STATIC_SCAN_DEPTH_LIMIT:
+        raise _ContractError(
+            "static scan constant helper calls exceed the depth bound"
+        )
+    parameter_names = _static_function_parameter_names(function)
+    positional_names = tuple(
+        argument.arg
+        for argument in (
+            *function.args.posonlyargs,
+            *function.args.args,
+        )
+    )
+    posonly_names = {
+        argument.arg for argument in function.args.posonlyargs
+    }
+    if parameter_names is None or len(call.args) > len(positional_names):
+        return _STATIC_CONSTANT_UNAVAILABLE
+    supplied: dict[str, object] = {}
+    for name, argument in zip(positional_names, call.args):
+        supplied[name] = _static_constant_expression(
+            argument, {}, [0, node_limit]
+        )
+    for keyword in call.keywords:
+        if (
+            keyword.arg is None
+            or keyword.arg not in parameter_names
+            or keyword.arg in posonly_names
+        ):
+            return _STATIC_CONSTANT_UNAVAILABLE
+        if keyword.arg in supplied:
+            return _STATIC_CONSTANT_UNAVAILABLE
+        supplied[keyword.arg] = _static_constant_expression(
+            keyword.value, {}, [0, node_limit]
+        )
+    bindings = {
+        name: value
+        for name, value in global_bindings.items()
+        if name not in parameter_names
+    }
+    positional_defaults = {
+        name: default
+        for name, default in zip(
+            positional_names[
+                len(positional_names) - len(function.args.defaults):
+            ],
+            function.args.defaults,
+        )
+    }
+    keyword_defaults = {
+        argument.arg: default
+        for argument, default in zip(
+            function.args.kwonlyargs,
+            function.args.kw_defaults,
+        )
+        if default is not None
+    }
+    for name, default in {
+        **positional_defaults,
+        **keyword_defaults,
+    }.items():
+        if name in supplied:
+            continue
+        value = _static_expression_value(
+            default,
+            bindings,
+            helpers,
+            node_limit=node_limit,
+            call_stack=call_stack | {function.name},
+        )
+        if value is not _STATIC_CONSTANT_UNAVAILABLE:
+            supplied[name] = value
+    bindings.update(
+        {
+            name: value
+            for name, value in supplied.items()
+            if value is not _STATIC_CONSTANT_UNAVAILABLE
+        }
+    )
+    returned, value, _bindings = _static_execute_statements(
+        function.body,
+        bindings,
+        helpers,
+        node_limit=node_limit,
+        call_stack=call_stack | {function.name},
+    )
+    return value if returned else _STATIC_CONSTANT_UNAVAILABLE
+
+
+def _static_immutable_binding_value(value: object) -> bool:
+    stack = [value]
+    steps = 0
+    while stack:
+        item = stack.pop()
+        steps += 1
+        if steps > _STATIC_SCAN_NODE_LIMIT:
+            raise _ContractError(
+                "static scan constant binding exceeds the node bound"
+            )
+        if item is None or type(item) in (bool, int, float, str, bytes):
+            continue
+        if type(item) in (tuple, list):
+            if len(item) > _STATIC_SCAN_NODE_LIMIT:
+                raise _ContractError(
+                    "static scan constant binding exceeds the node bound"
+                )
+            stack.extend(item)
+            continue
+        if type(item) is dict:
+            if len(item) > _STATIC_SCAN_LOOKUP_ENTRY_LIMIT or any(
+                type(key) is not str for key in item
+            ):
+                return False
+            stack.extend(item.values())
+            continue
+        return False
+    return True
 
 
 def _static_simple_name_assignment(
@@ -7796,6 +8915,11 @@ def _scan_static_propagated_constants(
                 module_store_counts[candidate.id] = (
                     module_store_counts.get(candidate.id, 0) + 1
                 )
+    helpers: dict[str, object] = {
+        statement.name: statement
+        for statement in tree.body
+        if isinstance(statement, ast.FunctionDef)
+    }
     bindings: dict[str, object] = {}
     for name, expression in module_assignments:
         if (
@@ -7806,7 +8930,7 @@ def _scan_static_propagated_constants(
         value = _static_constant_with_bindings(
             expression,
             bindings,
-            {},
+            helpers,
             node_limit=node_limit,
         )
         if value is _STATIC_CONSTANT_UNAVAILABLE:
@@ -7817,87 +8941,28 @@ def _scan_static_propagated_constants(
         _static_reject_propagated_fingerprint(
             value, forbidden_fingerprints
         )
-    helpers: dict[str, object] = {}
-    for statement in tree.body:
-        returned = _static_zero_argument_return(statement)
-        if returned is None:
-            continue
-        value = _static_constant_with_bindings(
-            returned,
-            bindings,
-            helpers,
-            node_limit=node_limit,
-        )
-        if value is _STATIC_CONSTANT_UNAVAILABLE:
-            continue
-        helpers[statement.name] = value
-        _static_reject_propagated_fingerprint(
-            value, forbidden_fingerprints
-        )
     for statement in tree.body:
         if not isinstance(statement, ast.FunctionDef):
             continue
-        local_names = {
-            argument.arg
-            for argument in (
-                *statement.args.posonlyargs,
-                *statement.args.args,
-                *statement.args.kwonlyargs,
-            )
-        }
-        local_names.update(
-            assignment[0]
-            for nested in statement.body
-            if (assignment := _static_simple_name_assignment(nested))
-            is not None
-        )
-        local_bindings = {
+        parameter_names = _static_function_parameter_names(statement)
+        if parameter_names is None:
+            continue
+        initial_bindings = {
             name: value
             for name, value in bindings.items()
-            if name not in local_names
+            if name not in parameter_names
         }
-        local_helpers = {
-            name: value
-            for name, value in helpers.items()
-            if name not in local_names
-        }
-        for index, nested in enumerate(statement.body):
-            if (
-                index == 0
-                and isinstance(nested, ast.Expr)
-                and isinstance(nested.value, ast.Constant)
-                and type(nested.value.value) is str
-            ):
-                continue
-            assignment = _static_simple_name_assignment(nested)
-            if assignment is not None:
-                name, expression = assignment
-                value = _static_constant_with_bindings(
-                    expression,
-                    local_bindings,
-                    local_helpers,
-                    node_limit=node_limit,
-                )
-                if value is _STATIC_CONSTANT_UNAVAILABLE:
-                    local_bindings.pop(name, None)
-                else:
-                    local_bindings[name] = value
-                    _static_reject_propagated_fingerprint(
-                        value, forbidden_fingerprints
-                    )
-                continue
-            if isinstance(nested, ast.Return) and nested.value is not None:
-                value = _static_constant_with_bindings(
-                    nested.value,
-                    local_bindings,
-                    local_helpers,
-                    node_limit=node_limit,
-                )
-                _static_reject_propagated_fingerprint(
-                    value, forbidden_fingerprints
-                )
-                break
-            break
+        returned, value, _local_bindings = _static_execute_statements(
+            statement.body,
+            initial_bindings,
+            helpers,
+            node_limit=node_limit,
+            call_stack=frozenset({statement.name}),
+        )
+        if returned:
+            _static_reject_propagated_fingerprint(
+                value, forbidden_fingerprints
+            )
 
 
 def _static_expression_has_literal(value: ast.AST) -> bool:
@@ -7907,6 +8972,87 @@ def _static_expression_has_literal(value: ast.AST) -> bool:
     )
 
 
+def _scan_static_parameter_indexed_literals(
+    tree: ast.AST,
+    entry_function_name: str | None,
+) -> None:
+    if not isinstance(tree, ast.Module) or entry_function_name is None:
+        return
+
+    def is_literal_container(expression: ast.AST) -> bool:
+        return isinstance(expression, (ast.Dict, ast.List, ast.Tuple)) or (
+            isinstance(expression, ast.Call)
+            and isinstance(expression.func, ast.Name)
+            and expression.func.id in {"dict", "list", "tuple"}
+            and _static_expression_has_literal(expression)
+        )
+
+    module_containers = {
+        assignment[0]
+        for statement in tree.body
+        if (assignment := _static_simple_name_assignment(statement))
+        is not None
+        and is_literal_container(assignment[1])
+    }
+    entry = next(
+        (
+            statement
+            for statement in tree.body
+            if isinstance(statement, ast.FunctionDef)
+            and statement.name == entry_function_name
+        ),
+        None,
+    )
+    if entry is None:
+        return
+    parameter_names = _static_function_parameter_names(entry)
+    if parameter_names is None:
+        raise _ContractError(
+            "static scan cannot prove scientific parameter flow"
+        )
+    tainted_names = set(parameter_names)
+    container_names = set(module_containers)
+    for candidate in ast.walk(entry):
+        assignment = (
+            _static_simple_name_assignment(candidate)
+            if isinstance(candidate, ast.stmt)
+            else None
+        )
+        if assignment is None:
+            continue
+        target_name, expression = assignment
+        if is_literal_container(expression) or (
+            isinstance(expression, ast.Name)
+            and expression.id in container_names
+        ):
+            container_names.add(target_name)
+        if any(
+            isinstance(item, ast.Name)
+            and isinstance(item.ctx, ast.Load)
+            and item.id in tainted_names
+            for item in ast.walk(expression)
+        ):
+            tainted_names.add(target_name)
+    for candidate in ast.walk(entry):
+        if not isinstance(candidate, ast.Subscript):
+            continue
+        literal_container = is_literal_container(candidate.value) or (
+            isinstance(candidate.value, ast.Name)
+            and candidate.value.id in container_names
+        )
+        parameter_index = any(
+            isinstance(item, ast.Name)
+            and isinstance(item.ctx, ast.Load)
+            and item.id in tainted_names
+            for item in ast.walk(candidate.slice)
+        )
+        if literal_container and parameter_index:
+            raise _ContractError(
+                "static scan rejected literal mapping or sequence indexed "
+                "by a scientific parameter"
+            )
+
+
 def _scan_static_ast(
     tree: ast.AST,
     *,
@@ -7914,6 +9060,7 @@ def _scan_static_ast(
     forbidden_fingerprints: frozenset[str],
     node_limit: int | None = None,
     depth_limit: int | None = None,
+    entry_function_name: str | None = None,
 ) -> None:
     if node_limit is None:
         node_limit = _STATIC_SCAN_NODE_LIMIT
@@ -7924,7 +9071,9 @@ def _scan_static_ast(
         node_limit=node_limit,
         depth_limit=depth_limit,
     )
+    _scan_static_parameter_indexed_literals(tree, entry_function_name)
     nodes = tuple(ast.walk(tree))
+    import_aliases = _static_import_aliases(tree)
     constant_cache: dict[ast.AST, object] = {}
     constant_steps = [0, node_limit]
     for candidate in nodes:
@@ -7943,7 +9092,13 @@ def _scan_static_ast(
                     "static scan rejected forbidden scientific vocabulary"
                 )
         if isinstance(candidate, ast.Call):
-            path = _static_call_path(candidate.func)
+            path = _static_resolved_call_path(
+                candidate.func, import_aliases
+            )
+            if _static_forbidden_capability_path(path):
+                raise _ContractError(
+                    "static scan rejected unapproved file-capable call"
+                )
             if path and (
                 path[-1] in _STATIC_NATIVE_CALL_SUFFIXES
                 or any(part in {"ctypes", "cffi"} for part in path)
@@ -8015,42 +9170,30 @@ def _scan_static_material_content(
     *,
     role: str,
     forbidden_fingerprints: tuple[str, ...],
+    entry_function_name: str | None,
 ) -> None:
     fingerprints = frozenset(forbidden_fingerprints)
-    try:
-        emitted_text = material.emitted_source.decode("utf-8")
-        emitted_tree = ast.parse(emitted_text, mode="exec")
-    except (
-        UnicodeDecodeError,
-        SyntaxError,
-        ValueError,
-        RecursionError,
-    ) as error:
-        raise _ContractError(
-            "static scan could not parse hash-bound emitted material"
-        ) from error
+    emitted_tree = _bounded_parse_utf8_python(
+        material.emitted_source,
+        byte_limit=_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT,
+        field_name="static scan hash-bound emitted material",
+    )
     _static_ast_depth(
         emitted_tree,
         node_limit=_STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT,
         depth_limit=_STATIC_SCAN_AGGREGATE_AST_DEPTH_LIMIT,
     )
     for node in material.nodes:
-        try:
-            source = node.raw_source_span.decode("utf-8")
-            tree = ast.parse(source, mode="exec")
-        except (
-            UnicodeDecodeError,
-            SyntaxError,
-            ValueError,
-            RecursionError,
-        ) as error:
-            raise _ContractError(
-                "static scan could not parse hash-bound raw material"
-            ) from error
+        tree = _bounded_parse_utf8_python(
+            node.raw_source_span,
+            byte_limit=_STATIC_SCAN_LITERAL_BYTES_LIMIT,
+            field_name="static scan hash-bound raw material",
+        )
         _scan_static_ast(
             tree,
             role=role,
             forbidden_fingerprints=fingerprints,
+            entry_function_name=entry_function_name,
         )
     _scan_static_ast(
         emitted_tree,
@@ -8058,6 +9201,7 @@ def _scan_static_material_content(
         forbidden_fingerprints=fingerprints,
         node_limit=_STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT,
         depth_limit=_STATIC_SCAN_AGGREGATE_AST_DEPTH_LIMIT,
+        entry_function_name=entry_function_name,
     )
 
 
@@ -8092,9 +9236,11 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
     if type(closure) is ScientificClosure:
         validated = _validate_scientific_closure_record(closure)
         role = validated.role
+        entry_function_name = validated.entry_symbol.rsplit(":", 1)[1]
     elif type(closure) is InfrastructureClosure:
         validated = _validate_infrastructure_closure_record(closure)
         role = "infrastructure"
+        entry_function_name = None
     else:
         raise _ContractError(
             "static scan closure must be an exact closure record"
@@ -8107,6 +9253,7 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
         validated_material,
         role=role,
         forbidden_fingerprints=fingerprints,
+        entry_function_name=entry_function_name,
     )
     checks = _static_scan_checks(role)
     fingerprint_commitment_sha256 = _canonical_sha256(
@@ -8119,7 +9266,7 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
         "schema_version": "static_scan_report_v1",
         "role": role,
         "scanner_version": _STATIC_SCANNER_VERSION,
-        "scanner_sha256": _STATIC_SCANNER_SHA256,
+        "scanner_sha256": _current_static_scanner_sha256(),
         "scanned_closure_sha256": validated.bundle_sha256,
         "fingerprint_commitment_sha256": (
             fingerprint_commitment_sha256
@@ -8129,6 +9276,199 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
     }
     values["report_sha256"] = _canonical_sha256(values)
     return StaticScanReport(**values)
+
+
+_STATIC_SCANNER_IMPLEMENTATION_NAMES = (
+    "_bounded_read_python_source",
+    "_bounded_parse_utf8_python",
+    "_node_source_span",
+    "_AstClosureResolver._load_module",
+    "_AstClosureResolver._validate_external_import",
+    "_AstClosureResolver._validate_no_dynamic_constructs",
+    "_manifest_from_resolved",
+    "_preflight_static_material_totals",
+    "_static_scan_material_from_resolved",
+    "_normalized_emitted_node",
+    "_preflight_static_scan_checks",
+    "StaticScanReport.__post_init__",
+    "_validate_static_fingerprints",
+    "_validate_static_scan_material",
+    "_static_ast_depth",
+    "_static_call_path",
+    "_static_import_aliases",
+    "_static_resolved_call_path",
+    "_static_forbidden_capability_path",
+    "_static_constant_size_upper",
+    "_static_constant_is_bounded",
+    "_static_preflight_output_size",
+    "_static_format_decimal_value",
+    "_static_closed_format_template",
+    "_static_closed_percent_template",
+    "_static_safe_format_scalar",
+    "_static_scalar_render_size_upper",
+    "_static_format_output_size_upper",
+    "_static_percent_output_size_upper",
+    "_static_constant_slice",
+    "_static_safe_truth_value",
+    "_static_constant_compare",
+    "_static_preflight_mapping_merge",
+    "_static_constant_binop",
+    "_static_constant_joined_string",
+    "_static_constant_dict_call",
+    "_static_constant_builtin_call",
+    "_static_constant_method_call",
+    "_static_constant_type_method_call",
+    "_static_constant_expression",
+    "_static_literal_fingerprints",
+    "_StaticConstantBindingSubstituter.visit_Name",
+    "_StaticConstantBindingSubstituter.visit_Call",
+    "_static_constant_with_bindings",
+    "_static_same_value",
+    "_static_function_parameter_names",
+    "_static_expression_value",
+    "_static_apply_container_mutation",
+    "_static_execute_statements",
+    "_static_evaluate_helper_call",
+    "_static_immutable_binding_value",
+    "_static_simple_name_assignment",
+    "_static_reject_propagated_fingerprint",
+    "_scan_static_propagated_constants",
+    "_static_expression_has_literal",
+    "_scan_static_parameter_indexed_literals",
+    "_scan_static_ast",
+    "_scan_static_material_content",
+    "_static_scan_checks",
+    "_scan_policy_forbidden_structures",
+    "_task5_policy_structure_scan_sha256",
+    "_validate_task5_policy_commitment",
+    "build_scientific_policy_commitment",
+    "scan_scientific_closure",
+    "_static_scanner_rule_manifest",
+    "_static_scanner_implementation_object",
+    "_static_normalized_implementation_sha256",
+    "_current_static_scanner_sha256",
+)
+_STATIC_SCANNER_HASH_CACHE: dict[tuple[object, ...], str] = {}
+
+
+def _static_scanner_rule_manifest() -> dict[str, object]:
+    return {
+        "commitment_version": "canonical_scanner_commitment_v2",
+        "scanner_version": _STATIC_SCANNER_VERSION,
+        "constant_evaluator_version": _STATIC_CONSTANT_EVALUATOR_VERSION,
+        "ast_closure_version": _AST_CLOSURE_VERSION,
+        "policy_structure_version": _POLICY_STRUCTURE_SCAN_VERSION,
+        "fingerprint_algorithm_version": _FINGERPRINT_ALGORITHM_VERSION,
+        "limits": {
+            "node_count": _STATIC_SCAN_NODE_LIMIT,
+            "ast_depth": _STATIC_SCAN_DEPTH_LIMIT,
+            "literal_bytes": _STATIC_SCAN_LITERAL_BYTES_LIMIT,
+            "source_file_bytes": _STATIC_SCAN_SOURCE_FILE_BYTES_LIMIT,
+            "evaluated_output_bytes": (
+                _STATIC_SCAN_EVALUATED_OUTPUT_BYTES_LIMIT
+            ),
+            "aggregate_material_bytes": (
+                _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT
+            ),
+            "fingerprint_count": _STATIC_SCAN_FINGERPRINT_COUNT_LIMIT,
+            "lookup_entries": _STATIC_SCAN_LOOKUP_ENTRY_LIMIT,
+            "aggregate_ast_nodes": _STATIC_SCAN_AGGREGATE_AST_NODE_LIMIT,
+            "aggregate_ast_depth": _STATIC_SCAN_AGGREGATE_AST_DEPTH_LIMIT,
+            "integer_bits": _STATIC_SCAN_INTEGER_BITS_LIMIT,
+            "format_width": _STATIC_SCAN_FORMAT_WIDTH_LIMIT,
+            "check_count": _STATIC_SCAN_CHECK_LIMIT,
+            "reason_bytes": _STATIC_SCAN_REASON_BYTES_LIMIT,
+        },
+        "common_checks": sorted(_STATIC_SCAN_COMMON_CHECKS),
+        "infrastructure_check": _STATIC_SCAN_INFRASTRUCTURE_CHECK,
+        "small_mathematical_literals": sorted(
+            _SMALL_MATHEMATICAL_LITERALS
+        ),
+        "forbidden_name_tokens": sorted(_STATIC_FORBIDDEN_NAME_TOKENS),
+        "native_call_suffixes": sorted(_STATIC_NATIVE_CALL_SUFFIXES),
+        "numpy_file_callables": sorted(_STATIC_NUMPY_FILE_CALLABLES),
+        "forbidden_capability_namespaces": [
+            list(path)
+            for path in _STATIC_FORBIDDEN_CAPABILITY_NAMESPACES
+        ],
+        "safe_external_import_prefixes": list(
+            _SAFE_EXTERNAL_IMPORT_PREFIXES
+        ),
+        "safe_external_import_modules": sorted(
+            _SAFE_EXTERNAL_IMPORT_MODULES
+        ),
+        "safe_ast_builtins": sorted(_SAFE_AST_BUILTINS),
+        "forbidden_dynamic_calls": sorted(_FORBIDDEN_DYNAMIC_CALLS),
+        "implementation_names": list(
+            _STATIC_SCANNER_IMPLEMENTATION_NAMES
+        ),
+    }
+
+
+def _static_scanner_implementation_object(name: str) -> object:
+    parts = name.split(".")
+    value = globals().get(parts[0])
+    if value is None:
+        raise _ContractError(
+            "static scanner implementation manifest is incomplete"
+        )
+    for part in parts[1:]:
+        try:
+            value = getattr(value, part)
+        except AttributeError as error:
+            raise _ContractError(
+                "static scanner implementation manifest is incomplete"
+            ) from error
+    return value
+
+
+def _static_normalized_implementation_sha256(value: object) -> str:
+    try:
+        source = textwrap.dedent(inspect.getsource(value))
+        tree = ast.parse(source, mode="exec")
+    except (OSError, TypeError, SyntaxError, ValueError) as error:
+        raise _ContractError(
+            "static scanner implementation cannot be committed"
+        ) from error
+    normalized = ast.dump(
+        tree,
+        annotate_fields=True,
+        include_attributes=False,
+    )
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _current_static_scanner_sha256() -> str:
+    rules = _static_scanner_rule_manifest()
+    rules_sha256 = _canonical_sha256(rules)
+    implementations = tuple(
+        _static_scanner_implementation_object(name)
+        for name in _STATIC_SCANNER_IMPLEMENTATION_NAMES
+    )
+    cache_key = (
+        rules_sha256,
+        *(id(implementation) for implementation in implementations),
+    )
+    cached = _STATIC_SCANNER_HASH_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    implementation_hashes = {
+        name: _static_normalized_implementation_sha256(implementation)
+        for name, implementation in zip(
+            _STATIC_SCANNER_IMPLEMENTATION_NAMES, implementations
+        )
+    }
+    commitment = _canonical_sha256(
+        {
+            "rules": rules,
+            "implementation_sha256": implementation_hashes,
+        }
+    )
+    _STATIC_SCANNER_HASH_CACHE[cache_key] = commitment
+    return commitment
+
+
+_STATIC_SCANNER_SHA256 = _current_static_scanner_sha256()
 
 
 @_seal_contract

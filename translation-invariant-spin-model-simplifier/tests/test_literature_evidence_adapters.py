@@ -5,6 +5,7 @@ import inspect
 from itertools import product
 import json
 import math
+import string
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -6464,8 +6465,8 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
     static_scan_values = {
         "schema_version": "static_scan_report_v1",
         "role": "adapter",
-        "scanner_version": "scanner-v1",
-        "scanner_sha256": digest,
+        "scanner_version": isolation._STATIC_SCANNER_VERSION,
+        "scanner_sha256": isolation._STATIC_SCANNER_SHA256,
         "scanned_closure_sha256": digest,
         "fingerprint_commitment_sha256": digest,
         "checks": static_scan_checks,
@@ -16106,3 +16107,459 @@ def test_task6_static_scan_report_rejects_unbounded_checks_and_reasons(
         match="static|scan|check|reason|bound|oversized",
     ):
         isolation.StaticScanReport(**values)
+
+
+TASK6_REVIEW_CONSTANT_FLOW_BYPASSES = (
+    pytest.param(
+        "def scientific_entry(parameter):\n"
+        "    return bytes((111, 114, 100, 101, 114, 101, 100, 95, "
+        "112, 104, 97, 115, 101)).decode()\n",
+        "ordered_phase",
+        id="bytes-constructor-decode-chain",
+    ),
+    pytest.param(
+        "def prefix_piece(ignored):\n"
+        "    return 'ordered_'\n"
+        "def suffix_piece(value):\n"
+        "    return value\n"
+        "def scientific_entry(parameter):\n"
+        "    return prefix_piece(parameter) + suffix_piece('phase')\n",
+        "ordered_phase",
+        id="parameterized-helper-constant-argument",
+    ),
+    pytest.param(
+        "def choose_piece(flag, piece):\n"
+        "    if flag:\n"
+        "        selected = piece\n"
+        "    else:\n"
+        "        selected = piece\n"
+        "    return selected\n"
+        "def scientific_entry(parameter):\n"
+        "    return choose_piece(parameter, 'ordered_') + 'phase'\n",
+        "ordered_phase",
+        id="parameterized-helper-branch-join",
+    ),
+    pytest.param(
+        "def scientific_entry(parameter):\n"
+        "    payload = {}\n"
+        "    payload['critical_temperature'] = 2.269185314213022\n"
+        "    payload['phase'] = 'ordered_phase'\n"
+        "    return payload\n",
+        TASK6_REGISTERED_OPERAND,
+        id="incremental-dict-construction",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "source, forbidden_value", TASK6_REVIEW_CONSTANT_FLOW_BYPASSES
+)
+def test_task6_review_rejects_constant_flow_bypasses_without_operand_leak(
+    tmp_path,
+    role,
+    source,
+    forbidden_value,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+    fingerprints = _task6_fingerprints(forbidden_value)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|constant|fingerprint|output|parameter|container",
+    ) as captured:
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+
+    diagnostic = str(captured.value)
+    assert repr(forbidden_value) not in diagnostic
+    assert str(forbidden_value) not in diagnostic
+    for fingerprint in fingerprints:
+        assert fingerprint not in diagnostic
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review_rejects_anonymously_named_literal_mapping_indexed_by_parameter(
+    tmp_path,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = (
+        "def scientific_entry(phase_key):\n"
+        "    values = {\n"
+        "        'alpha': -2,\n"
+        "        'beta': -1,\n"
+        "        'gamma': -0.5,\n"
+        "        'delta': 0,\n"
+        "        'epsilon': 0.5,\n"
+        "        'zeta': 1,\n"
+        "        'eta': 2,\n"
+        "    }\n"
+        "    return values[phase_key]\n"
+    )
+    closure = _task6_build_scientific_closure(tmp_path, role, source)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|literal|mapping|sequence|parameter|index",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_fingerprints(
+                *TASK6_SMALL_MATHEMATICAL_VALUES
+            ),
+        )
+
+
+TASK6_FILE_CAPABILITY_SOURCES = (
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.load('detached.npy')\n",
+        id="numpy-import-alias-load",
+    ),
+    pytest.param(
+        "from numpy import fromfile as restore\n"
+        "def scientific_entry(parameter):\n"
+        "    return restore('detached.bin')\n",
+        id="numpy-from-import-alias-fromfile",
+    ),
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.lib.npyio.load('detached.npy')\n",
+        id="numpy-attribute-chain-load",
+    ),
+    pytest.param(
+        "from numpy import memmap\n"
+        "def scientific_entry(parameter):\n"
+        "    return memmap('detached.bin')\n",
+        id="numpy-memmap",
+    ),
+    pytest.param(
+        "from numpy import loadtxt\n"
+        "def scientific_entry(parameter):\n"
+        "    return loadtxt('detached.txt')\n",
+        id="numpy-loadtxt",
+    ),
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.genfromtxt('detached.txt')\n",
+        id="numpy-genfromtxt",
+    ),
+    pytest.param(
+        "import scipy.io as sio\n"
+        "def scientific_entry(parameter):\n"
+        "    return sio.loadmat('detached.mat')\n",
+        id="scipy-io-import-alias",
+    ),
+    pytest.param(
+        "from scipy import io as sio\n"
+        "def scientific_entry(parameter):\n"
+        "    return sio.mmread('detached.mtx')\n",
+        id="scipy-from-import-attribute-chain",
+    ),
+    pytest.param(
+        "from scipy.io import netcdf_file as reader\n"
+        "def scientific_entry(parameter):\n"
+        "    return reader('detached.nc')\n",
+        id="scipy-io-reader-alias",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("source", TASK6_FILE_CAPABILITY_SOURCES)
+def test_task6_review_rejects_file_capabilities_by_exact_callable_path(
+    tmp_path,
+    role,
+    source,
+):
+    with pytest.raises(
+        AdapterContractError,
+        match="approved|capability|file|reader|import|call",
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review_keeps_approved_pure_numeric_capabilities(
+    tmp_path,
+    role,
+):
+    source = (
+        "import numpy as np\n"
+        "from scipy.integrate import quad\n"
+        "def scientific_entry(parameter, matrix):\n"
+        "    eigenvalues = np.linalg.eigvalsh(matrix)\n"
+        "    integral, error = quad(np.sin, 0.0, parameter)\n"
+        "    return np.sqrt(eigenvalues[0] ** 2) + integral + error\n"
+    )
+
+    report = _task6_build_and_scan(tmp_path, role, source)
+
+    assert report.role == role
+    assert report.passed is True
+
+
+def test_task6_review_scanner_commitment_changes_with_rule_manifest(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    baseline = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=_task6_absent_fingerprints()
+    )
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_FORBIDDEN_NAME_TOKENS",
+        frozenset(
+            isolation._STATIC_FORBIDDEN_NAME_TOKENS - {"verdict"}
+        ),
+    )
+
+    changed = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=_task6_absent_fingerprints()
+    )
+
+    assert changed.scanner_sha256 != baseline.scanner_sha256
+
+
+def test_task6_review_scanner_commitment_changes_with_implementation(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_safe_scan_closure(tmp_path)
+    baseline = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=_task6_absent_fingerprints()
+    )
+    original = isolation._static_call_path
+
+    def semantically_equivalent_static_call_path(value):
+        return original(value)
+
+    monkeypatch.setattr(
+        isolation,
+        "_static_call_path",
+        semantically_equivalent_static_call_path,
+    )
+
+    changed = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=_task6_absent_fingerprints()
+    )
+
+    assert changed.scanner_sha256 != baseline.scanner_sha256
+
+
+def test_task6_review_static_scan_report_rejects_forged_scanner_identity(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.scan_scientific_closure(
+        _task6_safe_scan_closure(tmp_path),
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    values = {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    values["scanner_version"] = "unrelated_scanner_v999"
+    values["scanner_sha256"] = "0" * 64
+    values["report_sha256"] = canonical_sha256(
+        {
+            key: value
+            for key, value in values.items()
+            if key != "report_sha256"
+        }
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scanner|version|supported|identity|commitment",
+    ):
+        isolation.StaticScanReport(**values)
+
+
+@pytest.mark.parametrize("mutation", ("count", "reason"))
+def test_task6_review_report_preflights_checks_before_recursive_freeze(
+    tmp_path,
+    monkeypatch,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.scan_scientific_closure(
+        _task6_safe_scan_closure(tmp_path),
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    values = {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    bounded_iterations = None
+    if mutation == "count":
+        bounded_iterations = []
+
+        class DeceptiveChecks(Mapping):
+            def __len__(self):
+                return len(report.checks)
+
+            def __iter__(self):
+                for index in range(isolation._STATIC_SCAN_CHECK_LIMIT + 1):
+                    bounded_iterations.append(index)
+                    yield f"check_{index}"
+                bounded_iterations.append("overrun")
+                raise AssertionError(
+                    "static scan checks iterator exceeded its closed bound"
+                )
+
+            def __getitem__(self, key):
+                return {"passed": True, "reason": "closed"}
+
+        values["checks"] = DeceptiveChecks()
+    else:
+        values["checks"] = thaw_json(report.checks)
+        first = next(iter(values["checks"]))
+        values["checks"][first]["reason"] = (
+            "r" * (isolation._STATIC_SCAN_REASON_BYTES_LIMIT + 1)
+        )
+
+    freeze_calls = []
+
+    def unexpected_recursive_freeze(*args, **kwargs):
+        freeze_calls.append((args, kwargs))
+        raise AssertionError("recursive freeze ran before report preflight")
+
+    monkeypatch.setattr(
+        isolation, "_snapshot_json", unexpected_recursive_freeze
+    )
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|check|reason|bound|oversized",
+    ):
+        isolation.StaticScanReport(**values)
+    assert freeze_calls == []
+    if bounded_iterations is not None:
+        assert bounded_iterations == list(
+            range(len(report.checks) + 1)
+        )
+
+
+def test_task6_review_builder_fstats_source_before_read_allocation(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    module_name = "task6_science.adapters"
+    _write_task5_source(
+        tmp_path,
+        module_name,
+        "def scientific_entry(parameter):\n"
+        "    return parameter + 123456789\n",
+    )
+    monkeypatch.setattr(
+        isolation, "_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT", 32
+    )
+    read_calls = []
+
+    def unexpected_read_bytes(path):
+        read_calls.append(path)
+        raise AssertionError("source was read before fstat size preflight")
+
+    monkeypatch.setattr(Path, "read_bytes", unexpected_read_bytes)
+    with pytest.raises(
+        AdapterContractError,
+        match="source|file|material|byte|size|bound",
+    ):
+        isolation.build_scientific_closure(
+            f"{module_name}:scientific_entry",
+            role="adapter",
+            source_roots=(tmp_path,),
+        )
+    assert read_calls == []
+
+
+def test_task6_review_formatter_stops_before_unbounded_materialization(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(
+        tmp_path,
+        "adapter",
+        "def scientific_entry(parameter):\n"
+        "    return '{}'.format('x')\n",
+    )
+    monkeypatch.setattr(isolation, "_STATIC_SCAN_LOOKUP_ENTRY_LIMIT", 2)
+    yielded = []
+
+    def instrumented_parse(_formatter, _template):
+        for index in range(3):
+            yielded.append(index)
+            yield "", str(index), "", None
+        raise AssertionError("formatter parser was fully materialized")
+
+    monkeypatch.setattr(string.Formatter, "parse", instrumented_parse)
+    with pytest.raises(
+        AdapterContractError,
+        match="static|format|field|bound",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+    assert yielded == [0, 1, 2]
+
+
+def test_task6_review_dict_union_preflights_projected_mapping_before_merge(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(
+        tmp_path,
+        "adapter",
+        "def scientific_entry(parameter):\n"
+        "    return {'alpha': 1} | {'beta': 2}\n",
+    )
+    monkeypatch.setattr(isolation, "_STATIC_SCAN_LOOKUP_ENTRY_LIMIT", 1)
+    calls = []
+    original_preflight = isolation._static_preflight_mapping_merge
+
+    def instrumented_preflight(left, right, *, reject_overlap):
+        call = (tuple(left), tuple(right), reject_overlap)
+        calls.append(call)
+        if call == (("alpha",), ("beta",), False):
+            raise AdapterContractError(
+                "static scan mapping projected cardinality exceeds bound"
+            )
+        return original_preflight(
+            left, right, reject_overlap=reject_overlap
+        )
+
+    monkeypatch.setattr(
+        isolation,
+        "_static_preflight_mapping_merge",
+        instrumented_preflight,
+    )
+    with pytest.raises(
+        AdapterContractError,
+        match="mapping|projected|cardinality|bound",
+    ):
+        isolation.scan_scientific_closure(
+            closure,
+            forbidden_fingerprints=_task6_absent_fingerprints(),
+        )
+    assert (("alpha",), ("beta",), False) in calls
