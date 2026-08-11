@@ -9304,6 +9304,123 @@ def test_infrastructure_builder_rejects_forbidden_neutral_root_ast_content(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT = (
+    (
+        "integer_scientific_constant",
+        "    scientific_constant = 2\n"
+        "    return scientific_constant\n",
+    ),
+    (
+        "integer_power_equation",
+        "    return value ** 2\n",
+    ),
+    (
+        "integer_energy_constant",
+        "    energy = 2\n"
+        "    return energy\n",
+    ),
+    (
+        "integer_scientific_coefficient",
+        "    scientific_coefficient = 2\n"
+        "    return scientific_coefficient\n",
+    ),
+    (
+        "aliased_integer_energy_constant",
+        "    energy = coefficient\n"
+        "    coefficient = 2\n"
+        "    return energy\n",
+    ),
+    (
+        "compute_method_result",
+        "    compute_method_result = value\n"
+        "    return compute_method_result\n",
+    ),
+    (
+        "computed_method_result",
+        "    computed_method_result = value\n"
+        "    return computed_method_result\n",
+    ),
+    (
+        "computing_method_result",
+        "    computing_method_result = value\n"
+        "    return computing_method_result\n",
+    ),
+    (
+        "derive_method_result",
+        "    derive_method_result = value\n"
+        "    return derive_method_result\n",
+    ),
+    (
+        "derived_method_result",
+        "    derived_method_result = value\n"
+        "    return derived_method_result\n",
+    ),
+    (
+        "deriving_method_result",
+        "    deriving_method_result = value\n"
+        "    return deriving_method_result\n",
+    ),
+    (
+        "calculate_method_result",
+        "    calculate_method_result = value\n"
+        "    return calculate_method_result\n",
+    ),
+    (
+        "calculated_method_result",
+        "    calculated_method_result = value\n"
+        "    return calculated_method_result\n",
+    ),
+    (
+        "calculating_method_result",
+        "    calculating_method_result = value\n"
+        "    return calculating_method_result\n",
+    ),
+    (
+        "evaluate_method_result",
+        "    evaluate_method_result = value\n"
+        "    return evaluate_method_result\n",
+    ),
+    (
+        "evaluated_method_result",
+        "    evaluated_method_result = value\n"
+        "    return evaluated_method_result\n",
+    ),
+    (
+        "evaluating_method_result",
+        "    evaluating_method_result = value\n"
+        "    return evaluating_method_result\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT,
+    ids=tuple(
+        case[0]
+        for case in TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT
+    ),
+)
+def test_infrastructure_builder_rejects_equivalent_scientific_ast_content(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|scientific|equation|constant|method|result",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 def test_infrastructure_builder_allows_small_integer_protocol_control(
     tmp_path,
 ):
@@ -9474,6 +9591,178 @@ def test_infrastructure_builder_allows_transitive_transport_arithmetic(
     ),
 )
 def test_infrastructure_builder_allows_definition_and_policy_transport(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+TASK5_LITERAL_POLICY_BYTES_FLOWS = (
+    (
+        "literal_concatenation",
+        '    canonical_policy_bytes = b"detached-" + b"payload"\n'
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "direct_local_alias",
+        '    payload = b"detached"\n'
+        "    canonical_policy_bytes = payload\n"
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "forward_alias_chain",
+        '    first = b"detached"\n'
+        "    second = first\n"
+        "    third = second\n"
+        "    canonical_policy_bytes = third\n"
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "reverse_alias_chain",
+        "    canonical_policy_bytes = third\n"
+        "    third = second\n"
+        "    second = first\n"
+        '    first = b"detached"\n'
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "aliased_literal_concatenation",
+        '    prefix = b"detached-"\n'
+        '    suffix = b"payload"\n'
+        "    combined = prefix + suffix\n"
+        "    canonical_policy_bytes = combined\n"
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "policy_target_without_bytes_name",
+        '    policy_payload = b"detached"\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "policy_target_alias",
+        '    payload = b"detached"\n'
+        "    policy_payload = payload\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "policy_literal_without_sink",
+        '    return b"scientific-policy"\n',
+    ),
+    (
+        "concatenated_policy_literal_without_sink",
+        '    return b"scientific-" + b"policy"\n',
+    ),
+    (
+        "walrus_policy_literal",
+        '    return (canonical_policy_bytes := b"detached")\n',
+    ),
+    (
+        "walrus_policy_literal_alias",
+        '    payload = b"detached"\n'
+        "    return (policy_payload := payload)\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    TASK5_LITERAL_POLICY_BYTES_FLOWS,
+    ids=tuple(case[0] for case in TASK5_LITERAL_POLICY_BYTES_FLOWS),
+)
+def test_infrastructure_builder_rejects_literal_policy_bytes_flow(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|scientific|policy|bytes|literal",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "computed_policy_bytes",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    canonical_policy_bytes = canonical_json_bytes(value)\n"
+            "    return canonical_policy_bytes\n",
+        ),
+        (
+            "computed_policy_bytes_alias",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    computed = canonical_json_bytes(value)\n"
+            "    alias = computed\n"
+            "    canonical_policy_bytes = alias\n"
+            "    return canonical_policy_bytes\n",
+        ),
+        (
+            "reverse_computed_alias",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    canonical_policy_bytes = payload\n"
+            "    payload = canonical_json_bytes(value)\n"
+            "    return canonical_policy_bytes\n",
+        ),
+        (
+            "nonpolicy_literal_concatenation",
+            "",
+            '    payload = b"detached-" + b"payload"\n'
+            "    return payload\n",
+        ),
+        (
+            "computed_policy_payload",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    policy_payload = canonical_json_bytes(value)\n"
+            "    return policy_payload\n",
+        ),
+        (
+            "computed_policy_walrus",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    return (\n"
+            "        canonical_policy_bytes := canonical_json_bytes(value)\n"
+            "    )\n",
+        ),
+        (
+            "generic_literal_without_policy_sink",
+            "",
+            '    payload = b"transport"\n'
+            "    return payload\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_nonliteral_policy_bytes_transport(
     tmp_path,
     case_name,
     extra_source,

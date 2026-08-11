@@ -8,7 +8,7 @@ process, capsule, or scientific operation at import time or during validation.
 from __future__ import annotations
 
 import ast
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, fields
 import hashlib
 import json
@@ -2676,8 +2676,16 @@ def _infrastructure_name_tokens(qualified_name: str) -> set[str]:
 
 
 def _is_method_result_derivation(tokens: set[str]) -> bool:
-    return {"method", "result"} <= tokens and bool(
-        tokens & {"compute", "derive", "specific"}
+    if not {"method", "result"} <= tokens:
+        return False
+    if "specific" in tokens:
+        return True
+    return any(
+        re.fullmatch(
+            r"(?:calculat|comput|deriv|evaluat)(?:e|ed|ing)", token
+        )
+        is not None
+        for token in tokens
     )
 
 
@@ -2720,6 +2728,195 @@ def _docstring_value_ids(node: ast.AST) -> set[int]:
     return docstrings
 
 
+def _assignment_parts(
+    node: ast.AST,
+) -> tuple[tuple[ast.expr, ...], ast.expr] | None:
+    if isinstance(node, ast.Assign):
+        return tuple(node.targets), node.value
+    if isinstance(node, ast.AnnAssign) and node.value is not None:
+        return (node.target,), node.value
+    if isinstance(node, ast.NamedExpr):
+        return (node.target,), node.value
+    return None
+
+
+def _scope_assignments(node: ast.AST) -> tuple[ast.AST, ...]:
+    assignments = []
+    pending = [node]
+    scope_boundaries = (
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.ClassDef,
+        ast.Lambda,
+    )
+    while pending:
+        candidate = pending.pop()
+        if candidate is not node and isinstance(candidate, scope_boundaries):
+            continue
+        if _assignment_parts(candidate) is not None:
+            assignments.append(candidate)
+        pending.extend(reversed(tuple(ast.iter_child_nodes(candidate))))
+    assignments.sort(
+        key=lambda candidate: (
+            getattr(candidate, "lineno", -1),
+            getattr(candidate, "col_offset", -1),
+        )
+    )
+    return tuple(assignments)
+
+
+def _literal_bytes_expression(
+    node: ast.AST, literal_names: set[str]
+) -> bool:
+    if isinstance(node, ast.Constant):
+        return type(node.value) is bytes
+    if isinstance(node, ast.Name):
+        return node.id in literal_names
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _literal_bytes_expression(
+            node.left, literal_names
+        ) and _literal_bytes_expression(node.right, literal_names)
+    if isinstance(node, ast.IfExp):
+        return _literal_bytes_expression(
+            node.body, literal_names
+        ) and _literal_bytes_expression(node.orelse, literal_names)
+    if isinstance(node, ast.NamedExpr):
+        return _literal_bytes_expression(node.value, literal_names)
+    return False
+
+
+def _assigned_local_names(targets: tuple[ast.expr, ...]) -> set[str]:
+    return {
+        target.id for target in targets if isinstance(target, ast.Name)
+    }
+
+
+def _literal_provenance_names(
+    assignments: tuple[ast.AST, ...],
+    expression_test: Callable[[ast.AST, set[str]], bool],
+) -> set[str]:
+    literal_names: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for assignment in assignments:
+            parts = _assignment_parts(assignment)
+            if parts is None:
+                continue
+            targets, value = parts
+            if not expression_test(value, literal_names):
+                continue
+            new_names = _assigned_local_names(targets) - literal_names
+            if new_names:
+                literal_names.update(new_names)
+                changed = True
+    return literal_names
+
+
+def _numeric_literal_expression(
+    node: ast.AST, literal_names: set[str]
+) -> bool:
+    if isinstance(node, ast.Constant):
+        return type(node.value) in (int, float, complex)
+    if isinstance(node, ast.Name):
+        return node.id in literal_names
+    if isinstance(node, ast.UnaryOp) and isinstance(
+        node.op, (ast.UAdd, ast.USub)
+    ):
+        return _numeric_literal_expression(node.operand, literal_names)
+    if isinstance(node, ast.IfExp):
+        return _numeric_literal_expression(
+            node.body, literal_names
+        ) and _numeric_literal_expression(node.orelse, literal_names)
+    if isinstance(node, ast.NamedExpr):
+        return _numeric_literal_expression(node.value, literal_names)
+    return False
+
+
+def _target_tokens(target: ast.expr) -> set[str]:
+    return {
+        token
+        for candidate in ast.walk(target)
+        if isinstance(candidate, (ast.Name, ast.Attribute))
+        for token in _lexical_tokens(
+            candidate.id
+            if isinstance(candidate, ast.Name)
+            else candidate.attr
+        )
+    }
+
+
+def _is_scientific_numeric_target(targets: tuple[ast.expr, ...]) -> bool:
+    return any(
+        _target_tokens(target)
+        & _INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS
+        for target in targets
+    )
+
+
+def _is_policy_literal_target(targets: tuple[ast.expr, ...]) -> bool:
+    return any("policy" in _target_tokens(target) for target in targets)
+
+
+def _scope_has_scientific_numeric_literal_flow(node: ast.AST) -> bool:
+    assignments = _scope_assignments(node)
+    literal_names = _literal_provenance_names(
+        assignments, _numeric_literal_expression
+    )
+    for assignment in assignments:
+        parts = _assignment_parts(assignment)
+        if parts is None:
+            continue
+        targets, value = parts
+        if _is_scientific_numeric_target(
+            targets
+        ) and _numeric_literal_expression(value, literal_names):
+            return True
+    return False
+
+
+def _scope_has_literal_policy_bytes_flow(node: ast.AST) -> bool:
+    assignments = _scope_assignments(node)
+    literal_names = _literal_provenance_names(
+        assignments, _literal_bytes_expression
+    )
+    for assignment in assignments:
+        parts = _assignment_parts(assignment)
+        if parts is None:
+            continue
+        targets, value = parts
+        if _is_policy_literal_target(targets) and _literal_bytes_expression(
+            value, literal_names
+        ):
+            return True
+    return False
+
+
+def _assignment_scopes(node: ast.AST) -> tuple[ast.AST, ...]:
+    scopes = [node]
+    if isinstance(node, ast.ClassDef):
+        scopes.extend(
+            statement
+            for statement in node.body
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+        )
+    return tuple(scopes)
+
+
+def _has_literal_policy_bytes_flow(node: ast.AST) -> bool:
+    return any(
+        _scope_has_literal_policy_bytes_flow(scope)
+        for scope in _assignment_scopes(node)
+    )
+
+
+def _has_scientific_numeric_literal_flow(node: ast.AST) -> bool:
+    return any(
+        _scope_has_scientific_numeric_literal_flow(scope)
+        for scope in _assignment_scopes(node)
+    )
+
+
 def _scan_infrastructure_ast_content(
     resolved: Mapping[str, _ResolvedAstNode],
 ) -> None:
@@ -2727,11 +2924,19 @@ def _scan_infrastructure_ast_content(
         tokens = set()
         literal_tokens = set()
         has_arithmetic = False
-        has_policy_bytes_literal = False
+        has_power = False
+        has_policy_bytes_literal = _has_literal_policy_bytes_flow(
+            item.source.node
+        )
+        has_scientific_numeric_literal = (
+            _has_scientific_numeric_literal_flow(item.source.node)
+        )
         docstring_ids = _docstring_value_ids(item.source.node)
         for candidate in ast.walk(item.source.node):
             if isinstance(candidate, ast.BinOp):
                 has_arithmetic = True
+                if isinstance(candidate.op, ast.Pow):
+                    has_power = True
             if (
                 isinstance(candidate, ast.Constant)
                 and type(candidate.value) in (float, complex)
@@ -2739,29 +2944,6 @@ def _scan_infrastructure_ast_content(
                 raise _ContractError(
                     "infrastructure closure contains a scientific constant"
                 )
-            if isinstance(candidate, (ast.Assign, ast.AnnAssign)):
-                targets = (
-                    candidate.targets
-                    if isinstance(candidate, ast.Assign)
-                    else (candidate.target,)
-                )
-                target_tokens = {
-                    token
-                    for target in targets
-                    for target_node in ast.walk(target)
-                    if isinstance(target_node, (ast.Name, ast.Attribute))
-                    for token in _lexical_tokens(
-                        target_node.id
-                        if isinstance(target_node, ast.Name)
-                        else target_node.attr
-                    )
-                }
-                if (
-                    {"policy", "bytes"} <= target_tokens
-                    and isinstance(candidate.value, ast.Constant)
-                    and type(candidate.value.value) is bytes
-                ):
-                    has_policy_bytes_literal = True
             authored_value = None
             if isinstance(candidate, ast.Name):
                 authored_value = candidate.id
@@ -2791,6 +2973,18 @@ def _scan_infrastructure_ast_content(
         if tokens & {"formula", "hamiltonian"}:
             raise _ContractError(
                 "infrastructure AST contains strong scientific content"
+            )
+        if {"scientific", "constant"} <= tokens:
+            raise _ContractError(
+                "infrastructure AST contains a scientific constant"
+            )
+        if has_scientific_numeric_literal:
+            raise _ContractError(
+                "infrastructure AST contains a scientific numeric constant"
+            )
+        if has_power:
+            raise _ContractError(
+                "infrastructure AST contains a scientific power equation"
             )
         if has_arithmetic and (
             tokens & _INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS
