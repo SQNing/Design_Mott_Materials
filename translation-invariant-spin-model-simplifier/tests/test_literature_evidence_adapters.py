@@ -4935,6 +4935,61 @@ def test_policy_accepts_real_canonical_adapter_definition_schema():
 @pytest.mark.parametrize(
     "mutation",
     (
+        "scientific_input_schema",
+        "runtime_requirements",
+        "resource_limits",
+        "parameter_sources",
+    ),
+)
+def test_adapter_policy_rejects_each_detached_same_id_definition(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    canonical = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    definition_values = {
+        field.name: getattr(canonical, field.name)
+        for field in dataclasses.fields(AdapterDefinition)
+    }
+    if mutation == "scientific_input_schema":
+        definition_values["scientific_input_schema"] = _object_schema(
+            (("exchange", _number_schema(lower=None, units="J")),)
+        )
+    elif mutation == "runtime_requirements":
+        runtime = canonical.runtime_requirements
+        definition_values["runtime_requirements"] = RuntimeRequirements(
+            runtime.interpreter,
+            runtime.packages + ("numpy",),
+            runtime.native_libraries,
+            runtime.backend_resources,
+        )
+    elif mutation == "resource_limits":
+        limits = canonical.resource_limits
+        definition_values["resource_limits"] = ResourceLimits(
+            limits.cpu_seconds + 1,
+            limits.wall_seconds,
+            limits.address_space_bytes,
+            limits.output_bytes,
+            limits.file_descriptors,
+            limits.process_count,
+        )
+    else:
+        source = canonical.parameter_sources[0]
+        details = thaw_json(source.details)
+        details["physical_role"] = "detached exchange role"
+        definition_values["parameter_sources"] = (
+            ParameterSource(source.parameter_name, source.kind, details),
+        )
+    detached = AdapterDefinition(**definition_values)
+    values = _adapter_policy_values(detached)
+    with pytest.raises(
+        AdapterContractError,
+        match="canonical.*catalog|catalog.*canonical",
+    ):
+        isolation.ScientificPolicyCommitment(**values)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
         "nested_definition",
         "proof_bindings",
         "domain",
@@ -6173,10 +6228,21 @@ def test_detached_definition_cannot_weaken_canonical_worker_validation():
         )
 
 
-def test_source_model_provenance_uses_its_own_closed_shape():
-    from validation import literature_evidence_isolation as isolation
-
+def _source_span_authority_payload():
     payload = _authority_context_payload()
+    locator = {
+        "kind": "source_model_span",
+        "source_id": "source-model-canary",
+        "source_sha256": _sha256_text("source-model-artifact-canary"),
+        "path": ["model", "exchange"],
+        "coordinate_space": "verified_extracted_text_utf8",
+        "coordinate_view_sha256": _sha256_text(
+            "verified-extracted-text-view-canary"
+        ),
+        "byte_start": 120,
+        "byte_end": 168,
+        "span_sha256": _sha256_text("source-model-span-canary"),
+    }
     payload["parameter_provenance"] = {
         "exchange": {
             "kind": "source_model_parameter",
@@ -6184,34 +6250,99 @@ def test_source_model_provenance_uses_its_own_closed_shape():
                 "source_path": ["model", "exchange"],
                 "physical_role": "source-model exchange",
             },
-            "locator": {
-                "kind": "source_model_path",
-                "source_id": "source-model-canary",
-                "path": ["model", "exchange"],
-            },
-            "commitment_sha256": _sha256_text(
-                "source-model-provenance-canary"
-            ),
+            "locator": locator,
+            "commitment_sha256": canonical_sha256(locator),
             "target_equivalent": False,
         }
     }
-    accepted = isolation.validate_authority_context(
-        _rehash_authority_payload(payload), allow_test_producer=True
-    )
-    assert accepted.parameter_provenance["exchange"]["kind"] == (
-        "source_model_parameter"
-    )
+    return _rehash_authority_payload(payload)
 
-    malformed = thaw_json(accepted.to_frozen_json())
-    malformed["parameter_provenance"]["exchange"]["locator"][
-        "registry_path"
-    ] = malformed["parameter_provenance"]["exchange"]["locator"].pop(
-        "path"
+
+def test_source_model_provenance_requires_an_exact_source_span():
+    from validation import literature_evidence_isolation as isolation
+
+    accepted = isolation.validate_authority_context(
+        _source_span_authority_payload(), allow_test_producer=True
     )
-    malformed = _rehash_authority_payload(malformed)
-    with pytest.raises(AdapterContractError, match="locator|unknown|path"):
+    locator = accepted.parameter_provenance["exchange"]["locator"]
+    assert locator["kind"] == "source_model_span"
+    assert locator["byte_end"] > locator["byte_start"]
+    assert accepted.parameter_provenance["exchange"][
+        "commitment_sha256"
+    ] == canonical_sha256(locator)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing_source_sha256",
+        "malformed_source_sha256",
+        "missing_coordinate_view_sha256",
+        "malformed_coordinate_view_sha256",
+        "missing_byte_start",
+        "missing_byte_end",
+        "missing_span_sha256",
+        "malformed_span_sha256",
+        "unknown_coordinate_space",
+        "empty_bounds",
+        "reversed_bounds",
+        "path_mismatch",
+        "arbitrary_commitment",
+        "unknown_field",
+    ),
+)
+def test_source_span_rejects_each_incomplete_or_unbound_record(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _source_span_authority_payload()
+    record = payload["parameter_provenance"]["exchange"]
+    locator = record["locator"]
+    if mutation.startswith("missing_"):
+        locator.pop(mutation.removeprefix("missing_"))
+    elif mutation.startswith("malformed_"):
+        locator[mutation.removeprefix("malformed_")] = "f" * 63
+    elif mutation == "empty_bounds":
+        locator["byte_start"] = 16
+        locator["byte_end"] = 16
+    elif mutation == "reversed_bounds":
+        locator["byte_start"] = 32
+        locator["byte_end"] = 16
+    elif mutation == "path_mismatch":
+        locator["path"] = ["model", "mutated_exchange"]
+    elif mutation == "unknown_coordinate_space":
+        locator["coordinate_space"] = "caller_defined_coordinates"
+    elif mutation == "arbitrary_commitment":
+        record["commitment_sha256"] = _sha256_text(
+            "arbitrary-source-span-commitment"
+        )
+    else:
+        locator["unexpected_span_field"] = True
+    payload = _rehash_authority_payload(payload)
+    expected_guard = {
+        "missing_source_sha256": "missing required field source_sha256",
+        "malformed_source_sha256": "source_sha256.*SHA-256",
+        "missing_coordinate_view_sha256": (
+            "missing required field coordinate_view_sha256"
+        ),
+        "malformed_coordinate_view_sha256": (
+            "coordinate_view_sha256.*SHA-256"
+        ),
+        "missing_byte_start": "missing required field byte_start",
+        "missing_byte_end": "missing required field byte_end",
+        "missing_span_sha256": "missing required field span_sha256",
+        "malformed_span_sha256": "span_sha256.*SHA-256",
+        "unknown_coordinate_space": (
+            "coordinate_space.*verified_extracted_text_utf8"
+        ),
+        "empty_bounds": "greater than byte_start|nonempty source span",
+        "reversed_bounds": "greater than byte_start|nonempty source span",
+        "path_mismatch": "path.*requirement",
+        "arbitrary_commitment": "commitment.*locator",
+        "unknown_field": "unexpected_span_field",
+    }[mutation]
+    with pytest.raises(AdapterContractError, match=expected_guard):
         isolation.validate_authority_context(
-            malformed, allow_test_producer=True
+            payload, allow_test_producer=True
         )
 
 

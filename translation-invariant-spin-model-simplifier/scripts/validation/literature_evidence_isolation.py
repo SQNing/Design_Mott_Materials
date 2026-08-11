@@ -221,16 +221,24 @@ def _validate_parameter_provenance(
             record["requirement"],
             f"parameter_provenance.{parameter_name}.requirement",
         )
-        _validate_parameter_locator(
+        locator = _validate_parameter_locator(
             kind,
             requirement,
             record["locator"],
             f"parameter_provenance.{parameter_name}.locator",
         )
-        _require_sha256(
+        commitment_sha256 = _require_sha256(
             record["commitment_sha256"],
             f"parameter_provenance.{parameter_name}.commitment_sha256",
         )
+        if (
+            kind == "source_model_parameter"
+            and commitment_sha256 != _canonical_sha256(locator)
+        ):
+            raise _ContractError(
+                "source-model provenance commitment must equal the "
+                "canonical locator hash"
+            )
         if record["target_equivalent"] is not False:
             raise _ContractError(
                 "target-equivalent parameter provenance is forbidden"
@@ -289,7 +297,7 @@ def _validate_parameter_locator(
     requirement: _FrozenJsonObject,
     value: object,
     field_name: str,
-) -> None:
+) -> _FrozenJsonObject:
     if kind == "canonical_model_parameter":
         locator = _exact_keys(value, ("kind", "path"), field_name)
         if locator["kind"] != "canonical_spec_path":
@@ -301,30 +309,69 @@ def _validate_parameter_locator(
             raise _ContractError(
                 f"{field_name}.path must match canonical requirement"
             )
-        return
+        return locator
     if kind == "source_model_parameter":
         locator = _exact_keys(
-            value, ("kind", "source_id", "path"), field_name
+            value,
+            (
+                "kind",
+                "source_id",
+                "source_sha256",
+                "path",
+                "coordinate_space",
+                "coordinate_view_sha256",
+                "byte_start",
+                "byte_end",
+                "span_sha256",
+            ),
+            field_name,
         )
-        if locator["kind"] != "source_model_path":
+        if locator["kind"] != "source_model_span":
             raise _ContractError(
-                f"{field_name}.kind must be source_model_path"
+                f"{field_name}.kind must be source_model_span"
             )
         _require_text(
             locator["source_id"], f"{field_name}.source_id"
+        )
+        _require_sha256(
+            locator["source_sha256"], f"{field_name}.source_sha256"
         )
         path = _require_nonempty_path(locator["path"], f"{field_name}.path")
         if path != requirement["source_path"]:
             raise _ContractError(
                 f"{field_name}.path must match source requirement"
             )
-        return
+        if locator["coordinate_space"] != "verified_extracted_text_utf8":
+            raise _ContractError(
+                f"{field_name}.coordinate_space must be "
+                "verified_extracted_text_utf8"
+            )
+        _require_sha256(
+            locator["coordinate_view_sha256"],
+            f"{field_name}.coordinate_view_sha256",
+        )
+        byte_start = _require_nonnegative_integer(
+            locator["byte_start"], f"{field_name}.byte_start"
+        )
+        byte_end = _require_nonnegative_integer(
+            locator["byte_end"], f"{field_name}.byte_end"
+        )
+        if byte_end <= byte_start:
+            raise _ContractError(
+                f"{field_name}.byte_end must be greater than byte_start "
+                "for a nonempty source span"
+            )
+        _require_sha256(
+            locator["span_sha256"], f"{field_name}.span_sha256"
+        )
+        return locator
     locator = _exact_keys(value, ("kind", "probe_id"), field_name)
     if locator["kind"] != "universal_probe":
         raise _ContractError(
             f"{field_name}.kind must be universal_probe"
         )
     _require_text(locator["probe_id"], f"{field_name}.probe_id")
+    return locator
 
 
 def _validate_numerical_control_provenance(
@@ -939,6 +986,28 @@ class ScientificPolicyCommitment:
             raise _ContractError(
                 "definition_id does not match canonical definition bytes"
             )
+        policy_definition = canonical_definition
+        if role == "adapter":
+            try:
+                catalog_definition = _adapters.get_adapter_definition(
+                    self.definition_id
+                )
+            except _ContractError as error:
+                raise _ContractError(
+                    "adapter policy definition is absent from the "
+                    "canonical catalog"
+                ) from error
+            catalog_definition_bytes = _canonical_bytes(
+                _adapters.adapter_definition_to_frozen_json(
+                    catalog_definition
+                )
+            )
+            if self.canonical_definition_bytes != catalog_definition_bytes:
+                raise _ContractError(
+                    "adapter policy canonical definition bytes do not "
+                    "match the canonical catalog"
+                )
+            policy_definition = catalog_definition
         expected_definition_hash = hashlib.sha256(
             self.canonical_definition_bytes
         ).hexdigest()
@@ -987,7 +1056,7 @@ class ScientificPolicyCommitment:
                 expected_convergence,
                 expected_eligibility_row,
                 expected_eligibility_catalog,
-            ) = _adapter_policy_derivations(canonical_definition)
+            ) = _adapter_policy_derivations(policy_definition)
             if _canonical_bytes(bindings) != _canonical_bytes(
                 expected_bindings
             ):
