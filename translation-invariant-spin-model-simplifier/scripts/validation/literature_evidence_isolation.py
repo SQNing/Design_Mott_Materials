@@ -4492,6 +4492,76 @@ def _numeric_target_inert_expressions(target: ast.AST) -> frozenset[int]:
     )
 
 
+def _numeric_guaranteed_noniterable_scalar_syntax(
+    expression: ast.AST,
+) -> bool:
+    classifications = {}
+    pending = [(expression, False)]
+    visited = 0
+    while pending:
+        candidate, expanded = pending.pop()
+        candidate_id = id(candidate)
+        if candidate_id in classifications:
+            continue
+        if not expanded:
+            visited += 1
+            if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
+                raise _ContractError(
+                    "infrastructure binding scalar syntax exceeds its bound"
+                )
+            if isinstance(candidate, ast.Constant):
+                pure_numeric = type(candidate.value) in (
+                    bool,
+                    int,
+                    float,
+                    complex,
+                )
+                classifications[candidate_id] = (
+                    pure_numeric,
+                    pure_numeric
+                    or candidate.value is None
+                    or candidate.value is Ellipsis,
+                )
+                continue
+            if isinstance(candidate, ast.UnaryOp) and isinstance(
+                candidate.op, ast.Not
+            ):
+                classifications[candidate_id] = (False, True)
+                continue
+            if (
+                isinstance(candidate, ast.Compare)
+                and candidate.ops
+                and all(
+                    isinstance(operator, (ast.Is, ast.IsNot))
+                    for operator in candidate.ops
+                )
+            ):
+                classifications[candidate_id] = (False, True)
+                continue
+            if isinstance(candidate, ast.UnaryOp) and isinstance(
+                candidate.op, (ast.UAdd, ast.USub)
+            ):
+                pending.append((candidate, True))
+                pending.append((candidate.operand, False))
+                continue
+            if isinstance(candidate, ast.BinOp):
+                pending.append((candidate, True))
+                pending.append((candidate.right, False))
+                pending.append((candidate.left, False))
+                continue
+            classifications[candidate_id] = (False, False)
+            continue
+        if isinstance(candidate, ast.UnaryOp):
+            pure_numeric = classifications[id(candidate.operand)][0]
+        else:
+            pure_numeric = (
+                classifications[id(candidate.left)][0]
+                and classifications[id(candidate.right)][0]
+            )
+        classifications[candidate_id] = (pure_numeric, pure_numeric)
+    return classifications[id(expression)][1]
+
+
 def _numeric_binding_result_states(
     target: ast.AST,
     source: ast.AST,
@@ -4580,11 +4650,7 @@ def _numeric_binding_result_states(
                 )
                 else exact_source
             )
-        elif isinstance(expression, ast.Constant) and (
-            expression.value is None
-            or expression.value is Ellipsis
-            or type(expression.value) in (bool, int, float, complex)
-        ):
+        elif _numeric_guaranteed_noniterable_scalar_syntax(expression):
             exactness = invalid_source
         return (
             expression_state(expression) if state is None else state,

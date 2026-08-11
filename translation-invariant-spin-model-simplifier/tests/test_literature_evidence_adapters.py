@@ -12302,6 +12302,259 @@ def test_infrastructure_builder_allows_direct_scalar_or_opaque_nested_binding(
 
 
 @pytest.mark.parametrize(
+    "container_kind, scalar_expression",
+    tuple(
+        (container_kind, scalar_expression)
+        for container_kind in ("tuple", "list")
+        for scalar_expression in (
+            "-1",
+            "+1",
+            "1 / 2",
+            "(1 + 2) * (3 - 4)",
+            "value is None",
+            "value is not None",
+            "not value",
+        )
+    ),
+)
+def test_infrastructure_builder_rejects_guaranteed_scalar_syntax_unpack(
+    tmp_path,
+    container_kind,
+    scalar_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    root_body = (
+        f"    ((left,),) = ({scalar_expression},)\n"
+        if container_kind == "tuple"
+        else f"    [[left]] = [{scalar_expression}]\n"
+    )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": root_body + "    return value\n"
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|binding|exact|shape|invalid|scalar",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "target, scalar_expression",
+    (
+        ("(item,)", "-1"),
+        ("(item,)", "1 / 2"),
+        ("item", "1 / 2"),
+        ("(item,)", "value is None"),
+        ("item", "value is None"),
+        ("(item,)", "not value"),
+    ),
+)
+def test_infrastructure_builder_rejects_for_guaranteed_scalar_shape_or_sink(
+    tmp_path,
+    target,
+    scalar_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    for {target} in ({scalar_expression},):\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|binding|exact|shape|invalid|scalar|numeric|"
+            "comparison"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "scalar_expression",
+    ("-1", "not value"),
+)
+def test_infrastructure_builder_allows_direct_for_guaranteed_scalar(
+    tmp_path,
+    scalar_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    for item in ({scalar_expression},):\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "target, scalar_expression",
+    (
+        ("(item,)", "-1"),
+        ("(item,)", "1 / 2"),
+        ("(item,)", "value is None"),
+        ("item", "value is None"),
+        ("(item,)", "not value"),
+    ),
+)
+def test_infrastructure_builder_rejects_enumerate_guaranteed_scalar_shape(
+    tmp_path,
+    target,
+    scalar_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    for index, "
+                f"{target} in enumerate([{scalar_expression}]):\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|binding|exact|shape|invalid|scalar|comparison"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "scalar_expression",
+    ("-1", "1 / 2", "not value"),
+)
+def test_infrastructure_builder_allows_direct_enumerate_guaranteed_scalar(
+    tmp_path,
+    scalar_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    for index, item in "
+                f"enumerate([{scalar_expression}]):\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "scalar_expression",
+    ("-1", "1 / 2", "value is None", "not value"),
+)
+def test_infrastructure_builder_allows_direct_assignment_guaranteed_scalar(
+    tmp_path,
+    scalar_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    (item,) = ({scalar_expression},)\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "opaque_expression",
+    ("value + 1", "value == None"),
+)
+def test_infrastructure_builder_allows_opaque_nested_scalar_shaped_expression(
+    tmp_path,
+    opaque_expression,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    ((item,),) = ({opaque_expression},)\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+def test_infrastructure_builder_bounds_deep_guaranteed_scalar_syntax(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    scalar_expression = "1" + " + 1" * 1200
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                f"    ((item,),) = ({scalar_expression},)\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|binding|exact|shape|invalid|scalar|bound",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
     "mutation_statement",
     (
         "    value.factor += value\n",
