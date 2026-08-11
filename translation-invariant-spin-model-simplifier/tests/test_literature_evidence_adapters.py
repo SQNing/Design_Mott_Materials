@@ -9315,6 +9315,33 @@ TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT = (
         "    return value ** 2\n",
     ),
     (
+        "conditional_integer_energy",
+        "    energy = 2 if value is None else value\n"
+        "    return energy\n",
+    ),
+    (
+        "augmented_integer_energy",
+        "    energy = value\n"
+        "    energy += 2\n"
+        "    return energy\n",
+    ),
+    (
+        "tuple_unpacked_integer_energy",
+        "    (energy,) = (2,)\n"
+        "    return energy\n",
+    ),
+    (
+        "boolean_integer_energy",
+        "    energy = 2 or value\n"
+        "    return energy\n",
+    ),
+    (
+        "annotated_integer_energy_alias",
+        "    coefficient: int = 2\n"
+        "    energy = coefficient\n"
+        "    return energy\n",
+    ),
+    (
         "integer_energy_constant",
         "    energy = 2\n"
         "    return energy\n",
@@ -9389,6 +9416,122 @@ TASK5_EQUIVALENT_SCIENTIFIC_INFRASTRUCTURE_CONTENT = (
         "evaluating_method_result",
         "    evaluating_method_result = value\n"
         "    return evaluating_method_result\n",
+    ),
+    (
+        "computes_method_result",
+        "    computes_method_result = value\n"
+        "    return computes_method_result\n",
+    ),
+    (
+        "derives_method_result",
+        "    derives_method_result = value\n"
+        "    return derives_method_result\n",
+    ),
+    (
+        "calculates_method_result",
+        "    calculates_method_result = value\n"
+        "    return calculates_method_result\n",
+    ),
+    (
+        "evaluates_method_result",
+        "    evaluates_method_result = value\n"
+        "    return evaluates_method_result\n",
+    ),
+    (
+        "method_result_computation",
+        "    method_result_computation = value\n"
+        "    return method_result_computation\n",
+    ),
+    (
+        "method_result_derivation",
+        "    method_result_derivation = value\n"
+        "    return method_result_derivation\n",
+    ),
+    (
+        "method_result_calculation",
+        "    method_result_calculation = value\n"
+        "    return method_result_calculation\n",
+    ),
+    (
+        "method_result_evaluation",
+        "    method_result_evaluation = value\n"
+        "    return method_result_evaluation\n",
+    ),
+    (
+        "method_result_computations",
+        "    method_result_computations = value\n"
+        "    return method_result_computations\n",
+    ),
+    (
+        "method_result_derivations",
+        "    method_result_derivations = value\n"
+        "    return method_result_derivations\n",
+    ),
+    (
+        "method_result_calculations",
+        "    method_result_calculations = value\n"
+        "    return method_result_calculations\n",
+    ),
+    (
+        "method_result_evaluations",
+        "    method_result_evaluations = value\n"
+        "    return method_result_evaluations\n",
+    ),
+    (
+        "model_arithmetic",
+        "    model = value + 1\n"
+        "    return model\n",
+    ),
+    (
+        "scientific_value_arithmetic",
+        "    scientific_value = value + 1\n"
+        "    return scientific_value\n",
+    ),
+    (
+        "observable_arithmetic",
+        "    observable = value + 1\n"
+        "    return observable\n",
+    ),
+    (
+        "annotated_model_arithmetic",
+        "    model: object = value + len(value)\n"
+        "    return model\n",
+    ),
+    (
+        "named_model_arithmetic",
+        "    return (model := value + len(value))\n",
+    ),
+    (
+        "unpacked_model_arithmetic",
+        "    (model,) = (value + len(value),)\n"
+        "    return model\n",
+    ),
+    (
+        "augmented_model_arithmetic",
+        "    model = value\n"
+        "    model += len(value)\n"
+        "    return model\n",
+    ),
+    (
+        "augmented_power_equation",
+        "    bounded_size = len(value)\n"
+        "    bounded_size **= value\n"
+        "    return bounded_size\n",
+    ),
+    (
+        "call_argument_integer_energy",
+        "    energy = max(value, 2)\n"
+        "    return energy\n",
+    ),
+    (
+        "set_container_integer_energy",
+        "    energy = {value, 2}\n"
+        "    return energy\n",
+    ),
+    (
+        "dict_container_integer_energy",
+        '    energy = {"transport": value, "fallback": 2}\n'
+        "    return energy\n",
     ),
 )
 
@@ -9492,6 +9635,68 @@ TASK5_ALLOWED_INFRASTRUCTURE_CONTENT = (
     ids=tuple(case[0] for case in TASK5_ALLOWED_INFRASTRUCTURE_CONTENT),
 )
 def test_infrastructure_builder_allows_structural_transport_content(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "bounded_size_and_model_transport",
+            "    bounded_size = len(value) + 1\n"
+            "    model = value\n"
+            "    return bounded_size, model\n",
+        ),
+        (
+            "bounded_size_and_scientific_metadata",
+            "    bounded_size = len(value) + 1\n"
+            "    scientific_closure_hash = value\n"
+            "    return bounded_size, scientific_closure_hash\n",
+        ),
+        (
+            "annotated_bounded_size_and_model_transport",
+            "    bounded_size: int = len(value) + 1\n"
+            "    model = value\n"
+            "    return bounded_size, model\n",
+        ),
+        (
+            "named_bounded_size_and_scientific_metadata",
+            "    bounded_size = (next_depth := len(value) + 1)\n"
+            "    scientific_closure_hash = value\n"
+            "    return bounded_size, scientific_closure_hash\n",
+        ),
+        (
+            "unpacked_bounded_size_and_model_transport",
+            "    (bounded_size,) = (len(value) + 1,)\n"
+            "    model = value\n"
+            "    return bounded_size, model\n",
+        ),
+        (
+            "augmented_bounded_size_and_model_transport",
+            "    bounded_size = len(value)\n"
+            "    bounded_size += len(value)\n"
+            "    model = value\n"
+            "    return bounded_size, model\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_composed_transport_statements(
     tmp_path,
     case_name,
     root_body,
@@ -9678,6 +9883,76 @@ TASK5_LITERAL_POLICY_BYTES_FLOWS = (
         '    payload = b"detached"\n'
         "    return (policy_payload := payload)\n",
     ),
+    (
+        "conditional_policy_literal",
+        "    canonical_policy_bytes = (\n"
+        '        b"detached" if value is None else value\n'
+        "    )\n"
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "augmented_policy_literal",
+        "    policy_payload = value\n"
+        '    policy_payload += b"detached"\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "tuple_unpacked_policy_literal",
+        '    (policy_payload,) = (b"detached",)\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "list_unpacked_policy_literal",
+        '    [policy_payload] = [b"detached"]\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "boolean_policy_literal",
+        '    canonical_policy_bytes = b"detached" or value\n'
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "annotated_multistep_policy_literal",
+        '    source: bytes = b"detached"\n'
+        "    middle = source\n"
+        "    canonical_policy_bytes = middle\n"
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "conditional_multistep_policy_literal",
+        "    branch = b\"detached\" if value is None else value\n"
+        "    alias = branch\n"
+        "    canonical_policy_bytes = alias\n"
+        "    return canonical_policy_bytes\n",
+    ),
+    (
+        "modulo_policy_literal",
+        '    policy_payload = b"%s" % value\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "multiplied_policy_literal",
+        '    policy_payload = b"detached" * value\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "set_container_policy_literal",
+        '    policy_payload = {value, b"detached"}\n'
+        "    return policy_payload\n",
+    ),
+    (
+        "dict_container_policy_literal",
+        "    policy_payload = {\n"
+        '        "transport": value, "fallback": b"detached"\n'
+        "    }\n"
+        "    return policy_payload\n",
+    ),
+    (
+        "for_binding_policy_literal",
+        '    for policy_payload in (b"detached",):\n'
+        "        return policy_payload\n"
+        "    return value\n",
+    ),
 )
 
 
@@ -9697,6 +9972,34 @@ def test_infrastructure_builder_rejects_literal_policy_bytes_flow(
     _write_task5_infrastructure_sources(
         tmp_path,
         body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|scientific|policy|bytes|literal",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+def test_infrastructure_builder_rejects_literal_policy_call_argument(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "def choose(*values):\n"
+                "    return values[0]\n"
+            )
+        },
+        body_by_root={
+            "validate_failure": (
+                '    policy_payload = choose(value, b"detached")\n'
+                "    return policy_payload\n"
+            )
+        },
     )
 
     with pytest.raises(
@@ -9758,6 +10061,78 @@ def test_infrastructure_builder_rejects_literal_policy_bytes_flow(
             "generic_literal_without_policy_sink",
             "",
             '    payload = b"transport"\n'
+            "    return payload\n",
+        ),
+        (
+            "computed_policy_conditional",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    canonical_policy_bytes = (\n"
+            "        canonical_json_bytes(value)\n"
+            "        if value is None\n"
+            "        else value\n"
+            "    )\n"
+            "    return canonical_policy_bytes\n",
+        ),
+        (
+            "computed_augmented_policy",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    policy_payload = value\n"
+            "    policy_payload += canonical_json_bytes(value)\n"
+            "    return policy_payload\n",
+        ),
+        (
+            "computed_policy_tuple",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    policy_payload = (canonical_json_bytes(value), value)\n"
+            "    return policy_payload\n",
+        ),
+        (
+            "nonpolicy_conditional_literal",
+            "",
+            "    payload = b\"detached\" if value is None else value\n"
+            "    return payload\n",
+        ),
+        (
+            "nonpolicy_unpacked_literal",
+            "",
+            '    (payload,) = (b"detached",)\n'
+            "    return payload\n",
+        ),
+        (
+            "computed_policy_choice",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n"
+            "def choose(*values):\n"
+            "    return values[0]\n",
+            "    policy_payload = choose(\n"
+            "        value, canonical_json_bytes(value)\n"
+            "    )\n"
+            "    return policy_payload\n",
+        ),
+        (
+            "computed_policy_containers",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    policy_payload = {\n"
+            "        value, canonical_json_bytes(value)\n"
+            "    }\n"
+            "    return policy_payload\n",
+        ),
+        (
+            "computed_policy_for_binding",
+            "def canonical_json_bytes(value):\n"
+            "    return value\n",
+            "    for policy_payload in (canonical_json_bytes(value),):\n"
+            "        return policy_payload\n"
+            "    return value\n",
+        ),
+        (
+            "nonpolicy_modulo_literal",
+            "",
+            '    payload = b"%s" % value\n'
             "    return payload\n",
         ),
     ),

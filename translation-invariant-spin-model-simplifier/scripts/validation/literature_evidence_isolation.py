@@ -2680,12 +2680,23 @@ def _is_method_result_derivation(tokens: set[str]) -> bool:
         return False
     if "specific" in tokens:
         return True
+    morphology = {
+        "calculat": frozenset({"e", "es", "ed", "ing", "ion", "ions"}),
+        "comput": frozenset(
+            {"e", "es", "ed", "ing", "ation", "ations"}
+        ),
+        "deriv": frozenset(
+            {"e", "es", "ed", "ing", "ation", "ations"}
+        ),
+        "evaluat": frozenset(
+            {"e", "es", "ed", "ing", "ion", "ions"}
+        ),
+    }
     return any(
-        re.fullmatch(
-            r"(?:calculat|comput|deriv|evaluat)(?:e|ed|ing)", token
-        )
-        is not None
+        token == stem + suffix
         for token in tokens
+        for stem, suffixes in morphology.items()
+        for suffix in suffixes
     )
 
 
@@ -2737,6 +2748,10 @@ def _assignment_parts(
         return (node.target,), node.value
     if isinstance(node, ast.NamedExpr):
         return (node.target,), node.value
+    if isinstance(node, ast.AugAssign):
+        return (node.target,), node.value
+    if isinstance(node, (ast.For, ast.AsyncFor)):
+        return (node.target,), node.iter
     return None
 
 
@@ -2765,29 +2780,74 @@ def _scope_assignments(node: ast.AST) -> tuple[ast.AST, ...]:
     return tuple(assignments)
 
 
+def _literal_may_flow_expression(
+    node: ast.AST,
+    literal_names: set[str],
+    literal_types: tuple[type, ...],
+    *,
+    allow_signed_numeric: bool,
+) -> bool:
+    if isinstance(node, ast.Constant):
+        return type(node.value) in literal_types
+    if isinstance(node, ast.Name):
+        return node.id in literal_names
+    if (
+        allow_signed_numeric
+        and isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, (ast.UAdd, ast.USub))
+    ):
+        operands = (node.operand,)
+    elif isinstance(node, ast.BinOp):
+        operands = (node.left, node.right)
+    elif isinstance(node, ast.IfExp):
+        operands = (node.body, node.orelse)
+    elif isinstance(node, ast.BoolOp):
+        operands = tuple(node.values)
+    elif isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        operands = tuple(node.elts)
+    elif isinstance(node, ast.Dict):
+        operands = tuple(
+            key for key in node.keys if key is not None
+        ) + tuple(node.values)
+    elif isinstance(node, ast.Call):
+        operands = tuple(node.args) + tuple(
+            keyword.value for keyword in node.keywords
+        )
+        if isinstance(node.func, ast.Attribute):
+            operands += (node.func.value,)
+    elif isinstance(node, (ast.NamedExpr, ast.Starred)):
+        operands = (node.value,)
+    else:
+        return False
+    return any(
+        _literal_may_flow_expression(
+            operand,
+            literal_names,
+            literal_types,
+            allow_signed_numeric=allow_signed_numeric,
+        )
+        for operand in operands
+    )
+
+
 def _literal_bytes_expression(
     node: ast.AST, literal_names: set[str]
 ) -> bool:
-    if isinstance(node, ast.Constant):
-        return type(node.value) is bytes
-    if isinstance(node, ast.Name):
-        return node.id in literal_names
-    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        return _literal_bytes_expression(
-            node.left, literal_names
-        ) and _literal_bytes_expression(node.right, literal_names)
-    if isinstance(node, ast.IfExp):
-        return _literal_bytes_expression(
-            node.body, literal_names
-        ) and _literal_bytes_expression(node.orelse, literal_names)
-    if isinstance(node, ast.NamedExpr):
-        return _literal_bytes_expression(node.value, literal_names)
-    return False
+    return _literal_may_flow_expression(
+        node,
+        literal_names,
+        (bytes,),
+        allow_signed_numeric=False,
+    )
 
 
 def _assigned_local_names(targets: tuple[ast.expr, ...]) -> set[str]:
     return {
-        target.id for target in targets if isinstance(target, ast.Name)
+        candidate.id
+        for target in targets
+        for candidate in ast.walk(target)
+        if isinstance(candidate, ast.Name)
+        and isinstance(candidate.ctx, ast.Store)
     }
 
 
@@ -2816,21 +2876,12 @@ def _literal_provenance_names(
 def _numeric_literal_expression(
     node: ast.AST, literal_names: set[str]
 ) -> bool:
-    if isinstance(node, ast.Constant):
-        return type(node.value) in (int, float, complex)
-    if isinstance(node, ast.Name):
-        return node.id in literal_names
-    if isinstance(node, ast.UnaryOp) and isinstance(
-        node.op, (ast.UAdd, ast.USub)
-    ):
-        return _numeric_literal_expression(node.operand, literal_names)
-    if isinstance(node, ast.IfExp):
-        return _numeric_literal_expression(
-            node.body, literal_names
-        ) and _numeric_literal_expression(node.orelse, literal_names)
-    if isinstance(node, ast.NamedExpr):
-        return _numeric_literal_expression(node.value, literal_names)
-    return False
+    return _literal_may_flow_expression(
+        node,
+        literal_names,
+        (int, float, complex),
+        allow_signed_numeric=True,
+    )
 
 
 def _target_tokens(target: ast.expr) -> set[str]:
@@ -2917,13 +2968,55 @@ def _has_scientific_numeric_literal_flow(node: ast.AST) -> bool:
     )
 
 
+def _ast_authored_tokens(node: ast.AST) -> set[str]:
+    tokens = set()
+    for candidate in ast.walk(node):
+        authored_value = None
+        if isinstance(candidate, ast.Name):
+            authored_value = candidate.id
+        elif isinstance(candidate, ast.Attribute):
+            authored_value = candidate.attr
+        elif isinstance(candidate, ast.Constant) and isinstance(
+            candidate.value, (str, bytes)
+        ):
+            if type(candidate.value) is bytes:
+                authored_value = candidate.value.decode(
+                    "utf-8", errors="ignore"
+                )
+            else:
+                authored_value = candidate.value
+        if authored_value is not None:
+            tokens.update(_lexical_tokens(authored_value))
+    return tokens
+
+
+def _arithmetic_target_tokens(node: ast.AST) -> dict[int, set[str]]:
+    target_tokens_by_expression: dict[int, set[str]] = {}
+    for scope in _assignment_scopes(node):
+        for assignment in _scope_assignments(scope):
+            parts = _assignment_parts(assignment)
+            if parts is None:
+                continue
+            targets, value = parts
+            target_tokens = {
+                token
+                for target in targets
+                for token in _target_tokens(target)
+            }
+            for candidate in ast.walk(value):
+                if isinstance(candidate, ast.BinOp):
+                    target_tokens_by_expression.setdefault(
+                        id(candidate), set()
+                    ).update(target_tokens)
+    return target_tokens_by_expression
+
+
 def _scan_infrastructure_ast_content(
     resolved: Mapping[str, _ResolvedAstNode],
 ) -> None:
     for item in resolved.values():
         tokens = set()
         literal_tokens = set()
-        has_arithmetic = False
         has_power = False
         has_policy_bytes_literal = _has_literal_policy_bytes_flow(
             item.source.node
@@ -2931,12 +3024,26 @@ def _scan_infrastructure_ast_content(
         has_scientific_numeric_literal = (
             _has_scientific_numeric_literal_flow(item.source.node)
         )
+        arithmetic_target_tokens = _arithmetic_target_tokens(
+            item.source.node
+        )
         docstring_ids = _docstring_value_ids(item.source.node)
         for candidate in ast.walk(item.source.node):
-            if isinstance(candidate, ast.BinOp):
-                has_arithmetic = True
+            if isinstance(candidate, (ast.BinOp, ast.AugAssign)):
                 if isinstance(candidate.op, ast.Pow):
                     has_power = True
+                arithmetic_tokens = _ast_authored_tokens(candidate)
+                if isinstance(candidate, ast.BinOp):
+                    arithmetic_tokens.update(
+                        arithmetic_target_tokens.get(id(candidate), set())
+                    )
+                if (
+                    arithmetic_tokens
+                    & _INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS
+                ):
+                    raise _ContractError(
+                        "infrastructure AST contains a scientific equation"
+                    )
             if (
                 isinstance(candidate, ast.Constant)
                 and type(candidate.value) in (float, complex)
@@ -2985,12 +3092,6 @@ def _scan_infrastructure_ast_content(
         if has_power:
             raise _ContractError(
                 "infrastructure AST contains a scientific power equation"
-            )
-        if has_arithmetic and (
-            tokens & _INFRASTRUCTURE_ARITHMETIC_SCIENTIFIC_TOKENS
-        ):
-            raise _ContractError(
-                "infrastructure AST contains a scientific equation"
             )
         if _is_method_result_derivation(tokens):
             raise _ContractError(
