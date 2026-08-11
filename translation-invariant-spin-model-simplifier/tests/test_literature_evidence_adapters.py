@@ -12830,6 +12830,285 @@ def test_infrastructure_builder_allows_builtin_numeric_and_structural_controls(
 
 
 @pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "before_loop",
+            "",
+            "    total = 0\n"
+            "    total = value\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "    return total\n",
+        ),
+        (
+            "next_iteration",
+            "",
+            "    total = 0\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "        total = value\n"
+            "    return total\n",
+        ),
+        (
+            "conditional_branch",
+            "",
+            "    total = 0\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "        if value:\n"
+            "            total = value\n"
+            "    return total\n",
+        ),
+        (
+            "input_alias",
+            "",
+            "    contaminant = value\n"
+            "    total = 0\n"
+            "    total = contaminant\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "    return total\n",
+        ),
+        (
+            "project_helper_summary",
+            "def forward(value):\n"
+            "    return value\n",
+            "    total = 0\n"
+            "    total = forward(value)\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "    return total\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_contaminated_occurrence_counter(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"record_and_freeze_hashes": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|counter|unknown|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "return_body",
+    (
+        pytest.param(
+            "    return (total, value)\n",
+            id="separate_tuple_element",
+        ),
+        pytest.param(
+            "    return [value, total]\n",
+            id="separate_list_element",
+        ),
+        pytest.param(
+            "    return (value, [total])\n",
+            id="mixed_tuple_list",
+        ),
+        pytest.param(
+            "    return ([value, (total,)],)\n",
+            id="nested_containers",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_contaminated_counter_in_container(
+    tmp_path,
+    return_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "record_and_freeze_hashes": (
+                "    total = 0\n"
+                "    for item in value:\n"
+                "        total += 1\n"
+                "        total = value\n"
+                + return_body
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|counter|unknown|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "str_add_literal_left_direct_return",
+            "",
+            '    return "prefix" + value\n',
+        ),
+        (
+            "str_add_literal_right_alias_return",
+            "",
+            '    payload = value + "suffix"\n'
+            "    return payload\n",
+        ),
+        (
+            "bytes_add_literal_left_direct_return",
+            "",
+            '    return b"sha256:" + value\n',
+        ),
+        (
+            "bytes_add_literal_right_helper_attribute_mutation",
+            "def forward(value):\n"
+            "    return value\n",
+            '    value.payload = forward(value) + b""\n'
+            "    return value\n",
+        ),
+        (
+            "str_mod_literal_left_direct_return",
+            "",
+            '    return "%s" % value\n',
+        ),
+        (
+            "str_mod_literal_right_subscript_mutation",
+            "",
+            '    value["payload"] = value % "%s"\n'
+            "    return value\n",
+        ),
+        (
+            "bytes_mod_literal_left_alias_return",
+            "",
+            '    payload = b"%s" % value\n'
+            "    return payload\n",
+        ),
+        (
+            "bytes_mod_literal_right_helper_attribute_mutation",
+            "def forward(value):\n"
+            "    return value\n",
+            '    value.payload = forward(value) % b"%s"\n'
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_categorical_literal_overload(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|unknown|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "root_body",
+    (
+        '    return "prefix" + "suffix"\n',
+        '    return b"%s" % b"value"\n',
+    ),
+)
+def test_infrastructure_builder_allows_exact_categorical_literals(
+    tmp_path,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "root_body",
+    (
+        "    if not value:\n"
+        "        pass\n"
+        "    return value\n",
+        "    while not value:\n"
+        "        break\n"
+        "    return value\n",
+        "    assert not value\n"
+        "    return value\n",
+        "    return value if not value else None\n",
+    ),
+)
+def test_infrastructure_builder_allows_direct_not_control(
+    tmp_path,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+def test_infrastructure_builder_rejects_aliased_not_control(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    predicate = not value\n"
+                "    if predicate:\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|comparison|control|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
     "mutation_statement",
     (
         "    value.factor += value\n",
@@ -13092,10 +13371,6 @@ TASK5_ALLOWED_INFRASTRUCTURE_CONTENT = (
         "generic_observable_transport",
         "    observable = value\n"
         "    return observable\n",
-    ),
-    (
-        "sha256_prefix_transport",
-        '    return b"sha256:" + value\n',
     ),
     (
         "scientific_closure_metadata",
@@ -13765,12 +14040,6 @@ def test_infrastructure_builder_rejects_computed_input_augmented_policy(
             "    for policy_payload in (canonical_json_bytes(value),):\n"
             "        return policy_payload\n"
             "    return value\n",
-        ),
-        (
-            "nonpolicy_modulo_literal",
-            "",
-            '    payload = b"%s" % value\n'
-            "    return payload\n",
         ),
         (
             "computed_policy_subscript",

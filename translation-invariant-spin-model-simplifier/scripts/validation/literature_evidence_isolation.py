@@ -3478,13 +3478,15 @@ def _numeric_state_is_safe_structural(
     *,
     binding: str,
 ) -> bool:
-    return bool(state & _NUMERIC_STRUCTURAL_PROVENANCE) and not bool(
-        state
-        & (
-            _InfrastructureNumericProvenance.NUMERIC_LITERAL
-            | _InfrastructureNumericProvenance.UNKNOWN
-        )
-    ) and _numeric_permission(purpose, binding, "return")
+    allowed = (
+        _NUMERIC_STRUCTURAL_PROVENANCE
+        | _InfrastructureNumericProvenance.LITERAL_DERIVED_ARITHMETIC
+    )
+    return (
+        bool(state & _NUMERIC_STRUCTURAL_PROVENANCE)
+        and not bool(state & ~allowed)
+        and _numeric_permission(purpose, binding, "return")
+    )
 
 
 def _bounded_infrastructure_ast_nodes(node: ast.AST) -> tuple[ast.AST, ...]:
@@ -3600,15 +3602,6 @@ def _numeric_expression_state(
                 id(candidate.right), _InfrastructureNumericProvenance.NONE
             )
             combined = left | right
-            categorical_operation = (
-                isinstance(candidate.op, (ast.Add, ast.Mod))
-                and (
-                    isinstance(candidate.left, ast.Constant)
-                    and type(candidate.left.value) in (str, bytes)
-                    or isinstance(candidate.right, ast.Constant)
-                    and type(candidate.right.value) in (str, bytes)
-                )
-            )
             structural_offset = (
                 isinstance(candidate.op, (ast.Add, ast.Sub))
                 and bool(combined & _NUMERIC_STRUCTURAL_PROVENANCE)
@@ -3623,9 +3616,7 @@ def _numeric_expression_state(
                     purpose, "ast.BinOp", "cardinality_offset"
                 )
             )
-            if categorical_operation:
-                state = combined
-            elif structural_offset:
+            if structural_offset:
                 state = (
                     combined
                     & ~_InfrastructureNumericProvenance.NUMERIC_LITERAL
@@ -5030,6 +5021,85 @@ def _validate_numeric_function_for_purpose(
             sink_expression_ids.add(id(expression))
         return state
 
+    def validate_control_sink(expression: ast.AST, *, position: str) -> None:
+        state = sink_state(expression)
+        if (
+            position
+            in {
+                "if_test",
+                "while_test",
+                "assert_test",
+                "if_expression_test",
+            }
+            and isinstance(expression, ast.UnaryOp)
+            and isinstance(expression.op, ast.Not)
+        ):
+            _validate_numeric_control_sink(
+                expression_state(expression.operand),
+                expression.operand,
+                purpose,
+                position=position,
+            )
+            return
+        _validate_numeric_control_sink(
+            state,
+            expression,
+            purpose,
+            position=position,
+        )
+
+    def validate_return_sink(
+        expression: ast.expr,
+        aggregate_state: _InfrastructureNumericProvenance,
+    ) -> None:
+        pending: list[
+            tuple[
+                ast.expr,
+                _InfrastructureNumericProvenance | None,
+            ]
+        ] = [(expression, aggregate_state)]
+        visited = 0
+        while pending:
+            candidate, known_state = pending.pop()
+            visited += 1
+            if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
+                raise _ContractError(
+                    "infrastructure numeric provenance exceeds its bound"
+                )
+            if isinstance(candidate, (ast.Tuple, ast.List)):
+                if any(
+                    isinstance(element, ast.Starred)
+                    for element in candidate.elts
+                ):
+                    state = (
+                        known_state
+                        if known_state is not None
+                        else expression_state(candidate)
+                    )
+                    _validate_numeric_return_sink(
+                        state,
+                        candidate,
+                        purpose,
+                        counter_names,
+                    )
+                    continue
+                pending.extend(
+                    (element, None)
+                    for element in reversed(candidate.elts)
+                )
+                continue
+            state = (
+                known_state
+                if known_state is not None
+                else expression_state(candidate)
+            )
+            _validate_numeric_return_sink(
+                state,
+                candidate,
+                purpose,
+                counter_names,
+            )
+
     def validate_binding_target(
         target: ast.AST,
         source: ast.AST,
@@ -5084,6 +5154,18 @@ def _validate_numeric_function_for_purpose(
                     raise _ContractError(
                         "infrastructure numeric provenance exceeds its bound"
                     )
+        assignment = assignments[index]
+        if (
+            isinstance(assignment, ast.AugAssign)
+            and isinstance(assignment.target, ast.Name)
+            and assignment.target.id in local_names
+        ):
+            reverse_uses.setdefault(assignment.target.id, set()).add(index)
+            edge_count += 1
+            if edge_count > _INFRASTRUCTURE_DEF_USE_EDGE_LIMIT:
+                raise _ContractError(
+                    "infrastructure numeric provenance exceeds its bound"
+                )
     pending = deque(range(len(assignments)))
     queued = set(pending)
     steps = 0
@@ -5163,11 +5245,11 @@ def _validate_numeric_function_for_purpose(
                             _InfrastructureNumericProvenance.
                             LITERAL_DERIVED_ARITHMETIC
                         )
-                    if state & (
-                        _InfrastructureNumericProvenance.INPUT_OR_POLICY
-                        | _InfrastructureNumericProvenance.UNKNOWN
-                    ):
-                        state |= _InfrastructureNumericProvenance.UNKNOWN
+                if state & (
+                    _InfrastructureNumericProvenance.INPUT_OR_POLICY
+                    | _InfrastructureNumericProvenance.UNKNOWN
+                ):
+                    state |= _InfrastructureNumericProvenance.UNKNOWN
             updated = previous | state
             if updated == previous:
                 continue
@@ -5185,39 +5267,29 @@ def _validate_numeric_function_for_purpose(
             return_state |= state
             if enforce_return:
                 sink_expression_ids.add(id(candidate.value))
-                _validate_numeric_return_sink(
-                    state, candidate.value, purpose, counter_names
-                )
+                validate_return_sink(candidate.value, state)
             continue
         if isinstance(candidate, ast.IfExp):
-            _validate_numeric_control_sink(
-                sink_state(candidate.test),
+            validate_control_sink(
                 candidate.test,
-                purpose,
                 position="if_expression_test",
             )
             continue
         if isinstance(candidate, ast.If):
-            _validate_numeric_control_sink(
-                sink_state(candidate.test),
+            validate_control_sink(
                 candidate.test,
-                purpose,
                 position="if_test",
             )
             continue
         if isinstance(candidate, ast.While):
-            _validate_numeric_control_sink(
-                sink_state(candidate.test),
+            validate_control_sink(
                 candidate.test,
-                purpose,
                 position="while_test",
             )
             continue
         if isinstance(candidate, ast.Assert):
-            _validate_numeric_control_sink(
-                sink_state(candidate.test),
+            validate_control_sink(
                 candidate.test,
-                purpose,
                 position="assert_test",
             )
             if candidate.msg is not None:
