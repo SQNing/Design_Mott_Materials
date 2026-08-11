@@ -5016,23 +5016,41 @@ def _validate_operation_counts_and_problem_size(
         tuple(policy.allowed_sizes),
         "problem_size.values",
     )
+    sequence_dimensions = []
     for dimension, allowed in policy.allowed_sizes._items:
         selected = values[dimension]
         if type(allowed) is tuple:
-            selection_is_allowed = any(
-                canonical_json_bytes(selected)
-                == canonical_json_bytes(candidate)
-                for candidate in allowed
-            )
-        else:
-            selection_is_allowed = (
-                canonical_json_bytes(selected)
-                == canonical_json_bytes(allowed)
-            )
-        if not selection_is_allowed:
+            sequence_dimensions.append((dimension, allowed))
+            continue
+        if canonical_json_bytes(selected) != canonical_json_bytes(allowed):
             raise AdapterContractError(
                 f"problem_size.values.{dimension} is not an allowed size"
             )
+    if not sequence_dimensions:
+        return
+    sequence_lengths = {
+        len(allowed) for _, allowed in sequence_dimensions
+    }
+    if 0 in sequence_lengths:
+        raise AdapterContractError(
+            "scalable allowed-size sequences must be nonempty"
+        )
+    if len(sequence_lengths) != 1:
+        raise AdapterContractError(
+            "scalable allowed-size dimensions require consistent "
+            "sequence lengths"
+        )
+    sequence_length = next(iter(sequence_lengths))
+    for declared_index in range(sequence_length):
+        if all(
+            canonical_json_bytes(values[dimension])
+            == canonical_json_bytes(allowed[declared_index])
+            for dimension, allowed in sequence_dimensions
+        ):
+            return
+    raise AdapterContractError(
+        "scalable problem_size.values have no allowed common index"
+    )
 
 
 def _validate_convergence_certificate(

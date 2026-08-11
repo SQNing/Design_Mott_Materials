@@ -1,6 +1,7 @@
 import ast
 import dataclasses
 import hashlib
+from itertools import product
 import json
 import math
 import sys
@@ -6114,6 +6115,178 @@ def test_scalable_result_size_transport_selects_only_allowed_sizes(
 
     with pytest.raises(AdapterContractError, match=expected_guard):
         adapters.validate_local_observable_result(definition, payload)
+
+
+def _scalable_sequence_dimensions(definition):
+    return tuple(
+        (dimension, allowed)
+        for dimension, allowed in (
+            definition.problem_size_policy.allowed_sizes.items()
+        )
+        if type(allowed) is tuple
+    )
+
+
+SCALABLE_DECLARED_INDEX_CASES = tuple(
+    (definition, declared_index)
+    for definition in SCALABLE_DEFINITIONS
+    for declared_index in range(
+        len(_scalable_sequence_dimensions(definition)[0][1])
+    )
+)
+
+
+SCALABLE_CROSS_INDEX_CASES = tuple(
+    (definition, selected_indexes)
+    for definition in SCALABLE_DEFINITIONS
+    for sequence_dimensions in (
+        _scalable_sequence_dimensions(definition),
+    )
+    if len(sequence_dimensions) > 1
+    for selected_indexes in product(
+        range(len(sequence_dimensions[0][1])),
+        repeat=len(sequence_dimensions),
+    )
+    if len(set(selected_indexes)) > 1
+)
+
+
+def test_scalable_catalog_sequence_dimensions_are_nonempty_and_aligned():
+    assert {
+        definition.adapter_id
+        for definition, _ in SCALABLE_DECLARED_INDEX_CASES
+    } == {definition.adapter_id for definition in SCALABLE_DEFINITIONS}
+    for definition in SCALABLE_DEFINITIONS:
+        sequence_dimensions = _scalable_sequence_dimensions(definition)
+        assert sequence_dimensions
+        assert {len(allowed) for _, allowed in sequence_dimensions} == {
+            len(sequence_dimensions[0][1])
+        }
+        assert len(sequence_dimensions[0][1]) > 0
+
+
+@pytest.mark.parametrize(
+    "definition, declared_index",
+    SCALABLE_DECLARED_INDEX_CASES,
+    ids=tuple(
+        f"{definition.adapter_id}-index-{declared_index}"
+        for definition, declared_index in SCALABLE_DECLARED_INDEX_CASES
+    ),
+)
+def test_scalable_result_accepts_each_declared_common_size_index(
+    definition,
+    declared_index,
+):
+    payload = _local_payload_for_definition(definition)
+    size_values = payload["operation_counts_or_sizes"]["problem_size"][
+        "values"
+    ]
+    for dimension, allowed in _scalable_sequence_dimensions(definition):
+        size_values[dimension] = thaw_json(allowed[declared_index])
+
+    accepted = adapters.validate_local_observable_result(definition, payload)
+
+    assert accepted["operation_counts_or_sizes"]["problem_size"][
+        "values"
+    ] == size_values
+
+
+@pytest.mark.parametrize(
+    "definition, selected_indexes",
+    SCALABLE_CROSS_INDEX_CASES,
+    ids=tuple(
+        f"{definition.adapter_id}-indexes-"
+        + "-".join(str(index) for index in selected_indexes)
+        for definition, selected_indexes in SCALABLE_CROSS_INDEX_CASES
+    ),
+)
+def test_scalable_result_rejects_every_cross_index_size_combination(
+    definition,
+    selected_indexes,
+):
+    payload = _local_payload_for_definition(definition)
+    size_values = payload["operation_counts_or_sizes"]["problem_size"][
+        "values"
+    ]
+    for (dimension, allowed), selected_index in zip(
+        _scalable_sequence_dimensions(definition),
+        selected_indexes,
+    ):
+        size_values[dimension] = thaw_json(allowed[selected_index])
+
+    with pytest.raises(AdapterContractError, match="common index|paired"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+SCALABLE_SCALAR_DIMENSION_CASES = tuple(
+    (definition, dimension)
+    for definition in SCALABLE_DEFINITIONS
+    for dimension, allowed in (
+        definition.problem_size_policy.allowed_sizes.items()
+    )
+    if type(allowed) is not tuple
+)
+
+
+@pytest.mark.parametrize(
+    "definition, scalar_dimension",
+    SCALABLE_SCALAR_DIMENSION_CASES,
+    ids=tuple(
+        f"{definition.adapter_id}-{scalar_dimension}"
+        for definition, scalar_dimension in SCALABLE_SCALAR_DIMENSION_CASES
+    ),
+)
+def test_scalable_result_requires_exact_scalar_size_constraints(
+    definition,
+    scalar_dimension,
+):
+    payload = _local_payload_for_definition(definition)
+    payload["operation_counts_or_sizes"]["problem_size"]["values"][
+        scalar_dimension
+    ] = "caller_selected_boundary"
+
+    with pytest.raises(AdapterContractError, match="allowed size"):
+        adapters.validate_local_observable_result(definition, payload)
+
+
+def _definition_with_scalable_allowed_sizes(definition, allowed_sizes):
+    values = {
+        field.name: getattr(definition, field.name)
+        for field in dataclasses.fields(AdapterDefinition)
+    }
+    values["problem_size_policy"] = ProblemSizePolicy(
+        kind="scalable_same_observable",
+        fixed_sizes={},
+        allowed_sizes=allowed_sizes,
+    )
+    return AdapterDefinition(**values)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("empty_sequence", "inconsistent_lengths"),
+)
+def test_scalable_result_requires_nonempty_consistent_sequence_lengths(
+    mutation,
+):
+    canonical = adapters.ADAPTER_DEFINITIONS[
+        "shastry_sutherland_dimer_ed"
+    ]
+    allowed_sizes = thaw_json(canonical.problem_size_policy.allowed_sizes)
+    allowed_sizes["spin_counts"] = (
+        [] if mutation == "empty_sequence" else [4]
+    )
+    detached = _definition_with_scalable_allowed_sizes(
+        canonical,
+        allowed_sizes,
+    )
+    payload = _local_payload_for_definition(canonical)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="nonempty|consistent sequence lengths",
+    ):
+        adapters.validate_local_observable_result(detached, payload)
 
 
 @pytest.mark.parametrize(
