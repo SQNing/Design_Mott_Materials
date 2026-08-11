@@ -12099,6 +12099,209 @@ def test_infrastructure_builder_allows_valid_or_opaque_binding_shapes(
 
 
 @pytest.mark.parametrize(
+    "container_kind, scalar_source",
+    tuple(
+        (container_kind, scalar_source)
+        for container_kind in ("tuple", "list")
+        for scalar_source in (
+            "True",
+            "1",
+            "1.5",
+            "1j",
+            "None",
+            "...",
+        )
+    ),
+)
+def test_infrastructure_builder_rejects_nested_exact_scalar_unpack(
+    tmp_path,
+    container_kind,
+    scalar_source,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    root_body = (
+        f"    ((left,),) = ({scalar_source},)\n"
+        if container_kind == "tuple"
+        else f"    [[left]] = [{scalar_source}]\n"
+    )
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": root_body + "    return value\n"
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|binding|exact|shape|invalid|scalar",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "root_tuple_from_integer",
+            "    (left,) = 1\n"
+            "    return value\n",
+        ),
+        (
+            "root_list_from_none",
+            "    [left] = None\n"
+            "    return value\n",
+        ),
+        (
+            "root_starred_from_ellipsis",
+            "    (*middle,) = ...\n"
+            "    return value\n",
+        ),
+        (
+            "exact_tuple_for_none",
+            "    for (left,) in (None,):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "exact_list_for_boolean",
+            "    for [left] in [True]:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "exact_enumerate_tuple_inner",
+            "    for index, (left,) in enumerate([1]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "exact_enumerate_list_inner",
+            "    for index, [left] in enumerate([1j]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_exact_scalar_structural_bindings(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|binding|exact|shape|invalid|scalar",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "direct_tuple_scalar",
+            "",
+            "    (left,) = (1,)\n"
+            "    return value\n",
+        ),
+        (
+            "direct_list_scalar",
+            "",
+            "    [left] = [None]\n"
+            "    return value\n",
+        ),
+        (
+            "direct_exact_for_scalar",
+            "",
+            "    for left in (1,):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "direct_enumerate_scalar",
+            "",
+            "    for index, left in enumerate([1]):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_name",
+            "",
+            "    ((left,),) = (value,)\n"
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_call",
+            "def forward(value):\n"
+            "    return value\n",
+            "    ((left,),) = (forward(value),)\n"
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_attribute",
+            "",
+            "    ((left,),) = (value.items,)\n"
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_subscript",
+            "",
+            '    ((left,),) = (value["items"],)\n'
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_string",
+            "",
+            '    ((left,),) = ("text",)\n'
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_dict",
+            "",
+            '    ((left,),) = ({"item": value},)\n'
+            "    return value\n",
+        ),
+        (
+            "opaque_nested_set",
+            "",
+            "    ((left,),) = ({value},)\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_direct_scalar_or_opaque_nested_binding(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
     "mutation_statement",
     (
         "    value.factor += value\n",

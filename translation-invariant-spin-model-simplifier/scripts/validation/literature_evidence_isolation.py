@@ -4580,6 +4580,12 @@ def _numeric_binding_result_states(
                 )
                 else exact_source
             )
+        elif isinstance(expression, ast.Constant) and (
+            expression.value is None
+            or expression.value is Ellipsis
+            or type(expression.value) in (bool, int, float, complex)
+        ):
+            exactness = invalid_source
         return (
             expression_state(expression) if state is None else state,
             expression,
@@ -5174,8 +5180,13 @@ def _validate_numeric_function_for_purpose(
             continue
         if isinstance(candidate, (ast.For, ast.AsyncFor)):
             iterator_state = sink_state(candidate.iter)
+            iterator_control_state = iterator_state
+            if isinstance(candidate.iter, (ast.List, ast.Tuple)):
+                iterator_control_state &= ~(
+                    _InfrastructureNumericProvenance.NUMERIC_LITERAL
+                )
             _validate_numeric_control_sink(
-                iterator_state,
+                iterator_control_state,
                 candidate.iter,
                 purpose,
                 position="for_iterator",
