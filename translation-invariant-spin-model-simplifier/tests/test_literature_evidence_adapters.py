@@ -11551,6 +11551,323 @@ def test_infrastructure_builder_rejects_unknown_mutation_bindings(
 
 
 @pytest.mark.parametrize(
+    "case_name, extra_source, root_body",
+    (
+        (
+            "direct_opaque_for",
+            "",
+            "    for value.factor in value:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "local_opaque_for",
+            "",
+            "    for entered in value:\n"
+            "        value.factor = entered\n"
+            "    return value\n",
+        ),
+        (
+            "direct_aliased_opaque_for",
+            "",
+            "    items = value\n"
+            "    for value.factor in items:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "local_aliased_opaque_for",
+            "",
+            "    items = value\n"
+            "    for entered in items:\n"
+            "        value.factor = entered\n"
+            "    return value\n",
+        ),
+        (
+            "direct_project_helper_opaque_for",
+            "def forward_items(value):\n"
+            "    return value\n",
+            "    for value.factor in forward_items(value):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "local_project_helper_opaque_for",
+            "def forward_items(value):\n"
+            "    return value\n",
+            "    for entered in forward_items(value):\n"
+            "        value.factor = entered\n"
+            "    return value\n",
+        ),
+        (
+            "direct_opaque_unpack",
+            "",
+            "    (value.factor,) = value\n"
+            "    return value\n",
+        ),
+        (
+            "local_opaque_unpack",
+            "",
+            "    (entered,) = value\n"
+            "    value.factor = entered\n"
+            "    return value\n",
+        ),
+        (
+            "direct_aliased_opaque_unpack",
+            "",
+            "    payload = value\n"
+            "    (value.factor,) = payload\n"
+            "    return value\n",
+        ),
+        (
+            "direct_project_helper_opaque_unpack",
+            "def forward_items(value):\n"
+            "    return value\n",
+            "    (value.factor,) = forward_items(value)\n"
+            "    return value\n",
+        ),
+        (
+            "nested_opaque_unpack",
+            "",
+            "    ((value.factor,),) = value\n"
+            "    return value\n",
+        ),
+        (
+            "exact_outer_opaque_inner_unpack",
+            "",
+            "    ((value.factor,),) = (value,)\n"
+            "    return value\n",
+        ),
+        (
+            "direct_starred_opaque_unpack",
+            "",
+            "    (*value.factor,) = value\n"
+            "    return value\n",
+        ),
+        (
+            "local_starred_opaque_unpack",
+            "",
+            "    (*entered,) = value\n"
+            "    value.factor = entered\n"
+            "    return value\n",
+        ),
+        (
+            "chained_name_and_opaque_unpack",
+            "",
+            "    direct = (value.factor,) = value\n"
+            "    return direct\n",
+        ),
+        (
+            "direct_subscript_opaque_for",
+            "",
+            '    for value["factor"] in value:\n'
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "direct_subscript_opaque_unpack",
+            "",
+            '    (value["factor"],) = value\n'
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_opaque_binding_results(
+    tmp_path,
+    case_name,
+    extra_source,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": extra_source
+        },
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "target_and_body",
+    (
+        "    async for value.factor in value:\n"
+        "        pass\n",
+        "    async for entered in value:\n"
+        "        value.factor = entered\n",
+    ),
+)
+def test_infrastructure_builder_rejects_async_bindings_before_numeric_analysis(
+    tmp_path,
+    target_and_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        declaration_by_root={
+            "validate_failure": (
+                "async def validate_failure(value=None):\n"
+                + target_and_body
+                + "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="asynchronous|forbidden",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "literal_exact_unpack",
+            "    unused, value.factor = (value, 1 / 2)\n"
+            "    return value\n",
+        ),
+        (
+            "comparison_exact_unpack",
+            '    unused, value["factor"] = (value, value is None)\n'
+            "    return value\n",
+        ),
+        (
+            "literal_exact_for",
+            "    for value.factor in [1 / 2]:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "comparison_exact_for",
+            '    for value["factor"] in (value is None,):\n'
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "opaque_enumerate_attribute_element",
+            "    for index, value.factor in enumerate(value):\n"
+            "        value[index]\n"
+            "    return value\n",
+        ),
+        (
+            "opaque_enumerate_subscript_element",
+            "    for index, entered in enumerate(value):\n"
+            '        value["factor"] = entered\n'
+            "        value[index]\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_unsafe_exact_binding_elements(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|numeric|mutation|provenance|purpose|unknown|"
+            "comparison|literal|structural"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "case_name, root_body",
+    (
+        (
+            "exact_tuple_unpack",
+            "    (value.factor,) = (value,)\n"
+            "    return value\n",
+        ),
+        (
+            "exact_list_unpack",
+            '    [value["factor"]] = [value]\n'
+            "    return value\n",
+        ),
+        (
+            "nested_exact_tuple_unpack",
+            "    ((value.factor,),) = ((value,),)\n"
+            "    return value\n",
+        ),
+        (
+            "nested_exact_list_unpack",
+            '    [[value["factor"]]] = [[value]]\n'
+            "    return value\n",
+        ),
+        (
+            "mixed_exact_unpack",
+            "    unused, value.factor = (1 / 2, value)\n"
+            "    return value\n",
+        ),
+        (
+            "exact_tuple_for",
+            "    for value.factor in (value,):\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "exact_list_for",
+            '    for value["factor"] in [value]:\n'
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "unused_opaque_for",
+            "    for item in value:\n"
+            "        pass\n"
+            "    return value\n",
+        ),
+        (
+            "exact_enumerate_index_and_element",
+            "    for index, entered in enumerate([value]):\n"
+            "        value.factor = entered\n"
+            "        value[index]\n"
+            "    return value\n",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_exact_binding_element_provenance(
+    tmp_path,
+    case_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    del case_name
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
     "mutation_statement",
     (
         "    value.factor += value\n",

@@ -4488,43 +4488,224 @@ def _numeric_target_inert_expressions(target: ast.AST) -> frozenset[int]:
     )
 
 
-def _numeric_binding_target_parts(
+def _numeric_binding_result_states(
     target: ast.AST,
-) -> tuple[tuple[ast.expr, ...], frozenset[int]]:
-    mutation_targets = []
+    source: ast.AST,
+    source_state: _InfrastructureNumericProvenance,
+    *,
+    binding_kind: str,
+    expression_state: Callable[
+        [ast.AST], _InfrastructureNumericProvenance
+    ],
+    purpose: str,
+    local_names: frozenset[str],
+    global_names: frozenset[str],
+    project_functions: Mapping[
+        str, tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]
+    ],
+) -> tuple[
+    tuple[tuple[ast.expr, _InfrastructureNumericProvenance], ...],
+    frozenset[int],
+]:
+    leaves = []
     classified_store_ids = set()
-    pending = [target]
+    pending_targets = [target]
     visited = 0
-    while pending:
-        candidate = pending.pop()
+    while pending_targets:
+        candidate = pending_targets.pop()
         visited += 1
         if visited > _INFRASTRUCTURE_AST_NODE_LIMIT:
             raise _ContractError(
-                "infrastructure mutation target exceeds its bound"
+                "infrastructure binding target exceeds its bound"
             )
         if not (
             isinstance(candidate, ast.expr)
             and isinstance(getattr(candidate, "ctx", None), ast.Store)
         ):
             raise _ContractError(
-                "infrastructure mutation target is unsupported"
+                "infrastructure binding target is unsupported"
             )
         classified_store_ids.add(id(candidate))
-        if isinstance(candidate, ast.Name):
-            continue
-        if isinstance(candidate, (ast.Attribute, ast.Subscript)):
-            mutation_targets.append(candidate)
+        if isinstance(candidate, (ast.Name, ast.Attribute, ast.Subscript)):
+            leaves.append(candidate)
             continue
         if isinstance(candidate, ast.Starred):
-            pending.append(candidate.value)
+            pending_targets.append(candidate.value)
             continue
         if isinstance(candidate, (ast.List, ast.Tuple)):
-            pending.extend(reversed(candidate.elts))
+            pending_targets.extend(reversed(candidate.elts))
             continue
         raise _ContractError(
-            "infrastructure mutation target is unsupported"
+            "infrastructure binding target is unsupported"
         )
-    return tuple(mutation_targets), frozenset(classified_store_ids)
+
+    # A source descriptor is ``(state, expression, exact_elements)``.
+    # ``exact_elements`` is non-None only for a syntactically exact sequence
+    # or for the synthetic pair/list produced by enumerate/starred binding.
+    def expression_source(expression: ast.AST, state=None):
+        return (
+            expression_state(expression) if state is None else state,
+            expression,
+            None,
+        )
+
+    def fixed_source(state):
+        return state, None, None
+
+    def exact_elements(descriptor):
+        _state, expression, elements = descriptor
+        if elements is not None:
+            return elements
+        if not isinstance(expression, (ast.List, ast.Tuple)):
+            return None
+        if any(isinstance(element, ast.Starred) for element in expression.elts):
+            return None
+        return tuple(expression_source(element) for element in expression.elts)
+
+    def sequence_source(elements):
+        state = _InfrastructureNumericProvenance.NONE
+        for element in elements:
+            state |= element[0]
+        return state, None, tuple(elements)
+
+    unknown_source = fixed_source(
+        _InfrastructureNumericProvenance.UNKNOWN
+    )
+    structural_source = fixed_source(
+        _InfrastructureNumericProvenance.STRUCTURAL_INDEX_OR_BOUND
+    )
+    root_source = expression_source(source, source_state)
+    if binding_kind in {"assignment", "augmented_assignment"}:
+        source_variants = (root_source,)
+    elif binding_kind in {"with", "async_for"}:
+        source_variants = (unknown_source,)
+    elif binding_kind == "for":
+        call_name = (
+            source.func.id
+            if isinstance(source, ast.Call)
+            and isinstance(source.func, ast.Name)
+            and source.func.id not in local_names
+            and source.func.id not in global_names
+            and source.func.id not in project_functions
+            else None
+        )
+        exact_range = (
+            call_name == "range"
+            and 1 <= len(source.args) <= 3
+            and not source.keywords
+            and not any(
+                isinstance(argument, ast.Starred)
+                for argument in source.args
+            )
+            and _numeric_permission(
+                purpose, "builtins.range", "iterator_result"
+            )
+        )
+        exact_enumerate = (
+            call_name == "enumerate"
+            and 1 <= len(source.args) <= 2
+            and not source.keywords
+            and not any(
+                isinstance(argument, ast.Starred)
+                for argument in source.args
+            )
+            and _numeric_permission(
+                purpose, "builtins.enumerate", "iterator_result"
+            )
+        )
+        if exact_range:
+            source_variants = (structural_source,)
+        elif exact_enumerate:
+            item_source = expression_source(source.args[0])
+            item_variants = exact_elements(item_source)
+            if item_variants is None:
+                item_variants = (unknown_source,)
+            source_variants = tuple(
+                sequence_source((structural_source, item_variant))
+                for item_variant in item_variants
+            )
+        else:
+            source_variants = exact_elements(root_source)
+            if source_variants is None:
+                source_variants = (unknown_source,)
+    else:
+        raise _ContractError(
+            "infrastructure binding provenance kind is unsupported"
+        )
+
+    joined_states = {
+        id(leaf): _InfrastructureNumericProvenance.NONE for leaf in leaves
+    }
+    pending = [
+        (target, descriptor)
+        for descriptor in reversed(tuple(source_variants))
+    ]
+    steps = 0
+    while pending:
+        candidate, descriptor = pending.pop()
+        steps += 1
+        if steps > _INFRASTRUCTURE_ANALYSIS_STEP_LIMIT:
+            raise _ContractError(
+                "infrastructure binding provenance exceeds its bound"
+            )
+        if isinstance(candidate, ast.Starred):
+            pending.append((candidate.value, descriptor))
+            continue
+        if isinstance(candidate, (ast.List, ast.Tuple)):
+            target_elements = tuple(candidate.elts)
+            source_elements = exact_elements(descriptor)
+            starred_indices = tuple(
+                index
+                for index, element in enumerate(target_elements)
+                if isinstance(element, ast.Starred)
+            )
+            pairs = None
+            if source_elements is not None and not starred_indices:
+                if len(target_elements) == len(source_elements):
+                    pairs = tuple(zip(target_elements, source_elements))
+            elif (
+                source_elements is not None
+                and len(starred_indices) == 1
+                and len(source_elements) >= len(target_elements) - 1
+            ):
+                starred_index = starred_indices[0]
+                suffix_length = len(target_elements) - starred_index - 1
+                middle_end = len(source_elements) - suffix_length
+                pairs = tuple(
+                    zip(
+                        target_elements[:starred_index],
+                        source_elements[:starred_index],
+                    )
+                ) + (
+                    (
+                        target_elements[starred_index],
+                        sequence_source(
+                            source_elements[starred_index:middle_end]
+                        ),
+                    ),
+                ) + tuple(
+                    zip(
+                        target_elements[starred_index + 1:],
+                        source_elements[middle_end:],
+                    )
+                )
+            if pairs is None:
+                pairs = tuple(
+                    (element, unknown_source)
+                    for element in target_elements
+                )
+            pending.extend(reversed(pairs))
+            continue
+        if not isinstance(candidate, (ast.Name, ast.Attribute, ast.Subscript)):
+            raise _ContractError(
+                "infrastructure binding target is unsupported"
+            )
+        joined_states[id(candidate)] |= descriptor[0]
+
+    return (
+        tuple((leaf, joined_states[id(leaf)]) for leaf in leaves),
+        frozenset(classified_store_ids),
+    )
 
 
 def _validate_numeric_function_for_purpose(
@@ -4676,25 +4857,38 @@ def _validate_numeric_function_for_purpose(
 
     def validate_binding_target(
         target: ast.AST,
-        state: _InfrastructureNumericProvenance,
+        source: ast.AST,
+        source_state: _InfrastructureNumericProvenance,
         *,
+        binding_kind: str,
         position: str,
         hidden_value_unknown: bool = False,
     ) -> bool:
-        mutation_targets, classified_ids = _numeric_binding_target_parts(
-            target
+        leaf_states, classified_ids = _numeric_binding_result_states(
+            target,
+            source,
+            source_state,
+            binding_kind=binding_kind,
+            expression_state=expression_state,
+            purpose=purpose,
+            local_names=local_names,
+            global_names=global_names,
+            project_functions=project_functions,
         )
         classified_store_target_ids.update(classified_ids)
-        if not mutation_targets:
-            return False
-        if hidden_value_unknown:
-            state |= _InfrastructureNumericProvenance.UNKNOWN
-        _validate_numeric_mutation_sink(
-            state,
-            purpose,
-            position=position,
-        )
-        return True
+        mutation_binding = False
+        for leaf, state in leaf_states:
+            if not isinstance(leaf, (ast.Attribute, ast.Subscript)):
+                continue
+            mutation_binding = True
+            if hidden_value_unknown:
+                state |= _InfrastructureNumericProvenance.UNKNOWN
+            _validate_numeric_mutation_sink(
+                state,
+                purpose,
+                position=position,
+            )
+        return mutation_binding
 
     assignments = _scope_assignments(node)
     parts_by_index = tuple(
@@ -4730,46 +4924,68 @@ def _validate_numeric_function_for_purpose(
         if parts is None:
             continue
         targets, value = parts
-        state = (
-            _InfrastructureNumericProvenance.UNKNOWN
-            if isinstance(assignments[index], ast.withitem)
-            else expression_state(value)
+        assignment = assignments[index]
+        source_state = expression_state(value)
+        if isinstance(assignment, ast.withitem):
+            binding_kind = "with"
+        elif isinstance(assignment, ast.AsyncFor):
+            binding_kind = "async_for"
+        elif isinstance(assignment, ast.For):
+            binding_kind = "for"
+        elif isinstance(assignment, ast.AugAssign):
+            binding_kind = "augmented_assignment"
+        else:
+            binding_kind = "assignment"
+        leaf_states = tuple(
+            leaf_state
+            for target in targets
+            for leaf_state in _numeric_binding_result_states(
+                target,
+                value,
+                source_state,
+                binding_kind=binding_kind,
+                expression_state=expression_state,
+                purpose=purpose,
+                local_names=local_names,
+                global_names=global_names,
+                project_functions=project_functions,
+            )[0]
         )
-        target_names = _assigned_local_names(targets)
-        if (
-            target_names & counter_names
-            and isinstance(value, ast.Constant)
-            and type(value.value) is int
-            and value.value == 0
-        ):
-            state = (
-                _InfrastructureNumericProvenance.
-                STRUCTURAL_INDEX_OR_BOUND
-                | _InfrastructureNumericProvenance.
-                LITERAL_DERIVED_ARITHMETIC
+        for leaf, state in leaf_states:
+            if not isinstance(leaf, ast.Name):
+                continue
+            target_name = leaf.id
+            counter_zero = (
+                target_name in counter_names
+                and isinstance(value, ast.Constant)
+                and type(value.value) is int
+                and value.value == 0
+                and not isinstance(assignment, ast.AugAssign)
             )
-        if isinstance(assignments[index], ast.AugAssign):
             counter_increment = (
-                bool(target_names & counter_names)
+                target_name in counter_names
                 and isinstance(value, ast.Constant)
                 and type(value.value) is int
                 and value.value == 1
-                and isinstance(assignments[index].op, ast.Add)
+                and isinstance(assignment, ast.AugAssign)
+                and isinstance(assignment.op, ast.Add)
             )
-            if counter_increment:
+            if counter_zero or counter_increment:
                 state = (
                     _InfrastructureNumericProvenance.
                     STRUCTURAL_INDEX_OR_BOUND
                     | _InfrastructureNumericProvenance.
                     LITERAL_DERIVED_ARITHMETIC
                 )
-            for target_name in target_names:
-                previous = names.get(
-                    target_name,
-                    _InfrastructureNumericProvenance.NONE,
-                )
+            previous = names.get(
+                target_name, _InfrastructureNumericProvenance.NONE
+            )
+            if isinstance(assignment, ast.AugAssign):
                 state |= previous
-                if not counter_increment and _numeric_state_has_literal(state):
+                if (
+                    not counter_increment
+                    and _numeric_state_has_literal(state)
+                ):
                     state |= (
                         _InfrastructureNumericProvenance.
                         LITERAL_DERIVED_ARITHMETIC
@@ -4779,10 +4995,6 @@ def _validate_numeric_function_for_purpose(
                         | _InfrastructureNumericProvenance.UNKNOWN
                     ):
                         state |= _InfrastructureNumericProvenance.UNKNOWN
-        for target_name in target_names:
-            previous = names.get(
-                target_name, _InfrastructureNumericProvenance.NONE
-            )
             updated = previous | state
             if updated == previous:
                 continue
@@ -4866,7 +5078,9 @@ def _validate_numeric_function_for_purpose(
                     )
                 validate_binding_target(
                     candidate.optional_vars,
-                    _InfrastructureNumericProvenance.UNKNOWN,
+                    candidate.context_expr,
+                    context_state,
+                    binding_kind="with",
                     position="with_binding",
                 )
             continue
@@ -4891,7 +5105,13 @@ def _validate_numeric_function_for_purpose(
                 )
             validate_binding_target(
                 candidate.target,
+                candidate.iter,
                 iterator_state,
+                binding_kind=(
+                    "async_for"
+                    if isinstance(candidate, ast.AsyncFor)
+                    else "for"
+                ),
                 position="for_binding",
             )
             continue
@@ -4899,7 +5119,9 @@ def _validate_numeric_function_for_purpose(
             value_state = expression_state(candidate.value)
             if validate_binding_target(
                 candidate.target,
+                candidate.value,
                 value_state,
+                binding_kind="assignment",
                 position="named_expression_binding",
             ):
                 sink_expression_ids.add(id(candidate.value))
@@ -4955,7 +5177,13 @@ def _validate_numeric_function_for_purpose(
             mutation_bindings = tuple(
                 validate_binding_target(
                     target,
+                    candidate.value,
                     value_state,
+                    binding_kind=(
+                        "augmented_assignment"
+                        if isinstance(candidate, ast.AugAssign)
+                        else "assignment"
+                    ),
                     position=(
                         "augmented_assignment_binding"
                         if isinstance(candidate, ast.AugAssign)
