@@ -3574,9 +3574,24 @@ def _numeric_expression_state(
                 candidate.id, _InfrastructureNumericProvenance.NONE
             )
         elif isinstance(candidate, ast.UnaryOp):
-            state = states.get(
+            operand_state = states.get(
                 id(candidate.operand), _InfrastructureNumericProvenance.NONE
             )
+            state = operand_state
+            if isinstance(candidate.op, ast.Not):
+                state |= (
+                    _InfrastructureNumericProvenance.COMPARISON_RESULT
+                    | _InfrastructureNumericProvenance.UNAPPROVED_COMPARISON
+                )
+            elif (
+                isinstance(candidate.op, (ast.UAdd, ast.USub, ast.Invert))
+                and operand_state
+                & (
+                    _InfrastructureNumericProvenance.INPUT_OR_POLICY
+                    | _InfrastructureNumericProvenance.UNKNOWN
+                )
+            ):
+                state |= _InfrastructureNumericProvenance.UNKNOWN
         elif isinstance(candidate, ast.BinOp):
             left = states.get(
                 id(candidate.left), _InfrastructureNumericProvenance.NONE
@@ -4539,7 +4554,7 @@ def _numeric_guaranteed_noniterable_scalar_syntax(
                 classifications[candidate_id] = (False, True)
                 continue
             if isinstance(candidate, ast.UnaryOp) and isinstance(
-                candidate.op, (ast.UAdd, ast.USub)
+                candidate.op, (ast.UAdd, ast.USub, ast.Invert)
             ):
                 pending.append((candidate, True))
                 pending.append((candidate.operand, False))
@@ -5142,14 +5157,12 @@ def _validate_numeric_function_for_purpose(
             )
             if isinstance(assignment, ast.AugAssign):
                 state |= previous
-                if (
-                    not counter_increment
-                    and _numeric_state_has_literal(state)
-                ):
-                    state |= (
-                        _InfrastructureNumericProvenance.
-                        LITERAL_DERIVED_ARITHMETIC
-                    )
+                if not counter_increment:
+                    if _numeric_state_has_literal(state):
+                        state |= (
+                            _InfrastructureNumericProvenance.
+                            LITERAL_DERIVED_ARITHMETIC
+                        )
                     if state & (
                         _InfrastructureNumericProvenance.INPUT_OR_POLICY
                         | _InfrastructureNumericProvenance.UNKNOWN

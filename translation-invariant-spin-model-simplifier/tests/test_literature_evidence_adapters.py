@@ -12309,6 +12309,7 @@ def test_infrastructure_builder_allows_direct_scalar_or_opaque_nested_binding(
         for scalar_expression in (
             "-1",
             "+1",
+            "~1",
             "1 / 2",
             "(1 + 2) * (3 - 4)",
             "value is None",
@@ -12352,6 +12353,7 @@ def test_infrastructure_builder_rejects_guaranteed_scalar_syntax_unpack(
         ("(item,)", "value is None"),
         ("item", "value is None"),
         ("(item,)", "not value"),
+        ("item", "not value"),
     ),
 )
 def test_infrastructure_builder_rejects_for_guaranteed_scalar_shape_or_sink(
@@ -12384,7 +12386,7 @@ def test_infrastructure_builder_rejects_for_guaranteed_scalar_shape_or_sink(
 
 @pytest.mark.parametrize(
     "scalar_expression",
-    ("-1", "not value"),
+    ("-1",),
 )
 def test_infrastructure_builder_allows_direct_for_guaranteed_scalar(
     tmp_path,
@@ -12418,6 +12420,7 @@ def test_infrastructure_builder_allows_direct_for_guaranteed_scalar(
         ("(item,)", "value is None"),
         ("item", "value is None"),
         ("(item,)", "not value"),
+        ("item", "not value"),
     ),
 )
 def test_infrastructure_builder_rejects_enumerate_guaranteed_scalar_shape(
@@ -12450,7 +12453,7 @@ def test_infrastructure_builder_rejects_enumerate_guaranteed_scalar_shape(
 
 @pytest.mark.parametrize(
     "scalar_expression",
-    ("-1", "1 / 2", "not value"),
+    ("-1", "1 / 2"),
 )
 def test_infrastructure_builder_allows_direct_enumerate_guaranteed_scalar(
     tmp_path,
@@ -12479,7 +12482,7 @@ def test_infrastructure_builder_allows_direct_enumerate_guaranteed_scalar(
 
 @pytest.mark.parametrize(
     "scalar_expression",
-    ("-1", "1 / 2", "value is None", "not value"),
+    ("-1", "~1", "1 / 2", "value is None", "not value"),
 )
 def test_infrastructure_builder_allows_direct_assignment_guaranteed_scalar(
     tmp_path,
@@ -12502,6 +12505,48 @@ def test_infrastructure_builder_allows_direct_assignment_guaranteed_scalar(
     )
 
     assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "root_body",
+    (
+        pytest.param(
+            "    return not value\n",
+            id="direct_return",
+        ),
+        pytest.param(
+            "    local = not value\n"
+            "    value.factor = local\n"
+            "    return value\n",
+            id="attribute_mutation",
+        ),
+        pytest.param(
+            "    local = not value\n"
+            '    value["factor"] = local\n'
+            "    return value\n",
+            id="subscript_mutation",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_not_expression_sinks(
+    tmp_path,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={"validate_failure": root_body},
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|numeric|mutation|comparison|provenance|purpose|"
+            "unknown"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
 @pytest.mark.parametrize(
@@ -12552,6 +12597,236 @@ def test_infrastructure_builder_bounds_deep_guaranteed_scalar_syntax(
         match="infrastructure|binding|exact|shape|invalid|scalar|bound",
     ):
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+TASK7_5_NAME_AUGASSIGN_OPERATORS = (
+    ("add", "+="),
+    ("subtract", "-="),
+    ("multiply", "*="),
+    ("matrix_multiply", "@="),
+    ("divide", "/="),
+    ("modulo", "%="),
+    ("power", "**="),
+    ("left_shift", "<<="),
+    ("right_shift", ">>="),
+    ("bitwise_or", "|="),
+    ("bitwise_xor", "^="),
+    ("bitwise_and", "&="),
+    ("floor_divide", "//="),
+)
+
+
+@pytest.mark.parametrize(
+    "operator",
+    tuple(operator for _name, operator in TASK7_5_NAME_AUGASSIGN_OPERATORS),
+    ids=tuple(name for name, _operator in TASK7_5_NAME_AUGASSIGN_OPERATORS),
+)
+@pytest.mark.parametrize(
+    "sink_body",
+    (
+        pytest.param("    return local\n", id="direct_return"),
+        pytest.param(
+            "    value.factor = local\n"
+            "    return value\n",
+            id="alias_mutation",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_overloaded_name_augassign_sinks(
+    tmp_path,
+    operator,
+    sink_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    local = value\n"
+                f"    local {operator} value\n"
+                + sink_body
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match=(
+            "infrastructure|numeric|mutation|provenance|purpose|unknown|"
+            "scientific|power"
+        ),
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "operator",
+    (
+        pytest.param("+", id="positive"),
+        pytest.param("-", id="negative"),
+        pytest.param("~", id="invert"),
+    ),
+)
+@pytest.mark.parametrize(
+    "root_body_template",
+    (
+        pytest.param(
+            "    return {operator}value\n",
+            id="direct_return",
+        ),
+        pytest.param(
+            "    local = {operator}value\n"
+            "    value.factor = local\n"
+            "    return value\n",
+            id="alias_mutation",
+        ),
+    ),
+)
+def test_infrastructure_builder_rejects_overloaded_unary_sinks(
+    tmp_path,
+    operator,
+    root_body_template,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": root_body_template.format(
+                operator=operator
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "operator",
+    tuple(
+        operator
+        for name, operator in TASK7_5_NAME_AUGASSIGN_OPERATORS
+        if name != "power"
+    ),
+    ids=tuple(
+        name
+        for name, _operator in TASK7_5_NAME_AUGASSIGN_OPERATORS
+        if name != "power"
+    ),
+)
+def test_infrastructure_builder_allows_unused_overloaded_name_augassign(
+    tmp_path,
+    operator,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    local = value\n"
+                f"    local {operator} value\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
+
+
+@pytest.mark.parametrize(
+    "root_name, root_body",
+    (
+        pytest.param(
+            "validate_failure",
+            "    protocol_revision = +(1 + 2)\n"
+            "    return value if protocol_revision else None\n",
+            id="pure_positive_numeric_syntax",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    protocol_revision = -(1 * (2 + 3))\n"
+            "    return value if protocol_revision else None\n",
+            id="pure_negative_numeric_syntax",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    protocol_revision = ~1\n"
+            "    return value if protocol_revision else None\n",
+            id="pure_invert_numeric_syntax",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    protocol_revision = 1\n"
+            "    protocol_revision += 1\n"
+            "    return value if protocol_revision else None\n",
+            id="small_literal_control",
+        ),
+        pytest.param(
+            "record_and_freeze_hashes",
+            "    total = 0\n"
+            "    for item in value:\n"
+            "        total += 1\n"
+            "    return total\n",
+            id="authorized_occurrence_counter",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    size = len(value)\n"
+            "    size += len(value)\n"
+            "    return size\n",
+            id="pure_structural_augassign",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    return +len(value)\n",
+            id="pure_structural_positive",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    return -len(value)\n",
+            id="pure_structural_negative",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    return ~len(value)\n",
+            id="pure_structural_invert",
+        ),
+        pytest.param(
+            "validate_failure",
+            "    if len(value) != 64:\n"
+            "        return None\n"
+            "    return value\n",
+            id="authorized_structural_control",
+        ),
+    ),
+)
+def test_infrastructure_builder_allows_builtin_numeric_and_structural_controls(
+    tmp_path,
+    root_name,
+    root_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={root_name: root_body},
+    )
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+
+    assert len(closure.roots) == 42
 
 
 @pytest.mark.parametrize(
@@ -13350,6 +13625,35 @@ def test_infrastructure_builder_rejects_literal_policy_call_argument(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+def test_infrastructure_builder_rejects_computed_input_augmented_policy(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        extra_source_by_module={
+            "validation.literature_evidence_isolation": (
+                "def canonical_json_bytes(value):\n"
+                "    return value\n"
+            )
+        },
+        body_by_root={
+            "validate_failure": (
+                "    policy_payload = value\n"
+                "    policy_payload += canonical_json_bytes(value)\n"
+                "    return policy_payload\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|unknown|provenance|purpose",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 @pytest.mark.parametrize(
     "case_name, extra_source, root_body",
     (
@@ -13414,14 +13718,6 @@ def test_infrastructure_builder_rejects_literal_policy_call_argument(
             "        else value\n"
             "    )\n"
             "    return canonical_policy_bytes\n",
-        ),
-        (
-            "computed_augmented_policy",
-            "def canonical_json_bytes(value):\n"
-            "    return value\n",
-            "    policy_payload = value\n"
-            "    policy_payload += canonical_json_bytes(value)\n"
-            "    return policy_payload\n",
         ),
         (
             "computed_policy_tuple",
