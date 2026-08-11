@@ -11550,6 +11550,132 @@ def test_infrastructure_builder_rejects_unknown_mutation_bindings(
         isolation.build_infrastructure_closure(source_roots=(tmp_path,))
 
 
+@pytest.mark.parametrize(
+    "mutation_statement",
+    (
+        "    value.factor += value\n",
+        "    value.factor *= value\n",
+        "    value[key] += value\n",
+        "    value[key] |= value\n",
+    ),
+)
+def test_infrastructure_builder_rejects_nonlocal_augmented_assignment(
+    tmp_path,
+    mutation_statement,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    key = value\n"
+                + mutation_statement
+                + "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "target",
+    ("value.factor", "value[key]"),
+)
+def test_infrastructure_builder_rejects_direct_with_mutation_binding(
+    tmp_path,
+    target,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    key = value\n"
+                f"    with value as {target}:\n"
+                "        pass\n"
+                "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "mutation_statement",
+    (
+        "        value.factor = entered\n",
+        "        value[key] = entered\n",
+    ),
+)
+def test_infrastructure_builder_rejects_laundered_with_mutation_binding(
+    tmp_path,
+    mutation_statement,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    key = value\n"
+                "    with value as entered:\n"
+                + mutation_statement
+                + "    return value\n"
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|mutation|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "post_with_body",
+    (
+        "    return entered\n",
+        "    entered\n"
+        "    return value\n",
+    ),
+)
+def test_infrastructure_builder_rejects_with_binding_use(
+    tmp_path,
+    post_with_body,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(
+        tmp_path,
+        body_by_root={
+            "validate_failure": (
+                "    with value as entered:\n"
+                "        pass\n"
+                + post_with_body
+            )
+        },
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="infrastructure|numeric|provenance|purpose|unknown",
+    ):
+        isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+
+
 def test_infrastructure_builder_rejects_unsafe_async_for_mutation_binding(
     tmp_path,
 ):
@@ -11596,6 +11722,20 @@ def test_infrastructure_builder_rejects_unsafe_async_for_mutation_binding(
             "local_numeric_assignment",
             "",
             "    local = 1 / 2\n"
+            "    return value\n",
+        ),
+        (
+            "local_input_augmented_assignment",
+            "",
+            "    local = value\n"
+            "    local += value\n"
+            "    return value\n",
+        ),
+        (
+            "unused_with_binding",
+            "",
+            "    with value as entered:\n"
+            "        pass\n"
             "    return value\n",
         ),
         (

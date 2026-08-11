@@ -4679,6 +4679,7 @@ def _validate_numeric_function_for_purpose(
         state: _InfrastructureNumericProvenance,
         *,
         position: str,
+        hidden_value_unknown: bool = False,
     ) -> bool:
         mutation_targets, classified_ids = _numeric_binding_target_parts(
             target
@@ -4686,6 +4687,8 @@ def _validate_numeric_function_for_purpose(
         classified_store_target_ids.update(classified_ids)
         if not mutation_targets:
             return False
+        if hidden_value_unknown:
+            state |= _InfrastructureNumericProvenance.UNKNOWN
         _validate_numeric_mutation_sink(
             state,
             purpose,
@@ -4727,7 +4730,11 @@ def _validate_numeric_function_for_purpose(
         if parts is None:
             continue
         targets, value = parts
-        state = expression_state(value)
+        state = (
+            _InfrastructureNumericProvenance.UNKNOWN
+            if isinstance(assignments[index], ast.withitem)
+            else expression_state(value)
+        )
         target_names = _assigned_local_names(targets)
         if (
             target_names & counter_names
@@ -4859,7 +4866,7 @@ def _validate_numeric_function_for_purpose(
                     )
                 validate_binding_target(
                     candidate.optional_vars,
-                    context_state,
+                    _InfrastructureNumericProvenance.UNKNOWN,
                     position="with_binding",
                 )
             continue
@@ -4945,8 +4952,6 @@ def _validate_numeric_function_for_purpose(
                         position="assignment_target",
                     )
             value_state = expression_state(candidate.value)
-            if isinstance(candidate, ast.AugAssign):
-                value_state |= expression_state(candidate.target)
             mutation_bindings = tuple(
                 validate_binding_target(
                     target,
@@ -4955,6 +4960,9 @@ def _validate_numeric_function_for_purpose(
                         "augmented_assignment_binding"
                         if isinstance(candidate, ast.AugAssign)
                         else "assignment_binding"
+                    ),
+                    hidden_value_unknown=isinstance(
+                        candidate, ast.AugAssign
                     ),
                 )
                 for target in targets
