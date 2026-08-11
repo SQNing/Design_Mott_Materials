@@ -8,7 +8,7 @@ process, capsule, or scientific operation at import time or during validation.
 from __future__ import annotations
 
 import ast
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
 import hashlib
 import json
@@ -1232,6 +1232,26 @@ _SAFE_AST_BUILTINS = frozenset(
         "zip",
     }
 )
+_SAFE_AST_ANNOTATION_BUILTINS = frozenset(
+    {
+        "bool",
+        "bytes",
+        "complex",
+        "dict",
+        "float",
+        "frozenset",
+        "int",
+        "list",
+        "object",
+        "set",
+        "str",
+        "tuple",
+        "type",
+    }
+)
+_AST_BINDING_RUNTIME = "runtime"
+_AST_BINDING_IMMUTABLE = "immutable"
+_AST_BINDING_ANNOTATION = "annotation"
 _SAFE_EXTERNAL_IMPORT_PREFIXES = (
     "cmath",
     "decimal",
@@ -1342,6 +1362,7 @@ class _AstModuleIndex:
     raw_bytes: bytes
     raw_file_sha256: str
     bindings: dict[str, object]
+    future_annotations: _AstSourceNode | None
 
 
 @dataclass(frozen=True)
@@ -1688,7 +1709,36 @@ class _AstClosureResolver:
         relative_path = source_path.relative_to(source_root).as_posix()
         raw_file_sha256 = hashlib.sha256(raw_bytes).hexdigest()
         bindings: dict[str, object] = {}
+        future_annotations = None
         for statement in tree.body:
+            if (
+                isinstance(statement, ast.ImportFrom)
+                and statement.module == "__future__"
+            ):
+                if not (
+                    statement.level == 0
+                    and len(statement.names) == 1
+                    and statement.names[0].name == "annotations"
+                    and statement.names[0].asname is None
+                    and future_annotations is None
+                ):
+                    raise _ContractError(
+                        "only one exact future annotations import is supported"
+                    )
+                future_annotations = self._source_node(
+                    module_name=module_name,
+                    relative_path=relative_path,
+                    raw_bytes=raw_bytes,
+                    raw_file_sha256=raw_file_sha256,
+                    node=statement,
+                    node_kind="import",
+                    qualified_name=(
+                        f"{module_name}.__future_annotations__"
+                    ),
+                    bound_names=(),
+                    import_module="__future__",
+                )
+                continue
             if isinstance(statement, (ast.Import, ast.ImportFrom)):
                 self._index_import(
                     module_name,
@@ -1770,18 +1820,41 @@ class _AstClosureResolver:
             raise _ContractError(
                 f"source module {module_name} has unsupported top-level code"
             )
+        if "__future_annotations__" in bindings:
+            raise _ContractError(
+                f"source module {module_name} redefines reserved "
+                "future binding"
+            )
         indexed = _AstModuleIndex(
             module_name=module_name,
             relative_path=relative_path,
             raw_bytes=raw_bytes,
             raw_file_sha256=raw_file_sha256,
             bindings=bindings,
+            future_annotations=future_annotations,
         )
         self.module_cache[module_name] = indexed
         return indexed
 
     def _validate_external_import(self, source: _AstSourceNode) -> None:
         module_name = source.import_module or ""
+        if module_name == "__future__":
+            if not (
+                isinstance(source.node, ast.ImportFrom)
+                and source.node.module == "__future__"
+                and source.node.level == 0
+                and len(source.node.names) == 1
+                and source.node.names[0].name == "annotations"
+                and source.node.names[0].asname is None
+                and source.bound_names == ()
+                and source.qualified_name.endswith(
+                    ".__future_annotations__"
+                )
+            ):
+                raise _ContractError(
+                    "future import is not the approved annotations import"
+                )
+            return
         if not any(
             module_name == prefix or module_name.startswith(prefix + ".")
             for prefix in _SAFE_EXTERNAL_IMPORT_PREFIXES
@@ -1831,9 +1904,21 @@ class _AstClosureResolver:
                         "dynamic resolution or source evaluation is forbidden"
                     )
 
+    @staticmethod
+    def _record_loaded_globals(
+        loaded: dict[str, set[str]],
+        names: Iterable[str],
+        requirement: str,
+    ) -> None:
+        for name in names:
+            loaded.setdefault(name, set()).add(requirement)
+
     def _function_loaded_globals(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> set[str]:
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        *,
+        future_annotations: bool,
+    ) -> dict[str, set[str]]:
         if isinstance(node, ast.AsyncFunctionDef):
             raise _ContractError("asynchronous scientific functions are forbidden")
         if node.decorator_list:
@@ -1848,25 +1933,43 @@ class _AstClosureResolver:
             + tuple(node.args.args)
             + tuple(node.args.kwonlyargs)
         )
-        definition_expressions = list(node.args.defaults)
-        definition_expressions.extend(
+        default_expressions = list(node.args.defaults)
+        default_expressions.extend(
             default
             for default in node.args.kw_defaults
             if default is not None
         )
-        definition_expressions.extend(
+        annotation_expressions = [
             argument.annotation
             for argument in arguments
             if argument.annotation is not None
-        )
+        ]
         for argument in (node.args.vararg, node.args.kwarg):
             if argument is not None and argument.annotation is not None:
-                definition_expressions.append(argument.annotation)
+                annotation_expressions.append(argument.annotation)
         if node.returns is not None:
-            definition_expressions.append(node.returns)
-        loaded = self._immutable_expression_loaded_globals(
-            *definition_expressions
+            annotation_expressions.append(node.returns)
+        loaded: dict[str, set[str]] = {}
+        self._record_loaded_globals(
+            loaded,
+            self._immutable_expression_loaded_globals(
+                *default_expressions
+            ),
+            _AST_BINDING_IMMUTABLE,
         )
+        if not future_annotations:
+            for annotation in annotation_expressions:
+                self._validate_annotation_expression(annotation)
+                self._record_loaded_globals(
+                    loaded,
+                    (
+                        candidate.id
+                        for candidate in ast.walk(annotation)
+                        if isinstance(candidate, ast.Name)
+                        and isinstance(candidate.ctx, ast.Load)
+                    ),
+                    _AST_BINDING_ANNOTATION,
+                )
         local_names = {
             argument.arg
             for argument in arguments
@@ -1887,12 +1990,16 @@ class _AstClosureResolver:
                 local_names.add(candidate.id)
             if isinstance(candidate, ast.ExceptHandler) and candidate.name:
                 local_names.add(candidate.name)
-        loaded.update(
-            candidate.id
-            for candidate in body_nodes
-            if isinstance(candidate, ast.Name)
-            and isinstance(candidate.ctx, ast.Load)
-            and candidate.id not in local_names
+        self._record_loaded_globals(
+            loaded,
+            (
+                candidate.id
+                for candidate in body_nodes
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+                and candidate.id not in local_names
+            ),
+            _AST_BINDING_RUNTIME,
         )
         return loaded
 
@@ -1937,14 +2044,62 @@ class _AstClosureResolver:
             )
         return loaded
 
-    def _constant_loaded_globals(self, source: _AstSourceNode) -> set[str]:
-        node = source.node
-        values = [node.value]
-        if isinstance(node, ast.AnnAssign):
-            values.insert(0, node.annotation)
-        return self._immutable_expression_loaded_globals(*values)
+    def _validate_annotation_expression(self, value: ast.AST) -> None:
+        if not isinstance(value, (ast.Constant, ast.Name)):
+            raise _ContractError(
+                "unsupported annotation; expected a simple approved "
+                "builtin type"
+            )
+        nodes = tuple(ast.walk(value))
+        if any(
+            not isinstance(candidate, (ast.Constant, ast.Load, ast.Name))
+            for candidate in nodes
+        ):
+            raise _ContractError(
+                "unsupported annotation; expected a simple approved "
+                "builtin type"
+            )
+        if isinstance(value, ast.Constant) and type(value.value) not in (
+            type(None),
+            str,
+        ):
+            raise _ContractError(
+                "unsupported annotation constant; expected a string or None"
+            )
 
-    def _class_loaded_globals(self, node: ast.ClassDef) -> set[str]:
+    def _constant_loaded_globals(
+        self,
+        source: _AstSourceNode,
+        *,
+        future_annotations: bool,
+    ) -> dict[str, set[str]]:
+        node = source.node
+        loaded: dict[str, set[str]] = {}
+        self._record_loaded_globals(
+            loaded,
+            self._immutable_expression_loaded_globals(node.value),
+            _AST_BINDING_IMMUTABLE,
+        )
+        if isinstance(node, ast.AnnAssign) and not future_annotations:
+            self._validate_annotation_expression(node.annotation)
+            self._record_loaded_globals(
+                loaded,
+                (
+                    candidate.id
+                    for candidate in ast.walk(node.annotation)
+                    if isinstance(candidate, ast.Name)
+                    and isinstance(candidate.ctx, ast.Load)
+                ),
+                _AST_BINDING_ANNOTATION,
+            )
+        return loaded
+
+    def _class_loaded_globals(
+        self,
+        node: ast.ClassDef,
+        *,
+        future_annotations: bool,
+    ) -> dict[str, set[str]]:
         if node.decorator_list or node.keywords:
             raise _ContractError(
                 "decorated, keyword, or metaclass class is forbidden"
@@ -1959,7 +2114,7 @@ class _AstClosureResolver:
             raise _ContractError(
                 "computed, nontrivial, or metaclass base is forbidden"
             )
-        loaded = set()
+        loaded: dict[str, set[str]] = {}
         for statement in node.body:
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if statement.name in {
@@ -1973,7 +2128,12 @@ class _AstClosureResolver:
                     raise _ContractError(
                         "descriptor or definition-time class hook is forbidden"
                     )
-                loaded.update(self._function_loaded_globals(statement))
+                method_loaded = self._function_loaded_globals(
+                    statement,
+                    future_annotations=future_annotations,
+                )
+                for name, requirements in method_loaded.items():
+                    loaded.setdefault(name, set()).update(requirements)
                 continue
             if (
                 isinstance(statement, ast.Expr)
@@ -1996,22 +2156,48 @@ class _AstClosureResolver:
                 value = statement.value
             if value is None:
                 raise _ContractError("class contains unsupported descriptor state")
-            values = [value]
-            if isinstance(statement, ast.AnnAssign):
-                values.insert(0, statement.annotation)
-            loaded.update(self._immutable_expression_loaded_globals(*values))
+            self._record_loaded_globals(
+                loaded,
+                self._immutable_expression_loaded_globals(value),
+                _AST_BINDING_IMMUTABLE,
+            )
+            if isinstance(statement, ast.AnnAssign) and not future_annotations:
+                self._validate_annotation_expression(statement.annotation)
+                self._record_loaded_globals(
+                    loaded,
+                    (
+                        candidate.id
+                        for candidate in ast.walk(statement.annotation)
+                        if isinstance(candidate, ast.Name)
+                        and isinstance(candidate.ctx, ast.Load)
+                    ),
+                    _AST_BINDING_ANNOTATION,
+                )
         return loaded
 
-    def _loaded_globals(self, source: _AstSourceNode) -> set[str]:
+    def _loaded_globals(
+        self, source: _AstSourceNode
+    ) -> dict[str, set[str]]:
         if source.node_kind == "import":
             self._validate_external_import(source)
-            return set()
+            return {}
+        module = self._load_module(source.module_name)
+        future_annotations = module.future_annotations is not None
         if source.node_kind == "immutable_constant":
-            return self._constant_loaded_globals(source)
+            return self._constant_loaded_globals(
+                source,
+                future_annotations=future_annotations,
+            )
         if source.node_kind == "function":
-            return self._function_loaded_globals(source.node)
+            return self._function_loaded_globals(
+                source.node,
+                future_annotations=future_annotations,
+            )
         if source.node_kind == "class":
-            return self._class_loaded_globals(source.node)
+            return self._class_loaded_globals(
+                source.node,
+                future_annotations=future_annotations,
+            )
         raise _ContractError("AST source node has unknown kind")
 
     def _resolve_binding(
@@ -2019,13 +2205,36 @@ class _AstClosureResolver:
         module_name: str,
         global_name: str,
         *,
+        requirements: frozenset[str],
         source_qualified_name: str | None = None,
     ) -> str | None:
+        if not requirements or not requirements <= {
+            _AST_BINDING_RUNTIME,
+            _AST_BINDING_IMMUTABLE,
+            _AST_BINDING_ANNOTATION,
+        }:
+            raise _ContractError("global binding requirements are invalid")
         module = self._load_module(module_name)
         try:
             binding = module.bindings[global_name]
         except KeyError as error:
-            if global_name in _SAFE_AST_BUILTINS:
+            if _AST_BINDING_IMMUTABLE in requirements:
+                raise _ContractError(
+                    "immutable initializer cannot use a runtime "
+                    "builtin binding "
+                    f"{global_name}"
+                ) from error
+            if _AST_BINDING_ANNOTATION in requirements:
+                if global_name in _SAFE_AST_ANNOTATION_BUILTINS:
+                    return None
+                raise _ContractError(
+                    "annotation is not an approved builtin type "
+                    f"{global_name}"
+                ) from error
+            if (
+                requirements == frozenset({_AST_BINDING_RUNTIME})
+                and global_name in _SAFE_AST_BUILTINS
+            ):
                 return None
             committed_destination = _BARE_COMMITTED_DATA_USERS.get(
                 (source_qualified_name, global_name)
@@ -2037,6 +2246,19 @@ class _AstClosureResolver:
             raise _ContractError(
                 f"unresolved global dependency {module_name}.{global_name}"
             ) from error
+        if _AST_BINDING_ANNOTATION in requirements:
+            raise _ContractError(
+                "annotation cannot use a project binding; only "
+                "approved builtin types are supported"
+            )
+        if _AST_BINDING_IMMUTABLE in requirements and not (
+            isinstance(binding, _AstSourceNode)
+            and binding.node_kind == "immutable_constant"
+        ):
+            raise _ContractError(
+                "immutable initializer cannot use a runtime, callable, class, "
+                "or import binding"
+            )
         if isinstance(binding, _ProjectSymbolImport):
             if binding.local_name != binding.target_symbol:
                 raise _ContractError(
@@ -2049,7 +2271,11 @@ class _AstClosureResolver:
                 committed_destination is not None
             ):
                 return committed_destination
-            return self.resolve_symbol(binding.target_module, binding.target_symbol)
+            return self._resolve_binding(
+                binding.target_module,
+                binding.target_symbol,
+                requirements=frozenset({_AST_BINDING_RUNTIME}),
+            )
         if isinstance(binding, _ProjectModuleImport):
             raise _ContractError(
                 "project module alias cannot be statically resolved"
@@ -2075,10 +2301,22 @@ class _AstClosureResolver:
         self.visiting.append(qualified_name)
         try:
             dependencies = []
-            for global_name in sorted(self._loaded_globals(source)):
+            module = self._load_module(source.module_name)
+            if (
+                module.future_annotations is not None
+                and module.future_annotations.qualified_name
+                != qualified_name
+            ):
+                dependencies.append(
+                    self._resolve_node(module.future_annotations)
+                )
+            for global_name, requirements in sorted(
+                self._loaded_globals(source).items()
+            ):
                 resolved_name = self._resolve_binding(
                     source.module_name,
                     global_name,
+                    requirements=frozenset(requirements),
                     source_qualified_name=source.qualified_name,
                 )
                 if resolved_name is not None:
@@ -2105,10 +2343,28 @@ class _AstClosureResolver:
         return qualified_name
 
     def resolve_symbol(self, module_name: str, symbol_name: str) -> str:
-        resolved = self._resolve_binding(module_name, symbol_name)
+        resolved = self._resolve_binding(
+            module_name,
+            symbol_name,
+            requirements=frozenset({_AST_BINDING_RUNTIME}),
+        )
         if resolved is None or resolved.startswith("committed_data:"):
             raise _ContractError("entry/root symbol must resolve to source code")
         return resolved
+
+    def validate_future_annotation_modes(self) -> None:
+        source_modules = {
+            item.source.module_name for item in self.resolved.values()
+        }
+        modes = {
+            self._load_module(module_name).future_annotations is not None
+            for module_name in source_modules
+        }
+        if len(modes) > 1:
+            raise _ContractError(
+                "mixed future annotation semantics cannot be preserved in one "
+                "emitted capsule"
+            )
 
     def validate_external_import_usage(self) -> None:
         for qualified_name, item in self.resolved.items():
@@ -2127,17 +2383,28 @@ class _AstClosureResolver:
                 )
 
 
-def _topological_resolved_nodes(
-    resolved: Mapping[str, _ResolvedAstNode],
-) -> tuple[_ResolvedAstNode, ...]:
-    pending = set(resolved)
-    ordered = []
+def _ast_node_ordering_key(
+    node_kind: str, qualified_name: str
+) -> tuple[int, str]:
+    if (
+        node_kind == "import"
+        and qualified_name.endswith(".__future_annotations__")
+    ):
+        return (-1, qualified_name)
     priority = {
         "import": 0,
         "immutable_constant": 1,
         "class": 2,
         "function": 3,
     }
+    return (priority[node_kind], qualified_name)
+
+
+def _topological_resolved_nodes(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> tuple[_ResolvedAstNode, ...]:
+    pending = set(resolved)
+    ordered = []
     while pending:
         ready = [
             resolved[name]
@@ -2149,8 +2416,8 @@ def _topological_resolved_nodes(
         if not ready:
             raise _ContractError("closure dependency graph contains a cycle")
         ready.sort(
-            key=lambda item: (
-                priority[item.source.node_kind],
+            key=lambda item: _ast_node_ordering_key(
+                item.source.node_kind,
                 item.source.qualified_name,
             )
         )
@@ -2307,12 +2574,6 @@ def _validate_manifest_graph(
     if len(set(all_edges)) != len(all_edges):
         raise _ContractError("closure contains duplicate dependency edges")
 
-    priority = {
-        "import": 0,
-        "immutable_constant": 1,
-        "class": 2,
-        "function": 3,
-    }
     pending = set(by_name)
     expected_order = []
     while pending:
@@ -2331,8 +2592,8 @@ def _validate_manifest_graph(
         if not ready:
             raise _ContractError("closure manifest dependency graph is cyclic")
         ready.sort(
-            key=lambda node: (
-                priority[node["node_kind"]],
+            key=lambda node: _ast_node_ordering_key(
+                node["node_kind"],
                 node["qualified_name"],
             )
         )
@@ -2522,6 +2783,7 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
         raise _ContractError("entry symbol cannot be an imported alias")
     if resolver.resolved[resolved_entry].source.node_kind != "function":
         raise _ContractError("scientific closure entry must be a function")
+    resolver.validate_future_annotation_modes()
     resolver.validate_external_import_usage()
     _assert_no_emitted_binding_collisions(resolver.resolved)
     nodes, dependency_edges, emitted_source = _manifest_from_resolved(
@@ -3165,6 +3427,7 @@ def build_infrastructure_closure(*, source_roots):
             raise _ContractError(
                 f"infrastructure root {qualified_root} must be a function"
             )
+    resolver.validate_future_annotation_modes()
     resolver.validate_external_import_usage()
     _scan_infrastructure_ast_content(resolver.resolved)
     nodes, dependency_edges, _emitted_source = _manifest_from_resolved(

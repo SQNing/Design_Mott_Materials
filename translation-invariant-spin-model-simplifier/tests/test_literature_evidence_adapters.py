@@ -7433,6 +7433,350 @@ def test_scientific_closure_allows_inert_definition_time_control(
     )
 
 
+TASK5_RUNTIME_NAME_DEFINITION_SOURCES = (
+    (
+        "function_name_default",
+        "def helper(value):\n"
+        "    return value\n"
+        "def adapter_entry(value=helper):\n"
+        "    return value\n",
+    ),
+    (
+        "class_name_default",
+        "class Payload:\n"
+        "    pass\n"
+        "def adapter_entry(value=Payload):\n"
+        "    return value\n",
+    ),
+    (
+        "function_name_argument_annotation",
+        "def helper(value):\n"
+        "    return value\n"
+        "def adapter_entry(value: helper):\n"
+        "    return value\n",
+    ),
+    (
+        "function_name_return_annotation",
+        "def helper(value):\n"
+        "    return value\n"
+        "def adapter_entry(value) -> helper:\n"
+        "    return value\n",
+    ),
+    (
+        "class_name_argument_annotation",
+        "class Payload:\n"
+        "    pass\n"
+        "def adapter_entry(value: Payload):\n"
+        "    return value\n",
+    ),
+    (
+        "class_name_return_annotation",
+        "class Payload:\n"
+        "    pass\n"
+        "def adapter_entry(value) -> Payload:\n"
+        "    return value\n",
+    ),
+    (
+        "function_name_constant_alias",
+        "def helper(value):\n"
+        "    return value\n"
+        "CALLBACK = helper\n"
+        "def adapter_entry(value):\n"
+        "    return CALLBACK(value)\n",
+    ),
+    (
+        "class_name_constant_alias",
+        "class Payload:\n"
+        "    pass\n"
+        "ALIAS = Payload\n"
+        "def adapter_entry(value):\n"
+        "    return value, ALIAS\n",
+    ),
+    (
+        "tuple_wrapped_function_default",
+        "def helper(value):\n"
+        "    return value\n"
+        "def adapter_entry(value=(helper,)):\n"
+        "    return value\n",
+    ),
+    (
+        "conditional_wrapped_class_default",
+        "class Payload:\n"
+        "    pass\n"
+        "def adapter_entry(value=Payload if True else None):\n"
+        "    return value\n",
+    ),
+    (
+        "tuple_wrapped_function_alias",
+        "def helper(value):\n"
+        "    return value\n"
+        "CALLBACKS = (helper,)\n"
+        "def adapter_entry(value):\n"
+        "    return CALLBACKS[0](value)\n",
+    ),
+    (
+        "boolean_wrapped_function_alias",
+        "def helper(value):\n"
+        "    return value\n"
+        "CALLBACK = helper or None\n"
+        "def adapter_entry(value):\n"
+        "    return CALLBACK(value)\n",
+    ),
+    (
+        "unary_wrapped_function_alias",
+        "def helper(value):\n"
+        "    return value\n"
+        "CALLBACK = +helper\n"
+        "def adapter_entry(value):\n"
+        "    return CALLBACK(value)\n",
+    ),
+    (
+        "binary_wrapped_class_alias",
+        "class Payload:\n"
+        "    pass\n"
+        "ALIAS = Payload | object\n"
+        "def adapter_entry(value):\n"
+        "    return value, ALIAS\n",
+    ),
+    (
+        "comparison_wrapped_function_alias",
+        "def helper(value):\n"
+        "    return value\n"
+        "MATCH = helper == helper\n"
+        "def adapter_entry(value):\n"
+        "    return value, MATCH\n",
+    ),
+    (
+        "import_name_constant_alias",
+        "from math import sqrt\n"
+        "CALLBACK = sqrt\n"
+        "def adapter_entry(value):\n"
+        "    return CALLBACK(value)\n",
+    ),
+    (
+        "callable_builtin_default",
+        "def adapter_entry(value=tuple):\n"
+        "    return value\n",
+    ),
+    (
+        "callable_builtin_constant_alias",
+        "CALLBACK = tuple\n"
+        "def adapter_entry(value):\n"
+        "    return CALLBACK((value,))\n",
+    ),
+    (
+        "non_type_builtin_annotation",
+        "def adapter_entry(value: len):\n"
+        "    return value\n",
+    ),
+    (
+        "import_name_annotation",
+        "from math import sqrt\n"
+        "def adapter_entry(value: sqrt):\n"
+        "    return value\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case_name, source",
+    TASK5_RUNTIME_NAME_DEFINITION_SOURCES,
+    ids=tuple(case[0] for case in TASK5_RUNTIME_NAME_DEFINITION_SOURCES),
+)
+def test_scientific_closure_rejects_runtime_name_in_inert_context(
+    tmp_path,
+    case_name,
+    source,
+):
+    del case_name
+    _write_task5_source(tmp_path, "synthetic_science.adapters", source)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="annotation|constant|immutable|binding|runtime|type|import",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "case_name, source",
+    (
+        (
+            "immutable_name_default",
+            "DEFAULT = 2\n"
+            "def adapter_entry(value=DEFAULT):\n"
+            "    return value\n",
+        ),
+        (
+            "transitive_scalar_and_tuple_aliases",
+            "BASE = 2\n"
+            "ALIAS = BASE\n"
+            "PAIR = (ALIAS, 3)\n"
+            "NESTED = (PAIR, ALIAS)\n"
+            "def adapter_entry(value):\n"
+            "    return value + NESTED[0][0]\n",
+        ),
+        (
+            "wrapped_immutable_names",
+            "BASE = 2\n"
+            "INCREMENT = BASE + 1\n"
+            "FLAG = INCREMENT > BASE\n"
+            "CHOICE = INCREMENT if FLAG else BASE\n"
+            "OPTIONS = (CHOICE, FLAG)\n"
+            "def adapter_entry(value):\n"
+            "    return value + OPTIONS[0]\n",
+        ),
+        (
+            "ordinary_builtin_annotations",
+            "def adapter_entry(value: int = 1) -> float:\n"
+            "    return value\n",
+        ),
+    ),
+    ids=(
+        "immutable_name_default",
+        "transitive_scalar_and_tuple_aliases",
+        "wrapped_immutable_names",
+        "ordinary_builtin_annotations",
+    ),
+)
+def test_scientific_closure_allows_context_approved_names(
+    tmp_path,
+    case_name,
+    source,
+):
+    del case_name
+    _write_task5_source(tmp_path, "synthetic_science.adapters", source)
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert closure.entry_symbol == (
+        "synthetic_science.adapters:adapter_entry"
+    )
+
+
+def test_scientific_closure_preserves_future_annotations_semantics(
+    tmp_path,
+):
+    source = (
+        "from __future__ import annotations\n"
+        "def adapter_entry(value: int) -> str:\n"
+        "    return value\n"
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        source,
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes
+    ) == (
+        "synthetic_science.adapters.__future_annotations__",
+        "synthetic_science.adapters.adapter_entry",
+    )
+    emitted_source = source.replace(
+        "annotations\ndef", "annotations\n\ndef"
+    ).encode("utf-8")
+    assert closure.emitted_source_sha256 == hashlib.sha256(
+        emitted_source
+    ).hexdigest()
+
+
+def test_scientific_closure_does_not_resolve_future_annotation_names(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from __future__ import annotations\n"
+        "class Payload:\n"
+        "    pass\n"
+        "def adapter_entry(\n"
+        "    value: list[Payload] | MissingType,\n"
+        ") -> Payload:\n"
+        "    return value\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes
+    ) == (
+        "synthetic_science.adapters.__future_annotations__",
+        "synthetic_science.adapters.adapter_entry",
+    )
+
+
+def test_scientific_closure_preserves_all_future_annotation_imports(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "from __future__ import annotations\n"
+        "from math import cos\n"
+        "def helper(value: int) -> int:\n"
+        "    return cos(value)\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from __future__ import annotations\n"
+        "import math\n"
+        "from synthetic_science.helpers import helper\n"
+        "def adapter_entry(value: int) -> int:\n"
+        "    return helper(value) + math.sin(value)\n",
+    )
+
+    closure = _build_task5_scientific_closure(tmp_path)
+
+    assert tuple(
+        node["qualified_name"]
+        for node in closure.nodes
+        if node["qualified_name"].endswith(".__future_annotations__")
+    ) == (
+        "synthetic_science.adapters.__future_annotations__",
+        "synthetic_science.helpers.__future_annotations__",
+    )
+    assert tuple(node["node_kind"] for node in closure.nodes[:2]) == (
+        "import",
+        "import",
+    )
+    assert tuple(
+        node["qualified_name"] for node in closure.nodes[2:4]
+    ) == (
+        "synthetic_science.adapters.math",
+        "synthetic_science.helpers.cos",
+    )
+
+
+def test_scientific_closure_rejects_mixed_future_annotation_semantics(
+    tmp_path,
+):
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.helpers",
+        "def helper(value: int) -> int:\n"
+        "    return value\n",
+    )
+    _write_task5_source(
+        tmp_path,
+        "synthetic_science.adapters",
+        "from __future__ import annotations\n"
+        "from synthetic_science.helpers import helper\n"
+        "def adapter_entry(value: int) -> int:\n"
+        "    return helper(value)\n",
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="future|annotation|semantic|mixed|preserv",
+    ):
+        _build_task5_scientific_closure(tmp_path)
+
+
 def test_scientific_closure_parses_source_without_executing_module(tmp_path):
     source = (
         "EXECUTION_CANARY = 1 / 0\n"
