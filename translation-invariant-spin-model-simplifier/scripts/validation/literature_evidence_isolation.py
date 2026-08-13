@@ -13817,16 +13817,26 @@ def _default_runtime_file_probe(operation, value):
             distribution = _importlib_metadata.distribution(value)
         except _importlib_metadata.PackageNotFoundError as error:
             raise _ContractError("declared runtime distribution is unavailable") from error
+        declared_files = distribution.files
+        if declared_files is None:
+            raise _ContractError("distribution file metadata is unavailable")
         files = []
-        for item in distribution.files or ():
+        for item in declared_files:
             relative = Path(str(item))
             if relative.is_absolute() or any(
                 part in {"", ".", ".."} for part in relative.parts
             ):
                 raise _ContractError("distribution contains an unsafe file path")
             located = Path(distribution.locate_file(item))
-            if located.is_file():
-                files.append((PurePosixPath(*relative.parts).as_posix(), located))
+            try:
+                metadata = located.stat()
+            except OSError as error:
+                raise _ContractError(
+                    "distribution file is missing or dangling"
+                ) from error
+            if not stat.S_ISREG(metadata.st_mode):
+                raise _ContractError("distribution entry is not a regular file")
+            files.append((PurePosixPath(*relative.parts).as_posix(), located))
         return {
             "name": distribution.metadata.get("Name", value),
             "version": distribution.version,
@@ -13852,6 +13862,7 @@ def _default_runtime_file_probe(operation, value):
         }, key=str))
         probe_source = (
             "import importlib,json,sys\n"
+            "if not sys.flags.dont_write_bytecode: raise RuntimeError('bytecode enabled')\n"
             f"names={_RUNTIME_FIXED_STDLIB_MODULES!r}\n"
             "[importlib.import_module(name) for name in names]\n"
             "paths=[]\n"
@@ -13862,7 +13873,7 @@ def _default_runtime_file_probe(operation, value):
         )
         try:
             result = subprocess.run(
-                (sys.executable, "-I", "-S", "-c", probe_source),
+                (sys.executable, "-I", "-S", "-B", "-c", probe_source),
                 check=False,
                 shell=False,
                 stdout=subprocess.PIPE,
@@ -13913,17 +13924,58 @@ def _default_runtime_file_probe(operation, value):
 def _runtime_ldd_paths(output):
     if type(output) is not str:
         raise _ContractError("ldd output must be exact text")
-    paths = []
+    entries = []
+    loader_count = 0
+    shared_row = re.compile(
+        r"^(?P<name>[^\s=]+)\s*=>\s*(?P<path>/\S+)\s+"
+        r"\(0x[0-9A-Fa-f]+\)$"
+    )
+    direct_row = re.compile(
+        r"^(?P<path>/\S+)\s+\(0x[0-9A-Fa-f]+\)$"
+    )
+    pseudo_row = re.compile(
+        r"^(?:linux-vdso|linux-gate)\.so(?:\.[0-9]+)*\s+"
+        r"(?:=>\s*)?\(0x[0-9A-Fa-f]+\)$"
+    )
+    loader_name = re.compile(
+        r"^(?:ld-linux(?:-[A-Za-z0-9_.+-]+)?\.so(?:\.[0-9]+)*|"
+        r"ld-musl-[A-Za-z0-9_.+-]+\.so(?:\.[0-9]+)*|"
+        r"ld\.so(?:\.[0-9]+)*)$"
+    )
     for raw_line in output.splitlines():
         line = raw_line.strip()
         if not line:
-            continue
-        if "=> not found" in line:
+            raise _ContractError("ldd output contains an empty row")
+        if re.search(r"=>\s*not found(?:\s|$)", line):
             raise _ContractError("ldd reported an unavailable library")
-        candidate = line.split("=>", 1)[-1].strip().split(" ", 1)[0]
-        if candidate.startswith("/"):
-            paths.append(Path(candidate))
-    return tuple(paths)
+        if pseudo_row.fullmatch(line):
+            continue
+        shared = shared_row.fullmatch(line)
+        direct = direct_row.fullmatch(line)
+        if shared is not None:
+            soname = shared.group("name")
+            path = Path(shared.group("path"))
+            soname_is_loader = loader_name.fullmatch(soname) is not None
+            path_is_loader = loader_name.fullmatch(path.name) is not None
+            if soname_is_loader != path_is_loader:
+                raise _ContractError("ldd loader classification is ambiguous")
+            purpose = (
+                "dynamic_loader" if path_is_loader else "dynamic_library"
+            )
+        elif direct is not None:
+            path = Path(direct.group("path"))
+            soname = path.name
+            if loader_name.fullmatch(soname) is None:
+                raise _ContractError("ldd absolute row is not a known loader")
+            purpose = "dynamic_loader"
+        else:
+            raise _ContractError("ldd output contains an unknown row")
+        if purpose == "dynamic_loader":
+            loader_count += 1
+        entries.append((soname, path, purpose))
+    if loader_count != 1:
+        raise _ContractError("ldd output must declare exactly one loader")
+    return tuple(entries)
 
 
 def discover_runtime_resources(
@@ -13945,15 +13997,33 @@ def discover_runtime_resources(
         )
     ]
     ldd_output = command(("ldd", str(interpreter_resolved)))
-    for index, library in enumerate(_runtime_ldd_paths(ldd_output)):
-        purpose = "dynamic_loader" if "ld-linux" in library.name or library.name.startswith("ld-") else "dynamic_library"
-        rows.append(
-            _runtime_file_row(
-                library,
-                logical_destination=f"/runtime/native/ldd-{index}-{library.name}",
-                purpose=purpose,
-            )
+    ldd_identities = {}
+    for _soname, library, purpose in _runtime_ldd_paths(ldd_output):
+        row = _runtime_file_row(
+            library,
+            logical_destination="/runtime/native/pending",
+            purpose=purpose,
         )
+        try:
+            metadata = os.stat(row["resolved_path"], follow_symlinks=False)
+        except OSError as error:
+            raise _ContractError("ldd file identity cannot be stated") from error
+        identity = (metadata.st_dev, metadata.st_ino)
+        previous = ldd_identities.get(identity)
+        if previous is not None:
+            if (
+                previous["purpose"] != purpose
+                or previous["size"] != row["size"]
+                or previous["mode"] != row["mode"]
+                or previous["sha256"] != row["sha256"]
+            ):
+                raise _ContractError("ldd file identity is ambiguous")
+            continue
+        row["logical_destination"] = (
+            f"/runtime/native/ldd-{len(ldd_identities)}-{library.name}"
+        )
+        ldd_identities[identity] = row
+        rows.append(row)
     stdlib_names = set()
     for item in files("imported_stdlib_files", requirements.packages):
         if type(item) is not tuple or len(item) != 2:
@@ -14272,7 +14342,9 @@ def _runtime_validate_source_descriptor(descriptor, row):
     return metadata
 
 
-def _runtime_copy_and_verify(source_fd, root_fd, basename, row):
+def _runtime_copy_and_verify(
+    source_fd, root_fd, basename, row, *, on_copy_complete
+):
     destination_fd = None
     try:
         destination_fd = os.open(
@@ -14309,6 +14381,7 @@ def _runtime_copy_and_verify(source_fd, root_fd, basename, row):
     finally:
         if destination_fd is not None:
             os.close(destination_fd)
+    on_copy_complete()
     verification_fd = None
     try:
         verification_fd = os.open(
@@ -14410,7 +14483,7 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
     if not run_path.is_absolute():
         run_path = run_path.absolute()
     snapshot_path = run_path / "runtime-snapshot"
-    parent_fd = run_fd = root_fd = None
+    parent_fd = run_fd = root_fd = state = None
     success = False
     try:
         if run_path.name in {"", ".", ".."}:
@@ -14440,7 +14513,19 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
                     destination,
                     required_mode,
                 ) = _runtime_copy_and_verify(
-                    source_fd, root_fd, basename, row
+                    source_fd,
+                    root_fd,
+                    basename,
+                    row,
+                    on_copy_complete=lambda: _runtime_event(
+                        event_recorder,
+                        "runtime_resource_copied",
+                        {
+                            "logical_destination": row[
+                                "logical_destination"
+                            ]
+                        },
+                    ),
                 )
                 if (
                     _runtime_stat_identity(before)
@@ -14449,11 +14534,6 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
                     != _runtime_stat_identity(after_compare)
                 ):
                     raise _ContractError("runtime source changed during copying")
-                _runtime_event(
-                    event_recorder,
-                    "runtime_resource_copied",
-                    {"logical_destination": row["logical_destination"]},
-                )
                 copied.append(
                     {
                         "basename": basename,
@@ -14473,35 +14553,43 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
                 )
             finally:
                 os.close(source_fd)
-        os.fsync(root_fd)
-        os.fchmod(root_fd, 0o500)
-        os.fsync(root_fd)
-        os.fchmod(run_fd, 0o500)
-        os.fsync(run_fd)
         root_metadata = os.fstat(root_fd)
         root_identity = {
             "logical_path": "/runtime",
             "device": root_metadata.st_dev,
             "inode": root_metadata.st_ino,
-            "mode": stat.S_IMODE(root_metadata.st_mode),
+            "mode": 0o500,
         }
-        _runtime_event(
-            event_recorder,
-            "runtime_manifest_hashed",
-            {"manifest_sha256": manifest.manifest_sha256},
-        )
         snapshot_material = {
             "schema_version": "runtime_snapshot_v1",
             "manifest_sha256": manifest.manifest_sha256,
             "directory_identities": (root_identity,),
             "files": tuple(copied),
         }
+        snapshot_sha256 = _canonical_sha256(snapshot_material)
+        _runtime_event(
+            event_recorder,
+            "runtime_manifest_hashed",
+            {"manifest_sha256": manifest.manifest_sha256},
+        )
+        os.fsync(root_fd)
+        os.fchmod(root_fd, 0o500)
+        os.fsync(root_fd)
+        os.fchmod(run_fd, 0o500)
+        os.fsync(run_fd)
+        frozen_root = os.fstat(root_fd)
+        if (
+            frozen_root.st_dev != root_identity["device"]
+            or frozen_root.st_ino != root_identity["inode"]
+            or stat.S_IMODE(frozen_root.st_mode) != root_identity["mode"]
+        ):
+            raise _ContractError("runtime snapshot freeze identity changed")
         snapshot = RuntimeSnapshot(
             "runtime_snapshot_v1",
             manifest,
             str(snapshot_path),
             (root_identity,),
-            _canonical_sha256(snapshot_material),
+            snapshot_sha256,
         )
         state = _RetainedRuntimeSnapshotState(
             owner=snapshot,
@@ -14516,6 +14604,7 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
             ),
             authorization=_RUNTIME_RETAINED_STATE_TOKEN,
         )
+        root_fd = None
         object.__setattr__(snapshot, "_retained_runtime_state", state)
         _runtime_event(
             event_recorder,
@@ -14529,6 +14618,10 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
     except OSError as error:
         raise _ContractError("runtime snapshot directory setup failed") from error
     finally:
+        if state is not None and not success:
+            finalizer = object.__getattribute__(state, "finalizer")
+            if finalizer.alive:
+                finalizer()
         if parent_fd is not None:
             os.close(parent_fd)
         if run_fd is not None:

@@ -20858,6 +20858,14 @@ def _task7_build_snapshot(tmp_path, monkeypatch, *, source_bytes=b"frozen"):
     return source, snapshot, Path(snapshot.snapshot_root) / copied_name
 
 
+def _task7_ldd_output(tmp_path):
+    loader = tmp_path / "ld-linux-task7.so.2"
+    if not loader.exists():
+        loader.write_bytes(b"task7-loader")
+        loader.chmod(0o755)
+    return f"{loader} (0x1)\n"
+
+
 def test_runtime_resource_discovery_closes_exact_declared_file_set(tmp_path):
     from validation import literature_evidence_isolation as isolation
 
@@ -20972,6 +20980,99 @@ def test_runtime_resource_discovery_closes_exact_declared_file_set(tmp_path):
     )
 
 
+def test_runtime_ldd_parser_accepts_only_anchored_dynamic_rows(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    library = tmp_path / "libdemo.so"
+    loader = tmp_path / "ld-linux-x86-64.so.2"
+    output = (
+        "\tlinux-vdso.so.1 =>   (0x00007fff)\n"
+        f"libdemo.so\t=>\t{library}\t  (0x000012ab)\n"
+        f"  {loader}    (0x000034cd)\n"
+    )
+
+    assert isolation._runtime_ldd_paths(output) == (
+        ("libdemo.so", library, "dynamic_library"),
+        (loader.name, loader, "dynamic_loader"),
+    )
+
+
+@pytest.mark.parametrize(
+    "unsafe_output",
+    (
+        "",
+        "   \n\t",
+        "statically linked\n",
+        "not a dynamic executable\n",
+        "libmissing.so => not found\n",
+        "unexpected diagnostic text\n",
+        "/absolute/noise-without-address\n",
+        "/absolute/noise-with-address (0x1)\n",
+    ),
+)
+def test_runtime_ldd_parser_fails_closed_on_incomplete_or_unknown_output(
+    unsafe_output,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(AdapterContractError, match="ldd|loader|dynamic"):
+        isolation._runtime_ldd_paths(unsafe_output)
+
+
+@pytest.mark.parametrize("loader_rows", (0, 2))
+def test_runtime_ldd_parser_requires_exactly_one_dynamic_loader(
+    tmp_path, loader_rows
+):
+    from validation import literature_evidence_isolation as isolation
+
+    library = tmp_path / "libdemo.so"
+    lines = [f"libdemo.so => {library} (0x1)"]
+    for index in range(loader_rows):
+        loader = tmp_path / f"ld-linux-test-{index}.so.2"
+        lines.append(f"{loader} (0x{index + 2:x})")
+
+    with pytest.raises(AdapterContractError, match="loader"):
+        isolation._runtime_ldd_paths("\n".join(lines) + "\n")
+
+
+def test_runtime_resource_discovery_deduplicates_ldd_file_identity(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    interpreter = tmp_path / "python"
+    library = tmp_path / "libdemo.so"
+    library_alias = tmp_path / "libdemo-alias.so"
+    loader = tmp_path / "ld-linux-x86-64.so.2"
+    for path in (interpreter, library, loader):
+        path.write_bytes(path.name.encode())
+    os.link(library, library_alias)
+
+    def probe(operation, value):
+        if operation == "resolve_interpreter":
+            return interpreter
+        if operation == "imported_stdlib_files":
+            return ()
+        raise AssertionError((operation, value))
+
+    manifest = isolation.discover_runtime_resources(
+        RuntimeRequirements("python3", (), (), ()),
+        command_probe=lambda argv: (
+            f"libdemo.so => {library} (0x1)\n"
+            f"libdemo-alias.so => {library_alias} (0x2)\n"
+            f"{loader} (0x3)\n"
+        ),
+        file_probe=probe,
+    )
+
+    ldd_rows = tuple(
+        row
+        for row in manifest.resources
+        if row["purpose"] in {"dynamic_library", "dynamic_loader"}
+    )
+    assert [row["purpose"] for row in ldd_rows] == [
+        "dynamic_library", "dynamic_loader"
+    ]
+
+
 def test_runtime_snapshot_freezes_bytes_and_revalidates_retained_dirfd(
     tmp_path, monkeypatch
 ):
@@ -21028,6 +21129,187 @@ def test_runtime_snapshot_freezes_bytes_and_revalidates_retained_dirfd(
         "runtime_manifest_hashed",
         "runtime_snapshot_frozen",
     ]
+
+
+def test_runtime_snapshot_final_event_failure_has_one_retained_fd_owner(
+    tmp_path, monkeypatch
+):
+    import gc
+
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(b"owned-once")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source,
+            "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    original_close = isolation.os.close
+    original_runtime_close = isolation._runtime_close_fd
+    original_state_type = isolation._RetainedRuntimeSnapshotState
+    close_calls = []
+    finalizer_calls = []
+    retained = {}
+
+    def spy_close(descriptor):
+        close_calls.append(descriptor)
+        return original_close(descriptor)
+
+    def spy_runtime_close(descriptor):
+        finalizer_calls.append(descriptor)
+        return original_runtime_close(descriptor)
+
+    def capture_state(**kwargs):
+        retained["fd"] = kwargs["root_fd"]
+        retained["owner"] = kwargs["owner"]
+        return original_state_type(**kwargs)
+
+    monkeypatch.setattr(isolation.os, "close", spy_close)
+    monkeypatch.setattr(isolation, "_runtime_close_fd", spy_runtime_close)
+    monkeypatch.setattr(
+        isolation, "_RetainedRuntimeSnapshotState", capture_state
+    )
+
+    def fail_final_event(event_name, details):
+        if event_name == "runtime_snapshot_frozen":
+            raise RuntimeError("final recorder failure")
+
+    with pytest.raises(RuntimeError, match="final recorder failure"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=tmp_path / "exclusive-run",
+            event_recorder=fail_final_event,
+        )
+    assert len(finalizer_calls) == 1
+    retained_fd = retained["fd"]
+    assert finalizer_calls[0] == retained_fd
+    assert close_calls.count(retained_fd) == 1
+    with pytest.raises(OSError):
+        os.fstat(retained_fd)
+
+    foreign_fd = os.open(source, os.O_RDONLY)
+    if foreign_fd != retained_fd:
+        os.dup2(foreign_fd, retained_fd)
+        os.close(foreign_fd)
+    retained.clear()
+    gc.collect()
+    assert len(finalizer_calls) == 1
+    assert os.fstat(retained_fd).st_ino == source.stat().st_ino
+    os.close(retained_fd)
+
+
+def test_runtime_snapshot_copy_event_precedes_byte_comparison(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(b"boundary-original")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source,
+            "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    snapshot_root = tmp_path / "exclusive-run" / "runtime-snapshot"
+
+    def mutate_at_copy_boundary(event_name, details):
+        if event_name == "runtime_resource_copied":
+            copied = next(snapshot_root.iterdir())
+            copied.chmod(0o600)
+            copied.write_bytes(b"boundary-tampered")
+            copied.chmod(0o444)
+
+    with pytest.raises(AdapterContractError, match="comparison|identity|hash"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=tmp_path / "exclusive-run",
+            event_recorder=mutate_at_copy_boundary,
+        )
+
+
+@pytest.mark.parametrize(
+    "stop_event, expected_run_mode, expected_root_mode, expected_file_count",
+    (
+        ("runtime_resources_discovered", None, None, 0),
+        ("runtime_source_validated", 0o700, 0o700, 0),
+        ("runtime_resource_copied", 0o700, 0o700, 1),
+        ("runtime_resource_byte_compared", 0o700, 0o700, 1),
+        ("runtime_manifest_hashed", 0o700, 0o700, 1),
+        ("runtime_snapshot_frozen", 0o500, 0o500, 1),
+    ),
+)
+def test_runtime_snapshot_event_boundaries_match_filesystem_stage(
+    tmp_path,
+    monkeypatch,
+    stop_event,
+    expected_run_mode,
+    expected_root_mode,
+    expected_file_count,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(b"boundary-stage")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source,
+            "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    run_path = tmp_path / "exclusive-run"
+    snapshot_root = run_path / "runtime-snapshot"
+    observed = {}
+
+    def stop_at_boundary(event_name, details):
+        if event_name != stop_event:
+            return
+        observed["run_mode"] = (
+            stat.S_IMODE(run_path.stat().st_mode) if run_path.exists() else None
+        )
+        observed["root_mode"] = (
+            stat.S_IMODE(snapshot_root.stat().st_mode)
+            if snapshot_root.exists()
+            else None
+        )
+        observed["file_count"] = (
+            len(tuple(snapshot_root.iterdir()))
+            if snapshot_root.exists()
+            else 0
+        )
+        raise RuntimeError(f"stop at {event_name}")
+
+    before_fds = len(os.listdir("/proc/self/fd"))
+    with pytest.raises(RuntimeError, match=f"stop at {stop_event}"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=run_path,
+            event_recorder=stop_at_boundary,
+        )
+
+    assert observed == {
+        "run_mode": expected_run_mode,
+        "root_mode": expected_root_mode,
+        "file_count": expected_file_count,
+    }
+    assert len(os.listdir("/proc/self/fd")) == before_fds
 
 
 @pytest.mark.parametrize(
@@ -21203,6 +21485,66 @@ def test_runtime_resource_distribution_preserves_relative_layout(tmp_path):
     assert capability["size"] == capability["mode"] == 0
 
 
+@pytest.mark.parametrize(
+    "declared_kind",
+    ("metadata_none", "missing", "directory", "dangling_symlink"),
+)
+def test_default_runtime_distribution_probe_rejects_underclosed_metadata(
+    tmp_path, monkeypatch, declared_kind
+):
+    from validation import literature_evidence_isolation as isolation
+
+    declared = tmp_path / "package-entry"
+    if declared_kind == "directory":
+        declared.mkdir()
+    elif declared_kind == "dangling_symlink":
+        declared.symlink_to(tmp_path / "absent-target")
+
+    class FakeDistribution:
+        metadata = {"Name": "demo"}
+        version = "1.0"
+        files = None if declared_kind == "metadata_none" else ("pkg/data.bin",)
+
+        @staticmethod
+        def locate_file(item):
+            assert item == "pkg/data.bin"
+            return declared
+
+    monkeypatch.setattr(
+        isolation._importlib_metadata,
+        "distribution",
+        lambda name: FakeDistribution(),
+    )
+
+    with pytest.raises(AdapterContractError, match="distribution|file|metadata"):
+        isolation._default_runtime_file_probe("distribution", "demo")
+
+
+def test_default_runtime_distribution_probe_accepts_explicit_empty_files(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    class FakeDistribution:
+        metadata = {"Name": "empty-demo"}
+        version = "1.0"
+        files = ()
+
+        @staticmethod
+        def locate_file(item):
+            raise AssertionError("empty metadata must not locate a file")
+
+    monkeypatch.setattr(
+        isolation._importlib_metadata,
+        "distribution",
+        lambda name: FakeDistribution(),
+    )
+
+    assert isolation._default_runtime_file_probe(
+        "distribution", "empty-demo"
+    ) == {"name": "empty-demo", "version": "1.0", "files": ()}
+
+
 def test_runtime_resource_stdlib_preserves_relative_layout_for_same_basename(
     tmp_path,
 ):
@@ -21229,7 +21571,7 @@ def test_runtime_resource_stdlib_preserves_relative_layout_for_same_basename(
 
     manifest = isolation.discover_runtime_resources(
         RuntimeRequirements("python3", (), (), ()),
-        command_probe=lambda argv: "",
+        command_probe=lambda argv: _task7_ldd_output(tmp_path),
         file_probe=file_probe,
     )
     stdlib_destinations = {
@@ -21240,6 +21582,39 @@ def test_runtime_resource_stdlib_preserves_relative_layout_for_same_basename(
     assert stdlib_destinations == {
         "/runtime/stdlib/encodings/__init__.py",
         "/runtime/stdlib/json/__init__.py",
+    }
+
+
+def test_default_runtime_stdlib_probe_disables_child_bytecode(monkeypatch):
+    from validation import literature_evidence_isolation as isolation
+
+    observed = {}
+
+    class Result:
+        returncode = 0
+        stdout = "[]\n"
+        stderr = ""
+
+    def run(argv, **kwargs):
+        observed["argv"] = argv
+        observed["kwargs"] = kwargs
+        return Result()
+
+    monkeypatch.setattr(isolation.subprocess, "run", run)
+
+    assert isolation._default_runtime_file_probe(
+        "imported_stdlib_files", ()
+    ) == ()
+    assert observed["argv"][:5] == (
+        isolation.sys.executable, "-I", "-S", "-B", "-c"
+    )
+    assert "sys.flags.dont_write_bytecode" in observed["argv"][5]
+    assert observed["kwargs"] == {
+        "check": False,
+        "shell": False,
+        "stdout": isolation.subprocess.PIPE,
+        "stderr": isolation.subprocess.PIPE,
+        "text": True,
     }
 
 
@@ -21272,7 +21647,7 @@ def test_runtime_resource_distribution_rejects_unsafe_relative_path(
     with pytest.raises(AdapterContractError):
         isolation.discover_runtime_resources(
             RuntimeRequirements("python3", ("demo",), (), ()),
-            command_probe=lambda argv: "",
+            command_probe=lambda argv: _task7_ldd_output(tmp_path),
             file_probe=probe,
         )
 
@@ -21291,7 +21666,7 @@ def test_runtime_resource_symlink_chain_records_nested_target_links(tmp_path):
 
     manifest = isolation.discover_runtime_resources(
         RuntimeRequirements("python3", (), (), ()),
-        command_probe=lambda argv: "",
+        command_probe=lambda argv: _task7_ldd_output(tmp_path),
         file_probe=lambda operation, value: (
             outer if operation == "resolve_interpreter" else ()
         ),
@@ -21317,7 +21692,7 @@ def test_runtime_snapshot_rejects_changed_declared_symlink_identity(
     link.symlink_to(first.name)
     manifest = isolation.discover_runtime_resources(
         RuntimeRequirements("python3", (), (), ()),
-        command_probe=lambda argv: "",
+        command_probe=lambda argv: _task7_ldd_output(tmp_path),
         file_probe=lambda operation, value: (
             link if operation == "resolve_interpreter" else ()
         ),
@@ -21379,7 +21754,7 @@ def test_runtime_resource_discovery_rejects_undeclared_distribution(tmp_path):
     with pytest.raises(AdapterContractError, match="undeclared"):
         isolation.discover_runtime_resources(
             RuntimeRequirements("python3", ("declared",), (), ()),
-            command_probe=lambda argv: "",
+            command_probe=lambda argv: _task7_ldd_output(tmp_path),
             file_probe=probe,
         )
 
