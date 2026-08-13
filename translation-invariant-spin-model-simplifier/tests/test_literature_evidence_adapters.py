@@ -16589,6 +16589,63 @@ def test_task6_review3_unknown_external_constant_fails_closed(
 
 
 @pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize(
+    "module_name, callable_suffix",
+    (
+        pytest.param(
+            "numpy",
+            "not_a_committed_callable(parameter)",
+            id="numpy-shallow",
+        ),
+        pytest.param(
+            "numpy",
+            "uncommitted_namespace.uncommitted_callable(parameter)",
+            id="numpy-deep",
+        ),
+        pytest.param(
+            "scipy",
+            "not_a_committed_callable(parameter)",
+            id="scipy-shallow",
+        ),
+        pytest.param(
+            "scipy",
+            "integrate.not_a_committed_callable(parameter)",
+            id="scipy-deep",
+        ),
+    ),
+)
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+def test_task6_review4_unknown_external_callable_fails_closed(
+    tmp_path,
+    role,
+    module_name,
+    callable_suffix,
+    scan_scope,
+):
+    local_name = (
+        module_name
+        if scan_scope == "raw"
+        else {"numpy": "np", "scipy": "sp"}[module_name]
+    )
+    import_source = (
+        f"import {module_name}\n"
+        if scan_scope == "raw"
+        else f"import {module_name} as {local_name}\n"
+    )
+    source = (
+        import_source
+        + "def scientific_entry(parameter):\n"
+        + f"    return {local_name}.{callable_suffix}\n"
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|external|numeric|callable|allow|approved|reference",
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
 def test_task6_review_keeps_approved_pure_numeric_capabilities(
     tmp_path,
     role,
@@ -16600,6 +16657,33 @@ def test_task6_review_keeps_approved_pure_numeric_capabilities(
         "    eigenvalues = np.linalg.eigvalsh(matrix)\n"
         "    integral, error = quad(np.sin, 0.0, parameter)\n"
         "    return np.sqrt(eigenvalues[0] ** 2) + integral + error\n"
+    )
+
+    report = _task6_build_and_scan(tmp_path, role, source)
+
+    assert report.role == role
+    assert report.passed is True
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review4_keeps_exactly_committed_numeric_callables(
+    tmp_path,
+    role,
+):
+    source = (
+        "import numpy as np\n"
+        "import scipy\n"
+        "def scientific_entry(parameter, matrix):\n"
+        "    direct_sine = np.sin(parameter)\n"
+        "    numpy_values, _ = np.linalg.eigh(matrix)\n"
+        "    scipy_values, _ = scipy.linalg.eigh(matrix)\n"
+        "    integral, error = scipy.integrate.quad(\n"
+        "        np.sin, 0.0, parameter\n"
+        "    )\n"
+        "    return (\n"
+        "        direct_sine + numpy_values[0] + scipy_values[0]\n"
+        "        + integral + error\n"
+        "    )\n"
     )
 
     report = _task6_build_and_scan(tmp_path, role, source)
@@ -16910,6 +16994,115 @@ def test_task6_review3_commitment_tracks_path_inherited_method_binding(
     monkeypatch.setattr(Path, "is_absolute", replacement)
 
     assert isolation._current_static_scanner_sha256() != baseline
+
+
+@pytest.mark.parametrize(
+    "receiver_class, member_name",
+    (
+        pytest.param(Path, "absolute", id="path-absolute"),
+        pytest.param(Path, "resolve", id="path-resolve"),
+        pytest.param(Path, "is_dir", id="path-is-dir"),
+        pytest.param(Path, "is_file", id="path-is-file"),
+        pytest.param(Path, "is_symlink", id="path-is-symlink"),
+        pytest.param(Path, "is_absolute", id="pure-path-is-absolute"),
+        pytest.param(Path, "relative_to", id="pure-path-relative-to"),
+        pytest.param(Path, "with_suffix", id="pure-path-with-suffix"),
+        pytest.param(Path, "as_posix", id="pure-path-as-posix"),
+        pytest.param(Path, "parts", id="pure-path-parts-property"),
+        pytest.param(Path, "anchor", id="pure-path-anchor-property"),
+        pytest.param(Path, "__truediv__", id="pure-path-division"),
+        pytest.param(Path, "__str__", id="pure-path-string"),
+        pytest.param(string.Formatter, "parse", id="formatter-parse"),
+    ),
+)
+def test_task6_review4_commitment_tracks_exact_external_receiver_binding(
+    monkeypatch,
+    receiver_class,
+    member_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    baseline = isolation._current_static_scanner_sha256()
+    owner = next(
+        candidate
+        for candidate in receiver_class.__mro__
+        if member_name in vars(candidate)
+    )
+    original = vars(owner)[member_name]
+    calls = []
+
+    if type(original) is property:
+
+        def replacement(instance):
+            calls.append(instance)
+            return original.fget(instance)
+
+        changed = property(
+            replacement,
+            original.fset,
+            original.fdel,
+            original.__doc__,
+        )
+    else:
+
+        def replacement(*args, **kwargs):
+            calls.append((args, kwargs))
+            return original(*args, **kwargs)
+
+        changed = replacement
+    monkeypatch.setattr(owner, member_name, changed)
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert calls == []
+    assert changed_sha256 != baseline
+
+
+def test_task6_review4_external_receiver_manifest_omission_fails_closed(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    binding = ("pathlib", "Path", "absolute")
+    assert binding in isolation._STATIC_SCANNER_EXTERNAL_RECEIVER_BINDINGS
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCANNER_EXTERNAL_RECEIVER_BINDINGS",
+        frozenset(
+            isolation._STATIC_SCANNER_EXTERNAL_RECEIVER_BINDINGS - {binding}
+        ),
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scanner|external|receiver|binding|manifest|missing|closed",
+    ):
+        isolation._current_static_scanner_sha256()
+
+
+def test_task6_review4_new_unmanifested_external_receiver_access_fails_closed(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    target = isolation._assert_no_symlink_components
+
+    def replacement(path, field_name):
+        absolute = path.absolute()
+        current = Path(absolute.anchor)
+        for component in absolute.parts[1:]:
+            current /= component
+            if current.is_symlink() or current.is_file():
+                return None
+        return field_name and None
+
+    monkeypatch.setattr(target, "__code__", replacement.__code__)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scanner|external|receiver|manifest|missing|binding|closed",
+    ):
+        isolation._current_static_scanner_sha256()
 
 
 def test_task6_review3_commitment_ignores_unreferenced_ast_binding(

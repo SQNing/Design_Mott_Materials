@@ -14,11 +14,12 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
 import dis
 from enum import IntFlag
+import gc
 import hashlib
 import json
 import math
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 import re
 import stat
 import string
@@ -7253,7 +7254,17 @@ _STATIC_SAFE_NUMERIC_CONSTANT_PATHS = frozenset(
         ("numpy", "pi"),
     }
 )
-_STATIC_SAFE_NUMERIC_OBJECT_PATHS = frozenset(
+_STATIC_SAFE_NUMERIC_CALLABLE_PATHS = frozenset(
+    {
+        ("numpy", "linalg", "eigh"),
+        ("numpy", "linalg", "eigvalsh"),
+        ("numpy", "sin"),
+        ("numpy", "sqrt"),
+        ("scipy", "integrate", "quad"),
+        ("scipy", "linalg", "eigh"),
+    }
+)
+_STATIC_SAFE_NUMERIC_CALLABLE_OBJECT_PATHS = frozenset(
     {
         ("numpy", "sin"),
     }
@@ -7535,9 +7546,13 @@ def _scan_static_external_module_flows(
                 "static scan rejected external module object escape"
             )
         if isinstance(parent, ast.Call) and parent.func is candidate:
-            return
+            if path in _STATIC_SAFE_NUMERIC_CALLABLE_PATHS:
+                return
+            raise _ContractError(
+                "static scan rejected unapproved external numeric callable"
+            )
         if path in _STATIC_SAFE_NUMERIC_CONSTANT_PATHS or path in (
-            _STATIC_SAFE_NUMERIC_OBJECT_PATHS
+            _STATIC_SAFE_NUMERIC_CALLABLE_OBJECT_PATHS
         ):
             return
         raise _ContractError(
@@ -9719,23 +9734,291 @@ _STATIC_SCANNER_BUILTIN_BINDINGS = frozenset(
         "hash",
         "hex",
         "id",
+        "property",
         "repr",
         "staticmethod",
         "super",
         "vars",
     }
 )
-_STATIC_SCANNER_RECEIVER_CLASS_BINDINGS = frozenset(
+_STATIC_SCANNER_INTERNAL_RECEIVER_CLASS_BINDINGS = frozenset(
     {
         (__name__, "_AstClosureResolver"),
-        ("pathlib", "Path"),
+    }
+)
+_STATIC_SCANNER_EXTERNAL_RECEIVER_ACCESS_SITES = (
+    (
+        __name__,
+        "_assert_no_symlink_components",
+        "pathlib",
+        "Path",
+        ("__truediv__", "absolute", "anchor", "is_symlink", "parts"),
+        (),
+    ),
+    (
+        __name__,
+        "_normalize_source_roots",
+        "pathlib",
+        "Path",
+        ("is_dir", "resolve"),
+        (("__str__", 1),),
+    ),
+    (
+        __name__,
+        "_bounded_read_python_source",
+        "pathlib",
+        "Path",
+        ("anchor", "is_absolute", "parts"),
+        (("open", 3),),
+    ),
+    (
+        __name__,
+        "_AstClosureResolver._find_module_path",
+        "pathlib",
+        "Path",
+        (
+            "__truediv__",
+            "is_file",
+            "is_symlink",
+            "parts",
+            "relative_to",
+            "resolve",
+            "with_suffix",
+        ),
+        (),
+    ),
+    (
+        __name__,
+        "_AstClosureResolver._load_module",
+        "pathlib",
+        "Path",
+        ("__str__", "as_posix", "relative_to"),
+        (("__str__", 1), ("name", 7)),
+    ),
+    (
+        __name__,
+        "_validate_ast_node_manifest",
+        "pathlib",
+        "PurePosixPath",
+        ("__str__", "is_absolute", "parts"),
+        (),
+    ),
+    (
+        __name__,
+        "_static_closed_format_template",
+        "string",
+        "Formatter",
+        ("parse",),
+        (),
+    ),
+    (
+        __name__,
+        "_static_format_output_size_upper",
+        "string",
+        "Formatter",
+        ("parse",),
+        (),
+    ),
+)
+_STATIC_SCANNER_EXTERNAL_RECEIVER_BINDINGS = frozenset(
+    {
+        ("pathlib", "Path", "absolute"),
+        ("pathlib", "Path", "is_dir"),
+        ("pathlib", "Path", "is_file"),
+        ("pathlib", "Path", "is_symlink"),
+        ("pathlib", "Path", "resolve"),
+        ("pathlib", "PurePath", "__str__"),
+        ("pathlib", "PurePath", "__truediv__"),
+        ("pathlib", "PurePath", "anchor"),
+        ("pathlib", "PurePath", "as_posix"),
+        ("pathlib", "PurePath", "is_absolute"),
+        ("pathlib", "PurePath", "parts"),
+        ("pathlib", "PurePath", "relative_to"),
+        ("pathlib", "PurePath", "with_suffix"),
+        ("string", "Formatter", "parse"),
+    }
+)
+_STATIC_SCANNER_EXTERNAL_RECEIVER_SEED_EXCLUSIONS = frozenset(
+    {
+        (
+            __name__,
+            "_static_external_receiver_class",
+            "pathlib",
+            "Path",
+        ),
+        (
+            __name__,
+            "_static_external_receiver_class",
+            "pathlib",
+            "PurePath",
+        ),
+        (
+            __name__,
+            "_static_external_receiver_class",
+            "pathlib",
+            "PurePosixPath",
+        ),
+        (
+            __name__,
+            "_static_external_receiver_dependency_manifest",
+            "pathlib",
+            "Path",
+        ),
+        (
+            __name__,
+            "_static_external_receiver_dependency_manifest",
+            "pathlib",
+            "PurePath",
+        ),
+        (
+            __name__,
+            "_static_external_receiver_dependency_manifest",
+            "pathlib",
+            "PurePosixPath",
+        ),
     }
 )
 
 
+def _static_external_receiver_rule_manifest() -> dict[str, object]:
+    sites = _STATIC_SCANNER_EXTERNAL_RECEIVER_ACCESS_SITES
+    bindings = _STATIC_SCANNER_EXTERNAL_RECEIVER_BINDINGS
+    seed_exclusions = _STATIC_SCANNER_EXTERNAL_RECEIVER_SEED_EXCLUSIONS
+    if (
+        type(sites) is not tuple
+        or type(bindings) is not frozenset
+        or type(seed_exclusions) is not frozenset
+    ):
+        raise _ContractError(
+            "static scanner external receiver manifest is not exact"
+        )
+    if len(sites) > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT or len(
+        bindings
+    ) > _STATIC_SCANNER_COMMITMENT_ATTRIBUTE_LIMIT:
+        raise _ContractError(
+            "static scanner external receiver manifest exceeds its bound"
+        )
+    accessed_member_names = set()
+    normalized_sites = []
+    for site in sites:
+        if type(site) is not tuple or len(site) != 6:
+            raise _ContractError(
+                "static scanner external receiver access site is not exact"
+            )
+        (
+            project_module,
+            project_qualname,
+            receiver_module,
+            receiver_qualname,
+            member_names,
+            collision_counts,
+        ) = site
+        text_values = (
+            project_module,
+            project_qualname,
+            receiver_module,
+            receiver_qualname,
+        )
+        if any(type(item) is not str or not item for item in text_values):
+            raise _ContractError(
+                "static scanner external receiver identity is not exact"
+            )
+        if any(
+            len(item.encode("utf-8"))
+            > _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT
+            for item in text_values
+        ):
+            raise _ContractError(
+                "static scanner external receiver identity exceeds its bound"
+            )
+        if (
+            type(member_names) is not tuple
+            or not member_names
+            or member_names != tuple(sorted(member_names))
+            or len(set(member_names)) != len(member_names)
+            or any(type(name) is not str or not name for name in member_names)
+        ):
+            raise _ContractError(
+                "static scanner external receiver members are not exact"
+            )
+        if (
+            type(collision_counts) is not tuple
+            or collision_counts != tuple(sorted(collision_counts))
+            or len(set(collision_counts)) != len(collision_counts)
+            or any(
+                type(item) is not tuple
+                or len(item) != 2
+                or type(item[0]) is not str
+                or not item[0]
+                or type(item[1]) is not int
+                or item[1] < 1
+                for item in collision_counts
+            )
+        ):
+            raise _ContractError(
+                "static scanner external receiver collision counts are not "
+                "exact"
+            )
+        accessed_member_names.update(member_names)
+        normalized_sites.append(
+            [
+                project_module,
+                project_qualname,
+                receiver_module,
+                receiver_qualname,
+                list(member_names),
+                [list(item) for item in collision_counts],
+            ]
+        )
+    for binding in bindings:
+        if (
+            type(binding) is not tuple
+            or len(binding) != 3
+            or any(type(item) is not str or not item for item in binding)
+        ):
+            raise _ContractError(
+                "static scanner external receiver binding is not exact"
+            )
+        owner_class = _static_external_receiver_class(
+            binding[0], binding[1]
+        )
+        actual_owner, _member = _static_exact_class_member(
+            owner_class, binding[2]
+        )
+        if actual_owner is not owner_class:
+            raise _ContractError(
+                "static scanner external receiver binding owner is not exact"
+            )
+    if {binding[2] for binding in bindings} != accessed_member_names:
+        raise _ContractError(
+            "static scanner external receiver binding manifest is missing "
+            "or contains an unreferenced binding"
+        )
+    for exclusion in seed_exclusions:
+        if (
+            type(exclusion) is not tuple
+            or len(exclusion) != 4
+            or any(type(item) is not str or not item for item in exclusion)
+        ):
+            raise _ContractError(
+                "static scanner external receiver seed exclusion is not "
+                "exact"
+            )
+    return {
+        "access_sites": normalized_sites,
+        "bindings": [list(item) for item in sorted(bindings)],
+        "seed_exclusions": [
+            list(item)
+            for item in sorted(
+                _STATIC_SCANNER_EXTERNAL_RECEIVER_SEED_EXCLUSIONS
+            )
+        ],
+    }
+
+
 def _static_scanner_rule_manifest() -> dict[str, object]:
     return {
-        "commitment_version": "transitive_semantic_commitment_v4",
+        "commitment_version": "transitive_semantic_commitment_v5",
         "scanner_version": _STATIC_SCANNER_VERSION,
         "constant_evaluator_version": _STATIC_CONSTANT_EVALUATOR_VERSION,
         "ast_closure_version": _AST_CLOSURE_VERSION,
@@ -9795,9 +10078,15 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
             list(path)
             for path in sorted(_STATIC_SAFE_NUMERIC_CONSTANT_PATHS)
         ],
-        "safe_numeric_object_paths": [
+        "safe_numeric_callable_paths": [
             list(path)
-            for path in sorted(_STATIC_SAFE_NUMERIC_OBJECT_PATHS)
+            for path in sorted(_STATIC_SAFE_NUMERIC_CALLABLE_PATHS)
+        ],
+        "safe_numeric_callable_object_paths": [
+            list(path)
+            for path in sorted(
+                _STATIC_SAFE_NUMERIC_CALLABLE_OBJECT_PATHS
+            )
         ],
         "safe_external_import_prefixes": list(
             _SAFE_EXTERNAL_IMPORT_PREFIXES
@@ -9809,10 +10098,15 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
         "semantic_builtin_bindings": sorted(
             _STATIC_SCANNER_BUILTIN_BINDINGS
         ),
-        "semantic_receiver_class_bindings": [
+        "semantic_internal_receiver_class_bindings": [
             list(item)
-            for item in sorted(_STATIC_SCANNER_RECEIVER_CLASS_BINDINGS)
+            for item in sorted(
+                _STATIC_SCANNER_INTERNAL_RECEIVER_CLASS_BINDINGS
+            )
         ],
+        "semantic_external_receiver_bindings": (
+            _static_external_receiver_rule_manifest()
+        ),
         "forbidden_dynamic_calls": sorted(_FORBIDDEN_DYNAMIC_CALLS),
         "entrypoints": list(_STATIC_SCANNER_ENTRYPOINT_NAMES),
     }
@@ -9963,7 +10257,7 @@ def _static_code_binding_accesses(
             if not isinstance(dependency, type) or (
                 type.__getattribute__(dependency, "__module__"),
                 type.__getattribute__(dependency, "__qualname__"),
-            ) not in _STATIC_SCANNER_RECEIVER_CLASS_BINDINGS:
+            ) not in _STATIC_SCANNER_INTERNAL_RECEIVER_CLASS_BINDINGS:
                 continue
             for call_index in range(
                 index + 1, min(index + 17, len(instructions))
@@ -10014,7 +10308,7 @@ def _static_code_binding_accesses(
                         type.__getattribute__(
                             namespace[class_name], "__qualname__"
                         ),
-                    ) in _STATIC_SCANNER_RECEIVER_CLASS_BINDINGS:
+                    ) in _STATIC_SCANNER_INTERNAL_RECEIVER_CLASS_BINDINGS:
                         class_names.add(class_name)
                 elif current.opname in {
                     "CALL_FUNCTION",
@@ -10086,6 +10380,159 @@ def _static_exact_class_member(
     raise _ContractError(
         "static scanner referenced class attribute is unavailable"
     )
+
+
+def _static_external_receiver_class(
+    module_name: str,
+    qualname: str,
+) -> type:
+    if (module_name, qualname) == ("pathlib", "Path"):
+        value = Path
+    elif (module_name, qualname) == ("pathlib", "PurePath"):
+        value = PurePath
+    elif (module_name, qualname) == ("pathlib", "PurePosixPath"):
+        value = PurePosixPath
+    elif (module_name, qualname) == ("string", "Formatter"):
+        namespace = object.__getattribute__(string, "__dict__")
+        if type(namespace) is not dict or "Formatter" not in namespace:
+            raise _ContractError(
+                "static scanner external receiver class is unavailable"
+            )
+        value = namespace["Formatter"]
+    else:
+        raise _ContractError(
+            "static scanner external receiver class is not allowlisted"
+        )
+    if not isinstance(value, type) or (
+        type.__getattribute__(value, "__module__"),
+        type.__getattribute__(value, "__qualname__"),
+    ) != (module_name, qualname):
+        raise _ContractError(
+            "static scanner external receiver class identity changed"
+        )
+    return value
+
+
+def _static_exact_project_function(
+    module_name: str,
+    qualname: str,
+) -> FunctionType:
+    if module_name == __name__:
+        current: object = globals()
+    elif module_name == _adapters.__name__:
+        current = object.__getattribute__(_adapters, "__dict__")
+    elif module_name == _oracles.__name__:
+        current = object.__getattribute__(_oracles, "__dict__")
+    else:
+        raise _ContractError(
+            "static scanner external receiver access site is outside the "
+            "semantic module"
+        )
+    for part in qualname.split("."):
+        if type(current) is dict:
+            if part not in current:
+                raise _ContractError(
+                    "static scanner external receiver access site is "
+                    "unavailable"
+                )
+            current = current[part]
+            continue
+        if isinstance(current, type):
+            namespace = type.__getattribute__(current, "__dict__")
+            if type(namespace) is not MappingProxyType or part not in namespace:
+                raise _ContractError(
+                    "static scanner external receiver access site is "
+                    "unavailable"
+                )
+            current = namespace[part]
+            if type(current) in (staticmethod, classmethod):
+                current = current.__func__
+            continue
+        raise _ContractError(
+            "static scanner external receiver access site is not exact"
+        )
+    if type(current) is not FunctionType or (
+        current.__module__,
+        current.__qualname__,
+    ) != (module_name, qualname):
+        raise _ContractError(
+            "static scanner external receiver access site identity changed: "
+            f"{module_name}.{qualname}"
+        )
+    return current
+
+
+def _static_code_external_receiver_candidates(
+    value: CodeType,
+    receiver_class: type,
+) -> tuple[dict[str, int], int, int]:
+    pending = [value]
+    code_steps = 0
+    instruction_steps = 0
+    candidates: dict[str, int] = {}
+    member_names = set()
+    mro = type.__getattribute__(receiver_class, "__mro__")
+    if type(mro) is not tuple:
+        raise _ContractError(
+            "static scanner external receiver hierarchy is not exact"
+        )
+    for owner in mro:
+        namespace = type.__getattribute__(owner, "__dict__")
+        if type(namespace) is not MappingProxyType:
+            raise _ContractError(
+                "static scanner external receiver namespace is not exact"
+            )
+        member_names.update(namespace)
+    while pending:
+        code = pending.pop()
+        code_steps += 1
+        if code_steps > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+            raise _ContractError(
+                "static scanner external receiver audit exceeds the node "
+                "bound"
+            )
+        try:
+            instructions = tuple(dis.get_instructions(code))
+        except (TypeError, ValueError) as error:
+            raise _ContractError(
+                "static scanner cannot inspect external receiver access"
+            ) from error
+        instruction_steps += len(instructions)
+        if instruction_steps > _STATIC_SCANNER_COMMITMENT_EDGE_LIMIT:
+            raise _ContractError(
+                "static scanner external receiver audit exceeds the edge "
+                "bound"
+            )
+        for instruction in instructions:
+            candidate_name = None
+            if instruction.opname in {"LOAD_ATTR", "LOAD_METHOD"} and (
+                instruction.argval in member_names
+            ):
+                candidate_name = instruction.argval
+            elif instruction.opname in {
+                    "BINARY_OP",
+                    "BINARY_TRUE_DIVIDE",
+                    "INPLACE_TRUE_DIVIDE",
+            } and (
+                instruction.opname != "BINARY_OP"
+                or instruction.argrepr in {"/", "/="}
+            ):
+                candidate_name = "__truediv__"
+            elif (
+                instruction.opname in {"LOAD_GLOBAL", "LOAD_NAME"}
+                and instruction.argval == "str"
+            ):
+                candidate_name = "__str__"
+            if candidate_name is not None:
+                candidates[candidate_name] = (
+                    candidates.get(candidate_name, 0) + 1
+                )
+        pending.extend(
+            constant
+            for constant in code.co_consts
+            if type(constant) is CodeType
+        )
+    return candidates, code_steps, instruction_steps
 
 
 def _static_resolve_attribute_path(
@@ -10259,6 +10706,15 @@ def _static_semantic_function(
                 binding_name=f"{binding_name}.annotations",
             ),
         }
+    project_function_key = (module_name, qualname)
+    committed_function = state["project_functions"].get(
+        project_function_key
+    )
+    if committed_function is not None and committed_function is not value:
+        raise _ContractError(
+            "static scanner project function identity is ambiguous"
+        )
+    state["project_functions"][project_function_key] = value
     code = value.__code__
     global_accesses, class_members = _static_code_binding_accesses(
         code, value.__globals__
@@ -10614,6 +11070,32 @@ def _static_semantic_value(
         WrapperDescriptorType,
     }:
         return _static_semantic_native_callable(value)
+    if type(value) is property:
+        referents = gc.get_referents(value)
+        if type(referents) is not list or len(referents) > 4:
+            raise _ContractError(
+                "static scanner property binding is not exact"
+            )
+        if any(
+            type(item) not in (FunctionType, str) for item in referents
+        ):
+            raise _ContractError(
+                "static scanner property binding has an unsafe referent"
+            )
+        normalized_referents = [
+            _static_semantic_value(
+                item,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.property_referent",
+            )
+            for item in referents
+        ]
+        normalized_referents.sort(key=_canonical_bytes)
+        return {
+            "kind": "property_binding",
+            "referents": normalized_referents,
+        }
     if type(value) is object:
         return {"kind": "sentinel", "binding": binding_name}
     if isinstance(value, type):
@@ -10778,12 +11260,243 @@ def _static_semantic_value(
     )
 
 
+def _static_external_receiver_dependency_manifest(
+    state: dict[str, object],
+) -> dict[str, object]:
+    rule_manifest = _static_external_receiver_rule_manifest()
+    declared_sites = {
+        (site[0], site[1], site[2], site[3])
+        for site in _STATIC_SCANNER_EXTERNAL_RECEIVER_ACCESS_SITES
+    }
+    observed_seeds = set()
+    for (project_module, project_qualname), function in sorted(
+        state["project_functions"].items()
+    ):
+        global_accesses, _class_members = _static_code_binding_accesses(
+            function.__code__, function.__globals__
+        )
+        for name, paths in global_accesses.items():
+            dependency = function.__globals__.get(name)
+            if dependency is Path:
+                observed_seeds.add(
+                    (
+                        project_module,
+                        project_qualname,
+                        "pathlib",
+                        "Path",
+                    )
+                )
+            elif dependency is PurePosixPath:
+                observed_seeds.add(
+                    (
+                        project_module,
+                        project_qualname,
+                        "pathlib",
+                        "PurePosixPath",
+                    )
+                )
+            elif dependency is PurePath:
+                observed_seeds.add(
+                    (
+                        project_module,
+                        project_qualname,
+                        "pathlib",
+                        "PurePath",
+                    )
+                )
+            elif dependency is string and any(
+                path and path[0] == "Formatter" for path in paths
+            ):
+                observed_seeds.add(
+                    (
+                        project_module,
+                        project_qualname,
+                        "string",
+                        "Formatter",
+                    )
+                )
+        annotations = function.__annotations__
+        if type(annotations) is not dict:
+            raise _ContractError(
+                "static scanner project function annotations are not exact"
+            )
+        annotation_tokens = {
+            token
+            for annotation in annotations.values()
+            if type(annotation) is str
+            for token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", annotation)
+        }
+        if "PurePosixPath" in annotation_tokens:
+            observed_seeds.add(
+                (
+                    project_module,
+                    project_qualname,
+                    "pathlib",
+                    "PurePosixPath",
+                )
+            )
+        if "PurePath" in annotation_tokens:
+            observed_seeds.add(
+                (
+                    project_module,
+                    project_qualname,
+                    "pathlib",
+                    "PurePath",
+                )
+            )
+        if "Path" in annotation_tokens:
+            observed_seeds.add(
+                (
+                    project_module,
+                    project_qualname,
+                    "pathlib",
+                    "Path",
+                )
+            )
+        if "Formatter" in annotation_tokens:
+            observed_seeds.add(
+                (
+                    project_module,
+                    project_qualname,
+                    "string",
+                    "Formatter",
+                )
+            )
+    seed_exclusions = _STATIC_SCANNER_EXTERNAL_RECEIVER_SEED_EXCLUSIONS
+    if not seed_exclusions <= observed_seeds:
+        raise _ContractError(
+            "static scanner external receiver seed exclusion is unreferenced"
+        )
+    missing_seed_sites = observed_seeds - seed_exclusions - declared_sites
+    if missing_seed_sites:
+        first_missing = sorted(missing_seed_sites)[0]
+        raise _ContractError(
+            "static scanner external receiver semantic seed is missing from "
+            "the access-site manifest: " + ".".join(first_missing)
+        )
+    audit_code_nodes = 0
+    audit_instructions = 0
+    live_bindings: dict[tuple[str, str, str], dict[str, object]] = {}
+    for site in _STATIC_SCANNER_EXTERNAL_RECEIVER_ACCESS_SITES:
+        (
+            project_module,
+            project_qualname,
+            receiver_module,
+            receiver_qualname,
+            member_names,
+            collision_counts,
+        ) = site
+        function = state["project_functions"].get(
+            (project_module, project_qualname)
+        )
+        if type(function) is not FunctionType:
+            raise _ContractError(
+                "static scanner external receiver access site is outside "
+                "the semantic roots"
+            )
+        receiver_class = _static_external_receiver_class(
+            receiver_module, receiver_qualname
+        )
+        candidates, code_nodes, instructions = (
+            _static_code_external_receiver_candidates(
+                function.__code__, receiver_class
+            )
+        )
+        audit_code_nodes += code_nodes
+        audit_instructions += instructions
+        if audit_code_nodes > _STATIC_SCANNER_COMMITMENT_NODE_LIMIT:
+            raise _ContractError(
+                "static scanner external receiver audit exceeds the node "
+                "bound"
+            )
+        if audit_instructions > _STATIC_SCANNER_COMMITMENT_EDGE_LIMIT:
+            raise _ContractError(
+                "static scanner external receiver audit exceeds the edge "
+                "bound"
+            )
+        for collision_name, collision_count in collision_counts:
+            actual_count = candidates.get(collision_name, 0)
+            if actual_count < collision_count:
+                raise _ContractError(
+                    "static scanner external receiver collision count is "
+                    "not present"
+                )
+            remaining = actual_count - collision_count
+            if remaining:
+                candidates[collision_name] = remaining
+            else:
+                candidates.pop(collision_name)
+        if set(candidates) != set(member_names) or any(
+            count < 1 for count in candidates.values()
+        ):
+            raise _ContractError(
+                "static scanner external receiver manifest is missing or "
+                "contains an unreferenced binding"
+            )
+        for member_name in member_names:
+            owner, member = _static_exact_class_member(
+                receiver_class, member_name
+            )
+            owner_module = type.__getattribute__(owner, "__module__")
+            owner_qualname = type.__getattribute__(owner, "__qualname__")
+            binding_key = (owner_module, owner_qualname, member_name)
+            existing = live_bindings.get(binding_key)
+            if existing is None:
+                live_bindings[binding_key] = {
+                    "member": member,
+                    "receivers": {
+                        (receiver_module, receiver_qualname)
+                    },
+                }
+            else:
+                if existing["member"] is not member:
+                    raise _ContractError(
+                        "static scanner external receiver binding identity "
+                        "is ambiguous"
+                    )
+                existing["receivers"].add(
+                    (receiver_module, receiver_qualname)
+                )
+    bindings = []
+    for (owner_module, owner_qualname, member_name), live in sorted(
+        live_bindings.items()
+    ):
+        _static_semantic_attribute_step(state)
+        bindings.append(
+            {
+                "receivers": [
+                    list(item) for item in sorted(live["receivers"])
+                ],
+                "member": member_name,
+                "owner_module": owner_module,
+                "owner_qualname": owner_qualname,
+                "binding": _static_semantic_value(
+                    live["member"],
+                    state,
+                    1,
+                    binding_name=(
+                        "external_receiver."
+                        f"{owner_module}.{owner_qualname}.{member_name}"
+                    ),
+                ),
+            }
+        )
+    return {
+        "rules": rule_manifest,
+        "observed_seeds": [list(item) for item in sorted(observed_seeds)],
+        "bindings": bindings,
+        "audit_code_nodes": audit_code_nodes,
+        "audit_instructions": audit_instructions,
+    }
+
+
 def _static_scanner_dependency_manifest() -> dict[str, object]:
     state: dict[str, object] = {
         "steps": 0,
         "edges": 0,
         "attributes": 0,
         "memo": {},
+        "project_functions": {},
     }
     entrypoints = {}
     for name in _STATIC_SCANNER_ENTRYPOINT_NAMES:
@@ -10798,8 +11511,12 @@ def _static_scanner_dependency_manifest() -> dict[str, object]:
             0,
             binding_name=name,
         )
+    external_receiver_bindings = (
+        _static_external_receiver_dependency_manifest(state)
+    )
     return {
         "entrypoints": entrypoints,
+        "external_receiver_bindings": external_receiver_bindings,
         "semantic_nodes": state["steps"],
         "semantic_edges": state["edges"],
         "semantic_attributes": state["attributes"],
