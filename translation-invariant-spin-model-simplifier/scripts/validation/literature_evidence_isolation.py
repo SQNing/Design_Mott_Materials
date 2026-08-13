@@ -6678,7 +6678,12 @@ def _scan_policy_forbidden_structures(
     parsed_text_depth: int = 0,
 ) -> None:
     if type(value) is _FrozenJsonObject:
-        items = dict(value._items)
+        frozen_items = _static_scan_exact_frozen_items(
+            value,
+            "scientific definition policy object",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+        items = {key: item for key, item in frozen_items}
         if (
             role == "oracle"
             and path == ("input_schema",)
@@ -6687,7 +6692,7 @@ def _scan_policy_forbidden_structures(
             raise _ContractError(
                 "scientific definition has a weakened domain policy"
             )
-        for key, item in value._items:
+        for key, item in frozen_items:
             tokens = _lexical_tokens(key)
             if tokens & {
                 "fingerprint",

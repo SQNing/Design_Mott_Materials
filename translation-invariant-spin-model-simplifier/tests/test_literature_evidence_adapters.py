@@ -20192,3 +20192,178 @@ def test_task6_review22_malformed_exact_storage_fails_closed(malformation):
         match="static|scan|frozen|storage|exact|canonical",
     ):
         isolation.StaticScanReport(**values)
+
+
+class _Task6Review23EmptyItemsAccessor:
+    def __init__(self):
+        self.calls = []
+
+    def __get__(self, instance, owner=None):
+        self.calls.append(("get", instance))
+        return self if instance is None else ()
+
+    def __set__(self, instance, value):
+        self.calls.append(("set", instance))
+        namespace = object.__getattribute__(instance, "__dict__")
+        dict.__setitem__(namespace, "_items", value)
+
+
+def _task6_review23_with_empty_items_accessor(callback):
+    missing = object()
+    previous = vars(FrozenJsonObject).get("_items", missing)
+    accessor = _Task6Review23EmptyItemsAccessor()
+    setattr(FrozenJsonObject, "_items", accessor)
+    try:
+        try:
+            outcome = callback()
+        except Exception as error:
+            outcome = error
+    finally:
+        if previous is missing:
+            delattr(FrozenJsonObject, "_items")
+        else:
+            setattr(FrozenJsonObject, "_items", previous)
+    return outcome, accessor.calls
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review23_policy_builder_rejects_forbidden_exact_data_without_accessor(
+    monkeypatch,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    if role == "adapter":
+        definition, _canaries = _task6_mutated_adapter_definition(
+            "answer_lookup_table"
+        )
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        catalog[definition.adapter_id] = definition
+        monkeypatch.setattr(
+            adapters,
+            "ADAPTER_DEFINITIONS",
+            MappingProxyType(catalog),
+        )
+        closure = _task5_adapter_closure()
+    else:
+        definition, _canaries = _task6_mutated_oracle_definition(
+            "answer_lookup_table"
+        )
+        closure = _task5_oracle_closure()
+    original_scan = isolation._scan_policy_forbidden_structures
+    accessor_calls = []
+
+    def instrumented_scan(value, **kwargs):
+        setattr(
+            isolation,
+            "_scan_policy_forbidden_structures",
+            original_scan,
+        )
+        outcome, calls = _task6_review23_with_empty_items_accessor(
+            lambda: original_scan(value, **kwargs)
+        )
+        accessor_calls.extend(calls)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(
+        isolation,
+        "_scan_policy_forbidden_structures",
+        instrumented_scan,
+    )
+    try:
+        commitment = isolation.build_scientific_policy_commitment(
+            definition,
+            closure,
+            role=role,
+        )
+    except AdapterContractError as error:
+        observed_error = error
+        commitment = None
+    finally:
+        setattr(
+            isolation,
+            "_scan_policy_forbidden_structures",
+            original_scan,
+        )
+
+    assert accessor_calls == [], (
+        "scientific-policy scanning must not resolve a class-level "
+        "FrozenJsonObject._items accessor"
+    )
+    assert commitment is None
+    assert isinstance(observed_error, AdapterContractError)
+    assert re.search(
+        "definition|scientific|policy|lookup|forbidden",
+        str(observed_error),
+        flags=re.IGNORECASE,
+    )
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review23_canonical_policy_scan_is_accessor_independent(
+    role,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    if role == "adapter":
+        definition = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        payload = adapters.adapter_definition_to_frozen_json(definition)
+        closure = _task5_adapter_closure()
+    else:
+        definition = _synthetic_oracle_definition()
+        payload = oracles.oracle_definition_to_frozen_json(definition)
+        closure = _task5_oracle_closure()
+    expected_bytes = canonical_json_bytes(payload)
+    baseline_sha256 = isolation._current_static_scanner_sha256()
+
+    def exercise():
+        current_sha256 = isolation._current_static_scanner_sha256()
+        isolation._scan_policy_forbidden_structures(payload, role=role)
+        return current_sha256
+
+    observed, calls = _task6_review23_with_empty_items_accessor(exercise)
+    commitment = isolation.build_scientific_policy_commitment(
+        definition,
+        closure,
+        role=role,
+    )
+
+    assert observed == baseline_sha256
+    assert calls == []
+    assert commitment.canonical_definition_bytes == expected_bytes
+    assert commitment.canonical_definition_sha256 == hashlib.sha256(
+        expected_bytes
+    ).hexdigest()
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review23_policy_scan_rejects_noncanonical_exact_storage(role):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    if role == "adapter":
+        definition = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        payload = adapters.adapter_definition_to_frozen_json(definition)
+    else:
+        payload = oracles.oracle_definition_to_frozen_json(
+            _synthetic_oracle_definition()
+        )
+    namespace = object.__getattribute__(payload, "__dict__")
+    items = dict.__getitem__(namespace, "_items")
+    malformed = _task6_review22_exact_frozen(tuple(reversed(items)))
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scientific|policy|frozen|storage|exact|canonical",
+    ):
+        isolation._scan_policy_forbidden_structures(
+            malformed,
+            role=role,
+        )
