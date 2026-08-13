@@ -7311,7 +7311,10 @@ def _preflight_static_scan_checks(
                 "passed": passed,
                 "reason": reason,
             }
-        return normalized
+        return {
+            check_name: dict.__getitem__(normalized, check_name)
+            for check_name in sorted(normalized)
+        }
     if not isinstance(value, Mapping):
         raise _ContractError("static scan checks have an unknown shape")
     try:
@@ -7380,7 +7383,135 @@ def _preflight_static_scan_checks(
         raise _ContractError(
             "static scan checks cannot be inspected"
         ) from error
-    return normalized
+    return {
+        check_name: dict.__getitem__(normalized, check_name)
+        for check_name in sorted(normalized)
+    }
+
+
+def _static_scan_frozen_from_items(
+    items: tuple[tuple[str, object], ...],
+    field_name: str,
+    item_limit: int,
+) -> _FrozenJsonObject:
+    if type(items) is not tuple or len(items) > item_limit:
+        raise _ContractError(f"{field_name} frozen storage is not exact")
+    keys = []
+    for pair in items:
+        if type(pair) is not tuple or len(pair) != 2:
+            raise _ContractError(f"{field_name} frozen storage is not exact")
+        key, _item = pair
+        if type(key) is not str:
+            raise _ContractError(f"{field_name} frozen storage is not exact")
+        keys.append(key)
+    if len(set(keys)) != len(keys) or keys != sorted(keys):
+        raise _ContractError(
+            f"{field_name} frozen storage is not canonical"
+        )
+    value = object.__new__(_FrozenJsonObject)
+    try:
+        namespace = object.__getattribute__(value, "__dict__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError(
+            f"{field_name} frozen storage is not exact"
+        ) from error
+    if type(namespace) is not dict or namespace:
+        raise _ContractError(f"{field_name} frozen storage is not exact")
+    dict.__setitem__(namespace, "_items", items)
+    if set(namespace) != {"_items"} or (
+        dict.__getitem__(namespace, "_items") is not items
+    ):
+        raise _ContractError(f"{field_name} frozen storage is not exact")
+    return value
+
+
+def _freeze_preflighted_static_scan_checks(
+    value: dict[str, dict[str, object]],
+) -> _FrozenJsonObject:
+    if type(value) is not dict or len(value) > _STATIC_SCAN_CHECK_LIMIT:
+        raise _ContractError("static scan checks have an unknown shape")
+    frozen_items = []
+    for check_name in sorted(value):
+        if type(check_name) is not str:
+            raise _ContractError("static scan checks have an unknown shape")
+        check = dict.__getitem__(value, check_name)
+        if type(check) is not dict or set(check) != {"passed", "reason"}:
+            raise _ContractError("static scan checks have an unknown shape")
+        passed = dict.__getitem__(check, "passed")
+        reason = dict.__getitem__(check, "reason")
+        if type(passed) is not bool or type(reason) is not str:
+            raise _ContractError("static scan checks have an unknown shape")
+        frozen_check = _static_scan_frozen_from_items(
+            (("passed", passed), ("reason", reason)),
+            "static scan check",
+            2,
+        )
+        frozen_items.append((check_name, frozen_check))
+    return _static_scan_frozen_from_items(
+        tuple(frozen_items),
+        "static scan checks",
+        _STATIC_SCAN_CHECK_LIMIT,
+    )
+
+
+def _static_scan_report_sha256(payload: dict[str, object]) -> str:
+    field_names = (
+        "schema_version",
+        "role",
+        "scanner_version",
+        "scanner_sha256",
+        "scanned_closure_sha256",
+        "fingerprint_commitment_sha256",
+        "checks",
+        "passed",
+    )
+    if type(payload) is not dict or set(payload) != set(field_names):
+        raise _ContractError("static scan report payload is not exact")
+    canonical_payload = {}
+    for field_name in field_names:
+        value = dict.__getitem__(payload, field_name)
+        if field_name == "checks":
+            if type(value) is not dict:
+                raise _ContractError(
+                    "static scan report checks are not exact built-in data"
+                )
+            canonical_checks = {}
+            for check_name in sorted(value):
+                check = dict.__getitem__(value, check_name)
+                if (
+                    type(check_name) is not str
+                    or type(check) is not dict
+                    or set(check) != {"passed", "reason"}
+                    or type(dict.__getitem__(check, "passed")) is not bool
+                    or type(dict.__getitem__(check, "reason")) is not str
+                ):
+                    raise _ContractError(
+                        "static scan report checks are not exact built-in data"
+                    )
+                canonical_checks[check_name] = {
+                    "passed": dict.__getitem__(check, "passed"),
+                    "reason": dict.__getitem__(check, "reason"),
+                }
+            value = canonical_checks
+        elif field_name == "passed":
+            if type(value) is not bool:
+                raise _ContractError("static scan report payload is not exact")
+        elif type(value) is not str:
+            raise _ContractError("static scan report payload is not exact")
+        canonical_payload[field_name] = value
+    try:
+        canonical_bytes = json.dumps(
+            canonical_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeEncodeError, RecursionError) as error:
+        raise _ContractError(
+            "static scan report payload is not canonical"
+        ) from error
+    return hashlib.sha256(canonical_bytes).hexdigest()
 
 
 @_seal_contract
@@ -7424,71 +7555,31 @@ class StaticScanReport:
             raise _ContractError(
                 "StaticScanReport has an unsupported scanner commitment"
             )
-        checks = _snapshot_json(preflight_checks, "checks")
-        check_items = _static_scan_exact_frozen_items(
-            checks, "static scan checks", _STATIC_SCAN_CHECK_LIMIT
-        )
-        closed_checks = all(
-            type(item) is _FrozenJsonObject for _name, item in check_items
-        )
-        if not check_items or not closed_checks:
-            raise _ContractError("static scan checks have an unknown shape")
-        expected_checks = set(_STATIC_SCAN_COMMON_CHECKS)
-        if self.role == "infrastructure":
-            expected_checks.add(_STATIC_SCAN_INFRASTRUCTURE_CHECK)
-        if {name for name, _item in check_items} != expected_checks:
-            raise _ContractError(
-                "static scan checks are not the exact closed set"
-            )
-        normalized_checks = {}
-        all_checks_passed = True
-        for check_name, item in check_items:
-            item_items = _static_scan_exact_frozen_items(
-                item, "static scan check", 2
-            )
-            if {name for name, _value in item_items} != {
-                "passed",
-                "reason",
-            }:
-                raise _ContractError(
-                    "static scan checks have an unknown shape"
-                )
-            check = {name: value for name, value in item_items}
-            check_passed = _require_bool(
-                check["passed"], "static scan check passed"
-            )
-            reason = _require_text(
-                check["reason"], "static scan check reason"
-            )
-            if len(reason) > _STATIC_SCAN_REASON_BYTES_LIMIT:
-                raise _ContractError(
-                    "static scan check reason exceeds the closed bound"
-                )
-            if len(reason.encode("utf-8")) > (
-                _STATIC_SCAN_REASON_BYTES_LIMIT
-            ):
-                raise _ContractError(
-                    "static scan check reason exceeds the closed bound"
-                )
-            normalized_checks[check_name] = {
-                "passed": check_passed,
-                "reason": reason,
-            }
-            all_checks_passed = all_checks_passed and check_passed
-        checks = _snapshot_json(normalized_checks, "checks")
         passed = _require_bool(self.passed, "passed")
+        all_checks_passed = all(
+            dict.__getitem__(check, "passed")
+            for check in dict.values(preflight_checks)
+        )
         if passed != all_checks_passed:
             raise _ContractError(
                 "static scan pass status does not match its checks"
             )
-        object.__setattr__(self, "checks", checks)
         payload = {
-            field.name: getattr(self, field.name)
-            for field in fields(StaticScanReport)
-            if field.name != "report_sha256"
+            "schema_version": self.schema_version,
+            "role": self.role,
+            "scanner_version": self.scanner_version,
+            "scanner_sha256": self.scanner_sha256,
+            "scanned_closure_sha256": self.scanned_closure_sha256,
+            "fingerprint_commitment_sha256": (
+                self.fingerprint_commitment_sha256
+            ),
+            "checks": preflight_checks,
+            "passed": passed,
         }
-        if self.report_sha256 != _canonical_sha256(payload):
+        if self.report_sha256 != _static_scan_report_sha256(payload):
             raise _ContractError("static scan report hash mismatch")
+        checks = _freeze_preflighted_static_scan_checks(preflight_checks)
+        object.__setattr__(self, "checks", checks)
 
 
 _SMALL_MATHEMATICAL_LITERALS = frozenset(
@@ -10082,7 +10173,7 @@ def _scan_static_material_content(
     )
 
 
-def _static_scan_checks(role: str) -> _FrozenJsonObject:
+def _static_scan_checks(role: str) -> dict[str, dict[str, object]]:
     reasons = {
         "raw_ast_closed": "bounded raw AST passed",
         "dependency_graph_closed": "closed dependency graph passed",
@@ -10097,13 +10188,10 @@ def _static_scan_checks(role: str) -> _FrozenJsonObject:
         reasons[_STATIC_SCAN_INFRASTRUCTURE_CHECK] = (
             "exact infrastructure purpose policy passed"
         )
-    return _snapshot_json(
-        {
-            name: {"passed": True, "reason": reason}
-            for name, reason in reasons.items()
-        },
-        "static scan checks",
-    )
+    return {
+        name: {"passed": True, "reason": reasons[name]}
+        for name in sorted(reasons)
+    }
 
 
 def scan_scientific_closure(closure, *, forbidden_fingerprints):
@@ -10151,7 +10239,7 @@ def scan_scientific_closure(closure, *, forbidden_fingerprints):
         "checks": checks,
         "passed": True,
     }
-    values["report_sha256"] = _canonical_sha256(values)
+    values["report_sha256"] = _static_scan_report_sha256(values)
     return StaticScanReport(**values)
 
 
@@ -12855,12 +12943,12 @@ def _static_semantic_value(
                 binding_name=binding_name,
             )
         if type(value) is _FrozenJsonObject:
-            items = value._items
-            if type(items) is not tuple:
-                raise _ContractError(
-                    "static scanner frozen dependency is not exact"
-                )
-            value = dict(items)
+            items = _static_scan_exact_frozen_items(
+                value,
+                "static scanner frozen dependency",
+                _STATIC_SCANNER_COMMITMENT_NODE_LIMIT,
+            )
+            value = {key: item for key, item in items}
         if semantic_instance:
             try:
                 namespace = object.__getattribute__(value, "__dict__")

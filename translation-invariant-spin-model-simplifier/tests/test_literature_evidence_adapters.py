@@ -20019,3 +20019,176 @@ def test_task6_review21_mapping_shadows_are_outside_report_semantics(
     accepted = isolation.StaticScanReport(**values)
     assert accepted.passed is True
     assert calls == []
+
+
+class _Task6Review22AlternateItemsAccessor:
+    def __init__(self):
+        self.calls = []
+
+    @staticmethod
+    def _alternate(items):
+        if type(items) is not tuple:
+            return items
+        return tuple(
+            (key, True) if key == "passed" else pair
+            for pair in items
+            for key in (pair[0],)
+        )
+
+    def __get__(self, instance, owner=None):
+        self.calls.append(("get", instance))
+        if instance is None:
+            return self
+        namespace = object.__getattribute__(instance, "__dict__")
+        return self._alternate(dict.__getitem__(namespace, "_items"))
+
+    def __set__(self, instance, value):
+        self.calls.append(("set", instance))
+        namespace = object.__getattribute__(instance, "__dict__")
+        dict.__setitem__(namespace, "_items", self._alternate(value))
+
+
+def _task6_review22_with_items_accessor(callback):
+    missing = object()
+    previous = vars(FrozenJsonObject).get("_items", missing)
+    accessor = _Task6Review22AlternateItemsAccessor()
+    setattr(FrozenJsonObject, "_items", accessor)
+    try:
+        result = callback()
+    finally:
+        if previous is missing:
+            delattr(FrozenJsonObject, "_items")
+        else:
+            setattr(FrozenJsonObject, "_items", previous)
+    return result, accessor.calls
+
+
+def _task6_review22_exact_frozen(items):
+    value = object.__new__(FrozenJsonObject)
+    namespace = object.__getattribute__(value, "__dict__")
+    dict.__setitem__(namespace, "_items", items)
+    return value
+
+
+def test_task6_review22_items_accessor_is_unreachable_from_sha_and_reports():
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    baseline_sha256 = values["scanner_sha256"]
+    original = isolation.StaticScanReport(**values)
+
+    def exercise():
+        current_sha256 = isolation._current_static_scanner_sha256()
+        created_checks = isolation._static_scan_checks("adapter")
+        accepted = isolation.StaticScanReport(**values)
+        reconstructed = isolation._snapshot_exact_record(
+            original,
+            isolation.StaticScanReport,
+            "scan_report",
+        )
+        return current_sha256, created_checks, accepted, reconstructed
+
+    observed, calls = _task6_review22_with_items_accessor(exercise)
+    current_sha256, created_checks, accepted, reconstructed = observed
+
+    assert current_sha256 == baseline_sha256
+    assert type(created_checks) is dict
+    assert accepted.report_sha256 == original.report_sha256
+    assert reconstructed.report_sha256 == original.report_sha256
+    assert calls == [], (
+        "validated report data must not be sent back through general "
+        "FrozenJsonObject attribute-based serialization"
+    )
+
+
+def test_task6_review22_alternate_nested_data_cannot_replace_preflight_data():
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values(
+        failed_check="raw_ast_closed"
+    )
+    passed_checks = thaw_json(values["checks"])
+    passed_checks["raw_ast_closed"]["passed"] = True
+    passed_payload = {
+        key: (passed_checks if key == "checks" else value)
+        for key, value in values.items()
+        if key != "report_sha256"
+    }
+    values["report_sha256"] = canonical_sha256(passed_payload)
+
+    def exercise():
+        try:
+            isolation.StaticScanReport(**values)
+        except AdapterContractError as error:
+            return error
+        return None
+
+    observed_error, calls = _task6_review22_with_items_accessor(exercise)
+
+    assert calls == [], (
+        "report validation must use only the exact built-in data returned "
+        "by preflight"
+    )
+    assert isinstance(observed_error, AdapterContractError)
+    assert re.search(
+        "static|scan|pass|status|check",
+        str(observed_error),
+        flags=re.IGNORECASE,
+    )
+
+
+def test_task6_review22_normal_wire_digest_and_reconstruction_are_compatible():
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    report = isolation.StaticScanReport(**values)
+    built_in_checks = thaw_json(report.checks)
+    wire_payload = {
+        field.name: (
+            built_in_checks
+            if field.name == "checks"
+            else getattr(report, field.name)
+        )
+        for field in dataclasses.fields(type(report))
+        if field.name != "report_sha256"
+    }
+    reconstructed = isolation.StaticScanReport(
+        **{**wire_payload, "report_sha256": report.report_sha256}
+    )
+
+    assert report.schema_version == "static_scan_report_v1"
+    assert report.report_sha256 == canonical_sha256(wire_payload)
+    assert canonical_json_bytes(_task6_static_scan_payload(report)) == (
+        canonical_json_bytes(wire_payload)
+    )
+    assert thaw_json(reconstructed.checks) == built_in_checks
+    assert reconstructed.report_sha256 == report.report_sha256
+
+
+@pytest.mark.parametrize("malformation", ("outer_order", "nested_order"))
+def test_task6_review22_malformed_exact_storage_fails_closed(malformation):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    outer_namespace = object.__getattribute__(values["checks"], "__dict__")
+    outer_items = dict.__getitem__(outer_namespace, "_items")
+    if malformation == "outer_order":
+        malformed_items = tuple(reversed(outer_items))
+    else:
+        first_name, first_check = outer_items[0]
+        nested_namespace = object.__getattribute__(first_check, "__dict__")
+        nested_items = dict.__getitem__(nested_namespace, "_items")
+        malformed_check = _task6_review22_exact_frozen(
+            tuple(reversed(nested_items))
+        )
+        malformed_items = (
+            (first_name, malformed_check),
+            *outer_items[1:],
+        )
+    values["checks"] = _task6_review22_exact_frozen(malformed_items)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|frozen|storage|exact|canonical",
+    ):
+        isolation.StaticScanReport(**values)
