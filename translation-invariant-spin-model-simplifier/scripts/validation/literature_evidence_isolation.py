@@ -6670,6 +6670,73 @@ def build_infrastructure_closure(*, source_roots):
     return validated
 
 
+def _static_json_integer(token: str) -> int:
+    digits = token[1:] if token.startswith("-") else token
+    maximum_decimal_digits = (
+        _STATIC_SCAN_INTEGER_BITS_LIMIT * 30_103 // 100_000
+    ) + 1
+    if len(digits) > maximum_decimal_digits:
+        raise _ContractError(
+            "scientific definition canonical JSON integer exceeds the bound"
+        )
+    value = int(token)
+    if value.bit_length() > _STATIC_SCAN_INTEGER_BITS_LIMIT:
+        raise _ContractError(
+            "scientific definition canonical JSON integer exceeds the bound"
+        )
+    return value
+
+
+def _static_exact_builtin_json_bytes(value: object) -> bytes:
+    if _static_constant_size_upper(value) is None:
+        raise _ContractError(
+            "scientific definition canonical text is not exact built-in JSON"
+        )
+    stack = [(value, 0)]
+    steps = 0
+    while stack:
+        item, depth = stack.pop()
+        steps += 1
+        if steps > _STATIC_SCAN_NODE_LIMIT:
+            raise _ContractError(
+                "scientific definition canonical text exceeds the node bound"
+            )
+        if depth > _STATIC_SCAN_DEPTH_LIMIT:
+            raise _ContractError(
+                "scientific definition canonical text exceeds the depth bound"
+            )
+        if type(item) is dict:
+            if any(type(key) is not str for key in item):
+                raise _ContractError(
+                    "scientific definition canonical text is not exact "
+                    "built-in JSON"
+                )
+            stack.extend((key, depth + 1) for key in item)
+            stack.extend((nested, depth + 1) for nested in item.values())
+        elif type(item) is list:
+            stack.extend((nested, depth + 1) for nested in item)
+        elif item is None or type(item) in (bool, int, float, str):
+            continue
+        else:
+            raise _ContractError(
+                "scientific definition canonical text is not exact built-in JSON"
+            )
+    try:
+        encoded = json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeEncodeError, RecursionError) as error:
+        raise _ContractError(
+            "scientific definition canonical text is not exact built-in JSON"
+        ) from error
+    _static_preflight_output_size(len(encoded))
+    return encoded
+
+
 def _scan_policy_forbidden_structures(
     value: object,
     *,
@@ -6678,12 +6745,17 @@ def _scan_policy_forbidden_structures(
     parsed_text_depth: int = 0,
 ) -> None:
     if type(value) is _FrozenJsonObject:
-        frozen_items = _static_scan_exact_frozen_items(
+        policy_items = _static_scan_exact_frozen_items(
             value,
             "scientific definition policy object",
             _STATIC_SCAN_NODE_LIMIT,
         )
-        items = {key: item for key, item in frozen_items}
+    elif parsed_text_depth and type(value) is dict:
+        policy_items = tuple(value.items())
+    else:
+        policy_items = None
+    if policy_items is not None:
+        items = {key: item for key, item in policy_items}
         if (
             role == "oracle"
             and path == ("input_schema",)
@@ -6692,7 +6764,7 @@ def _scan_policy_forbidden_structures(
             raise _ContractError(
                 "scientific definition has a weakened domain policy"
             )
-        for key, item in frozen_items:
+        for key, item in policy_items:
             tokens = _lexical_tokens(key)
             if tokens & {
                 "fingerprint",
@@ -6740,7 +6812,9 @@ def _scan_policy_forbidden_structures(
                 parsed_text_depth=parsed_text_depth,
             )
         return
-    if type(value) is tuple:
+    if type(value) is tuple or (
+        parsed_text_depth and type(value) is list
+    ):
         for item in value:
             _scan_policy_forbidden_structures(
                 item,
@@ -6768,32 +6842,53 @@ def _scan_policy_forbidden_structures(
                 "scientific definition canonical text exceeds the depth bound"
             )
         try:
+            source_bytes = value.encode("utf-8")
+        except UnicodeEncodeError as error:
+            raise _ContractError(
+                "scientific definition canonical text is not UTF-8"
+            ) from error
+        if len(source_bytes) > _STATIC_SCAN_LITERAL_BYTES_LIMIT:
+            raise _ContractError(
+                "scientific definition canonical text exceeds the byte bound"
+            )
+        try:
             parsed = json.loads(
                 value.strip(),
+                parse_int=_static_json_integer,
                 parse_constant=lambda _token: (_ for _ in ()).throw(
                     ValueError("non-finite JSON")
                 ),
             )
+        except _ContractError:
+            raise
         except (TypeError, ValueError, RecursionError):
             parsed = _STATIC_CONSTANT_UNAVAILABLE
         if parsed is not _STATIC_CONSTANT_UNAVAILABLE:
             try:
-                is_canonical_text = _canonical_bytes(parsed) == (
+                parsed_bytes = _static_exact_builtin_json_bytes(parsed)
+                if (
+                    len(source_bytes) + len(parsed_bytes)
+                    > _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT
+                ):
+                    raise _ContractError(
+                        "scientific definition canonical text exceeds the "
+                        "material bound"
+                    )
+                is_canonical_text = parsed_bytes == (
                     value.strip().encode("utf-8")
                 )
+            except _ContractError:
+                raise
             except (
                 TypeError,
                 ValueError,
                 UnicodeEncodeError,
                 RecursionError,
-                _ContractError,
             ):
                 is_canonical_text = False
             if is_canonical_text:
                 _scan_policy_forbidden_structures(
-                    _adapters.freeze_json(
-                        parsed, "scientific definition text"
-                    ),
+                    parsed,
                     role=role,
                     path=path,
                     parsed_text_depth=parsed_text_depth + 1,

@@ -20367,3 +20367,308 @@ def test_task6_review23_policy_scan_rejects_noncanonical_exact_storage(role):
             malformed,
             role=role,
         )
+
+
+class _Task6Review24EmptyItemsAccessor:
+    def __init__(self):
+        self.calls = []
+
+    def __get__(self, instance, owner=None):
+        self.calls.append(("get", instance))
+        return self if instance is None else ()
+
+    def __set__(self, instance, value):
+        self.calls.append(("set", instance))
+        namespace = object.__getattribute__(instance, "__dict__")
+        dict.__setitem__(namespace, "_items", ())
+
+
+def _task6_review24_at_policy_scan_boundary(isolation, callback):
+    original_scan = isolation._scan_policy_forbidden_structures
+    accessor = _Task6Review24EmptyItemsAccessor()
+
+    def boundary_scan(value, **kwargs):
+        setattr(
+            isolation,
+            "_scan_policy_forbidden_structures",
+            original_scan,
+        )
+        missing = object()
+        previous = vars(FrozenJsonObject).get("_items", missing)
+        setattr(FrozenJsonObject, "_items", accessor)
+        try:
+            return original_scan(value, **kwargs)
+        finally:
+            if previous is missing:
+                delattr(FrozenJsonObject, "_items")
+            else:
+                setattr(FrozenJsonObject, "_items", previous)
+
+    setattr(isolation, "_scan_policy_forbidden_structures", boundary_scan)
+    try:
+        try:
+            outcome = callback()
+        except Exception as error:
+            outcome = error
+    finally:
+        setattr(
+            isolation,
+            "_scan_policy_forbidden_structures",
+            original_scan,
+        )
+    return outcome, accessor.calls
+
+
+def _task6_review24_definition_with_authored_text(
+    monkeypatch,
+    role,
+    authored_text,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    if role == "adapter":
+        canonical = adapters.ADAPTER_DEFINITIONS[
+            "square_ising_self_dual_tc"
+        ]
+        payload = thaw_json(
+            adapters.adapter_definition_to_frozen_json(canonical)
+        )
+        payload["runtime_requirements"]["backend_resources"].append(
+            authored_text
+        )
+        definition = adapters.adapter_definition_from_frozen_json(
+            freeze_json(payload)
+        )
+        catalog = dict(adapters.ADAPTER_DEFINITIONS)
+        catalog[definition.adapter_id] = definition
+        monkeypatch.setattr(
+            adapters,
+            "ADAPTER_DEFINITIONS",
+            MappingProxyType(catalog),
+        )
+        return definition, _task5_adapter_closure()
+    canonical = _synthetic_oracle_definition()
+    runtime = canonical.runtime_requirements
+    definition = oracles.OracleDefinition(
+        **{
+            field.name: (
+                RuntimeRequirements(
+                    runtime.interpreter,
+                    runtime.packages,
+                    runtime.native_libraries,
+                    runtime.backend_resources + (authored_text,),
+                )
+                if field.name == "runtime_requirements"
+                else getattr(canonical, field.name)
+            )
+            for field in dataclasses.fields(type(canonical))
+        }
+    )
+    return definition, _task5_oracle_closure()
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review24_policy_builder_rejects_forbidden_canonical_json_text_without_accessor(
+    monkeypatch,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    forbidden_text = '{"lookup_table":{"alpha":731}}'
+    definition, closure = _task6_review24_definition_with_authored_text(
+        monkeypatch,
+        role,
+        forbidden_text,
+    )
+    baseline_sha256 = isolation._current_static_scanner_sha256()
+
+    outcome, calls = _task6_review24_at_policy_scan_boundary(
+        isolation,
+        lambda: isolation.build_scientific_policy_commitment(
+            definition,
+            closure,
+            role=role,
+        ),
+    )
+
+    assert isolation._current_static_scanner_sha256() == baseline_sha256
+    assert calls == [], (
+        "parsed policy text must remain exact built-in JSON from parsing "
+        "through nested scanning"
+    )
+    assert isinstance(outcome, AdapterContractError)
+    assert re.search(
+        "definition|scientific|policy|lookup|forbidden",
+        str(outcome),
+        flags=re.IGNORECASE,
+    )
+
+
+def test_task6_review24_focused_parsed_text_scan_is_accessor_independent():
+    from validation import literature_evidence_isolation as isolation
+
+    baseline_sha256 = isolation._current_static_scanner_sha256()
+    outcome, calls = _task6_review24_at_policy_scan_boundary(
+        isolation,
+        lambda: isolation._scan_policy_forbidden_structures(
+            '{"lookup_table":{"alpha":731}}',
+            role="adapter",
+        ),
+    )
+
+    assert isolation._current_static_scanner_sha256() == baseline_sha256
+    assert calls == []
+    assert isinstance(outcome, AdapterContractError)
+    assert re.search(
+        "definition|scientific|policy|lookup|forbidden",
+        str(outcome),
+        flags=re.IGNORECASE,
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        '  {"lookup_table":{"alpha":731}}\n',
+        '"{\\"lookup_table\\":{\\"alpha\\":731}}"',
+    ),
+    ids=("stripped-canonical", "nested-json-string"),
+)
+def test_task6_review24_canonical_text_layers_remain_recursively_scanned(text):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(
+        AdapterContractError,
+        match="definition|scientific|policy|lookup|forbidden",
+    ):
+        isolation._scan_policy_forbidden_structures(text, role="adapter")
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review24_ordinary_canonical_text_preserves_commitment_bytes(
+    monkeypatch,
+    role,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    definition, closure = _task6_review24_definition_with_authored_text(
+        monkeypatch,
+        role,
+        '{"method":"bounded"}',
+    )
+    if role == "adapter":
+        expected_payload = adapters.adapter_definition_to_frozen_json(
+            definition
+        )
+    else:
+        expected_payload = oracles.oracle_definition_to_frozen_json(
+            definition
+        )
+    expected_bytes = canonical_json_bytes(expected_payload)
+
+    commitment = isolation.build_scientific_policy_commitment(
+        definition,
+        closure,
+        role=role,
+    )
+
+    assert commitment.canonical_definition_bytes == expected_bytes
+    assert commitment.canonical_definition_sha256 == hashlib.sha256(
+        expected_bytes
+    ).hexdigest()
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        '{"lookup_table": {"alpha":731}}',
+        '{"z":0,"lookup_table":{"alpha":731}}',
+        '{"lookup_table":',
+        '{"lookup_table":NaN}',
+    ),
+    ids=("spacing", "key-order", "malformed", "nonfinite-token"),
+)
+def test_task6_review24_noncanonical_or_invalid_text_is_not_nested_json(text):
+    from validation import literature_evidence_isolation as isolation
+
+    isolation._scan_policy_forbidden_structures(text, role="adapter")
+
+
+@pytest.mark.parametrize(
+    "text,diagnostic",
+    (
+        (
+            '"' + ("x" * (1_048_576 + 1)) + '"',
+            "byte",
+        ),
+        (
+            ("[" * 257) + "0" + ("]" * 257),
+            "depth",
+        ),
+        (
+            str(1 << 4096),
+            "integer",
+        ),
+        (
+            "1e999",
+            "JSON",
+        ),
+    ),
+    ids=("oversized", "deep", "integer", "nonfinite-number"),
+)
+def test_task6_review24_parsed_text_respects_closed_json_bounds(
+    text,
+    diagnostic,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(
+        AdapterContractError,
+        match=f"static|scan|canonical|text|JSON|{diagnostic}|bound",
+    ):
+        isolation._scan_policy_forbidden_structures(text, role="adapter")
+
+
+@pytest.mark.parametrize(
+    "value",
+    (
+        math.nan,
+        math.inf,
+        -math.inf,
+        (1,),
+        b"1",
+        type("Task6Review24Dict", (dict,), {})({"alpha": 1}),
+        type("Task6Review24List", (list,), {})([1]),
+    ),
+    ids=(
+        "nan",
+        "positive-infinity",
+        "negative-infinity",
+        "tuple",
+        "bytes",
+        "dict-subclass",
+        "list-subclass",
+    ),
+)
+def test_task6_review24_exact_json_serializer_rejects_nonexact_values(value):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scientific|canonical|text|exact|JSON",
+    ):
+        isolation._static_exact_builtin_json_bytes(value)
+
+
+def test_task6_review24_exact_json_serializer_is_mapping_order_independent():
+    from validation import literature_evidence_isolation as isolation
+
+    expected = b'{"alpha":1,"zeta":[2,3]}'
+
+    assert isolation._static_exact_builtin_json_bytes(
+        {"zeta": [2, 3], "alpha": 1}
+    ) == expected
+    assert isolation._static_exact_builtin_json_bytes(
+        {"alpha": 1, "zeta": [2, 3]}
+    ) == expected
