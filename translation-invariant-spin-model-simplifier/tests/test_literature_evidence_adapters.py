@@ -6,12 +6,14 @@ from itertools import product
 import json
 import math
 import os
+import re
 import string
 import subprocess
 import sys
 import tracemalloc
+from collections import deque
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath
 from types import MappingProxyType
 
 import pytest
@@ -16707,6 +16709,860 @@ def test_task6_review3_keeps_exactly_allowlisted_numeric_constants(
 
     assert report.role == role
     assert report.passed is True
+
+
+TASK6_CASE_SENSITIVE_NUMERIC_PATHS = (
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.Sin(parameter)\n",
+        id="numpy-callable-case",
+    ),
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(parameter, matrix):\n"
+        "    return np.LINALG.eigh(matrix)[0][0] + parameter\n",
+        id="numpy-namespace-case",
+    ),
+    pytest.param(
+        "import scipy\n"
+        "def scientific_entry(parameter):\n"
+        "    return scipy.Integrate.quad(abs, 0, parameter)\n",
+        id="scipy-namespace-case",
+    ),
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(parameter):\n"
+        "    return np.PI + parameter\n",
+        id="numpy-constant-case",
+    ),
+    pytest.param(
+        "import numpy as np\n"
+        "def scientific_entry(NP, parameter):\n"
+        "    payload = np.load('detached.npy')\n"
+        "    return np.Sin(parameter) + np.PI + payload[0]\n",
+        id="case-distinct-parameter-cannot-shadow-import",
+    ),
+)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+@pytest.mark.parametrize("source", TASK6_CASE_SENSITIVE_NUMERIC_PATHS)
+def test_task6_review5_rejects_case_variant_numeric_paths_publicly(
+    tmp_path,
+    role,
+    scan_scope,
+    source,
+):
+    if scan_scope == "raw":
+        source = source.replace(" as np", "").replace("np.", "numpy.")
+        source = source.replace("NP, parameter", "NUMPY, parameter")
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|external|numeric|callable|constant|approved|capability",
+    ):
+        _task6_build_and_scan(tmp_path, role, source)
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+@pytest.mark.parametrize("scan_scope", ("raw", "aggregate"))
+def test_task6_review5_keeps_exact_lowercase_numeric_paths_publicly(
+    tmp_path,
+    role,
+    scan_scope,
+):
+    import_source = (
+        "import numpy\n" if scan_scope == "raw" else "import numpy as np\n"
+    )
+    module_name = "numpy" if scan_scope == "raw" else "np"
+    source = (
+        import_source
+        + "def scientific_entry(parameter, matrix):\n"
+        + f"    values, _ = {module_name}.linalg.eigh(matrix)\n"
+        + f"    return {module_name}.sin(parameter) + {module_name}.pi "
+        + "+ values[0]\n"
+    )
+
+    report = _task6_build_and_scan(tmp_path, role, source)
+
+    assert report.passed is True
+
+
+@pytest.mark.parametrize("destination", ("setter", "deleter"))
+def test_task6_review5_property_commitment_preserves_named_slots(
+    monkeypatch,
+    destination,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    owner = next(candidate for candidate in Path.__mro__ if "parts" in vars(candidate))
+    original = vars(owner)["parts"]
+    baseline = isolation._current_static_scanner_sha256()
+    if destination == "setter":
+        changed = property(None, original.fget, None, original.__doc__)
+    else:
+        changed = property(None, None, original.fget, original.__doc__)
+    monkeypatch.setattr(owner, "parts", changed)
+
+    changed_sha256 = isolation._current_static_scanner_sha256()
+
+    assert changed_sha256 != baseline
+
+
+@pytest.mark.parametrize(
+    "member_name, source",
+    (
+        pytest.param(
+            "visit_Name",
+            "def scientific_entry(parameter):\n"
+            "    prefix = 'ordered_'\n"
+            "    return prefix + 'phase'\n",
+            id="propagated-name-binding",
+        ),
+        pytest.param(
+            "visit_Call",
+            "def prefix_piece():\n"
+            "    return 'ordered_'\n"
+            "def scientific_entry(parameter):\n"
+            "    return prefix_piece() + 'phase'\n",
+            id="propagated-helper-call",
+        ),
+    ),
+)
+def test_task6_review5_dynamic_visitor_binding_changes_commitment_and_verdict(
+    tmp_path,
+    monkeypatch,
+    member_name,
+    source,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task6_build_scientific_closure(tmp_path, "adapter", source)
+    fingerprints = _task6_fingerprints("ordered_phase")
+    with pytest.raises(
+        AdapterContractError,
+        match="static|constant|fingerprint|output",
+    ):
+        isolation.scan_scientific_closure(
+            closure, forbidden_fingerprints=fingerprints
+        )
+    baseline = isolation._current_static_scanner_sha256()
+    calls = []
+
+    def replacement(self, node):
+        calls.append((self, node))
+        return node
+
+    monkeypatch.setattr(
+        isolation._StaticConstantBindingSubstituter,
+        member_name,
+        replacement,
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+
+    assert calls == []
+    assert changed_sha256 != baseline
+    changed_report = isolation.scan_scientific_closure(
+        closure, forbidden_fingerprints=fingerprints
+    )
+    assert changed_report.passed is True
+    assert calls
+
+
+@pytest.mark.parametrize(
+    "class_name, member_name",
+    (
+        pytest.param(
+            "_AstClosureResolver",
+            "__init__",
+            id="constructed-resolver-init",
+        ),
+        pytest.param(
+            "_StaticConstantBindingSubstituter",
+            "__init__",
+            id="constructed-transformer-init",
+        ),
+        pytest.param(
+            "ScientificPolicyCommitment",
+            "__post_init__",
+            id="constructed-policy-post-init",
+        ),
+    ),
+)
+def test_task6_review6_actual_project_lifecycle_changes_commitment_without_execution(
+    monkeypatch,
+    class_name,
+    member_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    project_class = getattr(isolation, class_name, None)
+    if project_class is None:
+        project_class = getattr(adapters, class_name)
+    owner = next(
+        candidate
+        for candidate in project_class.__mro__
+        if member_name in vars(candidate)
+    )
+    original = vars(owner)[member_name]
+    calls = []
+
+    def replacement(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original(*args, **kwargs)
+
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(owner, member_name, replacement)
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert calls == []
+    assert changed_sha256 != baseline
+
+
+def test_task6_review6_constructed_error_class_identity_and_mro_are_committed(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    class SpoofedContractError(AdapterContractError):
+        pass
+
+    SpoofedContractError.__module__ = AdapterContractError.__module__
+    SpoofedContractError.__qualname__ = AdapterContractError.__qualname__
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(isolation, "_ContractError", SpoofedContractError)
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+def test_task6_review6_actual_classmethod_slot_changes_commitment(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    original = vars(FrozenJsonObject)["_from_frozen_items"]
+    assert type(original) is classmethod
+    calls = []
+
+    def replacement(cls, items):
+        calls.append((cls, items))
+        return original.__func__(cls, items)
+
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        FrozenJsonObject,
+        "_from_frozen_items",
+        classmethod(replacement),
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert calls == []
+    assert changed_sha256 != baseline
+
+
+@pytest.mark.parametrize(
+    "class_name, member_name, replacement_kind",
+    (
+        pytest.param(
+            "_AstClosureResolver",
+            "_record_loaded_globals",
+            "classmethod",
+            id="staticmethod-to-classmethod",
+        ),
+        pytest.param(
+            "_AstClosureResolver",
+            "_record_loaded_globals",
+            "ordinary",
+            id="staticmethod-to-ordinary",
+        ),
+        pytest.param(
+            "_AstClosureResolver",
+            "resolve_symbol",
+            "staticmethod",
+            id="ordinary-to-staticmethod",
+        ),
+        pytest.param(
+            "FrozenJsonObject",
+            "_from_frozen_items",
+            "staticmethod",
+            id="classmethod-to-staticmethod",
+        ),
+    ),
+)
+def test_task6_review6_actual_descriptor_wrapper_kind_changes_commitment(
+    monkeypatch,
+    class_name,
+    member_name,
+    replacement_kind,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    project_class = getattr(isolation, class_name, None)
+    if project_class is None:
+        project_class = getattr(adapters, class_name)
+    original = vars(project_class)[member_name]
+    function = getattr(original, "__func__", original)
+    wrappers = {
+        "classmethod": classmethod,
+        "ordinary": lambda value: value,
+        "staticmethod": staticmethod,
+    }
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        project_class,
+        member_name,
+        wrappers[replacement_kind](function),
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+@pytest.mark.parametrize("mutation", ("field-order", "field-metadata"))
+def test_task6_review6_actual_dataclass_field_semantics_change_commitment(
+    monkeypatch,
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    project_class = isolation.ScientificPolicyCommitment
+    fields_by_name = vars(project_class)["__dataclass_fields__"]
+    baseline = isolation._current_static_scanner_sha256()
+    if mutation == "field-order":
+        monkeypatch.setattr(
+            project_class,
+            "__dataclass_fields__",
+            dict(reversed(tuple(fields_by_name.items()))),
+        )
+    else:
+        first_field = next(iter(fields_by_name.values()))
+        monkeypatch.setattr(
+            first_field,
+            "metadata",
+            MappingProxyType({"review_canary": "changed"}),
+        )
+
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+def test_task6_review6_actual_enum_member_semantics_change_commitment(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    member = isolation._InfrastructureNumericProvenance.NUMERIC_LITERAL
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(member, "_value_", member.value << 1)
+
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+@pytest.mark.parametrize(
+    "external_class",
+    (
+        pytest.param(Path, id="path"),
+        pytest.param(PurePath, id="pure-path"),
+        pytest.param(PurePosixPath, id="pure-posix-path"),
+        pytest.param(string.Formatter, id="formatter"),
+    ),
+)
+def test_task6_review6_external_constructor_changes_commitment_without_execution(
+    monkeypatch,
+    external_class,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    calls = []
+
+    def replacement(cls, *args, **kwargs):
+        calls.append((cls, args, kwargs))
+        return object.__new__(cls)
+
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        external_class,
+        "__new__",
+        staticmethod(replacement),
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert calls == []
+    assert changed_sha256 != baseline
+
+
+def test_task6_review6_deque_spoofed_identity_and_mro_change_commitment(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    class SpoofedDeque(deque):
+        def __new__(cls, *args, **kwargs):
+            raise AssertionError("scanner executed a spoofed constructor")
+
+    SpoofedDeque.__module__ = "collections"
+    SpoofedDeque.__qualname__ = "deque"
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(isolation, "deque", SpoofedDeque)
+
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+@pytest.mark.parametrize(
+    "external_class, binding_owner, binding_name",
+    (
+        pytest.param(Path, "isolation", "Path", id="path"),
+        pytest.param(PurePath, "isolation", "PurePath", id="pure-path"),
+        pytest.param(
+            PurePosixPath,
+            "isolation",
+            "PurePosixPath",
+            id="pure-posix-path",
+        ),
+        pytest.param(
+            string.Formatter,
+            "string",
+            "Formatter",
+            id="formatter",
+        ),
+        pytest.param(deque, "isolation", "deque", id="deque"),
+    ),
+)
+def test_task6_review6_external_same_identity_substitute_changes_commitment(
+    monkeypatch,
+    external_class,
+    binding_owner,
+    binding_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    spoofed_class = type(
+        external_class.__name__,
+        (external_class,),
+        {
+            "__module__": external_class.__module__,
+            "__qualname__": external_class.__qualname__,
+        },
+    )
+    owner = isolation if binding_owner == "isolation" else string
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(owner, binding_name, spoofed_class)
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+def test_task6_review6_reachable_nonconstructed_lifecycle_is_not_overcommitted(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    project_class = FrozenJsonObject
+    calls = []
+
+    def replacement(self):
+        calls.append(self)
+        return None
+
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        project_class,
+        "__post_init__",
+        replacement,
+        raising=False,
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert calls == []
+    assert changed_sha256 == baseline
+
+
+def test_task6_review6_unused_constructed_class_member_is_not_overcommitted(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    def first_unused_member(self):
+        return self
+
+    def second_unused_member(self):
+        return None
+
+    monkeypatch.setattr(
+        isolation._AstClosureResolver,
+        "_review_unused_member",
+        first_unused_member,
+        raising=False,
+    )
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        isolation._AstClosureResolver,
+        "_review_unused_member",
+        second_unused_member,
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 == baseline
+
+
+def test_task6_review7_unused_post_init_on_constructed_non_dataclass_is_not_committed(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    calls = []
+
+    def unused_post_init(self):
+        calls.append(self)
+
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        isolation._AstClosureResolver,
+        "__post_init__",
+        unused_post_init,
+        raising=False,
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert calls == []
+    assert changed_sha256 == baseline
+
+
+def test_task6_review7_branch_class_alias_is_marked_constructed():
+    from validation import literature_evidence_isolation as isolation
+
+    class BranchClass:
+        pass
+
+    namespace = {
+        "BranchClass": BranchClass,
+        "object": object,
+    }
+    exec(
+        compile(
+            "def branch_construct(flag):\n"
+            "    if flag:\n"
+            "        target = BranchClass\n"
+            "    else:\n"
+            "        target = object\n"
+            "    return target()\n",
+            "<task6-review7-branch-class-alias>",
+            "exec",
+        ),
+        namespace,
+    )
+
+    usages = isolation._static_code_class_usages(
+        namespace["branch_construct"].__code__,
+        namespace,
+    )
+
+    assert usages["BranchClass"]["constructed"] is True
+
+
+def test_task6_review7_sequential_class_alias_overwrite_is_not_overcommitted():
+    from validation import literature_evidence_isolation as isolation
+
+    class OverwrittenClass:
+        pass
+
+    namespace = {
+        "OverwrittenClass": OverwrittenClass,
+        "object": object,
+    }
+    exec(
+        compile(
+            "def sequential_overwrite():\n"
+            "    target = OverwrittenClass\n"
+            "    target = object\n"
+            "    return target()\n",
+            "<task6-review7-sequential-overwrite>",
+            "exec",
+        ),
+        namespace,
+    )
+
+    usages = isolation._static_code_class_usages(
+        namespace["sequential_overwrite"].__code__,
+        namespace,
+    )
+
+    assert usages["OverwrittenClass"]["constructed"] is False
+
+
+def test_task6_review7_branch_instance_receiver_member_is_joined():
+    from validation import literature_evidence_isolation as isolation
+
+    class ReceiverBase:
+        def inherited_member(self):
+            return None
+
+    class FirstReceiver(ReceiverBase):
+        pass
+
+    class SecondReceiver(ReceiverBase):
+        pass
+
+    namespace = {
+        "FirstReceiver": FirstReceiver,
+        "SecondReceiver": SecondReceiver,
+    }
+    exec(
+        compile(
+            "def branch_receiver(flag):\n"
+            "    if flag:\n"
+            "        target = FirstReceiver()\n"
+            "    else:\n"
+            "        target = SecondReceiver()\n"
+            "    return target.inherited_member()\n",
+            "<task6-review7-branch-instance-receiver>",
+            "exec",
+        ),
+        namespace,
+    )
+
+    usages = isolation._static_code_class_usages(
+        namespace["branch_receiver"].__code__,
+        namespace,
+    )
+
+    assert usages["FirstReceiver"] == {
+        "constructed": True,
+        "members": {"inherited_member"},
+    }
+    assert usages["SecondReceiver"] == {
+        "constructed": True,
+        "members": {"inherited_member"},
+    }
+
+
+def test_task6_review8_nested_frozenset_normalization_does_not_execute_project_serializer(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    original = vars(FrozenJsonObject)["_from_frozen_items"]
+    calls = []
+
+    def replacement(cls, items):
+        calls.append((cls, items))
+        return original.__func__(cls, items)
+
+    monkeypatch.setattr(
+        FrozenJsonObject,
+        "_from_frozen_items",
+        classmethod(replacement),
+    )
+    state = {
+        "steps": 0,
+        "edges": 0,
+        "attributes": 0,
+        "memo": {},
+        "project_functions": {},
+    }
+    normalized = isolation._static_semantic_value(
+        frozenset({frozenset({"x"})}),
+        state,
+        0,
+        binding_name="review8_nested_frozenset",
+    )
+    monkeypatch.undo()
+
+    assert calls == []
+    assert normalized == {
+        "kind": "frozenset",
+        "token": "node_00000",
+        "items": [
+            {
+                "kind": "frozenset",
+                "token": "node_00001",
+                "items": ["x"],
+            }
+        ],
+    }
+
+
+def test_task6_review8_hostile_dataclass_metadata_fails_closed_without_execution(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    calls = []
+
+    class HostileMetadata(Mapping):
+        def __iter__(self):
+            calls.append("__iter__")
+            return iter(("review8",))
+
+        def __len__(self):
+            calls.append("__len__")
+            return 1
+
+        def __getitem__(self, key):
+            calls.append(("__getitem__", key))
+            return "hostile"
+
+    first_field = next(
+        iter(
+            vars(isolation.ScientificPolicyCommitment)[
+                "__dataclass_fields__"
+            ].values()
+        )
+    )
+    monkeypatch.setattr(first_field, "metadata", HostileMetadata())
+    caught = None
+    try:
+        isolation._current_static_scanner_sha256()
+    except AdapterContractError as error:
+        caught = error
+    monkeypatch.undo()
+
+    assert (caught is not None, calls) == (True, [])
+    assert "metadata" in str(caught)
+
+
+def test_task6_review8_exact_mappingproxy_metadata_changes_commitment(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    first_field = next(
+        iter(
+            vars(isolation.ScientificPolicyCommitment)[
+                "__dataclass_fields__"
+            ].values()
+        )
+    )
+    baseline = isolation._current_static_scanner_sha256()
+    monkeypatch.setattr(
+        first_field,
+        "metadata",
+        MappingProxyType({"review8_canary": "changed"}),
+    )
+    changed_sha256 = isolation._current_static_scanner_sha256()
+    monkeypatch.undo()
+
+    assert changed_sha256 != baseline
+
+
+def test_task6_review9_mappingproxy_wrapped_hostile_mapping_fails_without_execution():
+    from validation import literature_evidence_isolation as isolation
+
+    calls = []
+
+    class HostileMapping(Mapping):
+        def __iter__(self):
+            calls.append("__iter__")
+            return iter(("review9",))
+
+        def __len__(self):
+            calls.append("__len__")
+            return 1
+
+        def __getitem__(self, key):
+            calls.append(("__getitem__", key))
+            return "hostile"
+
+    state = {
+        "steps": 0,
+        "edges": 0,
+        "attributes": 0,
+        "memo": {},
+        "project_functions": {},
+    }
+    caught = None
+    try:
+        isolation._static_semantic_value(
+            MappingProxyType(HostileMapping()),
+            state,
+            0,
+            binding_name="review9_hostile_mappingproxy",
+        )
+    except AdapterContractError as error:
+        caught = error
+
+    assert (caught is not None, calls) == (True, [])
+    assert "mapping" in str(caught)
+
+
+def test_task6_review9_mappingproxy_wrapped_exact_dict_is_deterministic():
+    from validation import literature_evidence_isolation as isolation
+
+    state = {
+        "steps": 0,
+        "edges": 0,
+        "attributes": 0,
+        "memo": {},
+        "project_functions": {},
+    }
+    normalized = isolation._static_semantic_value(
+        MappingProxyType({"beta": 2, "alpha": 1}),
+        state,
+        0,
+        binding_name="review9_exact_mappingproxy",
+    )
+
+    assert normalized == {
+        "kind": "mapping",
+        "token": "node_00000",
+        "items": [["beta", 2], ["alpha", 1]],
+    }
+
+
+def test_task6_review6_old_report_fails_after_constructor_binding_change(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.scan_scientific_closure(
+        _task6_safe_scan_closure(tmp_path),
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    values = {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    calls = []
+
+    def replacement(cls, *args, **kwargs):
+        calls.append((cls, args, kwargs))
+        return object.__new__(cls)
+
+    monkeypatch.setattr(Path, "__new__", staticmethod(replacement))
+    caught = None
+    try:
+        isolation.StaticScanReport(**values)
+    except AdapterContractError as error:
+        caught = error
+    monkeypatch.undo()
+
+    assert caught is not None
+    assert re.search(
+        "scanner|commitment|unsupported|hash",
+        str(caught),
+    )
+    assert calls == []
 
 
 def test_task6_review_scanner_commitment_changes_with_rule_manifest(
