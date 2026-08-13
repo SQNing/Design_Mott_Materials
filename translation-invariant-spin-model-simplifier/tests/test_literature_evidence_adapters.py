@@ -20992,8 +20992,8 @@ def test_runtime_ldd_parser_accepts_only_anchored_dynamic_rows(tmp_path):
     )
 
     assert isolation._runtime_ldd_paths(output) == (
-        ("libdemo.so", library, "dynamic_library"),
-        (loader.name, loader, "dynamic_loader"),
+        ("libdemo.so", library, False, False),
+        (loader.name, loader, True, True),
     )
 
 
@@ -21019,20 +21019,14 @@ def test_runtime_ldd_parser_fails_closed_on_incomplete_or_unknown_output(
         isolation._runtime_ldd_paths(unsafe_output)
 
 
-@pytest.mark.parametrize("loader_rows", (0, 2))
-def test_runtime_ldd_parser_requires_exactly_one_dynamic_loader(
-    tmp_path, loader_rows
-):
-    from validation import literature_evidence_isolation as isolation
-
+def test_runtime_resource_discovery_requires_a_dynamic_loader_identity(tmp_path):
     library = tmp_path / "libdemo.so"
-    lines = [f"libdemo.so => {library} (0x1)"]
-    for index in range(loader_rows):
-        loader = tmp_path / f"ld-linux-test-{index}.so.2"
-        lines.append(f"{loader} (0x{index + 2:x})")
+    library.write_bytes(b"library")
 
     with pytest.raises(AdapterContractError, match="loader"):
-        isolation._runtime_ldd_paths("\n".join(lines) + "\n")
+        _task7_discover_only_ldd(
+            tmp_path, f"libdemo.so => {library} (0x1)\n"
+        )
 
 
 def test_runtime_resource_discovery_deduplicates_ldd_file_identity(tmp_path):
@@ -21069,8 +21063,101 @@ def test_runtime_resource_discovery_deduplicates_ldd_file_identity(tmp_path):
         if row["purpose"] in {"dynamic_library", "dynamic_loader"}
     )
     assert [row["purpose"] for row in ldd_rows] == [
-        "dynamic_library", "dynamic_loader"
+        "dynamic_loader", "dynamic_library"
     ]
+
+
+def _task7_discover_only_ldd(tmp_path, output):
+    from validation import literature_evidence_isolation as isolation
+
+    interpreter = tmp_path / "python"
+    if not interpreter.exists():
+        interpreter.write_bytes(b"python")
+
+    def probe(operation, value):
+        if operation == "resolve_interpreter":
+            return interpreter
+        if operation == "imported_stdlib_files":
+            return ()
+        raise AssertionError((operation, value))
+
+    return isolation.discover_runtime_resources(
+        RuntimeRequirements("python3", (), (), ()),
+        command_probe=lambda argv: output,
+        file_probe=probe,
+    )
+
+
+def test_runtime_ldd_accepts_vdso64_and_ld64_loader(tmp_path):
+    loader = tmp_path / "ld64.so.2"
+    loader.write_bytes(b"power-loader")
+
+    manifest = _task7_discover_only_ldd(
+        tmp_path,
+        "linux-vdso64.so.1 => (0x1000)\n"
+        f"{loader} (0x2000)\n",
+    )
+
+    loader_rows = tuple(
+        row
+        for row in manifest.resources
+        if row["purpose"] == "dynamic_loader"
+    )
+    assert len(loader_rows) == 1
+    assert loader_rows[0]["resolved_path"] == str(loader.resolve())
+
+
+def test_runtime_ldd_groups_duplicate_loader_aliases_before_cardinality(
+    tmp_path,
+):
+    first = tmp_path / "ld64.so.1"
+    second = tmp_path / "ld64.so.2"
+    first.write_bytes(b"one-loader-inode")
+    os.link(first, second)
+    first_output = f"{first} (0x1)\n{second} (0x2)\n"
+    second_output = f"{second} (0x2)\n{first} (0x1)\n"
+
+    manifest_one = _task7_discover_only_ldd(tmp_path, first_output)
+    manifest_two = _task7_discover_only_ldd(tmp_path, second_output)
+
+    assert manifest_one.resources == manifest_two.resources
+    assert manifest_one.manifest_sha256 == manifest_two.manifest_sha256
+    assert sum(
+        row["purpose"] == "dynamic_loader"
+        for row in manifest_one.resources
+    ) == 1
+
+
+def test_runtime_ldd_groups_musl_libc_alias_with_direct_loader(tmp_path):
+    loader = tmp_path / "ld-musl-s390x.so.1"
+    loader.write_bytes(b"musl-loader")
+
+    manifest = _task7_discover_only_ldd(
+        tmp_path,
+        f"libc.musl-s390x.so.1 => {loader} (0x1)\n"
+        f"{loader} (0x2)\n",
+    )
+
+    ldd_rows = tuple(
+        row
+        for row in manifest.resources
+        if row["purpose"] in {"dynamic_library", "dynamic_loader"}
+    )
+    assert len(ldd_rows) == 1
+    assert ldd_rows[0]["purpose"] == "dynamic_loader"
+
+
+def test_runtime_ldd_rejects_two_distinct_loader_identities(tmp_path):
+    first = tmp_path / "ld-linux-one.so.2"
+    second = tmp_path / "ld-linux-two.so.2"
+    first.write_bytes(b"first-loader")
+    second.write_bytes(b"second-loader")
+
+    with pytest.raises(AdapterContractError, match="loader"):
+        _task7_discover_only_ldd(
+            tmp_path,
+            f"{first} (0x1)\n{second} (0x2)\n",
+        )
 
 
 def test_runtime_snapshot_freezes_bytes_and_revalidates_retained_dirfd(
@@ -21238,6 +21325,84 @@ def test_runtime_snapshot_copy_event_precedes_byte_comparison(
             run_directory=tmp_path / "exclusive-run",
             event_recorder=mutate_at_copy_boundary,
         )
+
+
+@pytest.mark.parametrize(
+    "mutation_event",
+    (
+        "runtime_resource_byte_compared",
+        "runtime_manifest_hashed",
+        "runtime_snapshot_frozen",
+    ),
+)
+def test_runtime_snapshot_final_audit_rejects_nonraising_event_mutation(
+    tmp_path, monkeypatch, mutation_event
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(b"final-audit")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source,
+            "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    run_path = tmp_path / "exclusive-run"
+    snapshot_root = run_path / "runtime-snapshot"
+    original_create = isolation._runtime_create_private_directory
+    original_close = isolation.os.close
+    created = []
+    root_fd = []
+    root_close_calls = []
+
+    def capture_created(parent_fd, basename):
+        descriptor = original_create(parent_fd, basename)
+        created.append(descriptor)
+        if basename == "runtime-snapshot":
+            root_fd.append(descriptor)
+        return descriptor
+
+    def capture_root_close(descriptor):
+        if root_fd and descriptor == root_fd[0]:
+            root_close_calls.append(descriptor)
+        return original_close(descriptor)
+
+    monkeypatch.setattr(
+        isolation, "_runtime_create_private_directory", capture_created
+    )
+    monkeypatch.setattr(isolation.os, "close", capture_root_close)
+
+    def mutate_without_raising(event_name, details):
+        if event_name != mutation_event:
+            return
+        copied = next(snapshot_root.iterdir())
+        if event_name == "runtime_resource_byte_compared":
+            (snapshot_root / "undeclared").write_bytes(b"extra")
+        elif event_name == "runtime_manifest_hashed":
+            os.link(copied, tmp_path / "external-hardlink")
+        else:
+            snapshot_root.chmod(0o700)
+
+    before_fds = len(os.listdir("/proc/self/fd"))
+    with pytest.raises(AdapterContractError, match="snapshot|identity|basename"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=run_path,
+            event_recorder=mutate_without_raising,
+        )
+
+    assert len(created) == 2
+    assert len(root_fd) == 1
+    assert root_close_calls == [root_fd[0]]
+    with pytest.raises(OSError):
+        os.fstat(root_fd[0])
+    assert len(os.listdir("/proc/self/fd")) == before_fds
 
 
 @pytest.mark.parametrize(

@@ -13924,8 +13924,9 @@ def _default_runtime_file_probe(operation, value):
 def _runtime_ldd_paths(output):
     if type(output) is not str:
         raise _ContractError("ldd output must be exact text")
+    if not output:
+        raise _ContractError("ldd output must not be empty")
     entries = []
-    loader_count = 0
     shared_row = re.compile(
         r"^(?P<name>[^\s=]+)\s*=>\s*(?P<path>/\S+)\s+"
         r"\(0x[0-9A-Fa-f]+\)$"
@@ -13934,13 +13935,13 @@ def _runtime_ldd_paths(output):
         r"^(?P<path>/\S+)\s+\(0x[0-9A-Fa-f]+\)$"
     )
     pseudo_row = re.compile(
-        r"^(?:linux-vdso|linux-gate)\.so(?:\.[0-9]+)*\s+"
+        r"^(?:linux-vdso(?:32|64)?|linux-gate)\.so(?:\.[0-9]+)*\s+"
         r"(?:=>\s*)?\(0x[0-9A-Fa-f]+\)$"
     )
     loader_name = re.compile(
         r"^(?:ld-linux(?:-[A-Za-z0-9_.+-]+)?\.so(?:\.[0-9]+)*|"
         r"ld-musl-[A-Za-z0-9_.+-]+\.so(?:\.[0-9]+)*|"
-        r"ld\.so(?:\.[0-9]+)*)$"
+        r"ld\.so(?:\.[0-9]+)*|ld64\.so(?:\.[0-9]+)*)$"
     )
     for raw_line in output.splitlines():
         line = raw_line.strip()
@@ -13957,24 +13958,17 @@ def _runtime_ldd_paths(output):
             path = Path(shared.group("path"))
             soname_is_loader = loader_name.fullmatch(soname) is not None
             path_is_loader = loader_name.fullmatch(path.name) is not None
-            if soname_is_loader != path_is_loader:
-                raise _ContractError("ldd loader classification is ambiguous")
-            purpose = (
-                "dynamic_loader" if path_is_loader else "dynamic_library"
-            )
         elif direct is not None:
             path = Path(direct.group("path"))
             soname = path.name
             if loader_name.fullmatch(soname) is None:
                 raise _ContractError("ldd absolute row is not a known loader")
-            purpose = "dynamic_loader"
+            soname_is_loader = path_is_loader = True
         else:
             raise _ContractError("ldd output contains an unknown row")
-        if purpose == "dynamic_loader":
-            loader_count += 1
-        entries.append((soname, path, purpose))
-    if loader_count != 1:
-        raise _ContractError("ldd output must declare exactly one loader")
+        entries.append(
+            (soname, path, soname_is_loader, path_is_loader)
+        )
     return tuple(entries)
 
 
@@ -13998,31 +13992,59 @@ def discover_runtime_resources(
     ]
     ldd_output = command(("ldd", str(interpreter_resolved)))
     ldd_identities = {}
-    for _soname, library, purpose in _runtime_ldd_paths(ldd_output):
+    parsed_ldd = sorted(
+        _runtime_ldd_paths(ldd_output),
+        key=lambda item: (str(item[1]), item[0], item[2], item[3]),
+    )
+    for soname, library, soname_loader, path_loader in parsed_ldd:
         row = _runtime_file_row(
             library,
             logical_destination="/runtime/native/pending",
-            purpose=purpose,
+            purpose="dynamic_library",
         )
         try:
             metadata = os.stat(row["resolved_path"], follow_symlinks=False)
         except OSError as error:
             raise _ContractError("ldd file identity cannot be stated") from error
         identity = (metadata.st_dev, metadata.st_ino)
-        previous = ldd_identities.get(identity)
-        if previous is not None:
-            if (
-                previous["purpose"] != purpose
-                or previous["size"] != row["size"]
-                or previous["mode"] != row["mode"]
-                or previous["sha256"] != row["sha256"]
+        candidates = ldd_identities.setdefault(identity, [])
+        if candidates:
+            previous = candidates[0][1]
+            if any(
+                previous[field] != row[field]
+                for field in ("size", "mode", "sha256")
             ):
                 raise _ContractError("ldd file identity is ambiguous")
-            continue
-        row["logical_destination"] = (
-            f"/runtime/native/ldd-{len(ldd_identities)}-{library.name}"
+        candidates.append(
+            (
+                (
+                    row["resolved_path"],
+                    soname,
+                    soname_loader,
+                    path_loader,
+                ),
+                row,
+                soname_loader or path_loader,
+            )
         )
-        ldd_identities[identity] = row
+    grouped_ldd = []
+    for identity, candidates in ldd_identities.items():
+        representative = min(candidates, key=lambda item: item[0])
+        grouped_ldd.append(
+            (representative[0], identity, representative[1], any(
+                candidate[2] for candidate in candidates
+            ))
+        )
+    grouped_ldd.sort(key=lambda item: (item[0], item[1]))
+    if sum(item[3] for item in grouped_ldd) != 1:
+        raise _ContractError("ldd output must resolve to exactly one loader")
+    for index, (_key, _identity, row, is_loader) in enumerate(grouped_ldd):
+        row["purpose"] = (
+            "dynamic_loader" if is_loader else "dynamic_library"
+        )
+        row["logical_destination"] = (
+            f"/runtime/native/ldd-{index}-{Path(row['resolved_path']).name}"
+        )
         rows.append(row)
     stdlib_names = set()
     for item in files("imported_stdlib_files", requirements.packages):
@@ -14611,6 +14633,11 @@ def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
             "runtime_snapshot_frozen",
             {"snapshot_sha256": snapshot.snapshot_sha256},
         )
+        _runtime_audit_snapshot_fd(
+            object.__getattribute__(state, "root_fd"),
+            object.__getattribute__(state, "root_identity"),
+            object.__getattribute__(state, "files"),
+        )
         success = True
         return snapshot
     except FileExistsError as error:
@@ -14643,6 +14670,114 @@ def _runtime_hash_descriptor(descriptor):
         total += len(chunk)
         digest.update(chunk)
     return total, digest.hexdigest()
+
+
+def _runtime_exact_record(value, expected_keys, field_name):
+    if type(value) is not _FrozenJsonObject:
+        raise _ContractError(f"{field_name} is not exact")
+    try:
+        namespace = object.__getattribute__(value, "__dict__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError(f"{field_name} storage is not exact") from error
+    if type(namespace) is not dict or set(namespace) != {"_items"}:
+        raise _ContractError(f"{field_name} storage is not exact")
+    items = dict.__getitem__(namespace, "_items")
+    if type(items) is not tuple or len(items) != len(expected_keys):
+        raise _ContractError(f"{field_name} storage is not exact")
+    record = {}
+    keys = []
+    for pair in items:
+        if type(pair) is not tuple or len(pair) != 2:
+            raise _ContractError(f"{field_name} storage is not exact")
+        key, item = pair
+        if type(key) is not str or key in record:
+            raise _ContractError(f"{field_name} storage is not exact")
+        keys.append(key)
+        record[key] = item
+    if keys != sorted(keys) or set(record) != expected_keys:
+        raise _ContractError(f"{field_name} storage is not canonical")
+    return record
+
+
+def _runtime_audit_snapshot_fd(root_fd, root_identity, files):
+    root = _runtime_exact_record(
+        root_identity,
+        {"logical_path", "device", "inode", "mode"},
+        "runtime snapshot root identity",
+    )
+    if (
+        root["logical_path"] != "/runtime"
+        or type(root["device"]) is not int
+        or type(root["inode"]) is not int
+        or root["mode"] != 0o500
+        or type(files) is not tuple
+    ):
+        raise _ContractError("runtime snapshot root identity is malformed")
+    expected_files = tuple(
+        _runtime_exact_record(
+            item,
+            {
+                "basename",
+                "logical_destination",
+                "device",
+                "inode",
+                "link_count",
+                "size",
+                "mode",
+                "sha256",
+            },
+            "runtime snapshot file identity",
+        )
+        for item in files
+    )
+    try:
+        root_metadata = os.fstat(root_fd)
+        if (
+            not stat.S_ISDIR(root_metadata.st_mode)
+            or root_metadata.st_dev != root["device"]
+            or root_metadata.st_ino != root["inode"]
+            or stat.S_IMODE(root_metadata.st_mode) != root["mode"]
+        ):
+            raise _ContractError("runtime snapshot root identity changed")
+        expected_names = {item["basename"] for item in expected_files}
+        if (
+            len(expected_names) != len(expected_files)
+            or any(
+                type(name) is not str
+                or name in {"", ".", ".."}
+                or "/" in name
+                for name in expected_names
+            )
+            or set(os.listdir(root_fd)) != expected_names
+        ):
+            raise _ContractError("runtime snapshot basename set changed")
+        for expected in expected_files:
+            descriptor = os.open(
+                expected["basename"],
+                os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=root_fd,
+            )
+            try:
+                metadata = os.fstat(descriptor)
+                if (
+                    not stat.S_ISREG(metadata.st_mode)
+                    or metadata.st_dev != expected["device"]
+                    or metadata.st_ino != expected["inode"]
+                    or expected["link_count"] != 1
+                    or metadata.st_nlink != 1
+                    or metadata.st_size != expected["size"]
+                    or stat.S_IMODE(metadata.st_mode) != expected["mode"]
+                ):
+                    raise _ContractError(
+                        "runtime snapshot file identity changed"
+                    )
+                total, digest = _runtime_hash_descriptor(descriptor)
+                if total != expected["size"] or digest != expected["sha256"]:
+                    raise _ContractError("runtime snapshot file bytes changed")
+            finally:
+                os.close(descriptor)
+    except OSError as error:
+        raise _ContractError("runtime snapshot dirfd audit failed") from error
 
 
 def revalidate_runtime_snapshot(snapshot):
@@ -14683,36 +14818,7 @@ def revalidate_runtime_snapshot(snapshot):
             raise _ContractError("runtime snapshot directory identity changed")
         if snapshot.snapshot_sha256 != _canonical_sha256(snapshot_material):
             raise _ContractError("runtime snapshot commitment changed")
-        if (
-            stat.S_IMODE(root_metadata.st_mode) != root_identity["mode"]
-        ):
-            raise _ContractError("runtime snapshot retained directory changed")
-        expected_names = {item["basename"] for item in files}
-        if set(os.listdir(root_fd)) != expected_names:
-            raise _ContractError("runtime snapshot basename set changed")
-        for expected in files:
-            descriptor = os.open(
-                expected["basename"],
-                os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
-                dir_fd=root_fd,
-            )
-            try:
-                metadata = os.fstat(descriptor)
-                if (
-                    not stat.S_ISREG(metadata.st_mode)
-                    or metadata.st_dev != expected["device"]
-                    or metadata.st_ino != expected["inode"]
-                    or metadata.st_nlink != expected["link_count"]
-                    or metadata.st_nlink != 1
-                    or metadata.st_size != expected["size"]
-                    or stat.S_IMODE(metadata.st_mode) != expected["mode"]
-                ):
-                    raise _ContractError("runtime snapshot file identity changed")
-                total, digest = _runtime_hash_descriptor(descriptor)
-                if total != expected["size"] or digest != expected["sha256"]:
-                    raise _ContractError("runtime snapshot file bytes changed")
-            finally:
-                os.close(descriptor)
+        _runtime_audit_snapshot_fd(root_fd, root_identity, files)
     except OSError as error:
         raise _ContractError("runtime snapshot retained dirfd revalidation failed") from error
     finally:
