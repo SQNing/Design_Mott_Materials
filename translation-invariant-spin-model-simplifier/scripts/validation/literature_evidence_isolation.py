@@ -6744,6 +6744,24 @@ def _scan_policy_forbidden_structures(
     path: tuple[str, ...] = (),
     parsed_text_depth: int = 0,
 ) -> None:
+    material_budget = [0]
+    _scan_policy_forbidden_structures_with_budget(
+        value,
+        role=role,
+        path=path,
+        parsed_text_depth=parsed_text_depth,
+        material_budget=material_budget,
+    )
+
+
+def _scan_policy_forbidden_structures_with_budget(
+    value: object,
+    *,
+    role: str,
+    path: tuple[str, ...],
+    parsed_text_depth: int,
+    material_budget: list[int],
+) -> None:
     if type(value) is _FrozenJsonObject:
         policy_items = _static_scan_exact_frozen_items(
             value,
@@ -6805,22 +6823,24 @@ def _scan_policy_forbidden_structures(
                 raise _ContractError(
                     "scientific definition contains an unknown proof kind"
                 )
-            _scan_policy_forbidden_structures(
+            _scan_policy_forbidden_structures_with_budget(
                 item,
                 role=role,
                 path=path + (key,),
                 parsed_text_depth=parsed_text_depth,
+                material_budget=material_budget,
             )
         return
     if type(value) is tuple or (
         parsed_text_depth and type(value) is list
     ):
         for item in value:
-            _scan_policy_forbidden_structures(
+            _scan_policy_forbidden_structures_with_budget(
                 item,
                 role=role,
                 path=path,
                 parsed_text_depth=parsed_text_depth,
+                material_budget=material_budget,
             )
         return
     if (
@@ -6866,14 +6886,6 @@ def _scan_policy_forbidden_structures(
         if parsed is not _STATIC_CONSTANT_UNAVAILABLE:
             try:
                 parsed_bytes = _static_exact_builtin_json_bytes(parsed)
-                if (
-                    len(source_bytes) + len(parsed_bytes)
-                    > _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT
-                ):
-                    raise _ContractError(
-                        "scientific definition canonical text exceeds the "
-                        "material bound"
-                    )
                 is_canonical_text = parsed_bytes == (
                     value.strip().encode("utf-8")
                 )
@@ -6887,11 +6899,23 @@ def _scan_policy_forbidden_structures(
             ):
                 is_canonical_text = False
             if is_canonical_text:
-                _scan_policy_forbidden_structures(
+                layer_material = len(source_bytes) + len(parsed_bytes)
+                remaining_material = (
+                    _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT
+                    - material_budget[0]
+                )
+                if layer_material > remaining_material:
+                    raise _ContractError(
+                        "scientific definition canonical text exceeds the "
+                        "material bound"
+                    )
+                material_budget[0] += layer_material
+                _scan_policy_forbidden_structures_with_budget(
                     parsed,
                     role=role,
                     path=path,
                     parsed_text_depth=parsed_text_depth + 1,
+                    material_budget=material_budget,
                 )
         categorical_answer_literals = frozenset(
             {

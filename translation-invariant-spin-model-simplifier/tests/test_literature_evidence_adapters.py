@@ -20672,3 +20672,128 @@ def test_task6_review24_exact_json_serializer_is_mapping_order_independent():
     assert isolation._static_exact_builtin_json_bytes(
         {"alpha": 1, "zeta": [2, 3]}
     ) == expected
+
+
+def _task6_review25_nested_canonical_text(layer_count, scalar_size):
+    text = "x" * scalar_size
+    for _ in range(layer_count):
+        text = json.dumps(
+            text,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    return text
+
+
+def test_task6_review25_policy_scan_rejects_cumulative_canonical_text_material():
+    from validation import literature_evidence_isolation as isolation
+
+    text = _task6_review25_nested_canonical_text(18, 500_000)
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scientific|canonical|text|material|bound",
+    ):
+        isolation._scan_policy_forbidden_structures(text, role="adapter")
+
+
+@pytest.mark.parametrize("role", ("adapter", "oracle"))
+def test_task6_review25_policy_builders_reject_cumulative_canonical_text_material(
+    monkeypatch,
+    role,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    text = _task6_review25_nested_canonical_text(18, 500_000)
+    definition, closure = _task6_review24_definition_with_authored_text(
+        monkeypatch,
+        role,
+        text,
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="scientific|canonical|text|material|bound",
+    ):
+        isolation.build_scientific_policy_commitment(
+            definition,
+            closure,
+            role=role,
+        )
+
+
+def test_task6_review25_policy_scan_accepts_canonical_text_under_material_bound():
+    from validation import literature_evidence_isolation as isolation
+
+    text = _task6_review25_nested_canonical_text(16, 500_000)
+
+    isolation._scan_policy_forbidden_structures(text, role="adapter")
+
+
+def test_task6_review25_policy_scan_shares_exact_material_bound_across_siblings(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    text = json.dumps("bounded", separators=(",", ":"))
+    exact_bound = 4 * len(text.encode("utf-8"))
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT",
+        exact_bound,
+    )
+    isolation._scan_policy_forbidden_structures(
+        (text, text),
+        role="adapter",
+    )
+
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT",
+        exact_bound - 1,
+    )
+    with pytest.raises(
+        AdapterContractError,
+        match="scientific|canonical|text|material|bound",
+    ):
+        isolation._scan_policy_forbidden_structures(
+            (text, text),
+            role="adapter",
+        )
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        '{"method": "bounded"}',
+        '{"method":',
+    ),
+    ids=("noncanonical", "malformed"),
+)
+def test_task6_review25_policy_scan_does_not_charge_unparsed_authored_text(
+    monkeypatch,
+    text,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT",
+        0,
+    )
+
+    isolation._scan_policy_forbidden_structures(text, role="adapter")
+
+
+def test_task6_review25_policy_scan_still_rejects_nested_lookup():
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(
+        AdapterContractError,
+        match="definition|scientific|policy|lookup|forbidden",
+    ):
+        isolation._scan_policy_forbidden_structures(
+            '"{\\"lookup_table\\":{\\"alpha\\":731}}"',
+            role="adapter",
+        )
