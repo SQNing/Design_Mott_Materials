@@ -16,6 +16,7 @@ import dis
 from enum import Enum, IntFlag
 import gc
 import hashlib
+import importlib.metadata as _importlib_metadata
 import json
 import math
 import os
@@ -23,6 +24,10 @@ from pathlib import Path, PurePath, PurePosixPath
 import re
 import stat
 import string
+import subprocess
+import sys
+import sysconfig
+import weakref
 from types import (
     BuiltinFunctionType,
     ClassMethodDescriptorType,
@@ -89,6 +94,9 @@ __all__ = (
     "build_scientific_policy_commitment",
     "build_infrastructure_closure",
     "scan_scientific_closure",
+    "discover_runtime_resources",
+    "build_runtime_snapshot",
+    "revalidate_runtime_snapshot",
     "assert_disjoint_scientific_closures",
     "assert_complete_dependency_partition",
     "scientific_policy_combined_sha256",
@@ -13538,6 +13546,1087 @@ class RuntimeSnapshot:
             ),
         )
         _require_sha256(self.snapshot_sha256, "snapshot_sha256")
+
+    def revalidate(self) -> None:
+        revalidate_runtime_snapshot(self)
+
+
+_RUNTIME_RESOURCE_ROW_FIELDS = frozenset(
+    {
+        "logical_destination",
+        "resolved_path",
+        "link_identity",
+        "file_type",
+        "size",
+        "mode",
+        "sha256",
+        "distribution",
+        "version",
+        "purpose",
+    }
+)
+_RUNTIME_FILE_PURPOSES = frozenset(
+    {
+        "interpreter",
+        "dynamic_loader",
+        "dynamic_library",
+        "declared_native_library",
+        "imported_standard_library",
+        "declared_distribution_file",
+        "declared_backend_resource",
+    }
+)
+_RUNTIME_BACKEND_CAPABILITIES = frozenset({"single_cpu_core"})
+_RUNTIME_FIXED_STDLIB_MODULES = ("encodings", "json", "os")
+_RUNTIME_COPY_BUFFER_BYTES = 65_536
+_RUNTIME_RETAINED_STATE_TOKEN = object()
+
+
+def _runtime_close_fd(descriptor):
+    try:
+        os.close(descriptor)
+    except OSError:
+        pass
+
+
+class _RetainedRuntimeSnapshotState:
+    __slots__ = (
+        "token",
+        "owner_ref",
+        "root_fd",
+        "root_identity",
+        "files",
+        "snapshot_material",
+        "finalizer",
+    )
+
+    def __init__(
+        self,
+        *,
+        owner,
+        root_fd,
+        root_identity,
+        files,
+        snapshot_material,
+        authorization=None,
+    ):
+        if authorization is not _RUNTIME_RETAINED_STATE_TOKEN:
+            raise _ContractError(
+                "retained runtime snapshot state construction is not authorized"
+            )
+        object.__setattr__(self, "token", _RUNTIME_RETAINED_STATE_TOKEN)
+        object.__setattr__(self, "owner_ref", weakref.ref(owner))
+        object.__setattr__(self, "root_fd", root_fd)
+        object.__setattr__(self, "root_identity", root_identity)
+        object.__setattr__(self, "files", files)
+        object.__setattr__(self, "snapshot_material", snapshot_material)
+        object.__setattr__(
+            self,
+            "finalizer",
+            weakref.finalize(owner, _runtime_close_fd, root_fd),
+        )
+
+    def __setattr__(self, name, value):
+        raise AttributeError("retained runtime snapshot state is immutable")
+
+
+def _runtime_event(event_recorder, event_name, details):
+    if not callable(event_recorder):
+        raise _ContractError("event_recorder must be callable")
+    event_recorder(event_name, _snapshot_json(details, "event details"))
+
+
+def _runtime_is_beneath(path, root):
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _runtime_forbidden_roots():
+    project_root = Path(__file__).resolve().parents[2]
+    roots = {
+        project_root,
+        project_root.parent,
+        project_root.parent.parent,
+    }
+    roots.add((Path.home() / ".config").resolve())
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config:
+        roots.add(Path(xdg_config).expanduser().resolve())
+    return tuple(sorted(roots, key=str))
+
+
+def _runtime_link_identity(path):
+    supplied = Path(path)
+    if not supplied.is_absolute():
+        supplied = supplied.absolute()
+    current = Path(supplied.anchor)
+    links = []
+    pending = list(supplied.parts[1:])
+    seen_links = set()
+    steps = 0
+    while pending:
+        steps += 1
+        if steps > 256:
+            raise _ContractError("runtime resource symlink traversal exceeds the bound")
+        component = pending.pop(0)
+        current /= component
+        try:
+            metadata = os.lstat(current)
+        except OSError as error:
+            raise _ContractError("runtime resource cannot be inspected") from error
+        if stat.S_ISLNK(metadata.st_mode):
+            link_key = (metadata.st_dev, metadata.st_ino)
+            if link_key in seen_links:
+                raise _ContractError("runtime resource symlink traversal contains a cycle")
+            seen_links.add(link_key)
+            try:
+                authored_target = os.readlink(current)
+                target = Path(authored_target)
+                if not target.is_absolute():
+                    target = current.parent / target
+                target = Path(os.path.abspath(target))
+                target_metadata = os.stat(target)
+            except (OSError, RuntimeError) as error:
+                raise _ContractError(
+                    "runtime resource symlink target cannot be resolved"
+                ) from error
+            links.append(
+                {
+                    "path": str(current),
+                    "device": metadata.st_dev,
+                    "inode": metadata.st_ino,
+                    "link_target": authored_target,
+                    "target_path": str(target),
+                    "target_device": target_metadata.st_dev,
+                    "target_inode": target_metadata.st_ino,
+                }
+            )
+            pending = list(target.parts[1:]) + pending
+            current = Path(target.anchor)
+    try:
+        resolved = supplied.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise _ContractError("runtime resource cannot be resolved") from error
+    return resolved, tuple(links)
+
+
+def _runtime_hash_regular_file(path):
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as stream:
+            while True:
+                chunk = stream.read(_RUNTIME_COPY_BUFFER_BYTES)
+                if not chunk:
+                    break
+                digest.update(chunk)
+    except OSError as error:
+        raise _ContractError("runtime resource cannot be hashed") from error
+    return digest.hexdigest()
+
+
+def _runtime_file_row(
+    path,
+    *,
+    logical_destination,
+    purpose,
+    distribution=None,
+    version=None,
+):
+    if purpose not in _RUNTIME_FILE_PURPOSES:
+        raise _ContractError("runtime resource has an unknown file purpose")
+    resolved, link_identity = _runtime_link_identity(path)
+    if any(
+        _runtime_is_beneath(resolved, root)
+        for root in _runtime_forbidden_roots()
+    ):
+        raise _ContractError("runtime resource is under a forbidden project or configuration root")
+    try:
+        metadata = resolved.stat()
+    except OSError as error:
+        raise _ContractError("runtime resource cannot be stated") from error
+    if not stat.S_ISREG(metadata.st_mode):
+        raise _ContractError("runtime resource must be an exact regular file")
+    destination = PurePosixPath(logical_destination)
+    if (
+        not destination.is_absolute()
+        or not destination.parts
+        or any(part in {"", ".", ".."} for part in destination.parts)
+    ):
+        raise _ContractError("runtime logical destination must be absolute and closed")
+    return {
+        "logical_destination": str(destination),
+        "resolved_path": str(resolved),
+        "link_identity": link_identity,
+        "file_type": "regular",
+        "size": metadata.st_size,
+        "mode": stat.S_IMODE(metadata.st_mode),
+        "sha256": _runtime_hash_regular_file(resolved),
+        "distribution": distribution,
+        "version": version,
+        "purpose": purpose,
+    }
+
+
+def _runtime_capability_row(name):
+    identity = {
+        "kind": "declared_backend_capability",
+        "name": name,
+        "version": 1,
+    }
+    return {
+        "logical_destination": f"/runtime/capabilities/{name}",
+        "resolved_path": None,
+        "link_identity": (),
+        "file_type": "capability",
+        "size": 0,
+        "mode": 0,
+        "sha256": _canonical_sha256(identity),
+        "distribution": None,
+        "version": None,
+        "purpose": "declared_backend_capability",
+    }
+
+
+def _default_runtime_command_probe(argv):
+    try:
+        result = subprocess.run(
+            argv,
+            check=False,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except (OSError, ValueError) as error:
+        raise _ContractError("runtime discovery command failed") from error
+    if result.returncode != 0:
+        raise _ContractError("runtime discovery command returned nonzero")
+    return result.stdout
+
+
+def _default_runtime_file_probe(operation, value):
+    if operation == "resolve_interpreter":
+        if value != "python3":
+            raise _ContractError("runtime interpreter is not the declared python3")
+        return Path(sys.executable)
+    if operation == "distribution":
+        try:
+            distribution = _importlib_metadata.distribution(value)
+        except _importlib_metadata.PackageNotFoundError as error:
+            raise _ContractError("declared runtime distribution is unavailable") from error
+        files = []
+        for item in distribution.files or ():
+            relative = Path(str(item))
+            if relative.is_absolute() or any(
+                part in {"", ".", ".."} for part in relative.parts
+            ):
+                raise _ContractError("distribution contains an unsafe file path")
+            located = Path(distribution.locate_file(item))
+            if located.is_file():
+                files.append((PurePosixPath(*relative.parts).as_posix(), located))
+        return {
+            "name": distribution.metadata.get("Name", value),
+            "version": distribution.version,
+            "files": tuple(files),
+        }
+    if operation == "native_library":
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            raise _ContractError("declared native library must be an absolute path")
+        return candidate
+    if operation == "backend_resource":
+        candidate = Path(value)
+        if not candidate.is_absolute() or any(
+            part in {"", ".", ".."} for part in candidate.parts
+        ):
+            raise _ContractError("backend resource must be an exact absolute file path")
+        return candidate
+    if operation == "imported_stdlib_files":
+        stdlib_roots = tuple(sorted({
+            Path(sysconfig.get_path(name)).resolve()
+            for name in ("stdlib", "platstdlib")
+            if sysconfig.get_path(name)
+        }, key=str))
+        probe_source = (
+            "import importlib,json,sys\n"
+            f"names={_RUNTIME_FIXED_STDLIB_MODULES!r}\n"
+            "[importlib.import_module(name) for name in names]\n"
+            "paths=[]\n"
+            "for module in tuple(sys.modules.values()):\n"
+            " path=getattr(module,'__file__',None)\n"
+            " if isinstance(path,str): paths.append(path)\n"
+            "print(json.dumps(sorted(set(paths))))\n"
+        )
+        try:
+            result = subprocess.run(
+                (sys.executable, "-I", "-S", "-c", probe_source),
+                check=False,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except (OSError, ValueError) as error:
+            raise _ContractError("stdlib import closure probe failed") from error
+        if result.returncode != 0:
+            raise _ContractError("stdlib import closure probe returned nonzero")
+        try:
+            discovered = json.loads(result.stdout)
+        except (TypeError, ValueError) as error:
+            raise _ContractError("stdlib import closure probe returned unsafe data") from error
+        if type(discovered) is not list or any(
+            type(path) is not str for path in discovered
+        ):
+            raise _ContractError("stdlib import closure probe returned unsafe paths")
+        files = {}
+        for path in discovered:
+            try:
+                resolved = Path(path).resolve(strict=True)
+            except (OSError, RuntimeError) as error:
+                raise _ContractError("stdlib module path cannot be resolved") from error
+            if any(
+                part in {"site-packages", "dist-packages"}
+                for part in resolved.parts
+            ):
+                continue
+            relatives = {
+                PurePosixPath(*resolved.relative_to(root).parts).as_posix()
+                for root in stdlib_roots
+                if _runtime_is_beneath(resolved, root)
+            }
+            if len(relatives) != 1:
+                raise _ContractError(
+                    "stdlib module has no unique standard-library root"
+                )
+            relative = relatives.pop()
+            existing = files.get(relative)
+            if existing is not None and existing != resolved:
+                raise _ContractError("stdlib relative path is ambiguous")
+            files[relative] = resolved
+        return tuple(sorted(files.items()))
+    raise _ContractError("unknown runtime file probe operation")
+
+
+def _runtime_ldd_paths(output):
+    if type(output) is not str:
+        raise _ContractError("ldd output must be exact text")
+    paths = []
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if "=> not found" in line:
+            raise _ContractError("ldd reported an unavailable library")
+        candidate = line.split("=>", 1)[-1].strip().split(" ", 1)[0]
+        if candidate.startswith("/"):
+            paths.append(Path(candidate))
+    return tuple(paths)
+
+
+def discover_runtime_resources(
+    requirements, *, command_probe=None, file_probe=None
+):
+    """Discover and hash the exact declared runtime resource closure."""
+
+    if type(requirements) is not _adapters.RuntimeRequirements:
+        raise _ContractError("requirements must be exact RuntimeRequirements")
+    command = _default_runtime_command_probe if command_probe is None else command_probe
+    files = _default_runtime_file_probe if file_probe is None else file_probe
+    interpreter_supplied = files("resolve_interpreter", requirements.interpreter)
+    interpreter_resolved, _links = _runtime_link_identity(interpreter_supplied)
+    rows = [
+        _runtime_file_row(
+            interpreter_supplied,
+            logical_destination="/runtime/bin/python3",
+            purpose="interpreter",
+        )
+    ]
+    ldd_output = command(("ldd", str(interpreter_resolved)))
+    for index, library in enumerate(_runtime_ldd_paths(ldd_output)):
+        purpose = "dynamic_loader" if "ld-linux" in library.name or library.name.startswith("ld-") else "dynamic_library"
+        rows.append(
+            _runtime_file_row(
+                library,
+                logical_destination=f"/runtime/native/ldd-{index}-{library.name}",
+                purpose=purpose,
+            )
+        )
+    stdlib_names = set()
+    for item in files("imported_stdlib_files", requirements.packages):
+        if type(item) is not tuple or len(item) != 2:
+            raise _ContractError("stdlib file entry is not exact")
+        relative_text, path = item
+        if (
+            type(relative_text) is not str
+            or not relative_text
+            or relative_text.startswith("/")
+            or "//" in relative_text
+        ):
+            raise _ContractError("stdlib file path is unsafe")
+        relative = PurePosixPath(relative_text)
+        if (
+            relative.is_absolute()
+            or any(part in {"", ".", ".."} for part in relative.parts)
+            or relative.as_posix() != relative_text
+            or relative_text in stdlib_names
+        ):
+            raise _ContractError("stdlib file path is unsafe or duplicated")
+        stdlib_names.add(relative_text)
+        rows.append(
+            _runtime_file_row(
+                path,
+                logical_destination=f"/runtime/stdlib/{relative_text}",
+                purpose="imported_standard_library",
+            )
+        )
+    for package in requirements.packages:
+        distribution = files("distribution", package)
+        if type(distribution) is not dict or set(distribution) != {"name", "version", "files"}:
+            raise _ContractError("distribution probe returned an unsafe record")
+        if distribution["name"].casefold().replace("_", "-") != package.casefold().replace("_", "-"):
+            raise _ContractError("distribution probe returned an undeclared package")
+        relative_names = set()
+        for item in distribution["files"]:
+            if type(item) is not tuple or len(item) != 2:
+                raise _ContractError("distribution file entry is not exact")
+            relative_text, path = item
+            if (
+                type(relative_text) is not str
+                or not relative_text
+                or relative_text.startswith("/")
+                or "//" in relative_text
+            ):
+                raise _ContractError("distribution file path is unsafe")
+            relative = PurePosixPath(relative_text)
+            if (
+                relative.is_absolute()
+                or any(part in {"", ".", ".."} for part in relative.parts)
+                or relative.as_posix() != relative_text
+                or relative_text in relative_names
+            ):
+                raise _ContractError("distribution file path is unsafe or duplicated")
+            relative_names.add(relative_text)
+            rows.append(
+                _runtime_file_row(
+                    path,
+                    logical_destination=(
+                        f"/runtime/distributions/{package}/{relative_text}"
+                    ),
+                    purpose="declared_distribution_file",
+                    distribution=distribution["name"],
+                    version=distribution["version"],
+                )
+            )
+    for index, library in enumerate(requirements.native_libraries):
+        path = files("native_library", library)
+        rows.append(
+            _runtime_file_row(
+                path,
+                logical_destination=f"/runtime/native/declared-{index}-{Path(path).name}",
+                purpose="declared_native_library",
+            )
+        )
+    for index, resource in enumerate(requirements.backend_resources):
+        if resource in _RUNTIME_BACKEND_CAPABILITIES:
+            rows.append(_runtime_capability_row(resource))
+            continue
+        candidate = Path(resource)
+        if not candidate.is_absolute() or any(
+            part in {"", ".", ".."} for part in candidate.parts
+        ):
+            raise _ContractError("unknown symbolic backend resource")
+        path = files("backend_resource", resource)
+        rows.append(
+            _runtime_file_row(
+                path,
+                logical_destination=f"/runtime/backend/{index}-{Path(path).name}",
+                purpose="declared_backend_resource",
+            )
+        )
+    unique_paths = set()
+    destinations = set()
+    for row in rows:
+        if row["logical_destination"] in destinations:
+            raise _ContractError("runtime resource closure contains a duplicate")
+        destinations.add(row["logical_destination"])
+        if row["file_type"] == "regular":
+            if row["resolved_path"] in unique_paths:
+                raise _ContractError("runtime source file is mapped more than once")
+            unique_paths.add(row["resolved_path"])
+    for destination in destinations:
+        prefix = destination.rstrip("/") + "/"
+        if any(other.startswith(prefix) for other in destinations):
+            raise _ContractError("runtime destinations contain a parent-file conflict")
+    ordered = tuple(sorted(rows, key=lambda row: row["logical_destination"]))
+    body = {
+        "schema_version": "runtime_resource_manifest_v1",
+        "resources": ordered,
+    }
+    return RuntimeResourceManifest(
+        body["schema_version"], ordered, _canonical_sha256(body)
+    )
+
+
+def _validated_runtime_manifest(manifest):
+    if type(manifest) is not RuntimeResourceManifest:
+        raise _ContractError("runtime discovery returned an unsafe manifest")
+    body = {
+        "schema_version": manifest.schema_version,
+        "resources": manifest.resources,
+    }
+    if manifest.manifest_sha256 != _canonical_sha256(body):
+        raise _ContractError("runtime resource manifest hash changed")
+    destinations = set()
+    paths = set()
+    for row in manifest.resources:
+        if set(row) != _RUNTIME_RESOURCE_ROW_FIELDS:
+            raise _ContractError("runtime resource manifest row is not exact")
+        _require_sha256(row["sha256"], "runtime resource sha256")
+        destination_text = row["logical_destination"]
+        if (
+            type(destination_text) is not str
+            or not destination_text.startswith("/")
+            or "//" in destination_text
+            or PurePosixPath(destination_text).as_posix()
+            != destination_text
+            or any(
+                part in {"", ".", ".."}
+                for part in PurePosixPath(destination_text).parts[1:]
+            )
+        ):
+            raise _ContractError("runtime resource destination is unsafe")
+        if destination_text in destinations:
+            raise _ContractError("runtime resource destination is duplicated")
+        destinations.add(destination_text)
+        if row["file_type"] == "capability":
+            prefix = "/runtime/capabilities/"
+            name = (
+                destination_text[len(prefix) :]
+                if destination_text.startswith(prefix)
+                else ""
+            )
+            if (
+                name not in _RUNTIME_BACKEND_CAPABILITIES
+                or row != _runtime_capability_row(name)
+            ):
+                raise _ContractError("runtime capability row is malformed")
+            continue
+        if row["file_type"] != "regular" or row["purpose"] not in _RUNTIME_FILE_PURPOSES:
+            raise _ContractError("runtime resource row has an unknown type")
+        if row["resolved_path"] in paths:
+            raise _ContractError("runtime resource file is duplicated")
+        if (
+            type(row["resolved_path"]) is not str
+            or not Path(row["resolved_path"]).is_absolute()
+            or type(row["size"]) is not int
+            or row["size"] < 0
+            or type(row["mode"]) is not int
+            or not 0 <= row["mode"] <= 0o7777
+            or type(row["link_identity"]) is not tuple
+            or (
+                row["purpose"] == "declared_distribution_file"
+                and (
+                    type(row["distribution"]) is not str
+                    or not row["distribution"]
+                    or type(row["version"]) is not str
+                    or not row["version"]
+                )
+            )
+            or (
+                row["purpose"] != "declared_distribution_file"
+                and (
+                    row["distribution"] is not None
+                    or row["version"] is not None
+                )
+            )
+        ):
+            raise _ContractError("runtime regular-file row is malformed")
+        paths.add(row["resolved_path"])
+    for destination in destinations:
+        prefix = destination.rstrip("/") + "/"
+        if any(other.startswith(prefix) for other in destinations):
+            raise _ContractError(
+                "runtime resource destinations contain a parent-file conflict"
+            )
+    return manifest
+
+
+def _runtime_source_descriptor(row):
+    path = Path(row["resolved_path"])
+    if not path.is_absolute() or path.name in {"", ".", ".."}:
+        raise _ContractError("runtime source path is unsafe")
+    directory_fd = descriptor = None
+    try:
+        directory_fd = _runtime_open_directory_path(path.parent)
+        descriptor = os.open(
+            path.name,
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=directory_fd,
+        )
+    except OSError as error:
+        if descriptor is not None:
+            os.close(descriptor)
+        if directory_fd is not None:
+            os.close(directory_fd)
+        raise _ContractError("runtime source cannot be opened safely") from error
+    os.close(directory_fd)
+    return descriptor
+
+
+def _runtime_open_directory_path(path):
+    directory = Path(path)
+    if not directory.is_absolute():
+        raise _ContractError("runtime directory path must be absolute")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    descriptor = None
+    try:
+        descriptor = os.open(directory.anchor, flags)
+        for component in directory.parts[1:]:
+            next_descriptor = os.open(component, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = next_descriptor
+        return descriptor
+    except OSError as error:
+        if descriptor is not None:
+            os.close(descriptor)
+        raise _ContractError(
+            "runtime directory path contains an unsafe component"
+        ) from error
+
+
+def _runtime_revalidate_link_identity(row):
+    identities = row["link_identity"]
+    if type(identities) is not tuple:
+        raise _ContractError("runtime link identity must be an exact tuple")
+    expected_keys = {
+        "path",
+        "device",
+        "inode",
+        "link_target",
+        "target_path",
+        "target_device",
+        "target_inode",
+    }
+    for identity in identities:
+        if set(identity) != expected_keys:
+            raise _ContractError("runtime link identity record is not exact")
+        try:
+            link_metadata = os.lstat(identity["path"])
+            link_target = os.readlink(identity["path"])
+            target_metadata = os.stat(identity["target_path"])
+        except OSError as error:
+            raise _ContractError("runtime link identity is unavailable") from error
+        if (
+            not stat.S_ISLNK(link_metadata.st_mode)
+            or link_metadata.st_dev != identity["device"]
+            or link_metadata.st_ino != identity["inode"]
+            or link_target != identity["link_target"]
+            or target_metadata.st_dev != identity["target_device"]
+            or target_metadata.st_ino != identity["target_inode"]
+        ):
+            raise _ContractError("runtime link identity changed")
+
+
+def _runtime_stat_identity(metadata):
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_mode,
+        metadata.st_nlink,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+
+
+def _runtime_validate_source_descriptor(descriptor, row):
+    try:
+        metadata = os.fstat(descriptor)
+    except OSError as error:
+        raise _ContractError("runtime source cannot be stated") from error
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_size != row["size"]
+        or stat.S_IMODE(metadata.st_mode) != row["mode"]
+    ):
+        raise _ContractError("runtime source identity changed before copying")
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    digest = hashlib.sha256()
+    total = 0
+    while True:
+        chunk = os.read(descriptor, _RUNTIME_COPY_BUFFER_BYTES)
+        if type(chunk) is not bytes:
+            raise _ContractError("runtime source returned unsafe bytes")
+        if not chunk:
+            break
+        digest.update(chunk)
+        total += len(chunk)
+        if total > row["size"]:
+            raise _ContractError("runtime source grew during validation")
+    if total != row["size"] or digest.hexdigest() != row["sha256"]:
+        raise _ContractError("runtime source bytes changed before copying")
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    return metadata
+
+
+def _runtime_copy_and_verify(source_fd, root_fd, basename, row):
+    destination_fd = None
+    try:
+        destination_fd = os.open(
+            basename,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+            0o600,
+            dir_fd=root_fd,
+        )
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(source_fd, _RUNTIME_COPY_BUFFER_BYTES)
+            if type(chunk) is not bytes:
+                raise _ContractError("runtime source returned unsafe bytes")
+            if not chunk:
+                break
+            digest.update(chunk)
+            total += len(chunk)
+            offset = 0
+            while offset < len(chunk):
+                written = os.write(destination_fd, chunk[offset:])
+                if written <= 0:
+                    raise _ContractError("runtime snapshot write was short")
+                offset += written
+        if total != row["size"] or digest.hexdigest() != row["sha256"]:
+            raise _ContractError("runtime source changed while copying")
+        os.fsync(destination_fd)
+        after_copy_source = os.fstat(source_fd)
+        required_mode = 0o555 if row["mode"] & 0o111 else 0o444
+        os.fchmod(destination_fd, required_mode)
+        os.fsync(destination_fd)
+    except OSError as error:
+        raise _ContractError("runtime snapshot copy failed") from error
+    finally:
+        if destination_fd is not None:
+            os.close(destination_fd)
+    verification_fd = None
+    try:
+        verification_fd = os.open(
+            basename,
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=root_fd,
+        )
+        destination_metadata = os.fstat(verification_fd)
+        if (
+            not stat.S_ISREG(destination_metadata.st_mode)
+            or destination_metadata.st_nlink != 1
+            or destination_metadata.st_size != row["size"]
+            or stat.S_IMODE(destination_metadata.st_mode) != required_mode
+        ):
+            raise _ContractError("runtime snapshot file identity is unsafe")
+        os.lseek(source_fd, 0, os.SEEK_SET)
+        os.lseek(verification_fd, 0, os.SEEK_SET)
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            source_chunk = os.read(source_fd, _RUNTIME_COPY_BUFFER_BYTES)
+            snapshot_chunk = os.read(verification_fd, _RUNTIME_COPY_BUFFER_BYTES)
+            if source_chunk != snapshot_chunk:
+                raise _ContractError("runtime snapshot byte comparison failed")
+            if not source_chunk:
+                break
+            digest.update(snapshot_chunk)
+            total += len(snapshot_chunk)
+        if total != row["size"] or digest.hexdigest() != row["sha256"]:
+            raise _ContractError("runtime snapshot hash comparison failed")
+        after_compare_source = os.fstat(source_fd)
+    except OSError as error:
+        raise _ContractError("runtime snapshot cannot be reopened safely") from error
+    finally:
+        if verification_fd is not None:
+            os.close(verification_fd)
+    return (
+        after_copy_source,
+        after_compare_source,
+        destination_metadata,
+        required_mode,
+    )
+
+
+def _runtime_create_private_directory(parent_fd, basename):
+    if (
+        type(basename) is not str
+        or basename in {"", ".", ".."}
+        or "/" in basename
+    ):
+        raise _ContractError("private directory basename is unsafe")
+    path_only_flag = getattr(os, "O_PATH", 0o10000000)
+    os.mkdir(basename, 0o700, dir_fd=parent_fd)
+    path_fd = directory_fd = None
+    try:
+        path_fd = os.open(
+            basename,
+            path_only_flag | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=parent_fd,
+        )
+        created = os.fstat(path_fd)
+        if not stat.S_ISDIR(created.st_mode):
+            raise _ContractError("private directory creation changed type")
+        os.chmod(f"/proc/self/fd/{path_fd}", 0o700)
+        directory_fd = os.open(
+            ".",
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=path_fd,
+        )
+        opened = os.fstat(directory_fd)
+        if (
+            opened.st_dev != created.st_dev
+            or opened.st_ino != created.st_ino
+            or stat.S_IMODE(opened.st_mode) != 0o700
+        ):
+            raise _ContractError("private directory identity or mode changed")
+        return directory_fd
+    except OSError as error:
+        if directory_fd is not None:
+            os.close(directory_fd)
+        raise _ContractError("private directory cannot be secured") from error
+    finally:
+        if path_fd is not None:
+            os.close(path_fd)
+
+
+def build_runtime_snapshot(requirements, *, run_directory, event_recorder):
+    """Build an exclusive immutable runtime snapshot and retain its dirfd."""
+
+    manifest = _validated_runtime_manifest(
+        discover_runtime_resources(requirements)
+    )
+    _runtime_event(
+        event_recorder,
+        "runtime_resources_discovered",
+        {"manifest_sha256": manifest.manifest_sha256},
+    )
+    run_path = Path(run_directory)
+    if not run_path.is_absolute():
+        run_path = run_path.absolute()
+    snapshot_path = run_path / "runtime-snapshot"
+    parent_fd = run_fd = root_fd = None
+    success = False
+    try:
+        if run_path.name in {"", ".", ".."}:
+            raise _ContractError("run directory path is unsafe")
+        parent_fd = _runtime_open_directory_path(run_path.parent)
+        run_fd = _runtime_create_private_directory(parent_fd, run_path.name)
+        root_fd = _runtime_create_private_directory(
+            run_fd, "runtime-snapshot"
+        )
+        copied = []
+        for index, row in enumerate(manifest.resources):
+            if row["file_type"] == "capability":
+                continue
+            _runtime_revalidate_link_identity(row)
+            source_fd = _runtime_source_descriptor(row)
+            try:
+                before = _runtime_validate_source_descriptor(source_fd, row)
+                _runtime_event(
+                    event_recorder,
+                    "runtime_source_validated",
+                    {"logical_destination": row["logical_destination"]},
+                )
+                basename = f"{index:04d}-{Path(row['resolved_path']).name}"
+                (
+                    after_copy,
+                    after_compare,
+                    destination,
+                    required_mode,
+                ) = _runtime_copy_and_verify(
+                    source_fd, root_fd, basename, row
+                )
+                if (
+                    _runtime_stat_identity(before)
+                    != _runtime_stat_identity(after_copy)
+                    or _runtime_stat_identity(before)
+                    != _runtime_stat_identity(after_compare)
+                ):
+                    raise _ContractError("runtime source changed during copying")
+                _runtime_event(
+                    event_recorder,
+                    "runtime_resource_copied",
+                    {"logical_destination": row["logical_destination"]},
+                )
+                copied.append(
+                    {
+                        "basename": basename,
+                        "logical_destination": row["logical_destination"],
+                        "device": destination.st_dev,
+                        "inode": destination.st_ino,
+                        "link_count": destination.st_nlink,
+                        "size": destination.st_size,
+                        "mode": required_mode,
+                        "sha256": row["sha256"],
+                    }
+                )
+                _runtime_event(
+                    event_recorder,
+                    "runtime_resource_byte_compared",
+                    {"logical_destination": row["logical_destination"]},
+                )
+            finally:
+                os.close(source_fd)
+        os.fsync(root_fd)
+        os.fchmod(root_fd, 0o500)
+        os.fsync(root_fd)
+        os.fchmod(run_fd, 0o500)
+        os.fsync(run_fd)
+        root_metadata = os.fstat(root_fd)
+        root_identity = {
+            "logical_path": "/runtime",
+            "device": root_metadata.st_dev,
+            "inode": root_metadata.st_ino,
+            "mode": stat.S_IMODE(root_metadata.st_mode),
+        }
+        _runtime_event(
+            event_recorder,
+            "runtime_manifest_hashed",
+            {"manifest_sha256": manifest.manifest_sha256},
+        )
+        snapshot_material = {
+            "schema_version": "runtime_snapshot_v1",
+            "manifest_sha256": manifest.manifest_sha256,
+            "directory_identities": (root_identity,),
+            "files": tuple(copied),
+        }
+        snapshot = RuntimeSnapshot(
+            "runtime_snapshot_v1",
+            manifest,
+            str(snapshot_path),
+            (root_identity,),
+            _canonical_sha256(snapshot_material),
+        )
+        state = _RetainedRuntimeSnapshotState(
+            owner=snapshot,
+            root_fd=root_fd,
+            root_identity=_snapshot_json(root_identity, "root identity"),
+            files=tuple(
+                _snapshot_json(item, "runtime snapshot file")
+                for item in copied
+            ),
+            snapshot_material=_snapshot_json(
+                snapshot_material, "runtime snapshot material"
+            ),
+            authorization=_RUNTIME_RETAINED_STATE_TOKEN,
+        )
+        object.__setattr__(snapshot, "_retained_runtime_state", state)
+        _runtime_event(
+            event_recorder,
+            "runtime_snapshot_frozen",
+            {"snapshot_sha256": snapshot.snapshot_sha256},
+        )
+        success = True
+        return snapshot
+    except FileExistsError as error:
+        raise _ContractError("run directory must be created exclusively") from error
+    except OSError as error:
+        raise _ContractError("runtime snapshot directory setup failed") from error
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
+        if run_fd is not None:
+            os.close(run_fd)
+        if root_fd is not None and not success:
+            os.close(root_fd)
+
+
+def _runtime_hash_descriptor(descriptor):
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    digest = hashlib.sha256()
+    total = 0
+    while True:
+        chunk = os.read(descriptor, _RUNTIME_COPY_BUFFER_BYTES)
+        if type(chunk) is not bytes:
+            raise _ContractError("runtime snapshot returned unsafe bytes")
+        if not chunk:
+            break
+        total += len(chunk)
+        digest.update(chunk)
+    return total, digest.hexdigest()
+
+
+def revalidate_runtime_snapshot(snapshot):
+    """Revalidate one builder-owned snapshot solely through retained dirfd."""
+
+    if type(snapshot) is not RuntimeSnapshot:
+        raise _ContractError("runtime snapshot must be exact RuntimeSnapshot")
+    namespace = object.__getattribute__(snapshot, "__dict__")
+    state = namespace.pop("_retained_runtime_state", None)
+    if (
+        type(state) is not _RetainedRuntimeSnapshotState
+        or object.__getattribute__(state, "token")
+        is not _RUNTIME_RETAINED_STATE_TOKEN
+        or object.__getattribute__(state, "owner_ref")() is not snapshot
+    ):
+        raise _ContractError("runtime snapshot has no authentic retained dirfd state")
+    root_fd = object.__getattribute__(state, "root_fd")
+    root_identity = object.__getattribute__(state, "root_identity")
+    files = object.__getattribute__(state, "files")
+    snapshot_material = object.__getattribute__(state, "snapshot_material")
+    finalizer = object.__getattribute__(state, "finalizer")
+    owns_root_fd = False
+    try:
+        root_metadata = os.fstat(root_fd)
+        owns_root_fd = (
+            stat.S_ISDIR(root_metadata.st_mode)
+            and root_metadata.st_dev == root_identity["device"]
+            and root_metadata.st_ino == root_identity["inode"]
+        )
+        if not owns_root_fd:
+            raise _ContractError(
+                "runtime snapshot retained directory changed"
+            )
+        manifest = _validated_runtime_manifest(snapshot.manifest)
+        if manifest.manifest_sha256 != snapshot_material["manifest_sha256"]:
+            raise _ContractError("runtime snapshot manifest identity changed")
+        if snapshot.directory_identities != (root_identity,):
+            raise _ContractError("runtime snapshot directory identity changed")
+        if snapshot.snapshot_sha256 != _canonical_sha256(snapshot_material):
+            raise _ContractError("runtime snapshot commitment changed")
+        if (
+            stat.S_IMODE(root_metadata.st_mode) != root_identity["mode"]
+        ):
+            raise _ContractError("runtime snapshot retained directory changed")
+        expected_names = {item["basename"] for item in files}
+        if set(os.listdir(root_fd)) != expected_names:
+            raise _ContractError("runtime snapshot basename set changed")
+        for expected in files:
+            descriptor = os.open(
+                expected["basename"],
+                os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=root_fd,
+            )
+            try:
+                metadata = os.fstat(descriptor)
+                if (
+                    not stat.S_ISREG(metadata.st_mode)
+                    or metadata.st_dev != expected["device"]
+                    or metadata.st_ino != expected["inode"]
+                    or metadata.st_nlink != expected["link_count"]
+                    or metadata.st_nlink != 1
+                    or metadata.st_size != expected["size"]
+                    or stat.S_IMODE(metadata.st_mode) != expected["mode"]
+                ):
+                    raise _ContractError("runtime snapshot file identity changed")
+                total, digest = _runtime_hash_descriptor(descriptor)
+                if total != expected["size"] or digest != expected["sha256"]:
+                    raise _ContractError("runtime snapshot file bytes changed")
+            finally:
+                os.close(descriptor)
+    except OSError as error:
+        raise _ContractError("runtime snapshot retained dirfd revalidation failed") from error
+    finally:
+        if finalizer.alive:
+            finalizer.detach()
+        if owns_root_fd:
+            _runtime_close_fd(root_fd)
 
 
 @_seal_contract

@@ -9,6 +9,7 @@ import math
 import os
 import pathlib
 import re
+import stat
 import string
 import subprocess
 import sys
@@ -5343,6 +5344,9 @@ def test_task4_public_all_surfaces_are_exact():
         "build_scientific_policy_commitment",
         "build_infrastructure_closure",
         "scan_scientific_closure",
+        "discover_runtime_resources",
+        "build_runtime_snapshot",
+        "revalidate_runtime_snapshot",
         "assert_disjoint_scientific_closures",
         "assert_complete_dependency_partition",
         "scientific_policy_combined_sha256",
@@ -20797,3 +20801,864 @@ def test_task6_review25_policy_scan_still_rejects_nested_lookup():
             '"{\\"lookup_table\\":{\\"alpha\\":731}}"',
             role="adapter",
         )
+
+
+def _task7_resource_row(path, destination, purpose, *, distribution=None,
+                        version=None, link_identity=()):
+    resolved = path.resolve(strict=True)
+    metadata = resolved.stat()
+    return {
+        "logical_destination": destination,
+        "resolved_path": str(resolved),
+        "link_identity": link_identity,
+        "file_type": "regular",
+        "size": metadata.st_size,
+        "mode": metadata.st_mode & 0o777,
+        "sha256": hashlib.sha256(resolved.read_bytes()).hexdigest(),
+        "distribution": distribution,
+        "version": version,
+        "purpose": purpose,
+    }
+
+
+def _task7_manifest(*rows):
+    from validation import literature_evidence_isolation as isolation
+
+    body = {
+        "schema_version": "runtime_resource_manifest_v1",
+        "resources": rows,
+    }
+    return isolation.RuntimeResourceManifest(
+        body["schema_version"], rows, canonical_sha256(body)
+    )
+
+
+def _task7_build_snapshot(tmp_path, monkeypatch, *, source_bytes=b"frozen"):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(source_bytes)
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source,
+            "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    snapshot = isolation.build_runtime_snapshot(
+        RuntimeRequirements("python3", (), (), (str(source),)),
+        run_directory=tmp_path / "exclusive-run",
+        event_recorder=lambda event_name, details: None,
+    )
+    copied_name = os.listdir(snapshot.snapshot_root)[0]
+    return source, snapshot, Path(snapshot.snapshot_root) / copied_name
+
+
+def test_runtime_resource_discovery_closes_exact_declared_file_set(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    resource_dir = tmp_path / "installed-runtime"
+    resource_dir.mkdir()
+    paths = {
+        name: resource_dir / name
+        for name in (
+            "python-real", "ld-linux.so", "libdemo.so", "token_native.so",
+            "json.py", "demo_dist.py", "backend-table.dat",
+        )
+    }
+    payloads = {
+        "python-real": b"interpreter-v1",
+        "ld-linux.so": b"loader-v1",
+        "libdemo.so": b"ldd-library-v1",
+        "token_native.so": b"declared-native-v1",
+        "json.py": b"stdlib-v1",
+        "demo_dist.py": b"distribution-v1",
+        "backend-table.dat": b"backend-resource-v1",
+    }
+    for name, path in paths.items():
+        path.write_bytes(payloads[name])
+        path.chmod(0o755 if name in {"python-real", "ld-linux.so"} else 0o644)
+    interpreter_link = resource_dir / "python3"
+    interpreter_link.symlink_to(paths["python-real"].name)
+
+    def command_probe(argv):
+        assert argv == ("ldd", str(paths["python-real"].resolve()))
+        return (
+            f"libdemo.so => {paths['libdemo.so']} (0x1)\n"
+            f"{paths['ld-linux.so']} (0x2)\n"
+        )
+
+    def file_probe(operation, value):
+        responses = {
+            ("resolve_interpreter", "python3"): interpreter_link,
+            ("imported_stdlib_files", ("demo-dist",)): (
+                ("json.py", paths["json.py"]),
+            ),
+            ("distribution", "demo-dist"): {
+                "name": "demo-dist",
+                "version": "1.2.3",
+                "files": (paths["demo_dist.py"],),
+            },
+            ("native_library", "token-native"): paths["token_native.so"],
+            ("backend_resource", str(paths["backend-table.dat"])): paths[
+                "backend-table.dat"
+            ],
+        }
+        response = responses[(operation, value)]
+        if operation == "distribution":
+            response = {
+                **response,
+                "files": (("demo_dist.py", response["files"][0]),),
+            }
+        return response
+
+    requirements = RuntimeRequirements(
+        "python3", ("demo-dist",), ("token-native",),
+        (str(paths["backend-table.dat"]),)
+    )
+    manifest = isolation.discover_runtime_resources(
+        requirements,
+        command_probe=command_probe,
+        file_probe=file_probe,
+    )
+
+    assert type(manifest) is isolation.RuntimeResourceManifest
+    assert len(manifest.resources) == 7
+    assert {row["resolved_path"] for row in manifest.resources} == {
+        str(path.resolve()) for path in paths.values()
+    }
+    assert {
+        row["purpose"] for row in manifest.resources
+    } == {
+        "interpreter", "dynamic_loader", "dynamic_library",
+        "declared_native_library", "imported_standard_library",
+        "declared_distribution_file", "declared_backend_resource",
+    }
+    expected_keys = {
+        "logical_destination", "resolved_path", "link_identity", "file_type",
+        "size", "mode", "sha256", "distribution", "version", "purpose",
+    }
+    for row in manifest.resources:
+        assert set(row) == expected_keys
+        assert row["file_type"] == "regular"
+        assert row["size"] == len(Path(row["resolved_path"]).read_bytes())
+        assert row["mode"] in {0o644, 0o755}
+        assert row["sha256"] == hashlib.sha256(
+            Path(row["resolved_path"]).read_bytes()
+        ).hexdigest()
+    interpreter_row = next(
+        row for row in manifest.resources if row["purpose"] == "interpreter"
+    )
+    assert len(interpreter_row["link_identity"]) == 1
+    assert interpreter_row["link_identity"][0]["path"] == str(
+        interpreter_link
+    )
+    distribution_row = next(
+        row
+        for row in manifest.resources
+        if row["purpose"] == "declared_distribution_file"
+    )
+    assert distribution_row["distribution"] == "demo-dist"
+    assert distribution_row["version"] == "1.2.3"
+    assert manifest.manifest_sha256 == canonical_sha256(
+        {
+            "schema_version": "runtime_resource_manifest_v1",
+            "resources": manifest.resources,
+        }
+    )
+
+
+def test_runtime_snapshot_freezes_bytes_and_revalidates_retained_dirfd(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(b"frozen-original-bytes")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source, "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    events = []
+
+    def record(event_name, details):
+        events.append((event_name, dict(details)))
+
+    run_directory = tmp_path / "exclusive-run"
+    snapshot = isolation.build_runtime_snapshot(
+        RuntimeRequirements("python3", (), (), ("resource",)),
+        run_directory=run_directory,
+        event_recorder=record,
+    )
+    snapshot_root = Path(snapshot.snapshot_root)
+    copied_names = os.listdir(snapshot_root)
+    assert len(copied_names) == 1
+    copied = snapshot_root / copied_names[0]
+    assert copied.read_bytes() == b"frozen-original-bytes"
+    source.write_bytes(b"changed-original-data")
+
+    retained_root = tmp_path / "retained-snapshot-moved"
+    run_directory.chmod(0o700)
+    snapshot_root.chmod(0o700)
+    snapshot_root.rename(retained_root)
+    retained_root.chmod(0o500)
+    snapshot_root.mkdir(mode=0o700)
+    (snapshot_root / copied.name).write_bytes(b"path-replacement")
+    isolation.revalidate_runtime_snapshot(snapshot)
+
+    with pytest.raises(AdapterContractError, match="consumed|retained"):
+        isolation.revalidate_runtime_snapshot(snapshot)
+
+    assert (retained_root / copied.name).read_bytes() == b"frozen-original-bytes"
+    assert [name for name, _ in events] == [
+        "runtime_resources_discovered",
+        "runtime_source_validated",
+        "runtime_resource_copied",
+        "runtime_resource_byte_compared",
+        "runtime_manifest_hashed",
+        "runtime_snapshot_frozen",
+    ]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("replace", "chmod", "hardlink", "mutate", "undeclared_entry"),
+)
+def test_runtime_snapshot_revalidation_rejects_post_hash_changes(
+    tmp_path, monkeypatch, mutation
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _source, snapshot, copied = _task7_build_snapshot(
+        tmp_path, monkeypatch, source_bytes=b"immutable-snapshot"
+    )
+    root = copied.parent
+    if mutation == "replace":
+        root.chmod(0o700)
+        copied.rename(tmp_path / "old-copy")
+        copied.write_bytes(b"replacement-bytes")
+        copied.chmod(0o444)
+        root.chmod(0o500)
+    elif mutation == "chmod":
+        copied.chmod(0o644)
+    elif mutation == "hardlink":
+        os.link(copied, tmp_path / "linked-copy")
+    elif mutation == "mutate":
+        copied.chmod(0o600)
+        copied.write_bytes(b"corrupted-snapshot")
+        copied.chmod(0o444)
+    else:
+        root.chmod(0o700)
+        (root / "undeclared").write_bytes(b"extra")
+        root.chmod(0o500)
+
+    with pytest.raises(AdapterContractError):
+        isolation.revalidate_runtime_snapshot(snapshot)
+    with pytest.raises(AdapterContractError, match="consumed|retained"):
+        isolation.revalidate_runtime_snapshot(snapshot)
+
+
+def test_runtime_snapshot_source_post_compare_fstat_detects_mutation(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "changing-source.bin"
+    source.write_bytes(b"source-window")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source, "/runtime/backend/changing.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    original_read = isolation.os.read
+    source_inode = source.stat().st_ino
+    source_eof_count = 0
+
+    def mutate_after_compare(fd, size):
+        nonlocal source_eof_count
+        chunk = original_read(fd, size)
+        if not chunk and os.fstat(fd).st_ino == source_inode:
+            source_eof_count += 1
+            if source_eof_count == 3:
+                source.chmod(0o600)
+        return chunk
+
+    monkeypatch.setattr(isolation.os, "read", mutate_after_compare)
+    with pytest.raises(AdapterContractError, match="source.*changed"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=tmp_path / "exclusive-run",
+            event_recorder=lambda event_name, details: None,
+        )
+
+
+def test_runtime_snapshot_modes_ignore_restrictive_umask(tmp_path, monkeypatch):
+    source, snapshot, copied = _task7_build_snapshot(tmp_path, monkeypatch)
+    assert stat.S_IMODE((tmp_path / "exclusive-run").stat().st_mode) == 0o500
+    assert stat.S_IMODE(Path(snapshot.snapshot_root).stat().st_mode) == 0o500
+    assert stat.S_IMODE(copied.stat().st_mode) == 0o444
+    Path(snapshot.snapshot_root).chmod(0o700)
+    (tmp_path / "exclusive-run").chmod(0o700)
+
+
+def test_runtime_snapshot_plain_constructor_and_copied_state_fail_closed(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _source, snapshot, _copied = _task7_build_snapshot(tmp_path, monkeypatch)
+    forged = isolation.RuntimeSnapshot(
+        snapshot.schema_version,
+        snapshot.manifest,
+        snapshot.snapshot_root,
+        snapshot.directory_identities,
+        snapshot.snapshot_sha256,
+    )
+    object.__setattr__(
+        forged,
+        "_retained_runtime_state",
+        object.__getattribute__(snapshot, "__dict__")[
+            "_retained_runtime_state"
+        ],
+    )
+    with pytest.raises(AdapterContractError, match="authentic|retained"):
+        isolation.revalidate_runtime_snapshot(forged)
+    state = object.__getattribute__(snapshot, "__dict__")[
+        "_retained_runtime_state"
+    ]
+    duplicated_fd = os.dup(object.__getattribute__(state, "root_fd"))
+    try:
+        with pytest.raises(AdapterContractError, match="authorized"):
+            isolation._RetainedRuntimeSnapshotState(
+                owner=forged,
+                root_fd=duplicated_fd,
+                root_identity=object.__getattribute__(state, "root_identity"),
+                files=object.__getattribute__(state, "files"),
+                snapshot_material=object.__getattribute__(
+                    state, "snapshot_material"
+                ),
+            )
+    finally:
+        os.close(duplicated_fd)
+    snapshot.revalidate()
+
+
+def test_runtime_resource_distribution_preserves_relative_layout(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    runtime = tmp_path / "outside" / "runtime"
+    (runtime / "pkg" / "a").mkdir(parents=True)
+    (runtime / "pkg" / "b").mkdir()
+    interpreter = runtime / "python"
+    loader = runtime / "ld-linux.so"
+    first = runtime / "pkg" / "a" / "data.bin"
+    second = runtime / "pkg" / "b" / "data.bin"
+    for path in (interpreter, loader, first, second):
+        path.write_bytes(path.name.encode())
+        path.chmod(0o755 if path in (interpreter, loader) else 0o644)
+
+    def file_probe(operation, value):
+        if operation == "resolve_interpreter":
+            return interpreter
+        if operation == "imported_stdlib_files":
+            return ()
+        if operation == "distribution":
+            return {
+                "name": "demo",
+                "version": "1",
+                "files": (
+                    ("pkg/a/data.bin", first),
+                    ("pkg/b/data.bin", second),
+                ),
+            }
+        raise AssertionError((operation, value))
+
+    manifest = isolation.discover_runtime_resources(
+        RuntimeRequirements("python3", ("demo",), (), ("single_cpu_core",)),
+        command_probe=lambda argv: f"{loader} (0x1)\n",
+        file_probe=file_probe,
+    )
+    destinations = {row["logical_destination"] for row in manifest.resources}
+    assert "/runtime/distributions/demo/pkg/a/data.bin" in destinations
+    assert "/runtime/distributions/demo/pkg/b/data.bin" in destinations
+    capability = next(
+        row for row in manifest.resources if row["file_type"] == "capability"
+    )
+    assert capability["resolved_path"] is None
+    assert capability["size"] == capability["mode"] == 0
+
+
+def test_runtime_resource_stdlib_preserves_relative_layout_for_same_basename(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    runtime = tmp_path / "runtime"
+    (runtime / "encodings").mkdir(parents=True)
+    (runtime / "json").mkdir()
+    interpreter = runtime / "python"
+    encoding_init = runtime / "encodings" / "__init__.py"
+    json_init = runtime / "json" / "__init__.py"
+    for path in (interpreter, encoding_init, json_init):
+        path.write_bytes(str(path).encode())
+
+    def file_probe(operation, value):
+        if operation == "resolve_interpreter":
+            return interpreter
+        if operation == "imported_stdlib_files":
+            return (
+                ("encodings/__init__.py", encoding_init),
+                ("json/__init__.py", json_init),
+            )
+        raise AssertionError((operation, value))
+
+    manifest = isolation.discover_runtime_resources(
+        RuntimeRequirements("python3", (), (), ()),
+        command_probe=lambda argv: "",
+        file_probe=file_probe,
+    )
+    stdlib_destinations = {
+        row["logical_destination"]
+        for row in manifest.resources
+        if row["purpose"] == "imported_standard_library"
+    }
+    assert stdlib_destinations == {
+        "/runtime/stdlib/encodings/__init__.py",
+        "/runtime/stdlib/json/__init__.py",
+    }
+
+
+@pytest.mark.parametrize(
+    "bad_relative",
+    ("../escape.py", "/absolute.py", "pkg/../escape.py", "pkg//data.py"),
+)
+def test_runtime_resource_distribution_rejects_unsafe_relative_path(
+    tmp_path, bad_relative
+):
+    from validation import literature_evidence_isolation as isolation
+
+    interpreter = tmp_path / "python"
+    package_file = tmp_path / "data.py"
+    interpreter.write_bytes(b"python")
+    package_file.write_bytes(b"data")
+
+    def probe(operation, value):
+        if operation == "resolve_interpreter":
+            return interpreter
+        if operation == "imported_stdlib_files":
+            return ()
+        if operation == "distribution":
+            return {
+                "name": "demo", "version": "1",
+                "files": ((bad_relative, package_file),),
+            }
+        raise AssertionError
+
+    with pytest.raises(AdapterContractError):
+        isolation.discover_runtime_resources(
+            RuntimeRequirements("python3", ("demo",), (), ()),
+            command_probe=lambda argv: "",
+            file_probe=probe,
+        )
+
+
+def test_runtime_resource_symlink_chain_records_nested_target_links(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+    real = target_dir / "python-real"
+    real.write_bytes(b"python")
+    nested = tmp_path / "nested"
+    nested.symlink_to(target_dir, target_is_directory=True)
+    outer = tmp_path / "python3"
+    outer.symlink_to(nested / real.name)
+
+    manifest = isolation.discover_runtime_resources(
+        RuntimeRequirements("python3", (), (), ()),
+        command_probe=lambda argv: "",
+        file_probe=lambda operation, value: (
+            outer if operation == "resolve_interpreter" else ()
+        ),
+    )
+    interpreter = next(
+        row for row in manifest.resources if row["purpose"] == "interpreter"
+    )
+    assert {item["path"] for item in interpreter["link_identity"]} == {
+        str(outer), str(nested)
+    }
+
+
+def test_runtime_snapshot_rejects_changed_declared_symlink_identity(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    first = tmp_path / "first-python"
+    second = tmp_path / "second-python"
+    link = tmp_path / "python3"
+    first.write_bytes(b"first-python")
+    second.write_bytes(b"second-python")
+    link.symlink_to(first.name)
+    manifest = isolation.discover_runtime_resources(
+        RuntimeRequirements("python3", (), (), ()),
+        command_probe=lambda argv: "",
+        file_probe=lambda operation, value: (
+            link if operation == "resolve_interpreter" else ()
+        ),
+    )
+    link.unlink()
+    link.symlink_to(second.name)
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+
+    with pytest.raises(AdapterContractError, match="link|identity"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), ()),
+            run_directory=tmp_path / "run",
+            event_recorder=lambda event_name, details: None,
+        )
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    ("project", "worktree_parent", "source_cache", "reports", "user_config"),
+)
+def test_runtime_resource_discovery_rejects_each_forbidden_root(
+    tmp_path, monkeypatch, boundary
+):
+    from validation import literature_evidence_isolation as isolation
+
+    root = tmp_path / boundary
+    root.mkdir()
+    resource = root / "python"
+    resource.write_bytes(b"forbidden")
+    monkeypatch.setattr(isolation, "_runtime_forbidden_roots", lambda: (root,))
+
+    with pytest.raises(AdapterContractError, match="forbidden"):
+        isolation.discover_runtime_resources(
+            RuntimeRequirements("python3", (), (), ()),
+            command_probe=lambda argv: pytest.fail("ldd must not execute"),
+            file_probe=lambda operation, value: (
+                resource if operation == "resolve_interpreter" else ()
+            ),
+        )
+
+
+def test_runtime_resource_discovery_rejects_undeclared_distribution(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    interpreter = tmp_path / "python"
+    interpreter.write_bytes(b"python")
+
+    def probe(operation, value):
+        if operation == "resolve_interpreter":
+            return interpreter
+        if operation == "imported_stdlib_files":
+            return ()
+        if operation == "distribution":
+            return {"name": "other", "version": "1", "files": ()}
+        raise AssertionError
+
+    with pytest.raises(AdapterContractError, match="undeclared"):
+        isolation.discover_runtime_resources(
+            RuntimeRequirements("python3", ("declared",), (), ()),
+            command_probe=lambda argv: "",
+            file_probe=probe,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "unknown_key", "duplicate_destination", "parent_file",
+        "same_source", "forged_capability",
+    ),
+)
+def test_runtime_snapshot_rejects_malformed_or_ambiguous_manifest(
+    tmp_path, monkeypatch, mutation
+):
+    from validation import literature_evidence_isolation as isolation
+
+    first = tmp_path / "first.bin"
+    second = tmp_path / "second.bin"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    row_one = _task7_resource_row(
+        first, "/runtime/pkg", "declared_backend_resource"
+    )
+    row_two = _task7_resource_row(
+        second, "/runtime/other", "declared_backend_resource"
+    )
+    if mutation == "unknown_key":
+        row_one["caller_key"] = True
+        rows = (row_one,)
+    elif mutation == "duplicate_destination":
+        row_two["logical_destination"] = row_one["logical_destination"]
+        rows = (row_one, row_two)
+    elif mutation == "parent_file":
+        row_two["logical_destination"] = "/runtime/pkg/child.bin"
+        rows = (row_one, row_two)
+    elif mutation == "same_source":
+        row_two["resolved_path"] = row_one["resolved_path"]
+        row_two["size"] = row_one["size"]
+        row_two["mode"] = row_one["mode"]
+        row_two["sha256"] = row_one["sha256"]
+        rows = (row_one, row_two)
+    else:
+        rows = ({
+            "logical_destination": "/runtime/capabilities/network",
+            "resolved_path": None,
+            "link_identity": (),
+            "file_type": "capability",
+            "size": 0,
+            "mode": 0,
+            "sha256": _sha256_text("forged-network-capability"),
+            "distribution": None,
+            "version": None,
+            "purpose": "declared_backend_capability",
+        },)
+    manifest = _task7_manifest(*rows)
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+
+    with pytest.raises(AdapterContractError):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(first),)),
+            run_directory=tmp_path / "run",
+            event_recorder=lambda event_name, details: None,
+        )
+
+
+def test_runtime_snapshot_rejects_source_path_replacement_during_copy(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "source.bin"
+    replacement = tmp_path / "replacement.bin"
+    source.write_bytes(b"original-source")
+    replacement.write_bytes(b"replacement-data")
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source, "/runtime/source.bin", "declared_backend_resource"
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    original_read = isolation.os.read
+    source_inode = source.stat().st_ino
+    source_eof_count = 0
+
+    def replace_after_copy(fd, size):
+        nonlocal source_eof_count
+        chunk = original_read(fd, size)
+        if not chunk and os.fstat(fd).st_ino == source_inode:
+            source_eof_count += 1
+            if source_eof_count == 2:
+                os.replace(replacement, source)
+        return chunk
+
+    monkeypatch.setattr(isolation.os, "read", replace_after_copy)
+    with pytest.raises(AdapterContractError, match="source.*(path|changed)"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=tmp_path / "run",
+            event_recorder=lambda event_name, details: None,
+        )
+
+
+def test_runtime_snapshot_short_read_fails_and_closes_temporary_fds(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"source-for-short-read")
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source, "/runtime/source.bin", "declared_backend_resource"
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    original_read = isolation.os.read
+    source_inode = source.stat().st_ino
+    source_eof_count = 0
+
+    def short_copy(fd, size):
+        nonlocal source_eof_count
+        if os.fstat(fd).st_ino == source_inode and source_eof_count == 1:
+            source_eof_count += 1
+            return b""
+        chunk = original_read(fd, size)
+        if not chunk and os.fstat(fd).st_ino == source_inode:
+            source_eof_count += 1
+        return chunk
+
+    before_fds = len(os.listdir("/proc/self/fd"))
+    monkeypatch.setattr(isolation.os, "read", short_copy)
+    with pytest.raises(AdapterContractError, match="source changed|while copying"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=tmp_path / "run",
+            event_recorder=lambda event_name, details: None,
+        )
+    assert len(os.listdir("/proc/self/fd")) == before_fds
+
+
+def test_runtime_snapshot_closed_and_reused_retained_fd_fails_closed(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _source, snapshot, _copied = _task7_build_snapshot(tmp_path, monkeypatch)
+    state = object.__getattribute__(snapshot, "__dict__")[
+        "_retained_runtime_state"
+    ]
+    retained_fd = object.__getattribute__(state, "root_fd")
+    os.close(retained_fd)
+    foreign_fds = []
+    while retained_fd not in foreign_fds:
+        foreign_fds.append(
+            os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        )
+    foreign = retained_fd
+    try:
+        with pytest.raises(AdapterContractError, match="retained"):
+            isolation.revalidate_runtime_snapshot(snapshot)
+        os.fstat(foreign)
+    finally:
+        for descriptor in foreign_fds:
+            os.close(descriptor)
+
+
+@pytest.mark.parametrize(
+    "public_tamper",
+    ("manifest", "snapshot_sha256", "directory_identities"),
+)
+def test_runtime_snapshot_pre_fstat_commitment_failure_closes_owned_fd(
+    tmp_path, monkeypatch, public_tamper
+):
+    from validation import literature_evidence_isolation as isolation
+
+    _source, snapshot, _copied = _task7_build_snapshot(tmp_path, monkeypatch)
+    state = object.__getattribute__(snapshot, "__dict__")[
+        "_retained_runtime_state"
+    ]
+    retained_fd = object.__getattribute__(state, "root_fd")
+    root_identity = os.fstat(retained_fd)
+    assert root_identity.st_ino == snapshot.directory_identities[0]["inode"]
+    if public_tamper == "manifest":
+        object.__setattr__(snapshot.manifest, "manifest_sha256", "0" * 64)
+    elif public_tamper == "snapshot_sha256":
+        object.__setattr__(snapshot, "snapshot_sha256", "0" * 64)
+    else:
+        object.__setattr__(snapshot, "directory_identities", ())
+
+    with pytest.raises(AdapterContractError):
+        isolation.revalidate_runtime_snapshot(snapshot)
+    with pytest.raises(OSError) as closed:
+        os.fstat(retained_fd)
+    assert closed.value.errno == 9
+    Path(snapshot.snapshot_root).chmod(0o700)
+    Path(snapshot.snapshot_root).parent.chmod(0o700)
+
+
+def test_task7_runtime_public_signatures_are_stable_and_closed():
+    from validation import literature_evidence_isolation as isolation
+
+    assert str(inspect.signature(isolation.discover_runtime_resources)) == (
+        "(requirements, *, command_probe=None, file_probe=None)"
+    )
+    assert str(inspect.signature(isolation.build_runtime_snapshot)) == (
+        "(requirements, *, run_directory, event_recorder)"
+    )
+    assert str(inspect.signature(isolation.revalidate_runtime_snapshot)) == (
+        "(snapshot)"
+    )
+    assert {field.name for field in dataclasses.fields(isolation.RuntimeSnapshot)} == {
+        "schema_version", "manifest", "snapshot_root",
+        "directory_identities", "snapshot_sha256",
+    }
+
+
+def test_task7_runtime_functions_have_exact_infrastructure_category(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(tmp_path)
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(tmp_path,)
+    )
+    roots = {
+        "validation.literature_evidence_isolation.discover_runtime_resources",
+        "validation.literature_evidence_isolation.build_runtime_snapshot",
+        "validation.literature_evidence_isolation.revalidate_runtime_snapshot",
+    }
+    assert roots <= {node["qualified_name"] for node in closure.nodes}
+    assert {
+        closure.purpose_bindings[root] for root in roots
+    } == {"runtime_resource_integrity"}
+
+
+def test_runtime_snapshot_creation_is_umask_independent(tmp_path, monkeypatch):
+    previous_umask = os.umask(0o777)
+    try:
+        _source, snapshot, copied = _task7_build_snapshot(tmp_path, monkeypatch)
+    finally:
+        os.umask(previous_umask)
+
+    assert stat.S_IMODE((tmp_path / "exclusive-run").stat().st_mode) == 0o500
+    assert stat.S_IMODE(Path(snapshot.snapshot_root).stat().st_mode) == 0o500
+    assert stat.S_IMODE(copied.stat().st_mode) == 0o444
+    Path(snapshot.snapshot_root).chmod(0o700)
+    (tmp_path / "exclusive-run").chmod(0o700)
+
+
+def test_runtime_snapshot_rejects_symlink_component_in_run_parent(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"source")
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source, "/runtime/source.bin", "declared_backend_resource"
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    (real_parent / "child").mkdir()
+    link_parent = tmp_path / "linked-parent"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+
+    with pytest.raises(AdapterContractError):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=link_parent / "child" / "run",
+            event_recorder=lambda event_name, details: None,
+        )
+    assert not (real_parent / "child" / "run").exists()
