@@ -7194,6 +7194,43 @@ def assert_complete_dependency_partition(
     return _canonical_sha256(commitment_payload)
 
 
+def _static_scan_exact_frozen_items(
+    value: object,
+    field_name: str,
+    item_limit: int,
+) -> tuple[tuple[str, object], ...]:
+    if type(value) is not _FrozenJsonObject:
+        raise _ContractError(f"{field_name} must be an exact frozen object")
+    try:
+        namespace = object.__getattribute__(value, "__dict__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError(
+            f"{field_name} frozen storage is not exact"
+        ) from error
+    if type(namespace) is not dict or set(namespace) != {"_items"}:
+        raise _ContractError(f"{field_name} frozen storage is not exact")
+    items = namespace["_items"]
+    if type(items) is not tuple:
+        raise _ContractError(f"{field_name} frozen storage is not exact")
+    if len(items) > item_limit:
+        raise _ContractError(f"{field_name} exceeds the closed bound")
+    seen_keys = set()
+    keys = []
+    for pair in items:
+        if type(pair) is not tuple or len(pair) != 2:
+            raise _ContractError(f"{field_name} frozen storage is not exact")
+        key, _item = pair
+        if type(key) is not str or key in seen_keys:
+            raise _ContractError(f"{field_name} frozen storage is not exact")
+        seen_keys.add(key)
+        keys.append(key)
+    if keys != sorted(keys):
+        raise _ContractError(
+            f"{field_name} frozen storage is not canonical"
+        )
+    return items
+
+
 def _preflight_static_scan_checks(
     value: object,
     role: str,
@@ -7226,6 +7263,55 @@ def _preflight_static_scan_checks(
             )
         return keys
 
+    expected_checks = set(_STATIC_SCAN_COMMON_CHECKS)
+    if role == "infrastructure":
+        expected_checks.add(_STATIC_SCAN_INFRASTRUCTURE_CHECK)
+    if type(value) is _FrozenJsonObject:
+        check_items = _static_scan_exact_frozen_items(
+            value,
+            "static scan checks",
+            _STATIC_SCAN_CHECK_LIMIT,
+        )
+        if {key for key, _item in check_items} != expected_checks:
+            raise _ContractError(
+                "static scan checks are not the exact closed set"
+            )
+        normalized = {}
+        for check_name, item in check_items:
+            item_items = _static_scan_exact_frozen_items(
+                item, "static scan check", 2
+            )
+            if {key for key, _item in item_items} != {
+                "passed",
+                "reason",
+            }:
+                raise _ContractError(
+                    "static scan checks have an unknown shape"
+                )
+            item_values = {key: item_value for key, item_value in item_items}
+            passed = _require_bool(
+                item_values["passed"], "static scan check passed"
+            )
+            reason = item_values["reason"]
+            if type(reason) is not str or not reason:
+                raise _ContractError(
+                    "static scan check reason must be nonempty text"
+                )
+            if len(reason) > _STATIC_SCAN_REASON_BYTES_LIMIT:
+                raise _ContractError(
+                    "static scan check reason exceeds the closed bound"
+                )
+            if len(reason.encode("utf-8")) > (
+                _STATIC_SCAN_REASON_BYTES_LIMIT
+            ):
+                raise _ContractError(
+                    "static scan check reason exceeds the closed bound"
+                )
+            normalized[check_name] = {
+                "passed": passed,
+                "reason": reason,
+            }
+        return normalized
     if not isinstance(value, Mapping):
         raise _ContractError("static scan checks have an unknown shape")
     try:
@@ -7234,9 +7320,6 @@ def _preflight_static_scan_checks(
         raise _ContractError(
             "static scan checks cannot be bounded"
         ) from error
-    expected_checks = set(_STATIC_SCAN_COMMON_CHECKS)
-    if role == "infrastructure":
-        expected_checks.add(_STATIC_SCAN_INFRASTRUCTURE_CHECK)
     try:
         supplied_checks = set(
             bounded_keys(
@@ -7342,23 +7425,35 @@ class StaticScanReport:
                 "StaticScanReport has an unsupported scanner commitment"
             )
         checks = _snapshot_json(preflight_checks, "checks")
-        closed_checks = all(
-            type(item) is _FrozenJsonObject for item in checks.values()
+        check_items = _static_scan_exact_frozen_items(
+            checks, "static scan checks", _STATIC_SCAN_CHECK_LIMIT
         )
-        if not checks or not closed_checks:
+        closed_checks = all(
+            type(item) is _FrozenJsonObject for _name, item in check_items
+        )
+        if not check_items or not closed_checks:
             raise _ContractError("static scan checks have an unknown shape")
         expected_checks = set(_STATIC_SCAN_COMMON_CHECKS)
         if self.role == "infrastructure":
             expected_checks.add(_STATIC_SCAN_INFRASTRUCTURE_CHECK)
-        if set(checks) != expected_checks:
+        if {name for name, _item in check_items} != expected_checks:
             raise _ContractError(
                 "static scan checks are not the exact closed set"
             )
         normalized_checks = {}
-        for check_name, item in checks.items():
-            check = _exact_keys(
-                item, {"passed", "reason"}, "static scan check"
+        all_checks_passed = True
+        for check_name, item in check_items:
+            item_items = _static_scan_exact_frozen_items(
+                item, "static scan check", 2
             )
+            if {name for name, _value in item_items} != {
+                "passed",
+                "reason",
+            }:
+                raise _ContractError(
+                    "static scan checks have an unknown shape"
+                )
+            check = {name: value for name, value in item_items}
             check_passed = _require_bool(
                 check["passed"], "static scan check passed"
             )
@@ -7379,11 +7474,10 @@ class StaticScanReport:
                 "passed": check_passed,
                 "reason": reason,
             }
+            all_checks_passed = all_checks_passed and check_passed
         checks = _snapshot_json(normalized_checks, "checks")
         passed = _require_bool(self.passed, "passed")
-        if passed != all(
-            item["passed"] for item in checks.values()
-        ):
+        if passed != all_checks_passed:
             raise _ContractError(
                 "static scan pass status does not match its checks"
             )

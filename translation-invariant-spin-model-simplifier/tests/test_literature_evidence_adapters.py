@@ -19839,3 +19839,183 @@ def test_task6_review_dict_union_preflights_projected_mapping_before_merge(
             forbidden_fingerprints=_task6_absent_fingerprints(),
         )
     assert (("alpha",), ("beta",), False) in calls
+
+
+def _task6_review21_static_scan_report_values(*, failed_check=None):
+    from validation import literature_evidence_isolation as isolation
+
+    checks = FrozenJsonObject(
+        {
+            check_name: {
+                "passed": check_name != failed_check,
+                "reason": "bounded review21 check",
+            }
+            for check_name in isolation._STATIC_SCAN_COMMON_CHECKS
+        }
+    )
+    values = {
+        "schema_version": "static_scan_report_v1",
+        "role": "adapter",
+        "scanner_version": isolation._STATIC_SCANNER_VERSION,
+        "scanner_sha256": isolation._current_static_scanner_sha256(),
+        "scanned_closure_sha256": "1" * 64,
+        "fingerprint_commitment_sha256": "2" * 64,
+        "checks": checks,
+        "passed": True,
+    }
+    values["report_sha256"] = canonical_sha256(values)
+    return values
+
+
+def test_task6_review21_shadowed_values_cannot_accept_failed_check(
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values(
+        failed_check="raw_ast_closed"
+    )
+    baseline_sha256 = values["scanner_sha256"]
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|pass|status|check",
+    ):
+        isolation.StaticScanReport(**values)
+    calls = []
+
+    def empty_values(receiver):
+        calls.append(receiver)
+        return ()
+
+    monkeypatch.setattr(
+        FrozenJsonObject, "values", empty_values, raising=False
+    )
+
+    assert isolation._current_static_scanner_sha256() == baseline_sha256
+    assert calls == []
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|pass|status|check",
+    ):
+        isolation.StaticScanReport(**values)
+    assert calls == []
+
+
+def test_task6_review21_exact_storage_requires_canonical_key_order():
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    canonical_checks = values["checks"]
+    reversed_checks = object.__new__(FrozenJsonObject)
+    object.__setattr__(
+        reversed_checks,
+        "_items",
+        tuple(reversed(canonical_checks._items)),
+    )
+    values["checks"] = reversed_checks
+    values["report_sha256"] = canonical_sha256(
+        {
+            key: value
+            for key, value in values.items()
+            if key != "report_sha256"
+        }
+    )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="static|scan|frozen|storage|exact|canonical",
+    ):
+        isolation.StaticScanReport(**values)
+
+
+def test_task6_review21_behavior_change_makes_old_report_stale(monkeypatch):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    baseline_sha256 = values["scanner_sha256"]
+    monkeypatch.setattr(
+        isolation,
+        "_STATIC_SCAN_REASON_BYTES_LIMIT",
+        isolation._STATIC_SCAN_REASON_BYTES_LIMIT + 1,
+    )
+
+    assert isolation._current_static_scanner_sha256() != baseline_sha256
+    with pytest.raises(
+        AdapterContractError,
+        match="scanner|commitment|unsupported|hash",
+    ):
+        isolation.StaticScanReport(**values)
+
+
+@pytest.mark.parametrize(
+    "member_name,expected_owner",
+    (
+        pytest.param("__getitem__", FrozenJsonObject, id="getitem"),
+        pytest.param("__iter__", FrozenJsonObject, id="iter"),
+        pytest.param("__len__", FrozenJsonObject, id="len"),
+        pytest.param("values", Mapping, id="inherited-values"),
+        pytest.param("items", Mapping, id="inherited-items"),
+    ),
+)
+def test_task6_review21_effective_mapping_slots_are_outside_report_semantics(
+    monkeypatch,
+    member_name,
+    expected_owner,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    baseline_sha256 = values["scanner_sha256"]
+    owner = next(
+        candidate
+        for candidate in FrozenJsonObject.__mro__
+        if member_name in vars(candidate)
+    )
+    descriptor = vars(owner)[member_name]
+    assert owner is expected_owner
+    assert inspect.isfunction(descriptor)
+    calls = []
+
+    def replacement(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError(
+            f"trusted report validation executed {member_name}"
+        )
+
+    monkeypatch.setattr(owner, member_name, replacement)
+
+    assert isolation._current_static_scanner_sha256() == baseline_sha256
+    assert calls == []
+    accepted = isolation.StaticScanReport(**values)
+    assert accepted.passed is True
+    assert calls == []
+
+
+@pytest.mark.parametrize("member_name", ("values", "items"))
+def test_task6_review21_mapping_shadows_are_outside_report_semantics(
+    monkeypatch,
+    member_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    values = _task6_review21_static_scan_report_values()
+    baseline_sha256 = values["scanner_sha256"]
+    assert member_name not in vars(FrozenJsonObject)
+    assert member_name in vars(Mapping)
+    calls = []
+
+    def replacement(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError(
+            f"trusted report validation executed shadowed {member_name}"
+        )
+
+    monkeypatch.setattr(
+        FrozenJsonObject, member_name, replacement, raising=False
+    )
+
+    assert isolation._current_static_scanner_sha256() == baseline_sha256
+    assert calls == []
+    accepted = isolation.StaticScanReport(**values)
+    assert accepted.passed is True
+    assert calls == []
