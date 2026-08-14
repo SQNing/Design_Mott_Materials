@@ -23411,6 +23411,19 @@ def test_definition_aware_configuration_seam_rejects_cross_rule_config():
     payload["scientific_configuration"] = thaw_json(
         tetra_valid.scientific_configuration
     )
+
+    with pytest.raises(
+        AdapterContractError,
+        match="tetrahedral configuration/relation mismatch",
+    ):
+        isolation.CounterfactualPoint(**payload)
+
+    payload["metamorphic_metadata"] = {
+        "relations": (
+            {"kind": "basis_gauge", "group": "counterfactual_probe"},
+            {"kind": "symmetry", "group": "counterfactual_probe"},
+        ),
+    }
     forged = isolation.CounterfactualPoint(**payload)
     assert isolation._counterfactual_validation_reason(
         analytic_definition, forged
@@ -23445,6 +23458,13 @@ def test_tetrahedral_valid_points_use_distinct_seeded_basis_configurations():
         assert isolation._counterfactual_validation_reason(
             definition, point
         ) == "none"
+        relations = point.metamorphic_metadata["relations"]
+        assert {relation["kind"] for relation in relations} == {
+            "basis_gauge", "symmetry",
+        }
+        assert {
+            relation["group"] for relation in relations
+        } == {"counterfactual_probe"}
     assert len({
         canonical_json_bytes(_task8_behavior_payload(point))
         for point in valid
@@ -23458,6 +23478,53 @@ def test_tetrahedral_valid_points_use_distinct_seeded_basis_configurations():
     assert configurations != [
         point.scientific_configuration for point in alternate
     ]
+
+    for relation_kind in ("basis_gauge", "symmetry"):
+        assert sum(
+            relation["kind"] == relation_kind
+            for point in valid
+            for relation in point.metamorphic_metadata["relations"]
+        ) == 3
+
+
+@pytest.mark.parametrize("forgery_direction", ("config", "relations"))
+def test_tetrahedral_configuration_and_relations_are_bidirectionally_bound(
+    forgery_direction,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    seed = bytes(range(32))
+    if forgery_direction == "config":
+        point = _task8_valid_points(
+            isolation.derive_counterfactual_points(
+                adapters.ADAPTER_DEFINITIONS[
+                    "pauling_entropy_combinatorics"
+                ],
+                seed,
+            )
+        )[0]
+        metadata = {
+            "relations": (
+                {"kind": "scaling", "group": "counterfactual_probe"},
+            ),
+        }
+    else:
+        point = _task8_valid_points(
+            isolation.derive_counterfactual_points(
+                adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"], seed
+            )
+        )[0]
+        metadata = {
+            "relations": (
+                {"kind": "basis_gauge", "group": "counterfactual_probe"},
+                {"kind": "symmetry", "group": "counterfactual_probe"},
+            ),
+        }
+    payload = _task8_point_payload(point)
+    payload["metamorphic_metadata"] = metadata
+
+    with pytest.raises(AdapterContractError, match="configuration|relation"):
+        isolation.CounterfactualPoint(**payload)
 
 
 @pytest.mark.parametrize(
@@ -23519,6 +23586,32 @@ def _task8_counterfactual_prng_violations(tree):
                     f"{node.module}.{alias.name}"
                 )
 
+    def expanded_name(dotted, global_sources):
+        root, separator, remainder = dotted.partition(".")
+        expanded = global_sources.get(root, aliases.get(root, root))
+        if separator:
+            expanded += "." + remainder
+        return expanded
+
+    global_sources = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            target = node.target
+            value = node.value
+        else:
+            continue
+        if not isinstance(target, ast.Name) or value is None:
+            continue
+        source_expression = value.func if isinstance(value, ast.Call) else value
+        dotted = _task8_dotted_ast_name(source_expression)
+        if dotted is not None:
+            global_sources[target.id] = expanded_name(
+                dotted, global_sources
+            )
+
     pending = ["derive_counterfactual_points"]
     closure = set()
     while pending:
@@ -23536,7 +23629,20 @@ def _task8_counterfactual_prng_violations(tree):
             ):
                 pending.append(node.func.id)
 
-    forbidden_prefixes = ("random", "secrets", "numpy.random", "os.urandom")
+    forbidden_prefixes = (
+        "random",
+        "secrets",
+        "numpy.random",
+        "os.getrandom",
+        "os.urandom",
+    )
+
+    def is_forbidden(name):
+        return any(
+            name == prefix or name.startswith(prefix + ".")
+            for prefix in forbidden_prefixes
+        )
+
     violations = set()
     for function_name in closure:
         for node in ast.walk(functions[function_name]):
@@ -23548,18 +23654,15 @@ def _task8_counterfactual_prng_violations(tree):
                     imported = [node.module]
                 violations.update(
                     name for name in imported
-                    if name.startswith(forbidden_prefixes)
+                    if is_forbidden(name)
                 )
             if not isinstance(node, ast.Call):
                 continue
             dotted = _task8_dotted_ast_name(node.func)
             if dotted is None:
                 continue
-            root, separator, remainder = dotted.partition(".")
-            expanded = aliases.get(root, root)
-            if separator:
-                expanded += "." + remainder
-            if expanded.startswith(forbidden_prefixes):
+            expanded = expanded_name(dotted, global_sources)
+            if is_forbidden(expanded):
                 violations.add(expanded)
     return tuple(sorted(violations))
 
@@ -23597,6 +23700,119 @@ def test_counterfactual_generator_ast_closure_forbids_global_prngs():
     assert _task8_counterfactual_prng_violations(tree) == (
         "random.random",
     )
+
+
+def _task8_isolation_ast_tree():
+    source_path = (
+        PROJECT_ROOT
+        / "scripts"
+        / "validation"
+        / "literature_evidence_isolation.py"
+    )
+    return ast.parse(source_path.read_text(encoding="utf-8"))
+
+
+def _task8_ast_function(tree, function_name):
+    return next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == function_name
+    )
+
+
+def test_counterfactual_generator_ast_guard_tracks_module_rng_state():
+    tree = _task8_isolation_ast_tree()
+    tree.body.insert(0, ast.Import(names=[ast.alias(name="random")]))
+    tree.body.insert(
+        1,
+        ast.Assign(
+            targets=[ast.Name("_GLOBAL_RNG", ast.Store())],
+            value=ast.Call(
+                ast.Attribute(
+                    ast.Name("random", ast.Load()),
+                    "Random",
+                    ast.Load(),
+                ),
+                [],
+                [],
+            ),
+        ),
+    )
+    _task8_ast_function(tree, "_counterfactual_digest").body.insert(
+        0,
+        ast.Expr(
+            ast.Call(
+                ast.Attribute(
+                    ast.Name("_GLOBAL_RNG", ast.Load()),
+                    "random",
+                    ast.Load(),
+                ),
+                [],
+                [],
+            )
+        ),
+    )
+    assert _task8_counterfactual_prng_violations(tree) == (
+        "random.Random.random",
+    )
+
+
+def test_counterfactual_generator_ast_guard_rejects_os_entropy_roots():
+    tree = _task8_isolation_ast_tree()
+    function = _task8_ast_function(tree, "_counterfactual_digest")
+    for attribute in ("getrandom", "urandom"):
+        function.body.insert(
+            0,
+            ast.Expr(
+                ast.Call(
+                    ast.Attribute(
+                        ast.Name("os", ast.Load()),
+                        attribute,
+                        ast.Load(),
+                    ),
+                    [ast.Constant(32)],
+                    [],
+                )
+            ),
+        )
+    assert _task8_counterfactual_prng_violations(tree) == (
+        "os.getrandom",
+        "os.urandom",
+    )
+
+
+def test_counterfactual_generator_ast_guard_ignores_unreachable_module_code():
+    tree = _task8_isolation_ast_tree()
+    tree.body.insert(0, ast.Import(names=[ast.alias(name="secrets")]))
+    tree.body.append(
+        ast.FunctionDef(
+            name="_unreachable_entropy_user",
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[],
+            ),
+            body=[
+                ast.Return(
+                    ast.Call(
+                        ast.Attribute(
+                            ast.Name("secrets", ast.Load()),
+                            "token_bytes",
+                            ast.Load(),
+                        ),
+                        [ast.Constant(32)],
+                        [],
+                    )
+                )
+            ],
+            decorator_list=[],
+        )
+    )
+    assert _task8_counterfactual_prng_violations(tree) == ()
 
 
 @pytest.mark.parametrize(

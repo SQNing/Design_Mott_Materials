@@ -15048,6 +15048,7 @@ class CounterfactualPoint:
             raise _ContractError(
                 "CounterfactualPoint kind/validation mismatch"
             )
+        configuration_version = None
         if self.scientific_configuration:
             if "schema_version" not in self.scientific_configuration:
                 raise _ContractError(
@@ -15150,6 +15151,20 @@ class CounterfactualPoint:
             if relation_kind not in _METAMORPHIC_RELATION_KINDS:
                 raise _ContractError("metamorphic relation has unknown kind")
             _identifier(relation["group"], "metamorphic relation group")
+        relation_kinds = tuple(
+            relation["kind"] for relation in relations
+        )
+        has_tetrahedral_relations = (
+            len(relation_kinds) == 2
+            and set(relation_kinds) == {"basis_gauge", "symmetry"}
+        )
+        has_tetrahedral_configuration = configuration_version == (
+            "tetrahedral_basis_configuration_v1"
+        )
+        if has_tetrahedral_configuration != has_tetrahedral_relations:
+            raise _ContractError(
+                "tetrahedral configuration/relation mismatch"
+            )
 
 
 _PRE_FREEZE_EVENT_NAMES = (
@@ -15910,8 +15925,17 @@ def _counterfactual_validation_reason(definition, point):
     return "none"
 
 
-def _counterfactual_relations(backend_kind, size_kind, _point_index):
-    if backend_kind == "analytic":
+def _counterfactual_relations(definition, scientific_configuration):
+    configuration_version = (
+        scientific_configuration["schema_version"]
+        if scientific_configuration
+        else None
+    )
+    backend_kind = definition.backend_kind
+    size_kind = definition.problem_size_policy.kind
+    if configuration_version == "tetrahedral_basis_configuration_v1":
+        kinds = ("basis_gauge", "symmetry")
+    elif backend_kind == "analytic":
         kinds = ("scaling", "continuity", "bounds")
     elif backend_kind in {"enumeration", "dense_ed"}:
         if size_kind == "fixed_local":
@@ -16105,11 +16129,6 @@ def derive_counterfactual_points(definition, seed):
             numerical_controls = _counterfactual_controls(
                 validated, seed, control_index
             )
-        metadata = {
-            "relations": _counterfactual_relations(
-                backend_kind, size_kind, point_index
-            )
-        }
         scientific_configuration = {}
         if backend_kind == "glt_fourier":
             scientific_configuration = _counterfactual_scientific_configuration(
@@ -16124,6 +16143,11 @@ def derive_counterfactual_points(definition, seed):
                     validated, seed, point_index
                 )
             )
+        metadata = {
+            "relations": _counterfactual_relations(
+                validated, scientific_configuration
+            )
+        }
         points.append(
             _counterfactual_point(
                 validated,
