@@ -1,6 +1,7 @@
 import ast
 import dataclasses
 import dis
+import hmac
 import hashlib
 import inspect
 from itertools import product
@@ -4377,6 +4378,11 @@ def test_all_task4_records_are_exact_frozen_sealed_contracts():
             "command_identities", "namespace_identifiers", "mount_facts",
             "probe_result_codes", "trace_sha256", "report_sha256",
         },
+        "CounterfactualPoint": {
+            "schema_version", "domain_version", "adapter_id", "point_id",
+            "run_nonce", "kind", "scientific_inputs", "numerical_controls",
+            "problem_size", "expected_validation", "metamorphic_metadata",
+        },
         "ProcessAttestation": {
             "schema_version", "process_role", "point_id",
             "namespace_identifiers", "mount_facts", "environment_facts",
@@ -5326,6 +5332,7 @@ def test_task4_public_all_surfaces_are_exact():
         "RuntimeResourceManifest",
         "RuntimeSnapshot",
         "CapabilityPreflightReport",
+        "CounterfactualPoint",
         "ProcessAttestation",
         "TracePolicyReport",
         "PointExecutionEvidence",
@@ -5347,6 +5354,9 @@ def test_task4_public_all_surfaces_are_exact():
         "discover_runtime_resources",
         "build_runtime_snapshot",
         "revalidate_runtime_snapshot",
+        "record_and_freeze_hashes",
+        "acquire_run_seed",
+        "derive_counterfactual_points",
         "assert_disjoint_scientific_closures",
         "assert_complete_dependency_partition",
         "scientific_policy_combined_sha256",
@@ -22423,3 +22433,666 @@ def test_runtime_snapshot_rejects_symlink_component_in_run_parent(
             event_recorder=lambda event_name, details: None,
         )
     assert not (real_parent / "child" / "run").exists()
+
+
+_TASK8_PRE_FREEZE_EVENTS = (
+    "definition_and_provenance_validated",
+    "scientific_closures_hashed",
+    "scientific_policies_hashed",
+    "infrastructure_partition_hashed",
+    "runtime_snapshot_hashed",
+    "capsules_hashed",
+    "capability_preflight_hashed",
+)
+
+
+def _task8_hash_material(definition):
+    definition_sha256 = hashlib.sha256(
+        canonical_json_bytes(
+            adapters.adapter_definition_to_frozen_json(definition)
+        )
+    ).hexdigest()
+    return {
+        "adapter_closure_sha256": _sha256_text("task8-adapter-closure"),
+        "oracle_closure_sha256": _sha256_text("task8-oracle-closure"),
+        "adapter_definition_sha256": definition_sha256,
+        "oracle_definition_sha256": _sha256_text("task8-oracle-definition"),
+        "adapter_policy_sha256": _sha256_text("task8-adapter-policy"),
+        "oracle_policy_sha256": _sha256_text("task8-oracle-policy"),
+        "infrastructure_closure_sha256": _sha256_text(
+            "task8-infrastructure-closure"
+        ),
+        "infrastructure_scan_sha256": _sha256_text(
+            "task8-infrastructure-scan"
+        ),
+        "adapter_scan_sha256": _sha256_text("task8-adapter-scan"),
+        "oracle_scan_sha256": _sha256_text("task8-oracle-scan"),
+        "scanner_sha256": _sha256_text("task8-static-scanner"),
+        "dependency_partition_sha256": _sha256_text(
+            "task8-dependency-partition"
+        ),
+        "runtime_snapshot_sha256": _sha256_text("task8-runtime-snapshot"),
+        "adapter_capsule_sha256": _sha256_text("task8-adapter-capsule"),
+        "oracle_capsule_sha256": _sha256_text("task8-oracle-capsule"),
+        "worker_capsule_sha256": _sha256_text("task8-worker-capsule"),
+    }
+
+
+def _task8_preflight(isolation, audit_run_id, command_hashes):
+    payload = {
+        "schema_version": "capability_preflight_report_v1",
+        "audit_run_id": audit_run_id,
+        "available": True,
+        "checks": {"fresh_executed_probe": True},
+        "command_identities": dict(command_hashes),
+        "namespace_identifiers": {"user": "fresh-user-namespace"},
+        "mount_facts": {"root": "fresh-read-only-root"},
+        "probe_result_codes": {"fresh_probe": 0},
+        "trace_sha256": _sha256_text("task8-preflight-trace-" + audit_run_id),
+    }
+    payload["report_sha256"] = hashlib.sha256(
+        canonical_json_bytes(payload)
+    ).hexdigest()
+    return isolation.CapabilityPreflightReport(**payload)
+
+
+class _Task8OrderingFixture:
+    def __init__(self, isolation, definition, audit_run_id):
+        self.isolation = isolation
+        self.definition = definition
+        self.audit_run_id = audit_run_id
+        self.events = []
+        self.hash_material = _task8_hash_material(definition)
+        self.command_hashes = {
+            "sha256sum": _sha256_text("task8-sha256sum-command"),
+            "unshare": _sha256_text("task8-unshare-command"),
+        }
+        self.preflight = _task8_preflight(
+            isolation, audit_run_id, self.command_hashes
+        )
+
+    def record(self, event_name, details):
+        self.events.append(
+            self.isolation.EventRecord(
+                len(self.events), event_name, dict(details)
+            )
+        )
+
+    def record_prerequisites(self):
+        for event_name in _TASK8_PRE_FREEZE_EVENTS:
+            self.record(event_name, {"audit_run_id": self.audit_run_id})
+
+    def freeze(self, *, frozen_snapshot=None):
+        return self.isolation.record_and_freeze_hashes(
+            self.definition,
+            audit_run_id=self.audit_run_id,
+            ordered_events=tuple(self.events),
+            hash_material=self.hash_material,
+            capability_preflight=self.preflight,
+            infrastructure_command_hashes=self.command_hashes,
+            event_recorder=self.record,
+            frozen_snapshot=frozen_snapshot,
+        )
+
+
+def test_event_order_requires_freeze_before_exact_32_byte_random_acquisition():
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _Task8OrderingFixture(
+        isolation,
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"],
+        "task8-ordering-run-a",
+    )
+    for event_name in _TASK8_PRE_FREEZE_EVENTS:
+        fixture.record(event_name, {"audit_run_id": fixture.audit_run_id})
+        with pytest.raises(AdapterContractError, match="frozen|ordering"):
+            isolation.acquire_run_seed(
+                None,
+                ordered_events=tuple(fixture.events),
+                random_bytes=lambda count: b"r" * count,
+                event_recorder=fixture.record,
+            )
+
+    frozen = fixture.freeze()
+    seed = isolation.acquire_run_seed(
+        frozen,
+        ordered_events=tuple(fixture.events),
+        random_bytes=lambda count: b"s" * count,
+        event_recorder=fixture.record,
+    )
+
+    assert seed == b"s" * 32
+    assert tuple(event.event_name for event in fixture.events) == (
+        *_TASK8_PRE_FREEZE_EVENTS,
+        "frozen_hashes",
+        "random_seed_acquired",
+    )
+    assert tuple(event.sequence_number for event in fixture.events) == tuple(
+        range(len(fixture.events))
+    )
+
+
+@pytest.mark.parametrize("bad_bytes", (b"", b"x" * 31, b"x" * 33, bytearray(32)))
+def test_event_order_seed_acquisition_rejects_non_exact_provider_bytes(
+    bad_bytes,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _Task8OrderingFixture(
+        isolation,
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"],
+        "task8-ordering-run-provider",
+    )
+    fixture.record_prerequisites()
+    frozen = fixture.freeze()
+    before = tuple(fixture.events)
+    with pytest.raises(AdapterContractError, match="exactly 32 bytes"):
+        isolation.acquire_run_seed(
+            frozen,
+            ordered_events=tuple(fixture.events),
+            random_bytes=lambda count: bad_bytes,
+            event_recorder=fixture.record,
+        )
+    assert tuple(fixture.events) == before
+
+
+def test_event_order_rejects_pre_tampered_frozen_hash_snapshot():
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _Task8OrderingFixture(
+        isolation,
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"],
+        "task8-ordering-run-frozen-tamper",
+    )
+    fixture.record_prerequisites()
+    frozen = fixture.freeze()
+    object.__setattr__(frozen, "hash_material", freeze_json({}))
+
+    with pytest.raises(AdapterContractError, match="frozen|tamper|mismatch"):
+        isolation.acquire_run_seed(
+            frozen,
+            ordered_events=tuple(fixture.events),
+            random_bytes=lambda count: b"s" * count,
+            event_recorder=fixture.record,
+        )
+
+
+@pytest.mark.parametrize(
+    "tamper_kind",
+    (
+        "definition",
+        "domain",
+        "size_policy",
+        "output_proof",
+        "convergence",
+        "preflight",
+        "command_hash",
+        "scanner_hash",
+        "dependency_partition",
+        "infrastructure_closure",
+    ),
+)
+def test_event_order_rejects_each_post_freeze_tamper_before_point_derivation(
+    tamper_kind,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    fixture = _Task8OrderingFixture(
+        isolation,
+        _detached_adapter_definition(
+            adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+        ),
+        "task8-ordering-run-b",
+    )
+    fixture.record_prerequisites()
+    frozen = fixture.freeze()
+
+    if tamper_kind in {
+        "definition", "domain", "size_policy", "output_proof", "convergence"
+    }:
+        if tamper_kind == "definition":
+            object.__setattr__(fixture.definition, "oracle_id", "tampered_oracle")
+        elif tamper_kind == "domain":
+            object.__setattr__(
+                fixture.definition.counterfactual_domain,
+                "valid_rules",
+                freeze_json({"exchange": {"kind": "finite"}}),
+            )
+        elif tamper_kind == "size_policy":
+            object.__setattr__(
+                fixture.definition.problem_size_policy,
+                "kind",
+                "fixed_local",
+            )
+        elif tamper_kind == "output_proof":
+            object.__setattr__(
+                fixture.definition.output_schema.fields[0][1],
+                "proof_kind",
+                "interval_bound",
+            )
+        else:
+            object.__setattr__(
+                fixture.definition.convergence_contract,
+                "kind",
+                "iterative",
+            )
+    elif tamper_kind == "preflight":
+        object.__setattr__(fixture.preflight, "available", False)
+    elif tamper_kind == "command_hash":
+        fixture.command_hashes["unshare"] = "0" * 64
+    elif tamper_kind == "scanner_hash":
+        fixture.hash_material["scanner_sha256"] = "0" * 64
+    else:
+        field_name = tamper_kind + "_sha256"
+        fixture.hash_material[field_name] = "0" * 64
+
+    with pytest.raises(AdapterContractError, match="changed|mismatch|tamper"):
+        fixture.freeze(frozen_snapshot=frozen)
+    assert "counterfactual_points_derived" not in {
+        event.event_name for event in fixture.events
+    }
+
+
+def _task8_point_payload(point):
+    return {
+        field.name: getattr(point, field.name)
+        for field in dataclasses.fields(type(point))
+    }
+
+
+def _task8_valid_points(points):
+    return tuple(point for point in points if point.kind == "valid")
+
+
+def _task8_expected_nonce(seed, adapter_id, point_kind, point_index):
+    message = (
+        b"counterfactual_domain_v1\0"
+        + adapter_id.encode("ascii")
+        + b"\0"
+        + point_kind.encode("ascii")
+        + b"\0"
+        + point_index.to_bytes(8, "big")
+        + (0).to_bytes(8, "big")
+    )
+    return hmac.new(seed, message, hashlib.sha256).hexdigest()
+
+
+def test_counterfactual_point_is_public_exact_frozen_sealed_contract():
+    from validation import literature_evidence_isolation as isolation
+
+    assert "CounterfactualPoint" in isolation.__all__
+    assert dataclasses.is_dataclass(isolation.CounterfactualPoint)
+    assert {field.name for field in dataclasses.fields(
+        isolation.CounterfactualPoint
+    )} == {
+        "schema_version",
+        "domain_version",
+        "adapter_id",
+        "point_id",
+        "run_nonce",
+        "kind",
+        "scientific_inputs",
+        "numerical_controls",
+        "problem_size",
+        "expected_validation",
+        "metamorphic_metadata",
+    }
+    with pytest.raises(TypeError):
+        class CounterfactualPointSubclass(isolation.CounterfactualPoint):
+            pass
+
+
+def test_counterfactual_point_constructor_is_exact_and_snapshots_aliases():
+    from validation import literature_evidence_isolation as isolation
+
+    point = isolation.derive_counterfactual_points(
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"], bytes(range(32))
+    )[0]
+    payload = _task8_point_payload(point)
+    caller_inputs = thaw_json(point.scientific_inputs)
+    caller_metadata = thaw_json(point.metamorphic_metadata)
+    payload["scientific_inputs"] = caller_inputs
+    payload["metamorphic_metadata"] = caller_metadata
+    stored = isolation.CounterfactualPoint(**payload)
+    caller_inputs["exchange"] = 99.0
+    caller_metadata["relations"].append({"kind": "bounds"})
+
+    assert stored.scientific_inputs == point.scientific_inputs
+    assert stored.metamorphic_metadata == point.metamorphic_metadata
+    missing = dict(payload)
+    missing.pop("point_id")
+    with pytest.raises(AdapterContractError, match="missing required field"):
+        isolation.CounterfactualPoint(**missing)
+    with pytest.raises(AdapterContractError, match="unknown field"):
+        isolation.CounterfactualPoint(**payload, scientific_answer=1.0)
+
+    object.__setattr__(stored, "kind", "forged_kind")
+    with pytest.raises(AdapterContractError, match="unknown kind"):
+        isolation.CounterfactualPoint(**_task8_point_payload(stored))
+
+
+@pytest.mark.parametrize(
+    ("location", "forbidden_name"),
+    (
+        ("metadata", "candidate_values"),
+        ("relation", "expected_answer"),
+        ("relation", "literature_value"),
+    ),
+)
+def test_counterfactual_point_rejects_answer_bearing_metamorphic_metadata(
+    location,
+    forbidden_name,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    point = isolation.derive_counterfactual_points(
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"], bytes(range(32))
+    )[1]
+    payload = _task8_point_payload(point)
+    metadata = thaw_json(point.metamorphic_metadata)
+    if location == "metadata":
+        metadata[forbidden_name] = [1.0, 2.0]
+    else:
+        metadata["relations"][0][forbidden_name] = 1.0
+    payload["metamorphic_metadata"] = metadata
+
+    with pytest.raises(AdapterContractError, match="metamorphic|relation"):
+        isolation.CounterfactualPoint(**payload)
+
+
+def test_counterfactual_hmac_canary_and_seed_adapter_domain_separation():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    seed = bytes(range(32))
+    points = isolation.derive_counterfactual_points(definition, seed)
+
+    assert points[0].kind == "canonical"
+    assert points[0].run_nonce == _task8_expected_nonce(
+        seed, "xxx_bethe_energy", "canonical", 0
+    )
+    assert points == isolation.derive_counterfactual_points(definition, seed)
+    assert points != isolation.derive_counterfactual_points(
+        definition, bytes(reversed(range(32)))
+    )
+    assert points != isolation.derive_counterfactual_points(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"], seed
+    )
+
+    changed_domain = _detached_adapter_definition(definition)
+    object.__setattr__(
+        changed_domain.counterfactual_domain,
+        "valid_rules",
+        freeze_json(
+            {
+                "exchange": {"kind": "finite_nonzero"},
+                "physical_size_rule": {
+                    "kind": "declared_limit_unchanged"
+                },
+            }
+        ),
+    )
+    assert points != isolation.derive_counterfactual_points(
+        changed_domain, seed
+    )
+
+
+@pytest.mark.parametrize("bad_seed", (b"", b"x" * 31, b"x" * 33, bytearray(32)))
+def test_counterfactual_generator_rejects_every_non_exact_32_byte_seed(bad_seed):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(AdapterContractError, match="32 bytes"):
+        isolation.derive_counterfactual_points(
+            adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"], bad_seed
+        )
+
+
+def test_counterfactual_generation_is_fresh_process_deterministic():
+    from validation import literature_evidence_isolation as isolation
+
+    seed = bytes(range(32))
+    definition = adapters.ADAPTER_DEFINITIONS["tfim_bdg_critical_point"]
+    local_sha256 = hashlib.sha256(
+        canonical_json_bytes(
+            [_task8_point_payload(point) for point in
+             isolation.derive_counterfactual_points(definition, seed)]
+        )
+    ).hexdigest()
+    script = (
+        "import dataclasses, hashlib, sys\n"
+        "sys.path.insert(0, 'scripts')\n"
+        "from validation import literature_evidence_adapters as a\n"
+        "from validation import literature_evidence_isolation as i\n"
+        "points = i.derive_counterfactual_points("
+        "a.ADAPTER_DEFINITIONS['tfim_bdg_critical_point'], bytes(range(32)))\n"
+        "payload = [{f.name: getattr(p, f.name) for f in "
+        "dataclasses.fields(type(p))} for p in points]\n"
+        "print(hashlib.sha256(a.canonical_json_bytes(payload)).hexdigest())\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=PROJECT_ROOT,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == local_sha256
+
+
+_TASK8_ALL_DEFINITION_IDS = (
+    "xxx_bethe_energy",
+    "square_ising_self_dual_tc",
+    "triangular_ising_af_entropy_quadrature",
+    "xy_chain_bdg_boundaries",
+    "diamond_spiral_threshold_fourier",
+    "spin_ice_tetrahedron_enumeration",
+    "spin_ladder_rung_dense_ed",
+    "pauling_entropy_combinatorics",
+    "uls_two_site_su3_matrix",
+    "aklt_projector_angle",
+    "compass_line_symmetry_matrix",
+    "kitaev_field_majorana_mass",
+    "toric_code_stabilizer_rank",
+    "aklt_two_site_projector_ed",
+    "blume_capel_level_crossing",
+    "checkerboard_plaquette_enumeration",
+    "honeycomb_ising_star_triangle_tc",
+    "kagome_ising_af_entropy_quadrature",
+    "kagome_ising_star_triangle_tc",
+    "majumdar_ghosh_dimer_ed",
+    "ising_chain_transfer_matrix",
+    "pyrochlore_coulomb_fourier",
+    "shastry_sutherland_dimer_ed",
+    "simple_cubic_j1_j2_fourier",
+    "spin1_single_ion_dense_ed",
+    "fully_frustrated_ising_entropy_series",
+    "tfim_bdg_critical_point",
+    "triangular_ising_star_triangle_tc",
+    "xx_chain_fermion_integral",
+)
+
+
+@pytest.mark.parametrize("adapter_id", _TASK8_ALL_DEFINITION_IDS)
+def test_counterfactual_matrix_covers_every_definition_and_family_minimum(
+    adapter_id,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    assert tuple(adapters.ADAPTER_DEFINITIONS) == _TASK8_ALL_DEFINITION_IDS
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    points = isolation.derive_counterfactual_points(definition, bytes(range(32)))
+    canonical = tuple(point for point in points if point.kind == "canonical")
+    valid = _task8_valid_points(points)
+    invalid = tuple(point for point in points if point.kind == "invalid")
+
+    assert len(canonical) == 1
+    assert len(invalid) == 1
+    assert len({point.run_nonce for point in points}) == len(points)
+    assert all(type(point) is isolation.CounterfactualPoint for point in points)
+    assert all(point.adapter_id == adapter_id for point in points)
+    assert all(point.domain_version == "counterfactual_domain_v1" for point in points)
+    assert invalid[0].expected_validation["outcome"] == "rejected"
+    assert invalid[0].expected_validation["reason_code"] in {
+        "scientific_input_rejected",
+        "numerical_control_rejected",
+        "physical_size_rejected",
+    }
+
+    for point in (*canonical, *valid):
+        adapters.validate_scientific_inputs(definition, point.scientific_inputs)
+        adapters.validate_numerical_controls(definition, point.numerical_controls)
+        assert point.expected_validation == freeze_json(
+            {"outcome": "accepted", "reason_code": "none"}
+        )
+
+    size_kind = definition.problem_size_policy.kind
+    if definition.backend_kind == "analytic":
+        assert len(valid) == 3
+        assert len({canonical_json_bytes(p.scientific_inputs) for p in valid}) == 3
+    elif definition.backend_kind in {"enumeration", "dense_ed"}:
+        if size_kind == "fixed_local":
+            assert len(valid) == 3
+            assert all(
+                p.problem_size == definition.problem_size_policy.fixed_sizes
+                for p in valid
+            )
+        else:
+            assert size_kind == "scalable_same_observable"
+            assert len(valid) == 4
+            sizes = [canonical_json_bytes(p.problem_size) for p in valid]
+            assert len(set(sizes)) == 2
+            assert all(sizes.count(size) == 2 for size in set(sizes))
+            assert invalid[0].expected_validation["reason_code"] == (
+                "physical_size_rejected"
+            )
+    elif definition.backend_kind == "glt_fourier":
+        assert len(valid) == 6
+        model_inputs = [canonical_json_bytes(p.scientific_inputs) for p in valid]
+        assert len(set(model_inputs)) == 3
+        assert all(model_inputs.count(value) == 2 for value in set(model_inputs))
+        assert {
+            p.metamorphic_metadata["configuration_index"] for p in valid
+        } == {0, 1}
+        assert "real_fourier" in {
+            relation["kind"]
+            for p in valid
+            for relation in p.metamorphic_metadata["relations"]
+        }
+    else:
+        assert definition.backend_kind == "iterative_numeric"
+        assert len(valid) >= 3
+        assert len({canonical_json_bytes(p.scientific_inputs) for p in valid}) == 1
+        assert invalid[0].expected_validation["reason_code"] == (
+            "numerical_control_rejected"
+        )
+        for control_name, schema in definition.numerical_control_schema.properties:
+            values = [point.numerical_controls[control_name] for point in valid]
+            if "threshold" in control_name or "cutoff" in control_name:
+                assert values == sorted(values, reverse=True)
+                assert len(set(values)) == len(values)
+            else:
+                assert values == sorted(values)
+                assert len(set(values)) == len(values)
+
+
+def test_counterfactual_metadata_is_outer_relational_and_answer_free():
+    from validation import literature_evidence_isolation as isolation
+
+    allowed_relations = {
+        "scaling", "symmetry", "continuity", "bounds", "basis_gauge",
+        "real_fourier",
+    }
+    observed = set()
+    forbidden_tokens = {
+        "answer", "candidate", "literature", "output", "result", "target",
+        "expected_value", "canonical_value",
+    }
+    for definition in adapters.ADAPTER_DEFINITIONS.values():
+        for point in isolation.derive_counterfactual_points(
+            definition, bytes(range(32))
+        ):
+            encoded = canonical_json_bytes(point.metamorphic_metadata).decode(
+                "utf-8"
+            ).lower()
+            assert not any(token in encoded for token in forbidden_tokens)
+            relations = point.metamorphic_metadata["relations"]
+            observed.update(relation["kind"] for relation in relations)
+            assert {relation["kind"] for relation in relations} <= allowed_relations
+    assert observed == allowed_relations
+
+
+@pytest.mark.parametrize(
+    ("adapter_id", "expected_relations"),
+    (
+        (
+            "xxx_bethe_energy",
+            {"scaling", "continuity", "bounds"},
+        ),
+        (
+            "spin_ice_tetrahedron_enumeration",
+            {"scaling", "basis_gauge", "symmetry"},
+        ),
+        (
+            "compass_line_symmetry_matrix",
+            {"scaling", "continuity"},
+        ),
+        (
+            "tfim_bdg_critical_point",
+            {"real_fourier", "symmetry"},
+        ),
+        (
+            "fully_frustrated_ising_entropy_series",
+            {"continuity", "bounds", "scaling"},
+        ),
+    ),
+)
+def test_counterfactual_relations_bind_multiple_points_for_outer_validation(
+    adapter_id,
+    expected_relations,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(
+            adapters.ADAPTER_DEFINITIONS[adapter_id], bytes(range(32))
+        )
+    )
+    for point in valid:
+        assert {
+            relation["kind"]
+            for relation in point.metamorphic_metadata["relations"]
+        } == expected_relations
+
+
+def test_task8_public_signatures_are_stable_and_closed():
+    from validation import literature_evidence_isolation as isolation
+
+    assert str(inspect.signature(isolation.derive_counterfactual_points)) == (
+        "(definition, seed)"
+    )
+    assert str(inspect.signature(isolation.acquire_run_seed)) == (
+        "(frozen_snapshot, *, ordered_events, random_bytes, event_recorder)"
+    )
+    assert str(inspect.signature(isolation.record_and_freeze_hashes)) == (
+        "(definition, *, audit_run_id, ordered_events, hash_material, "
+        "capability_preflight, infrastructure_command_hashes, "
+        "event_recorder, frozen_snapshot=None)"
+    )
+
+
+def test_task8_functions_have_exact_infrastructure_category(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    _write_task5_infrastructure_sources(tmp_path)
+    closure = isolation.build_infrastructure_closure(source_roots=(tmp_path,))
+    roots = {
+        "validation.literature_evidence_isolation.record_and_freeze_hashes",
+        "validation.literature_evidence_isolation.acquire_run_seed",
+        "validation.literature_evidence_isolation.derive_counterfactual_points",
+    }
+    assert roots <= {node["qualified_name"] for node in closure.nodes}
+    assert {
+        closure.purpose_bindings[root] for root in roots
+    } == {"event_and_counterfactual_transport"}
