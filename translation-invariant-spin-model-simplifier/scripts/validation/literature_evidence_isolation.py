@@ -14975,6 +14975,12 @@ _EXPECTED_VALIDATION_REASONS = frozenset(
         "physical_size_rejected",
     }
 )
+_TETRAHEDRAL_BASIS_LABELS = (
+    "spin_0",
+    "spin_1",
+    "spin_2",
+    "spin_3",
+)
 
 
 @_seal_contract
@@ -15043,51 +15049,84 @@ class CounterfactualPoint:
                 "CounterfactualPoint kind/validation mismatch"
             )
         if self.scientific_configuration:
-            configuration = _exact_keys(
-                self.scientific_configuration,
-                (
-                    "schema_version",
-                    "representation",
-                    "coordinates",
-                    "gauge_phase_fraction",
-                ),
-                "scientific_configuration",
-            )
-            if configuration["schema_version"] != (
-                "glt_scientific_configuration_v1"
+            if "schema_version" not in self.scientific_configuration:
+                raise _ContractError(
+                    "scientific_configuration requires schema_version"
+                )
+            configuration_version = self.scientific_configuration[
+                "schema_version"
+            ]
+            if configuration_version == "glt_scientific_configuration_v1":
+                configuration = _exact_keys(
+                    self.scientific_configuration,
+                    (
+                        "schema_version",
+                        "representation",
+                        "coordinates",
+                        "gauge_phase_fraction",
+                    ),
+                    "scientific_configuration",
+                )
+                if configuration["representation"] not in {
+                    "real_space", "fourier_space",
+                }:
+                    raise _ContractError(
+                        "scientific_configuration has unknown representation"
+                    )
+                coordinates = _require_exact_tuple(
+                    configuration["coordinates"],
+                    "scientific_configuration.coordinates",
+                )
+                if len(coordinates) != 3 or any(
+                    type(value) is not float
+                    or not math.isfinite(value)
+                    or value < -1.0
+                    or value > 1.0
+                    for value in coordinates
+                ):
+                    raise _ContractError(
+                        "scientific_configuration coordinates are invalid"
+                    )
+                phase = configuration["gauge_phase_fraction"]
+                if (
+                    type(phase) is not float
+                    or not math.isfinite(phase)
+                    or phase < 0.0
+                    or phase >= 1.0
+                ):
+                    raise _ContractError(
+                        "scientific_configuration gauge phase is invalid"
+                    )
+            elif configuration_version == (
+                "tetrahedral_basis_configuration_v1"
             ):
+                configuration = _exact_keys(
+                    self.scientific_configuration,
+                    (
+                        "schema_version",
+                        "basis_labels",
+                        "gauge_inverted",
+                    ),
+                    "scientific_configuration",
+                )
+                labels = _require_exact_tuple(
+                    configuration["basis_labels"],
+                    "scientific_configuration.basis_labels",
+                )
+                if (
+                    len(labels) != len(_TETRAHEDRAL_BASIS_LABELS)
+                    or set(labels) != set(_TETRAHEDRAL_BASIS_LABELS)
+                ):
+                    raise _ContractError(
+                        "scientific_configuration basis labels are invalid"
+                    )
+                _require_bool(
+                    configuration["gauge_inverted"],
+                    "scientific_configuration.gauge_inverted",
+                )
+            else:
                 raise _ContractError(
                     "scientific_configuration has unknown schema_version"
-                )
-            if configuration["representation"] not in {
-                "real_space", "fourier_space",
-            }:
-                raise _ContractError(
-                    "scientific_configuration has unknown representation"
-                )
-            coordinates = _require_exact_tuple(
-                configuration["coordinates"],
-                "scientific_configuration.coordinates",
-            )
-            if len(coordinates) != 3 or any(
-                type(value) is not float
-                or not math.isfinite(value)
-                or value < -1.0
-                or value > 1.0
-                for value in coordinates
-            ):
-                raise _ContractError(
-                    "scientific_configuration coordinates are invalid"
-                )
-            phase = configuration["gauge_phase_fraction"]
-            if (
-                type(phase) is not float
-                or not math.isfinite(phase)
-                or phase < 0.0
-                or phase >= 1.0
-            ):
-                raise _ContractError(
-                    "scientific_configuration gauge phase is invalid"
                 )
         metadata = _exact_keys(
             self.metamorphic_metadata,
@@ -15838,6 +15877,28 @@ def _counterfactual_validation_reason(definition, point):
         return "scientific_input_rejected"
     if not _counterfactual_domain_inputs_are_valid(validated, inputs):
         return "scientific_input_rejected"
+    configuration = point.scientific_configuration
+    configuration_version = (
+        configuration["schema_version"] if configuration else None
+    )
+    has_tetrahedral_rule = any(
+        rule["kind"] == "tetrahedral_positive_integer"
+        for rule in validated.counterfactual_domain.valid_rules.values()
+    )
+    if point.kind != "valid":
+        configuration_is_valid = not configuration
+    elif validated.backend_kind == "glt_fourier":
+        configuration_is_valid = configuration_version == (
+            "glt_scientific_configuration_v1"
+        )
+    elif has_tetrahedral_rule:
+        configuration_is_valid = configuration_version == (
+            "tetrahedral_basis_configuration_v1"
+        )
+    else:
+        configuration_is_valid = not configuration
+    if not configuration_is_valid:
+        return "scientific_input_rejected"
     try:
         controls = _validate_controls(
             validated, point.numerical_controls
@@ -15897,6 +15958,47 @@ def _counterfactual_scientific_configuration(
         ),
         "coordinates": coordinates,
         "gauge_phase_fraction": phase,
+    }
+
+
+def _counterfactual_tetrahedral_basis_configuration(
+    definition,
+    seed,
+    point_index,
+):
+    ranked_labels = [
+        label
+        for _digest, label in sorted(
+            (
+                _counterfactual_digest(
+                    seed,
+                    definition.adapter_id,
+                    "valid",
+                    0,
+                    144 + int(label[-1]),
+                ),
+                label,
+            )
+            for label in _TETRAHEDRAL_BASIS_LABELS
+        )
+    ]
+    rotation = point_index % len(ranked_labels)
+    basis_labels = tuple(
+        ranked_labels[rotation:] + ranked_labels[:rotation]
+    )
+    gauge_inverted = bool(
+        _counterfactual_digest(
+            seed,
+            definition.adapter_id,
+            "valid",
+            point_index,
+            148,
+        )[0] & 1
+    )
+    return {
+        "schema_version": "tetrahedral_basis_configuration_v1",
+        "basis_labels": basis_labels,
+        "gauge_inverted": gauge_inverted,
     }
 
 
@@ -15995,8 +16097,13 @@ def derive_counterfactual_points(definition, seed):
                 validated, point_index
             )
         else:
+            control_index = (
+                input_index
+                if backend_kind == "glt_fourier"
+                else point_index
+            )
             numerical_controls = _counterfactual_controls(
-                validated, seed, point_index
+                validated, seed, control_index
             )
         metadata = {
             "relations": _counterfactual_relations(
@@ -16007,6 +16114,15 @@ def derive_counterfactual_points(definition, seed):
         if backend_kind == "glt_fourier":
             scientific_configuration = _counterfactual_scientific_configuration(
                 validated, seed, point_index
+            )
+        elif any(
+            rule["kind"] == "tetrahedral_positive_integer"
+            for rule in validated.counterfactual_domain.valid_rules.values()
+        ):
+            scientific_configuration = (
+                _counterfactual_tetrahedral_basis_configuration(
+                    validated, seed, point_index
+                )
             )
         points.append(
             _counterfactual_point(

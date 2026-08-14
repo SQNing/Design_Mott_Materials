@@ -22855,6 +22855,19 @@ def _task8_behavior_payload(point):
     return payload
 
 
+def _task8_representation_pair_payload(point):
+    configuration = thaw_json(point.scientific_configuration)
+    representation = configuration.pop("representation")
+    return {
+        "scientific_inputs": point.scientific_inputs,
+        "numerical_controls": point.numerical_controls,
+        "problem_size": point.problem_size,
+        "expected_validation": point.expected_validation,
+        "metamorphic_metadata": point.metamorphic_metadata,
+        "scientific_configuration": freeze_json(configuration),
+    }, representation
+
+
 def _task8_valid_points(points):
     return tuple(point for point in points if point.kind == "valid")
 
@@ -23275,9 +23288,13 @@ def test_glt_configuration_pairs_are_seeded_closed_and_executable(adapter_id):
     coupling_configurations = []
     for pair in by_inputs.values():
         assert len(pair) == 2
-        assert {
-            point.scientific_configuration["representation"] for point in pair
-        } == {"real_space", "fourier_space"}
+        pair_payloads = tuple(
+            _task8_representation_pair_payload(point) for point in pair
+        )
+        assert {representation for _, representation in pair_payloads} == {
+            "real_space", "fourier_space",
+        }
+        assert pair_payloads[0][0] == pair_payloads[1][0]
         assert pair[0].scientific_configuration["coordinates"] == (
             pair[1].scientific_configuration["coordinates"]
         )
@@ -23301,6 +23318,285 @@ def test_glt_configuration_pairs_are_seeded_closed_and_executable(adapter_id):
     assert [point.scientific_configuration for point in valid] != [
         point.scientific_configuration for point in alternate
     ]
+
+
+def test_definition_aware_configuration_seam_rejects_missing_glt_config():
+    from validation import literature_evidence_isolation as isolation
+
+    seed = bytes(range(32))
+    glt_definition = adapters.ADAPTER_DEFINITIONS[
+        "tfim_bdg_critical_point"
+    ]
+    glt_valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(glt_definition, seed)
+    )[0]
+    missing_configuration = _task8_point_payload(glt_valid)
+    missing_configuration["scientific_configuration"] = {}
+    forged_glt = isolation.CounterfactualPoint(**missing_configuration)
+    assert isolation._counterfactual_validation_reason(
+        glt_definition, forged_glt
+    ) == "scientific_input_rejected"
+
+
+def test_definition_aware_configuration_seam_rejects_glt_config_on_analytic():
+    from validation import literature_evidence_isolation as isolation
+
+    seed = bytes(range(32))
+    glt_valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(
+            adapters.ADAPTER_DEFINITIONS["tfim_bdg_critical_point"], seed
+        )
+    )[0]
+    analytic_definition = adapters.ADAPTER_DEFINITIONS[
+        "xxx_bethe_energy"
+    ]
+    analytic_valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(analytic_definition, seed)
+    )[0]
+    injected_configuration = _task8_point_payload(analytic_valid)
+    injected_configuration["scientific_configuration"] = thaw_json(
+        glt_valid.scientific_configuration
+    )
+    forged_analytic = isolation.CounterfactualPoint(**injected_configuration)
+    assert isolation._counterfactual_validation_reason(
+        analytic_definition, forged_analytic
+    ) == "scientific_input_rejected"
+
+
+def test_definition_aware_configuration_seam_requires_empty_nonvalid_config():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["tfim_bdg_critical_point"]
+    points = isolation.derive_counterfactual_points(
+        definition, bytes(range(32))
+    )
+    valid = next(point for point in points if point.kind == "valid")
+    for kind, expected_validation in (
+        ("canonical", {"outcome": "accepted", "reason_code": "none"}),
+        (
+            "invalid",
+            {
+                "outcome": "rejected",
+                "reason_code": "scientific_input_rejected",
+            },
+        ),
+    ):
+        payload = _task8_point_payload(valid)
+        payload["kind"] = kind
+        payload["expected_validation"] = expected_validation
+        forged = isolation.CounterfactualPoint(**payload)
+        assert isolation._counterfactual_validation_reason(
+            definition, forged
+        ) == "scientific_input_rejected"
+    assert next(
+        point for point in points if point.kind == "invalid"
+    ).scientific_configuration == freeze_json({})
+
+
+def test_definition_aware_configuration_seam_rejects_cross_rule_config():
+    from validation import literature_evidence_isolation as isolation
+
+    seed = bytes(range(32))
+    tetra_definition = adapters.ADAPTER_DEFINITIONS[
+        "pauling_entropy_combinatorics"
+    ]
+    analytic_definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    tetra_valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(tetra_definition, seed)
+    )[0]
+    analytic_valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(analytic_definition, seed)
+    )[0]
+    payload = _task8_point_payload(analytic_valid)
+    payload["scientific_configuration"] = thaw_json(
+        tetra_valid.scientific_configuration
+    )
+    forged = isolation.CounterfactualPoint(**payload)
+    assert isolation._counterfactual_validation_reason(
+        analytic_definition, forged
+    ) == "scientific_input_rejected"
+
+
+def test_tetrahedral_valid_points_use_distinct_seeded_basis_configurations():
+    from validation import literature_evidence_isolation as isolation
+
+    seed = bytes(range(32))
+    definition = adapters.ADAPTER_DEFINITIONS[
+        "pauling_entropy_combinatorics"
+    ]
+    valid = _task8_valid_points(
+        isolation.derive_counterfactual_points(definition, seed)
+    )
+    configurations = [point.scientific_configuration for point in valid]
+    assert len(valid) == 3
+    assert len(set(map(canonical_json_bytes, configurations))) == 3
+    for point, configuration in zip(valid, configurations):
+        assert set(configuration) == {
+            "schema_version", "basis_labels", "gauge_inverted",
+        }
+        assert configuration["schema_version"] == (
+            "tetrahedral_basis_configuration_v1"
+        )
+        assert set(configuration["basis_labels"]) == {
+            "spin_0", "spin_1", "spin_2", "spin_3",
+        }
+        assert len(configuration["basis_labels"]) == 4
+        assert type(configuration["gauge_inverted"]) is bool
+        assert isolation._counterfactual_validation_reason(
+            definition, point
+        ) == "none"
+    assert len({
+        canonical_json_bytes(_task8_behavior_payload(point))
+        for point in valid
+    }) == 3
+
+    alternate = _task8_valid_points(
+        isolation.derive_counterfactual_points(
+            definition, bytes(reversed(range(32)))
+        )
+    )
+    assert configurations != [
+        point.scientific_configuration for point in alternate
+    ]
+
+
+@pytest.mark.parametrize(
+    "tamper_kind",
+    ("unknown_schema", "extra_field", "duplicate_label", "nonbool_gauge"),
+)
+def test_scientific_configuration_is_a_closed_tagged_union(tamper_kind):
+    from validation import literature_evidence_isolation as isolation
+
+    point = _task8_valid_points(
+        isolation.derive_counterfactual_points(
+            adapters.ADAPTER_DEFINITIONS[
+                "pauling_entropy_combinatorics"
+            ],
+            bytes(range(32)),
+        )
+    )[0]
+    payload = _task8_point_payload(point)
+    configuration = thaw_json(point.scientific_configuration)
+    if tamper_kind == "unknown_schema":
+        configuration["schema_version"] = "unknown_configuration_v1"
+    elif tamper_kind == "extra_field":
+        configuration["answer"] = 0
+    elif tamper_kind == "duplicate_label":
+        configuration["basis_labels"][0] = configuration["basis_labels"][1]
+    else:
+        configuration["gauge_inverted"] = 0
+    payload["scientific_configuration"] = configuration
+
+    with pytest.raises(AdapterContractError, match="scientific_configuration"):
+        isolation.CounterfactualPoint(**payload)
+
+
+def _task8_dotted_ast_name(node):
+    components = []
+    while isinstance(node, ast.Attribute):
+        components.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    components.append(node.id)
+    return ".".join(reversed(components))
+
+
+def _task8_counterfactual_prng_violations(tree):
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    aliases = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                aliases[alias.asname or alias.name.split(".")[0]] = alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                aliases[alias.asname or alias.name] = (
+                    f"{node.module}.{alias.name}"
+                )
+
+    pending = ["derive_counterfactual_points"]
+    closure = set()
+    while pending:
+        function_name = pending.pop()
+        if function_name in closure:
+            continue
+        closure.add(function_name)
+        function = functions[function_name]
+        for node in ast.walk(function):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in functions
+                and node.func.id not in closure
+            ):
+                pending.append(node.func.id)
+
+    forbidden_prefixes = ("random", "secrets", "numpy.random", "os.urandom")
+    violations = set()
+    for function_name in closure:
+        for node in ast.walk(functions[function_name]):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                imported = []
+                if isinstance(node, ast.Import):
+                    imported = [alias.name for alias in node.names]
+                elif node.module:
+                    imported = [node.module]
+                violations.update(
+                    name for name in imported
+                    if name.startswith(forbidden_prefixes)
+                )
+            if not isinstance(node, ast.Call):
+                continue
+            dotted = _task8_dotted_ast_name(node.func)
+            if dotted is None:
+                continue
+            root, separator, remainder = dotted.partition(".")
+            expanded = aliases.get(root, root)
+            if separator:
+                expanded += "." + remainder
+            if expanded.startswith(forbidden_prefixes):
+                violations.add(expanded)
+    return tuple(sorted(violations))
+
+
+def test_counterfactual_generator_ast_closure_forbids_global_prngs():
+    source_path = (
+        PROJECT_ROOT
+        / "scripts"
+        / "validation"
+        / "literature_evidence_isolation.py"
+    )
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    assert _task8_counterfactual_prng_violations(tree) == ()
+
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    functions["_counterfactual_digest"].body.insert(
+        0,
+        ast.Expr(
+            ast.Call(
+                ast.Attribute(
+                    ast.Name("random", ast.Load()),
+                    "random",
+                    ast.Load(),
+                ),
+                [],
+                [],
+            )
+        ),
+    )
+    tree.body.insert(0, ast.Import(names=[ast.alias(name="random")]))
+    assert _task8_counterfactual_prng_violations(tree) == (
+        "random.random",
+    )
 
 
 @pytest.mark.parametrize(
