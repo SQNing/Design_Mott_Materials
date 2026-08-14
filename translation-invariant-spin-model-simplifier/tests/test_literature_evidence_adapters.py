@@ -21147,6 +21147,85 @@ def test_runtime_ldd_groups_musl_libc_alias_with_direct_loader(tmp_path):
     assert ldd_rows[0]["purpose"] == "dynamic_loader"
 
 
+def _task7_discover_two_ldd_symlink_aliases(tmp_path, *, reversed_rows=False):
+    real_library = tmp_path / "libshared-real.so"
+    first_alias = tmp_path / "libshared-first.so"
+    second_alias = tmp_path / "libshared-second.so"
+    loader = tmp_path / "ld-linux-alias-test.so.2"
+    real_library.write_bytes(b"shared-library")
+    first_alias.symlink_to(real_library.name)
+    second_alias.symlink_to(real_library.name)
+    loader.write_bytes(b"loader")
+    library_rows = (
+        f"libshared-first.so => {first_alias} (0x1)",
+        f"libshared-second.so => {second_alias} (0x2)",
+    )
+    if reversed_rows:
+        library_rows = tuple(reversed(library_rows))
+    output = "\n".join((*library_rows, f"{loader} (0x3)")) + "\n"
+    manifest = _task7_discover_only_ldd(tmp_path, output)
+    return manifest, real_library, first_alias, second_alias
+
+
+@pytest.mark.parametrize("changed_alias_index", (0, 1))
+def test_runtime_ldd_group_unions_and_revalidates_all_symlink_aliases(
+    tmp_path, monkeypatch, changed_alias_index
+):
+    from validation import literature_evidence_isolation as isolation
+
+    manifest, real_library, first_alias, second_alias = (
+        _task7_discover_two_ldd_symlink_aliases(tmp_path)
+    )
+    reordered_dir = tmp_path / "reordered"
+    reordered_dir.mkdir()
+    reordered, _real, _first, _second = (
+        _task7_discover_two_ldd_symlink_aliases(
+            reordered_dir, reversed_rows=True
+        )
+    )
+    grouped = next(
+        row
+        for row in manifest.resources
+        if row["purpose"] == "dynamic_library"
+    )
+    reordered_grouped = next(
+        row
+        for row in reordered.resources
+        if row["purpose"] == "dynamic_library"
+    )
+    assert tuple(
+        Path(identity["path"]).name
+        for identity in grouped["link_identity"]
+    ) == ("libshared-first.so", "libshared-second.so")
+    assert tuple(
+        Path(identity["path"]).name
+        for identity in reordered_grouped["link_identity"]
+    ) == ("libshared-first.so", "libshared-second.so")
+
+    same_directory_reordered = _task7_discover_only_ldd(
+        tmp_path,
+        f"libshared-second.so => {second_alias} (0x2)\n"
+        f"libshared-first.so => {first_alias} (0x1)\n"
+        f"{tmp_path / 'ld-linux-alias-test.so.2'} (0x3)\n",
+    )
+    assert manifest.resources == same_directory_reordered.resources
+    assert manifest.manifest_sha256 == same_directory_reordered.manifest_sha256
+
+    changed_alias = (first_alias, second_alias)[changed_alias_index]
+    changed_alias.unlink()
+    changed_alias.symlink_to(tmp_path / "changed-target.so")
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    with pytest.raises(AdapterContractError, match="link|identity"):
+        isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), ()),
+            run_directory=tmp_path / f"run-{changed_alias_index}",
+            event_recorder=lambda event_name, details: None,
+        )
+    assert real_library.read_bytes() == b"shared-library"
+
+
 def test_runtime_ldd_rejects_two_distinct_loader_identities(tmp_path):
     first = tmp_path / "ld-linux-one.so.2"
     second = tmp_path / "ld-linux-two.so.2"
@@ -21403,6 +21482,148 @@ def test_runtime_snapshot_final_audit_rejects_nonraising_event_mutation(
     with pytest.raises(OSError):
         os.fstat(root_fd[0])
     assert len(os.listdir("/proc/self/fd")) == before_fds
+
+
+@pytest.mark.parametrize("audit_path", ("builder", "revalidate"))
+@pytest.mark.parametrize(
+    "late_mutation",
+    (
+        "file_chmod_after_hash",
+        "file_hardlink_after_hash",
+        "file_mutate_after_hash",
+        "entry_after_initial_list",
+        "root_chmod_after_initial_list",
+    ),
+)
+def test_runtime_snapshot_audit_brackets_late_file_and_root_changes(
+    tmp_path, monkeypatch, audit_path, late_mutation
+):
+    from validation import literature_evidence_isolation as isolation
+
+    source = tmp_path / "installed-resource.bin"
+    source.write_bytes(b"bracketed-audit")
+    source.chmod(0o644)
+    manifest = _task7_manifest(
+        _task7_resource_row(
+            source,
+            "/runtime/backend/resource.bin",
+            "declared_backend_resource",
+        )
+    )
+    monkeypatch.setattr(
+        isolation, "discover_runtime_resources", lambda requirements: manifest
+    )
+    run_path = tmp_path / "exclusive-run"
+    original_create = isolation._runtime_create_private_directory
+    retained_fd = []
+
+    def capture_root_fd(parent_fd, basename):
+        descriptor = original_create(parent_fd, basename)
+        if basename == "runtime-snapshot":
+            retained_fd.append(descriptor)
+        return descriptor
+
+    monkeypatch.setattr(
+        isolation, "_runtime_create_private_directory", capture_root_fd
+    )
+    snapshot = None
+    if audit_path == "revalidate":
+        snapshot = isolation.build_runtime_snapshot(
+            RuntimeRequirements("python3", (), (), (str(source),)),
+            run_directory=run_path,
+            event_recorder=lambda event_name, details: None,
+        )
+        assert len(retained_fd) == 1
+    original_runtime_close = isolation._runtime_close_fd
+    root_close_calls = []
+
+    def capture_root_close(descriptor):
+        if retained_fd and descriptor == retained_fd[0]:
+            root_close_calls.append(descriptor)
+        return original_runtime_close(descriptor)
+
+    monkeypatch.setattr(isolation, "_runtime_close_fd", capture_root_close)
+    mutated = False
+    if late_mutation.endswith("after_hash"):
+        original_hash = isolation._runtime_hash_descriptor
+
+        def hash_then_mutate(descriptor):
+            nonlocal mutated
+            result = original_hash(descriptor)
+            if not mutated:
+                mutated = True
+                copied = next((run_path / "runtime-snapshot").iterdir())
+                if late_mutation == "file_chmod_after_hash":
+                    os.fchmod(descriptor, 0o644)
+                elif late_mutation == "file_hardlink_after_hash":
+                    os.link(copied, tmp_path / "late-hardlink")
+                else:
+                    copied.chmod(0o600)
+                    copied.write_bytes(b"mutated-content")
+                    copied.chmod(0o444)
+            return result
+
+        monkeypatch.setattr(
+            isolation, "_runtime_hash_descriptor", hash_then_mutate
+        )
+    else:
+        original_listdir = isolation.os.listdir
+
+        def list_then_add_entry(descriptor):
+            nonlocal mutated
+            result = original_listdir(descriptor)
+            if (
+                not mutated
+                and retained_fd
+                and descriptor == retained_fd[0]
+            ):
+                mutated = True
+                os.fchmod(descriptor, 0o700)
+                if late_mutation == "entry_after_initial_list":
+                    extra_fd = os.open(
+                        "late-entry",
+                        os.O_WRONLY
+                        | os.O_CREAT
+                        | os.O_EXCL
+                        | os.O_NOFOLLOW
+                        | os.O_CLOEXEC,
+                        0o444,
+                        dir_fd=descriptor,
+                    )
+                    os.close(extra_fd)
+                    os.fchmod(descriptor, 0o500)
+            return result
+
+        monkeypatch.setattr(isolation.os, "listdir", list_then_add_entry)
+
+    caught = None
+    if audit_path == "builder":
+        try:
+            snapshot = isolation.build_runtime_snapshot(
+                RuntimeRequirements("python3", (), (), (str(source),)),
+                run_directory=run_path,
+                event_recorder=lambda event_name, details: None,
+            )
+        except AdapterContractError as error:
+            caught = error
+        if snapshot is not None:
+            try:
+                isolation.revalidate_runtime_snapshot(snapshot)
+            except AdapterContractError:
+                pass
+    else:
+        try:
+            isolation.revalidate_runtime_snapshot(snapshot)
+        except AdapterContractError as error:
+            caught = error
+
+    assert mutated is True
+    assert type(caught) is AdapterContractError
+    assert len(retained_fd) == 1
+    root_fd = retained_fd[0]
+    assert root_close_calls == [root_fd]
+    with pytest.raises(OSError):
+        os.fstat(root_fd)
 
 
 @pytest.mark.parametrize(

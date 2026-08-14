@@ -14030,6 +14030,39 @@ def discover_runtime_resources(
     grouped_ldd = []
     for identity, candidates in ldd_identities.items():
         representative = min(candidates, key=lambda item: item[0])
+        links_by_identity = {}
+        link_fields = (
+            "path",
+            "device",
+            "inode",
+            "link_target",
+            "target_path",
+            "target_device",
+            "target_inode",
+        )
+        for _candidate_key, candidate_row, _loader_hint in candidates:
+            if type(candidate_row) is not dict:
+                raise _ContractError("ldd candidate row is not exact")
+            candidate_links = dict.__getitem__(
+                candidate_row, "link_identity"
+            )
+            if type(candidate_links) is not tuple:
+                raise _ContractError("ldd link identity is not exact")
+            for link in candidate_links:
+                if type(link) is not dict or set(link) != set(link_fields):
+                    raise _ContractError("ldd link identity is not exact")
+                link_key = tuple(
+                    dict.__getitem__(link, field) for field in link_fields
+                )
+                links_by_identity.setdefault(link_key, link)
+        dict.__setitem__(
+            representative[1],
+            "link_identity",
+            tuple(
+                links_by_identity[key]
+                for key in sorted(links_by_identity)
+            ),
+        )
         grouped_ldd.append(
             (representative[0], identity, representative[1], any(
                 candidate[2] for candidate in candidates
@@ -14732,14 +14765,22 @@ def _runtime_audit_snapshot_fd(root_fd, root_identity, files):
     )
     try:
         root_metadata = os.fstat(root_fd)
-        if (
-            not stat.S_ISDIR(root_metadata.st_mode)
-            or root_metadata.st_dev != root["device"]
-            or root_metadata.st_ino != root["inode"]
-            or stat.S_IMODE(root_metadata.st_mode) != root["mode"]
-        ):
+        initial_root_identity = (
+            stat.S_ISDIR(root_metadata.st_mode),
+            root_metadata.st_dev,
+            root_metadata.st_ino,
+            stat.S_IMODE(root_metadata.st_mode),
+        )
+        expected_root_identity = (
+            True,
+            root["device"],
+            root["inode"],
+            root["mode"],
+        )
+        if initial_root_identity != expected_root_identity:
             raise _ContractError("runtime snapshot root identity changed")
         expected_names = {item["basename"] for item in expected_files}
+        initial_names = set(os.listdir(root_fd))
         if (
             len(expected_names) != len(expected_files)
             or any(
@@ -14748,7 +14789,7 @@ def _runtime_audit_snapshot_fd(root_fd, root_identity, files):
                 or "/" in name
                 for name in expected_names
             )
-            or set(os.listdir(root_fd)) != expected_names
+            or initial_names != expected_names
         ):
             raise _ContractError("runtime snapshot basename set changed")
         for expected in expected_files:
@@ -14758,24 +14799,64 @@ def _runtime_audit_snapshot_fd(root_fd, root_identity, files):
                 dir_fd=root_fd,
             )
             try:
-                metadata = os.fstat(descriptor)
+                before_hash = os.fstat(descriptor)
+                before_identity = (
+                    stat.S_ISREG(before_hash.st_mode),
+                    before_hash.st_dev,
+                    before_hash.st_ino,
+                    before_hash.st_nlink,
+                    before_hash.st_size,
+                    stat.S_IMODE(before_hash.st_mode),
+                    before_hash.st_mtime_ns,
+                    before_hash.st_ctime_ns,
+                )
                 if (
-                    not stat.S_ISREG(metadata.st_mode)
-                    or metadata.st_dev != expected["device"]
-                    or metadata.st_ino != expected["inode"]
+                    not before_identity[0]
+                    or before_hash.st_dev != expected["device"]
+                    or before_hash.st_ino != expected["inode"]
                     or expected["link_count"] != 1
-                    or metadata.st_nlink != 1
-                    or metadata.st_size != expected["size"]
-                    or stat.S_IMODE(metadata.st_mode) != expected["mode"]
+                    or before_hash.st_nlink != 1
+                    or before_hash.st_size != expected["size"]
+                    or stat.S_IMODE(before_hash.st_mode) != expected["mode"]
                 ):
                     raise _ContractError(
                         "runtime snapshot file identity changed"
                     )
                 total, digest = _runtime_hash_descriptor(descriptor)
+                after_hash = os.fstat(descriptor)
+                after_identity = (
+                    stat.S_ISREG(after_hash.st_mode),
+                    after_hash.st_dev,
+                    after_hash.st_ino,
+                    after_hash.st_nlink,
+                    after_hash.st_size,
+                    stat.S_IMODE(after_hash.st_mode),
+                    after_hash.st_mtime_ns,
+                    after_hash.st_ctime_ns,
+                )
+                if before_identity != after_identity:
+                    raise _ContractError(
+                        "runtime snapshot file changed while hashing"
+                    )
                 if total != expected["size"] or digest != expected["sha256"]:
                     raise _ContractError("runtime snapshot file bytes changed")
             finally:
                 os.close(descriptor)
+        final_root = os.fstat(root_fd)
+        final_root_identity = (
+            stat.S_ISDIR(final_root.st_mode),
+            final_root.st_dev,
+            final_root.st_ino,
+            stat.S_IMODE(final_root.st_mode),
+        )
+        final_names = set(os.listdir(root_fd))
+        if (
+            final_root_identity != initial_root_identity
+            or final_root_identity != expected_root_identity
+            or final_names != initial_names
+            or final_names != expected_names
+        ):
+            raise _ContractError("runtime snapshot root changed during audit")
     except OSError as error:
         raise _ContractError("runtime snapshot dirfd audit failed") from error
 
