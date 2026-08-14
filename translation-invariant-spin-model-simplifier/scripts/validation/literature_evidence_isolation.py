@@ -14990,6 +14990,7 @@ class CounterfactualPoint:
     numerical_controls: _FrozenJsonObject
     problem_size: _FrozenJsonObject
     expected_validation: _FrozenJsonObject
+    scientific_configuration: _FrozenJsonObject
     metamorphic_metadata: _FrozenJsonObject
 
     def __init__(self, *args, **kwargs):
@@ -15014,6 +15015,7 @@ class CounterfactualPoint:
             "numerical_controls",
             "problem_size",
             "expected_validation",
+            "scientific_configuration",
             "metamorphic_metadata",
         ):
             object.__setattr__(
@@ -15034,26 +15036,65 @@ class CounterfactualPoint:
             expected["reason_code"] == "none"
         ):
             raise _ContractError("expected_validation outcome/reason mismatch")
-        relations = self.metamorphic_metadata.get("relations")
-        metadata_keys = {"relations"}
-        if "configuration_index" in self.metamorphic_metadata:
-            metadata_keys.add("configuration_index")
-        _exact_keys(
-            self.metamorphic_metadata,
-            metadata_keys,
-            "metamorphic_metadata",
-        )
-        if "configuration_index" in self.metamorphic_metadata:
-            configuration_index = self.metamorphic_metadata[
-                "configuration_index"
-            ]
-            if type(configuration_index) is not int or configuration_index not in (
-                0,
-                1,
+        if (self.kind in {"canonical", "valid"}) != (
+            expected["outcome"] == "accepted"
+        ):
+            raise _ContractError(
+                "CounterfactualPoint kind/validation mismatch"
+            )
+        if self.scientific_configuration:
+            configuration = _exact_keys(
+                self.scientific_configuration,
+                (
+                    "schema_version",
+                    "representation",
+                    "coordinates",
+                    "gauge_phase_fraction",
+                ),
+                "scientific_configuration",
+            )
+            if configuration["schema_version"] != (
+                "glt_scientific_configuration_v1"
             ):
                 raise _ContractError(
-                    "metamorphic configuration_index must be zero or one"
+                    "scientific_configuration has unknown schema_version"
                 )
+            if configuration["representation"] not in {
+                "real_space", "fourier_space",
+            }:
+                raise _ContractError(
+                    "scientific_configuration has unknown representation"
+                )
+            coordinates = _require_exact_tuple(
+                configuration["coordinates"],
+                "scientific_configuration.coordinates",
+            )
+            if len(coordinates) != 3 or any(
+                type(value) is not float
+                or not math.isfinite(value)
+                or value < -1.0
+                or value > 1.0
+                for value in coordinates
+            ):
+                raise _ContractError(
+                    "scientific_configuration coordinates are invalid"
+                )
+            phase = configuration["gauge_phase_fraction"]
+            if (
+                type(phase) is not float
+                or not math.isfinite(phase)
+                or phase < 0.0
+                or phase >= 1.0
+            ):
+                raise _ContractError(
+                    "scientific_configuration gauge phase is invalid"
+                )
+        metadata = _exact_keys(
+            self.metamorphic_metadata,
+            ("relations",),
+            "metamorphic_metadata",
+        )
+        relations = metadata["relations"]
         if type(relations) is not tuple:
             raise _ContractError(
                 "metamorphic_metadata.relations must be an immutable tuple"
@@ -15206,6 +15247,99 @@ def _validated_ordering_events(value, expected_names):
     return tuple(snapshots)
 
 
+def _pre_freeze_event_details(payload):
+    audit_run_id = payload["audit_run_id"]
+    hashes = payload["hash_material"]
+    return (
+        {
+            "audit_run_id": audit_run_id,
+            "adapter_definition_sha256": hashes[
+                "adapter_definition_sha256"
+            ],
+        },
+        {
+            "audit_run_id": audit_run_id,
+            "adapter_closure_sha256": hashes["adapter_closure_sha256"],
+            "oracle_closure_sha256": hashes["oracle_closure_sha256"],
+        },
+        {
+            "audit_run_id": audit_run_id,
+            "adapter_definition_sha256": hashes[
+                "adapter_definition_sha256"
+            ],
+            "oracle_definition_sha256": hashes[
+                "oracle_definition_sha256"
+            ],
+            "adapter_policy_sha256": hashes["adapter_policy_sha256"],
+            "oracle_policy_sha256": hashes["oracle_policy_sha256"],
+        },
+        {
+            "audit_run_id": audit_run_id,
+            "infrastructure_closure_sha256": hashes[
+                "infrastructure_closure_sha256"
+            ],
+            "infrastructure_scan_sha256": hashes[
+                "infrastructure_scan_sha256"
+            ],
+            "adapter_scan_sha256": hashes["adapter_scan_sha256"],
+            "oracle_scan_sha256": hashes["oracle_scan_sha256"],
+            "scanner_sha256": hashes["scanner_sha256"],
+            "dependency_partition_sha256": hashes[
+                "dependency_partition_sha256"
+            ],
+        },
+        {
+            "audit_run_id": audit_run_id,
+            "runtime_snapshot_sha256": hashes["runtime_snapshot_sha256"],
+        },
+        {
+            "audit_run_id": audit_run_id,
+            "adapter_capsule_sha256": hashes["adapter_capsule_sha256"],
+            "oracle_capsule_sha256": hashes["oracle_capsule_sha256"],
+            "worker_capsule_sha256": hashes["worker_capsule_sha256"],
+        },
+        {
+            "audit_run_id": audit_run_id,
+            "capability_preflight": payload["capability_preflight"],
+            "capability_preflight_sha256": payload[
+                "capability_preflight"
+            ]["report_sha256"],
+            "infrastructure_command_hashes": payload[
+                "infrastructure_command_hashes"
+            ],
+        },
+    )
+
+
+def _validate_event_details_against_frozen_payload(events, payload):
+    expected_details = _pre_freeze_event_details(payload)
+    for index, expected in enumerate(expected_details):
+        actual = events[index].details
+        _exact_keys(
+            actual,
+            tuple(expected),
+            f"ordered_events[{index}].details",
+        )
+        if _canonical_bytes(actual) != _canonical_bytes(expected):
+            raise _ContractError("event details mismatch or tamper")
+
+
+def _frozen_snapshot_payload(snapshot):
+    return {
+        "schema_version": snapshot.schema_version,
+        "audit_run_id": snapshot.audit_run_id,
+        "adapter_definition": snapshot.adapter_definition,
+        "hash_material": snapshot.hash_material,
+        "capability_preflight": {
+            name: getattr(snapshot.capability_preflight, name)
+            for name in _record_field_names(CapabilityPreflightReport)
+        },
+        "infrastructure_command_hashes": (
+            snapshot.infrastructure_command_hashes
+        ),
+    }
+
+
 def _frozen_hash_payload(
     definition,
     *,
@@ -15286,8 +15420,6 @@ def record_and_freeze_hashes(
     if frozen_snapshot is not None:
         expected_events = (*expected_events, "frozen_hashes")
     events = _validated_ordering_events(ordered_events, expected_events)
-    if any(event.details.get("audit_run_id") != audit_run_id for event in events):
-        raise _ContractError("event fresh nonce mismatch")
     try:
         payload, preflight = _frozen_hash_payload(
             definition,
@@ -15296,6 +15428,7 @@ def record_and_freeze_hashes(
             capability_preflight=capability_preflight,
             infrastructure_command_hashes=infrastructure_command_hashes,
         )
+        _validate_event_details_against_frozen_payload(events, payload)
         frozen_sha256 = _canonical_sha256(payload)
         candidate = _FrozenHashSnapshot(
             schema_version="frozen_run_hashes_v1",
@@ -15318,7 +15451,15 @@ def record_and_freeze_hashes(
         stored = _validated_frozen_hash_snapshot(frozen_snapshot)
         if stored != candidate:
             raise _ContractError("post-freeze material changed or tampered")
-        if events[-1].details.get("frozen_sha256") != stored.frozen_sha256:
+        frozen_event = _exact_keys(
+            events[-1].details,
+            ("audit_run_id", "frozen_sha256"),
+            "frozen hashes event details",
+        )
+        if (
+            frozen_event["audit_run_id"] != stored.audit_run_id
+            or frozen_event["frozen_sha256"] != stored.frozen_sha256
+        ):
             raise _ContractError("frozen hashes event mismatch or tamper")
         return stored
     if not callable(event_recorder):
@@ -15348,12 +15489,18 @@ def acquire_run_seed(
     events = _validated_ordering_events(
         ordered_events, (*_PRE_FREEZE_EVENT_NAMES, "frozen_hashes")
     )
-    if any(
-        event.details.get("audit_run_id") != frozen.audit_run_id
-        for event in events
+    _validate_event_details_against_frozen_payload(
+        events, _frozen_snapshot_payload(frozen)
+    )
+    frozen_event = _exact_keys(
+        events[-1].details,
+        ("audit_run_id", "frozen_sha256"),
+        "frozen hashes event details",
+    )
+    if (
+        frozen_event["audit_run_id"] != frozen.audit_run_id
+        or frozen_event["frozen_sha256"] != frozen.frozen_sha256
     ):
-        raise _ContractError("event fresh nonce mismatch")
-    if events[-1].details.get("frozen_sha256") != frozen.frozen_sha256:
         raise _ContractError("frozen hashes event mismatch or tamper")
     if not callable(random_bytes) or not callable(event_recorder):
         raise _ContractError("random provider and event recorder must be callable")
@@ -15425,6 +15572,8 @@ def _counterfactual_valid_value(
     if schema.kind == "boolean":
         return True
     if schema.kind == "integer":
+        if rule_kind == "tetrahedral_positive_integer":
+            return 4
         lower = schema.lower if schema.lower is not None else 1
         value = int(lower) + variant
         if schema.upper is not None:
@@ -15584,16 +15733,29 @@ def _counterfactual_invalid_size(definition):
 
 def _counterfactual_invalid_inputs(definition, valid_inputs):
     values = dict(valid_inputs)
-    field_name, schema = definition.scientific_input_schema.properties[0]
-    if schema.kind in {"number", "integer"}:
-        values[field_name] = "invalid_numeric_parameter"
-    elif schema.kind == "string":
-        values[field_name] = 0
-    elif schema.kind == "boolean":
-        values[field_name] = "invalid_boolean_parameter"
-    else:
-        values[field_name] = None
-    return values
+    boundary_by_rule = {
+        "nonpositive_or_nonfinite": 0,
+        "zero_or_nonfinite": 0,
+        "nontetrahedral_or_nonpositive": 3,
+        "nonfinite": 0,
+        "outside_product_state_regime_or_nonfinite": 0,
+    }
+    invalid_rules = definition.counterfactual_domain.invalid_rules
+    for field_name, schema in definition.scientific_input_schema.properties:
+        if schema.kind not in {"number", "integer"}:
+            continue
+        rule = invalid_rules[field_name]
+        rule_kind = rule["kind"]
+        if rule_kind not in boundary_by_rule:
+            continue
+        boundary = boundary_by_rule[rule_kind]
+        values[field_name] = (
+            boundary if schema.kind == "integer" else float(boundary)
+        )
+        return values
+    raise _ContractError(
+        "counterfactual invalid_rules have no numeric boundary"
+    )
 
 
 def _counterfactual_invalid_controls(definition, valid_controls):
@@ -15606,6 +15768,85 @@ def _counterfactual_invalid_controls(definition, valid_controls):
         lower = schema.lower if schema.lower is not None else 0.0
         values[field_name] = lower - 1.0
     return values
+
+
+def _counterfactual_domain_inputs_are_valid(definition, inputs):
+    for field_name, rule in definition.counterfactual_domain.valid_rules.items():
+        if field_name in {
+            "physical_size_rule",
+            "problem_size_rule",
+        }:
+            continue
+        rule_kind = rule["kind"]
+        value = inputs[field_name]
+        if rule_kind == "strictly_positive_finite":
+            valid = type(value) in {int, float} and value > 0
+        elif rule_kind == "finite_nonzero":
+            valid = type(value) in {int, float} and value != 0
+        elif rule_kind == "tetrahedral_positive_integer":
+            valid = type(value) is int and value == 4
+        elif rule_kind == "normalized_supported_direction":
+            valid = value in {"axis_a", "axis_b"}
+        elif rule_kind == "normalized_distinct_direction":
+            supported_directions = tuple(
+                inputs[candidate_name]
+                for candidate_name, candidate_rule in (
+                    definition.counterfactual_domain.valid_rules.items()
+                )
+                if candidate_rule["kind"] == (
+                    "normalized_supported_direction"
+                )
+            )
+            valid = (
+                value in {"axis_a", "axis_b"}
+                and supported_directions
+                and all(
+                    value != direction for direction in supported_directions
+                )
+            )
+        elif rule_kind in {
+            "finite",
+            "finite_product_state_regime",
+        }:
+            valid = type(value) in {int, float} and math.isfinite(value)
+        else:
+            raise _ContractError(
+                "counterfactual valid_rules has an unsupported field rule"
+            )
+        if not valid:
+            return False
+    return True
+
+
+def _counterfactual_validation_reason(definition, point):
+    validated = _validate_adapter_definition(definition)
+    if type(point) is not CounterfactualPoint:
+        raise _ContractError(
+            "counterfactual validation requires an exact point"
+        )
+    if point.adapter_id != validated.adapter_id:
+        raise _ContractError("counterfactual point adapter mismatch")
+    declared_sizes = _counterfactual_declared_sizes(validated)
+    if not any(
+        _canonical_bytes(point.problem_size) == _canonical_bytes(size)
+        for size in declared_sizes
+    ):
+        return "physical_size_rejected"
+    try:
+        inputs = _validate_inputs(validated, point.scientific_inputs)
+    except _ContractError:
+        return "scientific_input_rejected"
+    if not _counterfactual_domain_inputs_are_valid(validated, inputs):
+        return "scientific_input_rejected"
+    try:
+        controls = _validate_controls(
+            validated, point.numerical_controls
+        )
+    except _ContractError:
+        return "numerical_control_rejected"
+    if controls != point.numerical_controls:
+        raise _ContractError("counterfactual controls snapshot mismatch")
+    return "none"
 
 
 def _counterfactual_relations(backend_kind, size_kind, _point_index):
@@ -15626,6 +15867,39 @@ def _counterfactual_relations(backend_kind, size_kind, _point_index):
     )
 
 
+def _counterfactual_scientific_configuration(
+    definition,
+    seed,
+    point_index,
+):
+    configuration_index = point_index // 2
+    coordinates = tuple(
+        2.0 * _counterfactual_unit_interval(
+            seed,
+            definition.adapter_id,
+            "valid",
+            configuration_index,
+            128 + coordinate_index,
+        ) - 1.0
+        for coordinate_index in range(3)
+    )
+    phase = _counterfactual_unit_interval(
+        seed,
+        definition.adapter_id,
+        "valid",
+        configuration_index,
+        131,
+    )
+    return {
+        "schema_version": "glt_scientific_configuration_v1",
+        "representation": (
+            "real_space" if point_index % 2 == 0 else "fourier_space"
+        ),
+        "coordinates": coordinates,
+        "gauge_phase_fraction": phase,
+    }
+
+
 def _counterfactual_point(
     definition,
     seed,
@@ -15635,6 +15909,7 @@ def _counterfactual_point(
     numerical_controls,
     problem_size,
     expected_validation,
+    scientific_configuration,
     metamorphic_metadata,
 ):
     nonce = _counterfactual_digest(
@@ -15651,6 +15926,7 @@ def _counterfactual_point(
         numerical_controls=numerical_controls,
         problem_size=problem_size,
         expected_validation=expected_validation,
+        scientific_configuration=scientific_configuration,
         metamorphic_metadata=metamorphic_metadata,
     )
 
@@ -15673,6 +15949,7 @@ def derive_counterfactual_points(definition, seed):
             _counterfactual_controls(validated, seed, 0),
             sizes[0],
             accepted,
+            {},
             {"relations": ()},
         )
     ]
@@ -15726,8 +16003,11 @@ def derive_counterfactual_points(definition, seed):
                 backend_kind, size_kind, point_index
             )
         }
+        scientific_configuration = {}
         if backend_kind == "glt_fourier":
-            metadata["configuration_index"] = point_index % 2
+            scientific_configuration = _counterfactual_scientific_configuration(
+                validated, seed, point_index
+            )
         points.append(
             _counterfactual_point(
                 validated,
@@ -15738,6 +16018,7 @@ def derive_counterfactual_points(definition, seed):
                 numerical_controls,
                 problem_size,
                 accepted,
+                scientific_configuration,
                 metadata,
             )
         )
@@ -15769,10 +16050,20 @@ def derive_counterfactual_points(definition, seed):
             invalid_controls,
             invalid_size,
             {"outcome": "rejected", "reason_code": invalid_reason},
+            {},
             {"relations": ()},
         )
     )
-    return tuple(points)
+    frozen_points = tuple(points)
+    for point in frozen_points:
+        observed_reason = _counterfactual_validation_reason(
+            validated, point
+        )
+        if observed_reason != point.expected_validation["reason_code"]:
+            raise _ContractError(
+                "counterfactual validation expectation mismatch"
+            )
+    return frozen_points
 
 
 @_seal_contract
