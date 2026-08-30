@@ -5348,7 +5348,11 @@ def test_task4_public_all_surfaces_are_exact():
         "FAILURE_REASON_CODES",
         "validate_authority_context",
         "make_worker_request",
+        "write_worker_request_exclusive",
         "build_scientific_closure",
+        "emit_scientific_capsule",
+        "emit_fixed_worker",
+        "emit_tracee_launcher",
         "build_scientific_policy_commitment",
         "build_infrastructure_closure",
         "scan_scientific_closure",
@@ -5356,6 +5360,9 @@ def test_task4_public_all_surfaces_are_exact():
         "build_runtime_snapshot",
         "revalidate_runtime_snapshot",
         "run_capability_preflight",
+        "create_run_directories",
+        "apply_tracee_security_policy",
+        "run_namespace_supervisor",
         "record_and_freeze_hashes",
         "acquire_run_seed",
         "derive_counterfactual_points",
@@ -25462,3 +25469,808 @@ def test_production_preflight_binds_only_exact_readonly_entropy_device(
     trace = trace_paths[0].read_text(encoding="utf-8")
     device_paths = set(re.findall(r'"(/dev/[^"\\]+)', trace))
     assert device_paths == {"/dev/urandom"}
+
+
+def _task10_worker_request(capsule_sha256):
+    from validation import literature_evidence_isolation as isolation
+
+    return isolation.WorkerRequest(
+        schema_version="worker_request_v1",
+        opaque_run_nonce="task10-answer-free-nonce",
+        adapter_id="xxx_bethe_energy",
+        scientific_inputs={"exchange": 1.25},
+        numerical_controls={},
+        capsule_sha256=capsule_sha256,
+    )
+
+
+def _task10_arithmetic_closure(tmp_path, offset=0):
+    source = (
+        "def scientific_entry(scientific_inputs, numerical_controls):\n"
+        "    return {'raw_value': scientific_inputs['exchange'] + "
+        + str(offset)
+        + "}\n"
+    )
+    return _task6_build_scientific_closure(
+        tmp_path, "adapter", source
+    )
+
+
+def test_task10_worker_capsule_is_deterministic_executable_and_role_closed(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task10_arithmetic_closure(tmp_path)
+    first = isolation.emit_scientific_capsule(closure)
+    second = isolation.emit_scientific_capsule(closure)
+
+    assert type(first) is bytes
+    assert first == second
+    assert hashlib.sha256(first).hexdigest() == hashlib.sha256(second).hexdigest()
+    namespace = {"__builtins__": __builtins__}
+    exec(compile(first, "scientific_capsule.py", "exec"), namespace)
+    assert namespace["__literature_capsule_role__"] == "adapter"
+    assert namespace["__literature_scientific_entry__"](
+        {"exchange": 2.5}, {}
+    ) == {"raw_value": 2.5}
+
+
+def test_task10_worker_capsule_hash_changes_with_scientific_source(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    first = isolation.emit_scientific_capsule(
+        _task10_arithmetic_closure(tmp_path / "first", offset=0)
+    )
+    second = isolation.emit_scientific_capsule(
+        _task10_arithmetic_closure(tmp_path / "second", offset=1)
+    )
+
+    assert hashlib.sha256(first).digest() != hashlib.sha256(second).digest()
+
+
+def test_task10_worker_capsule_rejects_detached_manifest_without_source(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task10_arithmetic_closure(tmp_path)
+    detached = isolation.ScientificClosure(
+        **{
+            field.name: getattr(closure, field.name)
+            for field in dataclasses.fields(type(closure))
+        }
+    )
+    assert "_static_scan_material" not in vars(detached)
+
+    with pytest.raises(
+        AdapterContractError, match="capsule|source|material|builder|closure"
+    ):
+        isolation.emit_scientific_capsule(detached)
+
+
+def test_task10_worker_capsule_fixed_worker_has_closed_signature_and_hash():
+    from validation import literature_evidence_isolation as isolation
+
+    assert str(inspect.signature(isolation.emit_fixed_worker)) == "()"
+    first = isolation.emit_fixed_worker()
+    second = isolation.emit_fixed_worker()
+
+    assert type(first) is bytes
+    assert first == second
+    assert first.endswith(b"\n")
+    compile(first, "fixed_worker.py", "exec")
+    lowered = first.lower()
+    for forbidden in (
+        b"benchmark_name",
+        b"registry_snapshot",
+        b"selector_sha256",
+        b"forbidden_output_fingerprints",
+        b"authority_context",
+    ):
+        assert forbidden not in lowered
+
+
+def test_task10_tracee_launcher_is_fixed_and_caller_independent():
+    from validation import literature_evidence_isolation as isolation
+
+    assert str(inspect.signature(isolation.emit_tracee_launcher)) == "()"
+    first = isolation.emit_tracee_launcher()
+    second = isolation.emit_tracee_launcher()
+
+    assert type(first) is bytes
+    assert first == second
+    assert first.endswith(b"\n")
+    compile(first, "fixed_tracee_launcher.py", "exec")
+    assert b"os.chroot" in first
+    assert b"resource.setrlimit" in first
+    assert b"capset" in first
+    assert b"no-new-privileges" in first
+    assert b"os.execve" in first
+
+
+def test_task10_fixed_worker_uses_only_snapshotted_stdlib_imports():
+    from validation import literature_evidence_isolation as isolation
+
+    worker = isolation.emit_fixed_worker().decode("utf-8")
+    tree = ast.parse(worker)
+    imported = {
+        alias.name.split(".", 1)[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    imported.update(
+        node.module.split(".", 1)[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module != "__future__"
+    )
+
+    assert imported == {"json", "os", "stat"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (b"", b"abc", b"x" * 55, b"x" * 56, b"x" * 64, b"x" * 65),
+)
+def test_task10_fixed_worker_sha256_matches_transport_digest(payload):
+    from validation import literature_evidence_isolation as isolation
+
+    namespace = {"__name__": "task10_fixed_worker_digest_test"}
+    worker = isolation.emit_fixed_worker()
+    exec(compile(worker, "fixed_worker.py", "exec"), namespace)
+
+    assert namespace["_sha256"](payload).hex() == hashlib.sha256(
+        payload
+    ).hexdigest()
+
+
+def test_task10_worker_capsule_request_is_exclusively_canonicalized(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    capsule_sha256 = hashlib.sha256(b"task10-capsule").hexdigest()
+    request = _task10_worker_request(capsule_sha256)
+    request_path = isolation.write_worker_request_exclusive(
+        request, directory=tmp_path
+    )
+
+    assert request_path == tmp_path / "request.json"
+    assert stat.S_IMODE(request_path.stat().st_mode) == 0o600
+    expected = canonical_json_bytes(request.to_frozen_json())
+    assert request_path.read_bytes() == expected
+    with pytest.raises(
+        AdapterContractError, match="exist|exclusive|request"
+    ):
+        isolation.write_worker_request_exclusive(
+            request, directory=tmp_path
+        )
+
+
+def test_task10_namespace_supervisor_run_directories_are_exact_and_retained(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id="task10-run-layout",
+    )
+    try:
+        run_directory = Path(layout.run_directory)
+        assert run_directory.parent == tmp_path
+        assert stat.S_IMODE(run_directory.stat().st_mode) == 0o700
+        assert set(os.listdir(run_directory)) == {
+            "supervisor",
+            "input",
+            "worker-output",
+        }
+        expected = {
+            "supervisor": layout.supervisor_directory,
+            "input": layout.input_directory,
+            "worker-output": layout.worker_output_directory,
+        }
+        assert set(layout.directory_fds) == set(expected)
+        assert set(layout.directory_identities) == set(expected)
+        for name, raw_path in expected.items():
+            path = Path(raw_path)
+            path_status = path.lstat()
+            fd_status = os.fstat(layout.directory_fds[name])
+            assert stat.S_ISDIR(path_status.st_mode)
+            assert stat.S_IMODE(path_status.st_mode) == 0o700
+            assert (fd_status.st_dev, fd_status.st_ino) == tuple(
+                layout.directory_identities[name]
+            )
+            assert (path_status.st_dev, path_status.st_ino) == (
+                fd_status.st_dev,
+                fd_status.st_ino,
+            )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+def test_task10_namespace_supervisor_run_directories_never_reuse_a_path(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    first = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id="task10-unique-layout",
+    )
+    second = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id="task10-unique-layout",
+    )
+    try:
+        assert first.run_directory != second.run_directory
+        assert Path(first.run_directory).exists()
+        assert Path(second.run_directory).exists()
+    finally:
+        isolation._close_run_directories(first)
+        isolation._close_run_directories(second)
+
+
+def _task10_execute_fixed_worker(worker_bytes, request_path, capsule_path,
+                                 result_path):
+    namespace = {"__name__": "task10_fixed_worker_test"}
+    exec(compile(worker_bytes, "fixed_worker.py", "exec"), namespace)
+    namespace["_REQUEST_PATH"] = str(request_path)
+    namespace["_CAPSULE_PATH"] = str(capsule_path)
+    namespace["_RESULT_PATH"] = str(result_path)
+    namespace["_fixed_worker_main"]()
+
+
+def test_task10_worker_capsule_fixed_worker_executes_closed_transport_once(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task10_arithmetic_closure(tmp_path / "source")
+    capsule = isolation.emit_scientific_capsule(closure)
+    capsule_sha256 = hashlib.sha256(capsule).hexdigest()
+    request = _task10_worker_request(capsule_sha256)
+    request_bytes = canonical_json_bytes(request.to_frozen_json())
+    capsule_path = tmp_path / "scientific_capsule.py"
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    capsule_path.write_bytes(capsule)
+    request_path.write_bytes(request_bytes)
+
+    _task10_execute_fixed_worker(
+        isolation.emit_fixed_worker(),
+        request_path,
+        capsule_path,
+        result_path,
+    )
+
+    result_bytes = result_path.read_bytes()
+    result = json.loads(result_bytes)
+    assert json.dumps(
+        result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8") == result_bytes
+    assert result == {
+        "adapter_id": "xxx_bethe_energy",
+        "capsule_sha256": capsule_sha256,
+        "local_result": {"raw_value": 1.25},
+        "request_sha256": hashlib.sha256(request_bytes).hexdigest(),
+        "schema_version": "worker_result_transport_v1",
+    }
+    assert stat.S_IMODE(result_path.stat().st_mode) == 0o600
+
+
+def test_task10_worker_capsule_fixed_worker_rejects_authority_extra_field(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task10_arithmetic_closure(tmp_path / "source")
+    capsule = isolation.emit_scientific_capsule(closure)
+    request = thaw_json(
+        _task10_worker_request(hashlib.sha256(capsule).hexdigest())
+        .to_frozen_json()
+    )
+    request["benchmark_name"] = "must-not-enter-worker"
+    request_path = tmp_path / "request.json"
+    capsule_path = tmp_path / "scientific_capsule.py"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(canonical_json_bytes(request))
+    capsule_path.write_bytes(capsule)
+
+    with pytest.raises(Exception, match="request|field|closed|key"):
+        _task10_execute_fixed_worker(
+            isolation.emit_fixed_worker(),
+            request_path,
+            capsule_path,
+            result_path,
+        )
+    assert not result_path.exists()
+
+
+def test_task10_worker_capsule_fixed_worker_refuses_existing_result(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    closure = _task10_arithmetic_closure(tmp_path / "source")
+    capsule = isolation.emit_scientific_capsule(closure)
+    request = _task10_worker_request(hashlib.sha256(capsule).hexdigest())
+    request_path = tmp_path / "request.json"
+    capsule_path = tmp_path / "scientific_capsule.py"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(canonical_json_bytes(request.to_frozen_json()))
+    capsule_path.write_bytes(capsule)
+    result_path.write_bytes(b"preexisting")
+
+    with pytest.raises(Exception, match="exist|exclusive|result"):
+        _task10_execute_fixed_worker(
+            isolation.emit_fixed_worker(),
+            request_path,
+            capsule_path,
+            result_path,
+        )
+    assert result_path.read_bytes() == b"preexisting"
+
+
+def test_task10_mount_manifest_has_only_four_worker_visible_classes(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    (tmp_path / "runtime").mkdir()
+    _source, snapshot, copied = _task7_build_snapshot(
+        tmp_path / "runtime", monkeypatch
+    )
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id="task10-mount-manifest",
+    )
+    try:
+        supervisor = Path(layout.supervisor_directory)
+        capsule_path = supervisor / "scientific_capsule.py"
+        worker_path = supervisor / "fixed_worker.py"
+        capsule_path.write_bytes(
+            isolation.emit_scientific_capsule(
+                _task10_arithmetic_closure(tmp_path / "source")
+            )
+        )
+        worker_path.write_bytes(isolation.emit_fixed_worker())
+        request = _task10_worker_request(
+            hashlib.sha256(capsule_path.read_bytes()).hexdigest()
+        )
+        request_path = isolation.write_worker_request_exclusive(
+            request, directory=Path(layout.input_directory)
+        )
+
+        manifest = isolation._build_private_root_mount_manifest(
+            layout,
+            snapshot,
+            capsule_path=capsule_path,
+            worker_path=worker_path,
+            request_path=request_path,
+        )
+        rows = tuple(thaw_json(manifest["mounts"]))
+        by_logical_path = {row["logical_path"]: row for row in rows}
+
+        assert manifest["schema_version"] == "private_root_mount_manifest_v1"
+        assert set(by_logical_path) == {
+            "/runtime/backend/resource.bin",
+            "/adapter/scientific_capsule.py",
+            "/adapter/fixed_worker.py",
+            "/input/request.json",
+            "/output",
+        }
+        runtime_source = by_logical_path["/runtime/backend/resource.bin"][
+            "source_path"
+        ]
+        assert runtime_source.startswith("/proc/self/fd/")
+        assert runtime_source.endswith("/" + copied.name)
+        assert by_logical_path["/output"]["source_path"] == (
+            layout.worker_output_directory
+        )
+        assert by_logical_path["/output"]["source_kind"] == "directory"
+        assert by_logical_path["/output"]["read_only"] is False
+        for logical_path, row in by_logical_path.items():
+            assert row["nodev"] is True
+            assert row["nosuid"] is True
+            if logical_path != "/output":
+                assert row["source_kind"] == "regular"
+                assert row["read_only"] is True
+        top_level = {
+            PurePosixPath(path).parts[1] for path in by_logical_path
+        }
+        assert top_level == {"runtime", "adapter", "input", "output"}
+    finally:
+        isolation._close_run_directories(layout)
+        snapshot.revalidate()
+
+
+def test_task10_real_runtime_manifest_commits_prefix_and_soname_aliases(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    snapshot = isolation.build_runtime_snapshot(
+        definition.runtime_requirements,
+        run_directory=tmp_path / "runtime-run",
+        event_recorder=lambda event_name, details: None,
+    )
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id="task10-runtime-aliases",
+    )
+    supervisor = Path(layout.supervisor_directory)
+    capsule_path = supervisor / "scientific_capsule.py"
+    worker_path = supervisor / "fixed_worker.py"
+    capsule_path.write_bytes(
+        isolation.emit_scientific_capsule(
+            _task10_arithmetic_closure(tmp_path / "source")
+        )
+    )
+    worker_path.write_bytes(isolation.emit_fixed_worker())
+    request_path = isolation.write_worker_request_exclusive(
+        _task10_worker_request(
+            hashlib.sha256(capsule_path.read_bytes()).hexdigest()
+        ),
+        directory=Path(layout.input_directory),
+    )
+    try:
+        manifest = isolation._build_private_root_mount_manifest(
+            layout,
+            snapshot,
+            capsule_path=capsule_path,
+            worker_path=worker_path,
+            request_path=request_path,
+        )
+        rows = tuple(thaw_json(manifest["mounts"]))
+    finally:
+        isolation._close_run_directories(layout)
+        snapshot.revalidate()
+
+    by_path = {row["logical_path"]: row for row in rows}
+    assert "/runtime/lib/python3.9/os.py" in by_path
+    assert "/runtime/native/libc.so.6" in by_path
+    assert any(
+        path.startswith("/runtime/lib/python3.9/lib-dynload/resource.")
+        for path in by_path
+    )
+    assert any(
+        path.startswith("/runtime/lib/python3.9/lib-dynload/_ctypes.")
+        for path in by_path
+    )
+    assert "/runtime/native/libffi.so.8" in by_path
+    assert by_path["/runtime/lib/python3.9/os.py"]["source_sha256"] == (
+        by_path["/runtime/stdlib/os.py"]["source_sha256"]
+    )
+    libc_origin = next(
+        row
+        for row in rows
+        if row["logical_path"].startswith("/runtime/native/ldd-")
+        and row["source_sha256"]
+        == by_path["/runtime/native/libc.so.6"]["source_sha256"]
+    )
+    assert by_path["/runtime/native/libc.so.6"]["source_inode"] == (
+        libc_origin["source_inode"]
+    )
+
+
+def test_task10_namespace_supervisor_tracee_security_order_is_closed():
+    from validation import literature_evidence_isolation as isolation
+
+    limits = adapters.ADAPTER_DEFINITIONS[
+        "xxx_bethe_energy"
+    ].resource_limits
+    plan = thaw_json(
+        isolation.apply_tracee_security_policy(
+            limits,
+            private_root="/supervisor/private-root",
+            inherited_fds=(3, 70),
+            interpreter_path="/runtime/bin/python3",
+        )
+    )
+
+    assert plan == {
+        "schema_version": "tracee_security_plan_v1",
+        "operations": [
+            {"operation": "chroot", "path": "/supervisor/private-root"},
+            {"operation": "chdir", "path": "/"},
+            {
+                "operation": "set_limits",
+                "cpu_seconds": 60,
+                "wall_seconds": 120,
+                "address_space_bytes": 2147483648,
+                "output_bytes": 1048576,
+                "file_descriptors": 64,
+                "process_count": 1,
+            },
+            {"operation": "drop_capabilities", "sets": "all"},
+            {"operation": "no_new_privileges", "enabled": True},
+            {"operation": "close_fds", "fds": [3, 70]},
+            {
+                "operation": "exec_interpreter",
+                "argv": [
+                    "/runtime/bin/python3",
+                    "-I",
+                    "-S",
+                    "-B",
+                    "/adapter/fixed_worker.py",
+                ],
+            },
+        ],
+    }
+
+
+class _Task10InjectedSupervisorRunner:
+    def __init__(self, audit_run_id, point_id):
+        self.audit_run_id = audit_run_id
+        self.point_id = point_id
+        self.calls = []
+
+    def __call__(self, action, payload):
+        self.calls.append((action, thaw_json(payload)))
+        return {
+            "audit_run_id": self.audit_run_id,
+            "point_id": self.point_id,
+            "process_role": "adapter",
+            "topology": [
+                "outer_coordinator",
+                "unshare_namespace_supervisor",
+                "external_strace_tracer",
+                "fixed_tracee_launcher",
+                "fixed_worker",
+            ],
+            "supervisor_waited_for_tracee": True,
+            "supervisor_outside_chroot": True,
+            "worker_exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "namespace_identifiers": {
+                "user": "user:[101]",
+                "mount": "mnt:[102]",
+                "network": "net:[103]",
+            },
+            "mount_facts": {
+                "root_filesystem": "tmpfs",
+                "root_read_only": True,
+                "output_writable": True,
+                "visible_top_level": [
+                    "runtime", "adapter", "input", "output"
+                ],
+                "supervisor_visible": False,
+            },
+            "environment_facts": {
+                "names": [
+                    "LANG",
+                    "LC_ALL",
+                    "MKL_NUM_THREADS",
+                    "NUMEXPR_NUM_THREADS",
+                    "OMP_NUM_THREADS",
+                    "OPENBLAS_NUM_THREADS",
+                    "PYTHONHASHSEED",
+                ],
+                "parent_canary_present": False,
+            },
+            "resource_limit_facts": {
+                "cpu_seconds": 60,
+                "wall_seconds": 120,
+                "address_space_bytes": 2147483648,
+                "output_bytes": 1048576,
+                "file_descriptors": 64,
+                "process_count": 1,
+                "no_new_privileges": True,
+                "capabilities_empty": True,
+            },
+            "chroot_facts": {
+                "current_directory": "/",
+                "interpreter": "/runtime/bin/python3",
+                "isolated": True,
+                "no_site": True,
+                "dont_write_bytecode": True,
+            },
+        }
+
+
+def _task10_command_identities():
+    return {
+        name: {
+            "path": "/task10-tools/" + name,
+            "version": name + " task10-version-1",
+            "sha256": hashlib.sha256(
+                ("task10-command-" + name).encode("utf-8")
+            ).hexdigest(),
+        }
+        for name in (
+            "unshare",
+            "mount",
+            "chroot",
+            "strace",
+            "python",
+            "supervisor_python",
+            "launcher",
+        )
+    }
+
+
+def test_task10_namespace_supervisor_injected_runner_receives_fixed_topology(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    audit_run_id = "task10-injected-supervisor"
+    point_id = "task10-point-1"
+    (tmp_path / "runtime").mkdir()
+    _source, snapshot, _copied = _task7_build_snapshot(
+        tmp_path / "runtime", monkeypatch
+    )
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id=audit_run_id,
+    )
+    runner = _Task10InjectedSupervisorRunner(audit_run_id, point_id)
+    supervisor = Path(layout.supervisor_directory)
+    capsule_path = supervisor / "scientific_capsule.py"
+    worker_path = supervisor / "fixed_worker.py"
+    capsule_path.write_bytes(
+        isolation.emit_scientific_capsule(
+            _task10_arithmetic_closure(tmp_path / "source")
+        )
+    )
+    worker_path.write_bytes(isolation.emit_fixed_worker())
+    request_path = isolation.write_worker_request_exclusive(
+        _task10_worker_request(
+            hashlib.sha256(capsule_path.read_bytes()).hexdigest()
+        ),
+        directory=Path(layout.input_directory),
+    )
+    mount_manifest = isolation._build_private_root_mount_manifest(
+        layout,
+        snapshot,
+        capsule_path=capsule_path,
+        worker_path=worker_path,
+        request_path=request_path,
+    )
+    limits = adapters.ADAPTER_DEFINITIONS[
+        "xxx_bethe_energy"
+    ].resource_limits
+    security_plan = isolation.apply_tracee_security_policy(
+        limits,
+        private_root="/supervisor/private-root",
+        inherited_fds=tuple(sorted(layout.directory_fds.values())),
+        interpreter_path="/runtime/bin/python3",
+    )
+    try:
+        attestation = isolation._run_namespace_supervisor(
+            layout,
+            mount_manifest,
+            security_plan,
+            audit_run_id=audit_run_id,
+            point_id=point_id,
+            role="adapter",
+            command_identities=_task10_command_identities(),
+            runner=runner,
+        )
+    finally:
+        isolation._close_run_directories(layout)
+        snapshot.revalidate()
+
+    assert type(attestation) is isolation.ProcessAttestation
+    assert attestation.process_role == "adapter"
+    assert attestation.point_id == point_id
+    assert attestation.mount_facts["supervisor_visible"] is False
+    assert len(runner.calls) == 1
+    action, payload = runner.calls[0]
+    assert action == "run_namespace_supervisor"
+    assert payload["topology"] == [
+        "outer_coordinator",
+        "unshare_namespace_supervisor",
+        "external_strace_tracer",
+        "fixed_tracee_launcher",
+        "fixed_worker",
+    ]
+    assert payload["supervisor_directory"] == layout.supervisor_directory
+    assert payload["environment"] == {
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "MKL_NUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "PYTHONHASHSEED": "0",
+    }
+    assert payload["unrelated_fds"] == []
+
+
+def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    audit_run_id = "task10-real-canary"
+    point_id = "task10-real-point"
+    monkeypatch.setenv("TASK10_PARENT_CANARY", "must-not-cross")
+    preflight_parent = tmp_path / "preflight"
+    preflight_parent.mkdir()
+    preflight = isolation.run_capability_preflight(
+        scratch_parent=preflight_parent
+    )
+    assert preflight.available, thaw_json(preflight.probe_result_codes)
+    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    snapshot = isolation.build_runtime_snapshot(
+        definition.runtime_requirements,
+        run_directory=tmp_path / "runtime-run",
+        event_recorder=lambda event_name, details: None,
+    )
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path,
+        audit_run_id=audit_run_id,
+    )
+    supervisor = Path(layout.supervisor_directory)
+    capsule_path = supervisor / "scientific_capsule.py"
+    worker_path = supervisor / "fixed_worker.py"
+    capsule_path.write_bytes(
+        isolation.emit_scientific_capsule(
+            _task10_arithmetic_closure(tmp_path / "source")
+        )
+    )
+    worker_path.write_bytes(isolation.emit_fixed_worker())
+    request_path = isolation.write_worker_request_exclusive(
+        _task10_worker_request(
+            hashlib.sha256(capsule_path.read_bytes()).hexdigest()
+        ),
+        directory=Path(layout.input_directory),
+    )
+    try:
+        attestation = isolation.run_namespace_supervisor(
+            layout,
+            snapshot,
+            definition.resource_limits,
+            preflight_report=preflight,
+            capsule_path=capsule_path,
+            worker_path=worker_path,
+            request_path=request_path,
+            audit_run_id=audit_run_id,
+            point_id=point_id,
+            role="adapter",
+        )
+        result = json.loads(
+            (Path(layout.worker_output_directory) / "result.json")
+            .read_text(encoding="utf-8")
+        )
+        trace_path = supervisor / "trace.log"
+        attestation_path = supervisor / "attestation.json"
+        trace_text = trace_path.read_text(encoding="utf-8")
+        request_open = trace_text.index("/input/request.json")
+        assert trace_text.rfind("/dev/urandom", 0, request_open) >= 0
+        isolated_exec = trace_text.index('execve("/runtime/bin/python3"')
+        assert isolated_exec < request_open
+        assert '"-I", "-S", "-B", "-c"' in trace_text[
+            isolated_exec:request_open
+        ]
+        assert "/dev/" not in trace_text[request_open:]
+        assert "/lib64/" not in trace_text[request_open:]
+        assert stat.S_IMODE(trace_path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(attestation_path.stat().st_mode) == 0o600
+        assert (supervisor / "host-canary-denied").read_bytes() == (
+            b"task10-host-canary"
+        )
+    finally:
+        isolation._close_run_directories(layout)
+        snapshot.revalidate()
+
+    assert attestation.point_id == point_id
+    assert attestation.mount_facts["visible_top_level"] == (
+        "runtime", "adapter", "input", "output"
+    )
+    assert attestation.mount_facts["supervisor_visible"] is False
+    assert attestation.environment_facts["parent_canary_present"] is False
+    assert attestation.chroot_facts["current_directory"] == "/"
+    assert attestation.chroot_facts["isolated"] is True
+    assert attestation.chroot_facts["host_canary_exists_outside"] is True
+    assert attestation.chroot_facts["host_canary_errno"] != 0
+    assert attestation.chroot_facts["network_isolated"] is True
+    assert attestation.resource_limit_facts["capabilities_empty"] is True
+    assert attestation.resource_limit_facts["no_new_privileges"] is True
+    assert result["local_result"] == {"raw_value": 1.25}

@@ -94,7 +94,11 @@ __all__ = (
     "FAILURE_REASON_CODES",
     "validate_authority_context",
     "make_worker_request",
+    "write_worker_request_exclusive",
     "build_scientific_closure",
+    "emit_scientific_capsule",
+    "emit_fixed_worker",
+    "emit_tracee_launcher",
     "build_scientific_policy_commitment",
     "build_infrastructure_closure",
     "scan_scientific_closure",
@@ -102,6 +106,9 @@ __all__ = (
     "build_runtime_snapshot",
     "revalidate_runtime_snapshot",
     "run_capability_preflight",
+    "create_run_directories",
+    "apply_tracee_security_policy",
+    "run_namespace_supervisor",
     "record_and_freeze_hashes",
     "acquire_run_seed",
     "derive_counterfactual_points",
@@ -769,6 +776,61 @@ def make_worker_request(
         numerical_controls=numerical_controls,
         capsule_sha256=capsule_sha256,
     )
+
+
+def write_worker_request_exclusive(request, *, directory):
+    """Write one canonical answer-free request without replacement."""
+
+    if type(request) is not WorkerRequest:
+        raise _ContractError("request must be an exact WorkerRequest")
+    validated = WorkerRequest(
+        **{
+            field.name: getattr(request, field.name)
+            for field in fields(WorkerRequest)
+        }
+    )
+    if not isinstance(directory, Path) or not directory.is_absolute():
+        raise _ContractError("request directory must be an absolute Path")
+    payload = _canonical_bytes(validated.to_frozen_json())
+    directory_fd = None
+    request_fd = None
+    try:
+        directory_fd = os.open(
+            directory,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+        directory_status = os.fstat(directory_fd)
+        if not stat.S_ISDIR(directory_status.st_mode):
+            raise _ContractError("request directory is not a directory")
+        request_fd = os.open(
+            "request.json",
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_CLOEXEC
+            | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        offset = 0
+        while offset < len(payload):
+            written = os.write(request_fd, payload[offset:])
+            if written <= 0:
+                raise _ContractError("worker request write failed")
+            offset += written
+        os.fsync(request_fd)
+    except _ContractError:
+        raise
+    except OSError as error:
+        raise _ContractError(
+            "worker request exclusive creation failed"
+        ) from error
+    finally:
+        if request_fd is not None:
+            os.close(request_fd)
+        if directory_fd is not None:
+            os.close(directory_fd)
+    return directory / "request.json"
 
 
 def _require_entry_symbol(value: object, field_name: str) -> str:
@@ -3529,6 +3591,1780 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
     )
     object.__setattr__(validated, "_static_scan_material", material)
     return validated
+
+
+def emit_scientific_capsule(closure):
+    """Emit one role-bound capsule from builder-retained source material."""
+
+    validated = _validate_scientific_closure_record(closure)
+    try:
+        storage = object.__getattribute__(closure, "__dict__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError(
+            "scientific capsule closure storage is unavailable"
+        ) from error
+    material = storage.get("_static_scan_material")
+    if type(material) is not _StaticScanMaterial:
+        raise _ContractError(
+            "scientific capsule requires builder-retained source material"
+        )
+    if (
+        material.closure_bundle_sha256 != validated.bundle_sha256
+        or material.emitted_source_sha256
+        != validated.emitted_source_sha256
+        or hashlib.sha256(material.emitted_source).hexdigest()
+        != validated.emitted_source_sha256
+    ):
+        raise _ContractError("scientific capsule source material mismatch")
+    _module_name, entry_name = _validate_entry_symbol(
+        validated.entry_symbol
+    )
+    reserved = {
+        "__literature_capsule_schema__",
+        "__literature_capsule_role__",
+        "__literature_scientific_entry__",
+    }
+    if any(
+        node["qualified_name"].rsplit(".", 1)[1] in reserved
+        for node in validated.nodes
+    ):
+        raise _ContractError("scientific capsule has a reserved binding")
+    trailer = (
+        "\n\n__literature_capsule_schema__ = "
+        '"scientific_capsule_v1"\n'
+        "__literature_capsule_role__ = "
+        + json.dumps(validated.role)
+        + "\n__literature_scientific_entry__ = "
+        + entry_name
+        + "\n"
+    ).encode("utf-8")
+    return material.emitted_source + trailer
+
+
+def emit_fixed_worker():
+    """Return the fixed, caller-independent worker program bytes."""
+
+    source = '''import json
+import os
+import stat
+
+_REQUEST_PATH = "/input/request.json"
+_CAPSULE_PATH = "/adapter/scientific_capsule.py"
+_RESULT_PATH = "/output/result.json"
+_INPUT_LIMIT = 1048576
+_CAPSULE_LIMIT = 16777216
+_RESULT_LIMIT = 16777216
+_SHA256_INITIAL = (
+    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
+    0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+)
+_SHA256_ROUND = (
+    0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5,
+    0x3956C25B, 0x59F111F1, 0x923F82A4, 0xAB1C5ED5,
+    0xD807AA98, 0x12835B01, 0x243185BE, 0x550C7DC3,
+    0x72BE5D74, 0x80DEB1FE, 0x9BDC06A7, 0xC19BF174,
+    0xE49B69C1, 0xEFBE4786, 0x0FC19DC6, 0x240CA1CC,
+    0x2DE92C6F, 0x4A7484AA, 0x5CB0A9DC, 0x76F988DA,
+    0x983E5152, 0xA831C66D, 0xB00327C8, 0xBF597FC7,
+    0xC6E00BF3, 0xD5A79147, 0x06CA6351, 0x14292967,
+    0x27B70A85, 0x2E1B2138, 0x4D2C6DFC, 0x53380D13,
+    0x650A7354, 0x766A0ABB, 0x81C2C92E, 0x92722C85,
+    0xA2BFE8A1, 0xA81A664B, 0xC24B8B70, 0xC76C51A3,
+    0xD192E819, 0xD6990624, 0xF40E3585, 0x106AA070,
+    0x19A4C116, 0x1E376C08, 0x2748774C, 0x34B0BCB5,
+    0x391C0CB3, 0x4ED8AA4A, 0x5B9CCA4F, 0x682E6FF3,
+    0x748F82EE, 0x78A5636F, 0x84C87814, 0x8CC70208,
+    0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
+)
+
+
+def _rotate_right(value, count):
+    return ((value >> count) | (value << (32 - count))) & 0xFFFFFFFF
+
+
+def _sha256(payload):
+    length = len(payload)
+    padded = payload + b"\\x80"
+    padded += b"\\x00" * ((55 - length) % 64)
+    padded += (length * 8).to_bytes(8, "big")
+    state = list(_SHA256_INITIAL)
+    for offset in range(0, len(padded), 64):
+        block = padded[offset:offset + 64]
+        words = [
+            int.from_bytes(block[index:index + 4], "big")
+            for index in range(0, 64, 4)
+        ]
+        for index in range(16, 64):
+            left = words[index - 15]
+            right = words[index - 2]
+            sigma0 = (
+                _rotate_right(left, 7)
+                ^ _rotate_right(left, 18)
+                ^ (left >> 3)
+            )
+            sigma1 = (
+                _rotate_right(right, 17)
+                ^ _rotate_right(right, 19)
+                ^ (right >> 10)
+            )
+            words.append(
+                (words[index - 16] + sigma0 + words[index - 7] + sigma1)
+                & 0xFFFFFFFF
+            )
+        working = list(state)
+        for index in range(64):
+            a, b, c, d, e, f, g, h = working
+            sum1 = (
+                _rotate_right(e, 6)
+                ^ _rotate_right(e, 11)
+                ^ _rotate_right(e, 25)
+            )
+            choose = (e & f) ^ ((~e) & g)
+            temporary1 = (
+                h + sum1 + choose + _SHA256_ROUND[index] + words[index]
+            ) & 0xFFFFFFFF
+            sum0 = (
+                _rotate_right(a, 2)
+                ^ _rotate_right(a, 13)
+                ^ _rotate_right(a, 22)
+            )
+            majority = (a & b) ^ (a & c) ^ (b & c)
+            temporary2 = (sum0 + majority) & 0xFFFFFFFF
+            working = [
+                (temporary1 + temporary2) & 0xFFFFFFFF,
+                a, b, c, (d + temporary1) & 0xFFFFFFFF, e, f, g,
+            ]
+        state = [
+            (current + addition) & 0xFFFFFFFF
+            for current, addition in zip(state, working)
+        ]
+    return b"".join(value.to_bytes(4, "big") for value in state)
+
+
+def _canonical_json_bytes(value):
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _read_stable_regular(path, limit):
+    descriptor = os.open(
+        path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    )
+    try:
+        before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or before.st_size < 0
+            or before.st_size > limit
+        ):
+            raise RuntimeError("worker input is not a bounded regular file")
+        chunks = []
+        remaining = before.st_size
+        while remaining:
+            chunk = os.read(descriptor, min(remaining, 1048576))
+            if not chunk:
+                raise RuntimeError("worker input ended early")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise RuntimeError("worker input grew while reading")
+        after = os.fstat(descriptor)
+        identity = lambda item: (
+            item.st_dev,
+            item.st_ino,
+            item.st_nlink,
+            item.st_size,
+            item.st_mode,
+            item.st_mtime_ns,
+            item.st_ctime_ns,
+        )
+        if identity(before) != identity(after):
+            raise RuntimeError("worker input changed while reading")
+        return b"".join(chunks)
+    finally:
+        os.close(descriptor)
+
+
+def _require_json_value(value, depth=0):
+    if depth > 128:
+        raise RuntimeError("worker result exceeds the JSON depth bound")
+    if value is None or type(value) in (bool, str):
+        return
+    if type(value) is int:
+        if value.bit_length() > 4096:
+            raise RuntimeError("worker result integer is oversized")
+        return
+    if type(value) is float:
+        if value != value or value in (float("inf"), float("-inf")):
+            raise RuntimeError("worker result contains a nonfinite number")
+        return
+    if type(value) is list:
+        for item in value:
+            _require_json_value(item, depth + 1)
+        return
+    if type(value) is dict:
+        for key, item in value.items():
+            if type(key) is not str:
+                raise RuntimeError("worker result key is not text")
+            _require_json_value(item, depth + 1)
+        return
+    raise RuntimeError("worker result contains a non-JSON value")
+
+
+def _parse_request(request_bytes):
+    try:
+        request_text = request_bytes.decode("utf-8")
+        request = json.loads(
+            request_text,
+            parse_constant=lambda token: (_ for _ in ()).throw(
+                ValueError(token)
+            ),
+        )
+    except (UnicodeDecodeError, ValueError, TypeError) as error:
+        raise RuntimeError("worker request is malformed") from error
+    if type(request) is not dict or set(request) != {
+        "schema_version",
+        "opaque_run_nonce",
+        "adapter_id",
+        "scientific_inputs",
+        "numerical_controls",
+        "capsule_sha256",
+    }:
+        raise RuntimeError("worker request has non-closed fields")
+    if _canonical_json_bytes(request) != request_bytes:
+        raise RuntimeError("worker request is not canonical JSON")
+    if request["schema_version"] != "worker_request_v1":
+        raise RuntimeError("worker request schema is unknown")
+    if (
+        type(request["opaque_run_nonce"]) is not str
+        or not request["opaque_run_nonce"]
+        or len(request["opaque_run_nonce"].encode("utf-8")) > 256
+        or type(request["adapter_id"]) is not str
+        or not request["adapter_id"]
+        or type(request["scientific_inputs"]) is not dict
+        or type(request["numerical_controls"]) is not dict
+        or type(request["capsule_sha256"]) is not str
+        or len(request["capsule_sha256"]) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in request["capsule_sha256"]
+        )
+    ):
+        raise RuntimeError("worker request field is malformed")
+    _require_json_value(request)
+    return request
+
+
+def _write_result_exclusive(payload):
+    if len(payload) > _RESULT_LIMIT:
+        raise RuntimeError("worker result exceeds the byte bound")
+    descriptor = os.open(
+        _RESULT_PATH,
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | os.O_CLOEXEC
+        | os.O_NOFOLLOW,
+        0o600,
+    )
+    try:
+        offset = 0
+        while offset < len(payload):
+            written = os.write(descriptor, payload[offset:])
+            if written <= 0:
+                raise RuntimeError("worker result write failed")
+            offset += written
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _fixed_worker_main():
+    request_bytes = _read_stable_regular(_REQUEST_PATH, _INPUT_LIMIT)
+    request = _parse_request(request_bytes)
+    capsule_bytes = _read_stable_regular(_CAPSULE_PATH, _CAPSULE_LIMIT)
+    capsule_sha256 = _sha256(capsule_bytes).hex()
+    if capsule_sha256 != request["capsule_sha256"]:
+        raise RuntimeError("worker capsule hash mismatch")
+    capsule_namespace = {"__name__": "scientific_capsule"}
+    exec(
+        compile(capsule_bytes, _CAPSULE_PATH, "exec"),
+        capsule_namespace,
+    )
+    if (
+        capsule_namespace.get("__literature_capsule_schema__")
+        != "scientific_capsule_v1"
+        or capsule_namespace.get("__literature_capsule_role__") != "adapter"
+        or not callable(
+            capsule_namespace.get("__literature_scientific_entry__")
+        )
+    ):
+        raise RuntimeError("worker capsule metadata is malformed")
+    local_result = capsule_namespace["__literature_scientific_entry__"](
+        request["scientific_inputs"], request["numerical_controls"]
+    )
+    if type(local_result) is not dict:
+        raise RuntimeError("worker local result must be an exact mapping")
+    _require_json_value(local_result)
+    result = {
+        "schema_version": "worker_result_transport_v1",
+        "adapter_id": request["adapter_id"],
+        "capsule_sha256": capsule_sha256,
+        "request_sha256": _sha256(request_bytes).hex(),
+        "local_result": local_result,
+    }
+    _write_result_exclusive(_canonical_json_bytes(result))
+
+
+if __name__ == "__main__":
+    _fixed_worker_main()
+'''
+    return source.encode("utf-8")
+
+
+def emit_tracee_launcher():
+    """Return the fixed launcher that applies tracee policy then re-execs."""
+
+    source = r'''import ctypes
+import json
+import os
+import resource
+import sys
+
+_ENVIRONMENT = {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "PYTHONHASHSEED": "0",
+}
+_BOOTSTRAP = r"""
+import ctypes
+import json
+import os
+import resource
+
+worker_arguments = __import__("sys").argv
+ready_fd = int(worker_arguments[1])
+proceed_fd = int(worker_arguments[2])
+host_canary_path = worker_arguments[3]
+os.environ.pop("LD_LIBRARY_PATH", None)
+
+class Header(ctypes.Structure):
+    _fields_ = [("version", ctypes.c_uint32), ("pid", ctypes.c_int)]
+
+class Data(ctypes.Structure):
+    _fields_ = [
+        ("effective", ctypes.c_uint32),
+        ("permitted", ctypes.c_uint32),
+        ("inheritable", ctypes.c_uint32),
+    ]
+
+libc = ctypes.CDLL(None, use_errno=True)
+header = Header(0x20080522, 0)
+data = (Data * 2)()
+capget_code = libc.capget(ctypes.byref(header), ctypes.byref(data))
+bounding = []
+ambient = []
+for capability in range(64):
+    bounded = libc.prctl(23, capability, 0, 0, 0)
+    if bounded >= 0:
+        bounding.append(bounded)
+    ambient_value = libc.prctl(47, 2, capability, 0, 0)
+    if ambient_value >= 0:
+        ambient.append(ambient_value)
+no_new_privileges = libc.prctl(39, 0, 0, 0, 0)
+open_limit = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+inherited = []
+for descriptor in range(3, min(open_limit, 4096)):
+    try:
+        os.fstat(descriptor)
+    except OSError:
+        continue
+    inherited.append(descriptor)
+host_errno = 0
+try:
+    os.open(host_canary_path, os.O_RDONLY)
+except OSError as error:
+    host_errno = error.errno
+facts = {
+    "ambient_values": ambient,
+    "bounding_values": bounding,
+    "capability_words": [
+        [item.effective, item.permitted, item.inheritable]
+        for item in data
+    ],
+    "capget_code": capget_code,
+    "current_directory": os.getcwd(),
+    "environment_keys": sorted(os.environ),
+    "host_canary_errno": host_errno,
+    "inherited_fds": inherited,
+    "no_new_privileges": no_new_privileges,
+    "resource_limits": {
+        "address_space": list(resource.getrlimit(resource.RLIMIT_AS)),
+        "core": list(resource.getrlimit(resource.RLIMIT_CORE)),
+        "cpu": list(resource.getrlimit(resource.RLIMIT_CPU)),
+        "file_size": list(resource.getrlimit(resource.RLIMIT_FSIZE)),
+        "open_files": list(resource.getrlimit(resource.RLIMIT_NOFILE)),
+        "processes": list(resource.getrlimit(resource.RLIMIT_NPROC)),
+    },
+    "visible_top_level": sorted(os.listdir("/")),
+}
+payload = json.dumps(
+    facts, sort_keys=True, separators=(",", ":")
+).encode("utf-8") + b"\n"
+if os.write(ready_fd, payload) != len(payload):
+    raise RuntimeError("bootstrap readiness write was short")
+if os.read(proceed_fd, 1) != b"G":
+    raise RuntimeError("bootstrap release token is malformed")
+os.close(ready_fd)
+os.close(proceed_fd)
+worker_globals = {
+    "__name__": "__main__",
+    "__file__": "/adapter/fixed_worker.py",
+    "__package__": None,
+}
+worker_fd = os.open(
+    "/adapter/fixed_worker.py",
+    os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+)
+try:
+    worker_source = b""
+    while True:
+        chunk = os.read(worker_fd, 1048576)
+        if not chunk:
+            break
+        worker_source += chunk
+finally:
+    os.close(worker_fd)
+exec(
+    compile(worker_source, "/adapter/fixed_worker.py", "exec"),
+    worker_globals,
+    worker_globals,
+)
+"""
+
+
+class Header(ctypes.Structure):
+    _fields_ = [("version", ctypes.c_uint32), ("pid", ctypes.c_int)]
+
+
+class Data(ctypes.Structure):
+    _fields_ = [
+        ("effective", ctypes.c_uint32),
+        ("permitted", ctypes.c_uint32),
+        ("inheritable", ctypes.c_uint32),
+    ]
+
+
+if len(sys.argv) != 9:
+    raise RuntimeError("launcher arguments are not closed")
+root, loader, interpreter = sys.argv[1:4]
+ready_fd = int(sys.argv[4])
+proceed_fd = int(sys.argv[5])
+close_fds = json.loads(sys.argv[6])
+limits = json.loads(sys.argv[7])
+host_canary_path = sys.argv[8]
+launcher_environment = dict(_ENVIRONMENT)
+launcher_environment["PYTHONHOME"] = root + "/runtime"
+launcher_environment["LD_LIBRARY_PATH"] = root + "/runtime/native"
+if os.environ != launcher_environment:
+    raise RuntimeError("launcher environment is not closed")
+os.environ.clear()
+os.environ.update(_ENVIRONMENT)
+if (
+    type(close_fds) is not list
+    or any(type(item) is not int or item < 3 for item in close_fds)
+    or close_fds != sorted(set(close_fds))
+    or type(limits) is not dict
+    or set(limits) != {
+        "address_space_bytes", "cpu_seconds", "file_descriptors",
+        "output_bytes", "process_count", "wall_seconds",
+    }
+):
+    raise RuntimeError("launcher policy is malformed")
+
+os.chroot(root)
+os.chdir("/")
+resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+resource.setrlimit(
+    resource.RLIMIT_CPU, (limits["cpu_seconds"], limits["cpu_seconds"])
+)
+resource.setrlimit(
+    resource.RLIMIT_AS,
+    (limits["address_space_bytes"], limits["address_space_bytes"]),
+)
+resource.setrlimit(
+    resource.RLIMIT_FSIZE, (limits["output_bytes"], limits["output_bytes"])
+)
+resource.setrlimit(
+    resource.RLIMIT_NOFILE,
+    (limits["file_descriptors"], limits["file_descriptors"]),
+)
+resource.setrlimit(
+    resource.RLIMIT_NPROC, (limits["process_count"], limits["process_count"])
+)
+libc = ctypes.CDLL(None, use_errno=True)
+for capability in range(64):
+    result = libc.prctl(24, capability, 0, 0, 0)
+    if result != 0 and ctypes.get_errno() != 22:
+        raise OSError(ctypes.get_errno(), "bounding capability drop failed")
+if libc.prctl(47, 4, 0, 0, 0) != 0:
+    raise OSError(ctypes.get_errno(), "ambient capability clear failed")
+header = Header(0x20080522, 0)
+data = (Data * 2)()
+if libc.capset(ctypes.byref(header), ctypes.byref(data)) != 0:
+    raise OSError(ctypes.get_errno(), "capability set clear failed")
+if libc.prctl(38, 1, 0, 0, 0) != 0:
+    raise OSError(ctypes.get_errno(), "no-new-privileges failed")
+for descriptor in close_fds:
+    if descriptor not in (ready_fd, proceed_fd):
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+os.set_inheritable(ready_fd, True)
+os.set_inheritable(proceed_fd, True)
+argv = (
+    interpreter,
+    "-I", "-S", "-B", "-c", _BOOTSTRAP,
+    str(ready_fd), str(proceed_fd), host_canary_path,
+)
+exec_environment = dict(_ENVIRONMENT)
+exec_environment["LD_LIBRARY_PATH"] = "/runtime/native"
+os.execve(interpreter, argv, exec_environment)
+'''
+    return source.encode("utf-8")
+
+
+@dataclass(frozen=True)
+class _RunDirectories:
+    run_directory: str
+    supervisor_directory: str
+    input_directory: str
+    worker_output_directory: str
+    directory_fds: MappingProxyType
+    directory_identities: _FrozenJsonObject
+    _owned_fds: list[int]
+
+
+def create_run_directories(*, scratch_parent, audit_run_id):
+    """Exclusively create and retain the three host-side run directories."""
+
+    _require_text(audit_run_id, "audit_run_id")
+    try:
+        parent = Path(scratch_parent).resolve(strict=True)
+        parent_status = parent.stat()
+    except OSError as error:
+        raise _ContractError("run scratch parent is unavailable") from error
+    if not stat.S_ISDIR(parent_status.st_mode):
+        raise _ContractError("run scratch parent must be a directory")
+    run_directory = None
+    for counter in range(128):
+        material = (
+            audit_run_id.encode("utf-8")
+            + b"\0"
+            + str(os.getpid()).encode("ascii")
+            + b"\0"
+            + str(time.monotonic_ns()).encode("ascii")
+            + b"\0"
+            + str(counter).encode("ascii")
+        )
+        candidate = parent / (
+            "isolated-recalculation-" + hashlib.sha256(material).hexdigest()
+        )
+        try:
+            os.mkdir(candidate, 0o700)
+        except FileExistsError:
+            continue
+        except OSError as error:
+            raise _ContractError(
+                "run directory exclusive creation failed"
+            ) from error
+        run_directory = candidate
+        break
+    if run_directory is None:
+        raise _ContractError("run directory uniqueness exhausted")
+    directories = {}
+    descriptors = {}
+    identities = {}
+    owned = []
+    try:
+        for name in ("supervisor", "input", "worker-output"):
+            path = run_directory / name
+            os.mkdir(path, 0o700)
+            descriptor = os.open(
+                path,
+                os.O_RDONLY
+                | os.O_DIRECTORY
+                | os.O_CLOEXEC
+                | os.O_NOFOLLOW,
+            )
+            owned.append(descriptor)
+            status = os.fstat(descriptor)
+            path_status = path.lstat()
+            if (
+                not stat.S_ISDIR(status.st_mode)
+                or stat.S_IMODE(status.st_mode) != 0o700
+                or (status.st_dev, status.st_ino)
+                != (path_status.st_dev, path_status.st_ino)
+            ):
+                raise _ContractError("run subdirectory identity mismatch")
+            directories[name] = str(path)
+            descriptors[name] = descriptor
+            identities[name] = (status.st_dev, status.st_ino)
+    except (OSError, _ContractError) as error:
+        for descriptor in owned:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if isinstance(error, _ContractError):
+            raise
+        raise _ContractError("run subdirectory creation failed") from error
+    return _RunDirectories(
+        run_directory=str(run_directory),
+        supervisor_directory=directories["supervisor"],
+        input_directory=directories["input"],
+        worker_output_directory=directories["worker-output"],
+        directory_fds=MappingProxyType(dict(descriptors)),
+        directory_identities=_snapshot_json(
+            identities, "run directory identities"
+        ),
+        _owned_fds=owned,
+    )
+
+
+def _task10_stable_file_mount_row(path, logical_path):
+    descriptor = None
+    try:
+        descriptor = os.open(
+            path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+        )
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            raise _ContractError("mount source must be a single-link file")
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+            total += len(chunk)
+        after = os.fstat(descriptor)
+        identity = lambda item: (
+            item.st_dev,
+            item.st_ino,
+            item.st_nlink,
+            item.st_size,
+            item.st_mode,
+            item.st_mtime_ns,
+            item.st_ctime_ns,
+        )
+        if identity(before) != identity(after) or total != before.st_size:
+            raise _ContractError("mount source changed while hashing")
+        return {
+            "logical_path": logical_path,
+            "source_path": str(path),
+            "source_kind": "regular",
+            "source_device": before.st_dev,
+            "source_inode": before.st_ino,
+            "source_size": before.st_size,
+            "source_mode": stat.S_IMODE(before.st_mode),
+            "source_sha256": digest.hexdigest(),
+            "read_only": True,
+            "nodev": True,
+            "nosuid": True,
+        }
+    except _ContractError:
+        raise
+    except OSError as error:
+        raise _ContractError("mount source cannot be audited") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _build_private_root_mount_manifest(
+    layout,
+    runtime_snapshot,
+    *,
+    capsule_path,
+    worker_path,
+    request_path,
+):
+    if type(layout) is not _RunDirectories:
+        raise _ContractError("mount manifest requires an authentic run layout")
+    if type(runtime_snapshot) is not RuntimeSnapshot:
+        raise _ContractError("mount manifest requires an exact runtime snapshot")
+    try:
+        namespace = object.__getattribute__(runtime_snapshot, "__dict__")
+        state = dict.__getitem__(namespace, "_retained_runtime_state")
+    except (AttributeError, KeyError, TypeError) as error:
+        raise _ContractError(
+            "runtime snapshot has no retained mount authority"
+        ) from error
+    if (
+        type(state) is not _RetainedRuntimeSnapshotState
+        or object.__getattribute__(state, "token")
+        is not _RUNTIME_RETAINED_STATE_TOKEN
+        or object.__getattribute__(state, "owner_ref")() is not runtime_snapshot
+        or not object.__getattribute__(state, "finalizer").alive
+    ):
+        raise _ContractError("runtime snapshot mount authority is invalid")
+    root_fd = object.__getattribute__(state, "root_fd")
+    root_identity = object.__getattribute__(state, "root_identity")
+    files = object.__getattribute__(state, "files")
+    try:
+        root_status = os.fstat(root_fd)
+    except OSError as error:
+        raise _ContractError("runtime snapshot mount authority is closed") from error
+    if (
+        not stat.S_ISDIR(root_status.st_mode)
+        or root_status.st_dev != root_identity["device"]
+        or root_status.st_ino != root_identity["inode"]
+    ):
+        raise _ContractError("runtime snapshot mount authority changed")
+
+    expected_paths = {
+        "scientific_capsule.py": (
+            Path(capsule_path),
+            Path(layout.supervisor_directory),
+            "/adapter/scientific_capsule.py",
+        ),
+        "fixed_worker.py": (
+            Path(worker_path),
+            Path(layout.supervisor_directory),
+            "/adapter/fixed_worker.py",
+        ),
+        "request.json": (
+            Path(request_path),
+            Path(layout.input_directory),
+            "/input/request.json",
+        ),
+    }
+    rows = []
+    for expected_name, (path, parent, logical_path) in expected_paths.items():
+        if (
+            not path.is_absolute()
+            or path.name != expected_name
+            or path.parent != parent
+        ):
+            raise _ContractError("mount source path is outside its retained class")
+        rows.append(_task10_stable_file_mount_row(path, logical_path))
+
+    manifest_rows = {
+        row["logical_destination"]: row
+        for row in runtime_snapshot.manifest.resources
+        if row["file_type"] == "regular"
+    }
+    runtime_logical_paths = set()
+    mounted_runtime_rows = {}
+    for file_row in files:
+        basename = file_row["basename"]
+        logical_path = file_row["logical_destination"]
+        if (
+            type(basename) is not str
+            or type(logical_path) is not str
+            or not logical_path.startswith("/runtime/")
+            or logical_path in runtime_logical_paths
+        ):
+            raise _ContractError("runtime snapshot mount row is malformed")
+        runtime_logical_paths.add(logical_path)
+        pinned_path = Path(f"/proc/self/fd/{root_fd}/{basename}")
+        row = _task10_stable_file_mount_row(pinned_path, logical_path)
+        if (
+            row["source_device"] != file_row["device"]
+            or row["source_inode"] != file_row["inode"]
+            or row["source_size"] != file_row["size"]
+            or row["source_mode"] != file_row["mode"]
+            or row["source_sha256"] != file_row["sha256"]
+        ):
+            raise _ContractError("runtime snapshot mount file changed")
+        rows.append(row)
+        mounted_runtime_rows[logical_path] = row
+
+    if set(mounted_runtime_rows) != set(manifest_rows):
+        raise _ContractError("runtime snapshot manifest/file set changed")
+    aliases = {}
+    stdlib_version = None
+    runtime_loader_path = None
+    for logical_path, mount_row in mounted_runtime_rows.items():
+        manifest_row = manifest_rows[logical_path]
+        purpose = manifest_row["purpose"]
+        candidate_aliases = []
+        if purpose == "imported_standard_library":
+            prefix = "/runtime/stdlib/"
+            if not logical_path.startswith(prefix):
+                raise _ContractError("runtime stdlib destination is malformed")
+            relative = PurePosixPath(logical_path[len(prefix):])
+            resolved = PurePosixPath(manifest_row["resolved_path"])
+            if tuple(resolved.parts[-len(relative.parts):]) != relative.parts:
+                raise _ContractError("runtime stdlib source layout changed")
+            source_prefix = resolved.parts[:-len(relative.parts)]
+            if (
+                not source_prefix
+                or re.fullmatch(r"python[0-9]+\.[0-9]+", source_prefix[-1])
+                is None
+            ):
+                raise _ContractError("runtime stdlib version is not closed")
+            version = source_prefix[-1]
+            if stdlib_version is None:
+                stdlib_version = version
+            elif stdlib_version != version:
+                raise _ContractError("runtime stdlib versions are ambiguous")
+            candidate_aliases.append(
+                "/runtime/lib/" + version + "/" + relative.as_posix()
+            )
+        if purpose in {"dynamic_loader", "dynamic_library"}:
+            resolved_path = manifest_row["resolved_path"]
+            resolved_alias = (
+                "/runtime/native/" + PurePosixPath(resolved_path).name
+            )
+            candidate_aliases.append(resolved_alias)
+            if purpose == "dynamic_loader":
+                if runtime_loader_path is not None:
+                    raise _ContractError("runtime loader is ambiguous")
+                runtime_loader_path = resolved_alias
+            for link in manifest_row["link_identity"]:
+                if link["target_path"] == resolved_path:
+                    link_name = PurePosixPath(link["path"]).name
+                    if link_name != PurePosixPath(resolved_path).name:
+                        candidate_aliases.append(
+                            "/runtime/native/" + link_name
+                        )
+        for alias in candidate_aliases:
+            existing = aliases.get(alias)
+            if existing is not None and (
+                existing["source_device"],
+                existing["source_inode"],
+                existing["source_sha256"],
+            ) != (
+                mount_row["source_device"],
+                mount_row["source_inode"],
+                mount_row["source_sha256"],
+            ):
+                raise _ContractError("runtime executable alias is ambiguous")
+            alias_row = dict(mount_row)
+            alias_row["logical_path"] = alias
+            aliases[alias] = alias_row
+    rows.extend(aliases.values())
+
+    output_fd = layout.directory_fds["worker-output"]
+    output_status = os.fstat(output_fd)
+    output_identity = tuple(layout.directory_identities["worker-output"])
+    if (output_status.st_dev, output_status.st_ino) != output_identity:
+        raise _ContractError("worker output mount authority changed")
+    rows.append(
+        {
+            "logical_path": "/output",
+            "source_path": layout.worker_output_directory,
+            "source_kind": "directory",
+            "source_device": output_status.st_dev,
+            "source_inode": output_status.st_ino,
+            "source_size": None,
+            "source_mode": stat.S_IMODE(output_status.st_mode),
+            "source_sha256": None,
+            "read_only": False,
+            "nodev": True,
+            "nosuid": True,
+        }
+    )
+    rows.sort(key=lambda row: row["logical_path"])
+    if len({row["logical_path"] for row in rows}) != len(rows):
+        raise _ContractError("private root mount manifest has a duplicate path")
+    return _snapshot_json(
+        {
+            "schema_version": "private_root_mount_manifest_v1",
+            "mounts": tuple(rows),
+            "runtime_interpreter_path": "/runtime/bin/python3",
+            "runtime_loader_path": runtime_loader_path,
+        },
+        "private root mount manifest",
+    )
+
+
+def apply_tracee_security_policy(
+    resource_limits,
+    *,
+    private_root,
+    inherited_fds,
+    interpreter_path,
+):
+    """Build the single closed tracee security-operation sequence."""
+
+    if type(resource_limits) is not _adapters.ResourceLimits:
+        raise _ContractError("resource_limits must be exact ResourceLimits")
+    limits = _adapters.ResourceLimits(
+        **{
+            field.name: getattr(resource_limits, field.name)
+            for field in fields(_adapters.ResourceLimits)
+        }
+    )
+    root = _require_text(private_root, "private_root")
+    parsed_root = PurePosixPath(root)
+    if (
+        not parsed_root.is_absolute()
+        or ".." in parsed_root.parts
+        or str(parsed_root) != root
+        or root == "/"
+    ):
+        raise _ContractError("private_root must be normalized and absolute")
+    descriptors = _require_exact_tuple(inherited_fds, "inherited_fds")
+    if (
+        any(type(descriptor) is not int or descriptor < 3 for descriptor in descriptors)
+        or descriptors != tuple(sorted(descriptors))
+        or len(set(descriptors)) != len(descriptors)
+    ):
+        raise _ContractError("inherited_fds must be canonical descriptors")
+    interpreter = _require_text(interpreter_path, "interpreter_path")
+    if interpreter != "/runtime/bin/python3":
+        raise _ContractError("interpreter_path must be /runtime/bin/python3")
+    return _snapshot_json(
+        {
+            "schema_version": "tracee_security_plan_v1",
+            "operations": (
+                {"operation": "chroot", "path": root},
+                {"operation": "chdir", "path": "/"},
+                {
+                    "operation": "set_limits",
+                    "cpu_seconds": limits.cpu_seconds,
+                    "wall_seconds": limits.wall_seconds,
+                    "address_space_bytes": limits.address_space_bytes,
+                    "output_bytes": limits.output_bytes,
+                    "file_descriptors": limits.file_descriptors,
+                    "process_count": limits.process_count,
+                },
+                {"operation": "drop_capabilities", "sets": "all"},
+                {"operation": "no_new_privileges", "enabled": True},
+                {"operation": "close_fds", "fds": descriptors},
+                {
+                    "operation": "exec_interpreter",
+                    "argv": (
+                        interpreter,
+                        "-I",
+                        "-S",
+                        "-B",
+                        "/adapter/fixed_worker.py",
+                    ),
+                },
+            ),
+        },
+        "tracee security plan",
+    )
+
+
+_TASK10_TOPOLOGY = (
+    "outer_coordinator",
+    "unshare_namespace_supervisor",
+    "external_strace_tracer",
+    "fixed_tracee_launcher",
+    "fixed_worker",
+)
+_TASK10_ENVIRONMENT = {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "PYTHONHASHSEED": "0",
+}
+_TASK10_COMMANDS = (
+    "unshare",
+    "mount",
+    "chroot",
+    "strace",
+    "python",
+    "supervisor_python",
+    "launcher",
+)
+
+
+_TASK10_SUPERVISOR_SOURCE = r'''
+import ctypes
+import json
+import os
+from pathlib import Path
+import select
+import subprocess
+import sys
+
+request = json.loads(sys.argv[1])
+commands = request["commands"]
+environment = request["environment"]
+supervisor = Path(request["supervisor_directory"])
+root = supervisor / "private-root"
+root.mkdir(mode=0o700)
+os.umask(0o077)
+host_canary = supervisor / "host-canary-denied"
+host_canary_fd = os.open(
+    host_canary,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+    0o600,
+)
+try:
+    os.write(host_canary_fd, b"task10-host-canary")
+    os.fsync(host_canary_fd)
+finally:
+    os.close(host_canary_fd)
+
+
+def execute(arguments, *, timeout=20):
+    completed = subprocess.run(
+        tuple(arguments),
+        check=False,
+        close_fds=True,
+        cwd="/",
+        env=environment,
+        pass_fds=tuple(request["pass_fds"]),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout)[:2048].decode(
+            "utf-8", "replace"
+        )
+        raise RuntimeError("namespace mount command failed: " + detail)
+
+
+execute((commands["mount"], "--make-rprivate", "/"))
+execute((
+    commands["mount"], "-t", "tmpfs", "-o",
+    "nodev,nosuid,size=256m", "tmpfs", str(root),
+))
+
+
+def mount_target(row):
+    target = root / row["logical_path"].lstrip("/")
+    if row["source_kind"] == "directory":
+        target.mkdir(mode=0o755, parents=True, exist_ok=True)
+    else:
+        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        descriptor = os.open(
+            target,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+            0o600,
+        )
+        os.close(descriptor)
+    execute((commands["mount"], "--bind", row["source_path"], str(target)))
+    mode = "rw" if row["read_only"] is False else "ro"
+    execute((
+        commands["mount"], "-o",
+        "remount,bind," + mode + ",nodev,nosuid", str(target),
+    ))
+
+
+for mount_row in request["mounts"]:
+    mount_target(mount_row)
+
+root_loader = str(root) + request["runtime_loader_path"]
+root_interpreter = str(root) + request["runtime_interpreter_path"]
+entropy_directory = root / "dev"
+entropy_directory.mkdir(mode=0o755)
+entropy_target = entropy_directory / "urandom"
+entropy_fd = os.open(
+    entropy_target,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+    0o400,
+)
+os.close(entropy_fd)
+execute((
+    commands["mount"], "--bind", request["entropy_source"],
+    str(entropy_target),
+))
+loader_directory = root / "lib64"
+loader_directory.mkdir(mode=0o755)
+loader_target = loader_directory / "ld-linux-x86-64.so.2"
+loader_fd = os.open(
+    loader_target,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+    0o500,
+)
+os.close(loader_fd)
+execute((commands["mount"], "--bind", root_loader, str(loader_target)))
+execute((
+    commands["mount"], "-o", "remount,bind,ro,nodev,nosuid",
+    str(loader_target),
+))
+execute((
+    commands["mount"], "-o", "remount,bind,ro,nosuid",
+    str(entropy_target),
+))
+
+ready_read, ready_write = os.pipe2(os.O_CLOEXEC)
+proceed_read, proceed_write = os.pipe2(os.O_CLOEXEC)
+os.set_inheritable(ready_write, True)
+os.set_inheritable(proceed_read, True)
+infrastructure_fds = sorted(
+    set(request["pass_fds"] + [ready_write, proceed_read])
+)
+limits = request["limits"]
+trace_path = supervisor / "trace.log"
+launcher_arguments = (
+    root_interpreter,
+    "-S", "-B", request["launcher_path"],
+    str(root),
+    request["runtime_loader_path"],
+    request["runtime_interpreter_path"],
+    str(ready_write),
+    str(proceed_read),
+    json.dumps(infrastructure_fds, separators=(",", ":")),
+    json.dumps(limits, sort_keys=True, separators=(",", ":")),
+    str(host_canary),
+)
+trace_arguments = (
+    commands["strace"], "-f", "-s", "4096", "-yy",
+    "-e", "trace=%file,%network,%process,getrandom,prctl,capget,capset",
+    "-o", str(trace_path), "--", *launcher_arguments,
+)
+tracee = subprocess.Popen(
+    trace_arguments,
+    executable=commands["strace"],
+    close_fds=True,
+    cwd="/",
+    env={
+        **environment,
+        "LD_LIBRARY_PATH": str(root / "runtime" / "native"),
+        "PYTHONHOME": str(root / "runtime"),
+    },
+    pass_fds=tuple(infrastructure_fds),
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+)
+os.close(ready_write)
+os.close(proceed_read)
+readiness = b""
+while b"\n" not in readiness:
+    readable, _, _ = select.select([ready_read], [], [], 30)
+    if not readable:
+        tracee.kill()
+        raise RuntimeError("tracee bootstrap readiness timed out")
+    chunk = os.read(ready_read, 65537 - len(readiness))
+    if not chunk:
+        break
+    readiness += chunk
+    if len(readiness) > 65536:
+        tracee.kill()
+        raise RuntimeError("tracee bootstrap readiness is oversized")
+os.close(ready_read)
+if not readiness:
+    stdout, stderr = tracee.communicate(timeout=5)
+    raise RuntimeError(
+        "tracee exited before readiness: "
+        + (stderr or stdout)[:2048].decode("utf-8", "replace")
+    )
+try:
+    bootstrap = json.loads(readiness.decode("utf-8", "strict"))
+except Exception as error:
+    tracee.kill()
+    raise RuntimeError("tracee bootstrap readiness is malformed") from error
+
+libc = ctypes.CDLL(None, use_errno=True)
+if libc.umount2(os.fsencode(str(entropy_target)), 0) != 0:
+    tracee.kill()
+    raise OSError(ctypes.get_errno(), "entropy bind unmount failed")
+entropy_target.unlink()
+entropy_directory.rmdir()
+if libc.umount2(os.fsencode(str(loader_target)), 2) != 0:
+    tracee.kill()
+    raise OSError(ctypes.get_errno(), "loader bind unmount failed")
+loader_target.unlink()
+loader_directory.rmdir()
+execute((
+    commands["mount"], "-o", "remount,ro,nodev,nosuid", str(root),
+))
+visible_top_level = sorted(os.listdir(root))
+if visible_top_level != ["adapter", "input", "output", "runtime"]:
+    tracee.kill()
+    raise RuntimeError("worker-visible root contains an undeclared class")
+if os.write(proceed_write, b"G") != 1:
+    tracee.kill()
+    raise RuntimeError("tracee release write was short")
+os.close(proceed_write)
+try:
+    stdout, stderr = tracee.communicate(timeout=limits["wall_seconds"] + 20)
+except subprocess.TimeoutExpired:
+    tracee.kill()
+    stdout, stderr = tracee.communicate()
+    raise RuntimeError("traced worker exceeded the wall limit")
+
+mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
+route_rows = Path("/proc/net/route").read_text(
+    encoding="ascii"
+).splitlines()[1:]
+interfaces = sorted(
+    line.split(":", 1)[0].strip()
+    for line in Path("/proc/net/dev").read_text(
+        encoding="ascii"
+    ).splitlines()[2:]
+    if ":" in line
+)
+root_line = next(
+    line for line in mountinfo.splitlines()
+    if line.split()[4] == str(root)
+)
+separator = root_line.split().index("-")
+root_filesystem = root_line.split()[separator + 1]
+root_read_only = "ro" in root_line.split()[5].split(",")
+response = {
+    "audit_run_id": request["audit_run_id"],
+    "point_id": request["point_id"],
+    "process_role": request["process_role"],
+    "topology": request["topology"],
+    "supervisor_waited_for_tracee": True,
+    "supervisor_outside_chroot": True,
+    "worker_exit_code": tracee.returncode,
+    "stdout": stdout[:65536].decode("utf-8", "replace"),
+    "stderr": stderr[:65536].decode("utf-8", "replace"),
+    "namespace_identifiers": {
+        name: os.readlink("/proc/self/ns/" + name)
+        for name in ("user", "mnt", "net")
+    },
+    "mount_facts": {
+        "root_filesystem": root_filesystem,
+        "root_read_only": root_read_only,
+        "output_writable": True,
+        "visible_top_level": ["runtime", "adapter", "input", "output"],
+        "supervisor_visible": False,
+    },
+    "environment_facts": {
+        "names": bootstrap["environment_keys"],
+        "parent_canary_present": (
+            "TASK10_PARENT_CANARY" in bootstrap["environment_keys"]
+        ),
+    },
+    "resource_limit_facts": {
+        **limits,
+        "no_new_privileges": bootstrap["no_new_privileges"] == 1,
+        "capabilities_empty": (
+            bootstrap["capget_code"] == 0
+            and all(
+                all(value == 0 for value in row)
+                for row in bootstrap["capability_words"]
+            )
+            and not any(bootstrap["bounding_values"])
+            and not any(bootstrap["ambient_values"])
+        ),
+    },
+    "chroot_facts": {
+        "current_directory": bootstrap["current_directory"],
+        "host_canary_errno": bootstrap["host_canary_errno"],
+        "host_canary_exists_outside": host_canary.is_file(),
+        "isolated": (
+            bootstrap["visible_top_level"]
+            == [
+                "adapter", "dev", "input", "lib64", "output", "runtime"
+            ]
+        ),
+        "network_isolated": not route_rows and interfaces == ["lo"],
+    },
+}
+attestation = json.dumps(
+    response, sort_keys=True, separators=(",", ":")
+).encode("utf-8")
+attestation_fd = os.open(
+    supervisor / "attestation.json",
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+    0o600,
+)
+try:
+    offset = 0
+    while offset < len(attestation):
+        offset += os.write(attestation_fd, attestation[offset:])
+    os.fsync(attestation_fd)
+finally:
+    os.close(attestation_fd)
+print(attestation.decode("utf-8"))
+'''
+
+
+def _task10_validate_mount_manifest(value):
+    manifest = _exact_keys(
+        value,
+        (
+            "schema_version",
+            "mounts",
+            "runtime_interpreter_path",
+            "runtime_loader_path",
+        ),
+        "private root mount manifest",
+    )
+    if manifest["schema_version"] != "private_root_mount_manifest_v1":
+        raise _ContractError("private root mount manifest schema is unknown")
+    if manifest["runtime_interpreter_path"] != "/runtime/bin/python3":
+        raise _ContractError("private root interpreter path is not closed")
+    loader = manifest["runtime_loader_path"]
+    if loader is not None and (
+        type(loader) is not str
+        or not loader.startswith("/runtime/native/")
+        or PurePosixPath(loader).as_posix() != loader
+    ):
+        raise _ContractError("private root loader path is malformed")
+    rows = _require_exact_tuple(manifest["mounts"], "mounts")
+    if not rows:
+        raise _ContractError("private root mount manifest is empty")
+    logical_paths = []
+    writable = []
+    for index, raw_row in enumerate(rows):
+        row = _exact_keys(
+            raw_row,
+            (
+                "logical_path",
+                "source_path",
+                "source_kind",
+                "source_device",
+                "source_inode",
+                "source_size",
+                "source_mode",
+                "source_sha256",
+                "read_only",
+                "nodev",
+                "nosuid",
+            ),
+            f"mounts[{index}]",
+        )
+        logical_path = _require_text(
+            row["logical_path"], f"mounts[{index}].logical_path"
+        )
+        if row["nodev"] is not True or row["nosuid"] is not True:
+            raise _ContractError("private root mount lacks nodev or nosuid")
+        if row["read_only"] is False:
+            writable.append(logical_path)
+        elif row["read_only"] is not True:
+            raise _ContractError("private root mount read_only is malformed")
+        logical_paths.append(logical_path)
+    if len(set(logical_paths)) != len(logical_paths):
+        raise _ContractError("private root mount path is duplicated")
+    if writable != ["/output"]:
+        raise _ContractError("output must be the only writable mount")
+    required = {
+        "/adapter/scientific_capsule.py",
+        "/adapter/fixed_worker.py",
+        "/input/request.json",
+        "/output",
+    }
+    if not required <= set(logical_paths) or any(
+        path not in required and not path.startswith("/runtime/")
+        for path in logical_paths
+    ):
+        raise _ContractError("private root mount classes are not exact")
+    return _snapshot_json(
+        {
+            "schema_version": manifest["schema_version"],
+            "mounts": rows,
+            "runtime_interpreter_path": manifest[
+                "runtime_interpreter_path"
+            ],
+            "runtime_loader_path": loader,
+        },
+        "private root mount manifest",
+    )
+
+
+def _task10_validate_command_identities(value):
+    identities = _exact_keys(
+        value, _TASK10_COMMANDS, "namespace supervisor commands"
+    )
+    normalized = {}
+    for command in _TASK10_COMMANDS:
+        record = _exact_keys(
+            identities[command],
+            ("path", "version", "sha256"),
+            f"namespace supervisor command {command}",
+        )
+        path = _require_text(record["path"], f"{command}.path")
+        if not PurePosixPath(path).is_absolute():
+            raise _ContractError("namespace supervisor command path is relative")
+        normalized[command] = {
+            "path": path,
+            "version": _require_text(record["version"], f"{command}.version"),
+            "sha256": _require_sha256(record["sha256"], f"{command}.sha256"),
+        }
+    return _snapshot_json(normalized, "namespace supervisor commands")
+
+
+def _run_namespace_supervisor(
+    layout,
+    mount_manifest,
+    security_plan,
+    *,
+    audit_run_id,
+    point_id,
+    role,
+    command_identities,
+    runner,
+):
+    if type(layout) is not _RunDirectories:
+        raise _ContractError("namespace supervisor requires an authentic layout")
+    audit_id = _require_text(audit_run_id, "audit_run_id")
+    point = _require_text(point_id, "point_id")
+    process_role = _require_role(role, "role")
+    if not callable(runner):
+        raise _ContractError("namespace supervisor runner must be callable")
+    mounts = _task10_validate_mount_manifest(mount_manifest)
+    security = _exact_keys(
+        security_plan,
+        ("schema_version", "operations"),
+        "tracee security plan",
+    )
+    if security["schema_version"] != "tracee_security_plan_v1":
+        raise _ContractError("tracee security plan schema is unknown")
+    operation_names = tuple(
+        _exact_keys(item, tuple(item), "tracee operation")["operation"]
+        for item in _require_exact_tuple(security["operations"], "operations")
+    )
+    if operation_names != (
+        "chroot",
+        "chdir",
+        "set_limits",
+        "drop_capabilities",
+        "no_new_privileges",
+        "close_fds",
+        "exec_interpreter",
+    ):
+        raise _ContractError("tracee security operation order changed")
+    commands = _task10_validate_command_identities(command_identities)
+    payload = _snapshot_json(
+        {
+            "schema_version": "namespace_supervisor_request_v1",
+            "audit_run_id": audit_id,
+            "point_id": point,
+            "process_role": process_role,
+            "topology": _TASK10_TOPOLOGY,
+            "supervisor_directory": layout.supervisor_directory,
+            "mount_manifest": mounts,
+            "security_plan": security_plan,
+            "command_identities": commands,
+            "environment": _TASK10_ENVIRONMENT,
+            "unrelated_fds": (),
+        },
+        "namespace supervisor request",
+    )
+    try:
+        raw_response = runner("run_namespace_supervisor", payload)
+    except Exception as error:
+        raise _ContractError("namespace supervisor runner failed") from error
+    response = _exact_keys(
+        raw_response,
+        (
+            "audit_run_id",
+            "point_id",
+            "process_role",
+            "topology",
+            "supervisor_waited_for_tracee",
+            "supervisor_outside_chroot",
+            "worker_exit_code",
+            "stdout",
+            "stderr",
+            "namespace_identifiers",
+            "mount_facts",
+            "environment_facts",
+            "resource_limit_facts",
+            "chroot_facts",
+        ),
+        "namespace supervisor response",
+    )
+    if (
+        response["audit_run_id"] != audit_id
+        or response["point_id"] != point
+        or response["process_role"] != process_role
+        or tuple(response["topology"]) != _TASK10_TOPOLOGY
+        or response["supervisor_waited_for_tracee"] is not True
+        or response["supervisor_outside_chroot"] is not True
+        or type(response["worker_exit_code"]) is not int
+        or response["worker_exit_code"] != 0
+        or type(response["stdout"]) is not str
+        or type(response["stderr"]) is not str
+        or response["stdout"]
+        or response["stderr"]
+    ):
+        raise _ContractError("namespace supervisor response is contradictory")
+    attestation_payload = {
+        "schema_version": "process_attestation_v1",
+        "process_role": process_role,
+        "point_id": point,
+        "namespace_identifiers": response["namespace_identifiers"],
+        "mount_facts": response["mount_facts"],
+        "environment_facts": response["environment_facts"],
+        "resource_limit_facts": response["resource_limit_facts"],
+        "chroot_facts": response["chroot_facts"],
+    }
+    return ProcessAttestation(
+        **attestation_payload,
+        attestation_sha256=_canonical_sha256(attestation_payload),
+    )
+
+
+def _task10_descriptor_sha256(descriptor):
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    digest = hashlib.sha256()
+    while True:
+        chunk = os.read(descriptor, 1024 * 1024)
+        if not chunk:
+            break
+        digest.update(chunk)
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    return digest.hexdigest()
+
+
+def _production_namespace_supervisor_runner(action, raw_payload):
+    if action != "run_namespace_supervisor":
+        raise _ContractError("namespace supervisor action is unknown")
+    payload = _adapters.thaw_json(raw_payload)
+    supervisor = Path(payload["supervisor_directory"])
+    launcher_path = supervisor / "fixed_tracee_launcher.py"
+    launcher_bytes = emit_tracee_launcher()
+    _write_preflight_snapshot(launcher_path, launcher_bytes)
+    if _hash_preflight_command(launcher_path) != hashlib.sha256(
+        launcher_bytes
+    ).hexdigest():
+        raise _ContractError("fixed tracee launcher snapshot changed")
+
+    descriptors = []
+    command_descriptors = {}
+    entropy_descriptor = None
+    try:
+        for command in _TASK10_COMMANDS:
+            identity = payload["command_identities"][command]
+            descriptor = os.open(
+                identity["path"],
+                os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+            )
+            descriptors.append(descriptor)
+            status = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(status.st_mode)
+                or _task10_descriptor_sha256(descriptor)
+                != identity["sha256"]
+            ):
+                raise _ContractError(
+                    "namespace supervisor command identity changed: "
+                    + command
+                )
+            command_descriptors[command] = descriptor
+
+        supervisor_mounts = []
+        for row in payload["mount_manifest"]["mounts"]:
+            flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+            if row["source_kind"] == "directory":
+                flags |= os.O_DIRECTORY
+            descriptor = os.open(row["source_path"], flags)
+            descriptors.append(descriptor)
+            status = os.fstat(descriptor)
+            if row["source_kind"] == "directory":
+                if (
+                    not stat.S_ISDIR(status.st_mode)
+                    or (status.st_dev, status.st_ino)
+                    != (row["source_device"], row["source_inode"])
+                ):
+                    raise _ContractError("namespace mount directory changed")
+            elif (
+                not stat.S_ISREG(status.st_mode)
+                or status.st_nlink != 1
+                or status.st_dev != row["source_device"]
+                or status.st_ino != row["source_inode"]
+                or status.st_size != row["source_size"]
+                or stat.S_IMODE(status.st_mode) != row["source_mode"]
+                or _task10_descriptor_sha256(descriptor)
+                != row["source_sha256"]
+            ):
+                raise _ContractError("namespace mount file changed")
+            copied_row = dict(row)
+            copied_row["source_path"] = f"/proc/self/fd/{descriptor}"
+            supervisor_mounts.append(copied_row)
+
+        entropy_descriptor = os.open(
+            "/dev/urandom", os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+        )
+        descriptors.append(entropy_descriptor)
+        entropy_status = os.fstat(entropy_descriptor)
+        if not stat.S_ISCHR(entropy_status.st_mode):
+            raise _ContractError("interpreter entropy source is not a device")
+
+        operations = payload["security_plan"]["operations"]
+        limits = next(
+            item for item in operations if item["operation"] == "set_limits"
+        )
+        limits = {
+            name: limits[name]
+            for name in (
+                "cpu_seconds",
+                "wall_seconds",
+                "address_space_bytes",
+                "output_bytes",
+                "file_descriptors",
+                "process_count",
+            )
+        }
+        command_paths = {
+            command: f"/proc/self/fd/{descriptor}"
+            for command, descriptor in command_descriptors.items()
+        }
+        request = {
+            "schema_version": "production_namespace_supervisor_request_v1",
+            "audit_run_id": payload["audit_run_id"],
+            "point_id": payload["point_id"],
+            "process_role": payload["process_role"],
+            "topology": payload["topology"],
+            "supervisor_directory": payload["supervisor_directory"],
+            "commands": command_paths,
+            "mounts": supervisor_mounts,
+            "runtime_loader_path": payload["mount_manifest"][
+                "runtime_loader_path"
+            ],
+            "runtime_interpreter_path": payload["mount_manifest"][
+                "runtime_interpreter_path"
+            ],
+            "launcher_path": str(launcher_path),
+            "environment": payload["environment"],
+            "limits": limits,
+            "entropy_source": f"/proc/self/fd/{entropy_descriptor}",
+            "pass_fds": sorted(set(descriptors)),
+        }
+        if request["runtime_loader_path"] is None:
+            raise _ContractError("runtime snapshot has no executable loader")
+        completed = subprocess.run(
+            (
+                payload["command_identities"]["unshare"]["path"],
+                "-Urnm",
+                command_paths["supervisor_python"],
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                _TASK10_SUPERVISOR_SOURCE,
+                json.dumps(request, sort_keys=True, separators=(",", ":")),
+            ),
+            executable=command_paths["unshare"],
+            check=False,
+            close_fds=True,
+            cwd="/",
+            env=dict(_TASK10_ENVIRONMENT),
+            pass_fds=tuple(sorted(set(descriptors))),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=limits["wall_seconds"] + 60,
+        )
+        for command, descriptor in command_descriptors.items():
+            if _task10_descriptor_sha256(descriptor) != payload[
+                "command_identities"
+            ][command]["sha256"]:
+                raise _ContractError(
+                    "namespace supervisor command changed during execution"
+                )
+        if completed.returncode != 0:
+            diagnostic = (completed.stderr or completed.stdout)[
+                :4096
+            ].decode("utf-8", "replace")
+            raise _ContractError(
+                "production namespace supervisor failed: " + diagnostic
+            )
+        if completed.stderr:
+            raise _ContractError("namespace supervisor wrote stderr")
+        try:
+            return json.loads(completed.stdout.decode("utf-8", "strict"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise _ContractError(
+                "namespace supervisor response is malformed"
+            ) from error
+    except (OSError, StopIteration, subprocess.SubprocessError) as error:
+        if isinstance(error, _ContractError):
+            raise
+        raise _ContractError("production namespace supervisor failed") from error
+    finally:
+        for descriptor in reversed(descriptors):
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+
+
+def run_namespace_supervisor(
+    layout,
+    runtime_snapshot,
+    resource_limits,
+    *,
+    preflight_report,
+    capsule_path,
+    worker_path,
+    request_path,
+    audit_run_id,
+    point_id,
+    role,
+):
+    """Run one fixed worker beneath the persistent private-root supervisor."""
+
+    if type(preflight_report) is not CapabilityPreflightReport:
+        raise _ContractError("preflight_report must be exact")
+    _validate_capability_preflight_report(preflight_report)
+    if not preflight_report.available:
+        raise _ContractError("capability preflight is unavailable")
+    mount_manifest = _build_private_root_mount_manifest(
+        layout,
+        runtime_snapshot,
+        capsule_path=capsule_path,
+        worker_path=worker_path,
+        request_path=request_path,
+    )
+    security_plan = apply_tracee_security_policy(
+        resource_limits,
+        private_root=str(Path(layout.supervisor_directory) / "private-root"),
+        inherited_fds=tuple(sorted(layout.directory_fds.values())),
+        interpreter_path="/runtime/bin/python3",
+    )
+    identities = {
+        command: {
+            "path": preflight_report.command_identities[command]["path"],
+            "version": preflight_report.command_identities[command]["version"],
+            "sha256": preflight_report.command_identities[command]["sha256"],
+        }
+        for command in _TASK10_COMMANDS
+    }
+    return _run_namespace_supervisor(
+        layout,
+        mount_manifest,
+        security_plan,
+        audit_run_id=audit_run_id,
+        point_id=point_id,
+        role=role,
+        command_identities=identities,
+        runner=_production_namespace_supervisor_runner,
+    )
+
+
+def _close_run_directories(layout):
+    if type(layout) is not _RunDirectories:
+        raise _ContractError("run layout has an unknown type")
+    while layout._owned_fds:
+        descriptor = layout._owned_fds.pop()
+        matching_name = next(
+            (
+                name
+                for name, candidate in layout.directory_fds.items()
+                if candidate == descriptor
+            ),
+            None,
+        )
+        if matching_name is None:
+            continue
+        expected = tuple(layout.directory_identities[matching_name])
+        try:
+            status = os.fstat(descriptor)
+        except OSError:
+            continue
+        if (status.st_dev, status.st_ino) == expected:
+            os.close(descriptor)
 
 
 def assert_disjoint_scientific_closures(
@@ -13585,7 +15421,13 @@ _RUNTIME_FILE_PURPOSES = frozenset(
     }
 )
 _RUNTIME_BACKEND_CAPABILITIES = frozenset({"single_cpu_core"})
-_RUNTIME_FIXED_STDLIB_MODULES = ("encodings", "json", "os")
+_RUNTIME_FIXED_STDLIB_MODULES = (
+    "ctypes",
+    "encodings",
+    "json",
+    "os",
+    "resource",
+)
 _RUNTIME_COPY_BUFFER_BYTES = 65_536
 _RUNTIME_RETAINED_STATE_TOKEN = object()
 
@@ -13987,6 +15829,7 @@ def discover_runtime_resources(
 
     if type(requirements) is not _adapters.RuntimeRequirements:
         raise _ContractError("requirements must be exact RuntimeRequirements")
+    default_probes = command_probe is None and file_probe is None
     command = _default_runtime_command_probe if command_probe is None else command_probe
     files = _default_runtime_file_probe if file_probe is None else file_probe
     interpreter_supplied = files("resolve_interpreter", requirements.interpreter)
@@ -14088,6 +15931,7 @@ def discover_runtime_resources(
         )
         rows.append(row)
     stdlib_names = set()
+    stdlib_extensions = []
     for item in files("imported_stdlib_files", requirements.packages):
         if type(item) is not tuple or len(item) != 2:
             raise _ContractError("stdlib file entry is not exact")
@@ -14108,6 +15952,8 @@ def discover_runtime_resources(
         ):
             raise _ContractError("stdlib file path is unsafe or duplicated")
         stdlib_names.add(relative_text)
+        if ".so" in Path(relative_text).name:
+            stdlib_extensions.append(Path(path))
         rows.append(
             _runtime_file_row(
                 path,
@@ -14115,6 +15961,62 @@ def discover_runtime_resources(
                 purpose="imported_standard_library",
             )
         )
+    if default_probes:
+        known_identities = {
+            (os.stat(row["resolved_path"]).st_dev,
+             os.stat(row["resolved_path"]).st_ino)
+            for row in rows
+            if row["file_type"] == "regular"
+        }
+        extension_dependencies = []
+        for extension in sorted(stdlib_extensions, key=str):
+            extension_output = command(
+                ("ldd", str(extension.resolve(strict=True)))
+            )
+            if extension_output.strip() == "statically linked":
+                parsed = ()
+            else:
+                parsed = _runtime_ldd_paths(extension_output)
+            if parsed and sum(
+                soname_loader or path_loader
+                for _soname, _path, soname_loader, path_loader in parsed
+            ) != 1:
+                raise _ContractError(
+                    "stdlib extension ldd has an ambiguous loader"
+                )
+            for soname, library, soname_loader, path_loader in parsed:
+                dependency = _runtime_file_row(
+                    library,
+                    logical_destination="/runtime/native/pending",
+                    purpose="dynamic_library",
+                )
+                metadata = os.stat(dependency["resolved_path"])
+                identity = (metadata.st_dev, metadata.st_ino)
+                if identity in known_identities:
+                    continue
+                known_identities.add(identity)
+                extension_dependencies.append(
+                    (
+                        dependency["resolved_path"],
+                        soname,
+                        soname_loader or path_loader,
+                        dependency,
+                    )
+                )
+        for index, (_path, _soname, is_loader, dependency) in enumerate(
+            sorted(extension_dependencies, key=lambda item: item[:3])
+        ):
+            if is_loader:
+                raise _ContractError(
+                    "stdlib extension introduced a second loader"
+                )
+            dependency["logical_destination"] = (
+                "/runtime/native/stdlib-"
+                + str(index)
+                + "-"
+                + Path(dependency["resolved_path"]).name
+            )
+            rows.append(dependency)
     for package in requirements.packages:
         distribution = files("distribution", package)
         if type(distribution) is not dict or set(distribution) != {"name", "version", "files"}:
