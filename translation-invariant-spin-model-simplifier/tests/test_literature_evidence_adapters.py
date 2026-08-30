@@ -5363,6 +5363,8 @@ def test_task4_public_all_surfaces_are_exact():
         "create_run_directories",
         "apply_tracee_security_policy",
         "run_namespace_supervisor",
+        "evaluate_strace",
+        "ingest_worker_output",
         "record_and_freeze_hashes",
         "acquire_run_seed",
         "derive_counterfactual_points",
@@ -6569,14 +6571,30 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         {"chroot": True},
         digest,
     )
-    trace = isolation.TracePolicyReport(
-        "trace_policy_report_v1",
-        digest,
-        ({"operation": "read", "path": "/capsule"},),
-        (),
-        True,
-        digest,
-    )
+    trace_values = {
+        "schema_version": "trace_policy_report_v1",
+        "trace_sha256": digest,
+        "attempted_accesses": (
+            {
+                "sequence": 0,
+                "pid": 1,
+                "syscall": "open",
+                "access_kind": "file",
+                "operation": "read",
+                "logical_path": "/adapter/capsule.py",
+                "path_sha256": hashlib.sha256(
+                    b"/adapter/capsule.py"
+                ).hexdigest(),
+                "succeeded": True,
+                "allowed": True,
+                "reason_code": "allowed_manifest_read",
+            },
+        ),
+        "violations": (),
+        "passed": True,
+    }
+    trace_values["report_sha256"] = canonical_sha256(trace_values)
+    trace = isolation.TracePolicyReport(**trace_values)
     point = isolation.PointExecutionEvidence(
         "point_execution_evidence_v1",
         "point-canary",
@@ -25758,6 +25776,35 @@ def test_task10_worker_capsule_fixed_worker_executes_closed_transport_once(
     assert stat.S_IMODE(result_path.stat().st_mode) == 0o600
 
 
+def test_task11_fixed_worker_accepts_separately_hashed_oracle_capsule(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    capsule = (
+        b"def oracle_entry(scientific_inputs, numerical_controls):\n"
+        b"    return {'raw_value': scientific_inputs['exchange']}\n"
+        b"__literature_capsule_schema__ = 'scientific_capsule_v1'\n"
+        b"__literature_capsule_role__ = 'oracle'\n"
+        b"__literature_scientific_entry__ = oracle_entry\n"
+    )
+    request = _task10_worker_request(hashlib.sha256(capsule).hexdigest())
+    request_path = tmp_path / "request.json"
+    capsule_path = tmp_path / "scientific_capsule.py"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(canonical_json_bytes(request.to_frozen_json()))
+    capsule_path.write_bytes(capsule)
+
+    _task10_execute_fixed_worker(
+        isolation.emit_fixed_worker(),
+        request_path,
+        capsule_path,
+        result_path,
+    )
+
+    assert json.loads(result_path.read_text())["local_result"] == {
+        "raw_value": 1.25
+    }
+
+
 def test_task10_worker_capsule_fixed_worker_rejects_authority_extra_field(
     tmp_path,
 ):
@@ -26222,6 +26269,13 @@ def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
         ),
         directory=Path(layout.input_directory),
     )
+    trace_manifest = isolation._build_private_root_mount_manifest(
+        layout,
+        snapshot,
+        capsule_path=capsule_path,
+        worker_path=worker_path,
+        request_path=request_path,
+    )
     try:
         attestation = isolation.run_namespace_supervisor(
             layout,
@@ -26241,7 +26295,31 @@ def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
         )
         trace_path = supervisor / "trace.log"
         attestation_path = supervisor / "attestation.json"
-        trace_text = trace_path.read_text(encoding="utf-8")
+        trace_bytes = trace_path.read_bytes()
+        trace_text = trace_bytes.decode("utf-8", "strict")
+        raw_trace_paths = tuple(sorted(supervisor.glob("trace.log.*")))
+        assert raw_trace_paths
+        reconstructed = []
+        for raw_trace_path in raw_trace_paths:
+            pid_text = raw_trace_path.name.removeprefix("trace.log.")
+            assert pid_text.isdecimal() and int(pid_text) > 0
+            raw_status = raw_trace_path.stat()
+            raw_bytes = raw_trace_path.read_bytes()
+            assert stat.S_ISREG(raw_status.st_mode)
+            assert stat.S_IMODE(raw_status.st_mode) == 0o600
+            assert raw_status.st_nlink == 1
+            assert raw_bytes and raw_bytes.endswith(b"\n")
+            for line in raw_bytes.splitlines(keepends=True):
+                reconstructed.append(pid_text.encode("ascii") + b" " + line)
+        assert trace_bytes == b"".join(reconstructed)
+        trace_report = isolation.evaluate_strace(
+            trace_bytes, trace_manifest
+        )
+        ingested = isolation.ingest_worker_output(
+            layout,
+            maximum_bytes=definition.resource_limits.output_bytes,
+            declared_scratch=(),
+        )
         request_open = trace_text.index("/input/request.json")
         assert trace_text.rfind("/dev/urandom", 0, request_open) >= 0
         isolated_exec = trace_text.index('execve("/runtime/bin/python3"')
@@ -26256,6 +26334,11 @@ def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
         assert (supervisor / "host-canary-denied").read_bytes() == (
             b"task10-host-canary"
         )
+        assert trace_report.passed is True
+        assert trace_report.violations == ()
+        assert ingested["result_sha256"] == hashlib.sha256(
+            canonical_json_bytes(result)
+        ).hexdigest()
     finally:
         isolation._close_run_directories(layout)
         snapshot.revalidate()
@@ -26274,3 +26357,981 @@ def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
     assert attestation.resource_limit_facts["capabilities_empty"] is True
     assert attestation.resource_limit_facts["no_new_privileges"] is True
     assert result["local_result"] == {"raw_value": 1.25}
+
+
+def _task11_trace_manifest():
+    def row(logical_path, *, source_kind="regular", read_only=True):
+        return {
+            "logical_path": logical_path,
+            "source_path": "/retained" + logical_path,
+            "source_kind": source_kind,
+            "source_device": 41,
+            "source_inode": 100 + len(logical_path),
+            "source_size": 17 if source_kind == "regular" else 0,
+            "source_mode": 0o444 if read_only else 0o700,
+            "source_sha256": (
+                hashlib.sha256(logical_path.encode("utf-8")).hexdigest()
+                if source_kind == "regular"
+                else None
+            ),
+            "read_only": read_only,
+            "nodev": True,
+            "nosuid": True,
+        }
+
+    return {
+        "schema_version": "private_root_mount_manifest_v1",
+        "mounts": (
+            row("/runtime/bin/python3"),
+            row("/runtime/lib/module.py"),
+            row("/runtime/native/libc.so.6"),
+            row("/adapter/scientific_capsule.py"),
+            row("/adapter/fixed_worker.py"),
+            row("/input/request.json"),
+            row("/output", source_kind="directory", read_only=False),
+        ),
+        "runtime_interpreter_path": "/runtime/bin/python3",
+        "runtime_loader_path": "/runtime/native/libc.so.6",
+    }
+
+
+def _task11_trace(*lines):
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _task11_isolated_exec(pid, *, flags=("-I", "-S", "-B")):
+    from validation import literature_evidence_isolation as isolation
+
+    argv = [
+        "/runtime/bin/python3",
+        *flags,
+        "-c",
+        isolation._task11_expected_bootstrap_source(),
+        "4",
+        "5",
+        "/retained/supervisor/host-canary-denied",
+    ]
+    return (
+        f'{pid} execve("/runtime/bin/python3", '
+        + json.dumps(argv, separators=(",", ":"))
+        + ", 0x0) = 0"
+    )
+
+
+def test_task11_strace_accepts_closed_absolute_and_dirfd_accesses():
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(700),
+        '700 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        '700 openat(AT_FDCWD, "/runtime", '
+        'O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3</runtime>',
+        '700 openat(3</runtime>, "lib/./module.py", '
+        'O_RDONLY|O_CLOEXEC) = 4</runtime/lib/module.py>',
+        '700 open("/adapter/scientific_capsule.py", O_RDONLY|O_CLOEXEC) '
+        '= 4</adapter/scientific_capsule.py>',
+        '700 openat(AT_FDCWD, "/output/result.json", '
+        'O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0600) '
+        '= 4</output/result.json>',
+        '700 +++ exited with 0 +++',
+    )
+
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+    assert type(report) is isolation.TracePolicyReport
+    assert report.passed is True
+    assert report.violations == ()
+    assert report.trace_sha256 == hashlib.sha256(trace).hexdigest()
+    paths = tuple(record["logical_path"] for record in report.attempted_accesses)
+    assert "/runtime/lib/module.py" in paths
+    assert "/input/request.json" in paths
+    assert "/output/result.json" in paths
+
+
+@pytest.mark.parametrize(
+    ("line", "kind"),
+    (
+        (
+            '701 open("/runtime-extra/secret", O_RDONLY) = -1 ENOENT '
+            '(No such file or directory)',
+            "file",
+        ),
+        ('701 socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = -1 EPERM', "network"),
+        (
+            '701 clone(child_stack=NULL, flags=SIGCHLD) = 702\n'
+            '702 +++ exited with 0 +++',
+            "process",
+        ),
+        (
+            '701 execve("/runtime/bin/python3", ["python3"], 0x0) = 0',
+            "process",
+        ),
+        (
+            '701 openat(9</output>, "../adapter/secret.py", O_RDONLY) '
+            '= -1 ENOENT (No such file or directory)',
+            "file",
+        ),
+        (
+            '701 openat(9</output>, "../adapter/scientific_capsule.py", '
+            'O_RDONLY) = 4</adapter/scientific_capsule.py>',
+            "file",
+        ),
+        (
+            '701 open("/runtime/native/libundeclared.so", O_RDONLY) '
+            '= -1 ENOENT (No such file or directory)',
+            "file",
+        ),
+        (
+            '701 symlink("/runtime/lib/module.py", "/output/result.json") '
+            '= -1 EEXIST (File exists)',
+            "file",
+        ),
+        (
+            '701 rename("/output/result.json", "/output/renamed.json") '
+            '= -1 ENOENT (No such file or directory)',
+            "file",
+        ),
+        (
+            '701 renameat(9</output>, "result.json", 9</output>, '
+            '"renamed.json") = -1 ENOENT (No such file or directory)',
+            "file",
+        ),
+        (
+            '701 symlinkat("/runtime/lib/module.py", 9</output>, '
+            '"result.json") = -1 EEXIST (File exists)',
+            "file",
+        ),
+    ),
+)
+def test_task11_strace_rejects_forbidden_attempts_even_when_failed(line, kind):
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(701),
+        '701 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        line,
+        '701 +++ exited with 0 +++',
+    )
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+    assert report.passed is False
+    assert report.violations
+    assert report.violations[0]["access_kind"] == kind
+
+
+@pytest.mark.parametrize(
+    "trace",
+    (
+        _task11_trace('702 open("/runtime/lib/modu"..., O_RDONLY) = 3'),
+        _task11_trace('702 open("/runtime/lib/module.py", O_RDONLY <unfinished ...>'),
+        _task11_trace('702 <... open resumed>) = 3</runtime/lib/module.py>'),
+        _task11_trace('702 mystery("/runtime/lib/module.py") = 0'),
+        b"702 open(\xff, O_RDONLY) = -1 EINVAL\n",
+        _task11_trace(
+            '702 clone(child_stack=NULL, flags=SIGCHLD) = 703',
+            '702 +++ exited with 0 +++',
+        ),
+    ),
+)
+def test_task11_strace_fails_closed_on_incomplete_or_unknown_syntax(trace):
+    from validation import literature_evidence_isolation as isolation
+
+    with pytest.raises(AdapterContractError, match="trace|strace|parse|PID|pid"):
+        isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+
+def test_task11_strace_rejects_isolated_exec_without_exact_flags():
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(706, flags=()),
+        '706 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        '706 +++ exited with 0 +++',
+    )
+
+    with pytest.raises(AdapterContractError, match="trace|exec|flag|argv"):
+        isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+
+def test_task11_strace_rejects_mismatched_successful_open_resolution():
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(707),
+        '707 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</outside/request.json>',
+        '707 +++ exited with 0 +++',
+    )
+
+    with pytest.raises(AdapterContractError, match="trace|resolved|path|open"):
+        isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+
+def test_task11_strace_normalizes_host_annotated_private_root_dirfd():
+    from validation import literature_evidence_isolation as isolation
+
+    private_root = "/retained/supervisor/private-root"
+    trace = _task11_trace(
+        _task11_isolated_exec(708),
+        '708 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        f'= 4<{private_root}/input/request.json>',
+        f'708 openat(3<{private_root}/runtime>, "lib/module.py", '
+        f'O_RDONLY|O_CLOEXEC) = 4<{private_root}/runtime/lib/module.py>',
+        '708 +++ exited with 0 +++',
+    )
+
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+    assert report.passed is True
+    assert report.attempted_accesses[-1]["logical_path"] == (
+        "/runtime/lib/module.py"
+    )
+
+
+def test_task11_strace_rejects_missing_file_syscall_arguments_as_contract_error():
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(709),
+        '709 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        '709 openat(AT_FDCWD) = -1 EINVAL (Invalid argument)',
+        '709 +++ exited with 1 +++',
+    )
+
+    with pytest.raises(AdapterContractError, match="strace|argument|path"):
+        isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+
+def test_task11_strace_reassembles_exact_unfinished_resumed_pair():
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(704),
+        '704 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        '704 open("/runtime/lib/module.py", O_RDONLY|O_CLOEXEC '
+        '<unfinished ...>',
+        '704 <... open resumed>) = 4</runtime/lib/module.py>',
+        '704 +++ exited with 0 +++',
+    )
+
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+    assert report.passed is True
+    assert report.attempted_accesses[-1]["logical_path"] == (
+        "/runtime/lib/module.py"
+    )
+
+
+@pytest.mark.parametrize("field", ("passed", "report_sha256", "violations"))
+def test_task11_trace_policy_report_rejects_semantic_or_hash_forgery(field):
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(705),
+        '705 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        '705 +++ exited with 0 +++',
+    )
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+    payload = {
+        item.name: getattr(report, item.name)
+        for item in dataclasses.fields(type(report))
+    }
+    if field == "passed":
+        payload[field] = False
+    elif field == "report_sha256":
+        payload[field] = "0" * 64
+    else:
+        payload[field] = report.attempted_accesses
+
+    with pytest.raises(AdapterContractError, match="trace|report|violation|hash"):
+        isolation.TracePolicyReport(**payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "forged_value"),
+    (
+        ("access_kind", "network"),
+        ("reason_code", "allowed_manifest_read"),
+        ("path_sha256", "0" * 64),
+    ),
+)
+def test_task11_trace_policy_report_rejects_forged_attempt_semantics(
+    field,
+    forged_value,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    trace = _task11_trace(
+        _task11_isolated_exec(710),
+        '710 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        '= 4</input/request.json>',
+        '710 +++ exited with 0 +++',
+    )
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+    payload = {
+        item.name: thaw_json(getattr(report, item.name))
+        for item in dataclasses.fields(type(report))
+    }
+    payload["attempted_accesses"][0][field] = forged_value
+    payload["attempted_accesses"] = tuple(payload["attempted_accesses"])
+    payload["violations"] = tuple(payload["violations"])
+    body = {
+        key: value
+        for key, value in payload.items()
+        if key != "report_sha256"
+    }
+    payload["report_sha256"] = canonical_sha256(body)
+
+    with pytest.raises(AdapterContractError, match="trace|record|path|reason"):
+        isolation.TracePolicyReport(**payload)
+
+
+def _task11_write_result(output, payload=None):
+    if payload is None:
+        payload = {
+            "adapter_id": "xxx_bethe_energy",
+            "capsule_sha256": "1" * 64,
+            "local_result": {"raw_value": 1.25},
+            "request_sha256": "2" * 64,
+            "schema_version": "worker_result_transport_v1",
+        }
+    result = Path(output) / "result.json"
+    descriptor = os.open(
+        result,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+        0o600,
+    )
+    content = canonical_json_bytes(payload)
+    try:
+        assert os.write(descriptor, content) == len(content)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    return result, content
+
+
+def test_task11_result_ingestion_reads_and_hashes_one_descriptor(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-success"
+    )
+    result_path, content = _task11_write_result(layout.worker_output_directory)
+    try:
+        ingested = isolation.ingest_worker_output(
+            layout, maximum_bytes=4096, declared_scratch=()
+        )
+    finally:
+        isolation._close_run_directories(layout)
+
+    assert result_path.read_bytes() == content
+    assert ingested["result_sha256"] == hashlib.sha256(content).hexdigest()
+    assert thaw_json(ingested["result"])["local_result"] == {
+        "raw_value": 1.25
+    }
+    assert ingested["scratch_entries"] == ()
+
+
+def test_task11_result_ingestion_rejects_path_replacement_after_fd_open(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-open-race"
+    )
+    output = Path(layout.worker_output_directory)
+    result_path, _content = _task11_write_result(output)
+    original_read = isolation.os.read
+    replaced = False
+
+    def replace_after_read(descriptor, size):
+        nonlocal replaced
+        chunk = original_read(descriptor, size)
+        if chunk and not replaced:
+            replaced = True
+            result_path.rename(Path(layout.run_directory) / "opened-result")
+            _task11_write_result(
+                output,
+                {
+                    "adapter_id": "xxx_bethe_energy",
+                    "capsule_sha256": "3" * 64,
+                    "local_result": {"raw_value": 9.5},
+                    "request_sha256": "4" * 64,
+                    "schema_version": "worker_result_transport_v1",
+                },
+            )
+        return chunk
+
+    monkeypatch.setattr(isolation.os, "read", replace_after_read)
+    try:
+        with pytest.raises(AdapterContractError, match="output|result|changed"):
+            isolation.ingest_worker_output(
+                layout, maximum_bytes=4096, declared_scratch=()
+            )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+def test_task11_result_ingestion_rejects_path_replacement_after_fd_read(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-post-read-race"
+    )
+    output = Path(layout.worker_output_directory)
+    result_path, _content = _task11_write_result(output)
+    original_reader = isolation._task11_read_output_file
+    replaced = False
+
+    def replace_after_read(*args, **kwargs):
+        nonlocal replaced
+        payload, status = original_reader(*args, **kwargs)
+        if kwargs.get("expected_mode") == 0o600 and not replaced:
+            replaced = True
+            result_path.rename(Path(layout.run_directory) / "read-result")
+            _task11_write_result(
+                output,
+                {
+                    "adapter_id": "xxx_bethe_energy",
+                    "capsule_sha256": "5" * 64,
+                    "local_result": {"raw_value": 7.5},
+                    "request_sha256": "6" * 64,
+                    "schema_version": "worker_result_transport_v1",
+                },
+            )
+        return payload, status
+
+    monkeypatch.setattr(
+        isolation, "_task11_read_output_file", replace_after_read
+    )
+    try:
+        with pytest.raises(AdapterContractError, match="output|result|changed"):
+            isolation.ingest_worker_output(
+                layout, maximum_bytes=4096, declared_scratch=()
+            )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+def test_task11_result_ingestion_binds_open_fd_to_directory_entry(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-entry-binding"
+    )
+    _task11_write_result(layout.worker_output_directory)
+    output_fd = layout.directory_fds["worker-output"]
+    original_stat = isolation.os.stat
+
+    def mismatched_entry(path, *args, **kwargs):
+        status = original_stat(path, *args, **kwargs)
+        if path == "result.json" and kwargs.get("dir_fd") == output_fd:
+            fields = list(status)
+            fields[stat.ST_INO] += 1
+            return os.stat_result(fields)
+        return status
+
+    monkeypatch.setattr(isolation.os, "stat", mismatched_entry)
+    try:
+        with pytest.raises(AdapterContractError, match="output|entry|identity"):
+            isolation.ingest_worker_output(
+                layout, maximum_bytes=4096, declared_scratch=()
+            )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+def test_task11_result_ingestion_rejects_wrong_owner(tmp_path, monkeypatch):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-wrong-owner"
+    )
+    _task11_write_result(layout.worker_output_directory)
+    original_fstat = isolation.os.fstat
+
+    def wrong_owner(descriptor):
+        status = original_fstat(descriptor)
+        if stat.S_ISREG(status.st_mode):
+            fields = list(status)
+            fields[stat.ST_UID] += 1
+            return os.stat_result(fields)
+        return status
+
+    monkeypatch.setattr(isolation.os, "fstat", wrong_owner)
+    try:
+        with pytest.raises(AdapterContractError, match="output|metadata|owner"):
+            isolation.ingest_worker_output(
+                layout, maximum_bytes=4096, declared_scratch=()
+            )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+def test_task11_result_ingestion_accepts_exact_file_and_empty_directory_scratch(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-scratch"
+    )
+    output = Path(layout.worker_output_directory)
+    _task11_write_result(output)
+    scratch_file = output / "scratch.bin"
+    scratch_file.write_bytes(b"scratch material")
+    scratch_file.chmod(0o600)
+    (output / "workspace").mkdir(mode=0o700)
+    declaration = (
+        {"basename": "scratch.bin", "kind": "regular"},
+        {"basename": "workspace", "kind": "directory"},
+    )
+    try:
+        ingested = isolation.ingest_worker_output(
+            layout, maximum_bytes=4096, declared_scratch=declaration
+        )
+    finally:
+        isolation._close_run_directories(layout)
+
+    assert thaw_json(ingested["scratch_entries"]) == [
+        {
+            "basename": "scratch.bin",
+            "kind": "regular",
+            "sha256": hashlib.sha256(b"scratch material").hexdigest(),
+            "size": len(b"scratch material"),
+        },
+        {
+            "basename": "workspace",
+            "kind": "directory",
+            "sha256": None,
+            "size": 0,
+        },
+    ]
+
+
+def test_task11_result_ingestion_rejects_nonempty_declared_scratch_directory(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-ingest-scratch-nonempty"
+    )
+    output = Path(layout.worker_output_directory)
+    _task11_write_result(output)
+    scratch = output / "workspace"
+    scratch.mkdir(mode=0o700)
+    (scratch / "undeclared.bin").write_bytes(b"not declared")
+    try:
+        with pytest.raises(AdapterContractError, match="scratch|directory|entry"):
+            isolation.ingest_worker_output(
+                layout,
+                maximum_bytes=4096,
+                declared_scratch=(
+                    {"basename": "workspace", "kind": "directory"},
+                ),
+            )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+@pytest.mark.parametrize(
+    "attack",
+    (
+        "symlink",
+        "hardlink",
+        "fifo",
+        "socket",
+        "directory",
+        "wrong_mode",
+        "oversized",
+        "extra",
+        "replaced_directory",
+    ),
+)
+def test_task11_output_substitution_is_rejected_without_blocking(
+    tmp_path,
+    attack,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    layout = isolation.create_run_directories(
+        scratch_parent=tmp_path, audit_run_id="task11-output-" + attack
+    )
+    output = Path(layout.worker_output_directory)
+    socket_handle = None
+    if attack == "symlink":
+        outside = tmp_path / "outside-result"
+        outside.write_bytes(b"{}")
+        os.symlink(outside, output / "result.json")
+    elif attack == "hardlink":
+        outside = tmp_path / "outside-result"
+        outside.write_bytes(b"{}")
+        os.link(outside, output / "result.json")
+    elif attack == "fifo":
+        os.mkfifo(output / "result.json", 0o600)
+    elif attack == "socket":
+        import socket
+
+        socket_handle = socket.socket(socket.AF_UNIX)
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(output)
+            socket_handle.bind("result.json")
+        finally:
+            os.chdir(original_cwd)
+    elif attack == "directory":
+        (output / "result.json").mkdir(mode=0o700)
+    elif attack == "wrong_mode":
+        result, _ = _task11_write_result(output)
+        result.chmod(0o644)
+    elif attack == "oversized":
+        descriptor = os.open(
+            output / "result.json",
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+            0o600,
+        )
+        try:
+            assert os.write(descriptor, b"x" * 4097) == 4097
+        finally:
+            os.close(descriptor)
+    elif attack == "extra":
+        _task11_write_result(output)
+        (output / "undeclared.bin").write_bytes(b"extra")
+    else:
+        _task11_write_result(output)
+        original = output
+        replacement = Path(layout.run_directory) / "replacement-output"
+        replacement.mkdir(mode=0o700)
+        original.rename(Path(layout.run_directory) / "moved-output")
+        replacement.rename(original)
+
+    try:
+        with pytest.raises(
+            AdapterContractError, match="output|result|directory|entry|file"
+        ):
+            isolation.ingest_worker_output(
+                layout, maximum_bytes=4096, declared_scratch=()
+            )
+    finally:
+        if socket_handle is not None:
+            socket_handle.close()
+        isolation._close_run_directories(layout)
+
+
+def _task11_attack_capsule(role, source):
+    return (
+        source
+        + "\n__literature_capsule_schema__ = 'scientific_capsule_v1'\n"
+        + "__literature_capsule_role__ = "
+        + repr(role)
+        + "\n__literature_scientific_entry__ = scientific_entry\n"
+    ).encode("utf-8")
+
+
+def _task11_execute_runtime_attack(
+    isolation,
+    root,
+    preflight,
+    snapshot,
+    definition,
+    *,
+    role,
+    attack_name,
+    source,
+    setup_output=None,
+):
+    layout = isolation.create_run_directories(
+        scratch_parent=root,
+        audit_run_id=f"task11-{role}-{attack_name}",
+    )
+    supervisor = Path(layout.supervisor_directory)
+    capsule_path = supervisor / "scientific_capsule.py"
+    worker_path = supervisor / "fixed_worker.py"
+    capsule = _task11_attack_capsule(role, source)
+    capsule_path.write_bytes(capsule)
+    worker_path.write_bytes(isolation.emit_fixed_worker())
+    request_path = isolation.write_worker_request_exclusive(
+        _task10_worker_request(hashlib.sha256(capsule).hexdigest()),
+        directory=Path(layout.input_directory),
+    )
+    if setup_output is not None:
+        setup_output(Path(layout.worker_output_directory))
+    manifest = isolation._build_private_root_mount_manifest(
+        layout,
+        snapshot,
+        capsule_path=capsule_path,
+        worker_path=worker_path,
+        request_path=request_path,
+    )
+    run_error = None
+    ingestion_error = None
+    ingested = None
+    try:
+        try:
+            isolation.run_namespace_supervisor(
+                layout,
+                snapshot,
+                definition.resource_limits,
+                preflight_report=preflight,
+                capsule_path=capsule_path,
+                worker_path=worker_path,
+                request_path=request_path,
+                audit_run_id=f"task11-{role}-{attack_name}",
+                point_id=f"task11-{role}-{attack_name}-point",
+                role=role,
+            )
+        except AdapterContractError as error:
+            run_error = error
+        trace_path = supervisor / "trace.log"
+        trace_bytes = trace_path.read_bytes()
+        trace_report = isolation.evaluate_strace(trace_bytes, manifest)
+        if (Path(layout.worker_output_directory) / "result.json").exists():
+            try:
+                ingested = isolation.ingest_worker_output(
+                    layout,
+                    maximum_bytes=definition.resource_limits.output_bytes,
+                    declared_scratch=(),
+                )
+            except AdapterContractError as error:
+                ingestion_error = error
+        return (
+            trace_report,
+            run_error,
+            ingested,
+            ingestion_error,
+            trace_bytes,
+            manifest,
+        )
+    finally:
+        isolation._close_run_directories(layout)
+
+
+def test_task11_runtime_attack_matrix_fails_closed_for_adapter_and_oracle(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    monkeypatch.setenv("TASK11_RUNTIME_SECRET", "must-not-cross")
+    preflight_parent = tmp_path / "preflight"
+    preflight_parent.mkdir()
+    preflight = isolation.run_capability_preflight(
+        scratch_parent=preflight_parent
+    )
+    assert preflight.available, thaw_json(preflight.probe_result_codes)
+    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    snapshot = isolation.build_runtime_snapshot(
+        definition.runtime_requirements,
+        run_directory=tmp_path / "runtime-run",
+        event_recorder=lambda event_name, details: None,
+    )
+    root = tmp_path / "attacks"
+    root.mkdir()
+    file_paths = {
+        "registry": "/registry/literature-results.json",
+        "canonical_spec": "/canonical-spec/models.json",
+        "evidence": "/evidence/adapter-run.json",
+        "source_cache": "/source-cache/paper-source.json",
+        "report": "/reports/literature-report.md",
+        "protected_wip": "/protected-wip/audit.md",
+        "parent": "/parent/authority.json",
+        "previous_output": "/previous-output/result.json",
+    }
+    scenarios = []
+    for name, path in file_paths.items():
+        scenarios.append(
+            (
+                "adapter",
+                name,
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                f"    with open({path!r}, 'rb') as handle:\n"
+                "        return {'raw_value': float(handle.read(1)[0])}\n",
+                None,
+                True,
+            )
+        )
+    scenarios.extend(
+        (
+            (
+                "adapter",
+                "environment",
+                "import os\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    return {'raw_value': float(os.environ["
+                "'TASK11_RUNTIME_SECRET'])}\n",
+                None,
+                False,
+            ),
+            (
+                "adapter",
+                "network",
+                "import ctypes\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    libc = ctypes.CDLL(None, use_errno=True)\n"
+                "    descriptor = libc.socket(2, 1, 0)\n"
+                "    if descriptor >= 0:\n"
+                "        libc.close(descriptor)\n"
+                "    return {'raw_value': 1.25}\n",
+                None,
+                True,
+            ),
+            (
+                "adapter",
+                "symlink_escape",
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    with open('/output/runtime-link', 'rb') as handle:\n"
+                "        return {'raw_value': float(len(handle.read(1)))}\n",
+                lambda output: os.symlink(
+                    "/runtime/lib/python3.9/os.py",
+                    output / "runtime-link",
+                ),
+                True,
+            ),
+            (
+                "adapter",
+                "dirfd_escape",
+                "import os\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    directory = os.open('/output', os.O_RDONLY)\n"
+                "    try:\n"
+                "        descriptor = os.open('../adapter/scientific_capsule.py', "
+                "os.O_RDONLY, dir_fd=directory)\n"
+                "        os.close(descriptor)\n"
+                "    finally:\n"
+                "        os.close(directory)\n"
+                "    return {'raw_value': 1.25}\n",
+                None,
+                True,
+            ),
+            (
+                "adapter",
+                "relative_escape",
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    with open('../adapter/scientific_capsule.py', 'rb') as handle:\n"
+                "        handle.read(1)\n"
+                "    return {'raw_value': 1.25}\n",
+                None,
+                True,
+            ),
+            (
+                "adapter",
+                "subprocess",
+                "import os\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    child = os.fork()\n"
+                "    if child == 0:\n"
+                "        os._exit(0)\n"
+                "    os.waitpid(child, 0)\n"
+                "    return {'raw_value': 1.25}\n",
+                None,
+                True,
+            ),
+            (
+                "adapter",
+                "native_library",
+                "import ctypes\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    ctypes.CDLL('/runtime/native/libundeclared.so')\n"
+                "    return {'raw_value': 1.25}\n",
+                None,
+                True,
+            ),
+        )
+    )
+    for name in ("registry", "report", "previous_output"):
+        path = file_paths[name]
+        scenarios.append(
+            (
+                "oracle",
+                name,
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                f"    with open({path!r}, 'rb') as handle:\n"
+                "        return {'raw_value': float(handle.read(1)[0])}\n",
+                None,
+                True,
+            )
+        )
+    scenarios.extend(
+        (
+            (
+                "oracle",
+                "environment",
+                "import os\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    return {'raw_value': float(os.environ["
+                "'TASK11_RUNTIME_SECRET'])}\n",
+                None,
+                False,
+            ),
+            (
+                "oracle",
+                "network",
+                "import ctypes\n"
+                "def scientific_entry(scientific_inputs, numerical_controls):\n"
+                "    libc = ctypes.CDLL(None, use_errno=True)\n"
+                "    descriptor = libc.socket(2, 1, 0)\n"
+                "    if descriptor >= 0:\n"
+                "        libc.close(descriptor)\n"
+                "    return {'raw_value': 1.25}\n",
+                None,
+                True,
+            ),
+        )
+    )
+
+    oracle_malformed_checked = False
+    try:
+        for role, name, source, setup_output, expect_trace_violation in scenarios:
+            (
+                report,
+                run_error,
+                ingested,
+                ingestion_error,
+                trace_bytes,
+                manifest,
+            ) = (
+                _task11_execute_runtime_attack(
+                    isolation,
+                    root,
+                    preflight,
+                    snapshot,
+                    definition,
+                    role=role,
+                    attack_name=name,
+                    source=source,
+                    setup_output=setup_output,
+                )
+            )
+            if role == "oracle" and not oracle_malformed_checked:
+                with pytest.raises(
+                    AdapterContractError, match="trace|strace|incomplete"
+                ):
+                    isolation.evaluate_strace(trace_bytes[:-1], manifest)
+                oracle_malformed_checked = True
+            if expect_trace_violation:
+                assert not report.passed, (role, name, report)
+                assert report.violations, (role, name)
+            else:
+                assert report.passed, (role, name, report.violations)
+                assert run_error is not None, (role, name, ingested)
+            assert not (
+                report.passed and run_error is None and ingestion_error is None
+            ), (role, name, ingested)
+        assert oracle_malformed_checked
+    finally:
+        snapshot.revalidate()

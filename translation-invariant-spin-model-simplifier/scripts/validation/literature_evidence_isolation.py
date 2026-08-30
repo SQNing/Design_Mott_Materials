@@ -21,6 +21,7 @@ import importlib.metadata as _importlib_metadata
 import json
 import math
 import os
+import posixpath
 from pathlib import Path, PurePath, PurePosixPath
 import re
 import shutil
@@ -109,6 +110,8 @@ __all__ = (
     "create_run_directories",
     "apply_tracee_security_policy",
     "run_namespace_supervisor",
+    "evaluate_strace",
+    "ingest_worker_output",
     "record_and_freeze_hashes",
     "acquire_run_seed",
     "derive_counterfactual_points",
@@ -3900,7 +3903,8 @@ def _fixed_worker_main():
     if (
         capsule_namespace.get("__literature_capsule_schema__")
         != "scientific_capsule_v1"
-        or capsule_namespace.get("__literature_capsule_role__") != "adapter"
+        or capsule_namespace.get("__literature_capsule_role__")
+        not in {"adapter", "oracle"}
         or not callable(
             capsule_namespace.get("__literature_scientific_entry__")
         )
@@ -4045,11 +4049,14 @@ try:
         worker_source += chunk
 finally:
     os.close(worker_fd)
-exec(
-    compile(worker_source, "/adapter/fixed_worker.py", "exec"),
-    worker_globals,
-    worker_globals,
-)
+try:
+    exec(
+        compile(worker_source, "/adapter/fixed_worker.py", "exec"),
+        worker_globals,
+        worker_globals,
+    )
+except BaseException:
+    os._exit(1)
 """
 
 
@@ -4596,6 +4603,7 @@ import json
 import os
 from pathlib import Path
 import select
+import stat
 import subprocess
 import sys
 
@@ -4724,7 +4732,7 @@ launcher_arguments = (
     str(host_canary),
 )
 trace_arguments = (
-    commands["strace"], "-f", "-s", "4096", "-yy",
+    commands["strace"], "-ff", "-s", "65535", "-yy",
     "-e", "trace=%file,%network,%process,getrandom,prctl,capget,capset",
     "-o", str(trace_path), "--", *launcher_arguments,
 )
@@ -4798,6 +4806,45 @@ except subprocess.TimeoutExpired:
     tracee.kill()
     stdout, stderr = tracee.communicate()
     raise RuntimeError("traced worker exceeded the wall limit")
+
+raw_trace_paths = sorted(supervisor.glob("trace.log.*"))
+if not raw_trace_paths:
+    raise RuntimeError("strace produced no per-PID logs")
+trace_bundle = bytearray()
+for raw_trace_path in raw_trace_paths:
+    suffix = raw_trace_path.name.rsplit(".", 1)[-1]
+    if not suffix.isdigit() or not suffix or suffix.startswith("0"):
+        raise RuntimeError("strace produced a malformed PID log name")
+    raw_status = raw_trace_path.lstat()
+    if (
+        not stat.S_ISREG(raw_status.st_mode)
+        or raw_status.st_nlink != 1
+        or stat.S_IMODE(raw_status.st_mode) != 0o600
+        or raw_status.st_size <= 0
+        or raw_status.st_size > 16 * 1024 * 1024
+    ):
+        raise RuntimeError("strace per-PID log metadata is rejected")
+    raw_trace = raw_trace_path.read_bytes()
+    if len(raw_trace) != raw_status.st_size or not raw_trace.endswith(b"\n"):
+        raise RuntimeError("strace per-PID log is incomplete")
+    prefix = suffix.encode("ascii") + b" "
+    for raw_line in raw_trace.splitlines(keepends=True):
+        trace_bundle.extend(prefix)
+        trace_bundle.extend(raw_line)
+        if len(trace_bundle) > 16 * 1024 * 1024:
+            raise RuntimeError("strace bundle is oversized")
+trace_fd = os.open(
+    trace_path,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+    0o600,
+)
+try:
+    offset = 0
+    while offset < len(trace_bundle):
+        offset += os.write(trace_fd, trace_bundle[offset:])
+    os.fsync(trace_fd)
+finally:
+    os.close(trace_fd)
 
 mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
 route_rows = Path("/proc/net/route").read_text(
@@ -5365,6 +5412,1204 @@ def _close_run_directories(layout):
             continue
         if (status.st_dev, status.st_ino) == expected:
             os.close(descriptor)
+
+
+def _task11_output_directory_status(layout):
+    if type(layout) is not _RunDirectories:
+        raise _ContractError("worker output requires an authentic layout")
+    try:
+        descriptor = layout.directory_fds["worker-output"]
+        expected_identity = tuple(
+            layout.directory_identities["worker-output"]
+        )
+        descriptor_status = os.fstat(descriptor)
+        path_status = Path(layout.worker_output_directory).lstat()
+    except (KeyError, OSError, TypeError) as error:
+        raise _ContractError("worker output directory is unavailable") from error
+    if (
+        not stat.S_ISDIR(descriptor_status.st_mode)
+        or stat.S_IMODE(descriptor_status.st_mode) != 0o700
+        or (descriptor_status.st_dev, descriptor_status.st_ino)
+        != expected_identity
+        or (path_status.st_dev, path_status.st_ino) != expected_identity
+        or not stat.S_ISDIR(path_status.st_mode)
+    ):
+        raise _ContractError("worker output directory identity changed")
+    return descriptor, descriptor_status
+
+
+def _task11_read_output_file(
+    directory_descriptor,
+    basename,
+    *,
+    directory_status,
+    maximum_bytes,
+    expected_mode,
+):
+    flags = (
+        os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    )
+    try:
+        descriptor = os.open(
+            basename,
+            flags,
+            dir_fd=directory_descriptor,
+        )
+    except OSError as error:
+        raise _ContractError("worker output file open failed") from error
+    try:
+        before = os.fstat(descriptor)
+        entry_before = os.stat(
+            basename,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or before.st_dev != directory_status.st_dev
+            or before.st_uid != directory_status.st_uid
+            or before.st_gid != directory_status.st_gid
+            or stat.S_IMODE(before.st_mode) != expected_mode
+            or before.st_size <= 0
+            or before.st_size > maximum_bytes
+            or (entry_before.st_dev, entry_before.st_ino)
+            != (before.st_dev, before.st_ino)
+        ):
+            raise _ContractError("worker output file metadata is rejected")
+        chunks = []
+        total = 0
+        while True:
+            chunk = os.read(
+                descriptor,
+                min(1024 * 1024, maximum_bytes + 1 - total),
+            )
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > maximum_bytes:
+                raise _ContractError("worker output file is oversized")
+        after = os.fstat(descriptor)
+        entry_after = os.stat(
+            basename,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_nlink,
+            before.st_size,
+            before.st_mode,
+            before.st_uid,
+            before.st_gid,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_nlink,
+            after.st_size,
+            after.st_mode,
+            after.st_uid,
+            after.st_gid,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        payload = b"".join(chunks)
+        entry_identity_before = (
+            entry_before.st_dev,
+            entry_before.st_ino,
+            entry_before.st_mode,
+            entry_before.st_uid,
+            entry_before.st_gid,
+            entry_before.st_size,
+            entry_before.st_mtime_ns,
+            entry_before.st_ctime_ns,
+        )
+        entry_identity_after = (
+            entry_after.st_dev,
+            entry_after.st_ino,
+            entry_after.st_mode,
+            entry_after.st_uid,
+            entry_after.st_gid,
+            entry_after.st_size,
+            entry_after.st_mtime_ns,
+            entry_after.st_ctime_ns,
+        )
+        if (
+            identity_after != identity_before
+            or entry_identity_before != identity_before[:2]
+            + identity_before[4:7]
+            + identity_before[3:4]
+            + identity_before[7:]
+            or entry_identity_after != entry_identity_before
+            or len(payload) != before.st_size
+        ):
+            raise _ContractError("worker output file changed while reading")
+        return payload, before
+    except OSError as error:
+        raise _ContractError("worker output file read failed") from error
+    finally:
+        os.close(descriptor)
+
+
+def _task11_validate_scratch_directory(
+    directory_descriptor,
+    basename,
+    *,
+    directory_status,
+):
+    flags = (
+        os.O_RDONLY
+        | os.O_NOFOLLOW
+        | os.O_NONBLOCK
+        | os.O_CLOEXEC
+        | os.O_DIRECTORY
+    )
+    try:
+        descriptor = os.open(basename, flags, dir_fd=directory_descriptor)
+    except OSError as error:
+        raise _ContractError("declared scratch directory open failed") from error
+    try:
+        before = os.fstat(descriptor)
+        entry_before = os.stat(
+            basename,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            not stat.S_ISDIR(before.st_mode)
+            or before.st_dev != directory_status.st_dev
+            or before.st_uid != directory_status.st_uid
+            or before.st_gid != directory_status.st_gid
+            or stat.S_IMODE(before.st_mode) != 0o700
+            or (entry_before.st_dev, entry_before.st_ino)
+            != (before.st_dev, before.st_ino)
+            or tuple(os.listdir(descriptor))
+        ):
+            raise _ContractError("declared scratch directory is rejected")
+        after = os.fstat(descriptor)
+        entry_after = os.stat(
+            basename,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_mode,
+            before.st_uid,
+            before.st_gid,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_uid,
+            after.st_gid,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        entry_identity = (
+            entry_after.st_dev,
+            entry_after.st_ino,
+            entry_after.st_mode,
+            entry_after.st_uid,
+            entry_after.st_gid,
+            entry_after.st_mtime_ns,
+            entry_after.st_ctime_ns,
+        )
+        if (
+            identity_after != identity_before
+            or entry_identity != identity_before
+            or tuple(os.listdir(descriptor))
+        ):
+            raise _ContractError("declared scratch directory changed")
+        return before
+    except OSError as error:
+        raise _ContractError("declared scratch directory audit failed") from error
+    finally:
+        os.close(descriptor)
+
+
+def ingest_worker_output(layout, *, maximum_bytes, declared_scratch=()):
+    """Ingest one canonical result through the retained output dirfd."""
+
+    limit = _require_nonnegative_integer(maximum_bytes, "maximum_bytes")
+    if limit == 0:
+        raise _ContractError("maximum_bytes must be positive")
+    scratch_declarations = _require_exact_tuple(
+        declared_scratch, "declared_scratch"
+    )
+    normalized_scratch = []
+    for index, value in enumerate(scratch_declarations):
+        declaration = _exact_keys(
+            value,
+            ("basename", "kind"),
+            f"declared_scratch[{index}]",
+        )
+        name = declaration["basename"]
+        if (
+            type(name) is not str
+            or not name
+            or len(name.encode("utf-8")) > 255
+            or "\x00" in name
+            or name == "result.json"
+            or "/" in name
+            or name in {".", ".."}
+        ):
+            raise _ContractError("declared scratch basename is forbidden")
+        kind = declaration["kind"]
+        if kind not in {"regular", "directory"}:
+            raise _ContractError("declared scratch kind is unknown")
+        normalized_scratch.append((name, kind))
+    scratch_names = tuple(name for name, _kind in normalized_scratch)
+    if len(set(scratch_names)) != len(scratch_names):
+        raise _ContractError("declared scratch basename is duplicated")
+
+    directory_descriptor, directory_status = (
+        _task11_output_directory_status(layout)
+    )
+    try:
+        entries_before = tuple(sorted(os.listdir(directory_descriptor)))
+    except OSError as error:
+        raise _ContractError("worker output entries are unavailable") from error
+    expected_entries = tuple(sorted(("result.json", *scratch_names)))
+    if entries_before != expected_entries:
+        raise _ContractError("worker output entry set is not exact")
+
+    result_bytes, _result_status = _task11_read_output_file(
+        directory_descriptor,
+        "result.json",
+        directory_status=directory_status,
+        maximum_bytes=limit,
+        expected_mode=0o600,
+    )
+    try:
+        result_text = result_bytes.decode("utf-8", "strict")
+        parsed = json.loads(result_text)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise _ContractError("worker result JSON is malformed") from error
+    result = _exact_keys(
+        parsed,
+        (
+            "schema_version",
+            "adapter_id",
+            "request_sha256",
+            "capsule_sha256",
+            "local_result",
+        ),
+        "worker result transport",
+    )
+    if result["schema_version"] != "worker_result_transport_v1":
+        raise _ContractError("worker result schema is unknown")
+    _identifier(result["adapter_id"], "adapter_id")
+    _require_sha256(result["request_sha256"], "request_sha256")
+    _require_sha256(result["capsule_sha256"], "capsule_sha256")
+    _snapshot_json(result["local_result"], "local_result")
+    if _canonical_bytes(result) != result_bytes:
+        raise _ContractError("worker result is not canonical JSON")
+
+    scratch_records = []
+    regular_snapshots = {"result.json": result_bytes}
+    directory_snapshots = {}
+    for scratch_name, scratch_kind in normalized_scratch:
+        if scratch_kind == "regular":
+            scratch_bytes, scratch_status = _task11_read_output_file(
+                directory_descriptor,
+                scratch_name,
+                directory_status=directory_status,
+                maximum_bytes=limit,
+                expected_mode=0o600,
+            )
+            scratch_size = scratch_status.st_size
+            scratch_sha256 = hashlib.sha256(scratch_bytes).hexdigest()
+            regular_snapshots[scratch_name] = scratch_bytes
+        else:
+            scratch_status = _task11_validate_scratch_directory(
+                directory_descriptor,
+                scratch_name,
+                directory_status=directory_status,
+            )
+            scratch_size = 0
+            scratch_sha256 = None
+            directory_snapshots[scratch_name] = (
+                scratch_status.st_dev,
+                scratch_status.st_ino,
+                scratch_status.st_mode,
+                scratch_status.st_uid,
+                scratch_status.st_gid,
+                scratch_status.st_mtime_ns,
+                scratch_status.st_ctime_ns,
+            )
+        scratch_records.append(
+            {
+                "basename": scratch_name,
+                "kind": scratch_kind,
+                "size": scratch_size,
+                "sha256": scratch_sha256,
+            }
+        )
+
+    final_descriptor, final_status = _task11_output_directory_status(layout)
+    if final_descriptor != directory_descriptor:
+        raise _ContractError("worker output directory descriptor changed")
+    try:
+        entries_after = tuple(sorted(os.listdir(directory_descriptor)))
+    except OSError as error:
+        raise _ContractError("worker output entries are unavailable") from error
+    if (
+        entries_after != entries_before
+        or (final_status.st_dev, final_status.st_ino)
+        != (directory_status.st_dev, directory_status.st_ino)
+    ):
+        raise _ContractError("worker output changed during ingestion")
+    for basename, expected_bytes in regular_snapshots.items():
+        final_bytes, _final_file_status = _task11_read_output_file(
+            directory_descriptor,
+            basename,
+            directory_status=directory_status,
+            maximum_bytes=limit,
+            expected_mode=0o600,
+        )
+        if final_bytes != expected_bytes:
+            raise _ContractError("worker output file changed after ingestion")
+    for basename, expected_identity in directory_snapshots.items():
+        final_scratch_status = _task11_validate_scratch_directory(
+            directory_descriptor,
+            basename,
+            directory_status=directory_status,
+        )
+        final_identity = (
+            final_scratch_status.st_dev,
+            final_scratch_status.st_ino,
+            final_scratch_status.st_mode,
+            final_scratch_status.st_uid,
+            final_scratch_status.st_gid,
+            final_scratch_status.st_mtime_ns,
+            final_scratch_status.st_ctime_ns,
+        )
+        if final_identity != expected_identity:
+            raise _ContractError(
+                "declared scratch directory changed after ingestion"
+            )
+    final_descriptor, final_status = _task11_output_directory_status(layout)
+    try:
+        final_entries = tuple(sorted(os.listdir(final_descriptor)))
+    except OSError as error:
+        raise _ContractError("worker output entries are unavailable") from error
+    if (
+        final_descriptor != directory_descriptor
+        or final_entries != entries_before
+        or (final_status.st_dev, final_status.st_ino)
+        != (directory_status.st_dev, directory_status.st_ino)
+    ):
+        raise _ContractError("worker output changed after final ingestion audit")
+    return _snapshot_json(
+        {
+            "result": result,
+            "result_sha256": hashlib.sha256(result_bytes).hexdigest(),
+            "scratch_entries": tuple(scratch_records),
+        },
+        "ingested worker output",
+    )
+
+
+_TASK11_TRACE_BYTES_LIMIT = 16 * 1024 * 1024
+_TASK11_TRACE_LINE_LIMIT = 65536
+_TASK11_TRACE_RECORD_LIMIT = 65536
+_TASK11_FILE_SYSCALLS = frozenset(
+    {
+        "access",
+        "faccessat",
+        "faccessat2",
+        "open",
+        "openat",
+        "stat",
+        "lstat",
+        "newfstatat",
+        "readlink",
+        "readlinkat",
+        "unlink",
+        "unlinkat",
+        "rename",
+        "renameat",
+        "renameat2",
+        "link",
+        "linkat",
+        "symlink",
+        "symlinkat",
+        "mkdir",
+        "mkdirat",
+        "rmdir",
+        "chmod",
+        "fchmodat",
+        "chown",
+        "lchown",
+        "fchownat",
+        "truncate",
+        "utime",
+        "utimes",
+        "utimensat",
+    }
+)
+_TASK11_NETWORK_SYSCALLS = frozenset(
+    {
+        "socket",
+        "socketpair",
+        "connect",
+        "bind",
+        "listen",
+        "accept",
+        "accept4",
+        "sendto",
+        "recvfrom",
+        "sendmsg",
+        "recvmsg",
+        "shutdown",
+        "getsockname",
+        "getpeername",
+        "setsockopt",
+        "getsockopt",
+    }
+)
+_TASK11_PROCESS_SYSCALLS = frozenset(
+    {"clone", "clone3", "fork", "vfork", "execve", "execveat"}
+)
+_TASK11_IGNORED_SYSCALLS = frozenset(
+    {
+        "arch_prctl",
+        "capget",
+        "capset",
+        "chdir",
+        "chroot",
+        "exit",
+        "exit_group",
+        "getcwd",
+        "prctl",
+    }
+)
+_TASK11_WRITE_FILE_SYSCALLS = frozenset(
+    {
+        "unlink",
+        "unlinkat",
+        "rename",
+        "renameat",
+        "renameat2",
+        "link",
+        "linkat",
+        "symlink",
+        "symlinkat",
+        "mkdir",
+        "mkdirat",
+        "rmdir",
+        "chmod",
+        "fchmodat",
+        "chown",
+        "lchown",
+        "fchownat",
+        "truncate",
+        "utime",
+        "utimes",
+        "utimensat",
+    }
+)
+_TASK11_TRACE_ACCESS_KEYS = (
+    "sequence",
+    "pid",
+    "syscall",
+    "access_kind",
+    "operation",
+    "logical_path",
+    "path_sha256",
+    "succeeded",
+    "allowed",
+    "reason_code",
+)
+_TASK11_ALLOWED_REASON_CODES = frozenset(
+    {
+        "allowed_output_write",
+        "allowed_request_read",
+        "allowed_manifest_read",
+        "allowed_runtime_lookup_miss",
+    }
+)
+_TASK11_DENIED_REASON_CODES = frozenset(
+    {
+        "post_launch_exec",
+        "post_launch_process_creation",
+        "network_forbidden",
+        "entropy_forbidden",
+        "parent_traversal_forbidden",
+        "undeclared_write",
+        "undeclared_native_library",
+        "undeclared_read",
+        "resolved_path_changed",
+    }
+)
+
+
+def _task11_validate_access_record_semantics(record):
+    syscall_name = record["syscall"]
+    if syscall_name in _TASK11_FILE_SYSCALLS:
+        expected_kind = "file"
+    elif syscall_name in _TASK11_NETWORK_SYSCALLS:
+        expected_kind = "network"
+    elif syscall_name == "getrandom":
+        expected_kind = "entropy"
+    elif syscall_name in _TASK11_PROCESS_SYSCALLS:
+        expected_kind = "process"
+    else:
+        raise _ContractError("trace record syscall class is unknown")
+    if record["access_kind"] != expected_kind:
+        raise _ContractError("trace record syscall kind is contradictory")
+
+    if expected_kind in {"network", "entropy"}:
+        expected_operation = "attempt"
+    elif expected_kind == "process":
+        expected_operation = (
+            "execute"
+            if syscall_name in {"execve", "execveat"}
+            else "create"
+        )
+    else:
+        expected_operation = record["operation"]
+        if expected_operation not in {"read", "write"}:
+            raise _ContractError("trace file operation is unknown")
+    if record["operation"] != expected_operation:
+        raise _ContractError("trace record operation is contradictory")
+
+    reason_code = record["reason_code"]
+    expected_allowed = reason_code in _TASK11_ALLOWED_REASON_CODES
+    if (
+        reason_code
+        not in _TASK11_ALLOWED_REASON_CODES | _TASK11_DENIED_REASON_CODES
+        or record["allowed"] is not expected_allowed
+    ):
+        raise _ContractError("trace record reason is contradictory")
+    if (
+        (expected_kind == "network" and reason_code != "network_forbidden")
+        or (expected_kind == "entropy" and reason_code != "entropy_forbidden")
+        or (
+            expected_kind == "process"
+            and record["operation"] == "execute"
+            and reason_code != "post_launch_exec"
+        )
+        or (
+            expected_kind == "process"
+            and record["operation"] == "create"
+            and reason_code != "post_launch_process_creation"
+        )
+        or (
+            expected_kind == "file"
+            and reason_code
+            in {
+                "network_forbidden",
+                "entropy_forbidden",
+                "post_launch_exec",
+                "post_launch_process_creation",
+            }
+        )
+    ):
+        raise _ContractError("trace record reason class is contradictory")
+    logical_path = record["logical_path"]
+    if logical_path.startswith("/"):
+        expected_path_sha256 = hashlib.sha256(
+            logical_path.encode("utf-8")
+        ).hexdigest()
+        if record["path_sha256"] != expected_path_sha256:
+            raise _ContractError("trace record path hash is contradictory")
+    elif expected_kind == "network" or expected_kind == "entropy":
+        if record["path_sha256"] != hashlib.sha256(
+            syscall_name.encode("utf-8")
+        ).hexdigest():
+            raise _ContractError("trace record operation hash is contradictory")
+    elif expected_kind == "process" and record["operation"] == "create":
+        if (
+            logical_path != "<process>"
+            or record["path_sha256"]
+            != hashlib.sha256(b"<process>").hexdigest()
+        ):
+            raise _ContractError("trace process record is contradictory")
+
+    if reason_code == "allowed_request_read" and (
+        logical_path != "/input/request.json"
+        or record["operation"] != "read"
+    ):
+        raise _ContractError("trace request-read reason is contradictory")
+    if reason_code == "allowed_output_write" and (
+        logical_path != "/output/result.json"
+        or record["operation"] != "write"
+        or syscall_name not in {"open", "openat"}
+    ):
+        raise _ContractError("trace output-write reason is contradictory")
+    if reason_code == "allowed_runtime_lookup_miss" and (
+        not logical_path.startswith("/runtime/")
+        or record["operation"] != "read"
+        or record["succeeded"] is not False
+    ):
+        raise _ContractError("trace runtime-miss reason is contradictory")
+    if reason_code == "allowed_manifest_read" and (
+        expected_kind != "file"
+        or record["operation"] != "read"
+        or logical_path == "/input/request.json"
+        or not any(
+            logical_path == root or logical_path.startswith(root + "/")
+            for root in ("/runtime", "/adapter", "/input", "/output")
+        )
+    ):
+        raise _ContractError("trace manifest-read reason is contradictory")
+
+
+def _task11_split_trace_arguments(value):
+    arguments = []
+    start = 0
+    depth = 0
+    quote = False
+    escaped = False
+    for index, character in enumerate(value):
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quote = False
+            continue
+        if character == '"':
+            quote = True
+        elif character in "([{":
+            depth += 1
+        elif character in ")]}":
+            depth -= 1
+            if depth < 0:
+                raise _ContractError("strace argument nesting is malformed")
+        elif character == "," and depth == 0:
+            arguments.append(value[start:index].strip())
+            start = index + 1
+    if quote or escaped or depth != 0:
+        raise _ContractError("strace argument syntax is incomplete")
+    arguments.append(value[start:].strip())
+    return tuple(arguments)
+
+
+def _task11_trace_string(value, field_name):
+    if not value.startswith('"'):
+        raise _ContractError(f"strace {field_name} is not a quoted path")
+    if value.endswith("...") or re.search(r'"\.\.\.(?:,|$)', value):
+        raise _ContractError(f"strace {field_name} is truncated")
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise _ContractError(f"strace {field_name} is malformed") from error
+    if type(decoded) is not str or "\x00" in decoded:
+        raise _ContractError(f"strace {field_name} is malformed")
+    return decoded
+
+
+def _task11_normalize_logical_path(path):
+    if type(path) is not str or not path.startswith("/") or "\x00" in path:
+        raise _ContractError("strace path is not absolute after resolution")
+    normalized = posixpath.normpath(path)
+    if not normalized.startswith("/"):
+        raise _ContractError("strace path normalization escaped root")
+    return normalized
+
+
+def _task11_dirfd_path(value):
+    if value == "AT_FDCWD":
+        return "/"
+    match = re.fullmatch(r"[0-9]+<([^<>]+)>", value)
+    if match is None:
+        raise _ContractError("strace directory FD is unresolved")
+    normalized = _task11_normalize_logical_path(match.group(1))
+    marker = "/supervisor/private-root"
+    marker_index = normalized.rfind(marker)
+    if marker_index >= 0:
+        logical_path = normalized[marker_index + len(marker):]
+        return logical_path or "/"
+    return normalized
+
+
+def _task11_resolve_trace_path(raw_path, dirfd=None):
+    if raw_path.startswith("/"):
+        return _task11_normalize_logical_path(raw_path)
+    base = "/" if dirfd is None else _task11_dirfd_path(dirfd)
+    return _task11_normalize_logical_path(posixpath.join(base, raw_path))
+
+
+def _task11_file_paths(syscall_name, arguments):
+    if syscall_name in {"open", "access", "stat", "lstat", "readlink",
+                        "unlink", "mkdir", "rmdir", "chmod", "chown",
+                        "lchown", "truncate", "utime", "utimes"}:
+        return (
+            _task11_resolve_trace_path(
+                _task11_trace_string(arguments[0], "path")
+            ),
+        )
+    if syscall_name in {"openat", "faccessat", "faccessat2", "newfstatat",
+                        "readlinkat", "unlinkat", "mkdirat", "fchmodat",
+                        "fchownat", "utimensat"}:
+        return (
+            _task11_resolve_trace_path(
+                _task11_trace_string(arguments[1], "path"), arguments[0]
+            ),
+        )
+    if syscall_name in {"rename", "link"}:
+        return tuple(
+            _task11_resolve_trace_path(
+                _task11_trace_string(arguments[index], "path")
+            )
+            for index in (0, 1)
+        )
+    if syscall_name in {"renameat", "renameat2", "linkat"}:
+        return tuple(
+            _task11_resolve_trace_path(
+                _task11_trace_string(arguments[path_index], "path"),
+                arguments[fd_index],
+            )
+            for fd_index, path_index in ((0, 1), (2, 3))
+        )
+    if syscall_name == "symlink":
+        return (
+            _task11_resolve_trace_path(
+                _task11_trace_string(arguments[1], "path")
+            ),
+        )
+    if syscall_name == "symlinkat":
+        return (
+            _task11_resolve_trace_path(
+                _task11_trace_string(arguments[2], "path"), arguments[1]
+            ),
+        )
+    raise _ContractError("strace file syscall is unsupported")
+
+
+def _task11_trace_operation(syscall_name, arguments):
+    if syscall_name in _TASK11_WRITE_FILE_SYSCALLS:
+        return "write"
+    if syscall_name in {"open", "openat"}:
+        flags_index = 1 if syscall_name == "open" else 2
+        if len(arguments) <= flags_index:
+            raise _ContractError("strace open flags are missing")
+        flags = arguments[flags_index]
+        if any(
+            marker in flags
+            for marker in (
+                "O_WRONLY",
+                "O_RDWR",
+                "O_CREAT",
+                "O_TRUNC",
+                "O_APPEND",
+                "O_TMPFILE",
+            )
+        ):
+            return "write"
+    return "read"
+
+
+def _task11_trace_has_parent_traversal(arguments):
+    for argument in arguments:
+        if not argument.startswith('"'):
+            continue
+        try:
+            value = json.loads(argument)
+        except json.JSONDecodeError:
+            continue
+        if type(value) is str and ".." in PurePosixPath(value).parts:
+            return True
+    return False
+
+
+def _task11_path_class(path):
+    for root in ("/runtime", "/adapter", "/input", "/output"):
+        if path == root or path.startswith(root + "/"):
+            return path
+    return "<outside-private-root>"
+
+
+def _task11_access_decision(
+    path,
+    operation,
+    succeeded,
+    manifest_paths,
+    manifest_directories,
+    *,
+    syscall_name,
+    parent_traversal,
+):
+    if parent_traversal:
+        return False, "parent_traversal_forbidden"
+    if operation == "write":
+        if (
+            path == "/output/result.json"
+            and syscall_name in {"open", "openat"}
+        ):
+            return True, "allowed_output_write"
+        return False, "undeclared_write"
+    if path == "/input/request.json":
+        return True, "allowed_request_read"
+    if path in manifest_paths or path in manifest_directories:
+        return True, "allowed_manifest_read"
+    if path == "/runtime" or path.startswith("/runtime/"):
+        if not succeeded:
+            basename = PurePosixPath(path).name
+            if basename.startswith("lib") and ".so" in basename:
+                return False, "undeclared_native_library"
+            return True, "allowed_runtime_lookup_miss"
+    return False, "undeclared_read"
+
+
+def _task11_complete_trace_lines(text):
+    completed = []
+    unfinished = {}
+    for raw_line in text.splitlines():
+        if not raw_line or len(raw_line.encode("utf-8")) > _TASK11_TRACE_LINE_LIMIT:
+            raise _ContractError("strace line is empty or oversized")
+        unfinished_match = re.fullmatch(
+            r"([1-9][0-9]*) ([a-z][a-z0-9_]*)\((.*) <unfinished \.\.\.>",
+            raw_line,
+        )
+        if unfinished_match is not None:
+            pid = int(unfinished_match.group(1))
+            if pid in unfinished:
+                raise _ContractError("strace PID has nested unfinished calls")
+            unfinished[pid] = (
+                unfinished_match.group(2),
+                unfinished_match.group(2) + "(" + unfinished_match.group(3),
+            )
+            continue
+        resumed_match = re.fullmatch(
+            r"([1-9][0-9]*) <\.\.\. ([a-z][a-z0-9_]*) resumed>(.*)",
+            raw_line,
+        )
+        if resumed_match is not None:
+            pid = int(resumed_match.group(1))
+            pending = unfinished.pop(pid, None)
+            if pending is None or pending[0] != resumed_match.group(2):
+                raise _ContractError("strace continuation pair is malformed")
+            completed.append(
+                f"{pid} {pending[1]}{resumed_match.group(3)}"
+            )
+            continue
+        completed.append(raw_line)
+    if unfinished:
+        raise _ContractError("strace has unfinished syscalls")
+    return tuple(completed)
+
+
+def _task11_expected_bootstrap_source():
+    try:
+        launcher_tree = ast.parse(
+            emit_tracee_launcher().decode("utf-8", "strict")
+        )
+    except (SyntaxError, UnicodeDecodeError) as error:
+        raise _ContractError("fixed tracee launcher source is malformed") from error
+    candidates = []
+    for node in launcher_tree.body:
+        if (
+            type(node) is ast.Assign
+            and len(node.targets) == 1
+            and type(node.targets[0]) is ast.Name
+            and node.targets[0].id == "_BOOTSTRAP"
+            and type(node.value) is ast.Constant
+            and type(node.value.value) is str
+        ):
+            candidates.append(node.value.value)
+    if len(candidates) != 1 or not candidates[0]:
+        raise _ContractError("fixed tracee bootstrap source is not exact")
+    return candidates[0]
+
+
+def evaluate_strace(trace_bytes, mount_manifest):
+    """Parse one complete followed-process trace and enforce access policy."""
+
+    if (
+        type(trace_bytes) is not bytes
+        or not trace_bytes
+        or len(trace_bytes) > _TASK11_TRACE_BYTES_LIMIT
+        or not trace_bytes.endswith(b"\n")
+    ):
+        raise _ContractError("strace bytes are missing, oversized, or incomplete")
+    trace_sha256 = hashlib.sha256(trace_bytes).hexdigest()
+    try:
+        text = trace_bytes.decode("utf-8", "strict")
+    except UnicodeDecodeError as error:
+        raise _ContractError("strace is not strict UTF-8") from error
+    if "\x00" in text:
+        raise _ContractError("strace contains NUL")
+    lines = _task11_complete_trace_lines(text)
+    if not lines or len(lines) > _TASK11_TRACE_RECORD_LIMIT:
+        raise _ContractError("strace record count is invalid")
+
+    manifest = _task10_validate_mount_manifest(mount_manifest)
+    manifest_paths = {
+        row["logical_path"] for row in manifest["mounts"]
+    }
+    manifest_directories = {"/runtime", "/adapter", "/input", "/output"}
+    for path in manifest_paths:
+        parent = PurePosixPath(path).parent
+        while str(parent) != ".":
+            manifest_directories.add(str(parent))
+            if str(parent) == "/":
+                break
+            parent = parent.parent
+
+    seen_pids = set()
+    exited_pids = set()
+    child_pids = set()
+    isolated_pid = None
+    resolved_private_root = None
+    request_seen = False
+    attempts = []
+    violations = []
+    sequence = 0
+    for line in lines:
+        exit_match = re.fullmatch(
+            r"([1-9][0-9]*) \+\+\+ exited with ([0-9]+) \+\+\+",
+            line,
+        )
+        if exit_match is not None:
+            pid = int(exit_match.group(1))
+            seen_pids.add(pid)
+            exited_pids.add(pid)
+            continue
+        if re.fullmatch(r"[1-9][0-9]* --- [A-Z0-9]+ .* ---", line):
+            continue
+        match = re.fullmatch(
+            r"([1-9][0-9]*) ([a-z][a-z0-9_]*)\((.*)\) += (.+)",
+            line,
+        )
+        if match is None:
+            raise _ContractError("strace line has an unknown form")
+        pid = int(match.group(1))
+        syscall_name = match.group(2)
+        arguments = _task11_split_trace_arguments(match.group(3))
+        result = match.group(4)
+        succeeded = not result.startswith("-1 ")
+        seen_pids.add(pid)
+
+        if syscall_name == "execve":
+            if not arguments:
+                raise _ContractError("strace execve path is missing")
+            exec_path = _task11_trace_string(arguments[0], "execve path")
+            if exec_path == manifest["runtime_interpreter_path"]:
+                if isolated_pid is None:
+                    if not succeeded or len(arguments) != 3:
+                        raise _ContractError(
+                            "strace isolated exec is incomplete"
+                        )
+                    try:
+                        exec_argv = json.loads(arguments[1])
+                    except json.JSONDecodeError as error:
+                        raise _ContractError(
+                            "strace isolated exec argv is malformed"
+                        ) from error
+                    if (
+                        type(exec_argv) is not list
+                        or len(exec_argv) != 9
+                        or exec_argv[:5]
+                        != [exec_path, "-I", "-S", "-B", "-c"]
+                        or exec_argv[5]
+                        != _task11_expected_bootstrap_source()
+                        or any(
+                            type(value) is not str
+                            or not value.isdecimal()
+                            or int(value) < 3
+                            for value in exec_argv[6:8]
+                        )
+                        or exec_argv[6] == exec_argv[7]
+                        or type(exec_argv[8]) is not str
+                        or not exec_argv[8].startswith("/")
+                        or PurePosixPath(exec_argv[8]).name
+                        != "host-canary-denied"
+                        or posixpath.normpath(exec_argv[8]) != exec_argv[8]
+                    ):
+                        raise _ContractError(
+                            "strace isolated exec flags are not exact"
+                        )
+                    isolated_pid = pid
+                    continue
+                access_allowed = False
+                reason_code = "post_launch_exec"
+            elif isolated_pid is None:
+                continue
+            else:
+                access_allowed = False
+                reason_code = "post_launch_exec"
+            record = {
+                "sequence": sequence,
+                "pid": pid,
+                "syscall": syscall_name,
+                "access_kind": "process",
+                "operation": "execute",
+                "logical_path": _task11_path_class(exec_path),
+                "path_sha256": hashlib.sha256(exec_path.encode()).hexdigest(),
+                "succeeded": succeeded,
+                "allowed": access_allowed,
+                "reason_code": reason_code,
+            }
+            sequence += 1
+            attempts.append(record)
+            violations.append(record)
+            continue
+
+        if syscall_name in {"clone", "clone3", "fork", "vfork"}:
+            child_match = re.match(r"([1-9][0-9]*)(?:<.*>)?$", result)
+            if child_match is not None:
+                child_pids.add(int(child_match.group(1)))
+            if isolated_pid is None:
+                continue
+            record = {
+                "sequence": sequence,
+                "pid": pid,
+                "syscall": syscall_name,
+                "access_kind": "process",
+                "operation": "create",
+                "logical_path": "<process>",
+                "path_sha256": hashlib.sha256(b"<process>").hexdigest(),
+                "succeeded": succeeded,
+                "allowed": False,
+                "reason_code": "post_launch_process_creation",
+            }
+            sequence += 1
+            attempts.append(record)
+            violations.append(record)
+            continue
+
+        if syscall_name in _TASK11_NETWORK_SYSCALLS or syscall_name == "getrandom":
+            if isolated_pid is None:
+                continue
+            record = {
+                "sequence": sequence,
+                "pid": pid,
+                "syscall": syscall_name,
+                "access_kind": "network" if syscall_name != "getrandom" else "entropy",
+                "operation": "attempt",
+                "logical_path": "<network>" if syscall_name != "getrandom" else "<entropy>",
+                "path_sha256": hashlib.sha256(syscall_name.encode()).hexdigest(),
+                "succeeded": succeeded,
+                "allowed": False,
+                "reason_code": "network_forbidden" if syscall_name != "getrandom" else "entropy_forbidden",
+            }
+            sequence += 1
+            attempts.append(record)
+            violations.append(record)
+            continue
+
+        if syscall_name in _TASK11_FILE_SYSCALLS:
+            try:
+                paths = _task11_file_paths(syscall_name, arguments)
+                operation = _task11_trace_operation(
+                    syscall_name, arguments
+                )
+            except IndexError as error:
+                raise _ContractError(
+                    "strace file syscall arguments are missing"
+                ) from error
+            if isolated_pid is None:
+                continue
+            if not request_seen and "/input/request.json" not in paths:
+                continue
+            if "/input/request.json" in paths:
+                request_seen = True
+            resolved_open_matches = True
+            if succeeded and syscall_name in {"open", "openat"}:
+                resolved_match = re.fullmatch(r"[0-9]+<([^<>]+)>", result)
+                if resolved_match is None:
+                    raise _ContractError(
+                        "strace successful open lacks a resolved path"
+                    )
+                resolved_path = _task11_normalize_logical_path(
+                    resolved_match.group(1)
+                )
+                if len(paths) != 1:
+                    raise _ContractError(
+                        "strace successful open resolved path changed"
+                    )
+                logical_path = paths[0]
+                if resolved_path != logical_path:
+                    marker = "/supervisor/private-root"
+                    marker_index = resolved_path.rfind(marker)
+                    if marker_index < 0:
+                        raise _ContractError(
+                            "strace successful open escaped the private root"
+                        )
+                    candidate_root = resolved_path[
+                        : marker_index + len(marker)
+                    ]
+                    if (
+                        (
+                            resolved_private_root is not None
+                            and candidate_root != resolved_private_root
+                        )
+                    ):
+                        raise _ContractError(
+                            "strace successful open private root changed"
+                        )
+                    resolved_private_root = candidate_root
+                    resolved_logical = resolved_path[len(candidate_root):]
+                    if not resolved_logical:
+                        resolved_logical = "/"
+                    resolved_open_matches = resolved_logical == logical_path
+            parent_traversal = _task11_trace_has_parent_traversal(
+                arguments
+            )
+            for path in paths:
+                allowed, reason_code = _task11_access_decision(
+                    path,
+                    operation,
+                    succeeded,
+                    manifest_paths,
+                    manifest_directories,
+                    syscall_name=syscall_name,
+                    parent_traversal=parent_traversal,
+                )
+                if not resolved_open_matches:
+                    allowed = False
+                    reason_code = "resolved_path_changed"
+                record = {
+                    "sequence": sequence,
+                    "pid": pid,
+                    "syscall": syscall_name,
+                    "access_kind": "file",
+                    "operation": operation,
+                    "logical_path": _task11_path_class(path),
+                    "path_sha256": hashlib.sha256(path.encode()).hexdigest(),
+                    "succeeded": succeeded,
+                    "allowed": allowed,
+                    "reason_code": reason_code,
+                }
+                sequence += 1
+                attempts.append(record)
+                if not allowed:
+                    violations.append(record)
+            continue
+        if syscall_name not in _TASK11_IGNORED_SYSCALLS:
+            raise _ContractError("strace contains an unknown syscall")
+
+    if isolated_pid is None or not request_seen:
+        raise _ContractError("strace lacks the isolated worker or request access")
+    if child_pids - seen_pids:
+        raise _ContractError("strace is missing a child PID log")
+    if seen_pids - exited_pids:
+        raise _ContractError("strace is missing a PID exit record")
+    body = {
+        "schema_version": "trace_policy_report_v1",
+        "trace_sha256": trace_sha256,
+        "attempted_accesses": tuple(attempts),
+        "violations": tuple(violations),
+        "passed": not violations,
+    }
+    return TracePolicyReport(
+        **body,
+        report_sha256=_canonical_sha256(body),
+    )
 
 
 def assert_disjoint_scientific_closures(
@@ -20205,6 +21450,57 @@ class TracePolicyReport:
         )
         _require_bool(self.passed, "passed")
         _require_sha256(self.report_sha256, "report_sha256")
+        if (
+            len(self.attempted_accesses) > _TASK11_TRACE_RECORD_LIMIT
+            or len(self.violations) > len(self.attempted_accesses)
+        ):
+            raise _ContractError("trace policy report is oversized")
+        normalized_attempts = []
+        for index, raw_record in enumerate(self.attempted_accesses):
+            record = _exact_keys(
+                raw_record,
+                _TASK11_TRACE_ACCESS_KEYS,
+                f"attempted_accesses[{index}]",
+            )
+            if (
+                type(record["sequence"]) is not int
+                or record["sequence"] != index
+                or type(record["pid"]) is not int
+                or record["pid"] <= 0
+                or record["access_kind"]
+                not in {"file", "network", "process", "entropy"}
+                or record["operation"]
+                not in {"read", "write", "execute", "create", "attempt"}
+            ):
+                raise _ContractError("trace attempted-access record is malformed")
+            _identifier(record["syscall"], "trace syscall")
+            _require_text(record["logical_path"], "trace logical_path")
+            _require_sha256(record["path_sha256"], "trace path_sha256")
+            _require_bool(record["succeeded"], "trace succeeded")
+            _require_bool(record["allowed"], "trace allowed")
+            _identifier(record["reason_code"], "trace reason_code")
+            _task11_validate_access_record_semantics(record)
+            normalized_attempts.append(record)
+        expected_violations = tuple(
+            record for record in normalized_attempts if not record["allowed"]
+        )
+        if tuple(
+            _canonical_bytes(record) for record in self.violations
+        ) != tuple(
+            _canonical_bytes(record) for record in expected_violations
+        ):
+            raise _ContractError("trace policy violations do not match attempts")
+        if self.passed is not (not expected_violations):
+            raise _ContractError("trace policy passed status is contradictory")
+        body = {
+            "schema_version": self.schema_version,
+            "trace_sha256": self.trace_sha256,
+            "attempted_accesses": self.attempted_accesses,
+            "violations": self.violations,
+            "passed": self.passed,
+        }
+        if self.report_sha256 != _canonical_sha256(body):
+            raise _ContractError("trace policy report hash mismatch")
 
 
 def _snapshot_process_attestation(value: object) -> ProcessAttestation:
