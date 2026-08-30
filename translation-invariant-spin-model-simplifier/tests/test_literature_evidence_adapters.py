@@ -5355,6 +5355,7 @@ def test_task4_public_all_surfaces_are_exact():
         "discover_runtime_resources",
         "build_runtime_snapshot",
         "revalidate_runtime_snapshot",
+        "run_capability_preflight",
         "record_and_freeze_hashes",
         "acquire_run_seed",
         "derive_counterfactual_points",
@@ -6510,18 +6511,46 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         ({"path": "python3", "sha256": digest},),
         digest,
     )
-    preflight = isolation.CapabilityPreflightReport(
-        "capability_preflight_report_v1",
-        "audit-run-canary",
-        True,
-        {"namespaces": True},
-        {"python3": digest},
-        {"mount": "isolated"},
-        {"root": "readonly"},
-        {"probe": 0},
-        digest,
-        digest,
-    )
+    preflight_values = {
+        "schema_version": "capability_preflight_report_v1",
+        "audit_run_id": "audit-run-canary",
+        "available": True,
+        "checks": {name: True for name in _TASK9_PREFLIGHT_PROBES},
+        "command_identities": {
+            name: {
+                "path": "/task9-tools/" + name,
+                "version": name + " task9-version-1",
+                "sha256": digest,
+            }
+            for name in _TASK9_PREFLIGHT_COMMANDS
+        },
+        "namespace_identifiers": {
+            "host_user": "user:[100]",
+            "child_user": "user:[101]",
+            "host_mount": "mnt:[200]",
+            "child_mount": "mnt:[201]",
+            "host_network": "net:[300]",
+            "child_network": "net:[301]",
+        },
+        "mount_facts": {
+            "root_private": True,
+            "root_filesystem": "tmpfs",
+            "bind_read_only": True,
+            "root_read_only": True,
+            "nested_output_writable": True,
+            "interpreter_entropy_device": "/dev/urandom",
+            "interpreter_entropy_read_only": True,
+            "interpreter_entropy_only": True,
+        },
+        "probe_result_codes": {
+            "probes": {name: 0 for name in _TASK9_PREFLIGHT_PROBES},
+            "reason_code": "available",
+            "diagnostic": "all capability probes passed",
+        },
+        "trace_sha256": digest,
+    }
+    preflight_values["report_sha256"] = canonical_sha256(preflight_values)
+    preflight = isolation.CapabilityPreflightReport(**preflight_values)
     process = isolation.ProcessAttestation(
         "process_attestation_v1",
         "adapter",
@@ -22484,11 +22513,38 @@ def _task8_preflight(isolation, audit_run_id, command_hashes):
         "schema_version": "capability_preflight_report_v1",
         "audit_run_id": audit_run_id,
         "available": True,
-        "checks": {"fresh_executed_probe": True},
-        "command_identities": dict(command_hashes),
-        "namespace_identifiers": {"user": "fresh-user-namespace"},
-        "mount_facts": {"root": "fresh-read-only-root"},
-        "probe_result_codes": {"fresh_probe": 0},
+        "checks": {name: True for name in _TASK9_PREFLIGHT_PROBES},
+        "command_identities": {
+            name: {
+                "path": "/task9-tools/" + name,
+                "version": name + " task9-version-1",
+                "sha256": command_hashes[name],
+            }
+            for name in _TASK9_PREFLIGHT_COMMANDS
+        },
+        "namespace_identifiers": {
+            "host_user": "user:[100]",
+            "child_user": "user:[101]",
+            "host_mount": "mnt:[200]",
+            "child_mount": "mnt:[201]",
+            "host_network": "net:[300]",
+            "child_network": "net:[301]",
+        },
+        "mount_facts": {
+            "root_private": True,
+            "root_filesystem": "tmpfs",
+            "bind_read_only": True,
+            "root_read_only": True,
+            "nested_output_writable": True,
+            "interpreter_entropy_device": "/dev/urandom",
+            "interpreter_entropy_read_only": True,
+            "interpreter_entropy_only": True,
+        },
+        "probe_result_codes": {
+            "probes": {name: 0 for name in _TASK9_PREFLIGHT_PROBES},
+            "reason_code": "available",
+            "diagnostic": "all capability probes passed",
+        },
         "trace_sha256": _sha256_text("task8-preflight-trace-" + audit_run_id),
     }
     payload["report_sha256"] = hashlib.sha256(
@@ -22505,8 +22561,8 @@ class _Task8OrderingFixture:
         self.events = []
         self.hash_material = _task8_hash_material(definition)
         self.command_hashes = {
-            "sha256sum": _sha256_text("task8-sha256sum-command"),
-            "unshare": _sha256_text("task8-unshare-command"),
+            name: _sha256_text("task8-" + name + "-command")
+            for name in _TASK9_PREFLIGHT_COMMANDS
         }
         self.preflight = _task8_preflight(
             isolation, audit_run_id, self.command_hashes
@@ -23960,3 +24016,1449 @@ def test_task8_functions_have_exact_infrastructure_category(tmp_path):
     assert {
         closure.purpose_bindings[root] for root in roots
     } == {"event_and_counterfactual_transport"}
+
+
+_TASK9_PREFLIGHT_PROBES = (
+    "namespaces_distinct",
+    "root_user_mapping",
+    "private_mount_propagation",
+    "tmpfs_root",
+    "readonly_bind",
+    "readonly_root_writable_output",
+    "chroot_interpreter",
+    "capabilities_dropped",
+    "environment_scrubbed",
+    "network_isolated",
+    "host_canary_denied",
+    "strace_complete",
+    "trace_access_evidence",
+    "limits_no_new_privileges",
+)
+_TASK9_PREFLIGHT_COMMANDS = (
+    "unshare",
+    "mount",
+    "chroot",
+    "strace",
+    "python",
+    "supervisor_python",
+    "launcher",
+)
+
+
+def _task9_fake_probe_response(audit_run_id):
+    return {
+        "audit_run_id": audit_run_id,
+        "checks": {name: True for name in _TASK9_PREFLIGHT_PROBES},
+        "probe_result_codes": {
+            name: 0 for name in _TASK9_PREFLIGHT_PROBES
+        },
+        "namespace_identifiers": {
+            "host_user": "user:[100]",
+            "child_user": "user:[101]",
+            "host_mount": "mnt:[200]",
+            "child_mount": "mnt:[201]",
+            "host_network": "net:[300]",
+            "child_network": "net:[301]",
+        },
+        "mount_facts": {
+            "root_private": True,
+            "root_filesystem": "tmpfs",
+            "bind_read_only": True,
+            "root_read_only": True,
+            "nested_output_writable": True,
+            "interpreter_entropy_device": "/dev/urandom",
+            "interpreter_entropy_read_only": True,
+            "interpreter_entropy_only": True,
+        },
+        "trace_sha256": _sha256_text("task9-trace-" + audit_run_id),
+        "diagnostic": "all capability probes passed",
+    }
+
+
+class _Task9InjectedRunner:
+    def __init__(self, audit_run_id, mutate=None):
+        self.audit_run_id = audit_run_id
+        self.mutate = mutate
+        self.actions = []
+        self.adapter_execution_attempts = 0
+
+    def __call__(self, action, payload):
+        self.actions.append((action, dict(payload)))
+        if action == "adapter":
+            self.adapter_execution_attempts += 1
+            raise AssertionError("preflight attempted adapter execution")
+        if action == "identify":
+            command = payload["command"]
+            response = {
+                "command": command,
+                "path": "/task9-tools/" + command,
+                "version": command + " task9-version-1",
+                "sha256": _sha256_text("task9-command-" + command),
+            }
+        elif action == "probe":
+            response = _task9_fake_probe_response(self.audit_run_id)
+        else:
+            raise AssertionError("unknown injected runner action")
+        if self.mutate is not None:
+            response = self.mutate(action, dict(response))
+        return response
+
+
+def _task9_run_injected_preflight(tmp_path, audit_run_id, mutate=None):
+    from validation import literature_evidence_isolation as isolation
+
+    runner = _Task9InjectedRunner(audit_run_id, mutate)
+    report = isolation._run_capability_preflight(
+        scratch_parent=tmp_path,
+        audit_run_id=audit_run_id,
+        runner=runner,
+    )
+    return report, runner
+
+
+@pytest.mark.parametrize("probe_name", _TASK9_PREFLIGHT_PROBES)
+def test_preflight_each_executed_probe_failure_is_exact_and_fail_closed(
+    tmp_path,
+    probe_name,
+):
+    def fail_probe(action, response):
+        if action == "probe":
+            response["checks"][probe_name] = False
+            response["probe_result_codes"][probe_name] = 17
+            if probe_name == "namespaces_distinct":
+                response["namespace_identifiers"]["child_user"] = (
+                    response["namespace_identifiers"]["host_user"]
+                )
+            elif probe_name == "private_mount_propagation":
+                response["mount_facts"]["root_private"] = False
+            elif probe_name == "tmpfs_root":
+                response["mount_facts"]["root_filesystem"] = "unknown"
+            elif probe_name == "readonly_bind":
+                response["mount_facts"]["bind_read_only"] = False
+            elif probe_name == "readonly_root_writable_output":
+                response["mount_facts"]["root_read_only"] = False
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-failed-" + probe_name,
+        fail_probe,
+    )
+
+    assert report.available is False
+    assert report.checks[probe_name] is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_" + probe_name + "_failed"
+    )
+    assert report.probe_result_codes["probes"][probe_name] == 17
+    assert len(report.probe_result_codes["diagnostic"].encode("utf-8")) <= 1024
+    assert set(report.command_identities) == set(_TASK9_PREFLIGHT_COMMANDS)
+    assert all(
+        len(identity["sha256"]) == 64
+        for identity in report.command_identities.values()
+    )
+    assert len(report.trace_sha256) == 64
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize("probe_name", _TASK9_PREFLIGHT_PROBES)
+def test_preflight_missing_each_probe_output_is_unavailable(tmp_path, probe_name):
+    def omit_probe(action, response):
+        if action == "probe":
+            response["checks"].pop(probe_name)
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-missing-" + probe_name,
+        omit_probe,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_output_missing"
+    )
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize("probe_name", _TASK9_PREFLIGHT_PROBES)
+def test_preflight_malformed_each_probe_output_is_unavailable(
+    tmp_path,
+    probe_name,
+):
+    def malform_probe(action, response):
+        if action == "probe":
+            response["checks"][probe_name] = "true"
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-malformed-" + probe_name,
+        malform_probe,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_output_malformed"
+    )
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize(
+    "invalid_trace_sha256",
+    (None, "0" * 63, "A" * 64, "z" * 64),
+)
+def test_preflight_malformed_trace_digest_returns_closed_unavailable_report(
+    tmp_path,
+    invalid_trace_sha256,
+):
+    def malform_trace(action, response):
+        if action == "probe":
+            response["trace_sha256"] = invalid_trace_sha256
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-malformed-trace-digest",
+        malform_trace,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_output_malformed"
+    )
+    assert report.trace_sha256 == hashlib.sha256(b"").hexdigest()
+    assert set(report.command_identities) == set(_TASK9_PREFLIGHT_COMMANDS)
+    assert len(report.probe_result_codes["diagnostic"].encode("utf-8")) <= 1024
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize(
+    ("field_name", "tamper_kind"),
+    (
+        ("namespace_identifiers", "missing"),
+        ("namespace_identifiers", "extra"),
+        ("namespace_identifiers", "wrong_type"),
+        ("mount_facts", "missing"),
+        ("mount_facts", "extra"),
+        ("mount_facts", "wrong_type"),
+    ),
+)
+def test_preflight_injected_closed_fact_mappings_fail_closed(
+    tmp_path,
+    field_name,
+    tamper_kind,
+):
+    def tamper_facts(action, response):
+        if action != "probe":
+            return response
+        facts = response[field_name]
+        if tamper_kind == "missing":
+            facts.pop(next(iter(facts)))
+        elif tamper_kind == "extra":
+            facts["undeclared_fact"] = True
+        else:
+            facts[next(iter(facts))] = 17
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-closed-facts-" + field_name + "-" + tamper_kind,
+        tamper_facts,
+    )
+
+    assert report.available is False
+    expected = "missing" if tamper_kind == "missing" else "malformed"
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_output_" + expected
+    )
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize(
+    ("field_name", "tamper_kind"),
+    (
+        ("namespace_identifiers", "missing"),
+        ("namespace_identifiers", "extra"),
+        ("namespace_identifiers", "wrong_type"),
+        ("mount_facts", "missing"),
+        ("mount_facts", "extra"),
+        ("mount_facts", "wrong_type"),
+    ),
+)
+def test_preflight_constructor_rejects_rehashed_nonclosed_fact_mappings(
+    tmp_path,
+    field_name,
+    tamper_kind,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report, _ = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-rehashed-closed-facts",
+    )
+    payload = {
+        field.name: thaw_json(getattr(report, field.name))
+        if field.name in {
+            "checks", "command_identities", "namespace_identifiers",
+            "mount_facts", "probe_result_codes",
+        }
+        else getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    facts = payload[field_name]
+    if tamper_kind == "missing":
+        facts.pop(next(iter(facts)))
+    elif tamper_kind == "extra":
+        facts["undeclared_fact"] = True
+    else:
+        facts[next(iter(facts))] = 17
+    body = dict(payload)
+    body.pop("report_sha256")
+    payload["report_sha256"] = canonical_sha256(body)
+
+    with pytest.raises(AdapterContractError):
+        isolation.CapabilityPreflightReport(**payload)
+
+
+def _task9_rehashed_report_payload(report, **updates):
+    payload = {
+        field.name: thaw_json(getattr(report, field.name))
+        if field.name in {
+            "checks", "command_identities", "namespace_identifiers",
+            "mount_facts", "probe_result_codes",
+        }
+        else getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    payload.update(updates)
+    body = dict(payload)
+    body.pop("report_sha256")
+    payload["report_sha256"] = canonical_sha256(body)
+    return payload
+
+
+def test_preflight_constructor_rejects_unknown_unavailable_reason(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    report, _ = _task9_run_injected_preflight(
+        tmp_path, "task9-closed-unavailable-reason",
+    )
+    result = thaw_json(report.probe_result_codes)
+    result["reason_code"] = "caller_chosen_unavailable_reason"
+    payload = _task9_rehashed_report_payload(
+        report, available=False, probe_result_codes=result,
+    )
+
+    with pytest.raises(AdapterContractError):
+        isolation.CapabilityPreflightReport(**payload)
+
+
+@pytest.mark.parametrize(
+    "contradiction",
+    ("wrong_first_failure", "check_code", "check_fact", "false_contradiction"),
+)
+def test_preflight_constructor_rejects_reason_evidence_mismatch(
+    tmp_path,
+    contradiction,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report, _ = _task9_run_injected_preflight(
+        tmp_path, "task9-reason-evidence-mismatch-" + contradiction,
+    )
+    checks = thaw_json(report.checks)
+    codes = thaw_json(report.probe_result_codes)
+    mounts = thaw_json(report.mount_facts)
+    checks["root_user_mapping"] = False
+    if contradiction == "wrong_first_failure":
+        codes["probes"]["root_user_mapping"] = 17
+        codes["reason_code"] = "capability_probe_network_isolated_failed"
+    elif contradiction == "check_code":
+        codes["reason_code"] = "capability_probe_root_user_mapping_failed"
+    elif contradiction == "check_fact":
+        codes["probes"]["root_user_mapping"] = 17
+        mounts["root_private"] = False
+        codes["reason_code"] = "capability_probe_root_user_mapping_failed"
+    else:
+        codes["probes"]["root_user_mapping"] = 17
+        codes["reason_code"] = "capability_probe_output_contradictory"
+    payload = _task9_rehashed_report_payload(
+        report,
+        available=False,
+        checks=checks,
+        mount_facts=mounts,
+        probe_result_codes=codes,
+    )
+
+    with pytest.raises(AdapterContractError):
+        isolation.CapabilityPreflightReport(**payload)
+
+
+@pytest.mark.parametrize("probe_name", _TASK9_PREFLIGHT_PROBES)
+@pytest.mark.parametrize(
+    ("passed", "result_code"),
+    ((True, 9), (False, 0)),
+)
+def test_preflight_each_probe_code_contradiction_is_unavailable(
+    tmp_path,
+    probe_name,
+    passed,
+    result_code,
+):
+    def contradict_probe(action, response):
+        if action == "probe":
+            response["checks"][probe_name] = passed
+            response["probe_result_codes"][probe_name] = result_code
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-contradiction-" + probe_name,
+        contradict_probe,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_output_contradictory"
+    )
+    assert report.namespace_identifiers["host_user"] == "user:[100]"
+    assert report.mount_facts["root_filesystem"] == "tmpfs"
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize(
+    "contradiction",
+    (
+        "namespace",
+        "private_mount",
+        "tmpfs",
+        "readonly_bind",
+        "readonly_root",
+        "entropy_readonly",
+        "entropy_only",
+    ),
+)
+def test_preflight_semantic_fact_contradiction_is_unavailable(
+    tmp_path,
+    contradiction,
+):
+    def contradict_facts(action, response):
+        if action != "probe":
+            return response
+        if contradiction == "namespace":
+            response["namespace_identifiers"]["child_user"] = (
+                response["namespace_identifiers"]["host_user"]
+            )
+        elif contradiction == "private_mount":
+            response["mount_facts"]["root_private"] = False
+        elif contradiction == "tmpfs":
+            response["mount_facts"]["root_filesystem"] = "unknown"
+        elif contradiction == "readonly_bind":
+            response["mount_facts"]["bind_read_only"] = False
+        elif contradiction == "readonly_root":
+            response["mount_facts"]["root_read_only"] = False
+        elif contradiction == "entropy_readonly":
+            response["mount_facts"]["interpreter_entropy_read_only"] = False
+        else:
+            response["mount_facts"]["interpreter_entropy_only"] = False
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-semantic-contradiction-" + contradiction,
+        contradict_facts,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_output_contradictory"
+    )
+    assert runner.adapter_execution_attempts == 0
+
+
+@pytest.mark.parametrize("failure_kind", ("missing", "malformed"))
+def test_preflight_command_identity_failure_retains_prior_hashes_and_stops_probe(
+    tmp_path,
+    failure_kind,
+):
+    def damage_identity(action, response):
+        if action == "identify" and response["command"] == "chroot":
+            if failure_kind == "missing":
+                response.pop("version")
+            else:
+                response["sha256"] = "not-a-sha256"
+        return response
+
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-command-" + failure_kind,
+        damage_identity,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_command_identity_" + failure_kind
+    )
+    assert set(report.command_identities) == {"unshare", "mount"}
+    assert [action for action, _ in runner.actions] == [
+        "identify", "identify", "identify",
+    ]
+    assert runner.adapter_execution_attempts == 0
+
+
+def test_preflight_identity_exception_cannot_reuse_prior_runner_response(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    runner = _Task9InjectedRunner("task9-identity-exception")
+    original_call = runner.__class__.__call__
+
+    def raising_call(self, action, payload):
+        if action == "identify" and payload["command"] == "chroot":
+            self.actions.append((action, dict(payload)))
+            raise AdapterContractError("identity resolution failed")
+        return original_call(self, action, payload)
+
+    runner.__class__ = type(
+        "Task9RaisingIdentityRunner",
+        (runner.__class__,),
+        {"__call__": raising_call},
+    )
+    report = isolation._run_capability_preflight(
+        scratch_parent=tmp_path,
+        audit_run_id="task9-identity-exception",
+        runner=runner,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_command_identity_unavailable"
+    )
+    assert set(report.command_identities) == {"unshare", "mount"}
+    assert [action for action, _ in runner.actions] == [
+        "identify", "identify", "identify",
+    ]
+    assert runner.adapter_execution_attempts == 0
+
+
+def test_preflight_identify_versions_snapshot_copied_from_verified_fd(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    origin = tmp_path / "origin-unshare"
+    origin_bytes = b'#!/bin/sh\nprintf "task9-version:%s\\n" "$0"\n'
+    descriptor = os.open(
+        origin,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+        0o700,
+    )
+    try:
+        assert os.write(descriptor, origin_bytes) == len(origin_bytes)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    run_directory = tmp_path / "retained-run"
+    run_directory.mkdir(mode=0o700)
+    monkeypatch.setattr(isolation.shutil, "which", lambda command: str(origin))
+
+    identity = isolation._identify_preflight_command(
+        "unshare",
+        run_directory=run_directory,
+    )
+    snapshot = run_directory / "command-snapshots" / "unshare"
+
+    assert identity["command"] == "unshare"
+    assert identity["path"] == str(origin.resolve())
+    assert re.fullmatch(
+        r"task9-version:/proc/self/fd/\d+",
+        identity["version"],
+    )
+    assert identity["sha256"] == hashlib.sha256(origin_bytes).hexdigest()
+    assert snapshot.read_bytes() == origin_bytes
+    assert stat.S_IMODE(snapshot.stat().st_mode) == 0o500
+    assert snapshot.stat().st_nlink == 1
+
+
+def test_preflight_launcher_identity_is_exact_retained_source_snapshot(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    run_directory = tmp_path / "retained-run"
+    run_directory.mkdir(mode=0o700)
+    identity = isolation._identify_preflight_command(
+        "launcher",
+        run_directory=run_directory,
+    )
+    launcher_path = Path(identity["path"])
+
+    assert identity["command"] == "launcher"
+    assert identity["version"] == "task9-capability-launcher-v1"
+    assert launcher_path == (
+        run_directory / "command-snapshots" / "launcher.py"
+    )
+    assert hashlib.sha256(launcher_path.read_bytes()).hexdigest() == (
+        identity["sha256"]
+    )
+    assert stat.S_IMODE(launcher_path.stat().st_mode) == 0o500
+    assert launcher_path.stat().st_nlink == 1
+
+
+@pytest.mark.parametrize("attack", ("tamper", "symlink", "hardlink"))
+def test_retained_preflight_file_helper_rejects_tamper_and_replacement(
+    tmp_path,
+    attack,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    retained = tmp_path / "retained-evidence"
+    original = b"task9-retained-evidence-v1"
+    descriptor = os.open(
+        retained,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+        0o600,
+    )
+    try:
+        assert os.write(descriptor, original) == len(original)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    expected_sha256 = hashlib.sha256(original).hexdigest()
+    target = retained
+    if attack == "tamper":
+        changed = b"X" + original[1:]
+        descriptor = os.open(retained, os.O_WRONLY | os.O_CLOEXEC)
+        try:
+            assert os.write(descriptor, changed) == len(changed)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    elif attack == "symlink":
+        target = tmp_path / "retained-symlink"
+        os.symlink(retained.name, target)
+    else:
+        target = tmp_path / "retained-hardlink"
+        os.link(retained, target)
+
+    with pytest.raises(AdapterContractError):
+        isolation._read_retained_preflight_file(
+            target,
+            maximum_bytes=1024,
+            expected_sha256=expected_sha256,
+        )
+
+
+def test_preflight_origin_substitution_returns_structured_unavailable(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    origin = tmp_path / "origin-unshare"
+    origin_bytes = b'#!/bin/sh\nprintf "task9-version:%s\\n" "$0"\n'
+    descriptor = os.open(
+        origin,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+        0o700,
+    )
+    try:
+        assert os.write(descriptor, origin_bytes) == len(origin_bytes)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    monkeypatch.setattr(isolation.shutil, "which", lambda command: str(origin))
+    actions = []
+
+    def substituting_runner(action, payload):
+        actions.append((action, dict(payload)))
+        if action == "identify" and payload["command"] == "unshare":
+            identity = isolation._identify_preflight_command(
+                "unshare",
+                run_directory=payload["run_directory"],
+            )
+            changed = b"X" + origin_bytes[1:]
+            origin_fd = os.open(origin, os.O_WRONLY | os.O_CLOEXEC)
+            try:
+                assert os.write(origin_fd, changed) == len(changed)
+                os.fsync(origin_fd)
+            finally:
+                os.close(origin_fd)
+            return identity
+        if action == "identify":
+            command = payload["command"]
+            return {
+                "command": command,
+                "path": "/task9-tools/" + command,
+                "version": command + " task9-version-1",
+                "sha256": _sha256_text("task9-command-" + command),
+            }
+        descriptors, _, _ = isolation._open_preflight_execution_descriptors(
+            payload
+        )
+        for descriptor in descriptors.values():
+            os.close(descriptor)
+        raise AssertionError("substituted origin reached capability execution")
+
+    report = isolation._run_capability_preflight(
+        scratch_parent=tmp_path,
+        audit_run_id="task9-origin-substitution",
+        runner=substituting_runner,
+    )
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_runner_failed"
+    )
+    assert "origin changed" in report.probe_result_codes["diagnostic"]
+    assert [action for action, _ in actions].count("probe") == 1
+    assert not tuple(tmp_path.rglob("trace.log"))
+
+
+@pytest.mark.parametrize(
+    "invalid_identity",
+    (
+        "0" * 64,
+        {"path": "/usr/bin/unshare", "sha256": "0" * 64},
+        {
+            "path": "/usr/bin/unshare",
+            "version": "unshare 1",
+            "sha256": "0" * 64,
+            "extra": "forbidden",
+        },
+        {
+            "path": "usr/bin/unshare",
+            "version": "unshare 1",
+            "sha256": "0" * 64,
+        },
+        {
+            "path": "/usr/bin/unshare",
+            "version": "",
+            "sha256": "0" * 64,
+        },
+        {
+            "path": "/usr/bin/unshare",
+            "version": "unshare 1",
+            "sha256": "bad-hash",
+        },
+    ),
+)
+def test_preflight_command_identity_contract_rejects_nonexact_records(
+    tmp_path,
+    invalid_identity,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report, _ = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-command-identity-contract",
+    )
+    payload = {
+        field.name: thaw_json(getattr(report, field.name))
+        if field.name in {
+            "checks",
+            "command_identities",
+            "namespace_identifiers",
+            "mount_facts",
+            "probe_result_codes",
+        }
+        else getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+    }
+    payload["command_identities"]["unshare"] = invalid_identity
+    body = dict(payload)
+    body.pop("report_sha256")
+    payload["report_sha256"] = canonical_sha256(body)
+
+    with pytest.raises(AdapterContractError):
+        isolation.CapabilityPreflightReport(**payload)
+
+
+def test_preflight_runner_protocol_orders_identity_probe_report_and_nonce(
+    tmp_path,
+):
+    audit_run_id = "task9-runner-order"
+    report, runner = _task9_run_injected_preflight(
+        tmp_path,
+        audit_run_id,
+    )
+
+    assert report.available is True
+    assert [action for action, _ in runner.actions] == [
+        *("identify" for _ in _TASK9_PREFLIGHT_COMMANDS),
+        "probe",
+    ]
+    assert tuple(
+        payload["command"]
+        for action, payload in runner.actions
+        if action == "identify"
+    ) == _TASK9_PREFLIGHT_COMMANDS
+    probe_payload = runner.actions[-1][1]
+    assert probe_payload["audit_run_id"] == audit_run_id
+    assert probe_payload["command_identities"] == thaw_json(
+        report.command_identities
+    )
+    assert report.audit_run_id == audit_run_id
+    assert set(report.checks) == set(_TASK9_PREFLIGHT_PROBES)
+    assert all(report.checks.values())
+    assert report.probe_result_codes["reason_code"] == "available"
+    report_body = {
+        field.name: getattr(report, field.name)
+        for field in dataclasses.fields(type(report))
+        if field.name != "report_sha256"
+    }
+    assert canonical_sha256(report_body) == report.report_sha256
+    assert runner.adapter_execution_attempts == 0
+
+
+def test_preflight_diagnostic_normalizes_controls_invalid_unicode_and_bound(
+    tmp_path,
+):
+    def malformed_diagnostic(action, response):
+        if action == "probe":
+            response["diagnostic"] = (
+                "\n task9\x00 diagnostic\t\udcff " + "z" * 2048 + "\r\n"
+            )
+        return response
+
+    report, _ = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-diagnostic-normalization",
+        malformed_diagnostic,
+    )
+
+    diagnostic = report.probe_result_codes["diagnostic"]
+    assert diagnostic == diagnostic.strip()
+    assert diagnostic
+    assert len(diagnostic.encode("utf-8")) <= 1024
+    assert all(ord(character) >= 32 and ord(character) != 127 for character in diagnostic)
+    assert "\ufffd" in diagnostic
+
+
+def test_preflight_exclusively_creates_distinct_retained_private_directories(
+    tmp_path,
+):
+    first, _ = _task9_run_injected_preflight(tmp_path, "task9-exclusive-a")
+    second, _ = _task9_run_injected_preflight(tmp_path, "task9-exclusive-b")
+
+    directories = tuple(path for path in tmp_path.iterdir() if path.is_dir())
+    assert len(directories) == 2
+    assert len({path.name for path in directories}) == 2
+    assert all(stat.S_IMODE(path.stat().st_mode) == 0o700 for path in directories)
+    assert first.report_sha256 != second.report_sha256
+
+
+def test_preflight_resolves_relative_scratch_parent_before_runner(
+    tmp_path,
+    monkeypatch,
+):
+    scratch = tmp_path / "relative-scratch"
+    scratch.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    report, runner = _task9_run_injected_preflight(
+        Path("relative-scratch"),
+        "task9-relative-scratch-parent",
+    )
+
+    run_directory = Path(runner.actions[-1][1]["run_directory"])
+    assert report.available is True
+    assert run_directory.is_absolute()
+    assert run_directory.parent == scratch
+    assert run_directory.is_dir()
+
+
+def test_preflight_real_report_is_event_bound_before_random_and_replay_fails(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    audit_run_id = "task9-event-bound"
+    report, runner = _task9_run_injected_preflight(tmp_path, audit_run_id)
+    fixture = _Task8OrderingFixture(
+        isolation,
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"],
+        audit_run_id,
+    )
+    fixture.preflight = report
+    fixture.command_hashes = {
+        name: identity["sha256"]
+        for name, identity in report.command_identities.items()
+    }
+    fixture.record_prerequisites()
+    frozen = fixture.freeze()
+    random_events = []
+    seed = isolation.acquire_run_seed(
+        frozen,
+        ordered_events=tuple(fixture.events),
+        random_bytes=lambda count: random_events.append(
+            tuple(fixture.events)
+        ) or b"t" * count,
+        event_recorder=fixture.record,
+    )
+
+    assert seed == b"t" * 32
+    assert random_events[0][-2].event_name == "capability_preflight_hashed"
+    preflight_event = random_events[0][-2]
+    assert preflight_event.details["capability_preflight_sha256"] == (
+        report.report_sha256
+    )
+    assert preflight_event.details["infrastructure_command_hashes"] == (
+        fixture.command_hashes
+    )
+    assert preflight_event.details["capability_preflight"]["checks"] == (
+        report.checks
+    )
+    assert runner.adapter_execution_attempts == 0
+
+    stale_report, stale_runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-stale-nonce",
+    )
+    provider_calls = []
+    with pytest.raises(AdapterContractError, match="nonce"):
+        isolation.record_and_freeze_hashes(
+            fixture.definition,
+            audit_run_id=audit_run_id,
+            ordered_events=tuple(random_events[0][:-1]),
+            hash_material=fixture.hash_material,
+            capability_preflight=stale_report,
+            infrastructure_command_hashes={
+                name: identity["sha256"]
+                for name, identity in stale_report.command_identities.items()
+            },
+            event_recorder=lambda event_name, details: provider_calls.append(
+                (event_name, details)
+            ),
+        )
+    assert provider_calls == []
+    assert stale_runner.adapter_execution_attempts == 0
+
+
+def test_production_shaped_preflight_report_is_bound_before_random_provider(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    production_shaped, runner = _task9_run_injected_preflight(
+        tmp_path,
+        "task9-production-shaped-event-binding",
+    )
+    monkeypatch.setattr(
+        isolation,
+        "run_capability_preflight",
+        lambda *, scratch_parent: production_shaped,
+    )
+    obtained = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    fixture = _Task8OrderingFixture(
+        isolation,
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"],
+        obtained.audit_run_id,
+    )
+    fixture.preflight = obtained
+    fixture.command_hashes = {
+        name: identity["sha256"]
+        for name, identity in obtained.command_identities.items()
+    }
+    fixture.record_prerequisites()
+    frozen = fixture.freeze()
+    provider_observations = []
+
+    def random_provider(count):
+        provider_observations.append(tuple(fixture.events))
+        return b"p" * count
+
+    seed = isolation.acquire_run_seed(
+        frozen,
+        ordered_events=tuple(fixture.events),
+        random_bytes=random_provider,
+        event_recorder=fixture.record,
+    )
+
+    assert seed == b"p" * 32
+    assert len(provider_observations) == 1
+    events_before_provider = provider_observations[0]
+    preflight_event = next(
+        event
+        for event in events_before_provider
+        if event.event_name == "capability_preflight_hashed"
+    )
+    assert preflight_event.details["capability_preflight_sha256"] == (
+        obtained.report_sha256
+    )
+    assert preflight_event.details["capability_preflight"]["checks"] == (
+        obtained.checks
+    )
+    assert preflight_event.details["infrastructure_command_hashes"] == (
+        fixture.command_hashes
+    )
+    assert events_before_provider[-1].event_name == "frozen_hashes"
+    assert fixture.events[-1].event_name == "random_seed_acquired"
+    assert runner.adapter_execution_attempts == 0
+
+
+def test_task9_preflight_public_signature_and_export_are_closed():
+    from validation import literature_evidence_isolation as isolation
+
+    assert str(inspect.signature(isolation.run_capability_preflight)) == (
+        "(*, scratch_parent)"
+    )
+    assert "run_capability_preflight" in isolation.__all__
+
+
+def test_production_capability_preflight_succeeds_on_designated_host(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    monkeypatch.setenv(
+        "TASK9_OUTER_ENVIRONMENT_CANARY",
+        "task9-environment-canary-must-not-cross",
+    )
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert set(report.checks) == set(_TASK9_PREFLIGHT_PROBES)
+    assert all(report.checks.values())
+    assert report.probe_result_codes["reason_code"] == "available"
+    assert set(report.command_identities) == set(_TASK9_PREFLIGHT_COMMANDS)
+    assert report.command_identities["python"]["path"] == str(
+        Path(sys.executable).resolve(strict=True)
+    )
+    assert report.command_identities["supervisor_python"]["path"] == (
+        "/usr/bin/python3.6"
+    )
+    assert report.namespace_identifiers["host_user"] != (
+        report.namespace_identifiers["child_user"]
+    )
+    assert report.namespace_identifiers["host_mount"] != (
+        report.namespace_identifiers["child_mount"]
+    )
+    assert report.namespace_identifiers["host_network"] != (
+        report.namespace_identifiers["child_network"]
+    )
+    assert report.mount_facts == freeze_json(
+        {
+            "root_private": True,
+            "root_filesystem": "tmpfs",
+            "bind_read_only": True,
+            "root_read_only": True,
+            "nested_output_writable": True,
+            "interpreter_entropy_device": "/dev/urandom",
+            "interpreter_entropy_read_only": True,
+            "interpreter_entropy_only": True,
+        }
+    )
+    assert len(report.trace_sha256) == 64
+
+    fixture = _Task8OrderingFixture(
+        isolation,
+        adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"],
+        report.audit_run_id,
+    )
+    fixture.preflight = report
+    fixture.command_hashes = {
+        name: identity["sha256"]
+        for name, identity in report.command_identities.items()
+    }
+    fixture.record_prerequisites()
+    frozen = fixture.freeze()
+    provider_observations = []
+
+    def random_provider(count):
+        provider_observations.append(tuple(fixture.events))
+        return b"r" * count
+
+    seed = isolation.acquire_run_seed(
+        frozen,
+        ordered_events=tuple(fixture.events),
+        random_bytes=random_provider,
+        event_recorder=fixture.record,
+    )
+
+    assert seed == b"r" * 32
+    assert len(provider_observations) == 1
+    events_before_provider = provider_observations[0]
+    preflight_event = next(
+        event
+        for event in events_before_provider
+        if event.event_name == "capability_preflight_hashed"
+    )
+    bound_report = preflight_event.details["capability_preflight"]
+    assert bound_report["checks"] == report.checks
+    assert bound_report["trace_sha256"] == report.trace_sha256
+    assert bound_report["report_sha256"] == report.report_sha256
+    assert preflight_event.details["capability_preflight_sha256"] == (
+        report.report_sha256
+    )
+    assert preflight_event.details["infrastructure_command_hashes"] == (
+        fixture.command_hashes
+    )
+    assert events_before_provider[-1].event_name == "frozen_hashes"
+
+
+def test_production_preflight_denies_exact_retained_host_canary_path(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    canary_paths = tuple(tmp_path.rglob("host-canary-denied-task9"))
+    trace_paths = tuple(tmp_path.rglob("trace.log"))
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert len(canary_paths) == 1
+    assert canary_paths[0].is_file()
+    assert len(trace_paths) == 1
+    trace = trace_paths[0].read_text(encoding="utf-8")
+    exact_denial = re.search(
+        r'(?:open|openat)\([^\n]*"'
+        + re.escape(str(canary_paths[0]))
+        + r'"[^\n]*\) = -1 ENOENT',
+        trace,
+    )
+    assert exact_denial is not None
+
+
+def test_production_preflight_recomputes_retained_trace_digest(
+    tmp_path,
+    monkeypatch,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    original_run = isolation.subprocess.run
+
+    def corrupt_supervisor_trace_claim(*args, **kwargs):
+        completed = original_run(*args, **kwargs)
+        arguments = tuple(args[0])
+        if "-Urnm" not in arguments:
+            return completed
+        attestation_path, = tuple(tmp_path.rglob("attestation.json"))
+        original = attestation_path.read_bytes()
+        payload = json.loads(original.decode("utf-8"))
+        payload["trace_sha256"] = "0" * 64
+        replacement = json.dumps(
+            payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        assert len(replacement) == len(original)
+        descriptor = os.open(attestation_path, os.O_WRONLY | os.O_CLOEXEC)
+        try:
+            assert os.write(descriptor, replacement) == len(replacement)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        return completed
+
+    monkeypatch.setattr(isolation.subprocess, "run", corrupt_supervisor_trace_claim)
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    trace_paths = tuple(tmp_path.rglob("trace.log"))
+
+    assert report.available is False
+    assert report.probe_result_codes["reason_code"] == (
+        "capability_probe_runner_failed"
+    )
+    assert len(trace_paths) == 1
+    assert report.trace_sha256 == hashlib.sha256(b"").hexdigest()
+
+
+def test_production_preflight_retains_closed_raw_attestation(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    attestation_paths = tuple(tmp_path.rglob("attestation.json"))
+    trace_paths = tuple(tmp_path.rglob("trace.log"))
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert len(attestation_paths) == 1
+    assert len(trace_paths) == 1
+    attestation_status = attestation_paths[0].stat()
+    assert stat.S_ISREG(attestation_status.st_mode)
+    assert attestation_status.st_nlink == 1
+    assert stat.S_IMODE(attestation_status.st_mode) == 0o600
+    attestation = json.loads(attestation_paths[0].read_text(encoding="utf-8"))
+    assert set(attestation) == {
+        "audit_run_id",
+        "bind_errno",
+        "child",
+        "child_namespaces",
+        "entropy_mount_line",
+        "entropy_write_errno",
+        "executed_command_paths",
+        "interfaces",
+        "launcher_logical_path",
+        "output_write_ok",
+        "root_errno",
+        "root_fstype",
+        "root_private",
+        "route_rows",
+        "supervisor_environment_keys",
+        "trace_returncode",
+        "trace_sha256",
+        "trace_stderr",
+        "uid_map",
+    }
+    assert attestation["audit_run_id"] == report.audit_run_id
+    assert attestation["trace_sha256"] == report.trace_sha256
+    assert hashlib.sha256(trace_paths[0].read_bytes()).hexdigest() == (
+        report.trace_sha256
+    )
+    trace = trace_paths[0].read_text(encoding="utf-8")
+    child = attestation["child"]
+    namespace_distinct = all(
+        report.namespace_identifiers["host_" + suffix]
+        != attestation["child_namespaces"][
+            {"user": "user", "mount": "mnt", "network": "net"}[suffix]
+        ]
+        for suffix in ("user", "mount", "network")
+    )
+    uid_map = tuple(
+        tuple(int(value) for value in row.split())
+        for row in attestation["uid_map"].splitlines()
+        if len(row.split()) == 3
+    )
+    root_mapping = any(
+        inside == 0 and outside == os.getuid() and length >= 1
+        for inside, outside, length in uid_map
+    )
+    routes_closed = not any(
+        row[1] == "00000000" and int(row[3], 16) & 1
+        for row in attestation["route_rows"]
+    )
+    caps_closed = (
+        child["capget_code"] == 0
+        and child["capability_words"] == [[0, 0, 0], [0, 0, 0]]
+        and not any(child["bounding_values"])
+        and not any(child["ambient_values"])
+    )
+    canary_path, = tuple(tmp_path.rglob("host-canary-denied-task9"))
+    canary_denial = re.search(
+        r'(?:open|openat)\([^\n]*"'
+        + re.escape(str(canary_path))
+        + r'"[^\n]*\) = -1 ENOENT',
+        trace,
+    )
+    relative_open = re.search(
+        r'openat\(\d+<([^>]+/root/runtime)>, "probe\.txt", '
+        r'[^\n]*\) = \d+<\1/probe\.txt>',
+        trace,
+    )
+    entropy_columns = attestation["entropy_mount_line"].split()
+    device_paths = set(re.findall(r'"(/dev/[^"\\]+)', trace))
+    independently_derived = {
+        "namespaces_distinct": namespace_distinct,
+        "root_user_mapping": root_mapping,
+        "private_mount_propagation": attestation["root_private"] is True,
+        "tmpfs_root": attestation["root_fstype"] == "tmpfs",
+        "readonly_bind": attestation["bind_errno"] == 30,
+        "readonly_root_writable_output": (
+            attestation["root_errno"] == 30
+            and attestation["output_write_ok"] is True
+        ),
+        "chroot_interpreter": (
+            child["marker"] == "task9-chrooted-interpreter"
+            and child["cwd"] == "/"
+            and child["permitted_read"] == "task9-permitted-read"
+            and child["relative_read"] == "task9-permitted-read"
+            and child["inherited_fds"] == []
+        ),
+        "capabilities_dropped": caps_closed,
+        "environment_scrubbed": (
+            attestation["supervisor_environment_keys"]
+            == ["LANG", "LC_ALL", "PYTHONHASHSEED"]
+            and child["environment_keys"]
+            == ["LANG", "LC_ALL", "PYTHONHASHSEED"]
+        ),
+        "network_isolated": (
+            routes_closed
+            and set(attestation["interfaces"]) <= {"lo"}
+            and child["network_code"] != 0
+        ),
+        "host_canary_denied": (
+            child["host_canary_path"] == str(canary_path)
+            and child["host_errno"] == 2
+            and canary_denial is not None
+        ),
+        "strace_complete": (
+            attestation["trace_returncode"] == 0
+            and "+++ exited with 0 +++" in trace
+            and "unfinished ..." not in trace
+            and "<... " not in trace
+        ),
+        "trace_access_evidence": (
+            "/runtime/probe.txt" in trace
+            and relative_open is not None
+            and canary_denial is not None
+            and "forbidden-task9-" + "x" * 256 in trace
+        ),
+        "limits_no_new_privileges": (
+            child["no_new_privileges"] == 1
+            and child["limits"] == {
+                "core": [0, 0],
+                "file_size": [1048576, 1048576],
+                "open_files": [64, 64],
+                "processes": [1, 1],
+            }
+        ),
+    }
+    assert entropy_columns[4].endswith("/root/dev/urandom")
+    assert "ro" in entropy_columns[5].split(",")
+    assert device_paths == {"/dev/urandom"}
+    assert independently_derived == thaw_json(report.checks)
+    assert all(independently_derived.values())
+
+
+def test_production_preflight_rejects_each_nonclosed_raw_attestation(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    attestation_path, = tuple(tmp_path.rglob("attestation.json"))
+    original = json.loads(attestation_path.read_text(encoding="utf-8"))
+    expected_paths = dict(original["executed_command_paths"])
+    launcher_path = original["launcher_logical_path"]
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    isolation._validate_preflight_attestation(
+        original,
+        audit_run_id=report.audit_run_id,
+        command_paths=expected_paths,
+        launcher_logical_path=launcher_path,
+    )
+    mutations = []
+    stale = json.loads(json.dumps(original))
+    stale["audit_run_id"] = report.audit_run_id + "-stale"
+    mutations.append(stale)
+    extra_child = json.loads(json.dumps(original))
+    extra_child["child"]["extra"] = 0
+    mutations.append(extra_child)
+    missing_child = json.loads(json.dumps(original))
+    del missing_child["child"]["marker"]
+    mutations.append(missing_child)
+    extra_limit = json.loads(json.dumps(original))
+    extra_limit["child"]["limits"]["extra"] = [0, 0]
+    mutations.append(extra_limit)
+    extra_namespace = json.loads(json.dumps(original))
+    extra_namespace["child_namespaces"]["extra"] = "mnt:[1]"
+    mutations.append(extra_namespace)
+    wrong_routes = json.loads(json.dumps(original))
+    wrong_routes["route_rows"] = "not-a-list"
+    mutations.append(wrong_routes)
+    wrong_interfaces = json.loads(json.dumps(original))
+    wrong_interfaces["interfaces"] = [1]
+    mutations.append(wrong_interfaces)
+    wrong_scalar = json.loads(json.dumps(original))
+    wrong_scalar["bind_errno"] = True
+    mutations.append(wrong_scalar)
+
+    for mutation in mutations:
+        with pytest.raises(AdapterContractError):
+            isolation._validate_preflight_attestation(
+                mutation,
+                audit_run_id=report.audit_run_id,
+                command_paths=expected_paths,
+                launcher_logical_path=launcher_path,
+            )
+
+
+def test_production_preflight_executes_reported_launcher_snapshot(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    launcher = report.command_identities["launcher"]
+    launcher_path = Path(launcher["path"])
+    attestation_path, = tuple(tmp_path.rglob("attestation.json"))
+    trace_path, = tuple(tmp_path.rglob("trace.log"))
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    trace = trace_path.read_text(encoding="utf-8")
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert "setpriv" not in report.command_identities
+    assert launcher["version"] == "task9-capability-launcher-v1"
+    assert hashlib.sha256(launcher_path.read_bytes()).hexdigest() == (
+        launcher["sha256"]
+    )
+    executed_paths = attestation["executed_command_paths"]
+    assert set(executed_paths) == set(_TASK9_PREFLIGHT_COMMANDS)
+    assert len(set(executed_paths.values())) == len(executed_paths)
+    assert all(
+        re.fullmatch(r"/proc/self/fd/\d+", path)
+        for path in executed_paths.values()
+    )
+    assert attestation["launcher_logical_path"] == (
+        "/task9-preflight/launcher.py"
+    )
+    assert re.search(
+        r'(?:open|openat)\([^\n]*"/task9-preflight/launcher\.py"'
+        r'[^\n]*\) = \d+',
+        trace,
+    ) is not None
+
+
+def test_production_preflight_closes_high_infrastructure_descriptors(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    held_descriptors = []
+    try:
+        while not held_descriptors or held_descriptors[-1] < 80:
+            held_descriptors.append(
+                os.open("/dev/null", os.O_RDONLY | os.O_CLOEXEC)
+            )
+        report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    finally:
+        for descriptor in held_descriptors:
+            os.close(descriptor)
+    attestation_path, = tuple(tmp_path.rglob("attestation.json"))
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    executed_descriptors = {
+        int(path.rsplit("/", 1)[1])
+        for path in attestation["executed_command_paths"].values()
+    }
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert min(executed_descriptors) >= 81
+    assert attestation["child"]["inherited_fds"] == []
+
+
+def test_production_preflight_uses_one_isolated_interpreter_after_chroot(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    trace_paths = tuple(tmp_path.rglob("trace.log"))
+    attestation_paths = tuple(tmp_path.rglob("attestation.json"))
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert len(trace_paths) == 1
+    assert len(attestation_paths) == 1
+    trace = trace_paths[0].read_text(encoding="utf-8")
+    attestation = json.loads(attestation_paths[0].read_text(encoding="utf-8"))
+    python_path = report.command_identities["python"]["path"]
+    assert trace.count('execve("' + python_path + '"') == 1
+    assert re.search(
+        r'(?:open|openat)\([^\n]*"/task9-preflight/launcher\.py"'
+        r'[^\n]*\) = \d+',
+        trace,
+    ) is not None
+    assert attestation["child"]["marker"] == "task9-chrooted-interpreter"
+
+
+def test_production_preflight_binds_only_exact_readonly_entropy_device(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    report = isolation.run_capability_preflight(scratch_parent=tmp_path)
+    trace_paths = tuple(tmp_path.rglob("trace.log"))
+
+    assert report.available, thaw_json(report.probe_result_codes)
+    assert report.mount_facts["interpreter_entropy_device"] == "/dev/urandom"
+    assert report.mount_facts["interpreter_entropy_read_only"] is True
+    assert len(trace_paths) == 1
+    trace = trace_paths[0].read_text(encoding="utf-8")
+    device_paths = set(re.findall(r'"(/dev/[^"\\]+)', trace))
+    assert device_paths == {"/dev/urandom"}

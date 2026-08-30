@@ -23,11 +23,13 @@ import math
 import os
 from pathlib import Path, PurePath, PurePosixPath
 import re
+import shutil
 import stat
 import string
 import subprocess
 import sys
 import sysconfig
+import time
 import weakref
 from types import (
     BuiltinFunctionType,
@@ -99,6 +101,7 @@ __all__ = (
     "discover_runtime_resources",
     "build_runtime_snapshot",
     "revalidate_runtime_snapshot",
+    "run_capability_preflight",
     "record_and_freeze_hashes",
     "acquire_run_seed",
     "derive_counterfactual_points",
@@ -14952,6 +14955,2015 @@ class CapabilityPreflightReport:
             )
         _require_sha256(self.trace_sha256, "trace_sha256")
         _require_sha256(self.report_sha256, "report_sha256")
+        _validate_capability_preflight_report(self)
+
+
+_CAPABILITY_PREFLIGHT_PROBES = (
+    "namespaces_distinct",
+    "root_user_mapping",
+    "private_mount_propagation",
+    "tmpfs_root",
+    "readonly_bind",
+    "readonly_root_writable_output",
+    "chroot_interpreter",
+    "capabilities_dropped",
+    "environment_scrubbed",
+    "network_isolated",
+    "host_canary_denied",
+    "strace_complete",
+    "trace_access_evidence",
+    "limits_no_new_privileges",
+)
+_CAPABILITY_PREFLIGHT_COMMANDS = (
+    "unshare",
+    "mount",
+    "chroot",
+    "strace",
+    "python",
+    "supervisor_python",
+    "launcher",
+)
+_CAPABILITY_NAMESPACE_KEYS = (
+    "host_user",
+    "child_user",
+    "host_mount",
+    "child_mount",
+    "host_network",
+    "child_network",
+)
+_CAPABILITY_MOUNT_FACT_KEYS = (
+    "root_private",
+    "root_filesystem",
+    "bind_read_only",
+    "root_read_only",
+    "nested_output_writable",
+    "interpreter_entropy_device",
+    "interpreter_entropy_read_only",
+    "interpreter_entropy_only",
+)
+_CAPABILITY_PREFLIGHT_DIAGNOSTIC_MAX_BYTES = 1024
+_EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
+_CAPABILITY_PREFLIGHT_NORMALIZED_FAILURE_REASONS = frozenset({
+    "capability_command_identity_missing",
+    "capability_command_identity_malformed",
+    "capability_command_identity_unavailable",
+    "capability_probe_runner_failed",
+    "capability_probe_output_missing",
+    "capability_probe_output_malformed",
+})
+_CAPABILITY_PREFLIGHT_CLOSED_REASONS = frozenset({
+    "available",
+    *_CAPABILITY_PREFLIGHT_NORMALIZED_FAILURE_REASONS,
+    "capability_probe_output_contradictory",
+    "capability_probe_nonce_mismatch",
+    *(
+        "capability_probe_" + name + "_failed"
+        for name in _CAPABILITY_PREFLIGHT_PROBES
+    ),
+})
+
+
+def _capability_preflight_evidence_contradicts(
+    checks,
+    codes,
+    namespaces,
+    mounts,
+):
+    if any((codes[name] == 0) != checks[name] for name in checks):
+        return True
+    semantic_checks = {
+        "namespaces_distinct": all(
+            namespaces["host_" + suffix]
+            != namespaces["child_" + suffix]
+            for suffix in ("user", "mount", "network")
+        ),
+        "private_mount_propagation": mounts["root_private"],
+        "tmpfs_root": mounts["root_filesystem"] == "tmpfs",
+        "readonly_bind": mounts["bind_read_only"],
+        "readonly_root_writable_output": (
+            mounts["root_read_only"]
+            and mounts["nested_output_writable"]
+        ),
+    }
+    return any(
+        checks[name] != expected
+        for name, expected in semantic_checks.items()
+    )
+
+
+def _validate_capability_preflight_report(report):
+    expected_probes = set(_CAPABILITY_PREFLIGHT_PROBES)
+    if set(report.checks) != expected_probes or any(
+        type(report.checks[name]) is not bool for name in expected_probes
+    ):
+        raise _ContractError("capability preflight checks are not closed")
+    if not set(report.command_identities) <= set(
+        _CAPABILITY_PREFLIGHT_COMMANDS
+    ):
+        raise _ContractError("capability command identities are not closed")
+    for command, identity in report.command_identities.items():
+        if not isinstance(identity, Mapping):
+            raise _ContractError("capability command identity malformed")
+        values = _exact_keys(
+            identity,
+            ("path", "version", "sha256"),
+            "capability command identity",
+        )
+        path = _require_text(values["path"], "command path")
+        if not Path(path).is_absolute():
+            raise _ContractError("capability command path must be absolute")
+        _require_text(values["version"], "command version")
+        _require_sha256(values["sha256"], "command sha256")
+    namespaces = _exact_keys(
+        report.namespace_identifiers,
+        _CAPABILITY_NAMESPACE_KEYS,
+        "namespace_identifiers",
+    )
+    namespace_kinds = {
+        "host_user": "user",
+        "child_user": "user",
+        "host_mount": "mnt",
+        "child_mount": "mnt",
+        "host_network": "net",
+        "child_network": "net",
+    }
+    for name, kind in namespace_kinds.items():
+        value = namespaces[name]
+        if type(value) is not str or re.fullmatch(
+            re.escape(kind) + r":\[[0-9]+\]", value
+        ) is None:
+            raise _ContractError("capability namespace identifier malformed")
+    mounts = _exact_keys(
+        report.mount_facts,
+        _CAPABILITY_MOUNT_FACT_KEYS,
+        "mount_facts",
+    )
+    for name in _CAPABILITY_MOUNT_FACT_KEYS:
+        if name in {"root_filesystem", "interpreter_entropy_device"}:
+            continue
+        _require_bool(mounts[name], "mount_facts." + name)
+    if mounts["root_filesystem"] not in {"tmpfs", "unknown"}:
+        raise _ContractError("capability root filesystem fact malformed")
+    if mounts["interpreter_entropy_device"] != "/dev/urandom":
+        raise _ContractError("capability entropy device fact malformed")
+    result = _exact_keys(
+        report.probe_result_codes,
+        ("probes", "reason_code", "diagnostic"),
+        "probe_result_codes",
+    )
+    codes = result["probes"]
+    if not isinstance(codes, Mapping) or set(codes) != expected_probes:
+        raise _ContractError("capability probe result codes are not closed")
+    if any(type(codes[name]) is not int for name in expected_probes):
+        raise _ContractError("capability probe result code is malformed")
+    reason_code = _require_text(result["reason_code"], "preflight reason_code")
+    if reason_code not in _CAPABILITY_PREFLIGHT_CLOSED_REASONS:
+        raise _ContractError("preflight reason_code is not closed")
+    diagnostic = _require_text(result["diagnostic"], "preflight diagnostic")
+    if len(diagnostic.encode("utf-8")) > _CAPABILITY_PREFLIGHT_DIAGNOSTIC_MAX_BYTES:
+        raise _ContractError("preflight diagnostic is oversized")
+    contradictory = _capability_preflight_evidence_contradicts(
+        report.checks,
+        codes,
+        namespaces,
+        mounts,
+    )
+    if report.available:
+        if set(report.command_identities) != set(
+            _CAPABILITY_PREFLIGHT_COMMANDS
+        ):
+            raise _ContractError("available preflight requires every command")
+        if not all(report.checks.values()) or any(
+            codes[name] != 0 for name in expected_probes
+        ):
+            raise _ContractError("available preflight evidence contradicts status")
+        if reason_code != "available":
+            raise _ContractError("available preflight reason contradicts status")
+        if contradictory:
+            raise _ContractError("available preflight evidence is contradictory")
+        if mounts["root_filesystem"] != "tmpfs" or not all(
+            mounts[name]
+            for name in _CAPABILITY_MOUNT_FACT_KEYS
+            if name not in {"root_filesystem", "interpreter_entropy_device"}
+        ):
+            raise _ContractError("available preflight mount facts contradict status")
+    else:
+        if reason_code == "available":
+            raise _ContractError("unavailable preflight reason contradicts status")
+        if reason_code == "capability_probe_output_contradictory":
+            if not contradictory:
+                raise _ContractError(
+                    "preflight contradiction reason lacks contradictory evidence"
+                )
+        elif reason_code.startswith("capability_probe_") and reason_code.endswith(
+            "_failed"
+        ) and reason_code != "capability_probe_runner_failed":
+            if contradictory:
+                raise _ContractError(
+                    "preflight probe failure evidence is contradictory"
+                )
+            failed = tuple(
+                name for name in _CAPABILITY_PREFLIGHT_PROBES
+                if not report.checks[name]
+            )
+            expected_reason = (
+                "capability_probe_" + failed[0] + "_failed"
+                if failed else None
+            )
+            if (
+                reason_code != expected_reason
+                or set(report.command_identities)
+                != set(_CAPABILITY_PREFLIGHT_COMMANDS)
+            ):
+                raise _ContractError(
+                    "preflight probe failure reason contradicts evidence"
+                )
+        elif (
+            reason_code not in _CAPABILITY_PREFLIGHT_NORMALIZED_FAILURE_REASONS
+            and reason_code != "capability_probe_nonce_mismatch"
+        ):
+            raise _ContractError("unavailable preflight reason is invalid")
+    body = {
+        name: getattr(report, name)
+        for name in _record_field_names(CapabilityPreflightReport)
+        if name != "report_sha256"
+    }
+    if report.report_sha256 != _canonical_sha256(body):
+        raise _ContractError("capability preflight report hash mismatch")
+
+
+def _bounded_preflight_diagnostic(value):
+    if type(value) is not str or not value:
+        value = "capability preflight evidence unavailable"
+    sanitized = []
+    for character in value:
+        codepoint = ord(character)
+        if 0xD800 <= codepoint <= 0xDFFF:
+            sanitized.append("\ufffd")
+        elif codepoint < 32 or codepoint == 127:
+            sanitized.append(" ")
+        else:
+            sanitized.append(character)
+    value = " ".join("".join(sanitized).split())
+    if not value:
+        value = "capability preflight evidence unavailable"
+    retained = []
+    retained_bytes = 0
+    for character in value:
+        encoded = character.encode("utf-8")
+        if (
+            retained_bytes + len(encoded)
+            > _CAPABILITY_PREFLIGHT_DIAGNOSTIC_MAX_BYTES
+        ):
+            break
+        retained.append(character)
+        retained_bytes += len(encoded)
+    return "".join(retained).strip()
+
+
+def _preflight_report(
+    *,
+    audit_run_id,
+    available,
+    checks,
+    command_identities,
+    namespace_identifiers,
+    mount_facts,
+    probe_codes,
+    reason_code,
+    diagnostic,
+    trace_sha256,
+):
+    body = {
+        "schema_version": "capability_preflight_report_v1",
+        "audit_run_id": audit_run_id,
+        "available": available,
+        "checks": checks,
+        "command_identities": command_identities,
+        "namespace_identifiers": namespace_identifiers,
+        "mount_facts": mount_facts,
+        "probe_result_codes": {
+            "probes": probe_codes,
+            "reason_code": reason_code,
+            "diagnostic": _bounded_preflight_diagnostic(diagnostic),
+        },
+        "trace_sha256": trace_sha256,
+    }
+    return CapabilityPreflightReport(
+        **body,
+        report_sha256=_canonical_sha256(body),
+    )
+
+
+def _unavailable_preflight_report(
+    *,
+    audit_run_id,
+    command_identities,
+    reason_code,
+    diagnostic,
+    checks=None,
+    probe_codes=None,
+    namespace_identifiers=None,
+    mount_facts=None,
+    trace_sha256=_EMPTY_SHA256,
+):
+    normalized_checks = {
+        name: False for name in _CAPABILITY_PREFLIGHT_PROBES
+    }
+    if checks is not None:
+        for name in _CAPABILITY_PREFLIGHT_PROBES:
+            if type(checks.get(name)) is bool:
+                normalized_checks[name] = checks[name]
+    normalized_codes = {
+        name: -1 for name in _CAPABILITY_PREFLIGHT_PROBES
+    }
+    if probe_codes is not None:
+        for name in _CAPABILITY_PREFLIGHT_PROBES:
+            value = probe_codes.get(name)
+            if type(value) is int:
+                normalized_codes[name] = value
+    normalized_namespaces = {
+        "host_user": "user:[0]",
+        "child_user": "user:[0]",
+        "host_mount": "mnt:[0]",
+        "child_mount": "mnt:[0]",
+        "host_network": "net:[0]",
+        "child_network": "net:[0]",
+    }
+    if isinstance(namespace_identifiers, Mapping):
+        for name in _CAPABILITY_NAMESPACE_KEYS:
+            value = namespace_identifiers.get(name)
+            kind = "mnt" if name.endswith("mount") else name.split("_")[1]
+            if type(value) is str and re.fullmatch(
+                re.escape(kind) + r":\[[0-9]+\]", value
+            ) is not None:
+                normalized_namespaces[name] = value
+    normalized_mounts = {
+        "root_private": False,
+        "root_filesystem": "unknown",
+        "bind_read_only": False,
+        "root_read_only": False,
+        "nested_output_writable": False,
+        "interpreter_entropy_device": "/dev/urandom",
+        "interpreter_entropy_read_only": False,
+        "interpreter_entropy_only": False,
+    }
+    if isinstance(mount_facts, Mapping):
+        for name in _CAPABILITY_MOUNT_FACT_KEYS:
+            value = mount_facts.get(name)
+            if name == "root_filesystem" and value in {"tmpfs", "unknown"}:
+                normalized_mounts[name] = value
+            elif name == "interpreter_entropy_device" and value == "/dev/urandom":
+                normalized_mounts[name] = value
+            elif name not in {"root_filesystem", "interpreter_entropy_device"} and type(value) is bool:
+                normalized_mounts[name] = value
+    return _preflight_report(
+        audit_run_id=audit_run_id,
+        available=False,
+        checks=normalized_checks,
+        command_identities=command_identities,
+        namespace_identifiers=normalized_namespaces,
+        mount_facts=normalized_mounts,
+        probe_codes=normalized_codes,
+        reason_code=reason_code,
+        diagnostic=diagnostic,
+        trace_sha256=trace_sha256,
+    )
+
+
+def _create_preflight_scratch(scratch_parent, audit_run_id):
+    try:
+        parent = Path(scratch_parent).resolve(strict=True)
+        parent_status = parent.stat()
+    except OSError as error:
+        raise _ContractError("preflight scratch parent is unavailable") from error
+    if not stat.S_ISDIR(parent_status.st_mode):
+        raise _ContractError("preflight scratch parent must be a directory")
+    for counter in range(128):
+        material = (
+            audit_run_id.encode("utf-8")
+            + b"\0"
+            + str(os.getpid()).encode("ascii")
+            + b"\0"
+            + str(time.monotonic_ns()).encode("ascii")
+            + b"\0"
+            + str(counter).encode("ascii")
+        )
+        run_directory = parent / (
+            "capability-preflight-" + hashlib.sha256(material).hexdigest()
+        )
+        try:
+            os.mkdir(run_directory, 0o700)
+        except FileExistsError:
+            continue
+        except OSError as error:
+            raise _ContractError(
+                "preflight scratch directory exclusive creation failed"
+            ) from error
+        created = run_directory.stat()
+        if not stat.S_ISDIR(created.st_mode):
+            raise _ContractError("preflight scratch path is not a directory")
+        return run_directory
+    raise _ContractError("preflight scratch directory uniqueness exhausted")
+
+
+def _validated_preflight_command_identity(value, command):
+    if not isinstance(value, Mapping):
+        raise _ContractError("capability command identity malformed")
+    identity = _exact_keys(
+        value,
+        ("command", "path", "version", "sha256"),
+        "capability command identity",
+    )
+    if identity["command"] != command:
+        raise _ContractError("capability command identity malformed")
+    path = _require_text(identity["path"], "command path")
+    if not Path(path).is_absolute():
+        raise _ContractError("capability command identity malformed")
+    version = _require_text(identity["version"], "command version")
+    if len(version.encode("utf-8")) > 512:
+        raise _ContractError("capability command identity malformed")
+    digest = _require_sha256(identity["sha256"], "command sha256")
+    return {"path": path, "version": version, "sha256": digest}
+
+
+def _probe_evidence_shape(value):
+    if not isinstance(value, Mapping):
+        return None, "capability_probe_output_malformed"
+    expected = (
+        "audit_run_id",
+        "checks",
+        "probe_result_codes",
+        "namespace_identifiers",
+        "mount_facts",
+        "trace_sha256",
+        "diagnostic",
+    )
+    keys = set(value)
+    if not set(expected) <= keys:
+        return None, "capability_probe_output_missing"
+    if keys != set(expected):
+        return None, "capability_probe_output_malformed"
+    checks = value["checks"]
+    codes = value["probe_result_codes"]
+    if not isinstance(checks, Mapping) or not isinstance(codes, Mapping):
+        return None, "capability_probe_output_malformed"
+    expected_probes = set(_CAPABILITY_PREFLIGHT_PROBES)
+    if set(checks) != expected_probes or set(codes) != expected_probes:
+        if not expected_probes <= set(checks) or not expected_probes <= set(codes):
+            return None, "capability_probe_output_missing"
+        return None, "capability_probe_output_malformed"
+    if any(type(checks[name]) is not bool for name in expected_probes):
+        return None, "capability_probe_output_malformed"
+    if any(type(codes[name]) is not int for name in expected_probes):
+        return None, "capability_probe_output_malformed"
+    if any((codes[name] == 0) != checks[name] for name in expected_probes):
+        return None, "capability_probe_output_contradictory"
+    if not isinstance(value["namespace_identifiers"], Mapping):
+        return None, "capability_probe_output_malformed"
+    if not isinstance(value["mount_facts"], Mapping):
+        return None, "capability_probe_output_malformed"
+    namespaces = value["namespace_identifiers"]
+    mounts = value["mount_facts"]
+    if set(namespaces) != set(_CAPABILITY_NAMESPACE_KEYS):
+        if not set(_CAPABILITY_NAMESPACE_KEYS) <= set(namespaces):
+            return None, "capability_probe_output_missing"
+        return None, "capability_probe_output_malformed"
+    if set(mounts) != set(_CAPABILITY_MOUNT_FACT_KEYS):
+        if not set(_CAPABILITY_MOUNT_FACT_KEYS) <= set(mounts):
+            return None, "capability_probe_output_missing"
+        return None, "capability_probe_output_malformed"
+    if any(type(namespaces[name]) is not str for name in _CAPABILITY_NAMESPACE_KEYS):
+        return None, "capability_probe_output_malformed"
+    namespace_kinds = {
+        "host_user": "user",
+        "child_user": "user",
+        "host_mount": "mnt",
+        "child_mount": "mnt",
+        "host_network": "net",
+        "child_network": "net",
+    }
+    if any(
+        re.fullmatch(
+            re.escape(namespace_kinds[name]) + r":\[[0-9]+\]",
+            namespaces[name],
+        ) is None
+        for name in _CAPABILITY_NAMESPACE_KEYS
+    ):
+        return None, "capability_probe_output_malformed"
+    if mounts["root_filesystem"] not in {"tmpfs", "unknown"} or mounts[
+        "interpreter_entropy_device"
+    ] != "/dev/urandom":
+        return None, "capability_probe_output_malformed"
+    if any(
+        type(mounts[name]) is not bool
+        for name in _CAPABILITY_MOUNT_FACT_KEYS
+        if name not in {"root_filesystem", "interpreter_entropy_device"}
+    ):
+        return None, "capability_probe_output_malformed"
+    namespace_distinct = all(
+        namespaces["host_" + suffix] != namespaces["child_" + suffix]
+        for suffix in ("user", "mount", "network")
+    )
+    semantic_checks = {
+        "namespaces_distinct": namespace_distinct,
+        "private_mount_propagation": mounts["root_private"],
+        "tmpfs_root": mounts["root_filesystem"] == "tmpfs",
+        "readonly_bind": mounts["bind_read_only"],
+        "readonly_root_writable_output": (
+            mounts["root_read_only"]
+            and mounts["nested_output_writable"]
+        ),
+    }
+    if any(
+        checks[name] != expected
+        for name, expected in semantic_checks.items()
+    ) or (
+        all(checks.values())
+        and not (
+            mounts["interpreter_entropy_read_only"]
+            and mounts["interpreter_entropy_only"]
+        )
+    ):
+        return None, "capability_probe_output_contradictory"
+    try:
+        _require_text(value["audit_run_id"], "probe audit_run_id")
+        _require_sha256(value["trace_sha256"], "probe trace_sha256")
+    except _ContractError:
+        return None, "capability_probe_output_malformed"
+    if type(value["diagnostic"]) is not str:
+        return None, "capability_probe_output_malformed"
+    return dict(value), None
+
+
+def _run_capability_preflight(*, scratch_parent, audit_run_id, runner):
+    _require_text(audit_run_id, "audit_run_id")
+    if not callable(runner):
+        raise _ContractError("preflight runner must be callable")
+    run_directory = _create_preflight_scratch(scratch_parent, audit_run_id)
+    command_identities = {}
+    for command in _CAPABILITY_PREFLIGHT_COMMANDS:
+        raw_identity = None
+        try:
+            try:
+                raw_identity = runner(
+                    "identify",
+                    {
+                        "command": command,
+                        "audit_run_id": audit_run_id,
+                        "run_directory": str(run_directory),
+                    },
+                )
+            except Exception as error:
+                return _unavailable_preflight_report(
+                    audit_run_id=audit_run_id,
+                    command_identities=command_identities,
+                    reason_code="capability_command_identity_unavailable",
+                    diagnostic=str(error),
+                )
+            identity = _validated_preflight_command_identity(
+                raw_identity, command
+            )
+        except _ContractError as error:
+            missing = (
+                isinstance(raw_identity, Mapping)
+                and set(raw_identity)
+                != {"command", "path", "version", "sha256"}
+                and not {
+                    "command", "path", "version", "sha256",
+                } <= set(raw_identity)
+            )
+            kind = "missing" if missing else "malformed"
+            return _unavailable_preflight_report(
+                audit_run_id=audit_run_id,
+                command_identities=command_identities,
+                reason_code="capability_command_identity_" + kind,
+                diagnostic=str(error),
+            )
+        command_identities[command] = identity
+    probe_request = {
+        "audit_run_id": audit_run_id,
+        "run_directory": str(run_directory),
+        "command_identities": command_identities,
+    }
+    try:
+        raw_evidence = runner("probe", probe_request)
+    except Exception as error:
+        return _unavailable_preflight_report(
+            audit_run_id=audit_run_id,
+            command_identities=command_identities,
+            reason_code="capability_probe_runner_failed",
+            diagnostic=str(error),
+        )
+    evidence, shape_error = _probe_evidence_shape(raw_evidence)
+    if shape_error is not None:
+        raw_mapping = raw_evidence if isinstance(raw_evidence, Mapping) else {}
+        return _unavailable_preflight_report(
+            audit_run_id=audit_run_id,
+            command_identities=command_identities,
+            reason_code=shape_error,
+            diagnostic="capability probe evidence is incomplete or invalid",
+            checks=(
+                raw_mapping.get("checks")
+                if isinstance(raw_mapping.get("checks"), Mapping)
+                else None
+            ),
+            probe_codes=(
+                raw_mapping.get("probe_result_codes")
+                if isinstance(raw_mapping.get("probe_result_codes"), Mapping)
+                else None
+            ),
+            namespace_identifiers=(
+                raw_mapping.get("namespace_identifiers")
+                if isinstance(
+                    raw_mapping.get("namespace_identifiers"), Mapping
+                )
+                else None
+            ),
+            mount_facts=(
+                raw_mapping.get("mount_facts")
+                if isinstance(raw_mapping.get("mount_facts"), Mapping)
+                else None
+            ),
+            trace_sha256=(
+                raw_mapping.get("trace_sha256")
+                if type(raw_mapping.get("trace_sha256")) is str
+                and re.fullmatch(
+                    r"[0-9a-f]{64}", raw_mapping.get("trace_sha256")
+                ) is not None
+                else _EMPTY_SHA256
+            ),
+        )
+    if evidence["audit_run_id"] != audit_run_id:
+        return _unavailable_preflight_report(
+            audit_run_id=audit_run_id,
+            command_identities=command_identities,
+            reason_code="capability_probe_nonce_mismatch",
+            diagnostic="capability probe audit nonce mismatch",
+            checks=evidence["checks"],
+            probe_codes=evidence["probe_result_codes"],
+            namespace_identifiers=evidence["namespace_identifiers"],
+            mount_facts=evidence["mount_facts"],
+            trace_sha256=evidence["trace_sha256"],
+        )
+    failed = tuple(
+        name
+        for name in _CAPABILITY_PREFLIGHT_PROBES
+        if not evidence["checks"][name]
+    )
+    reason_code = "available"
+    if failed:
+        reason_code = "capability_probe_" + failed[0] + "_failed"
+    return _preflight_report(
+        audit_run_id=audit_run_id,
+        available=not failed,
+        checks=evidence["checks"],
+        command_identities=command_identities,
+        namespace_identifiers=evidence["namespace_identifiers"],
+        mount_facts=evidence["mount_facts"],
+        probe_codes=evidence["probe_result_codes"],
+        reason_code=reason_code,
+        diagnostic=evidence["diagnostic"],
+        trace_sha256=evidence["trace_sha256"],
+    )
+
+
+_CAPABILITY_PREFLIGHT_ENVIRONMENT = {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PYTHONHASHSEED": "0",
+}
+_CAPABILITY_PREFLIGHT_VERSION_ARGUMENTS = {
+    "unshare": ("-V",),
+    "mount": ("-V",),
+    "chroot": ("--version",),
+    "strace": ("-V",),
+    "python": ("--version",),
+    "supervisor_python": ("--version",),
+}
+
+
+def _hash_preflight_command(path):
+    try:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+    except OSError as error:
+        raise _ContractError("capability command cannot be opened") from error
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise _ContractError("capability command is not a regular file")
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ) or total != before.st_size:
+            raise _ContractError("capability command changed while hashing")
+        return digest.hexdigest()
+    finally:
+        os.close(descriptor)
+
+
+def _hash_preflight_descriptor(descriptor):
+    before = os.fstat(descriptor)
+    if not stat.S_ISREG(before.st_mode):
+        raise _ContractError("capability command is not a regular file")
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+            total += len(chunk)
+        after = os.fstat(descriptor)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+    except OSError as error:
+        raise _ContractError("capability command cannot be hashed") from error
+    if (
+        before.st_dev,
+        before.st_ino,
+        before.st_nlink,
+        before.st_size,
+        before.st_mode,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    ) != (
+        after.st_dev,
+        after.st_ino,
+        after.st_nlink,
+        after.st_size,
+        after.st_mode,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    ) or total != before.st_size:
+        raise _ContractError("capability command changed while hashing")
+    return digest.hexdigest()
+
+
+def _preflight_descriptor_identity(descriptor):
+    status = os.fstat(descriptor)
+    return (
+        status.st_dev,
+        status.st_ino,
+        status.st_nlink,
+        status.st_size,
+        status.st_mode,
+        status.st_mtime_ns,
+        status.st_ctime_ns,
+    )
+
+
+def _preflight_snapshot_path(run_directory, command):
+    snapshot_directory = Path(run_directory) / "command-snapshots"
+    try:
+        snapshot_directory.mkdir(mode=0o700)
+    except FileExistsError:
+        status = snapshot_directory.stat()
+        if (
+            not stat.S_ISDIR(status.st_mode)
+            or stat.S_IMODE(status.st_mode) != 0o700
+        ):
+            raise _ContractError("capability snapshot directory is unsafe")
+    basename = "launcher.py" if command == "launcher" else command
+    return snapshot_directory / basename
+
+
+def _write_preflight_snapshot(snapshot_path, payload):
+    try:
+        descriptor = os.open(
+            snapshot_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+            0o500,
+        )
+    except OSError as error:
+        raise _ContractError("capability snapshot cannot be created") from error
+    try:
+        offset = 0
+        while offset < len(payload):
+            written = os.write(descriptor, payload[offset:])
+            if written <= 0:
+                raise _ContractError("capability snapshot write failed")
+            offset += written
+        os.fsync(descriptor)
+    except OSError as error:
+        raise _ContractError("capability snapshot write failed") from error
+    finally:
+        os.close(descriptor)
+
+
+def _snapshot_preflight_command(path, snapshot_path):
+    try:
+        source_fd = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+    except OSError as error:
+        raise _ContractError("capability command cannot be opened") from error
+    destination_fd = None
+    try:
+        before = os.fstat(source_fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise _ContractError("capability command is not a regular file")
+        try:
+            destination_fd = os.open(
+                snapshot_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+                0o500,
+            )
+        except OSError as error:
+            raise _ContractError(
+                "capability snapshot cannot be created"
+            ) from error
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(source_fd, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+            total += len(chunk)
+            offset = 0
+            while offset < len(chunk):
+                written = os.write(destination_fd, chunk[offset:])
+                if written <= 0:
+                    raise _ContractError("capability snapshot write failed")
+                offset += written
+        os.fsync(destination_fd)
+        after = os.fstat(source_fd)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ) or total != before.st_size:
+            raise _ContractError("capability command changed while snapshotting")
+        return digest.hexdigest()
+    except OSError as error:
+        raise _ContractError("capability snapshot copy failed") from error
+    finally:
+        if destination_fd is not None:
+            os.close(destination_fd)
+        os.close(source_fd)
+
+
+def _identify_preflight_command(command, *, run_directory):
+    snapshot_path = _preflight_snapshot_path(run_directory, command)
+    if command == "launcher":
+        payload = _CAPABILITY_PREFLIGHT_LAUNCHER_SOURCE.encode("utf-8")
+        _write_preflight_snapshot(snapshot_path, payload)
+        digest = hashlib.sha256(payload).hexdigest()
+        if _hash_preflight_command(snapshot_path) != digest:
+            raise _ContractError("capability launcher snapshot changed")
+        return {
+            "command": command,
+            "path": str(snapshot_path),
+            "version": "task9-capability-launcher-v1",
+            "sha256": digest,
+        }
+    if command == "python":
+        candidate = sys.executable
+    elif command == "supervisor_python":
+        candidate = "/usr/bin/python3"
+    else:
+        candidate = shutil.which(command)
+    if not candidate:
+        raise _ContractError("capability command is unavailable")
+    try:
+        path = str(Path(candidate).resolve(strict=True))
+    except OSError as error:
+        raise _ContractError("capability command path cannot be resolved") from error
+    digest = _snapshot_preflight_command(path, snapshot_path)
+    if _hash_preflight_command(snapshot_path) != digest:
+        raise _ContractError("capability command snapshot changed")
+    arguments = _CAPABILITY_PREFLIGHT_VERSION_ARGUMENTS[command]
+    snapshot_fd = None
+    snapshot_identity = None
+    try:
+        snapshot_fd = os.open(
+            snapshot_path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+        snapshot_identity = _preflight_descriptor_identity(snapshot_fd)
+        if _hash_preflight_descriptor(snapshot_fd) != digest:
+            raise _ContractError("capability command snapshot changed")
+        completed = subprocess.run(
+            (path, *arguments),
+            executable=f"/proc/self/fd/{snapshot_fd}",
+            check=False,
+            close_fds=True,
+            cwd="/",
+            env=dict(_CAPABILITY_PREFLIGHT_ENVIRONMENT),
+            pass_fds=(snapshot_fd,),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise _ContractError("capability command version probe failed") from error
+    finally:
+        if snapshot_fd is not None:
+            if (
+                snapshot_identity is not None
+                and (
+                    _preflight_descriptor_identity(snapshot_fd)
+                    != snapshot_identity
+                    or _hash_preflight_descriptor(snapshot_fd) != digest
+                )
+            ):
+                os.close(snapshot_fd)
+                raise _ContractError(
+                    "capability command changed during version probe"
+                )
+            os.close(snapshot_fd)
+    output = completed.stdout
+    if completed.returncode != 0 or type(output) is not bytes:
+        raise _ContractError("capability command version probe failed")
+    try:
+        version = output.decode("utf-8", "strict").strip()
+    except UnicodeDecodeError as error:
+        raise _ContractError("capability command version is malformed") from error
+    if not version or len(version.encode("utf-8")) > 512:
+        raise _ContractError("capability command version is malformed")
+    return {
+        "command": command,
+        "path": path,
+        "version": version,
+        "sha256": digest,
+    }
+
+
+_CAPABILITY_PREFLIGHT_CHILD_SOURCE = r'''
+import ctypes
+import json
+import os
+import resource
+import socket
+
+inherited_fds = []
+descriptor_candidates = sorted(
+    set(range(3, 64)) | set(__task9_infrastructure_fds__)
+)
+for descriptor in descriptor_candidates:
+    try:
+        os.fstat(descriptor)
+    except OSError:
+        continue
+    inherited_fds.append(descriptor)
+
+class Header(ctypes.Structure):
+    _fields_ = [("version", ctypes.c_uint32), ("pid", ctypes.c_int)]
+
+class Data(ctypes.Structure):
+    _fields_ = [
+        ("effective", ctypes.c_uint32),
+        ("permitted", ctypes.c_uint32),
+        ("inheritable", ctypes.c_uint32),
+    ]
+
+libc = ctypes.CDLL(None, use_errno=True)
+header = Header(0x20080522, 0)
+data = (Data * 2)()
+capget_code = libc.capget(ctypes.byref(header), ctypes.byref(data))
+cap_words = [
+    [item.effective, item.permitted, item.inheritable] for item in data
+]
+bounding = []
+ambient = []
+for capability in range(64):
+    bounded = libc.prctl(23, capability, 0, 0, 0)
+    if bounded >= 0:
+        bounding.append(bounded)
+    ambient_value = libc.prctl(47, 2, capability, 0, 0)
+    if ambient_value >= 0:
+        ambient.append(ambient_value)
+nnp = libc.prctl(39, 0, 0, 0, 0)
+
+entropy_fd = os.open("/dev/urandom", os.O_RDONLY)
+try:
+    entropy_byte = os.read(entropy_fd, 1)
+finally:
+    os.close(entropy_fd)
+if len(entropy_byte) != 1:
+    raise RuntimeError("interpreter entropy device read failed")
+
+with open("/runtime/probe.txt", "rb") as stream:
+    permitted = stream.read().decode("ascii")
+directory_fd = os.open("/runtime", os.O_RDONLY | os.O_DIRECTORY)
+try:
+    relative_fd = os.open("probe.txt", os.O_RDONLY, dir_fd=directory_fd)
+    try:
+        relative = os.read(relative_fd, 64).decode("ascii")
+    finally:
+        os.close(relative_fd)
+finally:
+    os.close(directory_fd)
+host_canary_path = "__TASK9_HOST_CANARY_PATH__"
+host_errno = 0
+try:
+    os.open(host_canary_path, os.O_RDONLY)
+except OSError as error:
+    host_errno = error.errno
+long_errno = 0
+try:
+    os.open("/forbidden-task9-" + "x" * 512, os.O_RDONLY)
+except OSError as error:
+    long_errno = error.errno
+network_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+    network_code = network_socket.connect_ex(("192.0.2.1", 9))
+finally:
+    network_socket.close()
+
+print(json.dumps({
+    "marker": "task9-chrooted-interpreter",
+    "cwd": os.getcwd(),
+    "environment_keys": sorted(os.environ),
+    "permitted_read": permitted,
+    "relative_read": relative,
+    "host_errno": host_errno,
+    "host_canary_path": host_canary_path,
+    "long_errno": long_errno,
+    "network_code": network_code,
+    "inherited_fds": inherited_fds,
+    "capget_code": capget_code,
+    "capability_words": cap_words,
+    "bounding_values": bounding,
+    "ambient_values": ambient,
+    "no_new_privileges": nnp,
+    "limits": {
+        "core": list(resource.getrlimit(resource.RLIMIT_CORE)),
+        "file_size": list(resource.getrlimit(resource.RLIMIT_FSIZE)),
+        "open_files": list(resource.getrlimit(resource.RLIMIT_NOFILE)),
+        "processes": list(resource.getrlimit(resource.RLIMIT_NPROC)),
+    },
+}, sort_keys=True, separators=(",", ":")))
+'''
+
+
+_CAPABILITY_PREFLIGHT_LAUNCHER_SOURCE = r'''
+import ctypes
+import json
+import os
+import resource
+import sys
+
+class Header(ctypes.Structure):
+    _fields_ = [("version", ctypes.c_uint32), ("pid", ctypes.c_int)]
+
+class Data(ctypes.Structure):
+    _fields_ = [
+        ("effective", ctypes.c_uint32),
+        ("permitted", ctypes.c_uint32),
+        ("inheritable", ctypes.c_uint32),
+    ]
+
+libc = ctypes.CDLL(None, use_errno=True)
+for capability in range(64):
+    result = libc.prctl(24, capability, 0, 0, 0)
+    if result != 0 and ctypes.get_errno() != 22:
+        raise OSError(ctypes.get_errno(), "bounding capability drop failed")
+if libc.prctl(47, 4, 0, 0, 0) != 0:
+    raise OSError(ctypes.get_errno(), "ambient capability clear failed")
+header = Header(0x20080522, 0)
+data = (Data * 2)()
+if libc.capset(ctypes.byref(header), ctypes.byref(data)) != 0:
+    raise OSError(ctypes.get_errno(), "capability set clear failed")
+if libc.prctl(38, 1, 0, 0, 0) != 0:
+    raise OSError(ctypes.get_errno(), "no-new-privileges failed")
+resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+resource.setrlimit(resource.RLIMIT_FSIZE, (1048576, 1048576))
+resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
+resource.setrlimit(resource.RLIMIT_NPROC, (1, 1))
+python_path = sys.argv[1]
+worker_source = sys.argv[2]
+environment = {"LANG": "C", "LC_ALL": "C", "PYTHONHASHSEED": "0"}
+if os.environ != environment:
+    raise RuntimeError("launcher environment is not closed")
+infrastructure_fds = json.loads(sys.argv[3])
+if (
+    type(infrastructure_fds) is not list
+    or not infrastructure_fds
+    or any(type(value) is not int or value < 3 for value in infrastructure_fds)
+    or infrastructure_fds != sorted(set(infrastructure_fds))
+):
+    raise RuntimeError("launcher infrastructure descriptors are malformed")
+for descriptor in infrastructure_fds:
+    try:
+        os.close(descriptor)
+    except OSError:
+        pass
+os.closerange(3, 64)
+worker_globals = {
+    "__name__": "__main__",
+    "__file__": "<task9-worker>",
+    "__package__": None,
+    "__task9_infrastructure_fds__": tuple(infrastructure_fds),
+}
+exec(
+    compile(worker_source, "<task9-worker>", "exec"),
+    worker_globals,
+    worker_globals,
+)
+'''
+
+
+_CAPABILITY_PREFLIGHT_SUPERVISOR_SOURCE = r'''
+import errno
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+request = json.loads(sys.argv[1])
+commands = request["commands"]
+run_directory = Path(request["run_directory"])
+root = run_directory / "root"
+host_output = run_directory / "host-output"
+host_source = run_directory / "host-source"
+root.mkdir(mode=0o700)
+old_umask = os.umask(0)
+try:
+    host_output.mkdir(mode=0o777)
+finally:
+    os.umask(old_umask)
+host_source.mkdir(mode=0o700)
+probe_source = host_source / "probe.txt"
+with probe_source.open("x", encoding="ascii") as stream:
+    stream.write("task9-permitted-read")
+host_canary = run_directory / "host-canary-denied-task9"
+with host_canary.open("x", encoding="ascii") as stream:
+    stream.write("task9-host-canary")
+
+environment = {"LANG": "C", "LC_ALL": "C", "PYTHONHASHSEED": "0"}
+command_fds = tuple(request["command_descriptors"].values())
+def execute(arguments, *, timeout=20, pass_fds=()):
+    result = subprocess.run(
+        tuple(arguments), check=False, close_fds=True, cwd="/",
+        env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        timeout=timeout, pass_fds=command_fds + tuple(pass_fds),
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout)[:1024].decode(
+            "utf-8", "replace"
+        )
+        raise RuntimeError("command failed: " + detail)
+    return result
+
+execute((commands["mount"], "--make-rprivate", "/"))
+execute((
+    commands["mount"], "-t", "tmpfs", "-o",
+    "nodev,nosuid,size=128m", "tmpfs", str(root),
+))
+
+def target_for(source):
+    return root / source.lstrip("/")
+
+def bind_read_only(source, *, allow_device=False, logical_path=None):
+    target = target_for(logical_path if logical_path is not None else source)
+    source_path = Path(source)
+    if source_path.is_dir():
+        target.mkdir(mode=0o755, parents=True, exist_ok=True)
+    else:
+        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        if target.exists():
+            if logical_path is None or not target.is_file():
+                raise RuntimeError("bind target unexpectedly exists")
+        else:
+            with target.open("x", encoding="ascii"):
+                pass
+    execute((commands["mount"], "--bind", source, str(target)))
+    remount_options = "remount,bind,ro,nosuid"
+    if not allow_device:
+        remount_options += ",nodev"
+    execute((
+        commands["mount"], "-o", remount_options,
+        str(target),
+    ))
+    return target
+
+runtime = root / "runtime"
+runtime.mkdir(mode=0o755)
+probe_target = runtime / "probe.txt"
+with probe_target.open("x", encoding="ascii"):
+    pass
+execute((commands["mount"], "--bind", str(probe_source), str(probe_target)))
+execute((
+    commands["mount"], "-o", "remount,bind,ro,nodev,nosuid",
+    str(probe_target),
+))
+entropy_target = bind_read_only("/dev/urandom", allow_device=True)
+entropy_write_errno = 0
+try:
+    entropy_fd = os.open(entropy_target, os.O_WRONLY)
+except OSError as error:
+    entropy_write_errno = error.errno
+else:
+    os.close(entropy_fd)
+
+mounted_sources = []
+for source in request["runtime_sources"]:
+    if Path(source).exists() and source not in mounted_sources:
+        bind_read_only(source)
+        mounted_sources.append(source)
+bind_read_only(
+    commands["python"], logical_path=request["python_logical_path"]
+)
+bind_read_only(
+    commands["launcher"], logical_path=request["launcher_logical_path"]
+)
+
+output_target = root / "output"
+output_target.mkdir(mode=0o755)
+execute((commands["mount"], "--bind", str(host_output), str(output_target)))
+execute((commands["mount"], "-o", "remount,bind,rw,nodev,nosuid", str(output_target)))
+
+bind_errno = 0
+try:
+    with probe_target.open("a", encoding="ascii") as stream:
+        stream.write("forbidden")
+except OSError as error:
+    bind_errno = error.errno
+
+execute((
+    commands["mount"], "-o", "remount,ro,nodev,nosuid", str(root),
+))
+root_errno = 0
+try:
+    with (root / "root-write-forbidden").open("x", encoding="ascii"):
+        pass
+except OSError as error:
+    root_errno = error.errno
+output_write_ok = False
+with (output_target / "nested-output-writable").open("x", encoding="ascii") as stream:
+    stream.write("task9-output")
+output_write_ok = True
+
+mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
+root_line = next(
+    line for line in mountinfo.splitlines()
+    if line.split()[4] == str(root)
+)
+root_separator = root_line.split().index("-")
+root_private = not any(
+    token.startswith(("shared:", "master:", "propagate_from:"))
+    for token in root_line.split()[6:root_separator]
+)
+root_fstype = root_line.split()[root_separator + 1]
+entropy_line = next(
+    line for line in mountinfo.splitlines()
+    if line.split()[4] == str(entropy_target)
+)
+route_rows = []
+for line in Path("/proc/net/route").read_text(encoding="ascii").splitlines()[1:]:
+    columns = line.split()
+    if len(columns) >= 4:
+        route_rows.append(columns[:4])
+interfaces = sorted(
+    line.split(":", 1)[0].strip()
+    for line in Path("/proc/net/dev").read_text(
+        encoding="ascii"
+    ).splitlines()[2:]
+    if ":" in line
+)
+
+trace_path = run_directory / "trace.log"
+if trace_path.exists():
+    raise RuntimeError("trace path unexpectedly exists")
+child_arguments = (
+    commands["chroot"], str(root), request["python_logical_path"],
+    "-I", "-S", request["launcher_logical_path"],
+    request["python_logical_path"], request["child_source"],
+    json.dumps(sorted(command_fds), separators=(",", ":")),
+)
+trace = subprocess.run(
+    (
+        commands["strace"], "-f", "-s", "4096", "-yy",
+        "-e", "trace=%file,%network,%process,getrandom", "-o", str(trace_path),
+        "--", *child_arguments,
+    ),
+    check=False, close_fds=True, cwd="/", env=environment,
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30,
+    pass_fds=command_fds,
+)
+trace_bytes = trace_path.read_bytes() if trace_path.is_file() else b""
+child = None
+try:
+    child = json.loads(trace.stdout.decode("utf-8", "strict"))
+except Exception:
+    child = None
+
+attestation = {
+    "audit_run_id": request["audit_run_id"],
+    "child_namespaces": {
+        name: os.readlink("/proc/self/ns/" + name)
+        for name in ("user", "mnt", "net")
+    },
+    "uid_map": Path("/proc/self/uid_map").read_text(encoding="ascii"),
+    "root_private": root_private,
+    "root_fstype": root_fstype,
+    "bind_errno": bind_errno,
+    "root_errno": root_errno,
+    "output_write_ok": output_write_ok,
+    "entropy_mount_line": entropy_line,
+    "entropy_write_errno": entropy_write_errno,
+    "executed_command_paths": commands,
+    "route_rows": route_rows,
+    "supervisor_environment_keys": sorted(os.environ),
+    "interfaces": interfaces,
+    "launcher_logical_path": request["launcher_logical_path"],
+    "child": child,
+    "trace_returncode": trace.returncode,
+    "trace_stderr": trace.stderr[:1024].decode("utf-8", "replace"),
+    "trace_sha256": hashlib.sha256(trace_bytes).hexdigest(),
+}
+attestation_bytes = json.dumps(
+    attestation, sort_keys=True, separators=(",", ":")
+).encode("utf-8")
+attestation_path = run_directory / "attestation.json"
+attestation_fd = os.open(
+    attestation_path,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+    0o600,
+)
+try:
+    offset = 0
+    while offset < len(attestation_bytes):
+        offset += os.write(attestation_fd, attestation_bytes[offset:])
+    os.fsync(attestation_fd)
+finally:
+    os.close(attestation_fd)
+print("attestation retained")
+'''
+
+
+def _read_retained_preflight_file(
+    path,
+    *,
+    maximum_bytes,
+    expected_sha256=None,
+):
+    if expected_sha256 is not None:
+        _require_sha256(expected_sha256, "retained preflight expected sha256")
+    try:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+    except OSError as error:
+        raise _ContractError("retained preflight file cannot be opened") from error
+    try:
+        before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or before.st_size < 1
+            or before.st_size > maximum_bytes
+        ):
+            raise _ContractError("retained preflight file identity is unsafe")
+        chunks = []
+        total = 0
+        while True:
+            chunk = os.read(descriptor, min(1024 * 1024, maximum_bytes + 1 - total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > maximum_bytes:
+                raise _ContractError("retained preflight file is oversized")
+        after = os.fstat(descriptor)
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_nlink,
+            before.st_size,
+            before.st_mode,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_nlink,
+            after.st_size,
+            after.st_mode,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        payload = b"".join(chunks)
+        if identity_before != identity_after or len(payload) != before.st_size:
+            raise _ContractError("retained preflight file changed while reading")
+        if (
+            expected_sha256 is not None
+            and hashlib.sha256(payload).hexdigest() != expected_sha256
+        ):
+            raise _ContractError("retained preflight file digest changed")
+        return payload
+    except OSError as error:
+        raise _ContractError("retained preflight file cannot be read") from error
+    finally:
+        os.close(descriptor)
+
+
+def _open_preflight_execution_descriptors(payload):
+    identities = payload["command_identities"]
+    descriptors = {}
+    descriptor_identities = {}
+    snapshot_paths = {}
+    try:
+        for command in _CAPABILITY_PREFLIGHT_COMMANDS:
+            identity = _validated_preflight_command_identity(
+                {"command": command, **dict(identities[command])},
+                command,
+            )
+            if _hash_preflight_command(identity["path"]) != identity["sha256"]:
+                raise _ContractError(
+                    "capability command origin changed before execution"
+                )
+            snapshot_path = _preflight_snapshot_path(
+                payload["run_directory"], command
+            )
+            descriptor = os.open(
+                snapshot_path,
+                os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+            )
+            descriptors[command] = descriptor
+            status = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(status.st_mode)
+                or status.st_nlink != 1
+                or stat.S_IMODE(status.st_mode) != 0o500
+                or _hash_preflight_descriptor(descriptor) != identity["sha256"]
+            ):
+                raise _ContractError(
+                    "capability snapshot changed before execution"
+                )
+            descriptor_identities[command] = (
+                _preflight_descriptor_identity(descriptor)
+            )
+            snapshot_paths[command] = str(snapshot_path)
+        return descriptors, descriptor_identities, snapshot_paths
+    except (OSError, KeyError) as error:
+        for descriptor in descriptors.values():
+            os.close(descriptor)
+        raise _ContractError(
+            "capability execution descriptor cannot be retained"
+        ) from error
+    except Exception:
+        for descriptor in descriptors.values():
+            os.close(descriptor)
+        raise
+
+
+def _revalidate_preflight_execution_descriptors(
+    descriptors,
+    descriptor_identities,
+    identities,
+):
+    for command in _CAPABILITY_PREFLIGHT_COMMANDS:
+        descriptor = descriptors[command]
+        status = os.fstat(descriptor)
+        if (
+            _preflight_descriptor_identity(descriptor)
+            != descriptor_identities[command]
+            or not stat.S_ISREG(status.st_mode)
+            or status.st_nlink != 1
+            or stat.S_IMODE(status.st_mode) != 0o500
+            or _hash_preflight_descriptor(descriptor)
+            != identities[command]["sha256"]
+        ):
+            raise _ContractError("capability execution descriptor changed")
+
+
+def _validate_preflight_attestation(
+    facts,
+    *,
+    audit_run_id,
+    command_paths,
+    launcher_logical_path,
+):
+    expected_keys = {
+        "audit_run_id",
+        "bind_errno",
+        "child",
+        "child_namespaces",
+        "entropy_mount_line",
+        "entropy_write_errno",
+        "executed_command_paths",
+        "interfaces",
+        "launcher_logical_path",
+        "output_write_ok",
+        "root_errno",
+        "root_fstype",
+        "root_private",
+        "route_rows",
+        "supervisor_environment_keys",
+        "trace_returncode",
+        "trace_sha256",
+        "trace_stderr",
+        "uid_map",
+    }
+    if type(facts) is not dict or set(facts) != expected_keys:
+        raise _ContractError("capability attestation schema is not closed")
+    if facts["audit_run_id"] != audit_run_id:
+        raise _ContractError("capability attestation audit nonce contradicts")
+    if (
+        type(facts["executed_command_paths"]) is not dict
+        or facts["executed_command_paths"] != command_paths
+        or set(facts["executed_command_paths"])
+        != set(_CAPABILITY_PREFLIGHT_COMMANDS)
+        or any(
+            type(value) is not str or not value.startswith("/proc/self/fd/")
+            for value in facts["executed_command_paths"].values()
+        )
+        or facts["launcher_logical_path"] != launcher_logical_path
+    ):
+        raise _ContractError(
+            "capability attestation execution paths contradict"
+        )
+    integer_fields = (
+        "bind_errno",
+        "entropy_write_errno",
+        "root_errno",
+        "trace_returncode",
+    )
+    boolean_fields = ("output_write_ok", "root_private")
+    if any(type(facts[name]) is not int for name in integer_fields) or any(
+        type(facts[name]) is not bool for name in boolean_fields
+    ):
+        raise _ContractError("capability attestation scalar is malformed")
+    for name, maximum in (
+        ("entropy_mount_line", 8192),
+        ("root_fstype", 64),
+        ("trace_stderr", 1024),
+        ("uid_map", 8192),
+    ):
+        value = facts[name]
+        if type(value) is not str or len(value.encode("utf-8")) > maximum:
+            raise _ContractError("capability attestation text is malformed")
+    if not facts["root_fstype"]:
+        raise _ContractError("capability attestation text is malformed")
+    _require_sha256(facts["trace_sha256"], "attestation trace sha256")
+
+    namespaces = facts["child_namespaces"]
+    if (
+        type(namespaces) is not dict
+        or set(namespaces) != {"user", "mnt", "net"}
+        or any(type(value) is not str for value in namespaces.values())
+    ):
+        raise _ContractError("capability attestation namespaces malformed")
+    routes = facts["route_rows"]
+    if (
+        type(routes) is not list
+        or len(routes) > 1024
+        or any(
+            type(row) is not list
+            or len(row) != 4
+            or any(type(value) is not str for value in row)
+            for row in routes
+        )
+    ):
+        raise _ContractError("capability attestation routes malformed")
+    interfaces = facts["interfaces"]
+    if (
+        type(interfaces) is not list
+        or len(interfaces) > 64
+        or any(type(value) is not str for value in interfaces)
+        or interfaces != sorted(set(interfaces))
+    ):
+        raise _ContractError("capability attestation interfaces malformed")
+    if facts["supervisor_environment_keys"] != [
+        "LANG", "LC_ALL", "PYTHONHASHSEED",
+    ]:
+        raise _ContractError(
+            "capability supervisor environment is not closed"
+        )
+
+    child = facts["child"]
+    if child is None:
+        return facts
+    child_keys = {
+        "ambient_values",
+        "bounding_values",
+        "capability_words",
+        "capget_code",
+        "cwd",
+        "environment_keys",
+        "host_canary_path",
+        "host_errno",
+        "inherited_fds",
+        "limits",
+        "long_errno",
+        "marker",
+        "network_code",
+        "no_new_privileges",
+        "permitted_read",
+        "relative_read",
+    }
+    if type(child) is not dict or set(child) != child_keys:
+        raise _ContractError("capability child attestation is not closed")
+    for name in (
+        "capget_code",
+        "host_errno",
+        "long_errno",
+        "network_code",
+        "no_new_privileges",
+    ):
+        if type(child[name]) is not int:
+            raise _ContractError("capability child integer is malformed")
+    for name in (
+        "cwd",
+        "host_canary_path",
+        "marker",
+        "permitted_read",
+        "relative_read",
+    ):
+        value = child[name]
+        if (
+            type(value) is not str
+            or not value
+            or len(value.encode("utf-8")) > 8192
+        ):
+            raise _ContractError("capability child text is malformed")
+    environment_keys = child["environment_keys"]
+    if (
+        type(environment_keys) is not list
+        or len(environment_keys) > 16
+        or any(type(value) is not str for value in environment_keys)
+        or environment_keys != sorted(set(environment_keys))
+    ):
+        raise _ContractError("capability child environment is malformed")
+    capability_words = child["capability_words"]
+    if (
+        type(capability_words) is not list
+        or len(capability_words) != 2
+        or any(
+            type(row) is not list
+            or len(row) != 3
+            or any(type(value) is not int for value in row)
+            for row in capability_words
+        )
+    ):
+        raise _ContractError("capability child capability words malformed")
+    for name in ("ambient_values", "bounding_values"):
+        values = child[name]
+        if (
+            type(values) is not list
+            or len(values) > 64
+            or any(type(value) is not int for value in values)
+        ):
+            raise _ContractError("capability child capability list malformed")
+    inherited_fds = child["inherited_fds"]
+    if (
+        type(inherited_fds) is not list
+        or any(type(value) is not int for value in inherited_fds)
+        or inherited_fds != sorted(set(inherited_fds))
+    ):
+        raise _ContractError("capability child inherited descriptors malformed")
+    limits = child["limits"]
+    if (
+        type(limits) is not dict
+        or set(limits) != {"core", "file_size", "open_files", "processes"}
+        or any(
+            type(value) is not list
+            or len(value) != 2
+            or any(type(item) is not int for item in value)
+            for value in limits.values()
+        )
+    ):
+        raise _ContractError("capability child limits malformed")
+    return facts
+
+
+def _production_probe_response(payload):
+    identities = payload["command_identities"]
+    host_namespaces = {
+        name: os.readlink("/proc/self/ns/" + name)
+        for name in ("user", "mnt", "net")
+    }
+    python_prefix = str(
+        Path(identities["python"]["path"]).parent.parent.resolve(strict=True)
+    )
+    runtime_sources = [
+        python_prefix,
+        "/lib",
+        "/lib64",
+        "/usr/lib",
+        "/usr/lib64",
+    ]
+    host_canary_path = str(
+        Path(payload["run_directory"]) / "host-canary-denied-task9"
+    )
+    child_source = _CAPABILITY_PREFLIGHT_CHILD_SOURCE.replace(
+        '"__TASK9_HOST_CANARY_PATH__"',
+        json.dumps(host_canary_path),
+    )
+    launcher_logical_path = "/task9-preflight/launcher.py"
+    (
+        descriptors,
+        descriptor_identities,
+        snapshot_paths,
+    ) = _open_preflight_execution_descriptors(payload)
+    command_paths = {
+        command: f"/proc/self/fd/{descriptor}"
+        for command, descriptor in descriptors.items()
+    }
+    unshare_path = command_paths["unshare"]
+    supervisor_python_path = command_paths["supervisor_python"]
+    try:
+        request = {
+            "audit_run_id": payload["audit_run_id"],
+            "run_directory": payload["run_directory"],
+            "commands": command_paths,
+            "command_descriptors": descriptors,
+            "command_snapshot_paths": snapshot_paths,
+            "runtime_sources": runtime_sources,
+            "python_logical_path": identities["python"]["path"],
+            "launcher_logical_path": launcher_logical_path,
+            "child_source": child_source,
+        }
+        completed = subprocess.run(
+            (
+                identities["unshare"]["path"],
+                "-Urnm",
+                supervisor_python_path,
+                "-S",
+                "-B",
+                "-c",
+                _CAPABILITY_PREFLIGHT_SUPERVISOR_SOURCE,
+                json.dumps(request, sort_keys=True, separators=(",", ":")),
+            ),
+            executable=unshare_path,
+            check=False,
+            close_fds=True,
+            cwd="/",
+            env=dict(_CAPABILITY_PREFLIGHT_ENVIRONMENT),
+            pass_fds=tuple(descriptors.values()),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+        _revalidate_preflight_execution_descriptors(
+            descriptors,
+            descriptor_identities,
+            identities,
+        )
+    finally:
+        for descriptor in descriptors.values():
+            os.close(descriptor)
+    if completed.returncode != 0:
+        diagnostic = (completed.stderr or completed.stdout)[:1024].decode(
+            "utf-8", "replace"
+        )
+        raise _ContractError(
+            "capability namespace supervisor failed: " + diagnostic
+        )
+    if completed.stdout != b"attestation retained\n":
+        raise _ContractError("capability supervisor completion is malformed")
+    attestation_bytes = _read_retained_preflight_file(
+        Path(payload["run_directory"]) / "attestation.json",
+        maximum_bytes=64 * 1024,
+    )
+    try:
+        facts = json.loads(attestation_bytes.decode("utf-8", "strict"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise _ContractError("capability attestation is malformed") from error
+    facts = _validate_preflight_attestation(
+        facts,
+        audit_run_id=payload["audit_run_id"],
+        command_paths=command_paths,
+        launcher_logical_path=launcher_logical_path,
+    )
+    trace_bytes = _read_retained_preflight_file(
+        Path(payload["run_directory"]) / "trace.log",
+        maximum_bytes=2 * 1024 * 1024,
+    )
+    trace_sha256 = hashlib.sha256(trace_bytes).hexdigest()
+    if facts.get("trace_sha256") != trace_sha256:
+        raise _ContractError("retained trace digest contradicts supervisor claim")
+    try:
+        trace_text = trace_bytes.decode("utf-8", "strict")
+    except UnicodeDecodeError as error:
+        raise _ContractError("retained trace is not valid UTF-8") from error
+    child = facts.get("child")
+    if not isinstance(child, Mapping) or type(trace_text) is not str:
+        child = {}
+        trace_text = ""
+    child_namespaces = facts.get("child_namespaces", {})
+    namespace_identifiers = {
+        "host_user": host_namespaces["user"],
+        "child_user": child_namespaces.get("user", "missing"),
+        "host_mount": host_namespaces["mnt"],
+        "child_mount": child_namespaces.get("mnt", "missing"),
+        "host_network": host_namespaces["net"],
+        "child_network": child_namespaces.get("net", "missing"),
+    }
+    namespace_distinct = all(
+        namespace_identifiers["host_" + name]
+        != namespace_identifiers["child_" + name]
+        for name in ("user", "mount", "network")
+    )
+    uid_map_rows = []
+    if type(facts.get("uid_map")) is str:
+        for line in facts["uid_map"].splitlines():
+            columns = line.split()
+            if len(columns) == 3 and all(item.isdigit() for item in columns):
+                uid_map_rows.append(tuple(int(item) for item in columns))
+    root_mapping = any(
+        inside == 0 and outside == os.getuid() and length >= 1
+        for inside, outside, length in uid_map_rows
+    )
+    routes = facts.get("route_rows")
+    interfaces = facts.get("interfaces")
+    network_facts = (
+        type(routes) is list
+        and not any(
+            type(row) is list
+            and len(row) >= 4
+            and row[1] == "00000000"
+            and int(row[3], 16) & 1
+            for row in routes
+        )
+        and type(interfaces) is list
+        and set(interfaces) <= {"lo"}
+        and type(child.get("network_code")) is int
+        and child.get("network_code") != 0
+    )
+    limits = child.get("limits", {})
+    capabilities_dropped = (
+        child.get("capget_code") == 0
+        and child.get("capability_words") == [[0, 0, 0], [0, 0, 0]]
+        and isinstance(child.get("bounding_values"), list)
+        and not any(child.get("bounding_values"))
+        and isinstance(child.get("ambient_values"), list)
+        and not any(child.get("ambient_values"))
+    )
+    limits_nnp = (
+        child.get("no_new_privileges") == 1
+        and limits.get("core") == [0, 0]
+        and limits.get("file_size") == [1048576, 1048576]
+        and limits.get("open_files") == [64, 64]
+        and limits.get("processes") == [1, 1]
+    )
+    trace_complete = (
+        facts.get("trace_returncode") == 0
+        and "+++ exited with 0 +++" in trace_text
+        and "unfinished ..." not in trace_text
+        and "<... " not in trace_text
+        and "openat(" in trace_text
+        and ("socket(" in trace_text or "connect(" in trace_text)
+    )
+    relative_open = re.search(
+        r'openat\(\d+<([^>]+/root/runtime)>, "probe\.txt", '
+        r'[^\n]*\) = \d+<\1/probe\.txt>',
+        trace_text,
+    )
+    launcher_open = re.search(
+        r'(?:open|openat)\([^\n]*"'
+        + re.escape(launcher_logical_path)
+        + r'"[^\n]*\) = \d+',
+        trace_text,
+    )
+    host_canary_denial = re.search(
+        r'(?:open|openat)\([^\n]*"'
+        + re.escape(host_canary_path)
+        + r'"[^\n]*\) = -1 ENOENT',
+        trace_text,
+    )
+    trace_access = (
+        "/runtime/probe.txt" in trace_text
+        and host_canary_denial is not None
+        and "forbidden-task9-" + "x" * 256 in trace_text
+        and "ENOENT" in trace_text
+        and relative_open is not None
+    )
+    entropy_line = facts.get("entropy_mount_line", "")
+    entropy_columns = entropy_line.split() if type(entropy_line) is str else []
+    expected_entropy_target = str(
+        Path(payload["run_directory"]) / "root" / "dev" / "urandom"
+    )
+    entropy_mount_read_only = (
+        len(entropy_columns) > 6
+        and entropy_columns[4] == expected_entropy_target
+        and "ro" in entropy_columns[5].split(",")
+    )
+    device_paths = set(re.findall(r'"(/dev/[^"\\]+)', trace_text))
+    entropy_only = device_paths == {"/dev/urandom"}
+    checks = {
+        "namespaces_distinct": namespace_distinct,
+        "root_user_mapping": root_mapping,
+        "private_mount_propagation": facts.get("root_private") is True,
+        "tmpfs_root": facts.get("root_fstype") == "tmpfs",
+        "readonly_bind": facts.get("bind_errno") == 30,
+        "readonly_root_writable_output": (
+            facts.get("root_errno") == 30
+            and facts.get("output_write_ok") is True
+        ),
+        "chroot_interpreter": (
+            child.get("marker") == "task9-chrooted-interpreter"
+            and child.get("cwd") == "/"
+            and child.get("permitted_read") == "task9-permitted-read"
+            and child.get("relative_read") == "task9-permitted-read"
+            and child.get("inherited_fds") == []
+            and launcher_open is not None
+        ),
+        "capabilities_dropped": capabilities_dropped,
+        "environment_scrubbed": child.get("environment_keys") == [
+            "LANG", "LC_ALL", "PYTHONHASHSEED",
+        ],
+        "network_isolated": network_facts,
+        "host_canary_denied": (
+            child.get("host_canary_path") == host_canary_path
+            and child.get("host_errno") == 2
+            and host_canary_denial is not None
+        ),
+        "strace_complete": trace_complete,
+        "trace_access_evidence": trace_access,
+        "limits_no_new_privileges": limits_nnp,
+    }
+    codes = {name: 0 if passed else 1 for name, passed in checks.items()}
+    failed = tuple(name for name in _CAPABILITY_PREFLIGHT_PROBES if not checks[name])
+    diagnostic = "all capability probes passed"
+    if failed:
+        detail = facts.get("trace_stderr", "")
+        diagnostic = "failed probes: " + ",".join(failed)
+        if type(detail) is str and detail:
+            diagnostic += "; trace: " + detail
+    return {
+        "audit_run_id": payload["audit_run_id"],
+        "checks": checks,
+        "probe_result_codes": codes,
+        "namespace_identifiers": namespace_identifiers,
+        "mount_facts": {
+            "root_private": facts.get("root_private") is True,
+            "root_filesystem": facts.get("root_fstype", "unknown"),
+            "bind_read_only": facts.get("bind_errno") == 30,
+            "root_read_only": facts.get("root_errno") == 30,
+            "nested_output_writable": facts.get("output_write_ok") is True,
+            "interpreter_entropy_device": "/dev/urandom",
+            "interpreter_entropy_read_only": entropy_mount_read_only,
+            "interpreter_entropy_only": entropy_only,
+        },
+        "trace_sha256": trace_sha256,
+        "diagnostic": diagnostic,
+    }
+
+
+def _production_capability_preflight_runner(action, payload):
+    if action == "identify":
+        return _identify_preflight_command(
+            payload["command"],
+            run_directory=payload["run_directory"],
+        )
+    if action == "probe":
+        return _production_probe_response(payload)
+    raise _ContractError("unknown capability runner action")
+
+
+def run_capability_preflight(*, scratch_parent):
+    """Execute the complete production capability preflight once."""
+
+    material = (
+        str(os.getpid()).encode("ascii")
+        + b"\0"
+        + str(time.monotonic_ns()).encode("ascii")
+    )
+    audit_run_id = "capability-preflight-" + hashlib.sha256(material).hexdigest()
+    return _run_capability_preflight(
+        scratch_parent=scratch_parent,
+        audit_run_id=audit_run_id,
+        runner=_production_capability_preflight_runner,
+    )
 
 
 _COUNTERFACTUAL_DOMAIN_VERSION = "counterfactual_domain_v1"
@@ -15438,8 +17450,22 @@ def _frozen_hash_payload(
             command_hashes[command_name],
             f"infrastructure_command_hashes.{command_name}",
         )
+    preflight_command_hashes = {}
+    for command_name, identity in preflight.command_identities.items():
+        identity_values = _exact_keys(
+            identity,
+            ("path", "version", "sha256"),
+            "preflight command identity",
+        )
+        _require_text(identity_values["path"], "command path")
+        _require_text(identity_values["version"], "command version")
+        digest = identity_values["sha256"]
+        preflight_command_hashes[command_name] = _require_sha256(
+            digest,
+            f"preflight.command_identities.{command_name}",
+        )
     if _canonical_bytes(command_hashes) != _canonical_bytes(
-        preflight.command_identities
+        preflight_command_hashes
     ):
         raise _ContractError("infrastructure command hash mismatch")
     payload = {
