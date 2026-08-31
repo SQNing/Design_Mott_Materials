@@ -661,9 +661,13 @@ class WorkerRequest:
     adapter_id: str
     scientific_inputs: _FrozenJsonObject
     numerical_controls: _FrozenJsonObject
+    scientific_configuration: _FrozenJsonObject
     capsule_sha256: str
 
     def __init__(self, *args, **kwargs):
+        if not args and "scientific_configuration" not in kwargs:
+            kwargs = dict(kwargs)
+            kwargs["scientific_configuration"] = {}
         _initialize_contract(self, args, kwargs, WorkerRequest)
 
     def __post_init__(self) -> None:
@@ -691,9 +695,53 @@ class WorkerRequest:
         numerical_controls = _validate_controls(
             canonical_definition, self.numerical_controls
         )
+        scientific_configuration = _snapshot_json(
+            self.scientific_configuration, "scientific_configuration"
+        )
+        if type(scientific_configuration) is not _FrozenJsonObject:
+            raise _ContractError(
+                "scientific_configuration must be an exact mapping"
+            )
+        if scientific_configuration:
+            if (
+                canonical_definition.backend_kind != "glt_fourier"
+                or set(scientific_configuration) != {
+                    "schema_version",
+                    "representation",
+                    "coordinates",
+                    "gauge_phase_fraction",
+                }
+                or scientific_configuration["schema_version"]
+                != "glt_scientific_configuration_v1"
+                or scientific_configuration["representation"]
+                not in {"real_space", "fourier_space"}
+                or type(scientific_configuration["coordinates"]) is not tuple
+                or len(scientific_configuration["coordinates"]) != 3
+                or any(
+                    type(value) not in {int, float}
+                    or not math.isfinite(value)
+                    for value in scientific_configuration["coordinates"]
+                )
+                or type(
+                    scientific_configuration["gauge_phase_fraction"]
+                )
+                not in {int, float}
+                or not math.isfinite(
+                    scientific_configuration["gauge_phase_fraction"]
+                )
+                or not 0.0
+                <= scientific_configuration["gauge_phase_fraction"]
+                < 1.0
+            ):
+                raise _ContractError(
+                    "scientific_configuration is malformed"
+                )
         _require_sha256(self.capsule_sha256, "capsule_sha256")
         object.__setattr__(self, "scientific_inputs", scientific_inputs)
         object.__setattr__(self, "numerical_controls", numerical_controls)
+        object.__setattr__(
+            self, "scientific_configuration", scientific_configuration
+        )
 
     def to_frozen_json(self) -> _FrozenJsonObject:
         raw_values = _mapping_or_exact_record_values(
@@ -716,6 +764,7 @@ class _OracleWorkerRequest:
     adapter_id: str
     scientific_inputs: _FrozenJsonObject
     numerical_controls: _FrozenJsonObject
+    scientific_configuration: _FrozenJsonObject
     capsule_sha256: str
 
     def __init__(
@@ -726,6 +775,7 @@ class _OracleWorkerRequest:
         adapter_id,
         scientific_inputs,
         numerical_controls,
+        scientific_configuration=None,
         capsule_sha256,
         authorization=None,
     ):
@@ -739,6 +789,10 @@ class _OracleWorkerRequest:
             ("adapter_id", adapter_id),
             ("scientific_inputs", scientific_inputs),
             ("numerical_controls", numerical_controls),
+            (
+                "scientific_configuration",
+                {} if scientific_configuration is None else scientific_configuration,
+            ),
             ("capsule_sha256", capsule_sha256),
         ):
             object.__setattr__(self, name, value)
@@ -762,6 +816,14 @@ class _OracleWorkerRequest:
             self,
             "numerical_controls",
             _snapshot_json(self.numerical_controls, "numerical_controls"),
+        )
+        object.__setattr__(
+            self,
+            "scientific_configuration",
+            _snapshot_json(
+                self.scientific_configuration,
+                "scientific_configuration",
+            ),
         )
         _require_sha256(self.capsule_sha256, "capsule_sha256")
 
@@ -803,6 +865,7 @@ def _make_oracle_worker_request(
         adapter_id=validated.oracle_id,
         scientific_inputs=inputs,
         numerical_controls=controls,
+        scientific_configuration={},
         capsule_sha256=capsule_sha256,
         authorization=_ORACLE_WORKER_REQUEST_TOKEN,
     )
@@ -846,7 +909,7 @@ def make_worker_request(
 ) -> WorkerRequest:
     """Project only answer-free model inputs and controls into a request."""
 
-    if extra_metadata:
+    if set(extra_metadata) - {"scientific_configuration"}:
         raise _ContractError("worker request contains extra metadata")
     if type(allow_test_producer) is not bool:
         raise _ContractError("allow_test_producer must be a boolean")
@@ -884,12 +947,25 @@ def make_worker_request(
     numerical_controls = _validate_controls(
         validated_definition, context.numerical_controls
     )
+    scientific_configuration = _snapshot_json(
+        extra_metadata.get("scientific_configuration", {}),
+        "scientific_configuration",
+    )
+    if (
+        type(scientific_configuration) is not _FrozenJsonObject
+        or (
+            validated_definition.backend_kind != "glt_fourier"
+            and scientific_configuration
+        )
+    ):
+        raise _ContractError("worker scientific_configuration is invalid")
     return WorkerRequest(
         schema_version=_WORKER_REQUEST_SCHEMA_VERSION,
         opaque_run_nonce=opaque_run_nonce,
         adapter_id=validated_definition.adapter_id,
         scientific_inputs=scientific_inputs,
         numerical_controls=numerical_controls,
+        scientific_configuration=scientific_configuration,
         capsule_sha256=capsule_sha256,
     )
 
@@ -3874,10 +3950,16 @@ def emit_scientific_capsule(closure, *, result_contract=None):
         + "\n__literature_scientific_calculate__ = "
         + entry_name
         + "\n\ndef __literature_scientific_entry__(scientific_inputs, "
-        "numerical_controls):\n"
-        "    calculation = __literature_scientific_calculate__(\n"
-        "        scientific_inputs, numerical_controls\n"
-        "    )\n"
+        "numerical_controls, scientific_configuration=None):\n"
+        "    if scientific_configuration:\n"
+        "        calculation = __literature_scientific_calculate__(\n"
+        "            scientific_inputs, numerical_controls, "
+        "scientific_configuration\n"
+        "        )\n"
+        "    else:\n"
+        "        calculation = __literature_scientific_calculate__(\n"
+        "            scientific_inputs, numerical_controls\n"
+        "        )\n"
         "    contract = __literature_result_contract__\n"
         "    if contract is None or calculation.get('schema_version') != "
         "'scientific_calculation_v1':\n"
@@ -4097,6 +4179,7 @@ def _parse_request(request_bytes):
         "adapter_id",
         "scientific_inputs",
         "numerical_controls",
+        "scientific_configuration",
         "capsule_sha256",
     }:
         raise RuntimeError("worker request has non-closed fields")
@@ -4112,6 +4195,7 @@ def _parse_request(request_bytes):
         or not request["adapter_id"]
         or type(request["scientific_inputs"]) is not dict
         or type(request["numerical_controls"]) is not dict
+        or type(request["scientific_configuration"]) is not dict
         or type(request["capsule_sha256"]) is not str
         or len(request["capsule_sha256"]) != 64
         or any(
@@ -4172,7 +4256,9 @@ def _fixed_worker_main():
         raise RuntimeError("worker capsule metadata is malformed")
     worker_started_monotonic_ns = int(os.times().elapsed * 1000000000)
     scientific_result = capsule_namespace["__literature_scientific_entry__"](
-        request["scientific_inputs"], request["numerical_controls"]
+        request["scientific_inputs"],
+        request["numerical_controls"],
+        request["scientific_configuration"],
     )
     worker_finished_monotonic_ns = int(os.times().elapsed * 1000000000)
     if type(scientific_result) is not dict:
@@ -21323,7 +21409,10 @@ def _counterfactual_inputs(definition, seed, point_index, variant):
             field_name,
         )
     for field_name, rule in definition.counterfactual_domain.valid_rules.items():
-        if rule["kind"] != "finite_product_state_regime":
+        if rule["kind"] not in {
+            "finite_product_state_regime",
+            "finite_nonzero_relative_regime",
+        }:
             continue
         reference = values[rule["reference_field"]]
         maximum_ratio = rule["maximum_absolute_ratio"]
@@ -21345,7 +21434,10 @@ def _counterfactual_canonical_inputs(definition):
             field_name,
         )
     for field_name, rule in definition.counterfactual_domain.valid_rules.items():
-        if rule["kind"] != "finite_product_state_regime":
+        if rule["kind"] not in {
+            "finite_product_state_regime",
+            "finite_nonzero_relative_regime",
+        }:
             continue
         reference = values[rule["reference_field"]]
         maximum_ratio = rule["maximum_absolute_ratio"]
@@ -21524,7 +21616,10 @@ def _counterfactual_domain_inputs_are_valid(definition, inputs):
                     value != direction for direction in supported_directions
                 )
             )
-        elif rule_kind == "finite_product_state_regime":
+        elif rule_kind in {
+            "finite_product_state_regime",
+            "finite_nonzero_relative_regime",
+        }:
             reference = inputs[rule["reference_field"]]
             maximum_ratio = rule["maximum_absolute_ratio"]
             valid = (
@@ -21534,6 +21629,10 @@ def _counterfactual_domain_inputs_are_valid(definition, inputs):
                 and math.isfinite(reference)
                 and reference > 0.0
                 and abs(value) <= maximum_ratio * reference
+                and (
+                    rule_kind != "finite_nonzero_relative_regime"
+                    or value != 0.0
+                )
             )
         elif rule_kind == "finite":
             valid = type(value) in {int, float} and math.isfinite(value)
@@ -22133,6 +22232,234 @@ def _dense_ed_method_evidence_satisfied(definition, proof_inputs):
     return False
 
 
+def _glt_fourier_derived_fields(
+    definition, fields, proof_inputs, convergence_values
+):
+    if set(proof_inputs) != {"fourier_evidence"}:
+        raise _ContractError("outer GLT proof evidence is malformed")
+    evidence = dict(
+        _static_scan_exact_frozen_items(
+            proof_inputs["fourier_evidence"],
+            "outer GLT Fourier evidence",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    required = {
+        "model_kernel",
+        "sample_count",
+        "reciprocal_symmetry_residual",
+        "direct_invariant_residual",
+        "derived_fields",
+        "numeric_field_certificates",
+    }
+    if not required.issubset(evidence):
+        raise _ContractError("outer GLT proof evidence is malformed")
+    model_kernel = evidence["model_kernel"]
+    requirements = dict(
+        _static_scan_exact_frozen_items(
+            definition.convergence_contract.requirements,
+            "outer GLT convergence requirements",
+            16,
+        )
+    )
+    expected_kernel = requirements.get("glt_proof_kind")
+    sample_count = evidence["sample_count"]
+    symmetry_residual = evidence["reciprocal_symmetry_residual"]
+    direct_residual = evidence["direct_invariant_residual"]
+    samples = convergence_values["samples"]
+    error_bound = convergence_values["error_bound"]
+    if (
+        type(model_kernel) is not str
+        or not model_kernel
+        or type(expected_kernel) is not str
+        or model_kernel != expected_kernel
+        or type(sample_count) is not int
+        or sample_count < 4
+        or type(samples) is not tuple
+        or not samples
+        or samples[-1] != sample_count
+        or type(symmetry_residual) not in {int, float}
+        or type(direct_residual) not in {int, float}
+        or not math.isfinite(symmetry_residual)
+        or not math.isfinite(direct_residual)
+        or symmetry_residual < 0.0
+        or direct_residual < 0.0
+        or symmetry_residual > error_bound
+        or direct_residual > error_bound
+    ):
+        raise _ContractError("outer GLT proof evidence is malformed")
+    derived = dict(
+        _static_scan_exact_frozen_items(
+            evidence["derived_fields"],
+            "outer GLT derived fields",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    if set(derived) != set(fields):
+        raise _ContractError("outer GLT derived fields are malformed")
+    numeric_selectors = tuple(
+        selector
+        for selector, binding in definition.output_schema
+        if binding.proof_kind == "bounded_numeric_value"
+    )
+    certificates = dict(
+        _static_scan_exact_frozen_items(
+            evidence["numeric_field_certificates"],
+            "outer GLT numeric field certificates",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    if set(certificates) != set(numeric_selectors):
+        raise _ContractError("outer GLT numeric certificates are malformed")
+    for selector in numeric_selectors:
+        certificate = dict(
+            _static_scan_exact_frozen_items(
+                certificates[selector],
+                "outer GLT signed root certificate",
+                7,
+            )
+        )
+        if set(certificate) != {
+            "kind",
+            "lower",
+            "upper",
+            "lower_residual",
+            "upper_residual",
+            "selected",
+            "selected_residual",
+        }:
+            raise _ContractError("outer GLT numeric certificate is malformed")
+        lower = certificate["lower"]
+        upper = certificate["upper"]
+        lower_residual = certificate["lower_residual"]
+        upper_residual = certificate["upper_residual"]
+        selected = certificate["selected"]
+        selected_residual = certificate["selected_residual"]
+        numeric_values = (
+            lower,
+            upper,
+            lower_residual,
+            upper_residual,
+            selected,
+            selected_residual,
+        )
+        if (
+            certificate["kind"] != "signed_bracket_root_v1"
+            or any(
+                type(value) not in {int, float} or not math.isfinite(value)
+                for value in numeric_values
+            )
+            or lower > selected
+            or selected > upper
+            or lower_residual > 0.0
+            or upper_residual < 0.0
+            or upper - lower > error_bound
+            or abs(selected_residual) > error_bound
+        ):
+            raise _ContractError("outer GLT numeric certificate is malformed")
+        derived[selector] = selected
+    for selector, binding in definition.output_schema:
+        if binding.proof_kind == "positive_gap_and_odd_parity_boolean":
+            expected = {
+                "minimum_band_gap",
+                "chern_parity",
+                "discrete_chern_number",
+                "third_order_mass",
+            }
+            if not expected.issubset(evidence):
+                raise _ContractError("outer GLT topology proof is malformed")
+            gap = evidence["minimum_band_gap"]
+            parity = evidence["chern_parity"]
+            mass = evidence["third_order_mass"]
+            if (
+                type(gap) not in {int, float}
+                or not math.isfinite(gap)
+                or type(mass) not in {int, float}
+                or not math.isfinite(mass)
+                or type(parity) is not int
+            ):
+                raise _ContractError("outer GLT topology proof is malformed")
+            derived[selector] = gap > 0.0 and mass != 0.0 and parity == 1
+        elif binding.proof_kind == "all_residuals_within_bound_boolean":
+            residual = evidence.get("tetrahedron_spin_sum_residual")
+            if (
+                type(residual) not in {int, float}
+                or not math.isfinite(residual)
+                or residual < 0.0
+            ):
+                raise _ContractError("outer GLT constraint proof is malformed")
+            derived[selector] = residual <= error_bound
+        elif binding.proof_kind == "directional_limits_differ_boolean":
+            difference = evidence.get("directional_polarization_difference")
+            if (
+                type(difference) not in {int, float}
+                or not math.isfinite(difference)
+            ):
+                raise _ContractError("outer GLT directional proof is malformed")
+            derived[selector] = difference > 1e-12
+    configured_probe = evidence.get("configured_probe")
+    if configured_probe is not None:
+        configured = dict(
+            _static_scan_exact_frozen_items(
+                configured_probe,
+                "outer GLT configured probe",
+                16,
+            )
+        )
+        if set(configured) != {
+            "scientific_configuration",
+            "selected_value",
+            "real_space_value",
+            "fourier_space_value",
+            "real_fourier_residual",
+        }:
+            raise _ContractError("outer GLT configured probe is malformed")
+        configuration = dict(
+            _static_scan_exact_frozen_items(
+                configured["scientific_configuration"],
+                "outer GLT scientific configuration",
+                8,
+            )
+        )
+        real_value = configured["real_space_value"]
+        fourier_value = configured["fourier_space_value"]
+        selected_value = configured["selected_value"]
+        configured_residual = configured["real_fourier_residual"]
+        numeric_values = (
+            real_value,
+            fourier_value,
+            selected_value,
+            configured_residual,
+        )
+        expected_selected = (
+            real_value
+            if configuration.get("representation") == "real_space"
+            else fourier_value
+        )
+        if (
+            set(configuration)
+            != {
+                "schema_version",
+                "representation",
+                "coordinates",
+                "gauge_phase_fraction",
+            }
+            or configuration["schema_version"]
+            != "glt_scientific_configuration_v1"
+            or configuration["representation"]
+            not in {"real_space", "fourier_space"}
+            or any(
+                type(value) not in {int, float} or not math.isfinite(value)
+                for value in numeric_values
+            )
+            or selected_value != expected_selected
+            or configured_residual != abs(real_value - fourier_value)
+            or configured_residual > error_bound
+        ):
+            raise _ContractError("outer GLT configured probe is malformed")
+    return derived
+
+
 def interpret_output_proofs(definition, local_result):
     """Interpret only definition-bound generic output proof bindings."""
 
@@ -22177,10 +22504,19 @@ def interpret_output_proofs(definition, local_result):
             _STATIC_SCAN_NODE_LIMIT,
         )
     )
+    glt_derived_fields = None
+    if validated.backend_kind == "glt_fourier":
+        glt_derived_fields = _glt_fourier_derived_fields(
+            validated, fields, proof_inputs, convergence_values
+        )
     proof_rows = {}
     for selector, binding in validated.output_schema:
         derived_value = fields[selector]
-        if binding.proof_kind in {
+        if glt_derived_fields is not None:
+            derived_value = glt_derived_fields[selector]
+            if fields[selector] != derived_value:
+                raise _ContractError("outer-derived output proof mismatch")
+        elif binding.proof_kind in {
             "all_residuals_within_bound_boolean",
             "no_finite_crossing_boolean",
             "no_finite_crossing_zero_limit",
@@ -22351,7 +22687,13 @@ def derive_convergence_decision(definition, local_result):
         accepted = True
     elif kind == "residual_bound":
         residuals = raw_values["residuals"]
-        accepted = residuals[-1] <= raw_values["error_bound"]
+        accepted = (
+            residuals[-1] <= raw_values["error_bound"]
+            and (
+                validated.backend_kind != "glt_fourier"
+                or _task12_nonincreasing(residuals)
+            )
+        )
     elif kind == "quadrature":
         estimates = raw_values["estimates"]
         bounds = raw_values["error_bounds"]
@@ -22388,6 +22730,37 @@ def derive_convergence_decision(definition, local_result):
             validated,
             certificate_values["proof_inputs"],
         )
+    if validated.backend_kind == "glt_fourier":
+        certificate_values = dict(
+            _static_scan_exact_frozen_items(
+                raw_values["certificate"],
+                "GLT convergence certificate",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        )
+        proof_inputs = dict(
+            _static_scan_exact_frozen_items(
+                certificate_values["proof_inputs"],
+                "GLT convergence proof inputs",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        )
+        fields = dict(
+            _static_scan_exact_frozen_items(
+                values["fields"],
+                "GLT convergence fields",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        )
+        try:
+            derived_fields = _glt_fourier_derived_fields(
+                validated, fields, proof_inputs, raw_values
+            )
+            for selector in fields:
+                if derived_fields[selector] != fields[selector]:
+                    accepted = False
+        except _ContractError:
+            accepted = False
     reason_code = (
         "outer_convergence_contract_satisfied"
         if accepted

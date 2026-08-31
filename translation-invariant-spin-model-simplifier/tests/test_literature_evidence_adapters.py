@@ -3739,6 +3739,7 @@ WORKER_REQUEST_FIELDS = frozenset(
         "adapter_id",
         "scientific_inputs",
         "numerical_controls",
+        "scientific_configuration",
         "capsule_sha256",
     }
 )
@@ -5608,8 +5609,10 @@ def _example_schema_value(schema):
 
 
 def _authority_payload_for_definition(definition):
-    scientific_inputs = _example_schema_value(
-        definition.scientific_input_schema
+    from validation import literature_evidence_isolation as isolation
+
+    scientific_inputs = isolation._counterfactual_canonical_inputs(
+        definition
     )
     numerical_controls = _example_schema_value(
         definition.numerical_control_schema
@@ -27692,6 +27695,13 @@ def test_task12_evidence_bundle_derives_outer_convergence_from_raw_data(
     diagnostics = isolation.collect_backend_diagnostics(
         definition, local_result
     )
+    if definition.backend_kind == "glt_fourier":
+        with pytest.raises(
+            AdapterContractError, match="outer GLT proof evidence"
+        ):
+            isolation.interpret_output_proofs(definition, local_result)
+        assert diagnostics["backend_kind"] == definition.backend_kind
+        return
     proofs = isolation.interpret_output_proofs(definition, local_result)
     decision = isolation.derive_convergence_decision(
         definition, local_result
@@ -29004,6 +29014,7 @@ def test_task12_evidence_bundle_oracle_request_uses_only_typed_private_path():
         "adapter_id": _task12_catalog_oracle_definition().oracle_id,
         "scientific_inputs": {"exchange": 1.25},
         "numerical_controls": {"residual_bound": 1e-12},
+        "scientific_configuration": {},
         "capsule_sha256": _sha256_text("task12-oracle-request-capsule"),
     }
     with pytest.raises(AdapterContractError, match="unauthorized"):
@@ -30682,3 +30693,791 @@ def test_task13_generated_valid_physics_points_satisfy_independent_oracle(
 
         assert oracle_result["invariant_satisfied"] is True
         assert oracle_result["residual_norm"] <= 1e-8
+
+
+TASK15_FOURIER_PAIRS = (
+    (
+        "xy_chain_bdg_boundaries",
+        "xy_chain_dense_bdg_oracle",
+        {"exchange": 1.0},
+        {
+            "momentum_refinement_grid": 96,
+            "eigensolver_residual_threshold": 1e-8,
+        },
+        {"ising_critical_field": 1.0, "anisotropy_transition_gamma": 0.0},
+        "xy_bdg_matrix",
+    ),
+    (
+        "diamond_spiral_threshold_fourier",
+        "diamond_real_space_threshold_oracle",
+        {"first_neighbor_exchange": 1.0},
+        {"momentum_refinement_grid": 96, "kernel_residual_bound": 1e-8},
+        {"spiral_surface_for_j2_over_j1_gt": 0.125},
+        "diamond_two_sublattice_kernel",
+    ),
+    (
+        "kitaev_field_majorana_mass",
+        "kitaev_two_band_chern_oracle",
+        {
+            "kitaev_exchange": 1.0,
+            "field_x": 0.08,
+            "field_y": -0.06,
+            "field_z": 0.05,
+        },
+        {"momentum_refinement_grid": 32, "gap_residual_bound": 1e-8},
+        {"field_opens_non_abelian_gap": True},
+        "kitaev_majorana_two_band",
+    ),
+    (
+        "pyrochlore_coulomb_fourier",
+        "pyrochlore_real_space_constraint_oracle",
+        {
+            "exchange": 1.0,
+            "approach_direction_a": "axis_a",
+            "approach_direction_b": "axis_b",
+        },
+        {
+            "momentum_refinement_grid": 64,
+            "constraint_residual_bound": 1e-8,
+        },
+        {"zero_total_spin_per_tetrahedron": True, "pinch_points": True},
+        "pyrochlore_constraint_projector",
+    ),
+    (
+        "simple_cubic_j1_j2_fourier",
+        "simple_cubic_real_space_energy_oracle",
+        {"first_neighbor_exchange": 1.0},
+        {"momentum_refinement_grid": 48, "branch_residual_bound": 1e-8},
+        {"neel_to_collinear_boundary_j2_over_j1": 0.25},
+        "simple_cubic_exchange_kernel",
+    ),
+    (
+        "tfim_bdg_critical_point",
+        "tfim_duality_gap_oracle",
+        {"exchange": 1.0},
+        {"momentum_refinement_grid": 96, "gap_residual_bound": 1e-8},
+        {"critical_field_over_exchange": 1.0},
+        "tfim_jordan_wigner_bdg",
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    (
+        "adapter_id,oracle_id,scientific_inputs,numerical_controls,"
+        "expected_fields,expected_kernel"
+    ),
+    TASK15_FOURIER_PAIRS,
+)
+def test_fourier_pair_recomputes_literature_boundary_from_model_kernel(
+    adapter_id,
+    oracle_id,
+    scientific_inputs,
+    numerical_controls,
+    expected_fields,
+    expected_kernel,
+):
+    """Catch lookup/constant implementations that omit the model calculation."""
+
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        scientific_inputs, numerical_controls
+    )
+    assert calculation["schema_version"] == "scientific_calculation_v1"
+    assert set(calculation["fields"]) == set(expected_fields)
+    for name, expected in expected_fields.items():
+        actual = calculation["fields"][name]
+        if type(expected) is bool:
+            assert actual is expected
+        else:
+            assert actual == pytest.approx(expected, rel=1e-8, abs=1e-10)
+
+    evidence = calculation["proof_inputs"]["fourier_evidence"]
+    assert evidence["model_kernel"] == expected_kernel
+    assert evidence["sample_count"] >= 4
+    assert evidence["reciprocal_symmetry_residual"] <= 1e-10
+    assert evidence["direct_invariant_residual"] <= 1e-8
+
+    oracle_result = getattr(oracles, "oracle_" + oracle_id)(
+        {
+            "scientific_inputs": scientific_inputs,
+            "adapter_fields": calculation["fields"],
+        },
+        numerical_controls,
+    )
+    assert oracle_result["invariant_satisfied"] is True
+    assert oracle_result["residual_norm"] <= 1e-8
+
+
+@pytest.mark.parametrize(
+    (
+        "adapter_id,_oracle_id,scientific_inputs,numerical_controls,"
+        "expected_fields,_expected_kernel"
+    ),
+    TASK15_FOURIER_PAIRS,
+)
+def test_fourier_pair_outer_layer_adjudicates_raw_model_evidence(
+    adapter_id,
+    _oracle_id,
+    scientific_inputs,
+    numerical_controls,
+    expected_fields,
+    _expected_kernel,
+):
+    """Catch acceptance based only on a worker-supplied selected field."""
+
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        scientific_inputs, numerical_controls
+    )
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-task15-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-task15-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is True
+    proofs = isolation.interpret_output_proofs(definition, validated)
+    assert set(proofs["proofs"]) == set(expected_fields)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,scientific_inputs,numerical_controls,field_name,forged_value",
+    (
+        (
+            "kitaev_field_majorana_mass",
+            {
+                "kitaev_exchange": 1.0,
+                "field_x": 0.08,
+                "field_y": -0.06,
+                "field_z": 0.05,
+            },
+            {"momentum_refinement_grid": 32, "gap_residual_bound": 1e-8},
+            "field_opens_non_abelian_gap",
+            False,
+        ),
+        (
+            "tfim_bdg_critical_point",
+            {"exchange": 1.0},
+            {"momentum_refinement_grid": 96, "gap_residual_bound": 1e-8},
+            "critical_field_over_exchange",
+            0.75,
+        ),
+    ),
+)
+def test_fourier_pair_outer_layer_rejects_field_not_derived_by_raw_evidence(
+    adapter_id,
+    scientific_inputs,
+    numerical_controls,
+    field_name,
+    forged_value,
+):
+    """Catch replacement of a recomputed output by an unbound worker value."""
+
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        scientific_inputs, numerical_controls
+    )
+    calculation["fields"][field_name] = forged_value
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-forged-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-forged-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    with pytest.raises(AdapterContractError, match="outer-derived"):
+        isolation.interpret_output_proofs(definition, validated)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_inputs,_controls,_fields,_kernel",
+    TASK15_FOURIER_PAIRS,
+)
+def test_fourier_pair_has_disjoint_scannable_scientific_closures(
+    adapter_id,
+    oracle_id,
+    _inputs,
+    _controls,
+    _fields,
+    _kernel,
+):
+    """Catch an oracle that imports or reuses the adapter calculation graph."""
+
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    adapter_closure = isolation.build_scientific_closure(
+        adapters.ADAPTER_DEFINITIONS[adapter_id].entry_symbol,
+        role="adapter",
+        source_roots=(source_root,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        oracles.ORACLE_DEFINITIONS[oracle_id].entry_symbol,
+        role="oracle",
+        source_roots=(source_root,),
+    )
+    isolation.scan_scientific_closure(
+        adapter_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.scan_scientific_closure(
+        oracle_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.assert_disjoint_scientific_closures(
+        adapter_closure, oracle_closure
+    )
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_inputs,_controls,_fields,_kernel",
+    TASK15_FOURIER_PAIRS,
+)
+def test_fourier_pair_recomputes_all_seeded_couplings_and_configurations(
+    adapter_id,
+    oracle_id,
+    _inputs,
+    _controls,
+    _fields,
+    _kernel,
+):
+    """Catch a calculation that works only at its canonical literature point."""
+
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    points = tuple(
+        point
+        for point in isolation.derive_counterfactual_points(
+            definition, bytes(range(32))
+        )
+        if point.kind == "valid"
+    )
+    assert len(points) == 6
+    adapter_entry = getattr(adapters, "adapter_" + adapter_id)
+    oracle_entry = getattr(oracles, "oracle_" + oracle_id)
+    pair_fields = []
+    for point in points:
+        inputs = thaw_json(point.scientific_inputs)
+        controls = thaw_json(point.numerical_controls)
+        configuration = thaw_json(point.scientific_configuration)
+        calculation = adapter_entry(inputs, controls, configuration)
+        configured_probe = calculation["proof_inputs"][
+            "fourier_evidence"
+        ]["configured_probe"]
+        assert configured_probe["scientific_configuration"] == configuration
+        assert configured_probe["real_fourier_residual"] <= 1e-8
+        pair_fields.append(calculation["fields"])
+        independent = oracle_entry(
+            {
+                "scientific_inputs": inputs,
+                "adapter_fields": calculation["fields"],
+            },
+            controls,
+        )
+        assert independent["invariant_satisfied"] is True
+        assert independent["residual_norm"] <= 1e-8
+    for index in range(0, len(pair_fields), 2):
+        assert pair_fields[index] == pair_fields[index + 1]
+
+
+def test_fourier_pair_convergence_requires_bound_raw_direct_invariant():
+    """Catch convergence based on residual labels detached from raw physics."""
+
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "tfim_bdg_critical_point"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = adapters.adapter_tfim_bdg_critical_point(
+        {"exchange": 1.0},
+        {"momentum_refinement_grid": 96, "gap_residual_bound": 1e-8},
+    )
+    calculation["proof_inputs"]["fourier_evidence"][
+        "direct_invariant_residual"
+    ] = 1.0
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-direct-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-direct-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is False
+
+
+def test_fourier_pair_convergence_binds_definition_declared_model_kernel():
+    """Catch substitution of another Fourier method under a valid adapter ID."""
+
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "tfim_bdg_critical_point"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = adapters.adapter_tfim_bdg_critical_point(
+        {"exchange": 1.0},
+        {"momentum_refinement_grid": 96, "gap_residual_bound": 1e-8},
+    )
+    calculation["proof_inputs"]["fourier_evidence"][
+        "model_kernel"
+    ] = "xy_bdg_matrix"
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-kernel-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-kernel-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is False
+
+
+def test_pyrochlore_fourier_uses_two_tetrahedron_constraints_and_two_flat_modes():
+    """Catch the rank-one single-tetrahedron projector approximation."""
+
+    calculation = adapters.adapter_pyrochlore_coulomb_fourier(
+        {
+            "exchange": 1.0,
+            "approach_direction_a": "axis_a",
+            "approach_direction_b": "axis_b",
+        },
+        {
+            "momentum_refinement_grid": 64,
+            "constraint_residual_bound": 1e-8,
+        },
+    )
+    rows = calculation["proof_inputs"]["fourier_evidence"][
+        "raw_constraint_modes"
+    ]
+    assert len(rows) >= 4
+    for row in rows:
+        assert row[:2] == pytest.approx([0.0, 0.0], abs=1e-10)
+        assert row[2:] == pytest.approx([1.0, 1.0], abs=1e-10)
+
+
+def test_kitaev_fourier_gap_is_dirac_mass_minimum_not_mesh_alias():
+    """Catch a momentum mesh that misses both Dirac valleys."""
+
+    inputs = {
+        "kitaev_exchange": 1.0,
+        "field_x": 0.08,
+        "field_y": -0.06,
+        "field_z": 0.05,
+    }
+    gaps = []
+    for grid in (16, 18, 32):
+        calculation = adapters.adapter_kitaev_field_majorana_mass(
+            inputs,
+            {"momentum_refinement_grid": grid, "gap_residual_bound": 1e-8},
+        )
+        gaps.append(
+            calculation["proof_inputs"]["fourier_evidence"][
+                "minimum_band_gap"
+            ]
+        )
+    mass = abs(0.08 * -0.06 * 0.05)
+    expected_gap = 12.0 * math.sqrt(3.0) * mass
+    assert gaps == pytest.approx([expected_gap] * 3, rel=1e-10, abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,inputs,controls,selectors",
+    (
+        (
+            "xy_chain_bdg_boundaries",
+            {"exchange": 1.7},
+            {
+                "momentum_refinement_grid": 96,
+                "eigensolver_residual_threshold": 1e-8,
+            },
+            ("ising_critical_field", "anisotropy_transition_gamma"),
+        ),
+        (
+            "diamond_spiral_threshold_fourier",
+            {"first_neighbor_exchange": 1.3},
+            {"momentum_refinement_grid": 96, "kernel_residual_bound": 1e-8},
+            ("spiral_surface_for_j2_over_j1_gt",),
+        ),
+        (
+            "simple_cubic_j1_j2_fourier",
+            {"first_neighbor_exchange": 0.9},
+            {"momentum_refinement_grid": 48, "branch_residual_bound": 1e-8},
+            ("neel_to_collinear_boundary_j2_over_j1",),
+        ),
+        (
+            "tfim_bdg_critical_point",
+            {"exchange": 2.1},
+            {"momentum_refinement_grid": 96, "gap_residual_bound": 1e-8},
+            ("critical_field_over_exchange",),
+        ),
+    ),
+)
+def test_fourier_numeric_boundaries_are_solved_by_signed_brackets(
+    adapter_id, inputs, controls, selectors
+):
+    """Catch preselected literature roots dressed with nearby evaluations."""
+
+    calculation = getattr(adapters, "adapter_" + adapter_id)(inputs, controls)
+    certificates = calculation["proof_inputs"]["fourier_evidence"][
+        "numeric_field_certificates"
+    ]
+    assert set(certificates) == set(selectors)
+    for selector in selectors:
+        certificate = certificates[selector]
+        assert certificate["kind"] == "signed_bracket_root_v1"
+        assert certificate["lower_residual"] <= 0.0
+        assert certificate["upper_residual"] >= 0.0
+        assert certificate["lower"] <= certificate["selected"] <= certificate["upper"]
+        assert certificate["upper"] - certificate["lower"] <= 1e-8
+        assert abs(certificate["selected_residual"]) <= 1e-8
+        assert calculation["fields"][selector] == pytest.approx(
+            certificate["selected"]
+        )
+
+
+@pytest.mark.parametrize(
+    "adapter_id,inputs,controls",
+    (
+        (
+            "diamond_spiral_threshold_fourier",
+            {"first_neighbor_exchange": 1.0},
+            {"momentum_refinement_grid": 64, "kernel_residual_bound": 1e-8},
+        ),
+        (
+            "simple_cubic_j1_j2_fourier",
+            {"first_neighbor_exchange": 1.0},
+            {"momentum_refinement_grid": 64, "branch_residual_bound": 1e-8},
+        ),
+    ),
+)
+def test_fourier_lattice_minimization_samples_generic_three_dimensional_momenta(
+    adapter_id, inputs, controls
+):
+    """Catch replacement of a Brillouin-zone search by one scalar/path."""
+
+    calculation = getattr(adapters, "adapter_" + adapter_id)(inputs, controls)
+    samples = calculation["proof_inputs"]["fourier_evidence"][
+        "raw_momentum_samples"
+    ]
+    assert len(samples) >= controls["momentum_refinement_grid"]
+    assert all(len(row["momentum"]) == 3 for row in samples)
+    assert any(
+        len({round(value, 12) for value in row["momentum"]}) == 3
+        for row in samples
+    )
+    assert all(math.isfinite(row["lower_energy"]) for row in samples)
+
+
+def test_diamond_oracle_counts_real_space_single_q_bonds():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    energy = oracles._task15_oracle_diamond_single_q_energy(
+        1.0, 0.2, (0.0, 0.0, 0.0)
+    )
+    assert energy == pytest.approx(-4.0 + 12.0 * 0.2)
+
+
+def test_tfim_oracle_uses_finite_spin_chain_spectrum():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    scaled_gaps = []
+    for sites in (4, 6, 8):
+        gap = oracles._task15_oracle_tfim_spin_gap(1.0, 1.0, sites)
+        scaled_gaps.append(sites * gap)
+    assert max(scaled_gaps) - min(scaled_gaps) < 0.02
+
+    rejected = oracles.oracle_tfim_duality_gap_oracle(
+        {
+            "scientific_inputs": {"exchange": 1.0},
+            "adapter_fields": {"critical_field_over_exchange": 0.8},
+        },
+        {"momentum_refinement_grid": 32, "gap_residual_bound": 1e-8},
+    )
+    assert rejected["residual_norm"] > 0.1
+
+
+def test_tfim_oracle_resolves_global_parity_sectors():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    sectors = oracles._task15_oracle_tfim_parity_sectors(1.0, 1.0, 6)
+    assert set(sectors) == {"even", "odd"}
+    assert sectors["even"]["dimension"] == 32
+    assert sectors["odd"]["dimension"] == 32
+    assert sectors["odd"]["ground_energy"] > sectors["even"]["ground_energy"]
+
+
+def test_kitaev_mass_calculation_rejects_outside_weak_field_regime():
+    with pytest.raises(AdapterContractError, match="relative regime"):
+        adapters.validate_scientific_inputs(
+            adapters.ADAPTER_DEFINITIONS["kitaev_field_majorana_mass"],
+            {
+                "kitaev_exchange": 1.0,
+                "field_x": 0.4,
+                "field_y": 0.05,
+                "field_z": -0.05,
+            },
+        )
+
+
+def test_pyrochlore_oracle_exhausts_tetrahedron_ice_manifold():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    states = oracles._task15_oracle_tetrahedron_ice_states()
+    assert len(states) == 6
+    assert all(sum(state) == 0 for state in states)
+
+
+def test_kitaev_oracle_computes_integer_chern_from_berry_links():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    for grid in (12, 18):
+        chern = oracles._task15_oracle_kitaev_link_chern(
+            1.0, -0.00024, grid
+        )
+        assert abs(chern) == pytest.approx(1.0, abs=1e-8)
+
+
+def test_pyrochlore_oracle_computes_directional_structure_factors():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    first = oracles._task15_oracle_pyrochlore_directional_structure(
+        (1.0, 0.0, 0.0), 1e-2
+    )
+    second = oracles._task15_oracle_pyrochlore_directional_structure(
+        (0.0, 1.0, 0.0), 1e-2
+    )
+    difference_squared = 0.0
+    for row in range(3):
+        for column in range(3):
+            difference_squared += (
+                first[row][column] - second[row][column]
+            ) ** 2
+    difference = math.sqrt(difference_squared)
+    assert difference > 1e-3
+
+
+@pytest.mark.parametrize(
+    "adapter_id,_oracle_id,inputs,controls,_fields,_kernel",
+    TASK15_FOURIER_PAIRS,
+)
+def test_fourier_convergence_uses_two_computed_refinement_levels(
+    adapter_id, _oracle_id, inputs, controls, _fields, _kernel
+):
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        inputs, controls
+    )
+    proof = calculation["proof_inputs"]["fourier_evidence"]
+    samples = proof["refinement_samples"]
+    residuals = proof["refinement_residuals"]
+    assert len(samples) == len(residuals) == 2
+    assert samples[0] < samples[1]
+    assert residuals[1] <= residuals[0]
+    assert calculation["raw_convergence_evidence"]["residuals"] == residuals
+
+
+def test_glt_scientific_configuration_is_bound_into_worker_request():
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[
+        "diamond_spiral_threshold_fourier"
+    ]
+    point = next(
+        point
+        for point in isolation.derive_counterfactual_points(
+            definition, bytes(range(32))
+        )
+        if point.kind == "valid"
+    )
+    authority_payload = _authority_payload_for_definition(definition)
+    authority_payload["scientific_inputs"] = thaw_json(
+        point.scientific_inputs
+    )
+    authority_payload["numerical_controls"] = thaw_json(
+        point.numerical_controls
+    )
+    authority_payload = _rehash_authority_payload(authority_payload)
+    authority = isolation.validate_authority_context(
+        authority_payload, allow_test_producer=True
+    )
+    request = isolation.make_worker_request(
+        definition,
+        authority,
+        opaque_run_nonce="task15-configured-worker",
+        capsule_sha256=_sha256_text("task15-configured-capsule"),
+        allow_test_producer=True,
+        scientific_configuration=point.scientific_configuration,
+    )
+    assert request.scientific_configuration == point.scientific_configuration
+    assert request.to_frozen_json()["scientific_configuration"] == (
+        point.scientific_configuration
+    )
+
+
+def test_glt_outer_layer_binds_configured_real_fourier_identity():
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "diamond_spiral_threshold_fourier"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    point = next(
+        point
+        for point in isolation.derive_counterfactual_points(
+            definition, bytes(range(32))
+        )
+        if point.kind == "valid"
+    )
+    calculation = adapters.adapter_diamond_spiral_threshold_fourier(
+        thaw_json(point.scientific_inputs),
+        thaw_json(point.numerical_controls),
+        thaw_json(point.scientific_configuration),
+    )
+    calculation["proof_inputs"]["fourier_evidence"][
+        "configured_probe"
+    ]["real_space_value"] += 1.0
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-configured-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-configured-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    with pytest.raises(AdapterContractError, match="configured probe"):
+        isolation.interpret_output_proofs(definition, validated)
+
+
+def test_glt_outer_convergence_rejects_increasing_residual_sequence():
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "tfim_bdg_critical_point"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = adapters.adapter_tfim_bdg_critical_point(
+        {"exchange": 1.0},
+        {"momentum_refinement_grid": 32, "gap_residual_bound": 1e-8},
+    )
+    calculation["raw_convergence_evidence"]["residuals"] = (
+        1e-12,
+        2e-12,
+    )
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-increasing-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-increasing-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is False

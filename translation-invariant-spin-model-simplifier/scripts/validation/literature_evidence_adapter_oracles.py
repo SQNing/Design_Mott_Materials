@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import numpy as np
 from types import MappingProxyType
 from typing import Mapping
 
@@ -336,7 +337,14 @@ def _task13_oracle_definition(adapter_id, oracle_id):
         input_schema=input_schema,
         result_schema=result_schema,
         runtime_requirements=_adapters.RuntimeRequirements(
-            "python3", (), (), ("single_cpu_core",)
+            "python3",
+            (
+                adapter_definition.runtime_requirements.packages
+                if adapter_definition.backend_kind == "glt_fourier"
+                else ()
+            ),
+            (),
+            ("single_cpu_core",),
         ),
         convergence_invariant_contract={
             "kind": "residual_bound",
@@ -387,6 +395,21 @@ _TASK13_ORACLE_ROWS = (
     ("majumdar_ghosh_dimer_ed", "majumdar_ghosh_projector_oracle"),
     ("shastry_sutherland_dimer_ed", "shastry_sutherland_bond_oracle"),
     ("spin1_single_ion_dense_ed", "spin1_m_quantum_number_oracle"),
+    ("xy_chain_bdg_boundaries", "xy_chain_dense_bdg_oracle"),
+    (
+        "diamond_spiral_threshold_fourier",
+        "diamond_real_space_threshold_oracle",
+    ),
+    ("kitaev_field_majorana_mass", "kitaev_two_band_chern_oracle"),
+    (
+        "pyrochlore_coulomb_fourier",
+        "pyrochlore_real_space_constraint_oracle",
+    ),
+    (
+        "simple_cubic_j1_j2_fourier",
+        "simple_cubic_real_space_energy_oracle",
+    ),
+    ("tfim_bdg_critical_point", "tfim_duality_gap_oracle"),
 )
 
 
@@ -1178,3 +1201,476 @@ def oracle_spin1_m_quantum_number_oracle(payload, numerical_controls):
         )
     invariant = fields["degeneracies"] == degeneracies
     return _task13_oracle_measure(residual, invariant)
+
+
+def _task15_oracle_periodic_xy_bdg(exchange, field, anisotropy, sites):
+    normal = np.zeros((sites, sites), dtype=float)
+    pairing = np.zeros((sites, sites), dtype=float)
+    for site in range(sites):
+        normal[site, site] = field
+        right = (site + 1) % sites
+        normal[site, right] -= 0.5 * exchange
+        normal[right, site] -= 0.5 * exchange
+        pairing[site, right] += 0.5 * exchange * anisotropy
+        pairing[right, site] -= 0.5 * exchange * anisotropy
+    matrix = np.zeros((2 * sites, 2 * sites), dtype=float)
+    for row in range(sites):
+        for column in range(sites):
+            matrix[row, column] = normal[row, column]
+            matrix[row, sites + column] = pairing[row, column]
+            matrix[sites + row, column] = -pairing[row, column]
+            matrix[sites + row, sites + column] = -normal[row, column]
+    return np.linalg.eigvalsh(matrix)
+
+
+def oracle_xy_chain_dense_bdg_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["exchange"])
+    field_spectrum = _task15_oracle_periodic_xy_bdg(
+        exchange, exchange, 0.63, 8
+    )
+    anisotropy_spectrum = _task15_oracle_periodic_xy_bdg(
+        exchange, 0.0, 0.0, 8
+    )
+    field_minimum = None
+    for value in field_spectrum:
+        magnitude = abs(float(value))
+        if field_minimum is None or magnitude < field_minimum:
+            field_minimum = magnitude
+    anisotropy_minimum = None
+    for value in anisotropy_spectrum:
+        magnitude = abs(float(value))
+        if anisotropy_minimum is None or magnitude < anisotropy_minimum:
+            anisotropy_minimum = magnitude
+    residual = max(
+        abs(fields["ising_critical_field"] - exchange),
+        abs(fields["anisotropy_transition_gamma"]),
+        field_minimum,
+        anisotropy_minimum,
+    )
+    return _task13_oracle_measure(residual)
+
+
+def _task15_oracle_diamond_single_q_energy(
+    first, second, momentum
+):
+    bond_vectors = (
+        (0.25, 0.25, 0.25),
+        (0.25, -0.25, -0.25),
+        (-0.25, 0.25, -0.25),
+        (-0.25, -0.25, 0.25),
+    )
+    real_structure = 0.0
+    imaginary_structure = 0.0
+    for vector in bond_vectors:
+        angle = (
+            momentum[0] * vector[0]
+            + momentum[1] * vector[1]
+            + momentum[2] * vector[2]
+        )
+        real_structure += math.cos(angle)
+        imaginary_structure += math.sin(angle)
+    nearest_energy = -first * math.sqrt(
+        real_structure * real_structure
+        + imaginary_structure * imaginary_structure
+    )
+    second_energy = 0.0
+    for first_index in range(4):
+        for second_index in range(first_index + 1, 4):
+            displacement = (
+                bond_vectors[first_index][0]
+                - bond_vectors[second_index][0],
+                bond_vectors[first_index][1]
+                - bond_vectors[second_index][1],
+                bond_vectors[first_index][2]
+                - bond_vectors[second_index][2],
+            )
+            angle = (
+                momentum[0] * displacement[0]
+                + momentum[1] * displacement[1]
+                + momentum[2] * displacement[2]
+            )
+            second_energy += 2.0 * second * math.cos(angle)
+    return nearest_energy + second_energy
+
+
+def oracle_diamond_real_space_threshold_oracle(
+    payload, numerical_controls
+):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    first = float(inputs["first_neighbor_exchange"])
+    threshold = float(fields["spiral_surface_for_j2_over_j1_gt"])
+    momentum_step = 1e-3
+    momentum = (
+        momentum_step,
+        0.7 * momentum_step,
+        0.3 * momentum_step,
+    )
+    zero_momentum = (0.0, 0.0, 0.0)
+    lower = 0.0
+    upper = 0.25
+    for _iteration in range(60):
+        selected = 0.5 * (lower + upper)
+        zero_energy = _task15_oracle_diamond_single_q_energy(
+            first, selected * first, zero_momentum
+        )
+        shifted_energy = _task15_oracle_diamond_single_q_energy(
+            first, selected * first, momentum
+        )
+        signed_curvature = -(
+            shifted_energy - zero_energy
+        ) / (momentum_step * momentum_step)
+        if signed_curvature < 0.0:
+            lower = selected
+        else:
+            upper = selected
+    independent_threshold = 0.5 * (lower + upper)
+    below = 0.9 * independent_threshold
+    above = 1.1 * independent_threshold
+    below_difference = (
+        _task15_oracle_diamond_single_q_energy(
+            first, below * first, momentum
+        )
+        - _task15_oracle_diamond_single_q_energy(
+            first, below * first, zero_momentum
+        )
+    )
+    above_difference = (
+        _task15_oracle_diamond_single_q_energy(
+            first, above * first, momentum
+        )
+        - _task15_oracle_diamond_single_q_energy(
+            first, above * first, zero_momentum
+        )
+    )
+    invariant = below_difference > 0.0 and above_difference < 0.0
+    return _task13_oracle_measure(
+        threshold - independent_threshold, invariant
+    )
+
+
+def _task15_oracle_honeycomb_vector(exchange, mass, first, second):
+    return (
+        exchange * (1.0 + math.cos(first) + math.cos(second)),
+        exchange * (math.sin(first) + math.sin(second)),
+        4.0
+        * mass
+        * (math.sin(first) - math.sin(second) + math.sin(second - first)),
+    )
+
+
+def _task15_oracle_lower_spinor(exchange, mass, first, second):
+    vector = _task15_oracle_honeycomb_vector(
+        exchange, mass, first, second
+    )
+    radius = math.sqrt(
+        vector[0] * vector[0]
+        + vector[1] * vector[1]
+        + vector[2] * vector[2]
+    )
+    if radius + vector[2] > 1e-14 * max(1.0, radius):
+        first_component = -complex(vector[0], -vector[1])
+        second_component = complex(radius + vector[2], 0.0)
+    else:
+        first_component = complex(-(radius - vector[2]), 0.0)
+        second_component = complex(vector[0], vector[1])
+    norm = math.sqrt(
+        first_component.real * first_component.real
+        + first_component.imag * first_component.imag
+        + second_component.real * second_component.real
+        + second_component.imag * second_component.imag
+    )
+    return (first_component / norm, second_component / norm)
+
+
+def _task15_oracle_spinor_link(first, second):
+    overlap = (
+        complex(first[0].real, -first[0].imag) * second[0]
+        + complex(first[1].real, -first[1].imag) * second[1]
+    )
+    magnitude = abs(overlap)
+    return overlap / magnitude
+
+
+def _task15_oracle_kitaev_link_chern(exchange, mass, grid):
+    pi_value = 4.0 * math.atan(1.0)
+    spinors = []
+    for first_index in range(grid):
+        row = []
+        first = 2.0 * pi_value * first_index / grid
+        for second_index in range(grid):
+            second = 2.0 * pi_value * second_index / grid
+            row.append(
+                _task15_oracle_lower_spinor(
+                    exchange, mass, first, second
+                )
+            )
+        spinors.append(row)
+    total_phase = 0.0
+    for first_index in range(grid):
+        next_first = (first_index + 1) % grid
+        for second_index in range(grid):
+            next_second = (second_index + 1) % grid
+            here = spinors[first_index][second_index]
+            along_first = spinors[next_first][second_index]
+            diagonal = spinors[next_first][next_second]
+            along_second = spinors[first_index][next_second]
+            loop = (
+                _task15_oracle_spinor_link(here, along_first)
+                * _task15_oracle_spinor_link(along_first, diagonal)
+                * _task15_oracle_spinor_link(diagonal, along_second)
+                * _task15_oracle_spinor_link(along_second, here)
+            )
+            total_phase += math.atan2(loop.imag, loop.real)
+    return total_phase / (2.0 * pi_value)
+
+
+def oracle_kitaev_two_band_chern_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["kitaev_exchange"])
+    mass = (
+        float(inputs["field_x"])
+        * float(inputs["field_y"])
+        * float(inputs["field_z"])
+        / (exchange * exchange)
+    )
+    grid = int(numerical_controls["momentum_refinement_grid"])
+    chern = _task15_oracle_kitaev_link_chern(exchange, mass, grid)
+    rounded_chern = int(round(chern))
+    invariant = (
+        mass != 0.0
+        and abs(chern - rounded_chern) <= 1e-8
+        and abs(rounded_chern) % 2 == 1
+    )
+    residual = 0.0 if fields["field_opens_non_abelian_gap"] is invariant else 1.0
+    return _task13_oracle_measure(residual, invariant)
+
+
+def _task15_oracle_tetrahedron_ice_states():
+    states = []
+    for encoded in range(16):
+        state = []
+        total = 0
+        for site in range(4):
+            spin = 1 if ((encoded >> site) & 1) else -1
+            state.append(spin)
+            total += spin
+        if total == 0:
+            states.append(tuple(state))
+    return tuple(states)
+
+
+def _task15_oracle_pyrochlore_directional_structure(
+    direction, magnitude
+):
+    bond_vectors = (
+        (0.25, 0.25, 0.25),
+        (0.25, -0.25, -0.25),
+        (-0.25, 0.25, -0.25),
+        (-0.25, -0.25, 0.25),
+    )
+    incidence = ([], [])
+    for vector in bond_vectors:
+        angle = magnitude * (
+            direction[0] * vector[0]
+            + direction[1] * vector[1]
+            + direction[2] * vector[2]
+        )
+        incidence[0].append(
+            complex(math.cos(0.5 * angle), math.sin(0.5 * angle))
+            / 2.0
+        )
+        incidence[1].append(
+            complex(math.cos(0.5 * angle), -math.sin(0.5 * angle))
+            / 2.0
+        )
+    constraint_matrix = np.zeros((4, 4), dtype=complex)
+    for row in range(4):
+        for column in range(4):
+            value = 0.0j
+            for constraint in range(2):
+                left = incidence[constraint][row]
+                value += complex(left.real, -left.imag) * incidence[
+                    constraint
+                ][column]
+            constraint_matrix[row, column] = value
+    _eigenvalues, eigenvectors = np.linalg.eigh(constraint_matrix)
+    projector = np.zeros((4, 4), dtype=complex)
+    for mode in range(2):
+        for row in range(4):
+            for column in range(4):
+                right = eigenvectors[column, mode]
+                projector[row, column] += (
+                    eigenvectors[row, mode]
+                    * complex(right.real, -right.imag)
+                )
+    structure = []
+    for first_axis in range(3):
+        structure_row = []
+        for second_axis in range(3):
+            value = 0.0j
+            for row in range(4):
+                for column in range(4):
+                    value += (
+                        bond_vectors[row][first_axis]
+                        * projector[row, column]
+                        * bond_vectors[column][second_axis]
+                    )
+            structure_row.append(float(value.real))
+        structure.append(tuple(structure_row))
+    return tuple(structure)
+
+
+def oracle_pyrochlore_real_space_constraint_oracle(
+    payload, numerical_controls
+):
+    _inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    states = _task15_oracle_tetrahedron_ice_states()
+    correlation_residual = 0.0
+    for first in range(4):
+        for second in range(4):
+            correlation = 0.0
+            for state in states:
+                correlation += state[first] * state[second]
+            correlation /= len(states)
+            required = 1.0 if first == second else -1.0 / 3.0
+            correlation_residual = max(
+                correlation_residual, abs(correlation - required)
+            )
+    direction_a = (1.0, 0.0, 0.0)
+    direction_b = (0.0, 1.0, 0.0)
+    polarization_a = _task15_oracle_pyrochlore_directional_structure(
+        direction_a, 1e-2
+    )
+    polarization_b = _task15_oracle_pyrochlore_directional_structure(
+        direction_b, 1e-2
+    )
+    refined_a = _task15_oracle_pyrochlore_directional_structure(
+        direction_a, 5e-3
+    )
+    refined_b = _task15_oracle_pyrochlore_directional_structure(
+        direction_b, 5e-3
+    )
+    directional_difference_squared = 0.0
+    refinement_difference_squared = 0.0
+    for first_axis in range(3):
+        for second_axis in range(3):
+            directional_difference_squared += (
+                polarization_a[first_axis][second_axis]
+                - polarization_b[first_axis][second_axis]
+            ) ** 2
+            refinement_difference_squared += (
+                polarization_a[first_axis][second_axis]
+                - refined_a[first_axis][second_axis]
+            ) ** 2
+            refinement_difference_squared += (
+                polarization_b[first_axis][second_axis]
+                - refined_b[first_axis][second_axis]
+            ) ** 2
+    directional_difference = math.sqrt(directional_difference_squared)
+    refinement_difference = math.sqrt(refinement_difference_squared)
+    invariant = (
+        len(states) == 6
+        and correlation_residual <= 1e-14
+        and directional_difference > 0.0
+        and refinement_difference <= 1e-6
+        and fields["zero_total_spin_per_tetrahedron"] is True
+        and fields["pinch_points"] is True
+    )
+    return _task13_oracle_measure(
+        max(correlation_residual, refinement_difference), invariant
+    )
+
+
+def oracle_simple_cubic_real_space_energy_oracle(
+    payload, numerical_controls
+):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    first = float(inputs["first_neighbor_exchange"])
+    ratio = float(fields["neel_to_collinear_boundary_j2_over_j1"])
+    second = ratio * first
+    neel_energy = -3.0 * first + 6.0 * second
+    collinear_energy = -first - 2.0 * second
+    below_second = 0.2 * first
+    above_second = 0.3 * first
+    below_ordering = (
+        -3.0 * first + 6.0 * below_second
+        < -first - 2.0 * below_second
+    )
+    above_ordering = (
+        -first - 2.0 * above_second
+        < -3.0 * first + 6.0 * above_second
+    )
+    return _task13_oracle_measure(
+        neel_energy - collinear_energy,
+        below_ordering and above_ordering,
+    )
+
+
+def _task15_oracle_tfim_parity_sectors(exchange, field, sites):
+    sector_records = {}
+    for parity_name, required_parity in (("even", 0), ("odd", 1)):
+        states = []
+        for state in range(1 << sites):
+            selected_state = state
+            occupied = 0
+            while selected_state:
+                occupied += selected_state & 1
+                selected_state >>= 1
+            if occupied % 2 == required_parity:
+                states.append(state)
+        state_indices = {}
+        for index, state in enumerate(states):
+            state_indices[state] = index
+        hamiltonian = np.zeros((len(states), len(states)), dtype=float)
+        for column, state in enumerate(states):
+            magnetization = 0.0
+            for site in range(sites):
+                if ((state >> site) & 1) == 0:
+                    magnetization += 1.0
+                else:
+                    magnetization -= 1.0
+                right = (site + 1) % sites
+                flipped = state ^ (1 << site) ^ (1 << right)
+                row = state_indices[flipped]
+                hamiltonian[row, column] -= exchange
+            hamiltonian[column, column] -= field * magnetization
+        eigenvalues = np.linalg.eigvalsh(hamiltonian)
+        sector_records[parity_name] = {
+            "dimension": len(states),
+            "ground_energy": float(eigenvalues[0]),
+            "internal_gap": float(eigenvalues[1] - eigenvalues[0]),
+        }
+    return sector_records
+
+
+def _task15_oracle_tfim_spin_gap(exchange, field, sites):
+    sectors = _task15_oracle_tfim_parity_sectors(
+        exchange, field, sites
+    )
+    return abs(
+        sectors["odd"]["ground_energy"]
+        - sectors["even"]["ground_energy"]
+    )
+
+
+def oracle_tfim_duality_gap_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["exchange"])
+    ratio = float(fields["critical_field_over_exchange"])
+    critical_field = ratio * exchange
+    duality_residual = abs(ratio - 1.0 / ratio)
+    scaled_gaps = []
+    for sites in (4, 6, 8):
+        scaled_gaps.append(
+            sites
+            * _task15_oracle_tfim_spin_gap(
+                exchange, critical_field, sites
+            )
+        )
+    spread = max(scaled_gaps) - min(scaled_gaps)
+    invariant = (
+        scaled_gaps[0] > scaled_gaps[1] > scaled_gaps[2] > 0.0
+        and spread <= 0.02 * abs(exchange)
+    )
+    return _task13_oracle_measure(duality_residual, invariant)

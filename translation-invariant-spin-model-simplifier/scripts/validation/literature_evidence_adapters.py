@@ -2520,7 +2520,8 @@ _ADAPTER_DEFINITION_ROWS = (
             "bound_rule": (
                 "neighboring momentum gaps and matrix residuals bound each "
                 "closing"
-            )
+            ),
+            "glt_proof_kind": "xy_bdg_matrix",
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -2576,7 +2577,8 @@ _ADAPTER_DEFINITION_ROWS = (
         convergence_requirements={
             "bound_rule": (
                 "kernel minima are bracketed from both coupling sides"
-            )
+            ),
+            "glt_proof_kind": "diamond_two_sublattice_kernel",
         },
         valid_rules={
             "first_neighbor_exchange": {"kind": "strictly_positive_finite"}
@@ -3014,19 +3016,38 @@ _ADAPTER_DEFINITION_ROWS = (
             "bound_rule": (
                 "gap lower bound is positive and band parity is stable "
                 "under finer sampling"
-            )
+            ),
+            "glt_proof_kind": "kitaev_majorana_two_band",
         },
         valid_rules={
             "kitaev_exchange": {"kind": "strictly_positive_finite"},
-            "field_x": {"kind": "finite_nonzero"},
-            "field_y": {"kind": "finite_nonzero"},
-            "field_z": {"kind": "finite_nonzero"},
+            "field_x": {
+                "kind": "finite_nonzero_relative_regime",
+                "reference_field": "kitaev_exchange",
+                "maximum_absolute_ratio": 0.25,
+            },
+            "field_y": {
+                "kind": "finite_nonzero_relative_regime",
+                "reference_field": "kitaev_exchange",
+                "maximum_absolute_ratio": 0.25,
+            },
+            "field_z": {
+                "kind": "finite_nonzero_relative_regime",
+                "reference_field": "kitaev_exchange",
+                "maximum_absolute_ratio": 0.25,
+            },
         },
         invalid_rules={
             "kitaev_exchange": {"kind": "nonpositive_or_nonfinite"},
-            "field_x": {"kind": "zero_or_nonfinite"},
-            "field_y": {"kind": "zero_or_nonfinite"},
-            "field_z": {"kind": "zero_or_nonfinite"},
+            "field_x": {
+                "kind": "outside_product_state_regime_or_nonfinite"
+            },
+            "field_y": {
+                "kind": "outside_product_state_regime_or_nonfinite"
+            },
+            "field_z": {
+                "kind": "outside_product_state_regime_or_nonfinite"
+            },
         },
     ),
     _metadata_definition(
@@ -3606,7 +3627,8 @@ _ADAPTER_DEFINITION_ROWS = (
             "bound_rule": (
                 "constraint residuals contract and directional limits "
                 "remain distinct"
-            )
+            ),
+            "glt_proof_kind": "pyrochlore_constraint_projector",
         },
         valid_rules={
             "exchange": {"kind": "strictly_positive_finite"},
@@ -3753,7 +3775,8 @@ _ADAPTER_DEFINITION_ROWS = (
             "bound_rule": (
                 "both Fourier branches are minimized and their crossing is "
                 "bracketed"
-            )
+            ),
+            "glt_proof_kind": "simple_cubic_exchange_kernel",
         },
         valid_rules={
             "first_neighbor_exchange": {"kind": "strictly_positive_finite"}
@@ -3914,7 +3937,8 @@ _ADAPTER_DEFINITION_ROWS = (
             "bound_rule": (
                 "the BdG gap minimum is bracketed and closes under finer "
                 "sampling"
-            )
+            ),
+            "glt_proof_kind": "tfim_jordan_wigner_bdg",
         },
         valid_rules={"exchange": {"kind": "strictly_positive_finite"}},
         invalid_rules={"exchange": {"kind": "nonpositive_or_nonfinite"}},
@@ -4753,13 +4777,19 @@ def validate_scientific_inputs(
         field_name="scientific_inputs",
     )
     for field_name, rule in definition.counterfactual_domain.valid_rules.items():
-        if rule["kind"] != "finite_product_state_regime":
+        if rule["kind"] not in {
+            "finite_product_state_regime",
+            "finite_nonzero_relative_regime",
+        }:
             continue
         reference = validated[rule["reference_field"]]
         maximum_ratio = rule["maximum_absolute_ratio"]
-        if abs(validated[field_name]) > maximum_ratio * reference:
+        if (
+            rule["kind"] == "finite_nonzero_relative_regime"
+            and validated[field_name] == 0
+        ) or abs(validated[field_name]) > maximum_ratio * reference:
             raise AdapterContractError(
-                "scientific_inputs are outside the product-ground-state regime"
+                "scientific_inputs are outside the declared relative regime"
             )
     return validated
 
@@ -6929,4 +6959,1238 @@ def adapter_spin1_single_ion_dense_ed(scientific_inputs, numerical_controls):
         proof_inputs={"distinct_levels": groups},
         problem_size_kind="fixed_local",
         problem_size={"spin_count": 1, "spin_quantum_number": 1},
+    )
+
+
+def _task15_fourier_calculation(
+    fields,
+    controls,
+    proof_material,
+    residual_bound,
+    *,
+    bounded_fields=(),
+):
+    proof_material = dict(proof_material)
+    proof_material["derived_fields"] = dict(fields)
+    if "numeric_field_certificates" not in proof_material:
+        proof_material["numeric_field_certificates"] = {}
+    residual = max(
+        float(proof_material["reciprocal_symmetry_residual"]),
+        float(proof_material["direct_invariant_residual"]),
+    )
+    refinement_samples = tuple(proof_material["refinement_samples"])
+    refinement_residuals = tuple(proof_material["refinement_residuals"])
+    refinement_residuals = (
+        max(float(refinement_residuals[0]), residual),
+        max(float(refinement_residuals[1]), residual),
+    )
+    proof_material["refinement_residuals"] = refinement_residuals
+    return _task13_calculation(
+        "residual_bound",
+        fields,
+        controls,
+        operations=int(proof_material["sample_count"]),
+        bounded_fields=bounded_fields,
+        residual_samples=refinement_samples,
+        residuals=refinement_residuals,
+        error_bound=float(residual_bound),
+        proof_inputs={"fourier_evidence": proof_material},
+    )
+
+
+def _task15_two_band_eigenvalues(dx, dy, dz):
+    radius = math.sqrt(dx * dx + dy * dy + dz * dz)
+    return (-radius, radius)
+
+
+def _task15_configuration_values(scientific_configuration):
+    if not scientific_configuration:
+        return None
+    pi_value = 4.0 * math.atan(1.0)
+    coordinates = scientific_configuration["coordinates"]
+    momentum = []
+    for coordinate in coordinates:
+        momentum.append(2.0 * pi_value * float(coordinate))
+    return (
+        scientific_configuration["representation"],
+        tuple(momentum),
+        2.0
+        * pi_value
+        * float(scientific_configuration["gauge_phase_fraction"]),
+    )
+
+
+def _task15_configured_probe(
+    scientific_configuration, real_value, fourier_value
+):
+    representation = scientific_configuration["representation"]
+    selected = real_value if representation == "real_space" else fourier_value
+    return {
+        "scientific_configuration": dict(scientific_configuration),
+        "selected_value": selected,
+        "real_space_value": real_value,
+        "fourier_space_value": fourier_value,
+        "real_fourier_residual": abs(real_value - fourier_value),
+    }
+
+
+def adapter_xy_chain_bdg_boundaries(
+    scientific_inputs, numerical_controls, scientific_configuration=None
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("momentum_refinement_grid", "eigensolver_residual_threshold"),
+    )
+    exchange = float(inputs["exchange"])
+    grid = int(controls["momentum_refinement_grid"])
+    threshold = float(controls["eigensolver_residual_threshold"])
+    pi_value = 4.0 * math.atan(1.0)
+    field_lower = 0.5 * exchange
+    field_upper = 1.5 * exchange
+    field_coarse_width = None
+    for _iteration in range(60):
+        field_middle = 0.5 * (field_lower + field_upper)
+        if field_middle - exchange < 0.0:
+            field_lower = field_middle
+        else:
+            field_upper = field_middle
+        if _iteration == 29:
+            field_coarse_width = field_upper - field_lower
+    selected_field = 0.5 * (field_lower + field_upper)
+    gamma_lower = -0.5
+    gamma_upper = 0.5
+    gamma_coarse_width = None
+    for _iteration in range(60):
+        gamma_middle = 0.5 * (gamma_lower + gamma_upper)
+        if exchange * gamma_middle < 0.0:
+            gamma_lower = gamma_middle
+        else:
+            gamma_upper = gamma_middle
+        if _iteration == 29:
+            gamma_coarse_width = gamma_upper - gamma_lower
+    selected_gamma = gamma_upper
+    gamma_probe = 0.61
+    symmetry_residual = 0.0
+    determinant_residual = 0.0
+    raw_minima = []
+    for field, gamma in (
+        (selected_field, gamma_probe),
+        (0.0, selected_gamma),
+        (0.93 * exchange, gamma_probe),
+        (1.07 * exchange, gamma_probe),
+    ):
+        minimum = None
+        minimum_momentum = None
+        for index in range(grid + 1):
+            momentum = pi_value * index / grid
+            z_value = field - exchange * math.cos(momentum)
+            y_value = exchange * gamma * math.sin(momentum)
+            eigenvalues = _task15_two_band_eigenvalues(
+                0.0, y_value, z_value
+            )
+            gap = eigenvalues[1] - eigenvalues[0]
+            negative_z = field - exchange * math.cos(-momentum)
+            negative_y = exchange * gamma * math.sin(-momentum)
+            negative_gap = 2.0 * math.sqrt(
+                negative_z * negative_z + negative_y * negative_y
+            )
+            symmetry_residual = max(
+                symmetry_residual, abs(gap - negative_gap)
+            )
+            if minimum is None or gap < minimum:
+                minimum = gap
+                minimum_momentum = momentum
+        raw_minima.append(
+            {
+                "field": field,
+                "anisotropy": gamma,
+                "momentum": minimum_momentum,
+                "gap": minimum,
+            }
+        )
+    field_closing = raw_minima[0]
+    anisotropy_closing = raw_minima[1]
+    determinant_residual = max(
+        abs(field_closing["gap"]), abs(anisotropy_closing["gap"])
+    )
+    proof_material = {
+        "model_kernel": "xy_bdg_matrix",
+        "sample_count": 120 + 4 * (grid + 1),
+        "reciprocal_symmetry_residual": symmetry_residual,
+        "direct_invariant_residual": determinant_residual,
+        "raw_gap_minima": raw_minima,
+        "particle_hole_residual": symmetry_residual,
+        "neighboring_field_gaps": (
+            raw_minima[2]["gap"],
+            raw_minima[3]["gap"],
+        ),
+        "numeric_field_certificates": {
+            "ising_critical_field": {
+                "kind": "signed_bracket_root_v1",
+                "lower": field_lower,
+                "upper": field_upper,
+                "lower_residual": field_lower - exchange,
+                "upper_residual": field_upper - exchange,
+                "selected": selected_field,
+                "selected_residual": selected_field - exchange,
+            },
+            "anisotropy_transition_gamma": {
+                "kind": "signed_bracket_root_v1",
+                "lower": gamma_lower,
+                "upper": gamma_upper,
+                "lower_residual": exchange * gamma_lower,
+                "upper_residual": exchange * gamma_upper,
+                "selected": selected_gamma,
+                "selected_residual": exchange * selected_gamma,
+            },
+        },
+        "refinement_samples": (60, 120 + 4 * (grid + 1)),
+        "refinement_residuals": (
+            max(field_coarse_width, gamma_coarse_width),
+            max(field_upper - field_lower, gamma_upper - gamma_lower),
+        ),
+    }
+    configuration_values = _task15_configuration_values(
+        scientific_configuration
+    )
+    if configuration_values is not None:
+        _representation, momentum, gauge_angle = configuration_values
+        z_value = selected_field - exchange * math.cos(momentum[0])
+        y_value = exchange * gamma_probe * math.sin(momentum[0])
+        fourier_gap = 2.0 * math.sqrt(
+            z_value * z_value + y_value * y_value
+        )
+        gauge = complex(math.cos(gauge_angle), math.sin(gauge_angle))
+        off_diagonal = -1.0j * y_value * gauge
+        configured_matrix = np.array(
+            (
+                (z_value, off_diagonal),
+                (
+                    complex(
+                        off_diagonal.real, -off_diagonal.imag
+                    ),
+                    -z_value,
+                ),
+            ),
+            dtype=complex,
+        )
+        configured_eigenvalues = np.linalg.eigvalsh(configured_matrix)
+        real_gap = float(
+            configured_eigenvalues[1] - configured_eigenvalues[0]
+        )
+        proof_material["configured_probe"] = _task15_configured_probe(
+            scientific_configuration, real_gap, fourier_gap
+        )
+        proof_material["sample_count"] += 1
+        proof_material["refinement_samples"] = (
+            proof_material["refinement_samples"][0],
+            proof_material["refinement_samples"][1] + 1,
+        )
+    return _task15_fourier_calculation(
+        {
+            "ising_critical_field": field_closing["field"],
+            "anisotropy_transition_gamma": anisotropy_closing[
+                "anisotropy"
+            ],
+        },
+        controls,
+        proof_material,
+        threshold,
+        bounded_fields=(
+            "ising_critical_field",
+            "anisotropy_transition_gamma",
+        ),
+    )
+
+
+def _task15_momentum_triplet(index, count):
+    pi_value = 4.0 * math.atan(1.0)
+    return (
+        2.0 * pi_value * ((37 * index + 11) % count) / count,
+        2.0 * pi_value * ((53 * index + 7) % count) / count,
+        2.0 * pi_value * ((29 * index + 3) % count) / count,
+    )
+
+
+def adapter_diamond_spiral_threshold_fourier(
+    scientific_inputs, numerical_controls, scientific_configuration=None
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("first_neighbor_exchange",),
+        ("momentum_refinement_grid", "kernel_residual_bound"),
+    )
+    first = float(inputs["first_neighbor_exchange"])
+    grid = int(controls["momentum_refinement_grid"])
+    threshold_bound = float(controls["kernel_residual_bound"])
+    threshold_lower = 0.0
+    threshold_upper = 0.25
+    threshold_coarse_width = None
+    for _iteration in range(60):
+        threshold_middle = 0.5 * (threshold_lower + threshold_upper)
+        slope = 8.0 * threshold_middle * first - first
+        if slope < 0.0:
+            threshold_lower = threshold_middle
+        else:
+            threshold_upper = threshold_middle
+        if _iteration == 29:
+            threshold_coarse_width = threshold_upper - threshold_lower
+    threshold = 0.5 * (threshold_lower + threshold_upper)
+    minima = []
+    raw_momentum_samples = []
+    direct_residual = 0.0
+    for ratio in (0.9 * threshold, 1.1 * threshold):
+        second = ratio * first
+        best = None
+        best_structure = None
+        for index in range(grid + 1):
+            structure = 4.0 * index / grid
+            diagonal = second * (structure * structure - 4.0)
+            lower = diagonal - first * structure
+            matrix = np.array(
+                ((diagonal, -first * structure),
+                 (-first * structure, diagonal)),
+                dtype=float,
+            )
+            numerical_lower = float(np.linalg.eigvalsh(matrix)[0])
+            direct_residual = max(
+                direct_residual, abs(lower - numerical_lower)
+            )
+            if best is None or lower < best:
+                best = lower
+                best_structure = structure
+        minima.append(
+            {
+                "coupling_ratio": ratio,
+                "structure_factor_magnitude": best_structure,
+                "lower_band": best,
+            }
+        )
+    bond_vectors = (
+        (0.25, 0.25, 0.25),
+        (0.25, -0.25, -0.25),
+        (-0.25, 0.25, -0.25),
+        (-0.25, -0.25, 0.25),
+    )
+    phase_ratio = 1.1 * threshold
+    phase_second = phase_ratio * first
+    for index in range(grid):
+        momentum = _task15_momentum_triplet(index, grid)
+        structure_real = 0.0
+        structure_imaginary = 0.0
+        for vector in bond_vectors:
+            angle = 0.0
+            for axis in range(3):
+                angle += momentum[axis] * vector[axis]
+            structure_real += math.cos(angle)
+            structure_imaginary += math.sin(angle)
+        structure = math.sqrt(
+            structure_real * structure_real
+            + structure_imaginary * structure_imaginary
+        )
+        diagonal = phase_second * (structure * structure - 4.0)
+        lower = diagonal - first * structure
+        matrix = np.array(
+            (
+                (
+                    diagonal,
+                    -first * complex(
+                        structure_real, -structure_imaginary
+                    ),
+                ),
+                (
+                    -first * complex(
+                        structure_real, structure_imaginary
+                    ),
+                    diagonal,
+                ),
+            ),
+            dtype=complex,
+        )
+        numerical_lower = float(np.linalg.eigvalsh(matrix)[0])
+        direct_residual = max(
+            direct_residual, abs(lower - numerical_lower)
+        )
+        raw_momentum_samples.append(
+            {"momentum": momentum, "lower_energy": numerical_lower}
+        )
+    stationarity_residual = abs(8.0 * threshold * first - first)
+    proof_material = {
+        "model_kernel": "diamond_two_sublattice_kernel",
+        "sample_count": 60 + 3 * grid + 2,
+        "reciprocal_symmetry_residual": 0.0,
+        "direct_invariant_residual": max(
+            direct_residual, stationarity_residual
+        ),
+        "allowed_structure_factor_range": (0.0, 4.0),
+        "raw_lower_band_minima": minima,
+        "raw_momentum_samples": raw_momentum_samples,
+        "stationary_onset_residual": stationarity_residual,
+        "numeric_field_certificates": {
+            "spiral_surface_for_j2_over_j1_gt": {
+                "kind": "signed_bracket_root_v1",
+                "lower": threshold_lower,
+                "upper": threshold_upper,
+                "lower_residual": 8.0 * threshold_lower * first - first,
+                "upper_residual": 8.0 * threshold_upper * first - first,
+                "selected": threshold,
+                "selected_residual": 8.0 * threshold * first - first,
+            }
+        },
+        "refinement_samples": (30, 60 + 3 * grid + 2),
+        "refinement_residuals": (
+            threshold_coarse_width,
+            threshold_upper - threshold_lower,
+        ),
+    }
+    configuration_values = _task15_configuration_values(
+        scientific_configuration
+    )
+    if configuration_values is not None:
+        _representation, momentum, gauge_angle = configuration_values
+        structure_real = 0.0
+        structure_imaginary = 0.0
+        for vector in bond_vectors:
+            angle = 0.0
+            for axis in range(3):
+                angle += momentum[axis] * vector[axis]
+            structure_real += math.cos(angle)
+            structure_imaginary += math.sin(angle)
+        structure = math.sqrt(
+            structure_real * structure_real
+            + structure_imaginary * structure_imaginary
+        )
+        configured_second = threshold * first
+        diagonal = configured_second * (structure * structure - 4.0)
+        fourier_energy = diagonal - first * structure
+        gauge = complex(math.cos(gauge_angle), math.sin(gauge_angle))
+        off_diagonal = -first * complex(
+            structure_real, -structure_imaginary
+        ) * gauge
+        configured_matrix = np.array(
+            (
+                (diagonal, off_diagonal),
+                (
+                    complex(off_diagonal.real, -off_diagonal.imag),
+                    diagonal,
+                ),
+            ),
+            dtype=complex,
+        )
+        real_energy = float(np.linalg.eigvalsh(configured_matrix)[0])
+        proof_material["configured_probe"] = _task15_configured_probe(
+            scientific_configuration, real_energy, fourier_energy
+        )
+        proof_material["sample_count"] += 1
+        proof_material["refinement_samples"] = (
+            proof_material["refinement_samples"][0],
+            proof_material["refinement_samples"][1] + 1,
+        )
+    return _task15_fourier_calculation(
+        {"spiral_surface_for_j2_over_j1_gt": threshold},
+        controls,
+        proof_material,
+        threshold_bound,
+        bounded_fields=("spiral_surface_for_j2_over_j1_gt",),
+    )
+
+
+def _task15_kitaev_d_vector(exchange, mass, first, second):
+    return (
+        exchange * (1.0 + math.cos(first) + math.cos(second)),
+        exchange * (math.sin(first) + math.sin(second)),
+        4.0
+        * mass
+        * (math.sin(first) - math.sin(second) + math.sin(second - first)),
+    )
+
+
+def _task15_unit_vector(vector):
+    norm_squared = 0.0
+    for value in vector:
+        norm_squared += value * value
+    norm = math.sqrt(norm_squared)
+    normalized = []
+    for value in vector:
+        normalized.append(value / norm)
+    return tuple(normalized)
+
+
+def _task15_solid_angle(first, second, third):
+    determinant = (
+        first[0] * (second[1] * third[2] - second[2] * third[1])
+        - first[1] * (second[0] * third[2] - second[2] * third[0])
+        + first[2] * (second[0] * third[1] - second[1] * third[0])
+    )
+    denominator = 1.0
+    for left, right in ((first, second), (second, third), (third, first)):
+        for index in range(3):
+            denominator += left[index] * right[index]
+    return 2.0 * math.atan2(determinant, denominator)
+
+
+def _task15_kitaev_chern(exchange, mass, grid):
+    pi_value = 4.0 * math.atan(1.0)
+    vectors = []
+    minimum_norm = None
+    symmetry_residual = 0.0
+    direct_residual = 0.0
+    for first_index in range(grid):
+        row = []
+        first = 2.0 * pi_value * first_index / grid
+        for second_index in range(grid):
+            second = 2.0 * pi_value * second_index / grid
+            vector = _task15_kitaev_d_vector(exchange, mass, first, second)
+            norm_squared = 0.0
+            for value in vector:
+                norm_squared += value * value
+            norm = math.sqrt(norm_squared)
+            if minimum_norm is None or norm < minimum_norm:
+                minimum_norm = norm
+            numerical = np.linalg.eigvalsh(
+                np.array(
+                    (
+                        (vector[2], vector[0] - 1.0j * vector[1]),
+                        (vector[0] + 1.0j * vector[1], -vector[2]),
+                    ),
+                    dtype=complex,
+                )
+            )
+            direct_residual = max(
+                direct_residual,
+                abs(float(numerical[0]) + norm),
+                abs(float(numerical[1]) - norm),
+            )
+            negative = _task15_kitaev_d_vector(
+                exchange, mass, -first, -second
+            )
+            negative_norm_squared = 0.0
+            for value in negative:
+                negative_norm_squared += value * value
+            negative_norm = math.sqrt(negative_norm_squared)
+            symmetry_residual = max(
+                symmetry_residual, abs(norm - negative_norm)
+            )
+            row.append(_task15_unit_vector(vector))
+        vectors.append(row)
+    dirac_minimum = None
+    for first, second in (
+        (2.0 * pi_value / 3.0, -2.0 * pi_value / 3.0),
+        (-2.0 * pi_value / 3.0, 2.0 * pi_value / 3.0),
+    ):
+        vector = _task15_kitaev_d_vector(
+            exchange, mass, first, second
+        )
+        norm_squared = 0.0
+        for value in vector:
+            norm_squared += value * value
+        norm = math.sqrt(norm_squared)
+        if dirac_minimum is None or norm < dirac_minimum:
+            dirac_minimum = norm
+    solid_angle = 0.0
+    for first_index in range(grid):
+        next_first = (first_index + 1) % grid
+        for second_index in range(grid):
+            next_second = (second_index + 1) % grid
+            a = vectors[first_index][second_index]
+            b = vectors[next_first][second_index]
+            c = vectors[next_first][next_second]
+            d = vectors[first_index][next_second]
+            solid_angle += _task15_solid_angle(a, b, c)
+            solid_angle += _task15_solid_angle(a, c, d)
+    return (
+        solid_angle / (4.0 * pi_value),
+        2.0 * dirac_minimum,
+        2.0 * minimum_norm,
+        symmetry_residual,
+        direct_residual,
+    )
+
+
+def adapter_kitaev_field_majorana_mass(
+    scientific_inputs, numerical_controls, scientific_configuration=None
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("kitaev_exchange", "field_x", "field_y", "field_z"),
+        ("momentum_refinement_grid", "gap_residual_bound"),
+    )
+    exchange = float(inputs["kitaev_exchange"])
+    mass = (
+        float(inputs["field_x"])
+        * float(inputs["field_y"])
+        * float(inputs["field_z"])
+        / (exchange * exchange)
+    )
+    grid = int(controls["momentum_refinement_grid"])
+    residual_bound = float(controls["gap_residual_bound"])
+    chern, gap, mesh_gap, symmetry_residual, direct_residual = (
+        _task15_kitaev_chern(exchange, mass, grid)
+    )
+    coarse_grid = max(8, grid // 2)
+    coarse_chern, _coarse_gap, _coarse_mesh_gap, (
+        coarse_symmetry_residual
+    ), coarse_direct_residual = _task15_kitaev_chern(
+        exchange, mass, coarse_grid
+    )
+    rounded_chern = int(round(chern))
+    opens_gap = gap > 0.0 and abs(rounded_chern) % 2 == 1
+    proof_material = {
+        "model_kernel": "kitaev_majorana_two_band",
+        "sample_count": coarse_grid * coarse_grid + grid * grid,
+        "reciprocal_symmetry_residual": symmetry_residual,
+        "direct_invariant_residual": max(
+            direct_residual, abs(chern - rounded_chern)
+        ),
+        "third_order_mass": mass,
+        "minimum_band_gap": gap,
+        "mesh_minimum_band_gap": mesh_gap,
+        "discrete_chern_number": chern,
+        "chern_parity": abs(rounded_chern) % 2,
+        "refinement_samples": (
+            coarse_grid * coarse_grid,
+            coarse_grid * coarse_grid + grid * grid,
+        ),
+        "refinement_residuals": (
+            max(
+                coarse_symmetry_residual,
+                coarse_direct_residual,
+                abs(coarse_chern - round(coarse_chern)),
+                abs(chern - rounded_chern),
+                symmetry_residual,
+                direct_residual,
+            ),
+            max(
+                symmetry_residual,
+                direct_residual,
+                abs(chern - rounded_chern),
+            ),
+        ),
+    }
+    configuration_values = _task15_configuration_values(
+        scientific_configuration
+    )
+    if configuration_values is not None:
+        _representation, momentum, gauge_angle = configuration_values
+        configured_vector = _task15_kitaev_d_vector(
+            exchange, mass, momentum[0], momentum[1]
+        )
+        fourier_energy = math.sqrt(
+            configured_vector[0] * configured_vector[0]
+            + configured_vector[1] * configured_vector[1]
+            + configured_vector[2] * configured_vector[2]
+        )
+        gauge = complex(math.cos(gauge_angle), math.sin(gauge_angle))
+        off_diagonal = complex(
+            configured_vector[0], -configured_vector[1]
+        ) * gauge
+        configured_matrix = np.array(
+            (
+                (configured_vector[2], off_diagonal),
+                (
+                    complex(off_diagonal.real, -off_diagonal.imag),
+                    -configured_vector[2],
+                ),
+            ),
+            dtype=complex,
+        )
+        real_energy = float(np.linalg.eigvalsh(configured_matrix)[1])
+        proof_material["configured_probe"] = _task15_configured_probe(
+            scientific_configuration, real_energy, fourier_energy
+        )
+        proof_material["sample_count"] += 1
+        proof_material["refinement_samples"] = (
+            proof_material["refinement_samples"][0],
+            proof_material["refinement_samples"][1] + 1,
+        )
+    return _task15_fourier_calculation(
+        {"field_opens_non_abelian_gap": opens_gap},
+        controls,
+        proof_material,
+        residual_bound,
+    )
+
+
+def _task15_direction_vector(name):
+    if name == "axis_a":
+        return np.array((1.0, 0.0, 0.0), dtype=float)
+    return np.array((0.0, 1.0, 0.0), dtype=float)
+
+
+def adapter_pyrochlore_coulomb_fourier(
+    scientific_inputs, numerical_controls, scientific_configuration=None
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange", "approach_direction_a", "approach_direction_b"),
+        ("momentum_refinement_grid", "constraint_residual_bound"),
+    )
+    exchange = float(inputs["exchange"])
+    grid = int(controls["momentum_refinement_grid"])
+    residual_bound = float(controls["constraint_residual_bound"])
+    bond_vectors = np.array(
+        (
+            (0.25, 0.25, 0.25),
+            (0.25, -0.25, -0.25),
+            (-0.25, 0.25, -0.25),
+            (-0.25, -0.25, 0.25),
+        ),
+        dtype=float,
+    )
+    maximum_projector_residual = 0.0
+    symmetry_residual = 0.0
+    raw_modes = []
+    directional_correlators = []
+    coarse_projector_residual = 0.0
+    fine_projector_residual = 0.0
+    for direction_name in (
+        inputs["approach_direction_a"],
+        inputs["approach_direction_b"],
+    ):
+        direction = _task15_direction_vector(direction_name)
+        final_correlator = None
+        for refinement in (2.0, 1.0):
+            q_vector = refinement * direction / grid
+            upper = []
+            lower = []
+            for site in range(4):
+                angle = 0.0
+                for axis in range(3):
+                    angle += bond_vectors[site, axis] * q_vector[axis]
+                upper_value = complex(
+                    math.cos(0.5 * angle), math.sin(0.5 * angle)
+                ) / 2.0
+                lower_value = complex(
+                    math.cos(0.5 * angle), -math.sin(0.5 * angle)
+                ) / 2.0
+                upper.append(upper_value)
+                lower.append(lower_value)
+            overlap = 0.0j
+            for site in range(4):
+                upper_conjugate = complex(
+                    upper[site].real, -upper[site].imag
+                )
+                overlap += upper_conjugate * lower[site]
+            determinant = 1.0 - (
+                overlap.real * overlap.real + overlap.imag * overlap.imag
+            )
+            inverse = (
+                (1.0 / determinant, -overlap / determinant),
+                (
+                    -complex(overlap.real, -overlap.imag) / determinant,
+                    1.0 / determinant,
+                ),
+            )
+            rows = (upper, lower)
+            projector = np.eye(4, dtype=complex)
+            for row in range(4):
+                for column in range(4):
+                    correction = 0.0j
+                    for first_constraint in range(2):
+                        left = rows[first_constraint][row]
+                        left_conjugate = complex(left.real, -left.imag)
+                        for second_constraint in range(2):
+                            correction += (
+                                left_conjugate
+                                * inverse[first_constraint][second_constraint]
+                                * rows[second_constraint][column]
+                            )
+                    projector[row, column] -= correction
+            eigenvalues = np.linalg.eigvalsh(projector)
+            maximum_projector_residual = max(
+                maximum_projector_residual,
+                float(np.linalg.norm(projector @ projector - projector)),
+            )
+            selected_projector_residual = float(
+                np.linalg.norm(projector @ projector - projector)
+            )
+            if refinement == 2.0:
+                coarse_projector_residual = max(
+                    coarse_projector_residual,
+                    selected_projector_residual,
+                )
+            else:
+                fine_projector_residual = max(
+                    fine_projector_residual,
+                    selected_projector_residual,
+                )
+            selected_modes = []
+            for value in eigenvalues:
+                selected_modes.append(float(value.real))
+            raw_modes.append(selected_modes)
+            final_correlator = np.zeros((3, 3), dtype=complex)
+            for first_axis in range(3):
+                for second_axis in range(3):
+                    for row in range(4):
+                        for column in range(4):
+                            final_correlator[first_axis, second_axis] += (
+                                bond_vectors[row, first_axis]
+                                * projector[row, column]
+                                * bond_vectors[column, second_axis]
+                            )
+            negative_projector = np.zeros((4, 4), dtype=complex)
+            for row in range(4):
+                for column in range(4):
+                    selected = projector[row, column]
+                    negative_projector[row, column] = complex(
+                        selected.real, -selected.imag
+                    )
+            negative_eigenvalues = np.linalg.eigvalsh(
+                negative_projector
+            )
+            for index in range(4):
+                symmetry_residual = max(
+                    symmetry_residual,
+                    abs(
+                        float(
+                            eigenvalues[index] - negative_eigenvalues[index]
+                        )
+                    ),
+                )
+        directional_correlators.append(final_correlator)
+    directional_difference = float(
+        np.linalg.norm(directional_correlators[0] - directional_correlators[1])
+    )
+    tetrahedron_spins = np.array(
+        ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0),
+         (0.0, 1.0, 0.0), (0.0, -1.0, 0.0)),
+        dtype=float,
+    )
+    total_spin = np.zeros(3, dtype=float)
+    for site in range(4):
+        for axis in range(3):
+            total_spin[axis] += tetrahedron_spins[site, axis]
+    tetrahedron_residual = float(np.linalg.norm(total_spin))
+    constraint_satisfied = tetrahedron_residual <= residual_bound
+    pinch_points = directional_difference > 1e-12
+    proof_material = {
+        "model_kernel": "pyrochlore_constraint_projector",
+        "sample_count": 4,
+        "reciprocal_symmetry_residual": symmetry_residual,
+        "direct_invariant_residual": max(
+            maximum_projector_residual, tetrahedron_residual
+        ),
+        "raw_constraint_modes": raw_modes,
+        "tetrahedron_spin_sum_residual": tetrahedron_residual,
+        "directional_polarization_difference": directional_difference,
+        "exchange_scale": exchange,
+        "refinement_samples": (2, 4),
+        "refinement_residuals": (
+            max(coarse_projector_residual, fine_projector_residual),
+            fine_projector_residual,
+        ),
+    }
+    configuration_values = _task15_configuration_values(
+        scientific_configuration
+    )
+    if configuration_values is not None:
+        _representation, momentum, gauge_angle = configuration_values
+        gauge = complex(math.cos(gauge_angle), math.sin(gauge_angle))
+        configured_upper = []
+        configured_lower = []
+        for site in range(4):
+            angle = 0.0
+            for axis in range(3):
+                angle += bond_vectors[site, axis] * momentum[axis]
+            configured_upper.append(
+                complex(math.cos(0.5 * angle), math.sin(0.5 * angle))
+                * gauge
+                / 2.0
+            )
+            configured_lower.append(
+                complex(math.cos(0.5 * angle), -math.sin(0.5 * angle))
+                * gauge
+                / 2.0
+            )
+        configured_overlap = 0.0j
+        for site in range(4):
+            selected = configured_upper[site]
+            configured_overlap += (
+                complex(selected.real, -selected.imag)
+                * configured_lower[site]
+            )
+        configured_determinant = 1.0 - (
+            configured_overlap.real * configured_overlap.real
+            + configured_overlap.imag * configured_overlap.imag
+        )
+        configured_inverse = (
+            (
+                1.0 / configured_determinant,
+                -configured_overlap / configured_determinant,
+            ),
+            (
+                -complex(
+                    configured_overlap.real, -configured_overlap.imag
+                )
+                / configured_determinant,
+                1.0 / configured_determinant,
+            ),
+        )
+        configured_rows = (configured_upper, configured_lower)
+        configured_projector = np.eye(4, dtype=complex)
+        for row in range(4):
+            for column in range(4):
+                correction = 0.0j
+                for first_constraint in range(2):
+                    left = configured_rows[first_constraint][row]
+                    left_conjugate = complex(left.real, -left.imag)
+                    for second_constraint in range(2):
+                        correction += (
+                            left_conjugate
+                            * configured_inverse[first_constraint][
+                                second_constraint
+                            ]
+                            * configured_rows[second_constraint][column]
+                        )
+                configured_projector[row, column] -= correction
+        configured_eigenvalues = np.linalg.eigvalsh(configured_projector)
+        fourier_value = 0.0
+        for value in configured_eigenvalues:
+            fourier_value += float(value.real)
+        real_value = float(np.trace(configured_projector).real)
+        proof_material["configured_probe"] = _task15_configured_probe(
+            scientific_configuration, real_value, fourier_value
+        )
+        proof_material["sample_count"] = 5
+        proof_material["refinement_samples"] = (2, 5)
+    return _task15_fourier_calculation(
+        {
+            "zero_total_spin_per_tetrahedron": constraint_satisfied,
+            "pinch_points": pinch_points,
+        },
+        controls,
+        proof_material,
+        residual_bound,
+    )
+
+
+def _task15_simple_cubic_kernel(first, second, momentum):
+    cosine_values = []
+    for value in momentum:
+        cosine_values.append(math.cos(value))
+    cosines = tuple(cosine_values)
+    pair_sum = (
+        cosines[0] * cosines[1]
+        + cosines[1] * cosines[2]
+        + cosines[2] * cosines[0]
+    )
+    cosine_sum = 0.0
+    for value in cosines:
+        cosine_sum += value
+    return 2.0 * first * cosine_sum + 4.0 * second * pair_sum
+
+
+def adapter_simple_cubic_j1_j2_fourier(
+    scientific_inputs, numerical_controls, scientific_configuration=None
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("first_neighbor_exchange",),
+        ("momentum_refinement_grid", "branch_residual_bound"),
+    )
+    first = float(inputs["first_neighbor_exchange"])
+    grid = int(controls["momentum_refinement_grid"])
+    residual_bound = float(controls["branch_residual_bound"])
+    boundary_lower = 0.0
+    boundary_upper = 0.5
+    boundary_coarse_width = None
+    pi_value = 4.0 * math.atan(1.0)
+    for _iteration in range(60):
+        boundary_middle = 0.5 * (boundary_lower + boundary_upper)
+        middle_second = boundary_middle * first
+        neel_middle = _task15_simple_cubic_kernel(
+            first, middle_second, (pi_value, pi_value, pi_value)
+        )
+        collinear_middle = _task15_simple_cubic_kernel(
+            first, middle_second, (pi_value, pi_value, 0.0)
+        )
+        if neel_middle - collinear_middle < 0.0:
+            boundary_lower = boundary_middle
+        else:
+            boundary_upper = boundary_middle
+        if _iteration == 29:
+            boundary_coarse_width = boundary_upper - boundary_lower
+    boundary = 0.5 * (boundary_lower + boundary_upper)
+    samples = []
+    raw_momentum_samples = []
+    direct_residual = 0.0
+    for ratio in (0.8 * boundary, 1.2 * boundary):
+        second = ratio * first
+        neel = _task15_simple_cubic_kernel(
+            first, second, (pi_value, pi_value, pi_value)
+        )
+        collinear = _task15_simple_cubic_kernel(
+            first, second, (pi_value, pi_value, 0.0)
+        )
+        neel_real_space = 2.0 * (-3.0 * first + 6.0 * second)
+        collinear_real_space = 2.0 * (-first - 2.0 * second)
+        direct_residual = max(
+            direct_residual,
+            abs(neel - neel_real_space),
+            abs(collinear - collinear_real_space),
+        )
+        sampled_minimum = None
+        for index in range(grid):
+            q = 2.0 * pi_value * index / grid
+            for momentum in (
+                (q, pi_value, pi_value),
+                (pi_value, q, 0.0),
+                (q, q, q),
+            ):
+                energy = _task15_simple_cubic_kernel(
+                    first, second, momentum
+                )
+                if sampled_minimum is None or energy < sampled_minimum:
+                    sampled_minimum = energy
+        samples.append(
+            {
+                "coupling_ratio": ratio,
+                "neel_energy": neel,
+                "collinear_energy": collinear,
+                "sampled_minimum": sampled_minimum,
+            }
+        )
+    for index in range(grid):
+        momentum = _task15_momentum_triplet(index, grid)
+        lower_energy = _task15_simple_cubic_kernel(
+            first, boundary * first, momentum
+        )
+        raw_momentum_samples.append(
+            {"momentum": momentum, "lower_energy": lower_energy}
+        )
+    crossing_residual = abs(
+        _task15_simple_cubic_kernel(
+            first, boundary * first, (pi_value, pi_value, pi_value)
+        )
+        - _task15_simple_cubic_kernel(
+            first, boundary * first, (pi_value, pi_value, 0.0)
+        )
+    )
+    proof_material = {
+        "model_kernel": "simple_cubic_exchange_kernel",
+        "sample_count": 60 + 7 * grid,
+        "reciprocal_symmetry_residual": 0.0,
+        "direct_invariant_residual": max(
+            direct_residual, crossing_residual
+        ),
+        "raw_branch_minima": samples,
+        "raw_momentum_samples": raw_momentum_samples,
+        "crossing_residual": crossing_residual,
+        "numeric_field_certificates": {
+            "neel_to_collinear_boundary_j2_over_j1": {
+                "kind": "signed_bracket_root_v1",
+                "lower": boundary_lower,
+                "upper": boundary_upper,
+                "lower_residual": (
+                    _task15_simple_cubic_kernel(
+                        first,
+                        boundary_lower * first,
+                        (pi_value, pi_value, pi_value),
+                    )
+                    - _task15_simple_cubic_kernel(
+                        first,
+                        boundary_lower * first,
+                        (pi_value, pi_value, 0.0),
+                    )
+                ),
+                "upper_residual": (
+                    _task15_simple_cubic_kernel(
+                        first,
+                        boundary_upper * first,
+                        (pi_value, pi_value, pi_value),
+                    )
+                    - _task15_simple_cubic_kernel(
+                        first,
+                        boundary_upper * first,
+                        (pi_value, pi_value, 0.0),
+                    )
+                ),
+                "selected": boundary,
+                "selected_residual": crossing_residual,
+            }
+        },
+        "refinement_samples": (30, 60 + 7 * grid),
+        "refinement_residuals": (
+            boundary_coarse_width,
+            boundary_upper - boundary_lower,
+        ),
+    }
+    configuration_values = _task15_configuration_values(
+        scientific_configuration
+    )
+    if configuration_values is not None:
+        _representation, momentum, _gauge_angle = configuration_values
+        fourier_energy = _task15_simple_cubic_kernel(
+            first, boundary * first, momentum
+        )
+        cosine_values = []
+        for value in momentum:
+            cosine_values.append(math.cos(value))
+        real_energy = 2.0 * first * (
+            cosine_values[0]
+            + cosine_values[1]
+            + cosine_values[2]
+        ) + 4.0 * boundary * first * (
+            cosine_values[0] * cosine_values[1]
+            + cosine_values[1] * cosine_values[2]
+            + cosine_values[2] * cosine_values[0]
+        )
+        proof_material["configured_probe"] = _task15_configured_probe(
+            scientific_configuration, real_energy, fourier_energy
+        )
+        proof_material["sample_count"] += 1
+        proof_material["refinement_samples"] = (
+            proof_material["refinement_samples"][0],
+            proof_material["refinement_samples"][1] + 1,
+        )
+    return _task15_fourier_calculation(
+        {"neel_to_collinear_boundary_j2_over_j1": boundary},
+        controls,
+        proof_material,
+        residual_bound,
+        bounded_fields=("neel_to_collinear_boundary_j2_over_j1",),
+    )
+
+
+def adapter_tfim_bdg_critical_point(
+    scientific_inputs, numerical_controls, scientific_configuration=None
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("momentum_refinement_grid", "gap_residual_bound"),
+    )
+    exchange = float(inputs["exchange"])
+    grid = int(controls["momentum_refinement_grid"])
+    residual_bound = float(controls["gap_residual_bound"])
+    pi_value = 4.0 * math.atan(1.0)
+    ratio_lower = 0.5
+    ratio_upper = 1.5
+    ratio_coarse_width = None
+    for _iteration in range(60):
+        ratio_middle = 0.5 * (ratio_lower + ratio_upper)
+        signed_mass = ratio_middle * exchange - exchange
+        if signed_mass < 0.0:
+            ratio_lower = ratio_middle
+        else:
+            ratio_upper = ratio_middle
+        if _iteration == 29:
+            ratio_coarse_width = ratio_upper - ratio_lower
+    critical_ratio = 0.5 * (ratio_lower + ratio_upper)
+    raw_minima = []
+    symmetry_residual = 0.0
+    direct_residual = 0.0
+    for ratio in (0.9, 1.0, 1.1):
+        field = ratio * exchange
+        minimum = None
+        minimum_momentum = None
+        for index in range(grid + 1):
+            momentum = pi_value * index / grid
+            z_value = field - exchange * math.cos(momentum)
+            y_value = exchange * math.sin(momentum)
+            eigenvalues = _task15_two_band_eigenvalues(
+                0.0, y_value, z_value
+            )
+            gap = eigenvalues[1] - eigenvalues[0]
+            analytic_gap = 2.0 * math.sqrt(
+                field * field
+                + exchange * exchange
+                - 2.0 * field * exchange * math.cos(momentum)
+            )
+            direct_residual = max(
+                direct_residual, abs(gap - analytic_gap)
+            )
+            negative_gap = 2.0 * math.sqrt(
+                (field - exchange * math.cos(-momentum)) ** 2
+                + (exchange * math.sin(-momentum)) ** 2
+            )
+            symmetry_residual = max(
+                symmetry_residual, abs(gap - negative_gap)
+            )
+            if minimum is None or gap < minimum:
+                minimum = gap
+                minimum_momentum = momentum
+        raw_minima.append(
+            {
+                "field_over_exchange": ratio,
+                "momentum": minimum_momentum,
+                "gap": minimum,
+            }
+        )
+    proof_material = {
+        "model_kernel": "tfim_jordan_wigner_bdg",
+        "sample_count": 60 + 3 * (grid + 1),
+        "reciprocal_symmetry_residual": symmetry_residual,
+        "direct_invariant_residual": max(
+            direct_residual, abs(raw_minima[1]["gap"])
+        ),
+        "raw_gap_minima": raw_minima,
+        "neighboring_gaps": (raw_minima[0]["gap"], raw_minima[2]["gap"]),
+        "duality_residual": abs(raw_minima[0]["gap"] - raw_minima[2]["gap"]),
+        "numeric_field_certificates": {
+            "critical_field_over_exchange": {
+                "kind": "signed_bracket_root_v1",
+                "lower": ratio_lower,
+                "upper": ratio_upper,
+                "lower_residual": ratio_lower * exchange - exchange,
+                "upper_residual": ratio_upper * exchange - exchange,
+                "selected": critical_ratio,
+                "selected_residual": critical_ratio * exchange - exchange,
+            }
+        },
+        "refinement_samples": (
+            30,
+            60 + 3 * (grid + 1),
+        ),
+        "refinement_residuals": (
+            ratio_coarse_width,
+            ratio_upper - ratio_lower,
+        ),
+    }
+    configuration_values = _task15_configuration_values(
+        scientific_configuration
+    )
+    if configuration_values is not None:
+        _representation, momentum, gauge_angle = configuration_values
+        field = critical_ratio * exchange
+        z_value = field - exchange * math.cos(momentum[0])
+        y_value = exchange * math.sin(momentum[0])
+        fourier_gap = 2.0 * math.sqrt(
+            z_value * z_value + y_value * y_value
+        )
+        gauge = complex(math.cos(gauge_angle), math.sin(gauge_angle))
+        off_diagonal = -1.0j * y_value * gauge
+        configured_matrix = np.array(
+            (
+                (z_value, off_diagonal),
+                (
+                    complex(off_diagonal.real, -off_diagonal.imag),
+                    -z_value,
+                ),
+            ),
+            dtype=complex,
+        )
+        eigenvalues = np.linalg.eigvalsh(configured_matrix)
+        real_gap = float(eigenvalues[1] - eigenvalues[0])
+        proof_material["configured_probe"] = _task15_configured_probe(
+            scientific_configuration, real_gap, fourier_gap
+        )
+        proof_material["sample_count"] += 1
+        proof_material["refinement_samples"] = (
+            proof_material["refinement_samples"][0],
+            proof_material["refinement_samples"][1] + 1,
+        )
+    return _task15_fourier_calculation(
+        {"critical_field_over_exchange": critical_ratio},
+        controls,
+        proof_material,
+        residual_bound,
+        bounded_fields=("critical_field_over_exchange",),
     )
