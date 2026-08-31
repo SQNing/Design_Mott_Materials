@@ -108,10 +108,17 @@ __all__ = (
     "revalidate_runtime_snapshot",
     "run_capability_preflight",
     "create_run_directories",
+    "construct_private_root",
     "apply_tracee_security_policy",
     "run_namespace_supervisor",
+    "launch_traced_tracee",
+    "validate_process_attestation",
     "evaluate_strace",
     "ingest_worker_output",
+    "collect_backend_diagnostics",
+    "interpret_output_proofs",
+    "derive_convergence_decision",
+    "derive_oracle_decision",
     "record_and_freeze_hashes",
     "acquire_run_seed",
     "derive_counterfactual_points",
@@ -119,6 +126,8 @@ __all__ = (
     "assert_complete_dependency_partition",
     "scientific_policy_combined_sha256",
     "validate_failure",
+    "validate_adapter_execution_evidence",
+    "run_isolated_recomputation",
 )
 
 
@@ -695,6 +704,109 @@ class WorkerRequest:
         return _record_to_frozen_json(revalidated, WorkerRequest)
 
 
+_ORACLE_WORKER_REQUEST_TOKEN = object()
+
+
+@_seal_contract
+@dataclass(frozen=True, init=False)
+class _OracleWorkerRequest:
+    schema_version: str
+    opaque_run_nonce: str
+    adapter_id: str
+    scientific_inputs: _FrozenJsonObject
+    numerical_controls: _FrozenJsonObject
+    capsule_sha256: str
+
+    def __init__(
+        self,
+        *,
+        schema_version,
+        opaque_run_nonce,
+        adapter_id,
+        scientific_inputs,
+        numerical_controls,
+        capsule_sha256,
+        authorization=None,
+    ):
+        if authorization is not _ORACLE_WORKER_REQUEST_TOKEN:
+            raise _ContractError(
+                "oracle worker request construction is unauthorized"
+            )
+        for name, value in (
+            ("schema_version", schema_version),
+            ("opaque_run_nonce", opaque_run_nonce),
+            ("adapter_id", adapter_id),
+            ("scientific_inputs", scientific_inputs),
+            ("numerical_controls", numerical_controls),
+            ("capsule_sha256", capsule_sha256),
+        ):
+            object.__setattr__(self, name, value)
+        self.__post_init__()
+
+    def __post_init__(self):
+        if self.schema_version != _WORKER_REQUEST_SCHEMA_VERSION:
+            raise _ContractError(
+                "oracle worker request has an unknown schema_version"
+            )
+        nonce = _require_text(self.opaque_run_nonce, "opaque_run_nonce")
+        if len(nonce.encode("utf-8")) > 256:
+            raise _ContractError("opaque_run_nonce is too long")
+        _identifier(self.adapter_id, "oracle_id")
+        object.__setattr__(
+            self,
+            "scientific_inputs",
+            _snapshot_json(self.scientific_inputs, "scientific_inputs"),
+        )
+        object.__setattr__(
+            self,
+            "numerical_controls",
+            _snapshot_json(self.numerical_controls, "numerical_controls"),
+        )
+        _require_sha256(self.capsule_sha256, "capsule_sha256")
+
+    def to_frozen_json(self):
+        try:
+            namespace = object.__getattribute__(self, "__dict__")
+        except (AttributeError, TypeError) as error:
+            raise _ContractError(
+                "oracle worker request storage is unavailable"
+            ) from error
+        names = _record_field_names(_OracleWorkerRequest)
+        if type(namespace) is not dict or set(namespace) != set(names):
+            raise _ContractError("oracle worker request storage is not exact")
+        return _snapshot_json(
+            {name: namespace[name] for name in names},
+            "oracle worker request",
+        )
+
+
+def _make_oracle_worker_request(
+    definition,
+    *,
+    opaque_run_nonce,
+    scientific_inputs,
+    numerical_controls,
+    capsule_sha256,
+):
+    validated = _oracles.validate_oracle_definition(definition)
+    inputs = _snapshot_json(scientific_inputs, "oracle scientific inputs")
+    _adapters._validate_value_against_schema(
+        validated.input_schema, inputs, "oracle scientific inputs"
+    )
+    controls = _snapshot_json(
+        numerical_controls, "oracle numerical controls"
+    )
+    return _OracleWorkerRequest(
+        schema_version=_WORKER_REQUEST_SCHEMA_VERSION,
+        opaque_run_nonce=opaque_run_nonce,
+        adapter_id=validated.oracle_id,
+        scientific_inputs=inputs,
+        numerical_controls=controls,
+        capsule_sha256=capsule_sha256,
+        authorization=_ORACLE_WORKER_REQUEST_TOKEN,
+    )
+
+
 def _validate_definition_parameter_provenance(
     definition: _AdapterDefinition,
     context: AdapterAuthorityContext,
@@ -784,14 +896,17 @@ def make_worker_request(
 def write_worker_request_exclusive(request, *, directory):
     """Write one canonical answer-free request without replacement."""
 
-    if type(request) is not WorkerRequest:
-        raise _ContractError("request must be an exact WorkerRequest")
-    validated = WorkerRequest(
-        **{
-            field.name: getattr(request, field.name)
-            for field in fields(WorkerRequest)
-        }
-    )
+    if type(request) is WorkerRequest:
+        validated = WorkerRequest(
+            **{
+                field.name: getattr(request, field.name)
+                for field in fields(WorkerRequest)
+            }
+        )
+    elif type(request) is _OracleWorkerRequest:
+        validated = request
+    else:
+        raise _ContractError("request must be an exact worker request")
     if not isinstance(directory, Path) or not directory.is_absolute():
         raise _ContractError("request directory must be an absolute Path")
     payload = _canonical_bytes(validated.to_frozen_json())
@@ -3910,11 +4025,48 @@ def _fixed_worker_main():
         )
     ):
         raise RuntimeError("worker capsule metadata is malformed")
-    local_result = capsule_namespace["__literature_scientific_entry__"](
+    worker_started_monotonic_ns = int(os.times().elapsed * 1000000000)
+    scientific_result = capsule_namespace["__literature_scientific_entry__"](
         request["scientific_inputs"], request["numerical_controls"]
     )
-    if type(local_result) is not dict:
+    worker_finished_monotonic_ns = int(os.times().elapsed * 1000000000)
+    if type(scientific_result) is not dict:
         raise RuntimeError("worker local result must be an exact mapping")
+    if scientific_result.get("schema_version") == "scientific_result_body_v1":
+        if set(scientific_result) != {
+            "schema_version",
+            "observable_identity",
+            "fields",
+            "units",
+            "uncertainty",
+            "raw_convergence_evidence",
+            "backend_diagnostics",
+            "operation_counts_or_sizes",
+        }:
+            raise RuntimeError("scientific result body is not closed")
+        local_result = {
+            "schema_version": "local_observable_result_v1",
+            "adapter_id": request["adapter_id"],
+            "capsule_sha256": capsule_sha256,
+            "request_sha256": _sha256(request_bytes).hex(),
+            "observable_identity": scientific_result["observable_identity"],
+            "fields": scientific_result["fields"],
+            "units": scientific_result["units"],
+            "uncertainty": scientific_result["uncertainty"],
+            "raw_convergence_evidence": scientific_result[
+                "raw_convergence_evidence"
+            ],
+            "backend_diagnostics": scientific_result[
+                "backend_diagnostics"
+            ],
+            "operation_counts_or_sizes": scientific_result[
+                "operation_counts_or_sizes"
+            ],
+            "worker_started_monotonic_ns": worker_started_monotonic_ns,
+            "worker_finished_monotonic_ns": worker_finished_monotonic_ns,
+        }
+    else:
+        local_result = scientific_result
     _require_json_value(local_result)
     result = {
         "schema_version": "worker_result_transport_v1",
@@ -4599,6 +4751,7 @@ _TASK10_COMMANDS = (
 
 _TASK10_SUPERVISOR_SOURCE = r'''
 import ctypes
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -4607,7 +4760,34 @@ import stat
 import subprocess
 import sys
 
-request = json.loads(sys.argv[1])
+if len(sys.argv) != 4 or sys.argv[1] != "--request-fd":
+    raise RuntimeError("namespace supervisor request arguments are malformed")
+request_fd = int(sys.argv[2])
+request_status = os.fstat(request_fd)
+if (
+    not stat.S_ISREG(request_status.st_mode)
+    or request_status.st_nlink != 1
+    or stat.S_IMODE(request_status.st_mode) != 0o600
+    or request_status.st_size <= 0
+    or request_status.st_size > 16777216
+):
+    raise RuntimeError("namespace supervisor request file is rejected")
+request_chunks = []
+request_remaining = request_status.st_size
+while request_remaining:
+    request_chunk = os.read(
+        request_fd, min(request_remaining, 1048576)
+    )
+    if not request_chunk:
+        raise RuntimeError("namespace supervisor request ended early")
+    request_chunks.append(request_chunk)
+    request_remaining -= len(request_chunk)
+if os.read(request_fd, 1):
+    raise RuntimeError("namespace supervisor request grew while reading")
+request_bytes = b"".join(request_chunks)
+if hashlib.sha256(request_bytes).hexdigest() != sys.argv[3]:
+    raise RuntimeError("namespace supervisor request hash mismatch")
+request = json.loads(request_bytes.decode("utf-8", "strict"))
 commands = request["commands"]
 environment = request["environment"]
 supervisor = Path(request["supervisor_directory"])
@@ -5281,6 +5461,57 @@ def _production_namespace_supervisor_runner(action, raw_payload):
         }
         if request["runtime_loader_path"] is None:
             raise _ContractError("runtime snapshot has no executable loader")
+        request_bytes = _canonical_bytes(request)
+        if len(request_bytes) > _STATIC_SCAN_AGGREGATE_MATERIAL_BYTES_LIMIT:
+            raise _ContractError("namespace supervisor request is oversized")
+        request_path = supervisor / "namespace-supervisor-request.json"
+        try:
+            request_write_descriptor = os.open(
+                request_path,
+                os.O_WRONLY
+                | os.O_CREAT
+                | os.O_EXCL
+                | os.O_CLOEXEC
+                | os.O_NOFOLLOW,
+                0o600,
+            )
+            try:
+                offset = 0
+                while offset < len(request_bytes):
+                    written = os.write(
+                        request_write_descriptor, request_bytes[offset:]
+                    )
+                    if written <= 0:
+                        raise _ContractError(
+                            "namespace supervisor request write failed"
+                        )
+                    offset += written
+                os.fchmod(request_write_descriptor, 0o600)
+                os.fsync(request_write_descriptor)
+            finally:
+                os.close(request_write_descriptor)
+        except OSError as error:
+            raise _ContractError(
+                "namespace supervisor request snapshot failed"
+            ) from error
+        request_descriptor = os.open(
+            request_path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+        descriptors.append(request_descriptor)
+        request_status = os.fstat(request_descriptor)
+        request_sha256 = hashlib.sha256(request_bytes).hexdigest()
+        if (
+            not stat.S_ISREG(request_status.st_mode)
+            or request_status.st_nlink != 1
+            or stat.S_IMODE(request_status.st_mode) != 0o600
+            or request_status.st_size != len(request_bytes)
+            or _task10_descriptor_sha256(request_descriptor)
+            != request_sha256
+        ):
+            raise _ContractError(
+                "namespace supervisor request snapshot changed"
+            )
         completed = subprocess.run(
             (
                 payload["command_identities"]["unshare"]["path"],
@@ -5291,7 +5522,9 @@ def _production_namespace_supervisor_runner(action, raw_payload):
                 "-B",
                 "-c",
                 _TASK10_SUPERVISOR_SOURCE,
-                json.dumps(request, sort_keys=True, separators=(",", ":")),
+                "--request-fd",
+                str(request_descriptor),
+                request_sha256,
             ),
             executable=command_paths["unshare"],
             check=False,
@@ -5310,6 +5543,12 @@ def _production_namespace_supervisor_runner(action, raw_payload):
                 raise _ContractError(
                     "namespace supervisor command changed during execution"
                 )
+        if (
+            _task10_descriptor_sha256(request_descriptor) != request_sha256
+        ):
+            raise _ContractError(
+                "namespace supervisor request changed during execution"
+            )
         if completed.returncode != 0:
             diagnostic = (completed.stderr or completed.stdout)[
                 :4096
@@ -5387,6 +5626,54 @@ def run_namespace_supervisor(
         role=role,
         command_identities=identities,
         runner=_production_namespace_supervisor_runner,
+    )
+
+
+def construct_private_root(
+    layout,
+    runtime_snapshot,
+    *,
+    capsule_path,
+    worker_path,
+    request_path,
+):
+    """Construct the exact private-root manifest used by the supervisor."""
+
+    return _build_private_root_mount_manifest(
+        layout,
+        runtime_snapshot,
+        capsule_path=capsule_path,
+        worker_path=worker_path,
+        request_path=request_path,
+    )
+
+
+def launch_traced_tracee(
+    layout,
+    runtime_snapshot,
+    resource_limits,
+    *,
+    preflight_report,
+    capsule_path,
+    worker_path,
+    request_path,
+    audit_run_id,
+    point_id,
+    role,
+):
+    """Launch the one fixed traced tracee through the canonical supervisor."""
+
+    return run_namespace_supervisor(
+        layout,
+        runtime_snapshot,
+        resource_limits,
+        preflight_report=preflight_report,
+        capsule_path=capsule_path,
+        worker_path=worker_path,
+        request_path=request_path,
+        audit_run_id=audit_run_id,
+        point_id=point_id,
+        role=role,
     )
 
 
@@ -21379,6 +21666,260 @@ def derive_counterfactual_points(definition, seed):
     return frozen_points
 
 
+def _task12_validated_local_result_values(definition, value):
+    validated_definition = _validate_adapter_definition(definition)
+    validated_result = _adapters.validate_local_observable_result(
+        validated_definition, value
+    )
+    result_items = _static_scan_exact_frozen_items(
+        validated_result,
+        "validated local result",
+        _STATIC_SCAN_NODE_LIMIT,
+    )
+    return validated_definition, validated_result, dict(result_items)
+
+
+def collect_backend_diagnostics(definition, local_result):
+    """Bind validated backend identities and operation data to one hash."""
+
+    validated, _result, values = _task12_validated_local_result_values(
+        definition, local_result
+    )
+    payload = {
+        "backend_kind": validated.backend_kind,
+        "backend_diagnostics": values["backend_diagnostics"],
+        "operation_counts_or_sizes": values["operation_counts_or_sizes"],
+    }
+    payload["diagnostics_sha256"] = _canonical_sha256(payload)
+    return _snapshot_json(payload, "collected backend diagnostics")
+
+
+def interpret_output_proofs(definition, local_result):
+    """Interpret only definition-bound generic output proof bindings."""
+
+    validated, _result, values = _task12_validated_local_result_values(
+        definition, local_result
+    )
+    fields = dict(
+        _static_scan_exact_frozen_items(
+            values["fields"], "validated local fields", _STATIC_SCAN_NODE_LIMIT
+        )
+    )
+    units = dict(
+        _static_scan_exact_frozen_items(
+            values["units"], "validated local units", _STATIC_SCAN_NODE_LIMIT
+        )
+    )
+    uncertainty = dict(
+        _static_scan_exact_frozen_items(
+            values["uncertainty"],
+            "validated local uncertainty",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    proof_rows = {}
+    for selector, binding in validated.output_schema:
+        proof_rows[selector] = {
+            "raw_field": binding.raw_field,
+            "proof_kind": binding.proof_kind,
+            "value": fields[selector],
+            "units": units[selector],
+            "uncertainty": uncertainty[selector],
+        }
+    payload = {
+        "selected_fields": tuple(validated.output_schema.selector_fields),
+        "proofs": proof_rows,
+    }
+    payload["proof_sha256"] = _canonical_sha256(payload)
+    return _snapshot_json(payload, "interpreted output proofs")
+
+
+def _task12_nonincreasing(values):
+    return all(
+        later <= earlier for earlier, later in zip(values, values[1:])
+    )
+
+
+def derive_convergence_decision(definition, local_result):
+    """Derive convergence from raw samples, never a worker boolean."""
+
+    validated, _result, values = _task12_validated_local_result_values(
+        definition, local_result
+    )
+    raw = values["raw_convergence_evidence"]
+    raw_values = dict(
+        _static_scan_exact_frozen_items(
+            raw, "raw convergence evidence", _STATIC_SCAN_NODE_LIMIT
+        )
+    )
+    kind = validated.convergence_contract.kind
+    accepted = False
+    if kind == "exact":
+        accepted = True
+    elif kind == "residual_bound":
+        residuals = raw_values["residuals"]
+        accepted = (
+            residuals[-1] <= raw_values["error_bound"]
+            and _task12_nonincreasing(residuals)
+        )
+    elif kind == "quadrature":
+        estimates = raw_values["estimates"]
+        bounds = raw_values["error_bounds"]
+        accepted = (
+            _task12_nonincreasing(bounds)
+            and bounds[-1] <= raw_values["error_bound"]
+            and abs(estimates[-1] - estimates[-2])
+            <= bounds[-1] + bounds[-2]
+        )
+    elif kind == "finite_size":
+        estimates = raw_values["estimates"]
+        accepted = (
+            max(estimates) - min(estimates) <= raw_values["error_bound"]
+        )
+    elif kind == "iterative":
+        residuals = raw_values["residuals"]
+        accepted = (
+            residuals[-1] <= raw_values["error_bound"]
+            and _task12_nonincreasing(residuals)
+        )
+    reason_code = (
+        "outer_convergence_contract_satisfied"
+        if accepted
+        else "outer_convergence_contract_failed"
+    )
+    decision_values = {
+        "schema_version": "convergence_decision_v1",
+        "kind": kind,
+        "accepted": accepted,
+        "raw_evidence_sha256": _canonical_sha256(raw),
+        "reason_code": reason_code,
+    }
+    decision_values["decision_sha256"] = _canonical_sha256(decision_values)
+    return ConvergenceDecision(**decision_values)
+
+
+def derive_oracle_decision(
+    definition,
+    oracle_outputs,
+    *,
+    execution_evidence_hashes,
+    maximum_residual,
+):
+    """Derive one oracle decision from definition-bound raw outputs."""
+
+    validated = _oracles.validate_oracle_definition(definition)
+    outputs = _require_exact_tuple(oracle_outputs, "oracle_outputs")
+    if not outputs:
+        raise _ContractError("oracle_outputs must be nonempty")
+    execution_hashes = _snapshot_sha256_tuple(
+        execution_evidence_hashes, "execution_evidence_hashes"
+    )
+    if len(execution_hashes) != len(outputs):
+        raise _ContractError(
+            "oracle outputs must bind every execution evidence hash"
+        )
+    _validate_closed_oracle_convergence_contract(
+        validated.convergence_invariant_contract
+    )
+    contract = dict(
+        _static_scan_exact_frozen_items(
+            validated.convergence_invariant_contract,
+            "oracle convergence invariant contract",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    if (
+        type(maximum_residual) not in {int, float}
+        or not math.isfinite(maximum_residual)
+        or maximum_residual < 0
+    ):
+        raise _ContractError("oracle maximum_residual is invalid")
+    if (
+        "secondary_bound" in contract
+        and maximum_residual > contract["secondary_bound"]
+    ):
+        raise _ContractError("oracle maximum_residual exceeds secondary bound")
+    residual_fields = tuple(
+        name
+        for name, schema in validated.result_schema.properties
+        if schema.kind in {"number", "integer"}
+    )
+    invariant_fields = tuple(
+        name
+        for name, schema in validated.result_schema.properties
+        if schema.kind == "boolean"
+    )
+    result_fields = tuple(
+        name for name, _schema in validated.result_schema.properties
+    )
+    if (
+        not result_fields
+        or set(residual_fields) | set(invariant_fields) != set(result_fields)
+    ):
+        raise _ContractError(
+            "oracle decision fields do not cover the result schema"
+        )
+    residual_values = {name: [] for name in residual_fields}
+    invariant_values = {name: [] for name in invariant_fields}
+    for index, output in enumerate(outputs):
+        frozen_output = _snapshot_json(output, f"oracle_outputs[{index}]")
+        _adapters._validate_value_against_schema(
+            validated.result_schema,
+            frozen_output,
+            f"oracle_outputs[{index}]",
+        )
+        output_values = dict(
+            _static_scan_exact_frozen_items(
+                frozen_output,
+                f"oracle_outputs[{index}]",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        )
+        for name in residual_fields:
+            residual = output_values[name]
+            if (
+                type(residual) not in {int, float}
+                or not math.isfinite(residual)
+                or residual < 0
+            ):
+                raise _ContractError("oracle residual is invalid")
+            residual_values[name].append(residual)
+        for name in invariant_fields:
+            invariant = output_values[name]
+            if type(invariant) is not bool:
+                raise _ContractError("oracle invariant is invalid")
+            invariant_values[name].append(invariant)
+    accepted = all(
+        value <= maximum_residual
+        for values in residual_values.values()
+        for value in values
+    ) and all(
+        value
+        for values in invariant_values.values()
+        for value in values
+    )
+    decision_values = {
+        "schema_version": "oracle_decision_v1",
+        "oracle_id": validated.oracle_id,
+        "accepted": accepted,
+        "oracle_execution_evidence_hashes": execution_hashes,
+        "maximum_residual": maximum_residual,
+        "residuals": {
+            name: tuple(values) for name, values in residual_values.items()
+        },
+        "invariants": {
+            name: tuple(values) for name, values in invariant_values.items()
+        },
+        "reason_code": (
+            "outer_oracle_contract_satisfied"
+            if accepted
+            else "outer_oracle_contract_failed"
+        ),
+    }
+    decision_values["decision_sha256"] = _canonical_sha256(decision_values)
+    return OracleDecision(**decision_values)
+
+
 @_seal_contract
 @dataclass(frozen=True, init=False)
 class ProcessAttestation:
@@ -21415,6 +21956,31 @@ class ProcessAttestation:
                 _snapshot_json(getattr(self, field_name), field_name),
             )
         _require_sha256(self.attestation_sha256, "attestation_sha256")
+
+
+def validate_process_attestation(
+    value, *, expected_role, expected_point_id
+):
+    """Validate a process attestation against its coordinator binding."""
+
+    role = _require_role(expected_role, "expected_role")
+    point_id = _require_text(expected_point_id, "expected_point_id")
+    values = _adapter_evidence_exact_record_values(
+        value, ProcessAttestation, "process attestation"
+    )
+    if (
+        values["process_role"] != role
+        or values["point_id"] != point_id
+    ):
+        raise _ContractError("process attestation coordinator binding mismatch")
+    payload = {
+        name: values[name]
+        for name in _record_field_names(ProcessAttestation)
+        if name != "attestation_sha256"
+    }
+    if values["attestation_sha256"] != _canonical_sha256(payload):
+        raise _ContractError("process attestation hash mismatch")
+    return value
 
 
 @_seal_contract
@@ -21536,6 +22102,9 @@ class PointExecutionEvidence:
     point_id: str
     request_sha256: str
     result_sha256: str
+    capsule_sha256: str
+    worker_sha256: str
+    result_transport: _FrozenJsonObject
     trace_policy_report: TracePolicyReport
     process_attestation: ProcessAttestation
     backend_diagnostics: _FrozenJsonObject
@@ -21553,6 +22122,37 @@ class PointExecutionEvidence:
         _require_text(self.point_id, "point_id")
         _require_sha256(self.request_sha256, "request_sha256")
         _require_sha256(self.result_sha256, "result_sha256")
+        _require_sha256(self.capsule_sha256, "capsule_sha256")
+        _require_sha256(self.worker_sha256, "worker_sha256")
+        transport = _snapshot_json(
+            self.result_transport, "result_transport"
+        )
+        transport_values = dict(
+            _static_scan_exact_frozen_items(
+                transport,
+                "result transport",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        )
+        if set(transport_values) != {
+            "schema_version",
+            "adapter_id",
+            "request_sha256",
+            "capsule_sha256",
+            "local_result",
+        }:
+            raise _ContractError("result transport field set is not exact")
+        if (
+            transport_values["schema_version"]
+            != "worker_result_transport_v1"
+            or type(transport_values["adapter_id"]) is not str
+            or not transport_values["adapter_id"]
+            or transport_values["request_sha256"] != self.request_sha256
+            or transport_values["capsule_sha256"] != self.capsule_sha256
+            or self.result_sha256 != _canonical_sha256(transport)
+        ):
+            raise _ContractError("result transport binding mismatch")
+        object.__setattr__(self, "result_transport", transport)
         object.__setattr__(
             self,
             "trace_policy_report",
@@ -21572,6 +22172,25 @@ class PointExecutionEvidence:
         )
         _require_nonnegative_integer(self.exit_status, "exit_status")
         _require_sha256(self.execution_sha256, "execution_sha256")
+        payload = {
+            "schema_version": self.schema_version,
+            "point_id": self.point_id,
+            "request_sha256": self.request_sha256,
+            "result_sha256": self.result_sha256,
+            "capsule_sha256": self.capsule_sha256,
+            "worker_sha256": self.worker_sha256,
+            "result_transport": self.result_transport,
+            "trace_policy_report_sha256": (
+                self.trace_policy_report.report_sha256
+            ),
+            "process_attestation_sha256": (
+                self.process_attestation.attestation_sha256
+            ),
+            "backend_diagnostics": self.backend_diagnostics,
+            "exit_status": self.exit_status,
+        }
+        if self.execution_sha256 != _canonical_sha256(payload):
+            raise _ContractError("point execution evidence hash mismatch")
 
 
 @_seal_contract
@@ -21597,7 +22216,28 @@ class ConvergenceDecision:
         _require_bool(self.accepted, "accepted")
         _require_sha256(self.raw_evidence_sha256, "raw_evidence_sha256")
         _identifier(self.reason_code, "reason_code")
+        expected_reason = (
+            "outer_convergence_contract_satisfied"
+            if self.accepted
+            else "outer_convergence_contract_failed"
+        )
+        if self.reason_code != expected_reason:
+            raise _ContractError(
+                "convergence decision status and reason are contradictory"
+            )
         _require_sha256(self.decision_sha256, "decision_sha256")
+        payload = {
+            name: getattr(self, name)
+            for name in (
+                "schema_version",
+                "kind",
+                "accepted",
+                "raw_evidence_sha256",
+                "reason_code",
+            )
+        }
+        if self.decision_sha256 != _canonical_sha256(payload):
+            raise _ContractError("convergence decision hash mismatch")
 
 
 @_seal_contract
@@ -21607,6 +22247,7 @@ class OracleDecision:
     oracle_id: str
     accepted: bool
     oracle_execution_evidence_hashes: tuple[str, ...]
+    maximum_residual: float
     residuals: _FrozenJsonObject
     invariants: _FrozenJsonObject
     reason_code: str
@@ -21630,6 +22271,12 @@ class OracleDecision:
                 "oracle_execution_evidence_hashes",
             ),
         )
+        if (
+            type(self.maximum_residual) not in {int, float}
+            or not math.isfinite(self.maximum_residual)
+            or self.maximum_residual < 0
+        ):
+            raise _ContractError("oracle maximum_residual is invalid")
         object.__setattr__(
             self,
             "residuals",
@@ -21641,20 +22288,38 @@ class OracleDecision:
             _snapshot_json(self.invariants, "invariants"),
         )
         _identifier(self.reason_code, "reason_code")
+        expected_reason = (
+            "outer_oracle_contract_satisfied"
+            if self.accepted
+            else "outer_oracle_contract_failed"
+        )
+        if self.reason_code != expected_reason:
+            raise _ContractError(
+                "oracle decision status and reason are contradictory"
+            )
         _require_sha256(self.decision_sha256, "decision_sha256")
+        payload = {
+            name: getattr(self, name)
+            for name in (
+                "schema_version",
+                "oracle_id",
+                "accepted",
+                "oracle_execution_evidence_hashes",
+                "maximum_residual",
+                "residuals",
+                "invariants",
+                "reason_code",
+            )
+        }
+        if self.decision_sha256 != _canonical_sha256(payload):
+            raise _ContractError("oracle decision hash mismatch")
 
 
 def _snapshot_exact_record(value: object, record_type: type, field_name: str):
-    if type(value) is not record_type:
-        raise _ContractError(
-            f"{field_name} must be an exact {record_type.__name__}"
-        )
-    return record_type(
-        **{
-            name: getattr(value, name)
-            for name in _record_field_names(record_type)
-        }
+    values = _adapter_evidence_exact_record_values(
+        value, record_type, field_name
     )
+    return record_type(**values)
 
 
 @_seal_contract
@@ -21790,6 +22455,730 @@ class AdapterExecutionEvidence:
         _require_sha256(self.bundle_sha256, "bundle_sha256")
 
 
+_ADAPTER_EVIDENCE_NESTED_RECORD_TYPES = (
+    ScientificClosure,
+    ScientificPolicyCommitment,
+    InfrastructureClosure,
+    StaticScanReport,
+    RuntimeResourceManifest,
+    RuntimeSnapshot,
+    ProcessAttestation,
+    TracePolicyReport,
+    PointExecutionEvidence,
+    ConvergenceDecision,
+    OracleDecision,
+    EventRecord,
+)
+
+
+def _adapter_evidence_exact_record_values(value, record_type, field_name):
+    if type(value) is not record_type:
+        raise _ContractError(
+            f"{field_name} must be an exact {record_type.__name__}"
+        )
+    names = _record_field_names(record_type)
+    try:
+        namespace = object.__getattribute__(value, "__dict__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError(
+            f"{field_name} record storage is unavailable"
+        ) from error
+    retained_fields = {
+        ScientificClosure: {"_static_scan_material"},
+        InfrastructureClosure: {"_static_scan_material"},
+        RuntimeSnapshot: {"_retained_runtime_state"},
+    }.get(record_type, set())
+    actual_fields = set(namespace)
+    if (
+        type(namespace) is not dict
+        or not set(names) <= actual_fields
+        or actual_fields - set(names) not in (set(), retained_fields)
+    ):
+        raise _ContractError(f"{field_name} record storage is not exact")
+    return {name: namespace[name] for name in names}
+
+
+def _adapter_execution_evidence_hash_value(value, field_name):
+    if type(value) is dict:
+        if len(value) > _STATIC_SCAN_NODE_LIMIT or any(
+            type(key) is not str for key in value
+        ):
+            raise _ContractError(f"{field_name} mapping is not bounded")
+        return {
+            key: _adapter_execution_evidence_hash_value(
+                value[key], f"{field_name}.{key}"
+            )
+            for key in sorted(value)
+        }
+    if type(value) is _FrozenJsonObject:
+        return {
+            key: _adapter_execution_evidence_hash_value(
+                item, f"{field_name}.{key}"
+            )
+            for key, item in _static_scan_exact_frozen_items(
+                value,
+                f"{field_name} evidence object",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        }
+    if type(value) is tuple:
+        return tuple(
+            _adapter_execution_evidence_hash_value(
+                item, f"{field_name}[{index}]"
+            )
+            for index, item in enumerate(value)
+        )
+    if type(value) in _ADAPTER_EVIDENCE_NESTED_RECORD_TYPES:
+        values = _adapter_evidence_exact_record_values(
+            value, type(value), field_name
+        )
+        return {
+            field.name: _adapter_execution_evidence_hash_value(
+                values[field.name],
+                f"{field_name}.{field.name}",
+            )
+            for field in fields(type(value))
+        }
+    if type(value) is bytes:
+        try:
+            return value.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise _ContractError(
+                f"{field_name} contains non-UTF-8 evidence bytes"
+            ) from error
+    if value is None or type(value) in {bool, int, float, str}:
+        return value
+    raise _ContractError(f"{field_name} has an unsupported evidence type")
+
+
+def _adapter_execution_evidence_sha256(value):
+    values = _adapter_evidence_exact_record_values(
+        value, AdapterExecutionEvidence, "evidence"
+    )
+    payload = {
+        field.name: _adapter_execution_evidence_hash_value(
+            values[field.name], field.name
+        )
+        for field in fields(AdapterExecutionEvidence)
+        if field.name != "bundle_sha256"
+    }
+    return _canonical_sha256(payload)
+
+
+_TASK12_EVIDENCE_EVENT_ORDER = (
+    *_PRE_FREEZE_EVENT_NAMES,
+    "frozen_hashes",
+    "random_seed_acquired",
+    "requests_written",
+    "adapter_execution_completed",
+    "oracle_execution_completed",
+    "evidence_finalized",
+)
+_TASK12_EVIDENCE_EVENT_LIMIT = 4_096
+_TASK12_POINT_EXECUTION_LIMIT = 256
+_TASK12_VALIDATED_BINDING_FIELDS = (
+    "authority_context_sha256",
+    "adapter_id",
+    "benchmark_id",
+    "canonical_observable_id",
+    "observable_identity",
+    "scientific_inputs",
+    "parameter_provenance",
+    "numerical_controls",
+    "numerical_control_provenance",
+    "registry_snapshot_sha256",
+    "selector_sha256",
+)
+_TASK12_ELIGIBILITY_COMMITMENT_FIELDS = (
+    "benchmark_id",
+    "disposition",
+    "adapter_id",
+    "oracle_id",
+    "eligibility_row_sha256",
+    "eligibility_catalog_sha256",
+    "adapter_definition_sha256",
+    "oracle_definition_sha256",
+    "dependency_partition_sha256",
+    "adapter_capsule_sha256",
+    "oracle_capsule_sha256",
+    "worker_capsule_sha256",
+)
+
+
+def _task12_exact_frozen_mapping(value, expected_fields, field_name):
+    items = _static_scan_exact_frozen_items(
+        value, field_name, _STATIC_SCAN_NODE_LIMIT
+    )
+    result = dict(items)
+    if set(result) != set(expected_fields):
+        raise _ContractError(f"{field_name} field set is not exact")
+    return result
+
+
+def validate_adapter_execution_evidence(value):
+    """Validate that a success bundle is internally successful and bound."""
+
+    evidence = value
+    values = _adapter_evidence_exact_record_values(
+        evidence, AdapterExecutionEvidence, "evidence"
+    )
+    validated_bindings = _task12_exact_frozen_mapping(
+        values["validated_inputs_and_provenance"],
+        _TASK12_VALIDATED_BINDING_FIELDS,
+        "validated inputs and provenance",
+    )
+    eligibility_bindings = _task12_exact_frozen_mapping(
+        values["eligibility_commitments"],
+        _TASK12_ELIGIBILITY_COMMITMENT_FIELDS,
+        "eligibility commitments",
+    )
+    adapter_policy = values["adapter_policy_commitment"]
+    oracle_policy = values["oracle_policy_commitment"]
+    adapter_closure = values["adapter_scientific_closure"]
+    oracle_closure = values["oracle_scientific_closure"]
+    adapter_policy_values = _adapter_evidence_exact_record_values(
+        adapter_policy, ScientificPolicyCommitment, "adapter policy"
+    )
+    oracle_policy_values = _adapter_evidence_exact_record_values(
+        oracle_policy, ScientificPolicyCommitment, "oracle policy"
+    )
+    adapter_definition = _parse_canonical_definition_bytes(
+        adapter_policy_values["canonical_definition_bytes"], "adapter"
+    )
+    oracle_definition = _parse_canonical_definition_bytes(
+        oracle_policy_values["canonical_definition_bytes"], "oracle"
+    )
+    adapter_closure_values = _adapter_evidence_exact_record_values(
+        adapter_closure, ScientificClosure, "adapter closure"
+    )
+    oracle_closure_values = _adapter_evidence_exact_record_values(
+        oracle_closure, ScientificClosure, "oracle closure"
+    )
+    if (
+        adapter_policy_values["role"] != "adapter"
+        or adapter_closure_values["role"] != "adapter"
+    ):
+        raise _ContractError("adapter evidence role mismatch")
+    if (
+        oracle_policy_values["role"] != "oracle"
+        or oracle_closure_values["role"] != "oracle"
+    ):
+        raise _ContractError("oracle evidence role mismatch")
+    for field_name in (
+        "authority_context_sha256",
+        "registry_snapshot_sha256",
+        "selector_sha256",
+    ):
+        _require_sha256(validated_bindings[field_name], field_name)
+    for field_name in _TASK12_ELIGIBILITY_COMMITMENT_FIELDS[4:]:
+        _require_sha256(eligibility_bindings[field_name], field_name)
+    if (
+        values["authority_context_sha256"]
+        != validated_bindings["authority_context_sha256"]
+        or validated_bindings["adapter_id"]
+        != adapter_policy_values["definition_id"]
+        or eligibility_bindings["adapter_id"]
+        != adapter_policy_values["definition_id"]
+        or eligibility_bindings["oracle_id"]
+        != oracle_policy_values["definition_id"]
+        or eligibility_bindings["benchmark_id"]
+        != validated_bindings["benchmark_id"]
+        or eligibility_bindings["disposition"] != "eligible"
+        or eligibility_bindings["eligibility_row_sha256"]
+        != adapter_policy_values["eligibility_row_sha256"]
+        or eligibility_bindings["eligibility_catalog_sha256"]
+        != adapter_policy_values["eligibility_catalog_sha256"]
+        or eligibility_bindings["adapter_definition_sha256"]
+        != adapter_policy_values["canonical_definition_sha256"]
+        or eligibility_bindings["oracle_definition_sha256"]
+        != oracle_policy_values["canonical_definition_sha256"]
+    ):
+        raise _ContractError("evidence definition or eligibility binding mismatch")
+    if (
+        adapter_policy_values["entry_closure_sha256"]
+        != adapter_closure_values["bundle_sha256"]
+        or oracle_policy_values["entry_closure_sha256"]
+        != oracle_closure_values["bundle_sha256"]
+    ):
+        raise _ContractError("scientific policy and closure hash mismatch")
+    scans_by_role = {}
+    fingerprint_commitments = set()
+    for scan in values["static_scan_reports"]:
+        scan_values = _adapter_evidence_exact_record_values(
+            scan, StaticScanReport, "static scan report"
+        )
+        role = scan_values["role"]
+        if role in scans_by_role or scan_values["passed"] is not True:
+            raise _ContractError("static scan evidence is duplicated or failed")
+        scans_by_role[role] = scan_values
+        fingerprint_commitments.add(
+            scan_values["fingerprint_commitment_sha256"]
+        )
+    if set(scans_by_role) != {"adapter", "oracle", "infrastructure"} or len(
+        fingerprint_commitments
+    ) != 1:
+        raise _ContractError("static scan evidence set is incomplete")
+    infrastructure_values = _adapter_evidence_exact_record_values(
+        values["infrastructure_closure"],
+        InfrastructureClosure,
+        "infrastructure closure",
+    )
+    if (
+        scans_by_role["adapter"]["scanned_closure_sha256"]
+        != adapter_closure_values["bundle_sha256"]
+        or scans_by_role["oracle"]["scanned_closure_sha256"]
+        != oracle_closure_values["bundle_sha256"]
+        or scans_by_role["infrastructure"]["scanned_closure_sha256"]
+        != infrastructure_values["bundle_sha256"]
+    ):
+        raise _ContractError("scientific policy and static scan mismatch")
+    convergence = values["convergence_decision"]
+    convergence_values = _adapter_evidence_exact_record_values(
+        convergence, ConvergenceDecision, "convergence decision"
+    )
+    if convergence_values["accepted"] is not True:
+        raise _ContractError("convergence decision is not accepted")
+    oracle_decision = values["oracle_decision"]
+    oracle_decision_values = _adapter_evidence_exact_record_values(
+        oracle_decision, OracleDecision, "oracle decision"
+    )
+    if oracle_decision_values["accepted"] is not True:
+        raise _ContractError("oracle decision is not accepted")
+    if (
+        oracle_policy_values["definition_id"]
+        != oracle_decision_values["oracle_id"]
+    ):
+        raise _ContractError("oracle decision identifier mismatch")
+    oracle_execution_hashes = set(
+        oracle_decision_values["oracle_execution_evidence_hashes"]
+    )
+    if not oracle_execution_hashes:
+        raise _ContractError("oracle decision has no execution evidence")
+    point_ids = set()
+    observed_oracle_hashes = set()
+    adapter_execution_count = 0
+    adapter_raw_convergence = []
+    adapter_convergence_decisions = []
+    oracle_outputs = []
+    oracle_execution_sequence = []
+    if not values["point_executions"] or len(
+        values["point_executions"]
+    ) > _TASK12_POINT_EXECUTION_LIMIT:
+        raise _ContractError("point execution evidence count is not bounded")
+    for point in values["point_executions"]:
+        point_values = _adapter_evidence_exact_record_values(
+            point, PointExecutionEvidence, "point execution"
+        )
+        point_id = point_values["point_id"]
+        if point_id in point_ids:
+            raise _ContractError("point execution identifier is duplicated")
+        point_ids.add(point_id)
+        trace = point_values["trace_policy_report"]
+        process = point_values["process_attestation"]
+        trace_values = _adapter_evidence_exact_record_values(
+            trace, TracePolicyReport, "point trace policy report"
+        )
+        process_values = _adapter_evidence_exact_record_values(
+            process, ProcessAttestation, "point process attestation"
+        )
+        transport_values = _task12_exact_frozen_mapping(
+            point_values["result_transport"],
+            (
+                "schema_version",
+                "adapter_id",
+                "request_sha256",
+                "capsule_sha256",
+                "local_result",
+            ),
+            "point result transport",
+        )
+        if (
+            point_values["exit_status"] != 0
+            or trace_values["passed"] is not True
+            or transport_values["schema_version"]
+            != "worker_result_transport_v1"
+            or point_values["request_sha256"]
+            != transport_values["request_sha256"]
+            or point_values["capsule_sha256"]
+            != transport_values["capsule_sha256"]
+            or point_values["result_sha256"]
+            != _canonical_sha256(point_values["result_transport"])
+        ):
+            raise _ContractError("point execution is not successful")
+        if (
+            point_values["worker_sha256"]
+            != eligibility_bindings["worker_capsule_sha256"]
+        ):
+            raise _ContractError("point worker capsule binding mismatch")
+        if process_values["point_id"] != point_id:
+            raise _ContractError("point execution attestation mismatch")
+        execution_hash = point_values["execution_sha256"]
+        expected_role = (
+            "oracle"
+            if execution_hash in oracle_execution_hashes
+            else "adapter"
+        )
+        validate_process_attestation(
+            process,
+            expected_role=expected_role,
+            expected_point_id=point_id,
+        )
+        if expected_role == "oracle":
+            if (
+                point_values["capsule_sha256"]
+                != eligibility_bindings["oracle_capsule_sha256"]
+                or transport_values["adapter_id"]
+                != oracle_policy_values["definition_id"]
+            ):
+                raise _ContractError("oracle execution capsule binding mismatch")
+            oracle_output = _snapshot_json(
+                transport_values["local_result"], "oracle local result"
+            )
+            _adapters._validate_value_against_schema(
+                oracle_definition.result_schema,
+                oracle_output,
+                "oracle local result",
+            )
+            oracle_outputs.append(oracle_output)
+            oracle_execution_sequence.append(execution_hash)
+            observed_oracle_hashes.add(execution_hash)
+        else:
+            if (
+                point_values["capsule_sha256"]
+                != eligibility_bindings["adapter_capsule_sha256"]
+                or transport_values["adapter_id"]
+                != adapter_policy_values["definition_id"]
+            ):
+                raise _ContractError("adapter execution capsule binding mismatch")
+            local_result = _adapters.validate_local_observable_result(
+                adapter_definition, transport_values["local_result"]
+            )
+            if (
+                local_result["capsule_sha256"]
+                != point_values["capsule_sha256"]
+                or local_result["request_sha256"]
+                != point_values["request_sha256"]
+                or _canonical_bytes(point_values["backend_diagnostics"])
+                != _canonical_bytes(local_result["backend_diagnostics"])
+            ):
+                raise _ContractError(
+                    "adapter execution local-result binding mismatch"
+                )
+            adapter_raw_convergence.append(
+                local_result["raw_convergence_evidence"]
+            )
+            adapter_convergence_decisions.append(
+                derive_convergence_decision(adapter_definition, local_result)
+            )
+            adapter_execution_count += 1
+    if (
+        observed_oracle_hashes != oracle_execution_hashes
+        or adapter_execution_count == 0
+    ):
+        raise _ContractError("adapter/oracle execution evidence is incomplete")
+    expected_raw_convergence_sha256 = _canonical_sha256(
+        adapter_raw_convergence[0]
+        if len(adapter_raw_convergence) == 1
+        else tuple(adapter_raw_convergence)
+    )
+    if (
+        convergence_values["raw_evidence_sha256"]
+        != expected_raw_convergence_sha256
+    ):
+        raise _ContractError("convergence decision raw evidence mismatch")
+    if (
+        convergence_values["kind"]
+        != adapter_definition.convergence_contract.kind
+        or convergence_values["accepted"] is not all(
+            decision.accepted
+            for decision in adapter_convergence_decisions
+        )
+        or any(
+            decision.kind != convergence_values["kind"]
+            for decision in adapter_convergence_decisions
+        )
+    ):
+        raise _ContractError(
+            "convergence decision does not match derived raw evidence"
+        )
+    residual_fields = tuple(
+        name
+        for name, schema in oracle_definition.result_schema.properties
+        if schema.kind in {"number", "integer"}
+    )
+    invariant_fields = tuple(
+        name
+        for name, schema in oracle_definition.result_schema.properties
+        if schema.kind == "boolean"
+    )
+    expected_residuals = {
+        name: tuple(output[name] for output in oracle_outputs)
+        for name in residual_fields
+    }
+    expected_invariants = {
+        name: tuple(output[name] for output in oracle_outputs)
+        for name in invariant_fields
+    }
+    if (
+        _canonical_bytes(oracle_decision_values["residuals"])
+        != _canonical_bytes(expected_residuals)
+        or _canonical_bytes(oracle_decision_values["invariants"])
+        != _canonical_bytes(expected_invariants)
+    ):
+        raise _ContractError("oracle decision raw output mismatch")
+    numerical_control_values = _adapter_execution_evidence_hash_value(
+        validated_bindings["numerical_controls"], "numerical controls"
+    )
+    pending_controls = [numerical_control_values]
+    positive_float_controls = []
+    while pending_controls:
+        control = pending_controls.pop()
+        if type(control) is dict:
+            pending_controls.extend(control.values())
+        elif type(control) in {tuple, list}:
+            pending_controls.extend(control)
+        elif (
+            type(control) is float
+            and math.isfinite(control)
+            and control > 0
+        ):
+            positive_float_controls.append(control)
+    if (
+        positive_float_controls
+        and oracle_decision_values["maximum_residual"]
+        > min(positive_float_controls)
+    ):
+        raise _ContractError(
+            "oracle decision maximum residual exceeds numerical controls"
+        )
+    derived_oracle_decision = derive_oracle_decision(
+        oracle_definition,
+        tuple(oracle_outputs),
+        execution_evidence_hashes=tuple(oracle_execution_sequence),
+        maximum_residual=oracle_decision_values["maximum_residual"],
+    )
+    derived_oracle_values = _adapter_evidence_exact_record_values(
+        derived_oracle_decision,
+        OracleDecision,
+        "derived oracle decision",
+    )
+    if _canonical_bytes(derived_oracle_values) != _canonical_bytes(
+        oracle_decision_values
+    ):
+        raise _ContractError(
+            "oracle decision does not match derived raw evidence"
+        )
+    events = values["ordering_events"]
+    if not events or len(events) > _TASK12_EVIDENCE_EVENT_LIMIT:
+        raise _ContractError("evidence ordering event count is not bounded")
+    event_values = tuple(
+        _adapter_evidence_exact_record_values(
+            event, EventRecord, "ordering event"
+        )
+        for event in events
+    )
+    event_sequences = tuple(
+        item["sequence_number"] for item in event_values
+    )
+    if event_sequences != tuple(range(len(events))):
+        raise _ContractError("evidence event sequence is not contiguous")
+    event_names = tuple(item["event_name"] for item in event_values)
+    try:
+        required_positions = tuple(
+            event_names.index(name) for name in _TASK12_EVIDENCE_EVENT_ORDER
+        )
+    except ValueError as error:
+        raise _ContractError("evidence ordering trace is incomplete") from error
+    if (
+        required_positions != tuple(sorted(required_positions))
+        or any(event_names.count(name) != 1 for name in _TASK12_EVIDENCE_EVENT_ORDER)
+    ):
+        raise _ContractError("evidence ordering trace is contradictory")
+    if values["bundle_sha256"] != _adapter_execution_evidence_sha256(
+        evidence
+    ):
+        raise _ContractError("evidence bundle hash mismatch")
+    return evidence
+
+
+def _coordinator_artifact_material(value, field_name):
+    return _canonical_bytes(
+        _adapter_execution_evidence_hash_value(value, field_name)
+    )
+
+
+def _validate_coordinator_artifact_bindings(state, evidence):
+    values = _adapter_evidence_exact_record_values(
+        evidence, AdapterExecutionEvidence, "evidence"
+    )
+    eligibility = dict(
+        _static_scan_exact_frozen_items(
+            values["eligibility_commitments"],
+            "eligibility commitments",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    dependency_partition_sha256 = eligibility.get(
+        "dependency_partition_sha256"
+    )
+    _require_sha256(
+        dependency_partition_sha256, "dependency_partition_sha256"
+    )
+    authority = state.get("authority_context")
+    adapter_definition = state.get("adapter_definition")
+    oracle_definition = state.get("oracle_definition")
+    try:
+        authority_storage = object.__getattribute__(authority, "__dict__")
+    except (AttributeError, TypeError) as error:
+        raise _ContractError("coordinator authority storage is unavailable") from error
+    authority_names = _record_field_names(AdapterAuthorityContext)
+    if (
+        type(authority) is not AdapterAuthorityContext
+        or type(authority_storage) is not dict
+        or set(authority_storage) != set(authority_names)
+        or type(adapter_definition) is not _AdapterDefinition
+        or type(oracle_definition) is not _oracles.OracleDefinition
+    ):
+        raise _ContractError(
+            "coordinator definition or authority binding mismatch"
+        )
+    authority_values = {
+        name: authority_storage[name] for name in authority_names
+    }
+    adapter_definition_values = _adapter_evidence_exact_record_values(
+        adapter_definition, _AdapterDefinition, "coordinator adapter definition"
+    )
+    oracle_definition_values = _adapter_evidence_exact_record_values(
+        oracle_definition,
+        _oracles.OracleDefinition,
+        "coordinator oracle definition",
+    )
+    adapter_policy_values = _adapter_evidence_exact_record_values(
+        values["adapter_policy_commitment"],
+        ScientificPolicyCommitment,
+        "coordinator adapter policy",
+    )
+    oracle_policy_values = _adapter_evidence_exact_record_values(
+        values["oracle_policy_commitment"],
+        ScientificPolicyCommitment,
+        "coordinator oracle policy",
+    )
+    validated_bindings = dict(
+        _static_scan_exact_frozen_items(
+            values["validated_inputs_and_provenance"],
+            "validated inputs and provenance",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    if (
+        authority_values["context_sha256"]
+        != values["authority_context_sha256"]
+        or adapter_definition_values["adapter_id"]
+        != adapter_policy_values["definition_id"]
+        or oracle_definition_values["oracle_id"]
+        != oracle_policy_values["definition_id"]
+        or authority_values["benchmark_name"]
+        != validated_bindings["benchmark_id"]
+        or authority_values["canonical_observable_id"]
+        != validated_bindings["canonical_observable_id"]
+        or any(
+            _canonical_bytes(authority_values[field_name])
+            != _canonical_bytes(validated_bindings[field_name])
+            for field_name in (
+                "observable_identity",
+                "scientific_inputs",
+                "parameter_provenance",
+                "numerical_controls",
+                "numerical_control_provenance",
+            )
+        )
+        or authority_values["registry_snapshot_sha256"]
+        != validated_bindings["registry_snapshot_sha256"]
+        or authority_values["selector_sha256"]
+        != validated_bindings["selector_sha256"]
+    ):
+        raise _ContractError(
+            "coordinator definition or authority binding mismatch"
+        )
+    oracle_hashes = set(
+        _adapter_evidence_exact_record_values(
+            values["oracle_decision"], OracleDecision, "oracle decision"
+        )["oracle_execution_evidence_hashes"]
+    )
+    adapter_points = []
+    oracle_points = []
+    request_hashes = []
+    result_hashes = []
+    trace_hashes = []
+    attestation_hashes = []
+    for point in values["point_executions"]:
+        point_values = _adapter_evidence_exact_record_values(
+            point, PointExecutionEvidence, "point execution"
+        )
+        request_hashes.append(point_values["request_sha256"])
+        result_hashes.append(point_values["result_sha256"])
+        trace_values = _adapter_evidence_exact_record_values(
+            point_values["trace_policy_report"],
+            TracePolicyReport,
+            "point trace",
+        )
+        process_values = _adapter_evidence_exact_record_values(
+            point_values["process_attestation"],
+            ProcessAttestation,
+            "point attestation",
+        )
+        trace_hashes.append(trace_values["report_sha256"])
+        attestation_hashes.append(process_values["attestation_sha256"])
+        if point_values["execution_sha256"] in oracle_hashes:
+            oracle_points.append(point)
+        else:
+            adapter_points.append(point)
+    oracle_values = _adapter_evidence_exact_record_values(
+        values["oracle_decision"], OracleDecision, "oracle decision"
+    )
+    expected = {
+        "scientific_closure": values["adapter_scientific_closure"],
+        "oracle_closure": values["oracle_scientific_closure"],
+        "static_scan": values["static_scan_reports"],
+        "scientific_policy_commitment": (
+            values["adapter_policy_commitment"],
+            values["oracle_policy_commitment"],
+        ),
+        "infrastructure_closure": values["infrastructure_closure"],
+        "dependency_partition": dependency_partition_sha256,
+        "runtime_snapshot": values["runtime_snapshot"],
+        "capability_preflight": values["capability_preflight_sha256"],
+        "request_write": tuple(request_hashes),
+        "isolation_setup": tuple(attestation_hashes),
+        "worker_execution": tuple(adapter_points),
+        "trace_policy": tuple(trace_hashes),
+        "output_ingestion": tuple(result_hashes),
+        "result_validation": tuple(result_hashes),
+        "convergence": values["convergence_decision"],
+        "oracle_isolation": tuple(oracle_points),
+        "oracle_output": {
+            "residuals": oracle_values["residuals"],
+            "invariants": oracle_values["invariants"],
+        },
+        "oracle_decision": values["oracle_decision"],
+        "runtime_snapshot_revalidation": True,
+    }
+    for stage, expected_value in expected.items():
+        if stage not in state or _coordinator_artifact_material(
+            state[stage], f"coordinator artifact {stage}"
+        ) != _coordinator_artifact_material(
+            expected_value, f"evidence artifact {stage}"
+        ):
+            raise _ContractError(
+                f"coordinator artifact {stage} does not match evidence"
+            )
+    seed = state.get("seed_generation")
+    if type(seed) is not bytes or seed.hex() != values["disclosed_seed_hex"]:
+        raise _ContractError(
+            "coordinator seed artifact does not match disclosed evidence"
+        )
+
+
 FAILURE_STATUSES = frozenset(
     {
         "strict_recomputation_unavailable",
@@ -21895,6 +23284,43 @@ _FAILURE_DIAGNOSTICS = {
     "runtime_snapshot_changed": "runtime snapshot changed during execution",
     "evidence_hash_failed": "evidence hash validation failed",
 }
+_FAILURE_TRANSITIONS = frozenset(
+    {
+        ("strict_recomputation_unavailable", "definition_validation", "unknown_adapter"),
+        ("strict_recomputation_unavailable", "authority_validation", "authority_context_rejected"),
+        ("adapter_ineligible", "eligibility_validation", "adapter_source_parse_only"),
+        ("input_rejected", "scientific_input_validation", "scientific_input_rejected"),
+        ("input_rejected", "numerical_control_validation", "numerical_control_rejected"),
+        ("dependency_rejected", "eligibility_validation", "dependency_policy_rejected"),
+        ("dependency_rejected", "scientific_closure", "dependency_policy_rejected"),
+        ("dependency_rejected", "static_scan", "dependency_policy_rejected"),
+        ("dependency_rejected", "dependency_partition", "dependency_policy_rejected"),
+        ("dependency_rejected", "static_scan", "scientific_policy_rejected"),
+        ("dependency_rejected", "scientific_policy_commitment", "scientific_policy_rejected"),
+        ("dependency_rejected", "infrastructure_closure", "infrastructure_dependency_rejected"),
+        ("dependency_rejected", "dependency_partition", "infrastructure_dependency_rejected"),
+        ("strict_recomputation_unavailable", "runtime_snapshot", "runtime_resource_unavailable"),
+        ("strict_recomputation_unavailable", "capability_preflight", "capability_preflight_failed"),
+        ("strict_recomputation_unavailable", "seed_generation", "seed_generation_failed"),
+        ("isolation_failed", "request_write", "request_write_failed"),
+        ("isolation_failed", "isolation_setup", "namespace_setup_failed"),
+        ("execution_failed", "worker_execution", "worker_timeout"),
+        ("execution_failed", "worker_execution", "worker_signaled"),
+        ("execution_failed", "worker_execution", "worker_nonzero_exit"),
+        ("isolation_failed", "trace_policy", "trace_missing"),
+        ("isolation_failed", "trace_policy", "trace_policy_violation"),
+        ("execution_failed", "output_ingestion", "worker_output_rejected"),
+        ("execution_failed", "result_validation", "local_result_rejected"),
+        ("convergence_failed", "convergence", "convergence_contract_failed"),
+        ("strict_recomputation_unavailable", "oracle_closure", "oracle_dependency_rejected"),
+        ("dependency_rejected", "oracle_closure", "oracle_dependency_rejected"),
+        ("oracle_failed", "oracle_isolation", "oracle_isolation_failed"),
+        ("oracle_failed", "oracle_output", "oracle_output_rejected"),
+        ("oracle_failed", "oracle_decision", "oracle_invariant_failed"),
+        ("isolation_failed", "runtime_snapshot_revalidation", "runtime_snapshot_changed"),
+        ("strict_recomputation_unavailable", "evidence_finalization", "evidence_hash_failed"),
+    }
+)
 _FAILURE_HASH_FIELDS = frozenset(
     {
         "authority_context_sha256",
@@ -21959,6 +23385,10 @@ class AdapterRunFailure:
             raise _ContractError("failure stage is not closed")
         if self.reason_code not in FAILURE_REASON_CODES:
             raise _ContractError("failure reason_code is not closed")
+        if (self.status, self.stage, self.reason_code) not in (
+            _FAILURE_TRANSITIONS
+        ):
+            raise _ContractError("failure transition is contradictory")
         diagnostic = _require_text(self.diagnostic, "diagnostic")
         if len(diagnostic.encode("utf-8")) > _FAILURE_DIAGNOSTIC_MAX_BYTES:
             raise _ContractError("failure diagnostic is oversized")
@@ -22026,9 +23456,7 @@ class AdapterRunOutcome:
             object.__setattr__(
                 self,
                 "evidence",
-                _snapshot_exact_record(
-                    self.evidence, AdapterExecutionEvidence, "evidence"
-                ),
+                validate_adapter_execution_evidence(self.evidence),
             )
         elif self.status in FAILURE_STATUSES:
             if self.evidence is not None:
@@ -22045,3 +23473,376 @@ class AdapterRunOutcome:
             object.__setattr__(self, "failure", failure)
         else:
             raise _ContractError("AdapterRunOutcome has unknown status")
+
+
+def _coordinator_failure_outcome(
+    status,
+    stage,
+    reason_code,
+    *,
+    available_hashes=None,
+    available_attestations=None,
+):
+    if available_hashes is None:
+        available_hashes = {}
+    if available_attestations is None:
+        available_attestations = {}
+    failure = AdapterRunFailure(
+        schema_version="adapter_run_failure_v1",
+        status=status,
+        stage=stage,
+        reason_code=reason_code,
+        diagnostic=_FAILURE_DIAGNOSTICS[reason_code],
+        available_hashes=available_hashes,
+        available_attestations=available_attestations,
+    )
+    return AdapterRunOutcome(
+        status=status,
+        evidence=None,
+        failure=failure,
+    )
+
+
+_COORDINATOR_TRANSITION_STAGES = (
+    "scientific_closure",
+    "oracle_closure",
+    "static_scan",
+    "scientific_policy_commitment",
+    "infrastructure_closure",
+    "dependency_partition",
+    "runtime_snapshot",
+    "capability_preflight",
+    "seed_generation",
+    "request_write",
+    "isolation_setup",
+    "worker_execution",
+    "trace_policy",
+    "output_ingestion",
+    "result_validation",
+    "convergence",
+    "oracle_isolation",
+    "oracle_output",
+    "oracle_decision",
+    "runtime_snapshot_revalidation",
+    "evidence_finalization",
+)
+_COORDINATOR_DEPENDENCY_TOKEN = object()
+
+
+class _CoordinatorTransitionFailure(Exception):
+    __slots__ = ("status", "reason_code")
+
+    def __init__(self, status, reason_code):
+        if type(status) is not str or type(reason_code) is not str:
+            raise _ContractError(
+                "coordinator transition failure must be closed text"
+            )
+        self.status = status
+        self.reason_code = reason_code
+        super().__init__(status, reason_code)
+
+
+class _CoordinatorDependencyBundle:
+    __slots__ = ("oracle_definition", "transition_operations")
+
+    def __init__(
+        self,
+        *,
+        oracle_definition,
+        transition_operations,
+        authorization=None,
+    ):
+        if authorization is not _COORDINATOR_DEPENDENCY_TOKEN:
+            raise _ContractError(
+                "coordinator dependency bundle construction is unauthorized"
+            )
+        validated_oracle = _oracles.validate_oracle_definition(
+            oracle_definition
+        )
+        operations = _require_exact_tuple(
+            transition_operations, "transition_operations"
+        )
+        if tuple(
+            pair[0]
+            for pair in operations
+            if type(pair) is tuple and len(pair) == 2
+        ) != _COORDINATOR_TRANSITION_STAGES or len(operations) != len(
+            _COORDINATOR_TRANSITION_STAGES
+        ):
+            raise _ContractError(
+                "coordinator transition operation set is not exact"
+            )
+        for stage, operation in operations:
+            if stage not in _COORDINATOR_TRANSITION_STAGES or not callable(
+                operation
+            ):
+                raise _ContractError(
+                    "coordinator transition operation is malformed"
+                )
+        object.__setattr__(self, "oracle_definition", validated_oracle)
+        object.__setattr__(self, "transition_operations", operations)
+
+    def __setattr__(self, name, value):
+        raise AttributeError("coordinator dependency bundle is immutable")
+
+
+def _make_test_coordinator_dependency_bundle(
+    *, oracle_definition, transition_operations
+):
+    return _CoordinatorDependencyBundle(
+        oracle_definition=oracle_definition,
+        transition_operations=transition_operations,
+        authorization=_COORDINATOR_DEPENDENCY_TOKEN,
+    )
+
+
+def _run_isolated_recomputation_core(
+    adapter_id,
+    authority_context,
+    *,
+    run_parent,
+    dependency_bundle=None,
+):
+    """Resolve the immutable production catalogs before any execution."""
+
+    if type(adapter_id) is not str:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "definition_validation",
+            "unknown_adapter",
+        )
+    catalog_row = _adapters.ADAPTER_ELIGIBILITY.get(adapter_id)
+    resolved_adapter_id = adapter_id
+    benchmark_id = adapter_id if catalog_row is not None else None
+    if catalog_row is not None:
+        if catalog_row.disposition != "eligible":
+            return _coordinator_failure_outcome(
+                "adapter_ineligible",
+                "eligibility_validation",
+                "adapter_source_parse_only",
+            )
+        resolved_adapter_id = catalog_row.adapter_id
+    definition = _adapters.ADAPTER_DEFINITIONS.get(resolved_adapter_id)
+    if definition is None:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "definition_validation",
+            "unknown_adapter",
+        )
+    if catalog_row is None:
+        matching_rows = tuple(
+            (candidate_benchmark_id, row)
+            for candidate_benchmark_id, row
+            in _adapters.ADAPTER_ELIGIBILITY.items()
+            if row.disposition == "eligible"
+            and row.adapter_id == resolved_adapter_id
+        )
+        if len(matching_rows) != 1:
+            return _coordinator_failure_outcome(
+                "strict_recomputation_unavailable",
+                "eligibility_validation",
+                "dependency_policy_rejected",
+            )
+        benchmark_id, catalog_row = matching_rows[0]
+    try:
+        validated_definition = _validate_adapter_definition(definition)
+    except _ContractError:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "definition_validation",
+            "unknown_adapter",
+        )
+    try:
+        validated_authority = validate_authority_context(
+            authority_context,
+            allow_test_producer=False,
+        )
+    except _ContractError:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "authority_validation",
+            "authority_context_rejected",
+        )
+    if (
+        validated_authority.benchmark_name != benchmark_id
+        or _canonical_bytes(validated_authority.observable_identity)
+        != _canonical_bytes(validated_definition.observable_identity)
+    ):
+        return _coordinator_failure_outcome(
+            "dependency_rejected",
+            "eligibility_validation",
+            "dependency_policy_rejected",
+            available_hashes={
+                "authority_context_sha256": (
+                    validated_authority.context_sha256
+                )
+            },
+            available_attestations={"authority_validated": True},
+        )
+    try:
+        _validate_inputs(
+            validated_definition, validated_authority.scientific_inputs
+        )
+    except _ContractError:
+        return _coordinator_failure_outcome(
+            "input_rejected",
+            "scientific_input_validation",
+            "scientific_input_rejected",
+            available_hashes={
+                "authority_context_sha256": (
+                    validated_authority.context_sha256
+                )
+            },
+            available_attestations={
+                "authority_validated": True,
+                "eligibility_validated": True,
+            },
+        )
+    try:
+        _validate_controls(
+            validated_definition, validated_authority.numerical_controls
+        )
+    except _ContractError:
+        return _coordinator_failure_outcome(
+            "input_rejected",
+            "numerical_control_validation",
+            "numerical_control_rejected",
+            available_hashes={
+                "authority_context_sha256": (
+                    validated_authority.context_sha256
+                )
+            },
+            available_attestations={
+                "authority_validated": True,
+                "eligibility_validated": True,
+            },
+        )
+    if catalog_row.oracle_id != validated_definition.oracle_id:
+        return _coordinator_failure_outcome(
+            "dependency_rejected",
+            "eligibility_validation",
+            "dependency_policy_rejected",
+            available_hashes={
+                "authority_context_sha256": (
+                    validated_authority.context_sha256
+                )
+            },
+            available_attestations={"authority_validated": True},
+        )
+    if dependency_bundle is None:
+        oracle_definition = _oracles.ORACLE_DEFINITIONS.get(
+            validated_definition.oracle_id
+        )
+    elif type(dependency_bundle) is _CoordinatorDependencyBundle:
+        candidate = dependency_bundle.oracle_definition
+        candidate_values = _adapter_evidence_exact_record_values(
+            candidate,
+            _oracles.OracleDefinition,
+            "coordinator dependency oracle",
+        )
+        oracle_definition = (
+            candidate
+            if candidate_values["oracle_id"]
+            == validated_definition.oracle_id
+            else None
+        )
+    else:
+        raise _ContractError("coordinator dependency bundle is not authentic")
+    if oracle_definition is None:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "oracle_closure",
+            "oracle_dependency_rejected",
+            available_hashes={
+                "authority_context_sha256": (
+                    validated_authority.context_sha256
+                )
+            },
+            available_attestations={
+                "authority_validated": True,
+                "eligibility_validated": True,
+            },
+        )
+    if dependency_bundle is None:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "oracle_closure",
+            "oracle_dependency_rejected",
+            available_hashes={
+                "authority_context_sha256": validated_authority.context_sha256
+            },
+            available_attestations={
+                "authority_validated": True,
+                "eligibility_validated": True,
+            },
+        )
+    state = {
+        "adapter_definition": validated_definition,
+        "oracle_definition": oracle_definition,
+        "authority_context": validated_authority,
+        "run_parent": run_parent,
+    }
+    for stage, operation in dependency_bundle.transition_operations:
+        try:
+            result = operation(MappingProxyType(dict(state)))
+        except _CoordinatorTransitionFailure as error:
+            return _coordinator_failure_outcome(
+                error.status,
+                stage,
+                error.reason_code,
+                available_hashes={
+                    "authority_context_sha256": (
+                        validated_authority.context_sha256
+                    )
+                },
+                available_attestations={
+                    "authority_validated": True,
+                    "eligibility_validated": True,
+                },
+            )
+        if type(result) is not dict:
+            raise _ContractError(
+                f"coordinator transition {stage} returned a non-mapping"
+            )
+        expected_keys = (
+            {"evidence"}
+            if stage == "evidence_finalization"
+            else {"artifact"}
+        )
+        if set(result) != expected_keys:
+            raise _ContractError(
+                f"coordinator transition {stage} result is not exact"
+            )
+        state[stage] = result[next(iter(expected_keys))]
+    final_result = state["evidence_finalization"]
+    try:
+        evidence = validate_adapter_execution_evidence(final_result)
+        _validate_coordinator_artifact_bindings(state, evidence)
+    except _ContractError:
+        return _coordinator_failure_outcome(
+            "strict_recomputation_unavailable",
+            "evidence_finalization",
+            "evidence_hash_failed",
+            available_hashes={
+                "authority_context_sha256": validated_authority.context_sha256
+            },
+            available_attestations={
+                "authority_validated": True,
+                "eligibility_validated": True,
+            },
+        )
+    return AdapterRunOutcome(
+        status="isolated_recomputation_succeeded",
+        evidence=evidence,
+        failure=None,
+    )
+
+
+def run_isolated_recomputation(adapter_id, authority_context, *, run_parent):
+    """Run one production-bound recomputation without injectable services."""
+
+    return _run_isolated_recomputation_core(
+        adapter_id,
+        authority_context,
+        run_parent=run_parent,
+    )

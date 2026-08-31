@@ -4296,6 +4296,7 @@ def test_failure_contract_is_closed_bounded_and_has_no_success_bundle():
         "success_bundle",
         "unknown_field",
         "nonfinite_attestation",
+        "contradictory_transition",
     ),
 )
 def test_failure_contract_rejects_success_or_unbounded_payloads(mutation):
@@ -4316,6 +4317,8 @@ def test_failure_contract_rejects_success_or_unbounded_payloads(mutation):
         }
     elif mutation == "unknown_field":
         payload["evidence"] = {"strict_match": True}
+    elif mutation == "contradictory_transition":
+        payload["status"] = "oracle_failed"
     else:
         payload["available_attestations"] = {"elapsed": math.inf}
 
@@ -4395,6 +4398,7 @@ def test_all_task4_records_are_exact_frozen_sealed_contracts():
         },
         "PointExecutionEvidence": {
             "schema_version", "point_id", "request_sha256", "result_sha256",
+            "capsule_sha256", "worker_sha256", "result_transport",
             "trace_policy_report", "process_attestation",
             "backend_diagnostics", "exit_status", "execution_sha256",
         },
@@ -4404,7 +4408,8 @@ def test_all_task4_records_are_exact_frozen_sealed_contracts():
         },
         "OracleDecision": {
             "schema_version", "oracle_id", "accepted",
-            "oracle_execution_evidence_hashes", "residuals", "invariants",
+            "oracle_execution_evidence_hashes", "maximum_residual",
+            "residuals", "invariants",
             "reason_code", "decision_sha256",
         },
         "AdapterExecutionEvidence": {
@@ -5361,10 +5366,17 @@ def test_task4_public_all_surfaces_are_exact():
         "revalidate_runtime_snapshot",
         "run_capability_preflight",
         "create_run_directories",
+        "construct_private_root",
         "apply_tracee_security_policy",
         "run_namespace_supervisor",
+        "launch_traced_tracee",
+        "validate_process_attestation",
         "evaluate_strace",
         "ingest_worker_output",
+        "collect_backend_diagnostics",
+        "interpret_output_proofs",
+        "derive_convergence_decision",
+        "derive_oracle_decision",
         "record_and_freeze_hashes",
         "acquire_run_seed",
         "derive_counterfactual_points",
@@ -5372,6 +5384,8 @@ def test_task4_public_all_surfaces_are_exact():
         "assert_complete_dependency_partition",
         "scientific_policy_combined_sha256",
         "validate_failure",
+        "validate_adapter_execution_evidence",
+        "run_isolated_recomputation",
     }
 
 
@@ -6443,7 +6457,7 @@ def test_actual_digest_canaries_bind_authority_request_and_policy_bytes():
     ).hexdigest()
 
 
-def test_task4_record_constructors_accept_closed_valid_snapshots():
+def test_task12_evidence_bundle_record_constructors_and_hash_binding():
     from validation import literature_evidence_isolation as isolation
 
     digest = _sha256_text("task4-record-canary")
@@ -6453,7 +6467,7 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         )
     )
     oracle_policy = isolation.ScientificPolicyCommitment(
-        **_oracle_policy_values(_synthetic_oracle_definition())
+        **_oracle_policy_values(_task12_catalog_oracle_definition())
     )
     adapter_closure = isolation.ScientificClosure(
         "scientific_closure_v1",
@@ -6462,7 +6476,7 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         ({"module": "validation.canary", "sha256": digest},),
         (),
         digest,
-        digest,
+        adapter_policy.entry_closure_sha256,
     )
     oracle_closure = isolation.ScientificClosure(
         "scientific_closure_v1",
@@ -6471,7 +6485,7 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         ({"module": "validation.canary_oracle", "sha256": digest},),
         (),
         digest,
-        digest,
+        oracle_policy.entry_closure_sha256,
     )
     infrastructure = isolation.InfrastructureClosure(
         "infrastructure_closure_v1",
@@ -6499,7 +6513,7 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         "role": "adapter",
         "scanner_version": isolation._STATIC_SCANNER_VERSION,
         "scanner_sha256": isolation._STATIC_SCANNER_SHA256,
-        "scanned_closure_sha256": digest,
+        "scanned_closure_sha256": adapter_closure.bundle_sha256,
         "fingerprint_commitment_sha256": digest,
         "checks": static_scan_checks,
         "passed": True,
@@ -6508,6 +6522,12 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         static_scan_values
     )
     static_scan = isolation.StaticScanReport(**static_scan_values)
+    oracle_static_scan = _task12_scan_report(
+        isolation, "oracle", oracle_closure.bundle_sha256, digest
+    )
+    infrastructure_static_scan = _task12_scan_report(
+        isolation, "infrastructure", infrastructure.bundle_sha256, digest
+    )
     manifest = isolation.RuntimeResourceManifest(
         "runtime_resource_manifest_v1",
         ({"kind": "interpreter", "sha256": digest},),
@@ -6560,17 +6580,18 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
     }
     preflight_values["report_sha256"] = canonical_sha256(preflight_values)
     preflight = isolation.CapabilityPreflightReport(**preflight_values)
-    process = isolation.ProcessAttestation(
-        "process_attestation_v1",
-        "adapter",
-        "point-canary",
-        {"pid_namespace": "isolated"},
-        {"root": "readonly"},
-        {"environment": "closed"},
-        {"cpu_seconds": 1},
-        {"chroot": True},
-        digest,
-    )
+    process_values = {
+        "schema_version": "process_attestation_v1",
+        "process_role": "adapter",
+        "point_id": "point-canary",
+        "namespace_identifiers": {"pid_namespace": "isolated"},
+        "mount_facts": {"root": "readonly"},
+        "environment_facts": {"environment": "closed"},
+        "resource_limit_facts": {"cpu_seconds": 1},
+        "chroot_facts": {"chroot": True},
+    }
+    process_values["attestation_sha256"] = canonical_sha256(process_values)
+    process = isolation.ProcessAttestation(**process_values)
     trace_values = {
         "schema_version": "trace_policy_report_v1",
         "trace_sha256": digest,
@@ -6595,60 +6616,189 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
     }
     trace_values["report_sha256"] = canonical_sha256(trace_values)
     trace = isolation.TracePolicyReport(**trace_values)
-    point = isolation.PointExecutionEvidence(
-        "point_execution_evidence_v1",
-        "point-canary",
-        digest,
-        digest,
-        trace,
-        process,
-        {"backend_kind": "analytic"},
-        0,
-        digest,
+    adapter_capsule_sha256 = _sha256_text("task12-adapter-capsule")
+    oracle_capsule_sha256 = _sha256_text("task12-oracle-capsule")
+    worker_sha256 = _sha256_text("task12-worker-capsule")
+    local_result = _local_payload_for_definition(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
     )
-    convergence = isolation.ConvergenceDecision(
-        "convergence_decision_v1",
-        "residual_bound",
-        True,
-        digest,
-        "bound_satisfied",
-        digest,
+    local_result["capsule_sha256"] = adapter_capsule_sha256
+    local_result["request_sha256"] = digest
+    point = _task12_point_execution(
+        isolation,
+        point_id="point-canary",
+        request_sha256=digest,
+        capsule_sha256=adapter_capsule_sha256,
+        worker_sha256=worker_sha256,
+        adapter_id="square_ising_self_dual_tc",
+        local_result=local_result,
+        trace=trace,
+        process=process,
+        backend_diagnostics=local_result["backend_diagnostics"],
     )
-    oracle_decision = isolation.OracleDecision(
-        "oracle_decision_v1",
-        "synthetic_residual_oracle",
-        True,
-        (digest,),
-        {"residual_norm": 1e-12},
-        {"bound_satisfied": True},
-        "invariant_satisfied",
-        digest,
+    oracle_process_values = dict(process_values)
+    oracle_process_values["process_role"] = "oracle"
+    oracle_process_values["point_id"] = "oracle-point-canary"
+    oracle_process_values.pop("attestation_sha256")
+    oracle_process_values["attestation_sha256"] = canonical_sha256(
+        oracle_process_values
     )
-    event = isolation.EventRecord(0, "worker_started", {"point": 0})
+    oracle_process = isolation.ProcessAttestation(**oracle_process_values)
+    oracle_point = _task12_point_execution(
+        isolation,
+        point_id="oracle-point-canary",
+        request_sha256=digest,
+        capsule_sha256=oracle_capsule_sha256,
+        worker_sha256=worker_sha256,
+        adapter_id=_task12_catalog_oracle_definition().oracle_id,
+        local_result={"residual_norm": 1e-12},
+        trace=trace,
+        process=oracle_process,
+        backend_diagnostics={"backend_kind": "analytic"},
+    )
+    convergence_values = {
+        "schema_version": "convergence_decision_v1",
+        "kind": "residual_bound",
+        "accepted": True,
+        "raw_evidence_sha256": canonical_sha256(
+            local_result["raw_convergence_evidence"]
+        ),
+        "reason_code": "outer_convergence_contract_satisfied",
+    }
+    convergence_values["decision_sha256"] = canonical_sha256(
+        convergence_values
+    )
+    convergence = isolation.ConvergenceDecision(**convergence_values)
+    oracle_values = {
+        "schema_version": "oracle_decision_v1",
+        "oracle_id": _task12_catalog_oracle_definition().oracle_id,
+        "accepted": True,
+        "oracle_execution_evidence_hashes": (
+            oracle_point.execution_sha256,
+        ),
+        "maximum_residual": 1e-12,
+        "residuals": {"residual_norm": (1e-12,)},
+        "invariants": {},
+        "reason_code": "outer_oracle_contract_satisfied",
+    }
+    oracle_values["decision_sha256"] = canonical_sha256(oracle_values)
+    oracle_decision = isolation.OracleDecision(**oracle_values)
+    events = tuple(
+        isolation.EventRecord(index, name, {"closed": True})
+        for index, name in enumerate(isolation._TASK12_EVIDENCE_EVENT_ORDER)
+    )
+    validated_bindings, eligibility_bindings = (
+        _task12_evidence_binding_payloads(adapter_policy, oracle_policy)
+    )
     evidence = isolation.AdapterExecutionEvidence(
         "adapter_execution_evidence_v1",
         "isolated_recomputation_succeeded",
-        digest,
-        {"inputs_sha256": digest},
-        {"catalog_sha256": digest},
+        validated_bindings["authority_context_sha256"],
+        validated_bindings,
+        eligibility_bindings,
         adapter_policy,
         oracle_policy,
         adapter_closure,
         oracle_closure,
         infrastructure,
-        (static_scan,),
+        (static_scan, oracle_static_scan, infrastructure_static_scan),
         runtime_snapshot,
-        (event,),
+        events,
         preflight.report_sha256,
-        (point,),
+        (point, oracle_point),
         convergence,
         oracle_decision,
         "1" * 64,
         digest,
     )
+    with pytest.raises(
+        AdapterContractError, match="evidence bundle hash|eligibility binding"
+    ):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", evidence, None
+        )
+    evidence_values = {
+        field.name: getattr(evidence, field.name)
+        for field in dataclasses.fields(type(evidence))
+    }
+    evidence_values["bundle_sha256"] = (
+        isolation._adapter_execution_evidence_sha256(evidence)
+    )
+    evidence = isolation.AdapterExecutionEvidence(**evidence_values)
     outcome = isolation.AdapterRunOutcome(
         "isolated_recomputation_succeeded", evidence, None
     )
+    rejected_convergence_values = {
+        "schema_version": "convergence_decision_v1",
+        "kind": convergence.kind,
+        "accepted": False,
+        "raw_evidence_sha256": convergence.raw_evidence_sha256,
+        "reason_code": "outer_convergence_contract_failed",
+    }
+    rejected_convergence_values["decision_sha256"] = canonical_sha256(
+        rejected_convergence_values
+    )
+    rejected_convergence = isolation.ConvergenceDecision(
+        **rejected_convergence_values
+    )
+    semantically_failed_values = dict(evidence_values)
+    semantically_failed_values["convergence_decision"] = rejected_convergence
+    semantically_failed_evidence = isolation.AdapterExecutionEvidence(
+        **semantically_failed_values
+    )
+    semantically_failed_values["bundle_sha256"] = (
+        isolation._adapter_execution_evidence_sha256(
+            semantically_failed_evidence
+        )
+    )
+    semantically_failed_evidence = isolation.AdapterExecutionEvidence(
+        **semantically_failed_values
+    )
+    with pytest.raises(AdapterContractError, match="convergence decision"):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded",
+            semantically_failed_evidence,
+            None,
+        )
+    tampered_values = dict(evidence_values)
+    tampered_values["bundle_sha256"] = evidence.bundle_sha256
+    tampered_values["authority_context_sha256"] = _sha256_text(
+        "different-authority-context"
+    )
+    with pytest.raises(AdapterContractError, match="eligibility binding"):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded",
+            isolation.AdapterExecutionEvidence(**tampered_values),
+            None,
+        )
+
+    accessor_calls = []
+
+    class BundleAccessor:
+        def __get__(self, instance, owner=None):
+            accessor_calls.append(instance)
+            return digest
+
+        def __set__(self, instance, value):
+            accessor_calls.append(instance)
+            raise AssertionError("bundle accessor must not execute")
+
+    evidence_type = type(evidence)
+    original_attribute = vars(evidence_type).get("bundle_sha256")
+    type.__setattr__(evidence_type, "bundle_sha256", BundleAccessor())
+    try:
+        accessor_safe_outcome = isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", evidence, None
+        )
+    finally:
+        if original_attribute is None:
+            type.__delattr__(evidence_type, "bundle_sha256")
+        else:
+            type.__setattr__(
+                evidence_type, "bundle_sha256", original_attribute
+            )
+    assert accessor_safe_outcome.status == "isolated_recomputation_succeeded"
+    assert accessor_calls == []
 
     records = (
         adapter_policy,
@@ -6661,11 +6811,13 @@ def test_task4_record_constructors_accept_closed_valid_snapshots():
         runtime_snapshot,
         preflight,
         process,
+        oracle_process,
         trace,
         point,
+        oracle_point,
         convergence,
         oracle_decision,
-        event,
+        events[0],
         evidence,
         outcome,
     )
@@ -27335,3 +27487,1687 @@ def test_task11_runtime_attack_matrix_fails_closed_for_adapter_and_oracle(
         assert oracle_malformed_checked
     finally:
         snapshot.revalidate()
+
+
+def _task12_production_authority_context():
+    context = _authority_context_payload(
+        producer_id="task8_canonical_authority_v1"
+    )
+    definition = adapters.ADAPTER_DEFINITIONS[
+        "square_ising_self_dual_tc"
+    ]
+    context["benchmark_name"] = "two_dimensional_square_ising_onsager_tc"
+    context["observable_identity"] = adapters.thaw_json(
+        definition.observable_identity
+    )
+    return _rehash_authority_payload(context)
+
+
+def test_task12_public_coordinator_signature_export_and_no_injection(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    assert "run_isolated_recomputation" in isolation.__all__
+    assert str(inspect.signature(isolation.run_isolated_recomputation)) == (
+        "(adapter_id, authority_context, *, run_parent)"
+    )
+    context = _task12_production_authority_context()
+    for injection in (
+        {"resolver": object()},
+        {"definition": object()},
+        {"source_roots": (tmp_path,)},
+        {"harness": object()},
+        {"test_mode": True},
+        {"dependency_bundle": object()},
+    ):
+        with pytest.raises(TypeError):
+            isolation.run_isolated_recomputation(
+                "square_ising_self_dual_tc",
+                context,
+                run_parent=tmp_path,
+                **injection,
+            )
+
+
+def test_task12_public_coordinator_is_unavailable_without_oracle_fallback(
+    tmp_path,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    assert not oracles.ORACLE_DEFINITIONS
+    run_parent = tmp_path / "coordinator-runs"
+    run_parent.mkdir()
+    context = _task12_production_authority_context()
+
+    outcome = isolation.run_isolated_recomputation(
+        "square_ising_self_dual_tc",
+        context,
+        run_parent=run_parent,
+    )
+
+    assert type(outcome) is isolation.AdapterRunOutcome
+    assert outcome.status == "strict_recomputation_unavailable"
+    assert outcome.evidence is None
+    assert outcome.failure.status == "strict_recomputation_unavailable"
+    assert outcome.failure.stage == "oracle_closure"
+    assert outcome.failure.reason_code == "oracle_dependency_rejected"
+    assert tuple(run_parent.iterdir()) == ()
+
+
+@pytest.mark.parametrize(
+    (
+        "adapter_id",
+        "context_mutation",
+        "expected_status",
+        "expected_stage",
+        "expected_reason",
+    ),
+    (
+        (
+            "undeclared_adapter",
+            None,
+            "strict_recomputation_unavailable",
+            "definition_validation",
+            "unknown_adapter",
+        ),
+        (
+            "one_dimensional_classical_ising_correlation_length",
+            None,
+            "adapter_ineligible",
+            "eligibility_validation",
+            "adapter_source_parse_only",
+        ),
+        (
+            "square_ising_self_dual_tc",
+            ("context_sha256", "0" * 64, False),
+            "strict_recomputation_unavailable",
+            "authority_validation",
+            "authority_context_rejected",
+        ),
+        (
+            "square_ising_self_dual_tc",
+            ("scientific_inputs", {"exchange": "positive"}, True),
+            "input_rejected",
+            "scientific_input_validation",
+            "scientific_input_rejected",
+        ),
+        (
+            "square_ising_self_dual_tc",
+            (
+                "numerical_controls",
+                {
+                    "maximum_refinement_iterations": "many",
+                    "root_residual_threshold": 1e-12,
+                },
+                True,
+            ),
+            "input_rejected",
+            "numerical_control_validation",
+            "numerical_control_rejected",
+        ),
+    ),
+)
+def test_task12_coordinator_failure_stops_before_run_creation(
+    tmp_path,
+    adapter_id,
+    context_mutation,
+    expected_status,
+    expected_stage,
+    expected_reason,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    context = _task12_production_authority_context()
+    if context_mutation is not None:
+        field_name, value, rehash = context_mutation
+        context[field_name] = value
+        if rehash:
+            context = _rehash_authority_payload(context)
+    run_parent = tmp_path / "coordinator-failure-runs"
+    run_parent.mkdir()
+
+    outcome = isolation.run_isolated_recomputation(
+        adapter_id,
+        context,
+        run_parent=run_parent,
+    )
+
+    assert outcome.status == expected_status
+    assert outcome.evidence is None
+    assert outcome.failure.stage == expected_stage
+    assert outcome.failure.reason_code == expected_reason
+    assert tuple(run_parent.iterdir()) == ()
+
+
+@pytest.mark.parametrize(
+    "definition",
+    tuple(adapters.ADAPTER_DEFINITIONS.values()),
+    ids=tuple(adapters.ADAPTER_DEFINITIONS),
+)
+def test_task12_evidence_bundle_derives_outer_convergence_from_raw_data(
+    definition,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    payload = _local_payload_for_definition(definition)
+    local_result = adapters.validate_local_observable_result(
+        definition, payload
+    )
+
+    diagnostics = isolation.collect_backend_diagnostics(
+        definition, local_result
+    )
+    proofs = isolation.interpret_output_proofs(definition, local_result)
+    decision = isolation.derive_convergence_decision(
+        definition, local_result
+    )
+
+    assert diagnostics["backend_kind"] == definition.backend_kind
+    assert diagnostics["diagnostics_sha256"] == canonical_sha256(
+        {
+            key: diagnostics[key]
+            for key in diagnostics
+            if key != "diagnostics_sha256"
+        }
+    )
+    assert set(proofs["selected_fields"]) == set(
+        definition.output_schema.selector_fields
+    )
+    assert decision.kind == definition.convergence_contract.kind
+    assert decision.accepted
+    assert decision.raw_evidence_sha256 == canonical_sha256(
+        local_result["raw_convergence_evidence"]
+    )
+    decision_payload = {
+        field.name: getattr(decision, field.name)
+        for field in dataclasses.fields(type(decision))
+        if field.name != "decision_sha256"
+    }
+    assert decision.decision_sha256 == canonical_sha256(decision_payload)
+
+
+@pytest.mark.parametrize("kind", ("residual_bound", "quadrature", "iterative"))
+def test_task12_coordinator_failure_derives_convergence_rejection_without_flag(
+    kind,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = next(
+        candidate
+        for candidate in adapters.ADAPTER_DEFINITIONS.values()
+        if candidate.convergence_contract.kind == kind
+    )
+    payload = _local_payload_for_definition(definition)
+    raw = payload["raw_convergence_evidence"]
+    if kind == "quadrature":
+        raw["estimates"][-1] = raw["estimates"][0] + 1.0
+    else:
+        raw["residuals"][-1] = raw["error_bound"] * 2.0
+    local_result = adapters.validate_local_observable_result(
+        definition, payload
+    )
+
+    decision = isolation.derive_convergence_decision(
+        definition, local_result
+    )
+
+    assert not decision.accepted
+    assert decision.reason_code == "outer_convergence_contract_failed"
+
+
+def _task12_outer_oracle_definition():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    base = _synthetic_oracle_definition()
+    return oracles.OracleDefinition(
+        oracle_id=base.oracle_id,
+        entry_symbol=base.entry_symbol,
+        input_schema=base.input_schema,
+        result_schema=base.result_schema,
+        runtime_requirements=RuntimeRequirements(
+            "python3", (), (), ("single_cpu_core",)
+        ),
+        convergence_invariant_contract={
+            "kind": "residual_bound",
+            "rule": "independent residual contracts under refinement",
+            "secondary_bound": 1.0,
+        },
+        resource_limits=base.resource_limits,
+    )
+
+
+@pytest.mark.parametrize(
+    ("residual", "expected_accepted"),
+    ((1e-12, True), (1e-3, False)),
+)
+def test_task12_evidence_bundle_derives_oracle_decision_from_raw_outputs(
+    residual,
+    expected_accepted,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    decision = isolation.derive_oracle_decision(
+        _task12_outer_oracle_definition(),
+        ({"residual_norm": residual},),
+        execution_evidence_hashes=(_sha256_text("oracle-execution"),),
+        maximum_residual=1e-8,
+    )
+
+    assert decision.accepted is expected_accepted
+    assert decision.residuals == {"residual_norm": (residual,)}
+    assert decision.invariants == {}
+    assert decision.reason_code == (
+        "outer_oracle_contract_satisfied"
+        if expected_accepted
+        else "outer_oracle_contract_failed"
+    )
+    decision_payload = {
+        field.name: getattr(decision, field.name)
+        for field in dataclasses.fields(type(decision))
+        if field.name != "decision_sha256"
+    }
+    assert decision.decision_sha256 == canonical_sha256(decision_payload)
+
+
+def _task12_catalog_oracle_definition():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    base = _task12_outer_oracle_definition()
+    oracle_id = "square_ising_duality_residual_oracle"
+    return oracles.OracleDefinition(
+        oracle_id=oracle_id,
+        entry_symbol=(
+            "validation.literature_evidence_adapter_oracles:oracle_"
+            + oracle_id
+        ),
+        input_schema=base.input_schema,
+        result_schema=base.result_schema,
+        runtime_requirements=base.runtime_requirements,
+        convergence_invariant_contract=(
+            base.convergence_invariant_contract
+        ),
+        resource_limits=base.resource_limits,
+    )
+
+
+def _task12_evidence_binding_payloads(adapter_policy, oracle_policy):
+    context = _task12_production_authority_context()
+    benchmark_id = "two_dimensional_square_ising_onsager_tc"
+    decision = adapters.ADAPTER_ELIGIBILITY[benchmark_id]
+    validated = {
+        "authority_context_sha256": context["context_sha256"],
+        "adapter_id": adapter_policy.definition_id,
+        "benchmark_id": benchmark_id,
+        "canonical_observable_id": context["canonical_observable_id"],
+        "observable_identity": context["observable_identity"],
+        "scientific_inputs": context["scientific_inputs"],
+        "parameter_provenance": context["parameter_provenance"],
+        "numerical_controls": context["numerical_controls"],
+        "numerical_control_provenance": context[
+            "numerical_control_provenance"
+        ],
+        "registry_snapshot_sha256": context["registry_snapshot_sha256"],
+        "selector_sha256": context["selector_sha256"],
+    }
+    eligibility = {
+        "benchmark_id": benchmark_id,
+        "disposition": "eligible",
+        "adapter_id": decision.adapter_id,
+        "oracle_id": decision.oracle_id,
+        "eligibility_row_sha256": adapter_policy.eligibility_row_sha256,
+        "eligibility_catalog_sha256": (
+            adapter_policy.eligibility_catalog_sha256
+        ),
+        "adapter_definition_sha256": (
+            adapter_policy.canonical_definition_sha256
+        ),
+        "oracle_definition_sha256": (
+            oracle_policy.canonical_definition_sha256
+        ),
+        "dependency_partition_sha256": _sha256_text(
+            "task12-dependency-partition"
+        ),
+        "adapter_capsule_sha256": _sha256_text("task12-adapter-capsule"),
+        "oracle_capsule_sha256": _sha256_text("task12-oracle-capsule"),
+        "worker_capsule_sha256": _sha256_text("task12-worker-capsule"),
+    }
+    return validated, eligibility
+
+
+def _task12_scan_report(isolation, role, closure_sha256, fingerprint_sha256):
+    check_names = [
+        "raw_ast_closed",
+        "dependency_graph_closed",
+        "imports_closed",
+        "capabilities_closed",
+        "literal_context_closed",
+        "emitted_bytes_closed",
+        "fingerprints_absent",
+        "role_policy_closed",
+    ]
+    if role == "infrastructure":
+        check_names.append("infrastructure_purpose_closed")
+    values = {
+        "schema_version": "static_scan_report_v1",
+        "role": role,
+        "scanner_version": isolation._STATIC_SCANNER_VERSION,
+        "scanner_sha256": isolation._STATIC_SCANNER_SHA256,
+        "scanned_closure_sha256": closure_sha256,
+        "fingerprint_commitment_sha256": fingerprint_sha256,
+        "checks": {
+            name: {"passed": True, "reason": "closed"}
+            for name in check_names
+        },
+        "passed": True,
+    }
+    values["report_sha256"] = canonical_sha256(values)
+    return isolation.StaticScanReport(**values)
+
+
+def _task12_point_execution(
+    isolation,
+    *,
+    point_id,
+    request_sha256,
+    capsule_sha256,
+    worker_sha256,
+    adapter_id,
+    local_result,
+    trace,
+    process,
+    backend_diagnostics,
+):
+    result_transport = {
+        "schema_version": "worker_result_transport_v1",
+        "adapter_id": adapter_id,
+        "request_sha256": request_sha256,
+        "capsule_sha256": capsule_sha256,
+        "local_result": local_result,
+    }
+    result_sha256 = canonical_sha256(result_transport)
+    values = {
+        "schema_version": "point_execution_evidence_v1",
+        "point_id": point_id,
+        "request_sha256": request_sha256,
+        "result_sha256": result_sha256,
+        "capsule_sha256": capsule_sha256,
+        "worker_sha256": worker_sha256,
+        "result_transport": result_transport,
+        "trace_policy_report": trace,
+        "process_attestation": process,
+        "backend_diagnostics": backend_diagnostics,
+        "exit_status": 0,
+    }
+    values["execution_sha256"] = canonical_sha256(
+        {
+            "schema_version": values["schema_version"],
+            "point_id": point_id,
+            "request_sha256": request_sha256,
+            "result_sha256": result_sha256,
+            "capsule_sha256": capsule_sha256,
+            "worker_sha256": worker_sha256,
+            "result_transport": result_transport,
+            "trace_policy_report_sha256": trace.report_sha256,
+            "process_attestation_sha256": process.attestation_sha256,
+            "backend_diagnostics": backend_diagnostics,
+            "exit_status": 0,
+        }
+    )
+    return isolation.PointExecutionEvidence(**values)
+
+
+_TASK12_SUCCESS_EVIDENCE_CACHE = None
+
+
+def _task12_minimal_success_evidence():
+    global _TASK12_SUCCESS_EVIDENCE_CACHE
+    if _TASK12_SUCCESS_EVIDENCE_CACHE is not None:
+        return _TASK12_SUCCESS_EVIDENCE_CACHE
+    from validation import literature_evidence_isolation as isolation
+
+    digest = _sha256_text("task12-success-evidence")
+    adapter_policy = isolation.ScientificPolicyCommitment(
+        **_adapter_policy_values(
+            adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+        )
+    )
+    oracle_policy = isolation.ScientificPolicyCommitment(
+        **_oracle_policy_values(_task12_catalog_oracle_definition())
+    )
+    adapter_closure = isolation.ScientificClosure(
+        "scientific_closure_v1",
+        "adapter",
+        "validation.task12:adapter_entry",
+        ({"module": "validation.task12", "sha256": digest},),
+        (),
+        digest,
+        adapter_policy.entry_closure_sha256,
+    )
+    oracle_closure = isolation.ScientificClosure(
+        "scientific_closure_v1",
+        "oracle",
+        "validation.task12_oracle:oracle_entry",
+        ({"module": "validation.task12_oracle", "sha256": digest},),
+        (),
+        digest,
+        oracle_policy.entry_closure_sha256,
+    )
+    infrastructure = isolation.InfrastructureClosure(
+        "infrastructure_closure_v1",
+        ("validation.task12.transport",),
+        ({"module": "validation.task12", "sha256": digest},),
+        (),
+        {"validation.task12.transport": "coordinator_transport"},
+        digest,
+    )
+    scan_checks = {
+        name: {"passed": True, "reason": "closed"}
+        for name in (
+            "raw_ast_closed",
+            "dependency_graph_closed",
+            "imports_closed",
+            "capabilities_closed",
+            "literal_context_closed",
+            "emitted_bytes_closed",
+            "fingerprints_absent",
+            "role_policy_closed",
+        )
+    }
+    scan_values = {
+        "schema_version": "static_scan_report_v1",
+        "role": "adapter",
+        "scanner_version": isolation._STATIC_SCANNER_VERSION,
+        "scanner_sha256": isolation._STATIC_SCANNER_SHA256,
+        "scanned_closure_sha256": adapter_closure.bundle_sha256,
+        "fingerprint_commitment_sha256": digest,
+        "checks": scan_checks,
+        "passed": True,
+    }
+    scan_values["report_sha256"] = canonical_sha256(scan_values)
+    scan = isolation.StaticScanReport(**scan_values)
+    oracle_scan = _task12_scan_report(
+        isolation, "oracle", oracle_closure.bundle_sha256, digest
+    )
+    infrastructure_scan = _task12_scan_report(
+        isolation, "infrastructure", infrastructure.bundle_sha256, digest
+    )
+    manifest = isolation.RuntimeResourceManifest(
+        "runtime_resource_manifest_v1",
+        ({"kind": "interpreter", "sha256": digest},),
+        digest,
+    )
+    snapshot = isolation.RuntimeSnapshot(
+        "runtime_snapshot_v1",
+        manifest,
+        "/task12-runtime-snapshot",
+        ({"path": "python3", "sha256": digest},),
+        digest,
+    )
+    trace_values = {
+        "schema_version": "trace_policy_report_v1",
+        "trace_sha256": digest,
+        "attempted_accesses": (),
+        "violations": (),
+        "passed": True,
+    }
+    trace_values["report_sha256"] = canonical_sha256(trace_values)
+    trace = isolation.TracePolicyReport(**trace_values)
+
+    adapter_local_result = _local_payload_for_definition(
+        adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    )
+    adapter_capsule_sha256 = _sha256_text("task12-adapter-capsule")
+    oracle_capsule_sha256 = _sha256_text("task12-oracle-capsule")
+    worker_sha256 = _sha256_text("task12-worker-capsule")
+    adapter_local_result["capsule_sha256"] = adapter_capsule_sha256
+    adapter_local_result["request_sha256"] = digest
+
+    def point(role, point_id):
+        process_values = {
+            "schema_version": "process_attestation_v1",
+            "process_role": role,
+            "point_id": point_id,
+            "namespace_identifiers": {"pid_namespace": "isolated"},
+            "mount_facts": {"root": "readonly"},
+            "environment_facts": {"environment": "closed"},
+            "resource_limit_facts": {"cpu_seconds": 1},
+            "chroot_facts": {"chroot": True},
+        }
+        process_values["attestation_sha256"] = canonical_sha256(
+            process_values
+        )
+        return _task12_point_execution(
+            isolation,
+            point_id=point_id,
+            request_sha256=digest,
+            capsule_sha256=(
+                adapter_capsule_sha256
+                if role == "adapter"
+                else oracle_capsule_sha256
+            ),
+            worker_sha256=worker_sha256,
+            adapter_id=(
+                "square_ising_self_dual_tc"
+                if role == "adapter"
+                else _task12_catalog_oracle_definition().oracle_id
+            ),
+            local_result=(
+                adapter_local_result
+                if role == "adapter"
+                else {"residual_norm": 1e-12}
+            ),
+            trace=trace,
+            process=isolation.ProcessAttestation(**process_values),
+            backend_diagnostics=(
+                adapter_local_result["backend_diagnostics"]
+                if role == "adapter"
+                else {"backend_kind": "analytic"}
+            ),
+        )
+
+    adapter_point = point("adapter", "task12-adapter-point")
+    oracle_point = point("oracle", "task12-oracle-point")
+    convergence_values = {
+        "schema_version": "convergence_decision_v1",
+        "kind": "residual_bound",
+        "accepted": True,
+        "raw_evidence_sha256": canonical_sha256(
+            adapter_local_result["raw_convergence_evidence"]
+        ),
+        "reason_code": "outer_convergence_contract_satisfied",
+    }
+    convergence_values["decision_sha256"] = canonical_sha256(
+        convergence_values
+    )
+    convergence = isolation.ConvergenceDecision(**convergence_values)
+    oracle_values = {
+        "schema_version": "oracle_decision_v1",
+        "oracle_id": _task12_catalog_oracle_definition().oracle_id,
+        "accepted": True,
+        "oracle_execution_evidence_hashes": (
+            oracle_point.execution_sha256,
+        ),
+        "maximum_residual": 1e-12,
+        "residuals": {"residual_norm": (1e-12,)},
+        "invariants": {},
+        "reason_code": "outer_oracle_contract_satisfied",
+    }
+    oracle_values["decision_sha256"] = canonical_sha256(oracle_values)
+    oracle_decision = isolation.OracleDecision(**oracle_values)
+    events = tuple(
+        isolation.EventRecord(index, name, {"closed": True})
+        for index, name in enumerate(isolation._TASK12_EVIDENCE_EVENT_ORDER)
+    )
+    validated_bindings, eligibility_bindings = (
+        _task12_evidence_binding_payloads(adapter_policy, oracle_policy)
+    )
+    values = {
+        "schema_version": "adapter_execution_evidence_v1",
+        "status": "isolated_recomputation_succeeded",
+        "authority_context_sha256": validated_bindings[
+            "authority_context_sha256"
+        ],
+        "validated_inputs_and_provenance": validated_bindings,
+        "eligibility_commitments": eligibility_bindings,
+        "adapter_policy_commitment": adapter_policy,
+        "oracle_policy_commitment": oracle_policy,
+        "adapter_scientific_closure": adapter_closure,
+        "oracle_scientific_closure": oracle_closure,
+        "infrastructure_closure": infrastructure,
+        "static_scan_reports": (scan, oracle_scan, infrastructure_scan),
+        "runtime_snapshot": snapshot,
+        "ordering_events": events,
+        "capability_preflight_sha256": digest,
+        "point_executions": (adapter_point, oracle_point),
+        "convergence_decision": convergence,
+        "oracle_decision": oracle_decision,
+        "disclosed_seed_hex": "2" * 64,
+        "bundle_sha256": digest,
+    }
+    provisional = isolation.AdapterExecutionEvidence(**values)
+    values["bundle_sha256"] = isolation._adapter_execution_evidence_sha256(
+        provisional
+    )
+    evidence = isolation.AdapterExecutionEvidence(**values)
+    _TASK12_SUCCESS_EVIDENCE_CACHE = evidence
+    return evidence
+
+
+def _task12_success_artifacts(evidence):
+    adapter_points = tuple(
+        point
+        for point in evidence.point_executions
+        if point.process_attestation.process_role == "adapter"
+    )
+    oracle_points = tuple(
+        point
+        for point in evidence.point_executions
+        if point.process_attestation.process_role == "oracle"
+    )
+    return {
+        "scientific_closure": evidence.adapter_scientific_closure,
+        "oracle_closure": evidence.oracle_scientific_closure,
+        "static_scan": evidence.static_scan_reports,
+        "scientific_policy_commitment": (
+            evidence.adapter_policy_commitment,
+            evidence.oracle_policy_commitment,
+        ),
+        "infrastructure_closure": evidence.infrastructure_closure,
+        "dependency_partition": evidence.eligibility_commitments[
+            "dependency_partition_sha256"
+        ],
+        "runtime_snapshot": evidence.runtime_snapshot,
+        "capability_preflight": evidence.capability_preflight_sha256,
+        "seed_generation": bytes.fromhex(evidence.disclosed_seed_hex),
+        "request_write": tuple(
+            point.request_sha256 for point in evidence.point_executions
+        ),
+        "isolation_setup": tuple(
+            point.process_attestation.attestation_sha256
+            for point in evidence.point_executions
+        ),
+        "worker_execution": adapter_points,
+        "trace_policy": tuple(
+            point.trace_policy_report.report_sha256
+            for point in evidence.point_executions
+        ),
+        "output_ingestion": tuple(
+            point.result_sha256 for point in evidence.point_executions
+        ),
+        "result_validation": tuple(
+            point.result_sha256 for point in evidence.point_executions
+        ),
+        "convergence": evidence.convergence_decision,
+        "oracle_isolation": oracle_points,
+        "oracle_output": {
+            "residuals": evidence.oracle_decision.residuals,
+            "invariants": evidence.oracle_decision.invariants,
+        },
+        "oracle_decision": evidence.oracle_decision,
+        "runtime_snapshot_revalidation": True,
+    }
+
+
+_TASK12_TRANSITION_FAILURES = {
+    "scientific_closure": (
+        "dependency_rejected",
+        "dependency_policy_rejected",
+    ),
+    "oracle_closure": (
+        "dependency_rejected",
+        "oracle_dependency_rejected",
+    ),
+    "static_scan": ("dependency_rejected", "dependency_policy_rejected"),
+    "scientific_policy_commitment": (
+        "dependency_rejected",
+        "scientific_policy_rejected",
+    ),
+    "infrastructure_closure": (
+        "dependency_rejected",
+        "infrastructure_dependency_rejected",
+    ),
+    "dependency_partition": (
+        "dependency_rejected",
+        "dependency_policy_rejected",
+    ),
+    "runtime_snapshot": (
+        "strict_recomputation_unavailable",
+        "runtime_resource_unavailable",
+    ),
+    "capability_preflight": (
+        "strict_recomputation_unavailable",
+        "capability_preflight_failed",
+    ),
+    "seed_generation": (
+        "strict_recomputation_unavailable",
+        "seed_generation_failed",
+    ),
+    "request_write": ("isolation_failed", "request_write_failed"),
+    "isolation_setup": ("isolation_failed", "namespace_setup_failed"),
+    "worker_execution": ("execution_failed", "worker_timeout"),
+    "trace_policy": ("isolation_failed", "trace_policy_violation"),
+    "output_ingestion": ("execution_failed", "worker_output_rejected"),
+    "result_validation": ("execution_failed", "local_result_rejected"),
+    "convergence": ("convergence_failed", "convergence_contract_failed"),
+    "oracle_isolation": ("oracle_failed", "oracle_isolation_failed"),
+    "oracle_output": ("oracle_failed", "oracle_output_rejected"),
+    "oracle_decision": ("oracle_failed", "oracle_invariant_failed"),
+    "runtime_snapshot_revalidation": (
+        "isolation_failed",
+        "runtime_snapshot_changed",
+    ),
+    "evidence_finalization": (
+        "strict_recomputation_unavailable",
+        "evidence_hash_failed",
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "failed_stage",
+    tuple(_TASK12_TRANSITION_FAILURES),
+)
+def test_task12_coordinator_failure_stops_every_later_transition(
+    tmp_path,
+    failed_stage,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    observed = []
+    operations = []
+    expected_status, expected_reason = _TASK12_TRANSITION_FAILURES[
+        failed_stage
+    ]
+    for stage in isolation._COORDINATOR_TRANSITION_STAGES:
+        def operation(state, *, current_stage=stage):
+            observed.append(current_stage)
+            if current_stage == failed_stage:
+                raise isolation._CoordinatorTransitionFailure(
+                    expected_status, expected_reason
+                )
+            return {"artifact": current_stage}
+
+        operations.append((stage, operation))
+    dependency_bundle = isolation._make_test_coordinator_dependency_bundle(
+        oracle_definition=_task12_catalog_oracle_definition(),
+        transition_operations=tuple(operations),
+    )
+
+    outcome = isolation._run_isolated_recomputation_core(
+        "square_ising_self_dual_tc",
+        _task12_production_authority_context(),
+        run_parent=tmp_path,
+        dependency_bundle=dependency_bundle,
+    )
+
+    failed_index = isolation._COORDINATOR_TRANSITION_STAGES.index(
+        failed_stage
+    )
+    assert tuple(observed) == isolation._COORDINATOR_TRANSITION_STAGES[
+        : failed_index + 1
+    ]
+    assert outcome.status == expected_status
+    assert outcome.failure.stage == failed_stage
+    assert outcome.failure.reason_code == expected_reason
+
+
+@pytest.mark.parametrize(
+    ("failed_stage", "status", "reason"),
+    (
+        ("worker_execution", "execution_failed", "worker_timeout"),
+        ("worker_execution", "execution_failed", "worker_signaled"),
+        ("worker_execution", "execution_failed", "worker_nonzero_exit"),
+        ("trace_policy", "isolation_failed", "trace_missing"),
+        ("trace_policy", "isolation_failed", "trace_policy_violation"),
+    ),
+)
+def test_task12_coordinator_failure_preserves_process_and_trace_reason(
+    tmp_path,
+    failed_stage,
+    status,
+    reason,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    operations = []
+    for stage in isolation._COORDINATOR_TRANSITION_STAGES:
+        def operation(state, *, current_stage=stage):
+            if current_stage == failed_stage:
+                raise isolation._CoordinatorTransitionFailure(status, reason)
+            return {"artifact": current_stage}
+
+        operations.append((stage, operation))
+    bundle = isolation._make_test_coordinator_dependency_bundle(
+        oracle_definition=_task12_catalog_oracle_definition(),
+        transition_operations=tuple(operations),
+    )
+
+    outcome = isolation._run_isolated_recomputation_core(
+        "square_ising_self_dual_tc",
+        _task12_production_authority_context(),
+        run_parent=tmp_path,
+        dependency_bundle=bundle,
+    )
+
+    assert outcome.status == status
+    assert outcome.failure.stage == failed_stage
+    assert outcome.failure.reason_code == reason
+
+
+def test_task12_evidence_bundle_private_state_machine_accepts_only_validated_success(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    artifacts = _task12_success_artifacts(evidence)
+    observed = []
+    operations = []
+    for stage in isolation._COORDINATOR_TRANSITION_STAGES:
+        def operation(state, *, current_stage=stage):
+            observed.append(current_stage)
+            if current_stage == "evidence_finalization":
+                return {"evidence": evidence}
+            return {"artifact": artifacts[current_stage]}
+
+        operations.append((stage, operation))
+    bundle = isolation._make_test_coordinator_dependency_bundle(
+        oracle_definition=_task12_catalog_oracle_definition(),
+        transition_operations=tuple(operations),
+    )
+
+    outcome = isolation._run_isolated_recomputation_core(
+        "square_ising_self_dual_tc",
+        _task12_production_authority_context(),
+        run_parent=tmp_path,
+        dependency_bundle=bundle,
+    )
+
+    assert tuple(observed) == isolation._COORDINATOR_TRANSITION_STAGES
+    assert outcome.status == "isolated_recomputation_succeeded"
+    assert outcome.failure is None
+    assert outcome.evidence.bundle_sha256 == evidence.bundle_sha256
+
+
+def test_task12_coordinator_failure_private_dependency_bundle_is_exact():
+    from validation import literature_evidence_isolation as isolation
+
+    oracle = _task12_catalog_oracle_definition()
+    valid_operations = tuple(
+        (stage, lambda state: {"artifact": None})
+        for stage in isolation._COORDINATOR_TRANSITION_STAGES
+    )
+    with pytest.raises(AdapterContractError, match="unauthorized"):
+        isolation._CoordinatorDependencyBundle(
+            oracle_definition=oracle,
+            transition_operations=valid_operations,
+        )
+    for invalid in (
+        valid_operations[:-1],
+        tuple(reversed(valid_operations)),
+        (*valid_operations[:-1], ("evidence_finalization", object())),
+    ):
+        with pytest.raises(AdapterContractError, match="transition"):
+            isolation._make_test_coordinator_dependency_bundle(
+                oracle_definition=oracle,
+                transition_operations=invalid,
+            )
+
+
+@pytest.mark.parametrize(
+    "tampered_stage",
+    tuple(
+        stage
+        for stage in _TASK12_TRANSITION_FAILURES
+        if stage != "evidence_finalization"
+    ),
+)
+def test_task12_evidence_bundle_rejects_each_unbound_stage_artifact(
+    tmp_path,
+    tampered_stage,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    artifacts = _task12_success_artifacts(evidence)
+    value = artifacts[tampered_stage]
+    if type(value) is bytes:
+        artifacts[tampered_stage] = b"\0" * len(value)
+    elif type(value) is bool:
+        artifacts[tampered_stage] = not value
+    elif type(value) is tuple:
+        artifacts[tampered_stage] = (*value, "tampered-artifact")
+    elif type(value) is dict:
+        artifacts[tampered_stage] = {"tampered": True}
+    else:
+        artifacts[tampered_stage] = _sha256_text(
+            "tampered-" + tampered_stage
+        )
+    operations = []
+    for stage in isolation._COORDINATOR_TRANSITION_STAGES:
+        def operation(state, *, current_stage=stage):
+            if current_stage == "evidence_finalization":
+                return {"evidence": evidence}
+            return {"artifact": artifacts[current_stage]}
+
+        operations.append((stage, operation))
+    bundle = isolation._make_test_coordinator_dependency_bundle(
+        oracle_definition=_task12_catalog_oracle_definition(),
+        transition_operations=tuple(operations),
+    )
+
+    outcome = isolation._run_isolated_recomputation_core(
+        "square_ising_self_dual_tc",
+        _task12_production_authority_context(),
+        run_parent=tmp_path,
+        dependency_bundle=bundle,
+    )
+
+    assert outcome.status == "strict_recomputation_unavailable"
+    assert outcome.failure.stage == "evidence_finalization"
+    assert outcome.failure.reason_code == "evidence_hash_failed"
+
+
+def test_task12_evidence_bundle_rejects_rehashed_policy_closure_mismatch():
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    policy_values = {
+        field.name: getattr(evidence.adapter_policy_commitment, field.name)
+        for field in dataclasses.fields(
+            type(evidence.adapter_policy_commitment)
+        )
+    }
+    policy_values["entry_closure_sha256"] = _sha256_text(
+        "different-entry-closure"
+    )
+    policy_values["combined_sha256"] = (
+        isolation.scientific_policy_combined_sha256(policy_values)
+    )
+    evidence_values = {
+        field.name: getattr(evidence, field.name)
+        for field in dataclasses.fields(type(evidence))
+    }
+    evidence_values["adapter_policy_commitment"] = (
+        isolation.ScientificPolicyCommitment(**policy_values)
+    )
+    provisional = isolation.AdapterExecutionEvidence(**evidence_values)
+    evidence_values["bundle_sha256"] = (
+        isolation._adapter_execution_evidence_sha256(provisional)
+    )
+    mismatched = isolation.AdapterExecutionEvidence(**evidence_values)
+
+    with pytest.raises(AdapterContractError, match="policy.*closure"):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", mismatched, None
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "extra_validated_binding",
+        "oracle_eligibility_mismatch",
+        "missing_infrastructure_scan",
+        "swapped_required_events",
+    ),
+)
+def test_task12_evidence_bundle_rejects_closed_completeness_mutation(mutation):
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    values = {
+        field.name: getattr(evidence, field.name)
+        for field in dataclasses.fields(type(evidence))
+    }
+    if mutation == "extra_validated_binding":
+        binding = adapters.thaw_json(values["validated_inputs_and_provenance"])
+        binding["caller_note"] = "accepted"
+        values["validated_inputs_and_provenance"] = binding
+    elif mutation == "oracle_eligibility_mismatch":
+        eligibility = adapters.thaw_json(values["eligibility_commitments"])
+        eligibility["oracle_id"] = "different_oracle"
+        values["eligibility_commitments"] = eligibility
+    elif mutation == "missing_infrastructure_scan":
+        values["static_scan_reports"] = values["static_scan_reports"][:-1]
+    else:
+        events = list(values["ordering_events"])
+        left = len(isolation._PRE_FREEZE_EVENT_NAMES) - 1
+        right = left + 1
+        events[left], events[right] = events[right], events[left]
+        values["ordering_events"] = tuple(
+            isolation.EventRecord(
+                index,
+                event.event_name,
+                event.details,
+            )
+            for index, event in enumerate(events)
+        )
+    provisional = isolation.AdapterExecutionEvidence(**values)
+    values["bundle_sha256"] = isolation._adapter_execution_evidence_sha256(
+        provisional
+    )
+    mutated = isolation.AdapterExecutionEvidence(**values)
+
+    with pytest.raises(AdapterContractError):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", mutated, None
+        )
+
+
+def test_task12_evidence_bundle_builds_real_synthetic_scientific_pair(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["square_ising_self_dual_tc"]
+    oracle_definition = _task12_catalog_oracle_definition()
+    observable_identity = repr(thaw_json(definition.observable_identity))
+    backend_diagnostics = repr(
+        _local_payload_for_definition(definition)["backend_diagnostics"]
+    )
+    source_root = tmp_path / "scientific-source"
+    package = source_root / "validation"
+    package.mkdir(parents=True)
+    (package / "literature_evidence_adapters.py").write_text(
+        "def adapter_square_ising_self_dual_tc(scientific_inputs, "
+        "numerical_controls):\n"
+        "    exchange = float(scientific_inputs['exchange'])\n"
+        "    iterations = int(numerical_controls["
+        "'maximum_refinement_iterations'])\n"
+        "    value = exchange\n"
+        "    for _index in range(iterations):\n"
+        "        value = 0.5 * (value + exchange / value)\n"
+        "    residual = abs(value * value - exchange)\n"
+        "    return {\n"
+        "        'schema_version': 'scientific_result_body_v1',\n"
+        "        'observable_identity': " + observable_identity + ",\n"
+        "        'fields': {'tc_over_j': value},\n"
+        "        'units': {'tc_over_j': 'dimensionless'},\n"
+        "        'uncertainty': {'tc_over_j': "
+        "float(numerical_controls['root_residual_threshold'])},\n"
+        "        'raw_convergence_evidence': {\n"
+        "            'kind': 'residual_bound',\n"
+        "            'controls': dict(numerical_controls),\n"
+        "            'samples': [exchange, value],\n"
+        "            'residuals': [abs(exchange * exchange - exchange), "
+        "residual],\n"
+        "            'error_bound': "
+        "float(numerical_controls['root_residual_threshold']),\n"
+        "            'certificate': {\n"
+        "                'kind': 'residual_bound_certificate',\n"
+        "                'certificate_sha256': '0' * 64,\n"
+        "            },\n"
+        "        },\n"
+        "        'backend_diagnostics': " + backend_diagnostics + ",\n"
+        "        'operation_counts_or_sizes': {\n"
+        "            'operation_counts': {'operations': iterations},\n"
+        "            'problem_size': {\n"
+        "                'policy_kind': 'not_applicable', 'values': {}\n"
+        "            },\n"
+        "        },\n"
+        "    }\n",
+        encoding="utf-8",
+    )
+    (package / "literature_evidence_adapter_oracles.py").write_text(
+        "def oracle_square_ising_duality_residual_oracle("
+        "scientific_inputs, numerical_controls):\n"
+        "    exchange = float(scientific_inputs['exchange'])\n"
+        "    scale = float(numerical_controls['root_residual_threshold'])\n"
+        "    return {'residual_norm': abs(exchange - exchange) * scale}\n",
+        encoding="utf-8",
+    )
+    adapter_closure = isolation.build_scientific_closure(
+        definition.entry_symbol,
+        role="adapter",
+        source_roots=(source_root,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        oracle_definition.entry_symbol,
+        role="oracle",
+        source_roots=(source_root,),
+    )
+    fingerprints = _task12_production_authority_context()[
+        "forbidden_output_fingerprints"
+    ]
+    adapter_scan = isolation.scan_scientific_closure(
+        adapter_closure, forbidden_fingerprints=fingerprints
+    )
+    oracle_scan = isolation.scan_scientific_closure(
+        oracle_closure, forbidden_fingerprints=fingerprints
+    )
+    adapter_policy = isolation.build_scientific_policy_commitment(
+        definition, adapter_closure, role="adapter"
+    )
+    oracle_policy = isolation.build_scientific_policy_commitment(
+        oracle_definition, oracle_closure, role="oracle"
+    )
+
+    assert adapter_scan.passed and oracle_scan.passed
+    assert adapter_policy.entry_closure_sha256 == adapter_closure.bundle_sha256
+    assert oracle_policy.entry_closure_sha256 == oracle_closure.bundle_sha256
+    assert adapter_policy.definition_id == definition.adapter_id
+    assert oracle_policy.definition_id == oracle_definition.oracle_id
+
+    preflight_parent = tmp_path / "preflight"
+    preflight_parent.mkdir()
+    preflight = isolation.run_capability_preflight(
+        scratch_parent=preflight_parent
+    )
+    assert preflight.available, thaw_json(preflight.probe_result_codes)
+    runtime_requirements = RuntimeRequirements(
+        "python3",
+        tuple(
+            sorted(
+                set(definition.runtime_requirements.packages)
+                | set(oracle_definition.runtime_requirements.packages)
+            )
+        ),
+        tuple(
+            sorted(
+                set(definition.runtime_requirements.native_libraries)
+                | set(
+                    oracle_definition.runtime_requirements.native_libraries
+                )
+            )
+        ),
+        tuple(
+            sorted(
+                set(definition.runtime_requirements.backend_resources)
+                | set(
+                    oracle_definition.runtime_requirements.backend_resources
+                )
+            )
+        ),
+    )
+    runtime_snapshot = isolation.build_runtime_snapshot(
+        runtime_requirements,
+        run_directory=tmp_path / "runtime-run",
+        event_recorder=lambda event_name, details: None,
+    )
+    fixed_worker = isolation.emit_fixed_worker()
+
+    def execute_real_point(role, closure, execution_id, point_id):
+        layout = isolation.create_run_directories(
+            scratch_parent=tmp_path,
+            audit_run_id="task12-real-" + role,
+        )
+        supervisor = Path(layout.supervisor_directory)
+        capsule_path = supervisor / "scientific_capsule.py"
+        worker_path = supervisor / "fixed_worker.py"
+        capsule = isolation.emit_scientific_capsule(closure)
+        capsule_path.write_bytes(capsule)
+        worker_path.write_bytes(fixed_worker)
+        request_values = {
+            "opaque_run_nonce": "task12-real-answer-free-" + role,
+            "scientific_inputs": {"exchange": 1.375},
+            "numerical_controls": {
+                "maximum_refinement_iterations": 8,
+                "root_residual_threshold": 1e-12,
+            },
+            "capsule_sha256": hashlib.sha256(capsule).hexdigest(),
+        }
+        request = (
+            isolation.WorkerRequest(
+                schema_version="worker_request_v1",
+                adapter_id=execution_id,
+                **request_values,
+            )
+            if role == "adapter"
+            else isolation._make_oracle_worker_request(
+                oracle_definition, **request_values
+            )
+        )
+        request_path = isolation.write_worker_request_exclusive(
+            request, directory=Path(layout.input_directory)
+        )
+        trace_manifest = isolation.construct_private_root(
+            layout,
+            runtime_snapshot,
+            capsule_path=capsule_path,
+            worker_path=worker_path,
+            request_path=request_path,
+        )
+        try:
+            process = isolation.launch_traced_tracee(
+                layout,
+                runtime_snapshot,
+                definition.resource_limits,
+                preflight_report=preflight,
+                capsule_path=capsule_path,
+                worker_path=worker_path,
+                request_path=request_path,
+                audit_run_id="task12-real-" + role,
+                point_id=point_id,
+                role=role,
+            )
+            trace = isolation.evaluate_strace(
+                (supervisor / "trace.log").read_bytes(), trace_manifest
+            )
+            ingested = isolation.ingest_worker_output(
+                layout,
+                maximum_bytes=definition.resource_limits.output_bytes,
+                declared_scratch=(),
+            )
+        finally:
+            isolation._close_run_directories(layout)
+        return process, trace, ingested
+
+    try:
+        adapter_process, adapter_trace, adapter_output = execute_real_point(
+            "adapter",
+            adapter_closure,
+            definition.adapter_id,
+            "task12-real-adapter-point",
+        )
+        oracle_process, oracle_trace, oracle_output = execute_real_point(
+            "oracle",
+            oracle_closure,
+            oracle_definition.oracle_id,
+            "task12-real-oracle-point",
+        )
+    finally:
+        runtime_snapshot.revalidate()
+
+    assert adapter_process.process_role == "adapter"
+    assert oracle_process.process_role == "oracle"
+    assert adapter_trace.passed and oracle_trace.passed
+    adapter_raw = adapter_output["result"]["local_result"]
+    oracle_raw = oracle_output["result"]["local_result"]
+    validated_real_result = adapters.validate_local_observable_result(
+        definition, adapter_raw
+    )
+    assert validated_real_result["fields"]["tc_over_j"] > 0.0
+    assert oracle_raw == {"residual_norm": 0.0}
+    assert adapter_output["result"]["capsule_sha256"] == hashlib.sha256(
+        isolation.emit_scientific_capsule(adapter_closure)
+    ).hexdigest()
+    assert oracle_output["result"]["capsule_sha256"] == hashlib.sha256(
+        isolation.emit_scientific_capsule(oracle_closure)
+    ).hexdigest()
+
+    base_evidence = _task12_minimal_success_evidence()
+    worker_sha256 = hashlib.sha256(fixed_worker).hexdigest()
+    adapter_capsule_sha256 = hashlib.sha256(
+        isolation.emit_scientific_capsule(adapter_closure)
+    ).hexdigest()
+    oracle_capsule_sha256 = hashlib.sha256(
+        isolation.emit_scientific_capsule(oracle_closure)
+    ).hexdigest()
+    adapter_point = _task12_point_execution(
+        isolation,
+        point_id=adapter_process.point_id,
+        request_sha256=adapter_output["result"]["request_sha256"],
+        capsule_sha256=adapter_capsule_sha256,
+        worker_sha256=worker_sha256,
+        adapter_id=definition.adapter_id,
+        local_result=adapter_raw,
+        trace=adapter_trace,
+        process=adapter_process,
+        backend_diagnostics=validated_real_result["backend_diagnostics"],
+    )
+    oracle_point = _task12_point_execution(
+        isolation,
+        point_id=oracle_process.point_id,
+        request_sha256=oracle_output["result"]["request_sha256"],
+        capsule_sha256=oracle_capsule_sha256,
+        worker_sha256=worker_sha256,
+        adapter_id=oracle_definition.oracle_id,
+        local_result=oracle_raw,
+        trace=oracle_trace,
+        process=oracle_process,
+        backend_diagnostics={
+            "backend_kind": "analytic",
+            "runtime_snapshot_sha256": runtime_snapshot.snapshot_sha256,
+        },
+    )
+    assert adapter_point.result_sha256 == adapter_output["result_sha256"]
+    assert oracle_point.result_sha256 == oracle_output["result_sha256"]
+    convergence = isolation.derive_convergence_decision(
+        definition, validated_real_result
+    )
+    oracle_decision = isolation.derive_oracle_decision(
+        oracle_definition,
+        (oracle_raw,),
+        execution_evidence_hashes=(oracle_point.execution_sha256,),
+        maximum_residual=1e-12,
+    )
+    evidence_values = {
+        field.name: getattr(base_evidence, field.name)
+        for field in dataclasses.fields(type(base_evidence))
+    }
+    infrastructure_scan = _task12_scan_report(
+        isolation,
+        "infrastructure",
+        base_evidence.infrastructure_closure.bundle_sha256,
+        adapter_scan.fingerprint_commitment_sha256,
+    )
+    validated_bindings, eligibility_bindings = (
+        _task12_evidence_binding_payloads(adapter_policy, oracle_policy)
+    )
+    eligibility_bindings.update(
+        {
+            "adapter_capsule_sha256": adapter_capsule_sha256,
+            "oracle_capsule_sha256": oracle_capsule_sha256,
+            "worker_capsule_sha256": worker_sha256,
+        }
+    )
+    evidence_values.update(
+        {
+            "authority_context_sha256": validated_bindings[
+                "authority_context_sha256"
+            ],
+            "validated_inputs_and_provenance": validated_bindings,
+            "eligibility_commitments": eligibility_bindings,
+            "adapter_policy_commitment": adapter_policy,
+            "oracle_policy_commitment": oracle_policy,
+            "adapter_scientific_closure": adapter_closure,
+            "oracle_scientific_closure": oracle_closure,
+            "static_scan_reports": (
+                adapter_scan,
+                oracle_scan,
+                infrastructure_scan,
+            ),
+            "runtime_snapshot": runtime_snapshot,
+            "capability_preflight_sha256": preflight.report_sha256,
+            "point_executions": (adapter_point, oracle_point),
+            "convergence_decision": convergence,
+            "oracle_decision": oracle_decision,
+        }
+    )
+    provisional = isolation.AdapterExecutionEvidence(**evidence_values)
+    evidence_values["bundle_sha256"] = (
+        isolation._adapter_execution_evidence_sha256(provisional)
+    )
+    evidence = isolation.AdapterExecutionEvidence(**evidence_values)
+    artifacts = _task12_success_artifacts(evidence)
+    operations = []
+    for stage in isolation._COORDINATOR_TRANSITION_STAGES:
+        def operation(state, *, current_stage=stage):
+            if current_stage == "evidence_finalization":
+                return {"evidence": evidence}
+            return {"artifact": artifacts[current_stage]}
+
+        operations.append((stage, operation))
+    bundle = isolation._make_test_coordinator_dependency_bundle(
+        oracle_definition=oracle_definition,
+        transition_operations=tuple(operations),
+    )
+
+    outcome = isolation._run_isolated_recomputation_core(
+        definition.adapter_id,
+        _task12_production_authority_context(),
+        run_parent=tmp_path,
+        dependency_bundle=bundle,
+    )
+
+    assert outcome.status == "isolated_recomputation_succeeded"
+    assert outcome.evidence.adapter_scientific_closure == adapter_closure
+    assert outcome.evidence.oracle_scientific_closure == oracle_closure
+
+
+@pytest.mark.parametrize(
+    ("record_type", "values", "message"),
+    (
+        (
+            "convergence",
+            {
+                "schema_version": "convergence_decision_v1",
+                "kind": "residual_bound",
+                "accepted": True,
+                "raw_evidence_sha256": "1" * 64,
+                "reason_code": "outer_convergence_contract_failed",
+            },
+            "convergence decision status",
+        ),
+        (
+            "convergence",
+            {
+                "schema_version": "convergence_decision_v1",
+                "kind": "residual_bound",
+                "accepted": False,
+                "raw_evidence_sha256": "1" * 64,
+                "reason_code": "outer_convergence_contract_satisfied",
+            },
+            "convergence decision status",
+        ),
+        (
+            "oracle",
+            {
+                "schema_version": "oracle_decision_v1",
+                "oracle_id": "task12_oracle",
+                "accepted": True,
+                "oracle_execution_evidence_hashes": ("2" * 64,),
+                "maximum_residual": 1e-8,
+                "residuals": {"residual": (0.0,)},
+                "invariants": {},
+                "reason_code": "outer_oracle_contract_failed",
+            },
+            "oracle decision status",
+        ),
+        (
+            "oracle",
+            {
+                "schema_version": "oracle_decision_v1",
+                "oracle_id": "task12_oracle",
+                "accepted": False,
+                "oracle_execution_evidence_hashes": ("2" * 64,),
+                "maximum_residual": 1e-8,
+                "residuals": {"residual": (1.0,)},
+                "invariants": {},
+                "reason_code": "outer_oracle_contract_satisfied",
+            },
+            "oracle decision status",
+        ),
+    ),
+)
+def test_task12_evidence_bundle_decision_status_and_reason_are_closed(
+    record_type,
+    values,
+    message,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    values["decision_sha256"] = canonical_sha256(values)
+    constructor = (
+        isolation.ConvergenceDecision
+        if record_type == "convergence"
+        else isolation.OracleDecision
+    )
+
+    with pytest.raises(AdapterContractError, match=message):
+        constructor(**values)
+
+
+def test_task12_evidence_bundle_oracle_request_uses_only_typed_private_path():
+    from validation import literature_evidence_isolation as isolation
+
+    values = {
+        "schema_version": "worker_request_v1",
+        "opaque_run_nonce": "task12-oracle-request-nonce",
+        "adapter_id": _task12_catalog_oracle_definition().oracle_id,
+        "scientific_inputs": {"exchange": 1.25},
+        "numerical_controls": {"residual_bound": 1e-12},
+        "capsule_sha256": _sha256_text("task12-oracle-request-capsule"),
+    }
+    with pytest.raises(AdapterContractError, match="unauthorized"):
+        isolation._OracleWorkerRequest(**values)
+    with pytest.raises(AdapterContractError, match="canonical catalog"):
+        isolation.WorkerRequest(**values)
+
+    request = isolation._make_oracle_worker_request(
+        _task12_catalog_oracle_definition(),
+        opaque_run_nonce=values["opaque_run_nonce"],
+        scientific_inputs=values["scientific_inputs"],
+        numerical_controls=values["numerical_controls"],
+        capsule_sha256=values["capsule_sha256"],
+    )
+
+    assert type(request) is isolation._OracleWorkerRequest
+    assert thaw_json(request.to_frozen_json()) == values
+    with pytest.raises(AdapterContractError, match="oracle scientific inputs"):
+        isolation._make_oracle_worker_request(
+            _task12_catalog_oracle_definition(),
+            opaque_run_nonce=values["opaque_run_nonce"],
+            scientific_inputs={"exchange": "copied-answer"},
+            numerical_controls=values["numerical_controls"],
+            capsule_sha256=values["capsule_sha256"],
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("capsule_binding", "worker_binding", "raw_convergence_binding"),
+)
+def test_task12_evidence_bundle_binds_each_execution_to_frozen_material(
+    mutation,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    points = list(evidence.point_executions)
+    index = next(
+        index
+        for index, point in enumerate(points)
+        if point.process_attestation.process_role == "adapter"
+    )
+    point = points[index]
+    transport = thaw_json(point.result_transport)
+    capsule_sha256 = point.capsule_sha256
+    worker_sha256 = point.worker_sha256
+    if mutation == "capsule_binding":
+        capsule_sha256 = _sha256_text("different-adapter-capsule")
+        transport["capsule_sha256"] = capsule_sha256
+        transport["local_result"]["capsule_sha256"] = capsule_sha256
+    elif mutation == "worker_binding":
+        worker_sha256 = _sha256_text("different-fixed-worker")
+    else:
+        transport["local_result"]["raw_convergence_evidence"][
+            "residuals"
+        ][0] *= 0.5
+    points[index] = _task12_point_execution(
+        isolation,
+        point_id=point.point_id,
+        request_sha256=point.request_sha256,
+        capsule_sha256=capsule_sha256,
+        worker_sha256=worker_sha256,
+        adapter_id=transport["adapter_id"],
+        local_result=transport["local_result"],
+        trace=point.trace_policy_report,
+        process=point.process_attestation,
+        backend_diagnostics=transport["local_result"][
+            "backend_diagnostics"
+        ],
+    )
+    values = {
+        field.name: getattr(evidence, field.name)
+        for field in dataclasses.fields(type(evidence))
+    }
+    values["point_executions"] = tuple(points)
+    provisional = isolation.AdapterExecutionEvidence(**values)
+    values["bundle_sha256"] = isolation._adapter_execution_evidence_sha256(
+        provisional
+    )
+    mutated = isolation.AdapterExecutionEvidence(**values)
+
+    with pytest.raises(AdapterContractError, match="capsule|worker|raw evidence"):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", mutated, None
+        )
+
+
+def test_task12_evidence_bundle_rederives_convergence_acceptance_from_raw():
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    points = list(evidence.point_executions)
+    index = next(
+        index
+        for index, point in enumerate(points)
+        if point.process_attestation.process_role == "adapter"
+    )
+    point = points[index]
+    transport = thaw_json(point.result_transport)
+    raw = transport["local_result"]["raw_convergence_evidence"]
+    raw["residuals"][-1] = raw["error_bound"] * 2.0
+    points[index] = _task12_point_execution(
+        isolation,
+        point_id=point.point_id,
+        request_sha256=point.request_sha256,
+        capsule_sha256=point.capsule_sha256,
+        worker_sha256=point.worker_sha256,
+        adapter_id=transport["adapter_id"],
+        local_result=transport["local_result"],
+        trace=point.trace_policy_report,
+        process=point.process_attestation,
+        backend_diagnostics=transport["local_result"][
+            "backend_diagnostics"
+        ],
+    )
+    convergence_values = {
+        "schema_version": "convergence_decision_v1",
+        "kind": evidence.convergence_decision.kind,
+        "accepted": True,
+        "raw_evidence_sha256": canonical_sha256(raw),
+        "reason_code": "outer_convergence_contract_satisfied",
+    }
+    convergence_values["decision_sha256"] = canonical_sha256(
+        convergence_values
+    )
+    values = {
+        field.name: getattr(evidence, field.name)
+        for field in dataclasses.fields(type(evidence))
+    }
+    values["point_executions"] = tuple(points)
+    values["convergence_decision"] = isolation.ConvergenceDecision(
+        **convergence_values
+    )
+    provisional = isolation.AdapterExecutionEvidence(**values)
+    values["bundle_sha256"] = isolation._adapter_execution_evidence_sha256(
+        provisional
+    )
+    forged = isolation.AdapterExecutionEvidence(**values)
+
+    with pytest.raises(AdapterContractError, match="convergence.*derived"):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", forged, None
+        )
+
+
+def test_task12_evidence_bundle_rederives_oracle_acceptance_from_raw():
+    from validation import literature_evidence_isolation as isolation
+
+    evidence = _task12_minimal_success_evidence()
+    oracle_hashes = set(
+        evidence.oracle_decision.oracle_execution_evidence_hashes
+    )
+    points = list(evidence.point_executions)
+    index = next(
+        index
+        for index, point in enumerate(points)
+        if point.execution_sha256 in oracle_hashes
+    )
+    point = points[index]
+    transport = thaw_json(point.result_transport)
+    transport["local_result"]["residual_norm"] = 1e-3
+    points[index] = _task12_point_execution(
+        isolation,
+        point_id=point.point_id,
+        request_sha256=point.request_sha256,
+        capsule_sha256=point.capsule_sha256,
+        worker_sha256=point.worker_sha256,
+        adapter_id=transport["adapter_id"],
+        local_result=transport["local_result"],
+        trace=point.trace_policy_report,
+        process=point.process_attestation,
+        backend_diagnostics=point.backend_diagnostics,
+    )
+    oracle_values = {
+        "schema_version": "oracle_decision_v1",
+        "oracle_id": evidence.oracle_decision.oracle_id,
+        "accepted": True,
+        "oracle_execution_evidence_hashes": (
+            points[index].execution_sha256,
+        ),
+        "maximum_residual": 1e-12,
+        "residuals": {"residual_norm": (1e-3,)},
+        "invariants": {},
+        "reason_code": "outer_oracle_contract_satisfied",
+    }
+    oracle_values["decision_sha256"] = canonical_sha256(oracle_values)
+    values = {
+        field.name: getattr(evidence, field.name)
+        for field in dataclasses.fields(type(evidence))
+    }
+    values["point_executions"] = tuple(points)
+    values["oracle_decision"] = isolation.OracleDecision(**oracle_values)
+    provisional = isolation.AdapterExecutionEvidence(**values)
+    values["bundle_sha256"] = isolation._adapter_execution_evidence_sha256(
+        provisional
+    )
+    forged = isolation.AdapterExecutionEvidence(**values)
+
+    with pytest.raises(AdapterContractError, match="oracle.*derived"):
+        isolation.AdapterRunOutcome(
+            "isolated_recomputation_succeeded", forged, None
+        )
