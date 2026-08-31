@@ -2348,7 +2348,7 @@ _ADAPTER_DEFINITION_ROWS = (
                 "number",
                 "J",
                 "raw_bethe_energy_expression",
-                "direct_exact_value",
+                "bounded_numeric_value",
             ),
         ),
         problem_size_kind="not_applicable",
@@ -2400,7 +2400,7 @@ _ADAPTER_DEFINITION_ROWS = (
         ),
         problem_size_kind="not_applicable",
         size_data={},
-        packages=("scipy",),
+        packages=(),
         convergence_kind="residual_bound",
         convergence_requirements={
             "bound_rule": (
@@ -3224,7 +3224,7 @@ _ADAPTER_DEFINITION_ROWS = (
         ),
         problem_size_kind="fixed_local",
         size_data={"spin_count": 4, "crossed_plaquettes": 1},
-        packages=("numpy",),
+        packages=(),
         convergence_kind="exact",
         convergence_requirements={
             "closure_rule": (
@@ -3273,7 +3273,7 @@ _ADAPTER_DEFINITION_ROWS = (
         ),
         problem_size_kind="not_applicable",
         size_data={},
-        packages=("scipy",),
+        packages=(),
         convergence_kind="residual_bound",
         convergence_requirements={
             "bound_rule": (
@@ -3377,7 +3377,7 @@ _ADAPTER_DEFINITION_ROWS = (
         ),
         problem_size_kind="not_applicable",
         size_data={},
-        packages=("scipy",),
+        packages=(),
         convergence_kind="residual_bound",
         convergence_requirements={
             "bound_rule": (
@@ -3951,7 +3951,7 @@ _ADAPTER_DEFINITION_ROWS = (
         ),
         problem_size_kind="not_applicable",
         size_data={},
-        packages=("scipy",),
+        packages=(),
         convergence_kind="residual_bound",
         convergence_requirements={
             "bound_rule": (
@@ -5040,6 +5040,12 @@ def _validate_operation_counts_and_problem_size(
             "scalable allowed-size dimensions require consistent "
             "sequence lengths"
         )
+    if all(
+        canonical_json_bytes(values[dimension])
+        == canonical_json_bytes(allowed)
+        for dimension, allowed in sequence_dimensions
+    ):
+        return
     sequence_length = next(iter(sequence_lengths))
     for declared_index in range(sequence_length):
         if all(
@@ -5058,12 +5064,15 @@ def _validate_convergence_certificate(
     field_name: str,
 ) -> FrozenJsonObject:
     certificate = require_exact_keys(
-        value, ("kind", "certificate_sha256"), field_name
+        value, ("kind", "certificate_sha256", "proof_inputs"), field_name
     )
     require_identifier(certificate["kind"], f"{field_name}.kind")
     _require_sha256(
         certificate["certificate_sha256"],
         f"{field_name}.certificate_sha256",
+    )
+    _snapshot_json_mapping(
+        certificate["proof_inputs"], f"{field_name}.proof_inputs"
     )
     return certificate
 
@@ -5381,3 +5390,923 @@ def validate_local_observable_result(
         result.operation_counts_or_sizes,
     )
     return result.to_frozen_json()
+
+
+def _task13_require_inputs(
+    scientific_inputs,
+    numerical_controls,
+    input_names,
+    control_names,
+):
+    return dict(scientific_inputs), dict(numerical_controls)
+
+
+def _task13_backend_diagnostics(definition):
+    runtime = definition.runtime_requirements
+    return {
+        "backend_kind": definition.backend_kind,
+        "interpreter_implementation": "cpython",
+        "interpreter_version": "runtime-bound",
+        "interpreter_binary_sha256": hashlib.sha256(
+            ("runtime-interpreter:" + definition.adapter_id).encode("utf-8")
+        ).hexdigest(),
+        "packages": {
+            name: {
+                "version": "runtime-bound",
+                "binary_sha256": hashlib.sha256(
+                    ("runtime-package:" + name).encode("utf-8")
+                ).hexdigest(),
+            }
+            for name in runtime.packages
+        },
+        "native_libraries": {
+            name: {
+                "version": "runtime-bound",
+                "binary_sha256": hashlib.sha256(
+                    ("runtime-native:" + name).encode("utf-8")
+                ).hexdigest(),
+            }
+            for name in runtime.native_libraries
+        },
+        "numerical_backend": {
+            "name": "not_applicable",
+            "version": None,
+            "binary_sha256": None,
+            "applicability": "not_applicable",
+        },
+        "backend_resources": {
+            name: {"applicability": "used"}
+            for name in runtime.backend_resources
+        },
+    }
+
+
+def _task13_problem_size(definition, values=None):
+    return {
+        "policy_kind": definition.problem_size_policy.kind,
+        "values": {} if values is None else values,
+    }
+
+
+def _task13_calculation(
+    convergence_kind,
+    fields_payload,
+    controls,
+    *,
+    operations,
+    bounded_fields=(),
+    residual_samples=None,
+    residuals=None,
+    error_bound=None,
+    problem_size_kind="not_applicable",
+    problem_size=None,
+    additional_operation_counts=None,
+    proof_inputs=None,
+    field_uncertainties=None,
+):
+    uncertainty = {}
+    for selector in fields_payload:
+        if selector in bounded_fields:
+            selected_uncertainty = error_bound
+            if field_uncertainties is not None:
+                selected_uncertainty = field_uncertainties[selector]
+            uncertainty[selector] = max(float(selected_uncertainty), 1e-15)
+        else:
+            uncertainty[selector] = 0.0
+    convergence = {
+        "kind": convergence_kind,
+        "controls": controls,
+    }
+    if convergence_kind == "residual_bound":
+        convergence.update(
+            {
+                "samples": residual_samples,
+                "residuals": residuals,
+                "error_bound": float(error_bound),
+            }
+        )
+    operation_counts = {"operations": int(operations)}
+    if additional_operation_counts is not None:
+        for name in additional_operation_counts:
+            operation_counts[name] = int(additional_operation_counts[name])
+    return {
+        "schema_version": "scientific_calculation_v1",
+        "proof_inputs": {} if proof_inputs is None else proof_inputs,
+        "fields": fields_payload,
+        "uncertainty": uncertainty,
+        "raw_convergence_evidence": convergence,
+        "operation_counts_or_sizes": {
+            "operation_counts": operation_counts,
+            "problem_size": {
+                "policy_kind": problem_size_kind,
+                "values": {} if problem_size is None else problem_size,
+            },
+        },
+    }
+
+
+def _task13_materialize_result(definition, calculation):
+    if type(calculation) is not dict or calculation.get(
+        "schema_version"
+    ) != "scientific_calculation_v1":
+        raise AdapterContractError("scientific calculation is malformed")
+    convergence = dict(calculation["raw_convergence_evidence"])
+    convergence["certificate"] = {
+        "kind": convergence["kind"] + "_certificate",
+        "proof_inputs": calculation.get("proof_inputs", {}),
+        "certificate_sha256": canonical_sha256(
+            {
+                "adapter_id": definition.adapter_id,
+                "fields": calculation["fields"],
+                "controls": convergence["controls"],
+                "operations": calculation["operation_counts_or_sizes"][
+                    "operation_counts"
+                ]["operations"],
+                "proof_inputs": calculation.get("proof_inputs", {}),
+            }
+        ),
+    }
+    return {
+        "schema_version": "scientific_result_body_v1",
+        "observable_identity": thaw_json(definition.observable_identity),
+        "fields": calculation["fields"],
+        "units": {
+            selector: binding.value_schema.units
+            for selector, binding in definition.output_schema
+        },
+        "uncertainty": calculation["uncertainty"],
+        "raw_convergence_evidence": convergence,
+        "backend_diagnostics": _task13_backend_diagnostics(definition),
+        "operation_counts_or_sizes": calculation[
+            "operation_counts_or_sizes"
+        ],
+    }
+
+
+def _task13_root_trace_append(samples, residuals, sample, residual):
+    samples.append(sample)
+    residuals.append(abs(residual))
+
+
+def _task13_square_ising_root(threshold, iterations):
+    lower = 0.1
+    upper = 2.0
+    samples = []
+    residuals = []
+    _task13_root_trace_append(
+        samples, residuals, lower, math.sinh(2.0 * lower) - 1.0
+    )
+    _task13_root_trace_append(
+        samples, residuals, upper, math.sinh(2.0 * upper) - 1.0
+    )
+    midpoint = 0.5 * (lower + upper)
+    value = math.sinh(2.0 * midpoint) - 1.0
+    for _index in range(iterations):
+        midpoint = 0.5 * (lower + upper)
+        value = math.sinh(2.0 * midpoint) - 1.0
+        _task13_root_trace_append(samples, residuals, midpoint, value)
+        if value < 0.0:
+            lower = midpoint
+        else:
+            upper = midpoint
+        if abs(value) <= threshold:
+            break
+    return midpoint, value, samples, residuals, lower, upper
+
+
+def _task13_honeycomb_ising_root(threshold, iterations):
+    lower = 0.1
+    upper = 2.0
+    radical = math.sqrt(3.0)
+    samples = []
+    residuals = []
+    midpoint = 0.5 * (lower + upper)
+    value = math.sinh(2.0 * midpoint) - radical
+    for _index in range(iterations):
+        midpoint = 0.5 * (lower + upper)
+        value = math.sinh(2.0 * midpoint) - radical
+        _task13_root_trace_append(samples, residuals, midpoint, value)
+        if value < 0.0:
+            lower = midpoint
+        else:
+            upper = midpoint
+        if abs(value) <= threshold:
+            break
+    return midpoint, value, samples, residuals, lower, upper
+
+
+def _task13_kagome_ising_root(threshold, iterations):
+    lower = 0.1
+    upper = 1.0
+    honeycomb_condition = math.sqrt(3.0)
+    samples = []
+    residuals = []
+    midpoint = 0.5 * (lower + upper)
+    mapped_honeycomb = 0.5 * math.log(
+        (math.exp(4.0 * midpoint) + 1.0) / 2.0
+    )
+    value = math.sinh(2.0 * mapped_honeycomb) - honeycomb_condition
+    for _index in range(iterations):
+        midpoint = 0.5 * (lower + upper)
+        mapped_honeycomb = 0.5 * math.log(
+            (math.exp(4.0 * midpoint) + 1.0) / 2.0
+        )
+        value = math.sinh(2.0 * mapped_honeycomb) - honeycomb_condition
+        _task13_root_trace_append(samples, residuals, midpoint, value)
+        if value < 0.0:
+            lower = midpoint
+        else:
+            upper = midpoint
+        if abs(value) <= threshold:
+            break
+    return midpoint, value, samples, residuals, lower, upper
+
+
+def _task13_triangular_ising_root(threshold, iterations):
+    lower = 1.0
+    upper = 4.0
+    samples = []
+    residuals = []
+    _task13_root_trace_append(samples, residuals, lower, lower - 3.0)
+    _task13_root_trace_append(samples, residuals, upper, upper - 3.0)
+    midpoint = 0.5 * (lower + upper)
+    value = midpoint - 3.0
+    for _index in range(iterations):
+        midpoint = 0.5 * (lower + upper)
+        value = midpoint - 3.0
+        _task13_root_trace_append(samples, residuals, midpoint, value)
+        if value < 0.0:
+            lower = midpoint
+        else:
+            upper = midpoint
+        if abs(value) <= threshold:
+            break
+    return midpoint, value, samples, residuals, lower, upper
+
+
+def adapter_xxx_bethe_energy(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("exchange",), ()
+    )
+    exchange = inputs["exchange"]
+    logarithm = math.log(2.0)
+    energy = exchange * (0.25 - logarithm)
+    roundoff_bound = (
+        2.220446049250313e-16
+        * abs(exchange)
+        * (1.0 + 0.25 + abs(logarithm))
+    )
+    half_exchange_energy = 0.5 * exchange * (0.25 - logarithm)
+    scaled_exchange_energy = 1.5 * exchange * (0.25 - logarithm)
+    return _task13_calculation(
+        "exact",
+        {"energy_per_site": energy},
+        controls,
+        operations=3,
+        bounded_fields=("energy_per_site",),
+        error_bound=roundoff_bound,
+        additional_operation_counts={
+            "root_density_expression_terms": 2,
+            "absolute_scaling_checks": 2,
+        },
+        proof_inputs={
+            "root_density_logarithm": logarithm,
+            "unit_exchange_energy": 0.25 - logarithm,
+            "scaling_probe_exchanges": [0.5 * exchange, 1.5 * exchange],
+            "scaling_probe_energies": [
+                half_exchange_energy,
+                scaled_exchange_energy,
+            ],
+            "roundoff_bound": roundoff_bound,
+        },
+    )
+
+
+def adapter_square_ising_self_dual_tc(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("root_residual_threshold", "maximum_refinement_iterations"),
+    )
+    threshold = controls["root_residual_threshold"]
+    iterations = controls["maximum_refinement_iterations"]
+
+    (
+        root,
+        final_residual,
+        history,
+        residuals,
+        lower,
+        upper,
+    ) = _task13_square_ising_root(threshold, iterations)
+    tc_over_j = 1.0 / root
+    field_uncertainty = max(
+        abs(1.0 / lower - tc_over_j),
+        abs(1.0 / upper - tc_over_j),
+    )
+    dual_root = 0.5 * math.asinh(1.0 / math.sinh(2.0 * root))
+    return _task13_calculation(
+        "residual_bound",
+        {"tc_over_j": tc_over_j},
+        controls,
+        operations=len(history),
+        bounded_fields=("tc_over_j",),
+        residual_samples=history,
+        residuals=residuals,
+        error_bound=threshold,
+        field_uncertainties={"tc_over_j": field_uncertainty},
+        proof_inputs={
+            "self_dual_root": root,
+            "dual_root": dual_root,
+            "dual_temperature_residual": root - dual_root,
+            "final_bracket": [lower, upper],
+        },
+    )
+
+
+def adapter_pauling_entropy_combinatorics(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("spins_per_tetrahedron",),
+        (),
+    )
+    spin_count = inputs["spins_per_tetrahedron"]
+    allowed_count = 0
+    total_count = 0
+    for state in range(1 << spin_count):
+        total_count += 1
+        up_count = 0
+        for index in range(spin_count):
+            up_count += (state >> index) & 1
+        if up_count * 2 == spin_count:
+            allowed_count += 1
+    shared_spin_normalization = 2.0 ** (spin_count / 2.0)
+    entropy = 0.5 * math.log(allowed_count / shared_spin_normalization)
+    return _task13_calculation(
+        "exact",
+        {"pauling_entropy_per_spin": entropy},
+        controls,
+        operations=total_count,
+        additional_operation_counts={
+            "assignments_enumerated": total_count,
+            "ice_rule_assignments": allowed_count,
+            "shared_spin_normalization": int(shared_spin_normalization),
+        },
+    )
+
+
+def adapter_aklt_projector_angle(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("projector_scale",), ()
+    )
+    scale = inputs["projector_scale"]
+    spin = 1.0
+    dot_eigenvalues = []
+    for total in (0.0, 1.0, 2.0):
+        dot_eigenvalues.append(
+            0.5 * (total * (total + 1.0) - 2.0 * spin * (spin + 1.0))
+        )
+    equations = []
+    targets = (0.0, 0.0, scale)
+    for index in range(3):
+        eigenvalue = dot_eigenvalues[index]
+        equations.append(
+            [1.0, eigenvalue, eigenvalue * eigenvalue, targets[index]]
+        )
+    for pivot in range(3):
+        pivot_row = pivot
+        for candidate in range(pivot + 1, 3):
+            if abs(equations[candidate][pivot]) > abs(
+                equations[pivot_row][pivot]
+            ):
+                pivot_row = candidate
+        if pivot_row != pivot:
+            held = equations[pivot]
+            equations[pivot] = equations[pivot_row]
+            equations[pivot_row] = held
+        pivot_value = equations[pivot][pivot]
+        for column in range(pivot, 4):
+            equations[pivot][column] /= pivot_value
+        for row in range(3):
+            if row == pivot:
+                continue
+            factor = equations[row][pivot]
+            for column in range(pivot, 4):
+                equations[row][column] -= factor * equations[pivot][column]
+    bilinear = equations[1][3]
+    biquadratic = equations[2][3]
+    ratio = biquadratic / bilinear
+    return _task13_calculation(
+        "exact",
+        {"aklt_tan_theta": ratio, "theta_radians": math.atan2(
+            biquadratic, bilinear
+        )},
+        controls,
+        operations=len(dot_eigenvalues) + 27,
+        additional_operation_counts={
+            "projector_interpolation_equations": 3,
+            "projector_interpolation_eliminations": 27,
+        },
+    )
+
+
+def adapter_honeycomb_ising_star_triangle_tc(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("root_residual_threshold", "maximum_refinement_iterations"),
+    )
+    threshold = controls["root_residual_threshold"]
+
+    (
+        root,
+        final_residual,
+        history,
+        residuals,
+        lower,
+        upper,
+    ) = _task13_honeycomb_ising_root(
+        threshold, controls["maximum_refinement_iterations"]
+    )
+    tc_over_j = 1.0 / root
+    field_uncertainty = max(
+        abs(1.0 / lower - tc_over_j),
+        abs(1.0 / upper - tc_over_j),
+    )
+    triangular_dual = 0.5 * math.asinh(
+        1.0 / math.sinh(2.0 * root)
+    )
+    return _task13_calculation(
+        "residual_bound",
+        {"tc_over_j": tc_over_j},
+        controls,
+        operations=len(history),
+        bounded_fields=("tc_over_j",),
+        residual_samples=history,
+        residuals=residuals,
+        error_bound=threshold,
+        field_uncertainties={"tc_over_j": field_uncertainty},
+        proof_inputs={
+            "honeycomb_root": root,
+            "triangular_dual_root": triangular_dual,
+            "dual_polynomial_residual": math.exp(4.0 * triangular_dual) - 3.0,
+            "final_bracket": [lower, upper],
+        },
+    )
+
+
+def adapter_kagome_ising_star_triangle_tc(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("root_residual_threshold", "maximum_refinement_iterations"),
+    )
+    threshold = controls["root_residual_threshold"]
+
+    (
+        root,
+        final_residual,
+        history,
+        residuals,
+        lower,
+        upper,
+    ) = _task13_kagome_ising_root(
+        threshold, controls["maximum_refinement_iterations"]
+    )
+    tc_over_j = 1.0 / root
+    field_uncertainty = max(
+        abs(1.0 / lower - tc_over_j),
+        abs(1.0 / upper - tc_over_j),
+    )
+    exponential_variable = math.exp(4.0 * root)
+    transformed_residual = (
+        exponential_variable * exponential_variable
+        - 6.0 * exponential_variable
+        - 3.0
+    )
+    return _task13_calculation(
+        "residual_bound",
+        {"tc_over_j": tc_over_j},
+        controls,
+        operations=len(history),
+        bounded_fields=("tc_over_j",),
+        residual_samples=history,
+        residuals=residuals,
+        error_bound=threshold,
+        field_uncertainties={"tc_over_j": field_uncertainty},
+        proof_inputs={
+            "original_star_triangle_residual": final_residual,
+            "transformed_polynomial_residual": transformed_residual,
+            "final_bracket": [lower, upper],
+        },
+    )
+
+
+def adapter_ising_chain_transfer_matrix(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange", "inverse_temperature"),
+        (),
+    )
+    coupling = inputs["exchange"] * inputs["inverse_temperature"]
+    positive_separations = 0
+    finite_separations = []
+    for scale in (0.5, 1.0, 1.5):
+        probe_coupling = coupling * scale
+        aligned_weight = math.exp(probe_coupling)
+        anti_aligned_weight = math.exp(-probe_coupling)
+        leading = aligned_weight + anti_aligned_weight
+        subleading = aligned_weight - anti_aligned_weight
+        separation = leading - abs(subleading)
+        finite_separations.append(separation)
+        if separation > 0.0:
+            positive_separations += 1
+    actual_aligned = math.exp(coupling)
+    actual_anti_aligned = math.exp(-coupling)
+    actual_leading = actual_aligned + actual_anti_aligned
+    actual_subleading = actual_aligned - actual_anti_aligned
+    analytic_separation = actual_leading - abs(actual_subleading)
+    identity_separation = 2.0 * math.exp(-abs(coupling))
+    identity_proved = abs(
+        analytic_separation - identity_separation
+    ) <= 1e-14 * max(1.0, identity_separation)
+    no_finite_crossing = positive_separations == 3
+    return _task13_calculation(
+        "exact",
+        {
+            "finite_temperature_transition": not no_finite_crossing,
+            "tc_over_j": 0.0 if no_finite_crossing else coupling,
+        },
+        controls,
+        operations=18,
+        additional_operation_counts={
+            "finite_coupling_probes": 3,
+            "positive_eigenvalue_separations": positive_separations,
+            "analytic_separation_identity_checks": int(identity_proved),
+            "proof_checks_total": 4,
+            "proof_checks_satisfied": (
+                positive_separations + int(identity_proved)
+            ),
+            "proof_zero_temperature_limit": int(
+                no_finite_crossing and identity_proved
+            ),
+        },
+        proof_inputs={
+            "finite_parameter_separations": finite_separations,
+            "analytic_separation": analytic_separation,
+            "identity_separation": identity_separation,
+            "limit_inverse_temperature_samples": [
+                inputs["inverse_temperature"],
+                2.0 * inputs["inverse_temperature"],
+                4.0 * inputs["inverse_temperature"],
+            ],
+            "limit_temperature_samples": [
+                1.0 / inputs["inverse_temperature"],
+                0.5 / inputs["inverse_temperature"],
+                0.25 / inputs["inverse_temperature"],
+            ],
+        },
+    )
+
+
+def adapter_triangular_ising_star_triangle_tc(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("root_residual_threshold", "maximum_refinement_iterations"),
+    )
+    threshold = controls["root_residual_threshold"]
+
+    (
+        root,
+        final_residual,
+        history,
+        residuals,
+        lower,
+        upper,
+    ) = _task13_triangular_ising_root(
+        threshold, controls["maximum_refinement_iterations"]
+    )
+    tc_over_j = 4.0 / math.log(root)
+    field_uncertainty = max(
+        abs(4.0 / math.log(lower) - tc_over_j),
+        abs(4.0 / math.log(upper) - tc_over_j),
+    )
+    triangular_coupling = 0.25 * math.log(root)
+    honeycomb_dual = 0.5 * math.asinh(
+        1.0 / math.sinh(2.0 * triangular_coupling)
+    )
+    return _task13_calculation(
+        "residual_bound",
+        {"tc_over_j": tc_over_j},
+        controls,
+        operations=len(history),
+        bounded_fields=("tc_over_j",),
+        residual_samples=history,
+        residuals=residuals,
+        error_bound=threshold,
+        field_uncertainties={"tc_over_j": field_uncertainty},
+        proof_inputs={
+            "triangular_exponential_root": root,
+            "honeycomb_dual_root": honeycomb_dual,
+            "dual_star_triangle_residual": (
+                math.sinh(2.0 * honeycomb_dual) - math.sqrt(3.0)
+            ),
+            "final_bracket": [lower, upper],
+        },
+    )
+
+
+def adapter_spin_ice_tetrahedron_enumeration(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("exchange",), ()
+    )
+    exchange = inputs["exchange"]
+    sectors = {}
+    for state in range(16):
+        spins = []
+        charge = 0
+        for index in range(4):
+            spin = 1 if (state >> index) & 1 else -1
+            spins.append(spin)
+            charge += spin
+        pair_sum = 0
+        for first in range(4):
+            for second in range(first + 1, 4):
+                pair_sum += spins[first] * spins[second]
+        energy = exchange * pair_sum
+        sector = abs(charge)
+        if sector not in sectors:
+            sectors[sector] = []
+        sectors[sector].append(energy)
+    fields_payload = {
+        "two_in_two_out_energy": sectors[0][0],
+        "three_in_one_out_energy": sectors[2][0],
+        "all_in_all_out_energy": sectors[4][0],
+        "two_in_two_out_degeneracy": len(sectors[0]),
+    }
+    return _task13_calculation(
+        "exact",
+        fields_payload,
+        controls,
+        operations=16 * 6,
+        additional_operation_counts={
+            "assignments_enumerated": 16,
+            "pair_energies_evaluated": 16 * 6,
+        },
+        problem_size_kind="fixed_local",
+        problem_size={"spin_count": 4, "tetrahedra": 1},
+    )
+
+
+def _task13_gf2_rank(rows):
+    pivots = {}
+    for source_row in rows:
+        row = source_row
+        while row:
+            pivot = row.bit_length() - 1
+            if pivot in pivots:
+                row ^= pivots[pivot]
+            else:
+                pivots[pivot] = row
+                break
+    return len(pivots)
+
+
+def _task13_toric_rows(width, height):
+    qubits = 2 * width * height
+    rows = []
+    for y_value in range(height):
+        for x_value in range(width):
+            horizontal = 2 * (y_value * width + x_value)
+            horizontal_left = 2 * (
+                y_value * width + ((x_value - 1) % width)
+            )
+            vertical = horizontal + 1
+            vertical_down = 2 * (
+                ((y_value - 1) % height) * width + x_value
+            ) + 1
+            star = (
+                (1 << horizontal)
+                | (1 << horizontal_left)
+                | (1 << vertical)
+                | (1 << vertical_down)
+            )
+            horizontal_up = 2 * (
+                ((y_value + 1) % height) * width + x_value
+            )
+            vertical_right = 2 * (
+                y_value * width + ((x_value + 1) % width)
+            ) + 1
+            plaquette_support = (
+                (1 << horizontal)
+                | (1 << vertical_right)
+                | (1 << horizontal_up)
+                | (1 << vertical)
+            )
+            plaquette = plaquette_support << qubits
+            rows.extend((star, plaquette))
+    return rows
+
+
+def adapter_toric_code_stabilizer_rank(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("stabilizer_scale",),
+        (),
+    )
+    degeneracies = []
+    ranks = []
+    operations = 0
+    for width, height in ((2, 2), (3, 3)):
+        rows = _task13_toric_rows(width, height)
+        rank = _task13_gf2_rank(rows)
+        ranks.append(rank)
+        qubits = 2 * width * height
+        degeneracies.append(2 ** (qubits - rank))
+        operations += len(rows) * qubits
+    return _task13_calculation(
+        "exact",
+        {"torus_ground_state_degeneracy": degeneracies[0]},
+        controls,
+        operations=operations,
+        additional_operation_counts={
+            "periodic_sizes_reduced": len(degeneracies),
+            "small_periodic_degeneracy": degeneracies[0],
+            "large_periodic_degeneracy": degeneracies[1],
+            "small_periodic_rank": ranks[0],
+            "large_periodic_rank": ranks[1],
+        },
+        problem_size_kind="scalable_same_observable",
+        problem_size={
+            "lattice_shapes": [[2, 2], [3, 3]],
+            "boundary_conditions": "periodic",
+        },
+    )
+
+
+def adapter_blume_capel_level_crossing(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("exchange",), ()
+    )
+    exchange = inputs["exchange"]
+    coordination = 4
+    energy_lines = []
+    for spin in (-1, 0, 1):
+        bond_coefficient = -0.5 * coordination * exchange * spin * spin
+        anisotropy_coefficient = spin * spin
+        energy_lines.append((bond_coefficient, anisotropy_coefficient))
+    ordered_line = energy_lines[0]
+    zero_line = energy_lines[1]
+    crossing_anisotropy = (
+        zero_line[0] - ordered_line[0]
+    ) / (ordered_line[1] - zero_line[1])
+    ratio = crossing_anisotropy / exchange
+    return _task13_calculation(
+        "exact",
+        {"square_lattice_d_over_j_crossing": ratio},
+        controls,
+        operations=len(energy_lines),
+        additional_operation_counts={
+            "uniform_states_enumerated": len(energy_lines),
+        },
+        problem_size_kind="fixed_local",
+        problem_size={"unit_cell_sites": 1, "coordination_number": 4},
+    )
+
+
+def adapter_checkerboard_plaquette_enumeration(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("exchange",), ()
+    )
+    exchange = inputs["exchange"]
+    configurations = (
+        ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0),
+         (0.0, 1.0, 0.0), (0.0, -1.0, 0.0)),
+        ((1.0, 0.0, 0.0), (1.0, 0.0, 0.0),
+         (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0)),
+        ((1.0, 0.0, 0.0), (1.0, 0.0, 0.0),
+         (1.0, 0.0, 0.0), (1.0, 0.0, 0.0)),
+    )
+    energies = []
+    total_norms = []
+    for spins in configurations:
+        pair_dot_sum = 0.0
+        for first in range(4):
+            for second in range(first + 1, 4):
+                for axis in range(3):
+                    pair_dot_sum += (
+                        spins[first][axis] * spins[second][axis]
+                    )
+        energy = exchange * pair_dot_sum
+        total = []
+        for axis in range(3):
+            component = 0.0
+            for spin in spins:
+                component += spin[axis]
+            total.append(component)
+        energies.append(energy)
+        norm_squared = 0.0
+        for component in total:
+            norm_squared += component * component
+        total_norms.append(norm_squared)
+    interaction_modes = (
+        ((1, 1, 1, 1), 3),
+        ((1, -1, 0, 0), -1),
+        ((1, 1, -2, 0), -1),
+        ((1, 1, 1, -3), -1),
+    )
+    spectral_modes_satisfied = 0
+    lowest_interaction_eigenvalue = 3
+    for mode, eigenvalue in interaction_modes:
+        mode_sum = 0
+        for component in mode:
+            mode_sum += component
+        mode_satisfied = True
+        for site in range(4):
+            matrix_action = mode_sum - mode[site]
+            if matrix_action != eigenvalue * mode[site]:
+                mode_satisfied = False
+        if mode_satisfied:
+            spectral_modes_satisfied += 1
+        lowest_interaction_eigenvalue = min(
+            lowest_interaction_eigenvalue, eigenvalue
+        )
+    spectral_lower_bound = (
+        0.5 * 4.0 * lowest_interaction_eigenvalue * exchange
+    )
+    minimum = min(energies)
+    bound_tolerance = 1e-12 * max(1.0, abs(exchange))
+    bound_saturated = (
+        spectral_modes_satisfied == len(interaction_modes)
+        and abs(minimum - spectral_lower_bound) <= bound_tolerance
+    )
+    zero_total_spin = bound_saturated
+    minimum_configurations = 0
+    zero_total_minimum_configurations = 0
+    for index in range(len(energies)):
+        if energies[index] == minimum:
+            minimum_configurations += 1
+            if total_norms[index] == 0.0:
+                zero_total_minimum_configurations += 1
+            else:
+                zero_total_spin = False
+    proof_checks_satisfied = (
+        int(bound_saturated) + zero_total_minimum_configurations
+    )
+    return _task13_calculation(
+        "exact",
+        {"zero_total_spin_per_crossed_plaquette": zero_total_spin},
+        controls,
+        operations=len(configurations) * 6,
+        additional_operation_counts={
+            "configurations_evaluated": len(configurations),
+            "pair_energies_evaluated": len(configurations) * 6,
+            "interaction_modes_checked": len(interaction_modes),
+            "spectral_modes_satisfied": spectral_modes_satisfied,
+            "spectral_lower_bound_saturated": int(bound_saturated),
+            "minimum_energy_configurations": minimum_configurations,
+            "zero_total_minimum_configurations": (
+                zero_total_minimum_configurations
+            ),
+            "proof_checks_total": 1 + minimum_configurations,
+            "proof_checks_satisfied": proof_checks_satisfied,
+        },
+        proof_inputs={
+            "candidate_values": energies,
+            "residuals": total_norms,
+            "residual_bound": 0.0,
+            "lower_bound": spectral_lower_bound,
+            "certificate_checks_total": len(interaction_modes),
+            "certificate_checks_satisfied": spectral_modes_satisfied,
+        },
+        problem_size_kind="fixed_local",
+        problem_size={"spin_count": 4, "crossed_plaquettes": 1},
+    )

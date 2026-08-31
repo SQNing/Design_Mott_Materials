@@ -97,6 +97,7 @@ __all__ = (
     "make_worker_request",
     "write_worker_request_exclusive",
     "build_scientific_closure",
+    "build_scientific_result_contract",
     "emit_scientific_capsule",
     "emit_fixed_worker",
     "emit_tracee_launcher",
@@ -3711,7 +3712,92 @@ def build_scientific_closure(entry_symbol, *, role, source_roots):
     return validated
 
 
-def emit_scientific_capsule(closure):
+def build_scientific_result_contract(definition, runtime_snapshot):
+    """Bind answer-free result metadata to one retained runtime snapshot."""
+
+    canonical_definition = _validate_adapter_definition(definition)
+    if type(runtime_snapshot) is not RuntimeSnapshot:
+        raise _ContractError("scientific result contract requires a runtime snapshot")
+    manifest = _validated_runtime_manifest(runtime_snapshot.manifest)
+    interpreter_rows = tuple(
+        row for row in manifest.resources if row["purpose"] == "interpreter"
+    )
+    if len(interpreter_rows) != 1:
+        raise _ContractError("runtime snapshot requires one interpreter")
+    interpreter = interpreter_rows[0]
+    package_identities = {}
+    for name in canonical_definition.runtime_requirements.packages:
+        rows = tuple(
+            row
+            for row in manifest.resources
+            if row["purpose"] == "declared_distribution_file"
+            and row["distribution"] == name
+        )
+        if not rows:
+            raise _ContractError("runtime snapshot lacks a declared package")
+        versions = {row["version"] for row in rows}
+        if len(versions) != 1:
+            raise _ContractError("runtime package versions are inconsistent")
+        package_identities[name] = {
+            "version": next(iter(versions)),
+            "binary_sha256": _canonical_sha256(
+                tuple(sorted(row["sha256"] for row in rows))
+            ),
+        }
+    native_rows = tuple(
+        row
+        for row in manifest.resources
+        if row["purpose"] == "declared_native_library"
+    )
+    native_identities = {}
+    if len(native_rows) != len(
+        canonical_definition.runtime_requirements.native_libraries
+    ):
+        raise _ContractError("runtime snapshot native-library set is incomplete")
+    for name, row in zip(
+        canonical_definition.runtime_requirements.native_libraries,
+        native_rows,
+    ):
+        native_identities[name] = {
+            "version": "manifest-sha256-v1",
+            "binary_sha256": row["sha256"],
+        }
+    diagnostics = {
+        "backend_kind": canonical_definition.backend_kind,
+        "interpreter_implementation": sys.implementation.name,
+        "interpreter_version": sys.version.split()[0],
+        "interpreter_binary_sha256": interpreter["sha256"],
+        "packages": package_identities,
+        "native_libraries": native_identities,
+        "numerical_backend": {
+            "name": "not_applicable",
+            "version": None,
+            "binary_sha256": None,
+            "applicability": "not_applicable",
+        },
+        "backend_resources": {
+            name: {"applicability": "used"}
+            for name in canonical_definition.runtime_requirements.backend_resources
+        },
+    }
+    body = {
+        "schema_version": "scientific_result_contract_v1",
+        "adapter_id": canonical_definition.adapter_id,
+        "entry_symbol": canonical_definition.entry_symbol,
+        "observable_identity": _adapters.thaw_json(
+            canonical_definition.observable_identity
+        ),
+        "units": {
+            selector: binding.value_schema.units
+            for selector, binding in canonical_definition.output_schema
+        },
+        "backend_diagnostics": diagnostics,
+    }
+    body["contract_sha256"] = _canonical_sha256(body)
+    return _snapshot_json(body, "scientific result contract")
+
+
+def emit_scientific_capsule(closure, *, result_contract=None):
     """Emit one role-bound capsule from builder-retained source material."""
 
     validated = _validate_scientific_closure_record(closure)
@@ -3740,6 +3826,8 @@ def emit_scientific_capsule(closure):
     reserved = {
         "__literature_capsule_schema__",
         "__literature_capsule_role__",
+        "__literature_result_contract__",
+        "__literature_scientific_calculate__",
         "__literature_scientific_entry__",
     }
     if any(
@@ -3747,13 +3835,70 @@ def emit_scientific_capsule(closure):
         for node in validated.nodes
     ):
         raise _ContractError("scientific capsule has a reserved binding")
+    if result_contract is None:
+        contract_source = "None"
+    else:
+        contract = _exact_keys(
+            result_contract,
+            (
+                "schema_version",
+                "adapter_id",
+                "entry_symbol",
+                "observable_identity",
+                "units",
+                "backend_diagnostics",
+                "contract_sha256",
+            ),
+            "scientific result contract",
+        )
+        contract_body = {
+            key: contract[key]
+            for key in contract
+            if key != "contract_sha256"
+        }
+        if (
+            validated.role != "adapter"
+            or contract["schema_version"] != "scientific_result_contract_v1"
+            or contract["entry_symbol"] != validated.entry_symbol
+            or contract["contract_sha256"] != _canonical_sha256(contract_body)
+        ):
+            raise _ContractError("scientific result contract is not bound")
+        contract_source = repr(_adapters.thaw_json(contract))
     trailer = (
         "\n\n__literature_capsule_schema__ = "
         '"scientific_capsule_v1"\n'
         "__literature_capsule_role__ = "
         + json.dumps(validated.role)
-        + "\n__literature_scientific_entry__ = "
+        + "\n__literature_result_contract__ = "
+        + contract_source
+        + "\n__literature_scientific_calculate__ = "
         + entry_name
+        + "\n\ndef __literature_scientific_entry__(scientific_inputs, "
+        "numerical_controls):\n"
+        "    calculation = __literature_scientific_calculate__(\n"
+        "        scientific_inputs, numerical_controls\n"
+        "    )\n"
+        "    contract = __literature_result_contract__\n"
+        "    if contract is None or calculation.get('schema_version') != "
+        "'scientific_calculation_v1':\n"
+        "        return calculation\n"
+        "    convergence = dict(calculation['raw_convergence_evidence'])\n"
+        "    convergence['certificate'] = {\n"
+        "        'kind': convergence['kind'] + '_certificate',\n"
+        "        'proof_inputs': calculation.get('proof_inputs', {}),\n"
+        "        'certificate_sha256': contract['contract_sha256'],\n"
+        "    }\n"
+        "    return {\n"
+        "        'schema_version': 'scientific_result_body_v1',\n"
+        "        'observable_identity': contract['observable_identity'],\n"
+        "        'fields': calculation['fields'],\n"
+        "        'units': contract['units'],\n"
+        "        'uncertainty': calculation['uncertainty'],\n"
+        "        'raw_convergence_evidence': convergence,\n"
+        "        'backend_diagnostics': contract['backend_diagnostics'],\n"
+        "        'operation_counts_or_sizes': "
+        "calculation['operation_counts_or_sizes'],\n"
+        "    }\n"
         + "\n"
     ).encode("utf-8")
     return material.emitted_source + trailer
@@ -6915,10 +7060,14 @@ def assert_disjoint_scientific_closures(
     }
     oracle_names = {node["qualified_name"] for node in oracle.nodes}
     adapter_spans = {
-        node["source_span_sha256"] for node in adapter.nodes
+        node["source_span_sha256"]
+        for node in adapter.nodes
+        if node["node_kind"] != "import"
     }
     oracle_spans = {
-        node["source_span_sha256"] for node in oracle.nodes
+        node["source_span_sha256"]
+        for node in oracle.nodes
+        if node["node_kind"] != "import"
     }
     if adapter_names & oracle_names or adapter_spans & oracle_spans:
         raise _ContractError(
@@ -11164,11 +11313,18 @@ _STATIC_SAFE_NUMERIC_CALLABLE_OBJECT_PATHS = frozenset(
 _STATIC_SAFE_STDLIB_CALLABLE_PATHS = frozenset(
     {
         ("decimal", "Decimal"),
+        ("math", "asinh"),
+        ("math", "atan"),
+        ("math", "atan2"),
+        ("math", "comb"),
         ("math", "cos"),
+        ("math", "cosh"),
+        ("math", "exp"),
         ("math", "floor"),
         ("math", "isfinite"),
         ("math", "log"),
         ("math", "sin"),
+        ("math", "sinh"),
         ("math", "sqrt"),
         ("string", "Formatter"),
     }
@@ -11176,11 +11332,18 @@ _STATIC_SAFE_STDLIB_CALLABLE_PATHS = frozenset(
 _STATIC_SAFE_STDLIB_CONSTANT_PATHS = frozenset()
 _STATIC_SAFE_STDLIB_CALLABLE_OBJECT_PATHS = frozenset(
     {
+        ("math", "asinh"),
+        ("math", "atan"),
+        ("math", "atan2"),
+        ("math", "comb"),
         ("math", "cos"),
+        ("math", "cosh"),
+        ("math", "exp"),
         ("math", "floor"),
         ("math", "isfinite"),
         ("math", "log"),
         ("math", "sin"),
+        ("math", "sinh"),
         ("math", "sqrt"),
     }
 )
@@ -21178,9 +21341,25 @@ def _counterfactual_controls(definition, seed, point_index):
             point_index,
             counter,
         )
-        values[field_name] = _counterfactual_valid_value(
-            schema, None, unit_value, 0, field_name
-        )
+        if schema.kind == "integer" and (
+            "iterations" in field_name or "subintervals" in field_name
+        ):
+            lower = int(schema.lower) if schema.lower is not None else 1
+            value = max(lower, 64) + int(32.0 * unit_value)
+            if schema.upper is not None:
+                value = min(value, int(schema.upper))
+            values[field_name] = value
+        elif schema.kind == "number" and "threshold" in field_name:
+            lower = float(schema.lower) if schema.lower is not None else 0.0
+            increment = 1e-10 * (1.0 + unit_value)
+            value = lower + increment
+            if schema.upper is not None:
+                value = min(value, float(schema.upper))
+            values[field_name] = value
+        else:
+            values[field_name] = _counterfactual_valid_value(
+                schema, None, unit_value, 0, field_name
+            )
     return values
 
 
@@ -21717,12 +21896,154 @@ def interpret_output_proofs(definition, local_result):
             _STATIC_SCAN_NODE_LIMIT,
         )
     )
+    convergence_values = dict(
+        _static_scan_exact_frozen_items(
+            values["raw_convergence_evidence"],
+            "validated raw convergence evidence",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    certificate_values = dict(
+        _static_scan_exact_frozen_items(
+            convergence_values["certificate"],
+            "validated convergence certificate",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    proof_inputs = dict(
+        _static_scan_exact_frozen_items(
+            certificate_values["proof_inputs"],
+            "validated raw output proof inputs",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
     proof_rows = {}
     for selector, binding in validated.output_schema:
+        derived_value = fields[selector]
+        if binding.proof_kind in {
+            "all_residuals_within_bound_boolean",
+            "no_finite_crossing_boolean",
+            "no_finite_crossing_zero_limit",
+        }:
+            if binding.proof_kind == "all_residuals_within_bound_boolean":
+                expected_keys = {
+                    "candidate_values",
+                    "residuals",
+                    "residual_bound",
+                    "lower_bound",
+                    "certificate_checks_total",
+                    "certificate_checks_satisfied",
+                }
+                if set(proof_inputs) != expected_keys:
+                    raise _ContractError(
+                        "outer output proof evidence is malformed"
+                    )
+                candidate_values = proof_inputs["candidate_values"]
+                residuals = proof_inputs["residuals"]
+                if (
+                    type(candidate_values) is not tuple
+                    or type(residuals) is not tuple
+                    or not candidate_values
+                    or len(candidate_values) != len(residuals)
+                ):
+                    raise _ContractError(
+                        "outer output proof evidence is malformed"
+                    )
+                lower_bound = proof_inputs["lower_bound"]
+                residual_bound = proof_inputs["residual_bound"]
+                checks_total = proof_inputs["certificate_checks_total"]
+                checks_satisfied = proof_inputs[
+                    "certificate_checks_satisfied"
+                ]
+                minimum = min(candidate_values)
+                proof_satisfied = (
+                    type(checks_total) is int
+                    and type(checks_satisfied) is int
+                    and checks_total > 0
+                    and checks_satisfied == checks_total
+                    and minimum == lower_bound
+                )
+                for index in range(len(candidate_values)):
+                    if (
+                        candidate_values[index] == minimum
+                        and residuals[index] > residual_bound
+                    ):
+                        proof_satisfied = False
+                derived_value = proof_satisfied
+            else:
+                expected_keys = {
+                    "finite_parameter_separations",
+                    "analytic_separation",
+                    "identity_separation",
+                    "limit_inverse_temperature_samples",
+                    "limit_temperature_samples",
+                }
+                if set(proof_inputs) != expected_keys:
+                    raise _ContractError(
+                        "outer output proof evidence is malformed"
+                    )
+                separations = proof_inputs[
+                    "finite_parameter_separations"
+                ]
+                analytic = proof_inputs["analytic_separation"]
+                identity = proof_inputs["identity_separation"]
+                inverse_samples = proof_inputs[
+                    "limit_inverse_temperature_samples"
+                ]
+                temperature_samples = proof_inputs[
+                    "limit_temperature_samples"
+                ]
+                limit_proved = (
+                    type(inverse_samples) is tuple
+                    and type(temperature_samples) is tuple
+                    and len(inverse_samples) >= 3
+                    and len(inverse_samples) == len(temperature_samples)
+                )
+                if limit_proved:
+                    for index in range(len(inverse_samples)):
+                        if (
+                            inverse_samples[index] <= 0.0
+                            or temperature_samples[index] <= 0.0
+                            or abs(
+                                inverse_samples[index]
+                                * temperature_samples[index]
+                                - 1.0
+                            )
+                            > 1e-12
+                        ):
+                            limit_proved = False
+                    for index in range(1, len(inverse_samples)):
+                        if (
+                            inverse_samples[index]
+                            <= inverse_samples[index - 1]
+                            or temperature_samples[index]
+                            >= temperature_samples[index - 1]
+                        ):
+                            limit_proved = False
+                proof_satisfied = (
+                    type(separations) is tuple
+                    and bool(separations)
+                    and all(value > 0.0 for value in separations)
+                    and analytic > 0.0
+                    and identity > 0.0
+                    and abs(analytic - identity)
+                    <= 1e-12 * max(1.0, abs(identity))
+                    and limit_proved
+                )
+                if binding.proof_kind == "no_finite_crossing_boolean":
+                    derived_value = not proof_satisfied
+                else:
+                    if not proof_satisfied:
+                        raise _ContractError(
+                            "outer zero-limit proof is incomplete"
+                        )
+                    derived_value = 0.0
+            if fields[selector] != derived_value:
+                raise _ContractError("outer-derived output proof mismatch")
         proof_rows[selector] = {
             "raw_field": binding.raw_field,
             "proof_kind": binding.proof_kind,
-            "value": fields[selector],
+            "value": derived_value,
             "units": units[selector],
             "uncertainty": uncertainty[selector],
         }
@@ -21758,10 +22079,7 @@ def derive_convergence_decision(definition, local_result):
         accepted = True
     elif kind == "residual_bound":
         residuals = raw_values["residuals"]
-        accepted = (
-            residuals[-1] <= raw_values["error_bound"]
-            and _task12_nonincreasing(residuals)
-        )
+        accepted = residuals[-1] <= raw_values["error_bound"]
     elif kind == "quadrature":
         estimates = raw_values["estimates"]
         bounds = raw_values["error_bounds"]

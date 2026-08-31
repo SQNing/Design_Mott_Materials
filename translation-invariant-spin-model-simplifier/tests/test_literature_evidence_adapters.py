@@ -4129,6 +4129,7 @@ def _local_observable_payload():
             "error_bound": 2e-13,
             "certificate": {
                 "kind": "residual_envelope",
+                "proof_inputs": {},
                 "certificate_sha256": _sha256_text(
                     "residual-envelope-canary"
                 ),
@@ -5179,6 +5180,7 @@ def _strict_residual_local_payload():
         "error_bound": 2e-13,
         "certificate": {
             "kind": "residual_envelope",
+            "proof_inputs": {},
             "certificate_sha256": _sha256_text(
                 "residual-envelope-canary"
             ),
@@ -5786,6 +5788,38 @@ def _local_payload_for_definition(definition):
         selector: _example_schema_value(binding.value_schema)
         for selector, binding in definition.output_schema
     }
+    proof_kinds = {
+        binding.proof_kind for _selector, binding in definition.output_schema
+    }
+    proof_inputs = {}
+    if "all_residuals_within_bound_boolean" in proof_kinds:
+        proof_inputs = {
+            "candidate_values": [0.0],
+            "residuals": [0.0],
+            "residual_bound": 0.0,
+            "lower_bound": 0.0,
+            "certificate_checks_total": 1,
+            "certificate_checks_satisfied": 1,
+        }
+        for selector, binding in definition.output_schema:
+            if binding.proof_kind == "all_residuals_within_bound_boolean":
+                fields_payload[selector] = True
+    elif (
+        "no_finite_crossing_boolean" in proof_kinds
+        or "no_finite_crossing_zero_limit" in proof_kinds
+    ):
+        proof_inputs = {
+            "finite_parameter_separations": [1.0, 0.5],
+            "analytic_separation": 0.5,
+            "identity_separation": 0.5,
+            "limit_inverse_temperature_samples": [1.0, 2.0, 4.0],
+            "limit_temperature_samples": [1.0, 0.5, 0.25],
+        }
+        for selector, binding in definition.output_schema:
+            if binding.proof_kind == "no_finite_crossing_boolean":
+                fields_payload[selector] = False
+            elif binding.proof_kind == "no_finite_crossing_zero_limit":
+                fields_payload[selector] = 0.0
     units = {
         selector: binding.value_schema.units
         for selector, binding in definition.output_schema
@@ -5801,6 +5835,7 @@ def _local_payload_for_definition(definition):
     controls = _example_schema_value(definition.numerical_control_schema)
     certificate = {
         "kind": f"{definition.convergence_contract.kind}_certificate",
+        "proof_inputs": proof_inputs,
         "certificate_sha256": _sha256_text(
             f"{definition.adapter_id}-convergence-certificate"
         ),
@@ -28576,6 +28611,7 @@ def test_task12_evidence_bundle_builds_real_synthetic_scientific_pair(
         "float(numerical_controls['root_residual_threshold']),\n"
         "            'certificate': {\n"
         "                'kind': 'residual_bound_certificate',\n"
+        "                'proof_inputs': {},\n"
         "                'certificate_sha256': '0' * 64,\n"
         "            },\n"
         "        },\n"
@@ -29171,3 +29207,825 @@ def test_task12_evidence_bundle_rederives_oracle_acceptance_from_raw():
         isolation.AdapterRunOutcome(
             "isolated_recomputation_succeeded", forged, None
         )
+
+
+TASK13_ANALYTIC_ENUMERATION_PAIRS = (
+    (
+        "xxx_bethe_energy",
+        "xxx_bethe_integral_oracle",
+        {"exchange": 1.0},
+        {},
+        {"energy_per_site": 0.25 - math.log(2.0)},
+    ),
+    (
+        "square_ising_self_dual_tc",
+        "square_ising_duality_residual_oracle",
+        {"exchange": 1.0},
+        {"root_residual_threshold": 1e-12,
+         "maximum_refinement_iterations": 128},
+        {"tc_over_j": 2.0 / math.log(1.0 + math.sqrt(2.0))},
+    ),
+    (
+        "pauling_entropy_combinatorics",
+        "pauling_cluster_count_oracle",
+        {"spins_per_tetrahedron": 4},
+        {},
+        {"pauling_entropy_per_spin": 0.5 * math.log(1.5)},
+    ),
+    (
+        "aklt_projector_angle",
+        "aklt_two_spin_spectrum_oracle",
+        {"projector_scale": 1.0},
+        {},
+        {"aklt_tan_theta": 1.0 / 3.0,
+         "theta_radians": math.atan(1.0 / 3.0)},
+    ),
+    (
+        "honeycomb_ising_star_triangle_tc",
+        "honeycomb_ising_critical_polynomial_oracle",
+        {"exchange": 1.0},
+        {"root_residual_threshold": 1e-12,
+         "maximum_refinement_iterations": 128},
+        {"tc_over_j": 2.0 / math.log(2.0 + math.sqrt(3.0))},
+    ),
+    (
+        "kagome_ising_star_triangle_tc",
+        "kagome_ising_critical_polynomial_oracle",
+        {"exchange": 1.0},
+        {"root_residual_threshold": 1e-12,
+         "maximum_refinement_iterations": 128},
+        {"tc_over_j": 4.0 / math.log(3.0 + 2.0 * math.sqrt(3.0))},
+    ),
+    (
+        "ising_chain_transfer_matrix",
+        "ising_chain_partition_analytic_oracle",
+        {"exchange": 1.0, "inverse_temperature": 1.0},
+        {},
+        {"finite_temperature_transition": False, "tc_over_j": 0.0},
+    ),
+    (
+        "triangular_ising_star_triangle_tc",
+        "triangular_ising_critical_polynomial_oracle",
+        {"exchange": 1.0},
+        {"root_residual_threshold": 1e-12,
+         "maximum_refinement_iterations": 128},
+        {"tc_over_j": 4.0 / math.log(3.0)},
+    ),
+    (
+        "spin_ice_tetrahedron_enumeration",
+        "spin_ice_tetrahedron_matrix_oracle",
+        {"exchange": 1.0},
+        {},
+        {
+            "two_in_two_out_energy": -2.0,
+            "three_in_one_out_energy": 0.0,
+            "all_in_all_out_energy": 6.0,
+            "two_in_two_out_degeneracy": 6,
+        },
+    ),
+    (
+        "toric_code_stabilizer_rank",
+        "toric_code_logical_loop_oracle",
+        {"stabilizer_scale": 1.0},
+        {},
+        {"torus_ground_state_degeneracy": 4},
+    ),
+    (
+        "blume_capel_level_crossing",
+        "blume_capel_configuration_oracle",
+        {"exchange": 1.0},
+        {},
+        {"square_lattice_d_over_j_crossing": 2.0},
+    ),
+    (
+        "checkerboard_plaquette_enumeration",
+        "checkerboard_total_spin_oracle",
+        {"exchange": 1.0},
+        {},
+        {"zero_total_spin_per_crossed_plaquette": True},
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,scientific_inputs,numerical_controls,expected_fields",
+    TASK13_ANALYTIC_ENUMERATION_PAIRS,
+)
+def test_analytic_and_enumeration_pair_calculates_and_oracle_accepts(
+    adapter_id,
+    oracle_id,
+    scientific_inputs,
+    numerical_controls,
+    expected_fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    adapter_entry = getattr(adapters, "adapter_" + adapter_id)
+    oracle_entry = getattr(oracles, "oracle_" + oracle_id)
+    calculation = adapter_entry(scientific_inputs, numerical_controls)
+    assert calculation["schema_version"] == "scientific_calculation_v1"
+    adapter_result = adapters._task13_materialize_result(
+        adapters.ADAPTER_DEFINITIONS[adapter_id], calculation
+    )
+
+    assert adapter_result["schema_version"] == "scientific_result_body_v1"
+    assert set(adapter_result["fields"]) == set(expected_fields)
+    for name, expected in expected_fields.items():
+        actual = adapter_result["fields"][name]
+        if type(expected) in {bool, int}:
+            assert type(actual) is type(expected)
+            assert actual == expected
+        else:
+            assert actual == pytest.approx(expected, rel=1e-11, abs=1e-12)
+    assert adapter_result["raw_convergence_evidence"]
+
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-task13-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-task13-request"),
+        **{
+            name: adapter_result[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated_local = adapters.validate_local_observable_result(
+        adapters.ADAPTER_DEFINITIONS[adapter_id], local_result
+    )
+    from validation import literature_evidence_isolation as isolation
+
+    assert isolation.derive_convergence_decision(
+        adapters.ADAPTER_DEFINITIONS[adapter_id], validated_local
+    ).accepted is True
+
+    oracle_definition = oracles.get_oracle_definition(oracle_id)
+    assert oracle_definition.oracle_id == oracle_id
+    oracle_result = oracle_entry(
+        {
+            "scientific_inputs": scientific_inputs,
+            "adapter_fields": adapter_result["fields"],
+        },
+        numerical_controls,
+    )
+    assert oracle_result["residual_norm"] <= 1e-10
+    assert oracle_result["invariant_satisfied"] is True
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_inputs,_controls,_fields",
+    TASK13_ANALYTIC_ENUMERATION_PAIRS,
+)
+def test_analytic_and_enumeration_pair_has_disjoint_scannable_closures(
+    adapter_id,
+    oracle_id,
+    _inputs,
+    _controls,
+    _fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    adapter_closure = isolation.build_scientific_closure(
+        adapters.ADAPTER_DEFINITIONS[adapter_id].entry_symbol,
+        role="adapter",
+        source_roots=(source_root,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        oracles.ORACLE_DEFINITIONS[oracle_id].entry_symbol,
+        role="oracle",
+        source_roots=(source_root,),
+    )
+    isolation.scan_scientific_closure(
+        adapter_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.scan_scientific_closure(
+        oracle_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.assert_disjoint_scientific_closures(
+        adapter_closure, oracle_closure
+    )
+
+
+def test_task13_production_capsule_materializes_scientific_calculation(
+    tmp_path,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    closure = isolation.build_scientific_closure(
+        definition.entry_symbol,
+        role="adapter",
+        source_roots=(PROJECT_ROOT / "scripts",),
+    )
+    runtime_snapshot = isolation.build_runtime_snapshot(
+        definition.runtime_requirements,
+        run_directory=tmp_path / "task13-runtime",
+        event_recorder=lambda event_name, details: None,
+    )
+    try:
+        result_contract = isolation.build_scientific_result_contract(
+            definition, runtime_snapshot
+        )
+        capsule = isolation.emit_scientific_capsule(
+            closure, result_contract=result_contract
+        )
+        namespace = {"__name__": "task13_production_capsule"}
+        exec(compile(capsule, "<task13-production-capsule>", "exec"), namespace)
+        body = namespace["__literature_scientific_entry__"](
+            {"exchange": 1.0}, {}
+        )
+    finally:
+        runtime_snapshot.revalidate()
+
+    assert body["schema_version"] == "scientific_result_body_v1"
+    assert body["fields"]["energy_per_site"] == pytest.approx(
+        0.25 - math.log(2.0)
+    )
+    assert body["backend_diagnostics"]["interpreter_version"] not in {
+        "runtime-bound",
+        "test-version",
+    }
+    assert len(
+        body["raw_convergence_evidence"]["certificate"][
+            "certificate_sha256"
+        ]
+    ) == 64
+
+
+def test_task13_fixed_worker_preserves_raw_outer_proof_derivation(tmp_path):
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "ising_chain_transfer_matrix"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    closure = isolation.build_scientific_closure(
+        definition.entry_symbol,
+        role="adapter",
+        source_roots=(PROJECT_ROOT / "scripts",),
+    )
+    snapshot = isolation.build_runtime_snapshot(
+        definition.runtime_requirements,
+        run_directory=tmp_path / "task13-worker-runtime",
+        event_recorder=lambda event_name, details: None,
+    )
+    try:
+        contract = isolation.build_scientific_result_contract(
+            definition, snapshot
+        )
+        capsule = isolation.emit_scientific_capsule(
+            closure, result_contract=contract
+        )
+        capsule_sha256 = hashlib.sha256(capsule).hexdigest()
+        request = isolation.WorkerRequest(
+            schema_version="worker_request_v1",
+            opaque_run_nonce="task13-fixed-worker-nonce",
+            adapter_id=adapter_id,
+            scientific_inputs={
+                "exchange": 1.0,
+                "inverse_temperature": 0.75,
+            },
+            numerical_controls={},
+            capsule_sha256=capsule_sha256,
+        )
+        request_bytes = canonical_json_bytes(request.to_frozen_json())
+        capsule_path = tmp_path / "task13-capsule.py"
+        request_path = tmp_path / "task13-request.json"
+        result_path = tmp_path / "task13-result.json"
+        capsule_path.write_bytes(capsule)
+        request_path.write_bytes(request_bytes)
+        _task10_execute_fixed_worker(
+            isolation.emit_fixed_worker(),
+            request_path,
+            capsule_path,
+            result_path,
+        )
+        transport = json.loads(result_path.read_bytes())
+    finally:
+        snapshot.revalidate()
+
+    body = transport["local_result"]
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": transport["capsule_sha256"],
+        "request_sha256": transport["request_sha256"],
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    proofs = isolation.interpret_output_proofs(definition, validated)
+
+    assert proofs["proofs"]["finite_temperature_transition"]["value"] is False
+    assert proofs["proofs"]["tc_over_j"]["value"] == 0.0
+
+
+def test_task13_all_pairs_execute_through_fixed_worker_and_oracle(tmp_path):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    snapshots = {}
+    try:
+        for (
+            adapter_id,
+            oracle_id,
+            scientific_inputs,
+            numerical_controls,
+            _expected_fields,
+        ) in TASK13_ANALYTIC_ENUMERATION_PAIRS:
+            definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+            runtime = definition.runtime_requirements
+            runtime_key = (
+                runtime.interpreter,
+                runtime.packages,
+                runtime.native_libraries,
+                runtime.backend_resources,
+            )
+            if runtime_key not in snapshots:
+                snapshots[runtime_key] = isolation.build_runtime_snapshot(
+                    runtime,
+                    run_directory=(
+                        tmp_path / ("runtime-" + str(len(snapshots)))
+                    ),
+                    event_recorder=lambda event_name, details: None,
+                )
+            snapshot = snapshots[runtime_key]
+            adapter_closure = isolation.build_scientific_closure(
+                definition.entry_symbol,
+                role="adapter",
+                source_roots=(source_root,),
+            )
+            contract = isolation.build_scientific_result_contract(
+                definition, snapshot
+            )
+            adapter_capsule = isolation.emit_scientific_capsule(
+                adapter_closure, result_contract=contract
+            )
+            case_directory = tmp_path / adapter_id
+            case_directory.mkdir()
+            adapter_request = isolation.WorkerRequest(
+                schema_version="worker_request_v1",
+                opaque_run_nonce="task13-adapter-" + adapter_id,
+                adapter_id=adapter_id,
+                scientific_inputs=scientific_inputs,
+                numerical_controls=numerical_controls,
+                capsule_sha256=hashlib.sha256(adapter_capsule).hexdigest(),
+            )
+            adapter_request_bytes = canonical_json_bytes(
+                adapter_request.to_frozen_json()
+            )
+            adapter_capsule_path = case_directory / "adapter_capsule.py"
+            adapter_request_path = case_directory / "adapter_request.json"
+            adapter_result_path = case_directory / "adapter_result.json"
+            adapter_capsule_path.write_bytes(adapter_capsule)
+            adapter_request_path.write_bytes(adapter_request_bytes)
+            _task10_execute_fixed_worker(
+                isolation.emit_fixed_worker(),
+                adapter_request_path,
+                adapter_capsule_path,
+                adapter_result_path,
+            )
+            adapter_transport = json.loads(
+                adapter_result_path.read_bytes()
+            )
+            body = adapter_transport["local_result"]
+            local_result = {
+                "schema_version": "local_observable_result_v1",
+                "adapter_id": adapter_id,
+                "capsule_sha256": adapter_transport["capsule_sha256"],
+                "request_sha256": adapter_transport["request_sha256"],
+                **{
+                    name: body[name]
+                    for name in (
+                        "observable_identity",
+                        "fields",
+                        "units",
+                        "uncertainty",
+                        "raw_convergence_evidence",
+                        "backend_diagnostics",
+                        "operation_counts_or_sizes",
+                    )
+                },
+                "worker_started_monotonic_ns": 1,
+                "worker_finished_monotonic_ns": 2,
+            }
+            validated = adapters.validate_local_observable_result(
+                definition, local_result
+            )
+            assert isolation.derive_convergence_decision(
+                definition, validated
+            ).accepted
+            isolation.interpret_output_proofs(definition, validated)
+
+            oracle_definition = oracles.ORACLE_DEFINITIONS[oracle_id]
+            oracle_closure = isolation.build_scientific_closure(
+                oracle_definition.entry_symbol,
+                role="oracle",
+                source_roots=(source_root,),
+            )
+            oracle_capsule = isolation.emit_scientific_capsule(oracle_closure)
+            oracle_request = isolation._make_oracle_worker_request(
+                oracle_definition,
+                opaque_run_nonce="task13-oracle-" + adapter_id,
+                scientific_inputs={
+                    "scientific_inputs": scientific_inputs,
+                    "adapter_fields": body["fields"],
+                },
+                numerical_controls=numerical_controls,
+                capsule_sha256=hashlib.sha256(oracle_capsule).hexdigest(),
+            )
+            oracle_request_bytes = canonical_json_bytes(
+                oracle_request.to_frozen_json()
+            )
+            oracle_capsule_path = case_directory / "oracle_capsule.py"
+            oracle_request_path = case_directory / "oracle_request.json"
+            oracle_result_path = case_directory / "oracle_result.json"
+            oracle_capsule_path.write_bytes(oracle_capsule)
+            oracle_request_path.write_bytes(oracle_request_bytes)
+            _task10_execute_fixed_worker(
+                isolation.emit_fixed_worker(),
+                oracle_request_path,
+                oracle_capsule_path,
+                oracle_result_path,
+            )
+            oracle_transport = json.loads(oracle_result_path.read_bytes())
+            oracle_result = oracle_transport["local_result"]
+            assert oracle_result["invariant_satisfied"] is True
+            assert oracle_result["residual_norm"] <= 1e-10
+    finally:
+        for snapshot in snapshots.values():
+            snapshot.revalidate()
+
+
+@pytest.mark.parametrize(
+    "adapter_id,scientific_inputs,numerical_controls,count_name,count_value",
+    (
+        (
+            "pauling_entropy_combinatorics",
+            {"spins_per_tetrahedron": 4},
+            {},
+            "assignments_enumerated",
+            16,
+        ),
+        (
+            "ising_chain_transfer_matrix",
+            {"exchange": 1.0, "inverse_temperature": 0.75},
+            {},
+            "finite_coupling_probes",
+            3,
+        ),
+        (
+            "spin_ice_tetrahedron_enumeration",
+            {"exchange": 1.0},
+            {},
+            "assignments_enumerated",
+            16,
+        ),
+        (
+            "toric_code_stabilizer_rank",
+            {"stabilizer_scale": 1.0},
+            {},
+            "periodic_sizes_reduced",
+            2,
+        ),
+        (
+            "blume_capel_level_crossing",
+            {"exchange": 1.0},
+            {},
+            "uniform_states_enumerated",
+            3,
+        ),
+        (
+            "checkerboard_plaquette_enumeration",
+            {"exchange": 1.0},
+            {},
+            "configurations_evaluated",
+            3,
+        ),
+        (
+            "checkerboard_plaquette_enumeration",
+            {"exchange": 1.0},
+            {},
+            "interaction_modes_checked",
+            4,
+        ),
+    ),
+)
+def test_task13_result_records_actual_physics_work(
+    adapter_id,
+    scientific_inputs,
+    numerical_controls,
+    count_name,
+    count_value,
+):
+    entry = getattr(adapters, "adapter_" + adapter_id)
+    calculation = entry(scientific_inputs, numerical_controls)
+    counts = calculation["operation_counts_or_sizes"]["operation_counts"]
+
+    assert counts[count_name] == count_value
+
+
+def test_task13_toric_rank_records_both_declared_periodic_degeneracies():
+    calculation = adapters.adapter_toric_code_stabilizer_rank(
+        {"stabilizer_scale": 1.0}, {}
+    )
+    counts = calculation["operation_counts_or_sizes"]["operation_counts"]
+    sizes = calculation["operation_counts_or_sizes"]["problem_size"][
+        "values"
+    ]
+
+    assert counts["small_periodic_degeneracy"] == 4
+    assert counts["large_periodic_degeneracy"] == 4
+    assert counts["small_periodic_rank"] == 6
+    assert counts["large_periodic_rank"] == 16
+    assert sizes["lattice_shapes"] == [[2, 2], [3, 3]]
+
+
+@pytest.mark.parametrize(
+    "adapter_id,residual_function,field_to_root",
+    (
+        (
+            "square_ising_self_dual_tc",
+            lambda sample: math.sinh(2.0 * sample) - 1.0,
+            lambda field: 1.0 / field,
+        ),
+        (
+            "honeycomb_ising_star_triangle_tc",
+            lambda sample: math.sinh(2.0 * sample) - math.sqrt(3.0),
+            lambda field: 1.0 / field,
+        ),
+        (
+            "kagome_ising_star_triangle_tc",
+            lambda sample: math.sinh(
+                math.log((math.exp(4.0 * sample) + 1.0) / 2.0)
+            ) - math.sqrt(3.0),
+            lambda field: 1.0 / field,
+        ),
+        (
+            "triangular_ising_star_triangle_tc",
+            lambda sample: sample - 3.0,
+            lambda field: math.exp(4.0 / field),
+        ),
+    ),
+)
+def test_task13_root_solver_does_not_certify_an_unconverged_refinement(
+    adapter_id,
+    residual_function,
+    field_to_root,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        {"exchange": 1.0},
+        {
+            "root_residual_threshold": 1e-14,
+            "maximum_refinement_iterations": 2,
+        },
+    )
+    raw = calculation["raw_convergence_evidence"]
+    for sample, residual in zip(raw["samples"], raw["residuals"]):
+        assert residual == pytest.approx(abs(residual_function(sample)))
+    selected_field = calculation["fields"]["tc_over_j"]
+    assert abs(residual_function(field_to_root(selected_field))) == (
+        pytest.approx(raw["residuals"][-1])
+    )
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-root-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-root-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is False
+
+
+@pytest.mark.parametrize(
+    "adapter_id,scientific_inputs,forged_field,forged_value,forge_limit",
+    (
+        (
+            "ising_chain_transfer_matrix",
+            {"exchange": 1.0, "inverse_temperature": 0.75},
+            "finite_temperature_transition",
+            True,
+            False,
+        ),
+        (
+            "ising_chain_transfer_matrix",
+            {"exchange": 1.0, "inverse_temperature": 0.75},
+            "tc_over_j",
+            0.5,
+            True,
+        ),
+        (
+            "checkerboard_plaquette_enumeration",
+            {"exchange": 1.0},
+            "zero_total_spin_per_crossed_plaquette",
+            False,
+            False,
+        ),
+    ),
+)
+def test_task13_outer_proof_derives_categorical_fields_from_numeric_evidence(
+    adapter_id,
+    scientific_inputs,
+    forged_field,
+    forged_value,
+    forge_limit,
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        scientific_inputs, {}
+    )
+    body = adapters._task13_materialize_result(definition, calculation)
+    body["fields"][forged_field] = forged_value
+    if forge_limit:
+        body["raw_convergence_evidence"]["certificate"]["proof_inputs"][
+            "limiting_selected_value"
+        ] = forged_value
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-outer-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-outer-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+
+    with pytest.raises(
+        adapters.AdapterContractError,
+        match="outer.*proof",
+    ):
+        isolation.interpret_output_proofs(definition, validated)
+
+
+@pytest.mark.parametrize(
+    "oracle_id,scientific_inputs,fields",
+    (
+        (
+            "pauling_cluster_count_oracle",
+            {"spins_per_tetrahedron": 4},
+            {"pauling_entropy_per_spin": 0.4},
+        ),
+        (
+            "aklt_two_spin_spectrum_oracle",
+            {"projector_scale": 1.0},
+            {"aklt_tan_theta": 0.5, "theta_radians": math.atan(0.5)},
+        ),
+        (
+            "kagome_ising_critical_polynomial_oracle",
+            {"exchange": 1.0},
+            {"tc_over_j": 2.0},
+        ),
+        (
+            "ising_chain_partition_analytic_oracle",
+            {"exchange": 1.0, "inverse_temperature": 0.75},
+            {"finite_temperature_transition": True, "tc_over_j": 0.5},
+        ),
+        (
+            "spin_ice_tetrahedron_matrix_oracle",
+            {"exchange": 1.0},
+            {
+                "two_in_two_out_energy": -1.0,
+                "three_in_one_out_energy": 0.0,
+                "all_in_all_out_energy": 6.0,
+                "two_in_two_out_degeneracy": 6,
+            },
+        ),
+        (
+            "toric_code_logical_loop_oracle",
+            {"stabilizer_scale": 1.0},
+            {"torus_ground_state_degeneracy": 8},
+        ),
+        (
+            "checkerboard_total_spin_oracle",
+            {"exchange": 1.0},
+            {"zero_total_spin_per_crossed_plaquette": False},
+        ),
+    ),
+)
+def test_task13_independent_oracles_reject_wrong_scientific_results(
+    oracle_id,
+    scientific_inputs,
+    fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    result = getattr(oracles, "oracle_" + oracle_id)(
+        {
+            "scientific_inputs": scientific_inputs,
+            "adapter_fields": fields,
+        },
+        {},
+    )
+
+    assert (
+        result["invariant_satisfied"] is False
+        or result["residual_norm"] > 1e-8
+    )
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_inputs,_controls,_fields",
+    TASK13_ANALYTIC_ENUMERATION_PAIRS,
+)
+def test_task13_generated_valid_physics_points_satisfy_independent_oracle(
+    adapter_id,
+    oracle_id,
+    _inputs,
+    _controls,
+    _fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    points = isolation.derive_counterfactual_points(
+        definition, bytes(range(32))
+    )
+    adapter_entry = getattr(adapters, "adapter_" + adapter_id)
+    oracle_entry = getattr(oracles, "oracle_" + oracle_id)
+
+    for point in points:
+        if point.kind == "invalid":
+            continue
+        scientific_inputs = thaw_json(point.scientific_inputs)
+        numerical_controls = thaw_json(point.numerical_controls)
+        calculation = adapter_entry(scientific_inputs, numerical_controls)
+        convergence = calculation["raw_convergence_evidence"]
+        if convergence["kind"] == "residual_bound":
+            assert convergence["residuals"][-1] <= convergence["error_bound"]
+        body = adapters._task13_materialize_result(definition, calculation)
+        oracle_result = oracle_entry(
+            {
+                "scientific_inputs": scientific_inputs,
+                "adapter_fields": body["fields"],
+            },
+            numerical_controls,
+        )
+
+        assert oracle_result["invariant_satisfied"] is True
+        assert oracle_result["residual_norm"] <= 1e-8
