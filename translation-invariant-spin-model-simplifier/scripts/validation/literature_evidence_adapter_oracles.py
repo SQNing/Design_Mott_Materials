@@ -380,6 +380,13 @@ _TASK13_ORACLE_ROWS = (
         "checkerboard_plaquette_enumeration",
         "checkerboard_total_spin_oracle",
     ),
+    ("spin_ladder_rung_dense_ed", "spin_ladder_analytic_rung_oracle"),
+    ("uls_two_site_su3_matrix", "uls_permutation_commutator_oracle"),
+    ("compass_line_symmetry_matrix", "compass_spin_flip_oracle"),
+    ("aklt_two_site_projector_ed", "aklt_clebsch_gordan_oracle"),
+    ("majumdar_ghosh_dimer_ed", "majumdar_ghosh_projector_oracle"),
+    ("shastry_sutherland_dimer_ed", "shastry_sutherland_bond_oracle"),
+    ("spin1_single_ion_dense_ed", "spin1_m_quantum_number_oracle"),
 )
 
 
@@ -788,3 +795,386 @@ def oracle_checkerboard_total_spin_oracle(payload, numerical_controls):
         derived_zero_minimum
         and fields["zero_total_spin_per_crossed_plaquette"] is True,
     )
+
+
+def oracle_spin_ladder_analytic_rung_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["rung_exchange"])
+    singlet = 0.5 * (0.0 - 2.0 * 0.5 * 1.5) * exchange
+    triplet = 0.5 * (2.0 - 2.0 * 0.5 * 1.5) * exchange
+    residual = max(
+        abs(fields["energy_per_rung"] - singlet),
+        abs(fields["gap_to_triplet"] - (triplet - singlet)),
+    )
+    return _task13_oracle_measure(residual)
+
+
+def _task14_oracle_matrix_multiply(first, second):
+    rows = len(first)
+    inner = len(second)
+    columns = len(second[0])
+    product = []
+    for row in range(rows):
+        product_row = []
+        for column in range(columns):
+            value = 0.0j
+            for index in range(inner):
+                value += first[row][index] * second[index][column]
+            product_row.append(value)
+        product.append(product_row)
+    return product
+
+
+def _task14_oracle_commutator_norm(first, second):
+    forward = _task14_oracle_matrix_multiply(first, second)
+    backward = _task14_oracle_matrix_multiply(second, first)
+    norm_squared = 0.0
+    for row in range(len(first)):
+        for column in range(len(first)):
+            norm_squared += abs(forward[row][column] - backward[row][column]) ** 2
+    return math.sqrt(norm_squared)
+
+
+def _task14_oracle_kron(first, second):
+    tensor = []
+    for first_row in first:
+        for second_row in second:
+            row = []
+            for first_value in first_row:
+                for second_value in second_row:
+                    row.append(first_value * second_value)
+            tensor.append(row)
+    return tensor
+
+
+def _task14_oracle_su3_generators():
+    zero = 0.0j
+    one = 1.0 + 0.0j
+    imaginary = 1.0j
+    root_three = math.sqrt(3.0)
+    return (
+        ((zero, one, zero), (one, zero, zero), (zero, zero, zero)),
+        ((zero, -imaginary, zero), (imaginary, zero, zero), (zero, zero, zero)),
+        ((one, zero, zero), (zero, -one, zero), (zero, zero, zero)),
+        ((zero, zero, one), (zero, zero, zero), (one, zero, zero)),
+        ((zero, zero, -imaginary), (zero, zero, zero), (imaginary, zero, zero)),
+        ((zero, zero, zero), (zero, zero, one), (zero, one, zero)),
+        ((zero, zero, zero), (zero, zero, -imaginary), (zero, imaginary, zero)),
+        (
+            (one / root_three, zero, zero),
+            (zero, one / root_three, zero),
+            (zero, zero, -2.0 / root_three),
+        ),
+    )
+
+
+def oracle_uls_permutation_commutator_oracle(payload, numerical_controls):
+    _inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    sector_dot_values = (-2.0, -1.0, 1.0)
+    permutation_values = (1.0, -1.0, 1.0)
+    residual = 0.0
+    for dot, permutation in zip(sector_dot_values, permutation_values):
+        residual = max(residual, abs(dot + dot * dot - 1.0 - permutation))
+    identity = (
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+    )
+    exchange_operator = []
+    for row in range(9):
+        exchange_row = []
+        first_row = row // 3
+        second_row = row % 3
+        for column in range(9):
+            first_column = column // 3
+            second_column = column % 3
+            exchange_row.append(
+                1.0
+                if first_row == second_column
+                and second_row == first_column
+                else 0.0
+            )
+        exchange_operator.append(exchange_row)
+    for generator in _task14_oracle_su3_generators():
+        left = _task14_oracle_kron(generator, identity)
+        right = _task14_oracle_kron(identity, generator)
+        total = []
+        for row in range(9):
+            total_row = []
+            for column in range(9):
+                total_row.append(left[row][column] + right[row][column])
+            total.append(total_row)
+        residual = max(
+            residual,
+            _task14_oracle_commutator_norm(exchange_operator, total),
+        )
+    residual = max(
+        residual, abs(fields["theta_radians"] - math.atan2(1.0, 1.0))
+    )
+    return _task13_oracle_measure(
+        residual, residual <= 1e-12 and fields["su3_symmetric"] is True
+    )
+
+
+def _task14_compass_bond_line_parity_checks():
+    satisfied = 0
+    total = 0
+    shapes = ((2, 2), (2, 3))
+    for rows, columns in shapes:
+        bonds = []
+        for row in range(rows):
+            for column in range(columns - 1):
+                first = row * columns + column
+                bonds.append(("x", (first, first + 1)))
+        for row in range(rows - 1):
+            for column in range(columns):
+                first = row * columns + column
+                bonds.append(("y", (first, first + columns)))
+        lines = []
+        for column in range(columns):
+            support = []
+            for row in range(rows):
+                support.append(row * columns + column)
+            lines.append(("x", tuple(support)))
+        for row in range(rows):
+            support = []
+            for column in range(columns):
+                support.append(row * columns + column)
+            lines.append(("y", tuple(support)))
+        for bond_axis, bond_support in bonds:
+            for line_axis, line_support in lines:
+                anticommuting_sites = 0
+                if bond_axis != line_axis:
+                    for site in bond_support:
+                        if site in line_support:
+                            anticommuting_sites += 1
+                total += 1
+                if anticommuting_sites % 2 == 0:
+                    satisfied += 1
+    return satisfied, total
+
+
+def oracle_compass_spin_flip_oracle(payload, numerical_controls):
+    _inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    parity_checks, required_checks = (
+        _task14_compass_bond_line_parity_checks()
+    )
+    invariant = parity_checks == required_checks
+    return _task13_oracle_measure(
+        float(required_checks - parity_checks),
+        invariant and fields["has_line_flip_symmetries"] is True,
+    )
+
+
+def oracle_aklt_clebsch_gordan_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    scale = float(inputs["projector_scale"])
+    sector_values = []
+    multiplicities = []
+    for total_spin in (0, 1, 2):
+        sector_values.append(0.0 if total_spin < 2 else 1.0)
+        multiplicities.append(2 * total_spin + 1)
+    residual = 0.0
+    for index in range(3):
+        residual = max(
+            residual,
+            abs(
+                fields["two_site_projector_eigenvalues"][index]
+                - sector_values[index]
+            ),
+        )
+    root_two = math.sqrt(2.0)
+    root_three = math.sqrt(3.0)
+    root_six = math.sqrt(6.0)
+    spin_two_vectors = (
+        ((0, 1.0),),
+        ((1, 1.0 / root_two), (3, 1.0 / root_two)),
+        (
+            (2, 1.0 / root_six),
+            (4, 2.0 / root_six),
+            (6, 1.0 / root_six),
+        ),
+        ((5, 1.0 / root_two), (7, 1.0 / root_two)),
+        ((8, 1.0),),
+    )
+    vbs = [0.0] * 9
+    vbs[2] = 1.0 / root_three
+    vbs[4] = -1.0 / root_three
+    vbs[6] = 1.0 / root_three
+    projected_norm_squared = 0.0
+    projector_trace = 0.0
+    for vector in spin_two_vectors:
+        overlap = 0.0
+        vector_norm = 0.0
+        for index, coefficient in vector:
+            overlap += coefficient * vbs[index]
+            vector_norm += coefficient * coefficient
+        projected_norm_squared += overlap * overlap
+        projector_trace += vector_norm
+    residual = max(
+        residual,
+        abs(fields["vbs_ground_energy"] / scale),
+        math.sqrt(projected_norm_squared),
+        abs(projector_trace - 5.0),
+    )
+    return _task13_oracle_measure(
+        residual, multiplicities == [1, 3, 5]
+    )
+
+
+def _task14_oracle_dimer_coverings(site_count):
+    local_singlet = (0.0, 1.0 / math.sqrt(2.0), -1.0 / math.sqrt(2.0), 0.0)
+    adjacent = [1.0]
+    for dimer in range(site_count // 2):
+        enlarged = [0.0] * (4 * len(adjacent))
+        for lower_state, lower_amplitude in enumerate(adjacent):
+            for local_state, local_amplitude in enumerate(local_singlet):
+                combined_state = lower_state | (local_state << (2 * dimer))
+                enlarged[combined_state] = lower_amplitude * local_amplitude
+        adjacent = enlarged
+    translated = [0.0] * len(adjacent)
+    for state, amplitude in enumerate(adjacent):
+        rotated = 0
+        for site in range(site_count):
+            if (state >> site) & 1:
+                rotated |= 1 << ((site + 1) % site_count)
+        translated[rotated] = amplitude
+    return adjacent, translated
+
+
+def _task14_oracle_pair_action(vector, first, second):
+    acted = [0.0] * len(vector)
+    for state, amplitude in enumerate(vector):
+        first_bit = (state >> first) & 1
+        second_bit = (state >> second) & 1
+        acted[state] += amplitude * (
+            0.25 if first_bit == second_bit else -0.25
+        )
+        if first_bit != second_bit:
+            flipped = state ^ (1 << first) ^ (1 << second)
+            acted[flipped] += 0.5 * amplitude
+    return acted
+
+
+def _task14_oracle_projector_residual(vector, sites):
+    first = _task14_oracle_pair_action(vector, sites[0], sites[1])
+    second = _task14_oracle_pair_action(vector, sites[1], sites[2])
+    third = _task14_oracle_pair_action(vector, sites[0], sites[2])
+    norm_squared = 0.0
+    for index, amplitude in enumerate(vector):
+        projected = 0.5 * amplitude + (2.0 / 3.0) * (
+            first[index] + second[index] + third[index]
+        )
+        norm_squared += projected * projected
+    return math.sqrt(norm_squared)
+
+
+def oracle_majumdar_ghosh_projector_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["nearest_exchange"])
+    maximum_projector_residual = 0.0
+    minimum_gram_determinant = 1.0
+    for site_count in (8, 10):
+        coverings = (
+            _task14_oracle_dimer_coverings(site_count)
+        )
+        overlap = 0.0
+        for index in range(1 << site_count):
+            overlap += coverings[0][index] * coverings[1][index]
+        minimum_gram_determinant = min(
+            minimum_gram_determinant, 1.0 - overlap * overlap
+        )
+        for covering in coverings:
+            for site in range(site_count):
+                residual = _task14_oracle_projector_residual(
+                    covering,
+                    (
+                        site,
+                        (site + 1) % site_count,
+                        (site + 2) % site_count,
+                    ),
+                )
+                maximum_projector_residual = max(
+                    maximum_projector_residual, residual
+                )
+    energy_per_site = -3.0 * exchange / 8.0
+    energy_residual = abs(
+        fields["energy_per_site"] - energy_per_site
+    ) / max(abs(exchange), 1e-300)
+    residual = max(
+        energy_residual,
+        abs(fields["degenerate_dimer_coverings"] - 2),
+        maximum_projector_residual,
+    )
+    return _task13_oracle_measure(
+        residual, minimum_gram_determinant > 1e-12
+    )
+
+
+def oracle_shastry_sutherland_bond_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    intradimer = float(inputs["intradimer_exchange"])
+    maximum_cancellation_residual = 0.0
+    derived_energy_per_dimer = 0.0
+    for dimer_count in (2, 4):
+        site_count = 2 * dimer_count
+        covering = _task14_oracle_dimer_coverings(site_count)[0]
+        intradimer_expectation = 0.0
+        for dimer in range(dimer_count):
+            acted = _task14_oracle_pair_action(
+                covering, 2 * dimer, 2 * dimer + 1
+            )
+            for index, amplitude in enumerate(covering):
+                intradimer_expectation += amplitude * acted[index]
+        derived_energy_per_dimer = (
+            intradimer * intradimer_expectation / dimer_count
+        )
+        linked_cells = (
+            ((0, 1, 2),)
+            if dimer_count == 2
+            else ((0, 1, 2), (2, 3, 5), (4, 5, 6))
+        )
+        for first_site, second_site, shared_site in linked_cells:
+            first = _task14_oracle_pair_action(
+                covering, first_site, shared_site
+            )
+            second = _task14_oracle_pair_action(
+                covering, second_site, shared_site
+            )
+            norm_squared = 0.0
+            for index in range(len(covering)):
+                combined = first[index] + second[index]
+                norm_squared += combined * combined
+            maximum_cancellation_residual = max(
+                maximum_cancellation_residual, math.sqrt(norm_squared)
+            )
+    residual = max(
+        abs(fields["energy_per_dimer"] - derived_energy_per_dimer),
+        abs(fields["energy_per_spin"] - 0.5 * derived_energy_per_dimer),
+        maximum_cancellation_residual,
+    )
+    return _task13_oracle_measure(residual)
+
+
+def oracle_spin1_m_quantum_number_oracle(payload, numerical_controls):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    anisotropy = float(inputs["single_ion_anisotropy"])
+    levels = []
+    for magnetic in (-1, 0, 1):
+        levels.append(anisotropy * magnetic * magnetic)
+    levels.sort()
+    grouped = []
+    degeneracies = []
+    for level in levels:
+        if not grouped or level != grouped[-1]:
+            grouped.append(level)
+            degeneracies.append(1)
+        else:
+            degeneracies[-1] += 1
+    residual = 0.0
+    for index in range(3):
+        residual = max(
+            residual, abs(fields["levels"][index] - levels[index])
+        )
+    invariant = fields["degeneracies"] == degeneracies
+    return _task13_oracle_measure(residual, invariant)

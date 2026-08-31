@@ -11,6 +11,7 @@ from dataclasses import dataclass, fields
 import hashlib
 import json
 import math
+import numpy as np
 import re
 from types import MappingProxyType
 from typing import Any
@@ -3441,7 +3442,8 @@ _ADAPTER_DEFINITION_ROWS = (
             "size_rule": (
                 "both declared lengths obey the same projector identity "
                 "and rank rule"
-            )
+            ),
+            "dense_ed_proof_kind": "ground_space_covering",
         },
         valid_rules={
             "nearest_exchange": {"kind": "strictly_positive_finite"}
@@ -3683,11 +3685,16 @@ _ADAPTER_DEFINITION_ROWS = (
             "closure_rule": (
                 "all intradimer expectations and linked-cell cancellations "
                 "are exact"
-            )
+            ),
+            "dense_ed_proof_kind": "linked_cell_product_ground_state",
         },
         valid_rules={
             "intradimer_exchange": {"kind": "strictly_positive_finite"},
-            "interdimer_exchange": {"kind": "finite_product_state_regime"},
+            "interdimer_exchange": {
+                "kind": "finite_product_state_regime",
+                "reference_field": "intradimer_exchange",
+                "maximum_absolute_ratio": 0.5,
+            },
         },
         invalid_rules={
             "intradimer_exchange": {"kind": "nonpositive_or_nonfinite"},
@@ -4739,12 +4746,22 @@ def validate_scientific_inputs(
 ) -> FrozenJsonObject:
     """Validate and isolate answer-free model inputs against one definition."""
 
-    return _validate_closed_schema_mapping(
+    validated = _validate_closed_schema_mapping(
         definition,
         values,
         schema_attribute="scientific_input_schema",
         field_name="scientific_inputs",
     )
+    for field_name, rule in definition.counterfactual_domain.valid_rules.items():
+        if rule["kind"] != "finite_product_state_regime":
+            continue
+        reference = validated[rule["reference_field"]]
+        maximum_ratio = rule["maximum_absolute_ratio"]
+        if abs(validated[field_name]) > maximum_ratio * reference:
+            raise AdapterContractError(
+                "scientific_inputs are outside the product-ground-state regime"
+            )
+    return validated
 
 
 def validate_numerical_controls(
@@ -6309,4 +6326,607 @@ def adapter_checkerboard_plaquette_enumeration(
         },
         problem_size_kind="fixed_local",
         problem_size={"spin_count": 4, "crossed_plaquettes": 1},
+    )
+
+
+def _task14_spin_matrices(spin):
+    dimension = int(round(2.0 * spin + 1.0))
+    m_values = []
+    for index in range(dimension):
+        m_values.append(spin - index)
+    raising = np.zeros((dimension, dimension), dtype=complex)
+    for column in range(dimension):
+        magnetic = m_values[column]
+        raised_magnetic = magnetic + 1.0
+        if raised_magnetic <= spin:
+            row = int(round(spin - raised_magnetic))
+            raising[row, column] = math.sqrt(
+                spin * (spin + 1.0) - magnetic * raised_magnetic
+            )
+    lowering = raising.conjugate().T
+    sx = 0.5 * (raising + lowering)
+    sy = (raising - lowering) / (2.0j)
+    sz = np.diag(m_values).astype(complex)
+    return sx, sy, sz
+
+
+def _task14_embed(operator, site, site_count):
+    embedded = np.array([[1.0 + 0.0j]])
+    identity = np.eye(operator.shape[0], dtype=complex)
+    for index in range(site_count):
+        embedded = np.kron(
+            embedded, operator if index == site else identity
+        )
+    return embedded
+
+
+def _task14_two_site_dot(spin):
+    matrices = _task14_spin_matrices(spin)
+    dot = np.zeros(
+        (matrices[0].shape[0] ** 2, matrices[0].shape[0] ** 2),
+        dtype=complex,
+    )
+    for component in matrices:
+        dot += np.kron(component, component)
+    return dot
+
+
+def _task14_diagonalize(matrix):
+    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    residual = matrix @ eigenvectors - eigenvectors * eigenvalues
+    identity = np.eye(matrix.shape[0], dtype=complex)
+    matrix_norm = float(np.linalg.norm(matrix))
+    basis_phase = math.atan(matrix_norm)
+    basis_phases = []
+    for index in range(matrix.shape[0]):
+        angle = basis_phase * (index + 1)
+        basis_phases.append(
+            complex(math.cos(angle), math.sin(angle))
+        )
+    basis = np.diag(basis_phases)
+    transformed = basis @ matrix @ basis.conjugate().T
+    transformed_eigenvalues, _transformed_vectors = np.linalg.eigh(
+        transformed
+    )
+    basis_similarity_residual = 0.0
+    for original, changed in zip(eigenvalues, transformed_eigenvalues):
+        basis_similarity_residual = max(
+            basis_similarity_residual, abs(float(original - changed))
+        )
+    diagnostics = {
+        "dimension": int(matrix.shape[0]),
+        "matrix_norm": matrix_norm,
+        "hermiticity_norm": float(np.linalg.norm(matrix - matrix.conjugate().T)),
+        "maximum_eigenpair_residual": float(
+            np.max(np.linalg.norm(residual, axis=0))
+        ),
+        "orthogonality_residual": float(
+            np.linalg.norm(eigenvectors.conjugate().T @ eigenvectors - identity)
+        ),
+        "trace": float(np.trace(matrix).real),
+        "eigensolver": "numpy.linalg.eigh",
+        "basis_phase_radians": basis_phase,
+        "basis_similarity_residual": basis_similarity_residual,
+    }
+    return eigenvalues, eigenvectors, diagnostics
+
+
+def _task14_spin_half_chain_matrix(site_count, bonds):
+    dimension = 1 << site_count
+    matrix = np.zeros((dimension, dimension), dtype=float)
+    for state in range(dimension):
+        for first, second, coupling in bonds:
+            first_bit = (state >> first) & 1
+            second_bit = (state >> second) & 1
+            matrix[state, state] += coupling * (
+                0.25 if first_bit == second_bit else -0.25
+            )
+            if first_bit != second_bit:
+                flipped = state ^ (1 << first) ^ (1 << second)
+                matrix[flipped, state] += 0.5 * coupling
+    return matrix
+
+
+def _task14_grouped_values(values):
+    scale = 0.0
+    for raw_value in values:
+        scale = max(scale, abs(float(raw_value)))
+    tolerance = scale * 1e-12
+    groups = []
+    counts = []
+    for raw_value in values:
+        value = float(raw_value)
+        if not groups or abs(value - groups[-1]) > tolerance:
+            groups.append(value)
+            counts.append(1)
+        else:
+            counts[-1] += 1
+    return groups, counts
+
+
+def _task14_total_spin_sector_energies(hamiltonian, spin):
+    dot = _task14_two_site_dot(spin)
+    dimension = dot.shape[0]
+    identity = np.eye(dimension, dtype=complex)
+    total_spin_squared = (
+        2.0 * spin * (spin + 1.0) * identity + 2.0 * dot
+    )
+    maximum_total = int(round(2.0 * spin))
+    sector_energies = []
+    sector_multiplicities = []
+    for selected_total in range(maximum_total + 1):
+        selected_value = selected_total * (selected_total + 1.0)
+        projector = identity.copy()
+        for other_total in range(maximum_total + 1):
+            if other_total == selected_total:
+                continue
+            other_value = other_total * (other_total + 1.0)
+            projector = projector @ (
+                (total_spin_squared - other_value * identity)
+                / (selected_value - other_value)
+            )
+        multiplicity = int(round(float(np.trace(projector).real)))
+        energy = float(np.trace(projector @ hamiltonian).real) / multiplicity
+        sector_energies.append(energy)
+        sector_multiplicities.append(multiplicity)
+    return sector_energies, sector_multiplicities
+
+
+def _task14_dimer_covering_state(site_count, shift):
+    pairs = []
+    for offset in range(0, site_count, 2):
+        pairs.append(((offset + shift) % site_count, (offset + shift + 1) % site_count))
+    vector = np.zeros(1 << site_count, dtype=float)
+    normalization = 2.0 ** (-site_count / 4.0)
+    for state in range(1 << site_count):
+        amplitude = normalization
+        for first, second in pairs:
+            first_bit = (state >> first) & 1
+            second_bit = (state >> second) & 1
+            if first_bit == second_bit:
+                amplitude = 0.0
+                break
+            if first_bit == 0 and second_bit == 1:
+                amplitude = -amplitude
+        vector[state] = amplitude
+    return vector
+
+
+def _task14_exact_calculation(
+    fields,
+    controls,
+    diagnostics,
+    operations,
+    diagnostics_by_size=None,
+    **kwargs,
+):
+    proof_inputs = dict(kwargs.pop("proof_inputs", {}))
+    if diagnostics_by_size is None:
+        diagnostics_by_size = (
+            {
+                "problem_size": kwargs["problem_size"],
+                "diagnostics": diagnostics,
+            },
+        )
+    proof_inputs["matrix_diagnostics_by_size"] = diagnostics_by_size
+    return _task13_calculation(
+        "exact",
+        fields,
+        controls,
+        operations=operations,
+        proof_inputs=proof_inputs,
+        **kwargs,
+    )
+
+
+def adapter_spin_ladder_rung_dense_ed(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("rung_exchange",), ()
+    )
+    exchange = float(inputs["rung_exchange"])
+    hamiltonian = exchange * _task14_two_site_dot(0.5)
+    _eigenvalues, _vectors, diagnostics = _task14_diagonalize(hamiltonian)
+    sector_energies, counts = _task14_total_spin_sector_energies(
+        hamiltonian, 0.5
+    )
+    singlet = sector_energies[0]
+    triplet = sector_energies[1]
+    return _task14_exact_calculation(
+        {"energy_per_rung": singlet, "gap_to_triplet": triplet - singlet},
+        controls,
+        diagnostics,
+        operations=hamiltonian.size,
+        proof_inputs={"sector_multiplicities": counts},
+        problem_size_kind="fixed_local",
+        problem_size={"spin_count": 2, "rungs": 1},
+    )
+
+
+def _task14_su3_generators():
+    zero = 0.0
+    one = 1.0
+    imaginary = 1.0j
+    return (
+        np.array(((zero, one, zero), (one, zero, zero), (zero, zero, zero))),
+        np.array(
+            ((zero, -imaginary, zero), (imaginary, zero, zero), (zero, zero, zero))
+        ),
+        np.array(((one, zero, zero), (zero, -one, zero), (zero, zero, zero))),
+        np.array(((zero, zero, one), (zero, zero, zero), (one, zero, zero))),
+        np.array(
+            ((zero, zero, -imaginary), (zero, zero, zero), (imaginary, zero, zero))
+        ),
+        np.array(((zero, zero, zero), (zero, zero, one), (zero, one, zero))),
+        np.array(
+            ((zero, zero, zero), (zero, zero, -imaginary), (zero, imaginary, zero))
+        ),
+        np.array(
+            ((one, zero, zero), (zero, one, zero), (zero, zero, -2.0))
+        )
+        / math.sqrt(3.0),
+    )
+
+
+def adapter_uls_two_site_su3_matrix(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("energy_scale",), ()
+    )
+    scale = float(inputs["energy_scale"])
+    dot = _task14_two_site_dot(1.0)
+    identity = np.eye(9, dtype=complex)
+    permutation = np.zeros((9, 9), dtype=complex)
+    for first in range(3):
+        for second in range(3):
+            permutation[second * 3 + first, first * 3 + second] = 1.0
+    unscaled = dot + dot @ dot
+    permutation_residual = float(np.linalg.norm(unscaled - permutation - identity))
+    hamiltonian = (scale / math.sqrt(2.0)) * unscaled
+    _eigenvalues, _vectors, diagnostics = _task14_diagonalize(hamiltonian)
+    generator_residuals = []
+    for generator in _task14_su3_generators():
+        total_generator = np.kron(generator, np.eye(3)) + np.kron(
+            np.eye(3), generator
+        )
+        generator_residuals.append(
+            float(
+                np.linalg.norm(
+                    hamiltonian @ total_generator
+                    - total_generator @ hamiltonian
+                )
+            )
+        )
+    all_residuals = [permutation_residual] + generator_residuals
+    su3_symmetric = max(all_residuals) <= 1e-10 * max(1.0, abs(scale))
+    return _task14_exact_calculation(
+        {"theta_radians": math.atan2(scale, scale), "su3_symmetric": su3_symmetric},
+        controls,
+        diagnostics,
+        operations=hamiltonian.size,
+        proof_inputs={
+            "candidate_values": all_residuals,
+            "residuals": all_residuals,
+            "residual_bound": 1e-10 * max(1.0, abs(scale)),
+            "lower_bound": min(all_residuals),
+            "certificate_checks_total": len(all_residuals),
+            "certificate_checks_satisfied": (
+                len(all_residuals) if su3_symmetric else 0
+            ),
+        },
+        problem_size_kind="fixed_local",
+        problem_size={"spin_count": 2, "spin_quantum_number": 1},
+    )
+
+
+def _task14_compass_shape(rows, columns, horizontal, vertical):
+    site_count = rows * columns
+    sx, sy, _sz = _task14_spin_matrices(0.5)
+    x_ops = []
+    y_ops = []
+    for site in range(site_count):
+        x_ops.append(_task14_embed(2.0 * sx, site, site_count))
+        y_ops.append(_task14_embed(2.0 * sy, site, site_count))
+    dimension = 1 << site_count
+    hamiltonian = np.zeros((dimension, dimension), dtype=complex)
+    for row in range(rows):
+        for column in range(columns - 1):
+            first = row * columns + column
+            hamiltonian += horizontal * (x_ops[first] @ x_ops[first + 1])
+    for row in range(rows - 1):
+        for column in range(columns):
+            first = row * columns + column
+            hamiltonian += vertical * (y_ops[first] @ y_ops[first + columns])
+    residuals = []
+    for column in range(columns):
+        line = np.eye(dimension, dtype=complex)
+        for row in range(rows):
+            line = line @ x_ops[row * columns + column]
+        residuals.append(float(np.linalg.norm(hamiltonian @ line - line @ hamiltonian)))
+    for row in range(rows):
+        line = np.eye(dimension, dtype=complex)
+        for column in range(columns):
+            line = line @ y_ops[row * columns + column]
+        residuals.append(float(np.linalg.norm(hamiltonian @ line - line @ hamiltonian)))
+    return hamiltonian, residuals
+
+
+def adapter_compass_line_symmetry_matrix(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("horizontal_exchange", "vertical_exchange"),
+        (),
+    )
+    all_residuals = []
+    diagnostics = None
+    diagnostics_by_size = []
+    operations = 0
+    for rows, columns in ((2, 2), (2, 3)):
+        matrix, residuals = _task14_compass_shape(
+            rows,
+            columns,
+            float(inputs["horizontal_exchange"]),
+            float(inputs["vertical_exchange"]),
+        )
+        _values, _vectors, current = _task14_diagonalize(matrix)
+        diagnostics = current
+        diagnostics_by_size.append(
+            {
+                "problem_size": {
+                    "lattice_shapes": [rows, columns],
+                    "boundary_conditions": "open",
+                },
+                "diagnostics": current,
+            }
+        )
+        all_residuals.extend(residuals)
+        operations += matrix.size
+    satisfied = max(all_residuals) <= 1e-10
+    satisfied_checks = 0
+    for value in all_residuals:
+        if value <= 1e-10:
+            satisfied_checks += 1
+    return _task14_exact_calculation(
+        {"has_line_flip_symmetries": satisfied},
+        controls,
+        diagnostics,
+        operations=operations,
+        diagnostics_by_size=diagnostics_by_size,
+        proof_inputs={
+            "candidate_values": all_residuals,
+            "residuals": all_residuals,
+            "residual_bound": 1e-10,
+            "lower_bound": min(all_residuals),
+            "certificate_checks_total": len(all_residuals),
+            "certificate_checks_satisfied": satisfied_checks,
+        },
+        problem_size_kind="scalable_same_observable",
+        problem_size={"lattice_shapes": [[2, 2], [2, 3]], "boundary_conditions": "open"},
+    )
+
+
+def adapter_aklt_two_site_projector_ed(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("projector_scale",), ()
+    )
+    scale = float(inputs["projector_scale"])
+    dot = _task14_two_site_dot(1.0)
+    projector = ((dot + np.eye(9)) @ (dot + 2.0 * np.eye(9))) / 6.0
+    hamiltonian = scale * projector
+    eigenvalues, _vectors, diagnostics = _task14_diagonalize(hamiltonian)
+    sector_energies, counts = _task14_total_spin_sector_energies(
+        hamiltonian, 1.0
+    )
+    sector_values = []
+    for energy in sector_energies:
+        normalized = energy / scale
+        if abs(normalized) <= 1e-12:
+            normalized = 0.0
+        sector_values.append(normalized)
+    zero_sector = max(sector_energies[0], sector_energies[1])
+    if abs(zero_sector) <= abs(scale) * 1e-12:
+        zero_sector = 0.0
+    vbs = np.zeros(9, dtype=complex)
+    vbs[2] = 1.0 / math.sqrt(3.0)
+    vbs[4] = -1.0 / math.sqrt(3.0)
+    vbs[6] = 1.0 / math.sqrt(3.0)
+    vbs_projector_residual = float(np.linalg.norm(projector @ vbs))
+    vbs_energy_expectation = float(
+        np.vdot(vbs, hamiltonian @ vbs).real
+    )
+    return _task14_exact_calculation(
+        {"two_site_projector_eigenvalues": sector_values, "vbs_ground_energy": zero_sector},
+        controls,
+        diagnostics,
+        operations=hamiltonian.size,
+        proof_inputs={
+            "full_spectrum_multiplicities": counts,
+            "vbs_projector_residual": vbs_projector_residual,
+            "vbs_energy_expectation": vbs_energy_expectation,
+        },
+        problem_size_kind="fixed_local",
+        problem_size={"spin_count": 2, "spin_quantum_number": 1},
+    )
+
+
+def adapter_majumdar_ghosh_dimer_ed(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("nearest_exchange",), ()
+    )
+    exchange = float(inputs["nearest_exchange"])
+    densities = []
+    ground_space_multiplicities = []
+    covering_eigen_residuals_by_size = []
+    projected_covering_ranks = []
+    diagnostics = None
+    diagnostics_by_size = []
+    operations = 0
+    for site_count in (8, 10):
+        bonds = []
+        for site in range(site_count):
+            bonds.append((site, (site + 1) % site_count, exchange))
+            bonds.append((site, (site + 2) % site_count, 0.5 * exchange))
+        matrix = _task14_spin_half_chain_matrix(site_count, bonds)
+        eigenvalues, eigenvectors, current = _task14_diagonalize(matrix)
+        diagnostics = current
+        diagnostics_by_size.append(
+            {
+                "problem_size": {
+                    "periodic_chain_lengths": site_count,
+                    "boundary_conditions": "periodic",
+                },
+                "diagnostics": current,
+            }
+        )
+        densities.append(float(eigenvalues[0]) / site_count)
+        first = _task14_dimer_covering_state(site_count, 0)
+        second = _task14_dimer_covering_state(site_count, 1)
+        ground_energy = float(eigenvalues[0])
+        ground_tolerance = abs(exchange) * 1e-10
+        ground_multiplicity = 0
+        for eigenvalue in eigenvalues:
+            if abs(float(eigenvalue) - ground_energy) <= ground_tolerance:
+                ground_multiplicity += 1
+        ground_space_multiplicities.append(ground_multiplicity)
+        residuals = []
+        for covering in (first, second):
+            residuals.append(
+                float(
+                    np.linalg.norm(
+                        matrix @ covering - ground_energy * covering
+                    )
+                )
+            )
+        covering_eigen_residuals_by_size.append(residuals)
+        ground_basis = eigenvectors[:, :ground_multiplicity]
+        projected = []
+        for covering in (first, second):
+            projected.append(
+                ground_basis @ (ground_basis.conj().T @ covering)
+            )
+        first_norm = float(np.vdot(projected[0], projected[0]).real)
+        second_norm = float(np.vdot(projected[1], projected[1]).real)
+        overlap = float(np.vdot(projected[0], projected[1]).real)
+        gram_determinant = first_norm * second_norm - overlap * overlap
+        projected_covering_ranks.append(
+            2 if gram_determinant > 1e-10 else 1
+        )
+        operations += matrix.size
+    calculation = _task14_exact_calculation(
+        {
+            "energy_per_site": densities[-1],
+            "degenerate_dimer_coverings": min(
+                ground_space_multiplicities
+                + projected_covering_ranks
+            ),
+        },
+        controls,
+        diagnostics,
+        operations=operations,
+        diagnostics_by_size=diagnostics_by_size,
+        proof_inputs={
+            "energy_density_sequence": densities,
+            "ground_space_multiplicities": ground_space_multiplicities,
+            "covering_eigen_residuals_by_size": (
+                covering_eigen_residuals_by_size
+            ),
+            "projected_covering_ranks": projected_covering_ranks,
+        },
+        problem_size_kind="scalable_same_observable",
+        problem_size={"periodic_chain_lengths": [8, 10], "boundary_conditions": "periodic"},
+    )
+    calculation["raw_convergence_evidence"] = {
+        "kind": "finite_size",
+        "controls": controls,
+        "sizes": [8, 10],
+        "estimates": densities,
+        "error_bound": 1e-10 * max(1.0, abs(exchange)),
+    }
+    return calculation
+
+
+def adapter_shastry_sutherland_dimer_ed(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("intradimer_exchange", "interdimer_exchange"),
+        (),
+    )
+    intradimer = float(inputs["intradimer_exchange"])
+    interdimer = float(inputs["interdimer_exchange"])
+    residuals = []
+    product_ground_energy_residuals = []
+    interdimer_bond_counts = []
+    diagnostics = None
+    diagnostics_by_size = []
+    operations = 0
+    for dimer_count in (2, 4):
+        site_count = 2 * dimer_count
+        bonds = []
+        for index in range(dimer_count):
+            bonds.append((2 * index, 2 * index + 1, intradimer))
+        for left in range(dimer_count - 1):
+            shared_site = 2 * (left + 1) + (left % 2)
+            bonds.append((2 * left, shared_site, interdimer))
+            bonds.append((2 * left + 1, shared_site, interdimer))
+        interdimer_bond_counts.append(2 * (dimer_count - 1))
+        matrix = _task14_spin_half_chain_matrix(site_count, bonds)
+        eigenvalues, _vectors, current = _task14_diagonalize(matrix)
+        diagnostics = current
+        diagnostics_by_size.append(
+            {
+                "problem_size": {
+                    "orthogonal_dimer_counts": dimer_count,
+                    "spin_counts": site_count,
+                    "boundary_conditions": "open_linked_cells",
+                },
+                "diagnostics": current,
+            }
+        )
+        state = _task14_dimer_covering_state(site_count, 0)
+        product_energy = -0.75 * intradimer * dimer_count
+        product_ground_energy_residuals.append(
+            abs(product_energy - float(eigenvalues[0]))
+        )
+        residuals.append(
+            float(np.linalg.norm(matrix @ state - product_energy * state))
+        )
+        operations += matrix.size
+    return _task14_exact_calculation(
+        {"energy_per_dimer": -0.75 * intradimer, "energy_per_spin": -0.375 * intradimer},
+        controls,
+        diagnostics,
+        operations=operations,
+        diagnostics_by_size=diagnostics_by_size,
+        proof_inputs={
+            "linked_cell_cancellation_residuals": residuals,
+            "product_ground_energy_residuals": (
+                product_ground_energy_residuals
+            ),
+            "interdimer_bond_counts": interdimer_bond_counts,
+        },
+        problem_size_kind="scalable_same_observable",
+        problem_size={"orthogonal_dimer_counts": [2, 4], "spin_counts": [4, 8], "boundary_conditions": "open_linked_cells"},
+    )
+
+
+def adapter_spin1_single_ion_dense_ed(scientific_inputs, numerical_controls):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs, numerical_controls, ("single_ion_anisotropy",), ()
+    )
+    anisotropy = float(inputs["single_ion_anisotropy"])
+    _sx, _sy, sz = _task14_spin_matrices(1.0)
+    hamiltonian = anisotropy * (sz @ sz)
+    eigenvalues, _vectors, diagnostics = _task14_diagonalize(hamiltonian)
+    groups, counts = _task14_grouped_values(eigenvalues)
+    levels = []
+    for value in eigenvalues:
+        levels.append(float(value))
+    return _task14_exact_calculation(
+        {"levels": levels, "degeneracies": counts},
+        controls,
+        diagnostics,
+        operations=hamiltonian.size,
+        proof_inputs={"distinct_levels": groups},
+        problem_size_kind="fixed_local",
+        problem_size={"spin_count": 1, "spin_quantum_number": 1},
     )

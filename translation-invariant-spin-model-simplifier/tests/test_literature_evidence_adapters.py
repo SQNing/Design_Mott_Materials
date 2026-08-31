@@ -29767,6 +29767,659 @@ def test_task13_toric_rank_records_both_declared_periodic_degeneracies():
     assert sizes["lattice_shapes"] == [[2, 2], [3, 3]]
 
 
+TASK14_DENSE_ED_PAIRS = (
+    (
+        "spin_ladder_rung_dense_ed",
+        "spin_ladder_analytic_rung_oracle",
+        {"rung_exchange": 1.0},
+        {"energy_per_rung": -0.75, "gap_to_triplet": 1.0},
+    ),
+    (
+        "uls_two_site_su3_matrix",
+        "uls_permutation_commutator_oracle",
+        {"energy_scale": 1.0},
+        {"theta_radians": math.pi / 4.0, "su3_symmetric": True},
+    ),
+    (
+        "compass_line_symmetry_matrix",
+        "compass_spin_flip_oracle",
+        {"horizontal_exchange": 1.0, "vertical_exchange": 0.7},
+        {"has_line_flip_symmetries": True},
+    ),
+    (
+        "aklt_two_site_projector_ed",
+        "aklt_clebsch_gordan_oracle",
+        {"projector_scale": 1.0},
+        {
+            "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+            "vbs_ground_energy": 0.0,
+        },
+    ),
+    (
+        "majumdar_ghosh_dimer_ed",
+        "majumdar_ghosh_projector_oracle",
+        {"nearest_exchange": 1.0},
+        {"energy_per_site": -0.375, "degenerate_dimer_coverings": 2},
+    ),
+    (
+        "shastry_sutherland_dimer_ed",
+        "shastry_sutherland_bond_oracle",
+        {"intradimer_exchange": 1.0, "interdimer_exchange": 0.3},
+        {"energy_per_dimer": -0.75, "energy_per_spin": -0.375},
+    ),
+    (
+        "spin1_single_ion_dense_ed",
+        "spin1_m_quantum_number_oracle",
+        {"single_ion_anisotropy": 1.0},
+        {"levels": [0.0, 1.0, 1.0], "degeneracies": [1, 2]},
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,scientific_inputs,expected_fields",
+    TASK14_DENSE_ED_PAIRS,
+)
+def test_dense_ed_pair_recomputes_spectrum_and_independent_invariant(
+    adapter_id,
+    oracle_id,
+    scientific_inputs,
+    expected_fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    calculation = getattr(adapters, "adapter_" + adapter_id)(
+        scientific_inputs, {}
+    )
+    assert calculation["schema_version"] == "scientific_calculation_v1"
+    assert set(calculation["fields"]) == set(expected_fields)
+    for field_name, expected_value in expected_fields.items():
+        actual_value = calculation["fields"][field_name]
+        if type(expected_value) is bool:
+            assert actual_value is expected_value
+        else:
+            assert actual_value == pytest.approx(expected_value)
+
+    diagnostic_rows = calculation["proof_inputs"][
+        "matrix_diagnostics_by_size"
+    ]
+    assert diagnostic_rows
+    diagnostics = diagnostic_rows[-1]["diagnostics"]
+    assert diagnostics["dimension"] > 0
+    assert diagnostics["hermiticity_norm"] <= 1e-12
+    assert diagnostics["maximum_eigenpair_residual"] <= 1e-10
+    assert diagnostics["orthogonality_residual"] <= 1e-10
+    assert math.isfinite(diagnostics["trace"])
+    assert diagnostics["eigensolver"] == "numpy.linalg.eigh"
+
+    oracle = getattr(oracles, "oracle_" + oracle_id)
+    result = oracle(
+        {
+            "scientific_inputs": scientific_inputs,
+            "adapter_fields": calculation["fields"],
+        },
+        {},
+    )
+    assert result["invariant_satisfied"] is True
+    assert result["residual_norm"] <= 1e-10
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    body = adapters._task13_materialize_result(definition, calculation)
+    local_result = {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-task14-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-task14-request"),
+        **{
+            name: body[name]
+            for name in (
+                "observable_identity",
+                "fields",
+                "units",
+                "uncertainty",
+                "raw_convergence_evidence",
+                "backend_diagnostics",
+                "operation_counts_or_sizes",
+            )
+        },
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    from validation import literature_evidence_isolation as isolation
+
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is True
+    proofs = isolation.interpret_output_proofs(definition, validated)
+    assert set(proofs["proofs"]) == set(expected_fields)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_scientific_inputs,_expected_fields",
+    TASK14_DENSE_ED_PAIRS,
+)
+def test_dense_ed_pair_has_disjoint_scannable_scientific_closures(
+    adapter_id,
+    oracle_id,
+    _scientific_inputs,
+    _expected_fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    adapter_closure = isolation.build_scientific_closure(
+        adapters.ADAPTER_DEFINITIONS[adapter_id].entry_symbol,
+        role="adapter",
+        source_roots=(source_root,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        oracles.ORACLE_DEFINITIONS[oracle_id].entry_symbol,
+        role="oracle",
+        source_roots=(source_root,),
+    )
+    isolation.scan_scientific_closure(
+        adapter_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.scan_scientific_closure(
+        oracle_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.assert_disjoint_scientific_closures(
+        adapter_closure, oracle_closure
+    )
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_scientific_inputs,_expected_fields",
+    TASK14_DENSE_ED_PAIRS,
+)
+def test_dense_ed_pair_recomputes_seeded_valid_model_points(
+    adapter_id,
+    oracle_id,
+    _scientific_inputs,
+    _expected_fields,
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    points = isolation.derive_counterfactual_points(
+        definition, bytes(range(32))
+    )
+    valid_points = tuple(point for point in points if point.kind == "valid")
+    expected_count = (
+        3 if definition.problem_size_policy.kind == "fixed_local" else 4
+    )
+    assert len(valid_points) == expected_count
+
+    entry = getattr(adapters, "adapter_" + adapter_id)
+    oracle = getattr(oracles, "oracle_" + oracle_id)
+    for point in valid_points:
+        calculation = entry(
+            thaw_json(point.scientific_inputs),
+            thaw_json(point.numerical_controls),
+        )
+        diagnostics = calculation["proof_inputs"][
+            "matrix_diagnostics_by_size"
+        ][-1]["diagnostics"]
+        assert diagnostics["maximum_eigenpair_residual"] <= 1e-10
+        independent = oracle(
+            {
+                "scientific_inputs": thaw_json(point.scientific_inputs),
+                "adapter_fields": calculation["fields"],
+            },
+            thaw_json(point.numerical_controls),
+        )
+        assert independent["invariant_satisfied"] is True
+        assert independent["residual_norm"] <= 1e-10
+
+
+def test_dense_ed_all_pairs_execute_through_fixed_worker(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    default_file_probe = isolation._default_runtime_file_probe
+
+    def controlled_file_probe(operation, value):
+        if operation != "distribution" or value != "numpy":
+            return default_file_probe(operation, value)
+        distribution = isolation._importlib_metadata.distribution(value)
+        files = []
+        for item in distribution.files:
+            relative = Path(str(item))
+            located = Path(distribution.locate_file(item))
+            if ".." in relative.parts:
+                relative = Path("console_scripts", located.name)
+            files.append((relative.as_posix(), located))
+        return {
+            "name": distribution.metadata.get("Name", value),
+            "version": distribution.version,
+            "files": tuple(files),
+        }
+
+    monkeypatch.setattr(
+        isolation, "_default_runtime_file_probe", controlled_file_probe
+    )
+    runtime_snapshot = isolation.build_runtime_snapshot(
+        adapters.ADAPTER_DEFINITIONS[
+            "spin_ladder_rung_dense_ed"
+        ].runtime_requirements,
+        run_directory=tmp_path / "task14-runtime",
+        event_recorder=lambda event_name, details: None,
+    )
+
+    def execute(capsule, request, stem):
+        case = tmp_path / stem
+        case.mkdir()
+        capsule_path = case / "capsule.py"
+        request_path = case / "request.json"
+        result_path = case / "result.json"
+        capsule_path.write_bytes(capsule)
+        request_path.write_bytes(canonical_json_bytes(request.to_frozen_json()))
+        _task10_execute_fixed_worker(
+            isolation.emit_fixed_worker(),
+            request_path,
+            capsule_path,
+            result_path,
+        )
+        return json.loads(result_path.read_bytes())
+
+    try:
+        for (
+            adapter_id,
+            oracle_id,
+            scientific_inputs,
+            _expected_fields,
+        ) in TASK14_DENSE_ED_PAIRS:
+            definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+            adapter_closure = isolation.build_scientific_closure(
+                definition.entry_symbol,
+                role="adapter",
+                source_roots=(source_root,),
+            )
+            contract = isolation.build_scientific_result_contract(
+                definition, runtime_snapshot
+            )
+            adapter_capsule = isolation.emit_scientific_capsule(
+                adapter_closure, result_contract=contract
+            )
+            adapter_request = isolation.WorkerRequest(
+                schema_version="worker_request_v1",
+                opaque_run_nonce="task14-adapter-" + adapter_id,
+                adapter_id=adapter_id,
+                scientific_inputs=scientific_inputs,
+                numerical_controls={},
+                capsule_sha256=hashlib.sha256(adapter_capsule).hexdigest(),
+            )
+            adapter_transport = execute(
+                adapter_capsule, adapter_request, adapter_id + "-adapter"
+            )
+            body = adapter_transport["local_result"]
+            local_result = {
+                "schema_version": "local_observable_result_v1",
+                "adapter_id": adapter_id,
+                "capsule_sha256": adapter_transport["capsule_sha256"],
+                "request_sha256": adapter_transport["request_sha256"],
+                **{
+                    name: body[name]
+                    for name in (
+                        "observable_identity",
+                        "fields",
+                        "units",
+                        "uncertainty",
+                        "raw_convergence_evidence",
+                        "backend_diagnostics",
+                        "operation_counts_or_sizes",
+                    )
+                },
+                "worker_started_monotonic_ns": 1,
+                "worker_finished_monotonic_ns": 2,
+            }
+            validated = adapters.validate_local_observable_result(
+                definition, local_result
+            )
+            assert isolation.derive_convergence_decision(
+                definition, validated
+            ).accepted
+            isolation.interpret_output_proofs(definition, validated)
+
+            oracle_definition = oracles.ORACLE_DEFINITIONS[oracle_id]
+            oracle_closure = isolation.build_scientific_closure(
+                oracle_definition.entry_symbol,
+                role="oracle",
+                source_roots=(source_root,),
+            )
+            oracle_capsule = isolation.emit_scientific_capsule(oracle_closure)
+            oracle_request = isolation._make_oracle_worker_request(
+                oracle_definition,
+                opaque_run_nonce="task14-oracle-" + adapter_id,
+                scientific_inputs={
+                    "scientific_inputs": scientific_inputs,
+                    "adapter_fields": body["fields"],
+                },
+                numerical_controls={},
+                capsule_sha256=hashlib.sha256(oracle_capsule).hexdigest(),
+            )
+            oracle_transport = execute(
+                oracle_capsule, oracle_request, adapter_id + "-oracle"
+            )
+            oracle_body = oracle_transport["local_result"]
+            assert oracle_body["invariant_satisfied"] is True
+            assert oracle_body["residual_norm"] <= 1e-10
+    finally:
+        runtime_snapshot.revalidate()
+
+
+def test_dense_ed_scale_extremes_preserve_sectors_and_relative_convergence():
+    from validation import literature_evidence_isolation as isolation
+
+    tiny_cases = (
+        (
+            "spin_ladder_rung_dense_ed",
+            {"rung_exchange": 1e-12},
+            {"energy_per_rung": -0.75e-12, "gap_to_triplet": 1e-12},
+        ),
+        (
+            "aklt_two_site_projector_ed",
+            {"projector_scale": 1e-12},
+            {
+                "two_site_projector_eigenvalues": [0.0, 0.0, 1.0],
+                "vbs_ground_energy": 0.0,
+            },
+        ),
+        (
+            "spin1_single_ion_dense_ed",
+            {"single_ion_anisotropy": 1e-12},
+            {"levels": [0.0, 1e-12, 1e-12], "degeneracies": [1, 2]},
+        ),
+    )
+    for adapter_id, scientific_inputs, expected_fields in tiny_cases:
+        calculation = getattr(adapters, "adapter_" + adapter_id)(
+            scientific_inputs, {}
+        )
+        for name, expected in expected_fields.items():
+            assert calculation["fields"][name] == pytest.approx(expected)
+
+    for adapter_id, scientific_inputs in (
+        ("uls_two_site_su3_matrix", {"energy_scale": 1e12}),
+        ("aklt_two_site_projector_ed", {"projector_scale": 1e12}),
+    ):
+        definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+        calculation = getattr(adapters, "adapter_" + adapter_id)(
+            scientific_inputs, {}
+        )
+        body = adapters._task13_materialize_result(definition, calculation)
+        local_result = {
+            "schema_version": "local_observable_result_v1",
+            "adapter_id": adapter_id,
+            "capsule_sha256": _sha256_text(adapter_id + "-large-capsule"),
+            "request_sha256": _sha256_text(adapter_id + "-large-request"),
+            **{
+                name: body[name]
+                for name in (
+                    "observable_identity",
+                    "fields",
+                    "units",
+                    "uncertainty",
+                    "raw_convergence_evidence",
+                    "backend_diagnostics",
+                    "operation_counts_or_sizes",
+                )
+            },
+            "worker_started_monotonic_ns": 1,
+            "worker_finished_monotonic_ns": 2,
+        }
+        validated = adapters.validate_local_observable_result(
+            definition, local_result
+        )
+        assert isolation.derive_convergence_decision(
+            definition, validated
+        ).accepted is True
+
+
+def test_dense_ed_outer_convergence_binds_every_declared_matrix_dimension():
+    from validation import literature_evidence_isolation as isolation
+
+    expected_dimensions = {
+        "spin_ladder_rung_dense_ed": [4],
+        "uls_two_site_su3_matrix": [9],
+        "compass_line_symmetry_matrix": [16, 64],
+        "aklt_two_site_projector_ed": [9],
+        "majumdar_ghosh_dimer_ed": [256, 1024],
+        "shastry_sutherland_dimer_ed": [16, 256],
+        "spin1_single_ion_dense_ed": [3],
+    }
+    for adapter_id, _oracle_id, scientific_inputs, _fields in (
+        TASK14_DENSE_ED_PAIRS
+    ):
+        definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+        calculation = getattr(adapters, "adapter_" + adapter_id)(
+            scientific_inputs, {}
+        )
+        rows = calculation["proof_inputs"]["matrix_diagnostics_by_size"]
+        assert [row["diagnostics"]["dimension"] for row in rows] == (
+            expected_dimensions[adapter_id]
+        )
+
+        rows[0]["diagnostics"]["dimension"] = 1
+        body = adapters._task13_materialize_result(definition, calculation)
+        local_result = {
+            "schema_version": "local_observable_result_v1",
+            "adapter_id": adapter_id,
+            "capsule_sha256": _sha256_text(adapter_id + "-size-capsule"),
+            "request_sha256": _sha256_text(adapter_id + "-size-request"),
+            **{
+                name: body[name]
+                for name in (
+                    "observable_identity",
+                    "fields",
+                    "units",
+                    "uncertainty",
+                    "raw_convergence_evidence",
+                    "backend_diagnostics",
+                    "operation_counts_or_sizes",
+                )
+            },
+            "worker_started_monotonic_ns": 1,
+            "worker_finished_monotonic_ns": 2,
+        }
+        validated = adapters.validate_local_observable_result(
+            definition, local_result
+        )
+        assert isolation.derive_convergence_decision(
+            definition, validated
+        ).accepted is False
+
+
+def test_majumdar_ghosh_ed_proves_both_dimer_coverings_span_ground_space():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    calculation = adapters.adapter_majumdar_ghosh_dimer_ed(
+        {"nearest_exchange": 1.7}, {}
+    )
+    proof = calculation["proof_inputs"]
+    assert proof["ground_space_multiplicities"] == [2, 2]
+    assert proof["projected_covering_ranks"] == [2, 2]
+    assert len(proof["covering_eigen_residuals_by_size"]) == 2
+    for residuals in proof["covering_eigen_residuals_by_size"]:
+        assert len(residuals) == 2
+        assert max(residuals) <= 1e-10
+
+    oracle = oracles.oracle_majumdar_ghosh_projector_oracle(
+        {
+            "scientific_inputs": {"nearest_exchange": 1.7},
+            "adapter_fields": calculation["fields"],
+        },
+        {},
+    )
+    assert oracle["invariant_satisfied"] is True
+    assert oracle["residual_norm"] <= 1e-10
+
+
+def test_uls_dense_ed_checks_all_eight_total_su3_generators():
+    calculation = adapters.adapter_uls_two_site_su3_matrix(
+        {"energy_scale": 2.3}, {}
+    )
+    residuals = calculation["proof_inputs"]["residuals"][1:]
+    assert len(residuals) == 8
+    assert max(residuals) <= 1e-10
+
+
+def test_compass_oracle_iterates_every_bond_against_every_line_flip():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    satisfied, total = oracles._task14_compass_bond_line_parity_checks()
+    assert (satisfied, total) == (51, 51)
+
+
+def test_aklt_dense_ed_constructs_local_vbs_kernel_state():
+    calculation = adapters.adapter_aklt_two_site_projector_ed(
+        {"projector_scale": 4.2}, {}
+    )
+    proof = calculation["proof_inputs"]
+    assert proof["vbs_projector_residual"] <= 1e-10
+    assert proof["vbs_energy_expectation"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_shastry_sutherland_uses_orthogonal_dimer_linked_cell_incidence():
+    calculation = adapters.adapter_shastry_sutherland_dimer_ed(
+        {"intradimer_exchange": 1.0, "interdimer_exchange": 0.37}, {}
+    )
+    proof = calculation["proof_inputs"]
+    assert proof["interdimer_bond_counts"] == [2, 6]
+    assert len(proof["linked_cell_cancellation_residuals"]) == 2
+    assert max(proof["linked_cell_cancellation_residuals"]) <= 1e-10
+
+
+def test_fixed_dense_counterfactuals_execute_input_derived_basis_similarity():
+    from validation import literature_evidence_isolation as isolation
+
+    for adapter_id in (
+        "spin_ladder_rung_dense_ed",
+        "uls_two_site_su3_matrix",
+        "aklt_two_site_projector_ed",
+        "spin1_single_ion_dense_ed",
+    ):
+        definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+        valid = tuple(
+            point
+            for point in isolation.derive_counterfactual_points(
+                definition, bytes(range(32))
+            )
+            if point.kind == "valid"
+        )
+        phases = []
+        for point in valid:
+            calculation = getattr(adapters, "adapter_" + adapter_id)(
+                thaw_json(point.scientific_inputs), {}
+            )
+            diagnostics = calculation["proof_inputs"][
+                "matrix_diagnostics_by_size"
+            ][0]["diagnostics"]
+            assert diagnostics["basis_similarity_residual"] <= 1e-10
+            phases.append(diagnostics["basis_phase_radians"])
+        assert len(set(phases)) == len(phases)
+
+
+def test_dense_outer_requires_model_specific_ground_state_certificates():
+    from validation import literature_evidence_isolation as isolation
+
+    cases = (
+        (
+            "majumdar_ghosh_dimer_ed",
+            {"nearest_exchange": 1.0},
+            {
+                "ground_space_multiplicities": [1, 1],
+                "projected_covering_ranks": [1, 1],
+                "covering_eigen_residuals_by_size": [[1.0, 1.0], [1.0, 1.0]],
+            },
+        ),
+        (
+            "shastry_sutherland_dimer_ed",
+            {"intradimer_exchange": 1.0, "interdimer_exchange": 0.3},
+            {
+                "linked_cell_cancellation_residuals": [1.0, 1.0],
+                "product_ground_energy_residuals": [1.0, 1.0],
+            },
+        ),
+    )
+    for adapter_id, scientific_inputs, changed_proof in cases:
+        definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+        calculation = getattr(adapters, "adapter_" + adapter_id)(
+            scientific_inputs, {}
+        )
+        calculation["proof_inputs"].update(changed_proof)
+        body = adapters._task13_materialize_result(definition, calculation)
+        local_result = {
+            "schema_version": "local_observable_result_v1",
+            "adapter_id": adapter_id,
+            "capsule_sha256": _sha256_text(adapter_id + "-proof-capsule"),
+            "request_sha256": _sha256_text(adapter_id + "-proof-request"),
+            **{
+                name: body[name]
+                for name in (
+                    "observable_identity",
+                    "fields",
+                    "units",
+                    "uncertainty",
+                    "raw_convergence_evidence",
+                    "backend_diagnostics",
+                    "operation_counts_or_sizes",
+                )
+            },
+            "worker_started_monotonic_ns": 1,
+            "worker_finished_monotonic_ns": 2,
+        }
+        validated = adapters.validate_local_observable_result(
+            definition, local_result
+        )
+        assert isolation.derive_convergence_decision(
+            definition, validated
+        ).accepted is False
+
+
+def test_shastry_sutherland_rejects_outside_product_ground_state_regime():
+    definition = adapters.ADAPTER_DEFINITIONS[
+        "shastry_sutherland_dimer_ed"
+    ]
+    with pytest.raises(AdapterContractError, match="product-ground-state"):
+        adapters.validate_scientific_inputs(
+            definition,
+            {"intradimer_exchange": 1.0, "interdimer_exchange": 100.0},
+        )
+    calculation = adapters.adapter_shastry_sutherland_dimer_ed(
+        {"intradimer_exchange": 1.0, "interdimer_exchange": 0.5}, {}
+    )
+    assert max(
+        calculation["proof_inputs"]["product_ground_energy_residuals"]
+    ) <= 1e-10
+
+
+def test_majumdar_ghosh_oracle_uses_scale_relative_energy_residual():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    calculation = adapters.adapter_majumdar_ghosh_dimer_ed(
+        {"nearest_exchange": 1e20}, {}
+    )
+    oracle = oracles.oracle_majumdar_ghosh_projector_oracle(
+        {
+            "scientific_inputs": {"nearest_exchange": 1e20},
+            "adapter_fields": calculation["fields"],
+        },
+        {},
+    )
+    assert oracle["invariant_satisfied"] is True
+    assert oracle["residual_norm"] <= 1e-10
+
+
 @pytest.mark.parametrize(
     "adapter_id,residual_function,field_to_root",
     (

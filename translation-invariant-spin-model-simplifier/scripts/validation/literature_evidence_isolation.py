@@ -11297,10 +11297,19 @@ _STATIC_SAFE_NUMERIC_CONSTANT_PATHS = frozenset(
 )
 _STATIC_SAFE_NUMERIC_CALLABLE_PATHS = frozenset(
     {
+        ("numpy", "array"),
+        ("numpy", "diag"),
+        ("numpy", "eye"),
+        ("numpy", "kron"),
         ("numpy", "linalg", "eigh"),
         ("numpy", "linalg", "eigvalsh"),
+        ("numpy", "linalg", "norm"),
+        ("numpy", "max"),
         ("numpy", "sin"),
         ("numpy", "sqrt"),
+        ("numpy", "trace"),
+        ("numpy", "vdot"),
+        ("numpy", "zeros"),
         ("scipy", "integrate", "quad"),
         ("scipy", "linalg", "eigh"),
     }
@@ -21313,6 +21322,15 @@ def _counterfactual_inputs(definition, seed, point_index, variant):
             variant,
             field_name,
         )
+    for field_name, rule in definition.counterfactual_domain.valid_rules.items():
+        if rule["kind"] != "finite_product_state_regime":
+            continue
+        reference = values[rule["reference_field"]]
+        maximum_ratio = rule["maximum_absolute_ratio"]
+        authored = values[field_name]
+        fraction = abs(authored) / (1.0 + abs(authored))
+        sign = -1.0 if authored < 0.0 else 1.0
+        values[field_name] = sign * maximum_ratio * reference * fraction
     return values
 
 
@@ -21326,6 +21344,15 @@ def _counterfactual_canonical_inputs(definition):
             0,
             field_name,
         )
+    for field_name, rule in definition.counterfactual_domain.valid_rules.items():
+        if rule["kind"] != "finite_product_state_regime":
+            continue
+        reference = values[rule["reference_field"]]
+        maximum_ratio = rule["maximum_absolute_ratio"]
+        authored = values[field_name]
+        fraction = abs(authored) / (1.0 + abs(authored))
+        sign = -1.0 if authored < 0.0 else 1.0
+        values[field_name] = sign * maximum_ratio * reference * fraction
     return values
 
 
@@ -21497,10 +21524,18 @@ def _counterfactual_domain_inputs_are_valid(definition, inputs):
                     value != direction for direction in supported_directions
                 )
             )
-        elif rule_kind in {
-            "finite",
-            "finite_product_state_regime",
-        }:
+        elif rule_kind == "finite_product_state_regime":
+            reference = inputs[rule["reference_field"]]
+            maximum_ratio = rule["maximum_absolute_ratio"]
+            valid = (
+                type(value) in {int, float}
+                and math.isfinite(value)
+                and type(reference) in {int, float}
+                and math.isfinite(reference)
+                and reference > 0.0
+                and abs(value) <= maximum_ratio * reference
+            )
+        elif rule_kind == "finite":
             valid = type(value) in {int, float} and math.isfinite(value)
         else:
             raise _ContractError(
@@ -21873,6 +21908,231 @@ def collect_backend_diagnostics(definition, local_result):
     return _snapshot_json(payload, "collected backend diagnostics")
 
 
+def _dense_ed_expected_dimension(problem_size):
+    if "lattice_shapes" in problem_size:
+        dimension = 1
+        for extent in problem_size["lattice_shapes"]:
+            if type(extent) is not int or extent <= 0:
+                return None
+            dimension *= extent
+        return 1 << dimension
+    if "periodic_chain_lengths" in problem_size:
+        site_count = problem_size["periodic_chain_lengths"]
+        if type(site_count) is not int or site_count <= 0:
+            return None
+        return 1 << site_count
+    if "spin_counts" in problem_size:
+        site_count = problem_size["spin_counts"]
+        if type(site_count) is not int or site_count <= 0:
+            return None
+        return 1 << site_count
+    if "spin_count" not in problem_size:
+        return None
+    site_count = problem_size["spin_count"]
+    if type(site_count) is not int or site_count <= 0:
+        return None
+    local_dimension = 2
+    if "spin_quantum_number" in problem_size:
+        spin = problem_size["spin_quantum_number"]
+        if type(spin) not in {int, float} or spin < 0.0:
+            return None
+        local_dimension = int(round(2.0 * spin + 1.0))
+    return local_dimension**site_count
+
+
+def _dense_ed_one_matrix_diagnostics_satisfied(diagnostics, expected_dimension):
+    diagnostics = dict(
+        _static_scan_exact_frozen_items(
+            diagnostics,
+            "dense ED matrix diagnostics",
+            9,
+        )
+    )
+    expected = {
+        "basis_phase_radians",
+        "basis_similarity_residual",
+        "dimension",
+        "matrix_norm",
+        "hermiticity_norm",
+        "maximum_eigenpair_residual",
+        "orthogonality_residual",
+        "basis_phase_radians",
+        "basis_similarity_residual",
+        "trace",
+        "eigensolver",
+    }
+    if set(diagnostics) != expected:
+        return False
+    if diagnostics["dimension"] != expected_dimension:
+        return False
+    if diagnostics["eigensolver"] != "numpy.linalg.eigh":
+        return False
+    for name in (
+        "hermiticity_norm",
+        "matrix_norm",
+        "maximum_eigenpair_residual",
+        "orthogonality_residual",
+        "trace",
+    ):
+        value = diagnostics[name]
+        if type(value) not in {int, float} or not math.isfinite(value):
+            return False
+    if (
+        diagnostics["matrix_norm"] < 0.0
+        or diagnostics["basis_phase_radians"] < 0.0
+        or diagnostics["basis_phase_radians"] >= math.pi / 2.0
+        or diagnostics["basis_similarity_residual"] < 0.0
+        or diagnostics["hermiticity_norm"] < 0.0
+        or diagnostics["maximum_eigenpair_residual"] < 0.0
+        or diagnostics["orthogonality_residual"] < 0.0
+    ):
+        return False
+    scale = max(1.0, diagnostics["matrix_norm"])
+    return (
+        diagnostics["hermiticity_norm"] <= 1e-12 * scale
+        and diagnostics["maximum_eigenpair_residual"] <= 1e-10 * scale
+        and diagnostics["orthogonality_residual"] <= 1e-10
+        and diagnostics["basis_similarity_residual"] <= 1e-10 * scale
+    )
+
+
+def _dense_ed_matrix_diagnostics_satisfied(definition, proof_inputs):
+    proof_values = dict(
+        _static_scan_exact_frozen_items(
+            proof_inputs,
+            "dense ED proof inputs",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    if "matrix_diagnostics_by_size" not in proof_values:
+        return False
+    rows = proof_values["matrix_diagnostics_by_size"]
+    declared_sizes = _counterfactual_declared_sizes(definition)
+    if type(rows) is not tuple or len(rows) != len(declared_sizes):
+        return False
+    for row, declared_size in zip(rows, declared_sizes):
+        row_values = dict(
+            _static_scan_exact_frozen_items(
+                row, "dense ED size diagnostic row", 2
+            )
+        )
+        if set(row_values) != {"problem_size", "diagnostics"}:
+            return False
+        observed_size = _adapters.thaw_json(row_values["problem_size"])
+        if observed_size != declared_size:
+            return False
+        expected_dimension = _dense_ed_expected_dimension(declared_size)
+        if expected_dimension is None or not (
+            _dense_ed_one_matrix_diagnostics_satisfied(
+                row_values["diagnostics"], expected_dimension
+            )
+        ):
+            return False
+    return True
+
+
+def _dense_ed_method_evidence_satisfied(definition, proof_inputs):
+    requirements = dict(
+        _static_scan_exact_frozen_items(
+            definition.convergence_contract.requirements,
+            "dense ED convergence requirements",
+            16,
+        )
+    )
+    method = requirements.get("dense_ed_proof_kind")
+    if method is None:
+        return True
+    proof_values = dict(
+        _static_scan_exact_frozen_items(
+            proof_inputs,
+            "dense ED method proof inputs",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    declared_sizes = _counterfactual_declared_sizes(definition)
+    rows = proof_values.get("matrix_diagnostics_by_size")
+    if type(rows) is not tuple or len(rows) != len(declared_sizes):
+        return False
+    scales = []
+    for row in rows:
+        row_values = dict(
+            _static_scan_exact_frozen_items(
+                row, "dense ED method size row", 2
+            )
+        )
+        diagnostics = dict(
+            _static_scan_exact_frozen_items(
+                row_values["diagnostics"],
+                "dense ED method diagnostics",
+                9,
+            )
+        )
+        scales.append(max(1.0, diagnostics["matrix_norm"]))
+    if method == "ground_space_covering":
+        multiplicities = proof_values.get("ground_space_multiplicities")
+        ranks = proof_values.get("projected_covering_ranks")
+        residual_rows = proof_values.get(
+            "covering_eigen_residuals_by_size"
+        )
+        if (
+            type(multiplicities) is not tuple
+            or type(ranks) is not tuple
+            or type(residual_rows) is not tuple
+            or len(multiplicities) != len(declared_sizes)
+            or len(ranks) != len(declared_sizes)
+            or len(residual_rows) != len(declared_sizes)
+        ):
+            return False
+        for index, residuals in enumerate(residual_rows):
+            if multiplicities[index] != 2 or ranks[index] != 2:
+                return False
+            if type(residuals) is not tuple or len(residuals) != 2:
+                return False
+            for residual in residuals:
+                if (
+                    type(residual) not in {int, float}
+                    or not math.isfinite(residual)
+                    or residual < 0.0
+                    or residual > 1e-10 * scales[index]
+                ):
+                    return False
+        return True
+    if method == "linked_cell_product_ground_state":
+        cancellation = proof_values.get(
+            "linked_cell_cancellation_residuals"
+        )
+        ground_energy = proof_values.get(
+            "product_ground_energy_residuals"
+        )
+        bond_counts = proof_values.get("interdimer_bond_counts")
+        if (
+            type(cancellation) is not tuple
+            or type(ground_energy) is not tuple
+            or type(bond_counts) is not tuple
+            or len(cancellation) != len(declared_sizes)
+            or len(ground_energy) != len(declared_sizes)
+            or len(bond_counts) != len(declared_sizes)
+        ):
+            return False
+        for index, declared_size in enumerate(declared_sizes):
+            dimer_count = declared_size.get("orthogonal_dimer_counts")
+            if (
+                type(dimer_count) is not int
+                or bond_counts[index] != 2 * (dimer_count - 1)
+            ):
+                return False
+            for residual in (cancellation[index], ground_energy[index]):
+                if (
+                    type(residual) not in {int, float}
+                    or not math.isfinite(residual)
+                    or residual < 0.0
+                    or residual > 1e-10 * scales[index]
+                ):
+                    return False
+        return True
+    return False
+
+
 def interpret_output_proofs(definition, local_result):
     """Interpret only definition-bound generic output proof bindings."""
 
@@ -21934,9 +22194,21 @@ def interpret_output_proofs(definition, local_result):
                     "certificate_checks_total",
                     "certificate_checks_satisfied",
                 }
-                if set(proof_inputs) != expected_keys:
+                supplied_keys = set(proof_inputs)
+                if validated.backend_kind == "dense_ed":
+                    expected_keys.add("matrix_diagnostics_by_size")
+                if supplied_keys != expected_keys:
                     raise _ContractError(
                         "outer output proof evidence is malformed"
+                    )
+                if validated.backend_kind == "dense_ed" and not (
+                    _dense_ed_matrix_diagnostics_satisfied(
+                        validated,
+                        certificate_values["proof_inputs"]
+                    )
+                ):
+                    raise _ContractError(
+                        "outer dense ED matrix evidence is malformed"
                     )
                 candidate_values = proof_inputs["candidate_values"]
                 residuals = proof_inputs["residuals"]
@@ -22099,6 +22371,22 @@ def derive_convergence_decision(definition, local_result):
         accepted = (
             residuals[-1] <= raw_values["error_bound"]
             and _task12_nonincreasing(residuals)
+        )
+    if validated.backend_kind == "dense_ed":
+        certificate_values = dict(
+            _static_scan_exact_frozen_items(
+                raw_values["certificate"],
+                "dense ED convergence certificate",
+                _STATIC_SCAN_NODE_LIMIT,
+            )
+        )
+        accepted = accepted and _dense_ed_matrix_diagnostics_satisfied(
+            validated,
+            certificate_values["proof_inputs"]
+        )
+        accepted = accepted and _dense_ed_method_evidence_satisfied(
+            validated,
+            certificate_values["proof_inputs"],
         )
     reason_code = (
         "outer_convergence_contract_satisfied"
