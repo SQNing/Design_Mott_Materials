@@ -22516,6 +22516,55 @@ def interpret_output_proofs(definition, local_result):
             derived_value = glt_derived_fields[selector]
             if fields[selector] != derived_value:
                 raise _ContractError("outer-derived output proof mismatch")
+        elif (
+            validated.backend_kind == "iterative_numeric"
+            and binding.proof_kind == "bounded_numeric_value"
+        ):
+            estimates = convergence_values.get("estimates")
+            bounds = convergence_values.get("error_bounds")
+            if (
+                type(estimates) is not tuple
+                or type(bounds) is not tuple
+                or not estimates
+                or len(estimates) != len(bounds)
+                or fields[selector] != estimates[-1]
+                or uncertainty[selector] < bounds[-1]
+            ):
+                raise _ContractError(
+                    "outer iterative estimate proof is malformed"
+                )
+            derived_value = estimates[-1]
+        elif binding.proof_kind == "positive_lower_bound_boolean":
+            estimates = convergence_values.get("estimates")
+            bounds = (
+                convergence_values.get("error_bounds")
+                if convergence_values["kind"] == "quadrature"
+                else convergence_values.get("residuals")
+            )
+            supplied_lower_bound = proof_inputs.get(
+                "positive_entropy_lower_bound"
+            )
+            if (
+                type(estimates) is not tuple
+                or type(bounds) is not tuple
+                or not estimates
+                or len(estimates) != len(bounds)
+                or type(supplied_lower_bound) not in {int, float}
+                or not math.isfinite(supplied_lower_bound)
+            ):
+                raise _ContractError(
+                    "outer entropy lower bound is malformed"
+                )
+            lower_bound = estimates[-1] - bounds[-1]
+            if supplied_lower_bound != lower_bound:
+                raise _ContractError(
+                    "outer entropy lower bound does not match raw trace"
+                )
+            derived_value = lower_bound > 0.0
+            if not derived_value or fields[selector] is not derived_value:
+                raise _ContractError(
+                    "outer entropy lower bound does not prove degeneracy"
+                )
         elif binding.proof_kind in {
             "all_residuals_within_bound_boolean",
             "no_finite_crossing_boolean",
@@ -22669,6 +22718,94 @@ def _task12_nonincreasing(values):
     )
 
 
+def _iterative_numeric_trace_satisfied(definition, raw_values):
+    certificate = dict(
+        _static_scan_exact_frozen_items(
+            raw_values["certificate"],
+            "iterative convergence certificate",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    proof_inputs = dict(
+        _static_scan_exact_frozen_items(
+            certificate["proof_inputs"],
+            "iterative convergence proof inputs",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    refinement_controls = proof_inputs.get("refinement_controls")
+    estimates = raw_values.get("estimates")
+    if (
+        type(refinement_controls) is not tuple
+        or type(estimates) is not tuple
+        or len(refinement_controls) < 3
+        or len(refinement_controls) != len(estimates)
+        or any(type(value) is not int for value in refinement_controls)
+        or any(value <= 0 for value in refinement_controls)
+        or any(
+            later <= earlier
+            for earlier, later in zip(
+                refinement_controls, refinement_controls[1:]
+            )
+        )
+    ):
+        return False
+    control_values = dict(
+        _static_scan_exact_frozen_items(
+            raw_values["controls"],
+            "iterative convergence controls",
+            _STATIC_SCAN_NODE_LIMIT,
+        )
+    )
+    integer_controls = tuple(
+        name
+        for name, schema in definition.numerical_control_schema.properties
+        if schema.kind == "integer"
+    )
+    if len(integer_controls) != 1:
+        return False
+    requested_maximum = control_values[integer_controls[0]]
+    if (
+        refinement_controls[-1] > requested_maximum
+        or refinement_controls
+        != (
+            refinement_controls[-1] // 4,
+            refinement_controls[-1] // 2,
+            refinement_controls[-1],
+        )
+    ):
+        return False
+    number_controls = tuple(
+        name
+        for name, schema in definition.numerical_control_schema.properties
+        if schema.kind == "number"
+    )
+    if len(number_controls) != 1 or (
+        raw_values["error_bound"] != control_values[number_controls[0]]
+    ):
+        return False
+    if raw_values["kind"] == "quadrature":
+        bounds = raw_values["error_bounds"]
+        if type(bounds) is not tuple or len(bounds) != 3:
+            return False
+        first_difference = abs(estimates[1] - estimates[0])
+        second_difference = abs(estimates[2] - estimates[1])
+        scale = max(
+            1.0, abs(estimates[0]), abs(estimates[1]), abs(estimates[2])
+        )
+        roundoff = 64.0 * 2.220446049250313e-16 * scale
+        finest = max(second_difference, roundoff)
+        expected_bounds = (
+            max(first_difference + max(second_difference + finest, finest),
+                max(second_difference + finest, finest)),
+            max(second_difference + finest, finest),
+            finest,
+        )
+        if bounds != expected_bounds:
+            return False
+    return True
+
+
 def derive_convergence_decision(definition, local_result):
     """Derive convergence from raw samples, never a worker boolean."""
 
@@ -22713,6 +22850,10 @@ def derive_convergence_decision(definition, local_result):
         accepted = (
             residuals[-1] <= raw_values["error_bound"]
             and _task12_nonincreasing(residuals)
+        )
+    if validated.backend_kind == "iterative_numeric":
+        accepted = accepted and _iterative_numeric_trace_satisfied(
+            validated, raw_values
         )
     if validated.backend_kind == "dense_ed":
         certificate_values = dict(

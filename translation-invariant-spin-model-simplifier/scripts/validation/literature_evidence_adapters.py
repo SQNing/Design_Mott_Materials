@@ -2441,7 +2441,7 @@ _ADAPTER_DEFINITION_ROWS = (
                 0.0,
                 None,
             ),
-            ("quadrature_max_subintervals", "integer", "steps", 1, 100000),
+            ("quadrature_max_subintervals", "integer", "steps", 32, 100000),
         ),
         output_specs=(
             (
@@ -3338,7 +3338,7 @@ _ADAPTER_DEFINITION_ROWS = (
                 0.0,
                 None,
             ),
-            ("quadrature_max_subintervals", "integer", "steps", 1, 100000),
+            ("quadrature_max_subintervals", "integer", "steps", 32, 100000),
         ),
         output_specs=(
             (
@@ -3867,7 +3867,7 @@ _ADAPTER_DEFINITION_ROWS = (
             ),
         ),
         control_specs=(
-            ("series_refinement_terms", "integer", "terms", 1, 1000000),
+            ("series_refinement_terms", "integer", "terms", 32, 1000000),
             ("truncation_cutoff", "number", "dimensionless", 0.0, None),
         ),
         output_specs=(
@@ -4019,7 +4019,7 @@ _ADAPTER_DEFINITION_ROWS = (
             ),
         ),
         control_specs=(
-            ("momentum_refinement_grid", "integer", "points", 16, 1000000),
+            ("momentum_refinement_grid", "integer", "points", 32, 1000000),
             ("quadrature_absolute_threshold", "number", "J", 0.0, None),
         ),
         output_specs=(
@@ -5510,6 +5510,9 @@ def _task13_calculation(
     additional_operation_counts=None,
     proof_inputs=None,
     field_uncertainties=None,
+    estimates=None,
+    error_bounds=None,
+    refinement_iterations=None,
 ):
     uncertainty = {}
     for selector in fields_payload:
@@ -5529,6 +5532,23 @@ def _task13_calculation(
             {
                 "samples": residual_samples,
                 "residuals": residuals,
+                "error_bound": float(error_bound),
+            }
+        )
+    elif convergence_kind == "quadrature":
+        convergence.update(
+            {
+                "estimates": estimates,
+                "error_bounds": error_bounds,
+                "error_bound": float(error_bound),
+            }
+        )
+    elif convergence_kind == "iterative":
+        convergence.update(
+            {
+                "estimates": estimates,
+                "residuals": residuals,
+                "refinement_iterations": int(refinement_iterations),
                 "error_bound": float(error_bound),
             }
         )
@@ -8193,4 +8213,258 @@ def adapter_tfim_bdg_critical_point(
         proof_material,
         residual_bound,
         bounded_fields=("critical_field_over_exchange",),
+    )
+
+
+def _task16_nested_even_controls(maximum):
+    maximum = int(maximum)
+    finest = 1
+    while 2 * finest <= maximum:
+        finest *= 2
+    middle = finest // 2
+    coarse = middle // 2
+    return [coarse, middle, finest]
+
+
+def _task16_stable_bounds(estimates):
+    first_difference = abs(estimates[1] - estimates[0])
+    second_difference = abs(estimates[2] - estimates[1])
+    scale = max(1.0, abs(estimates[0]), abs(estimates[1]), abs(estimates[2]))
+    roundoff_envelope = 64.0 * 2.220446049250313e-16 * scale
+    finest = max(second_difference, roundoff_envelope)
+    middle = max(second_difference + finest, finest)
+    coarse = max(first_difference + middle, middle)
+    return [coarse, middle, finest]
+
+
+def _task16_quadrature_calculation(
+    fields,
+    controls,
+    estimates,
+    bounds,
+    operations,
+    proof_inputs,
+    bounded_fields=(),
+):
+    threshold = float(controls["quadrature_absolute_threshold"])
+    field_uncertainties = {}
+    for name in bounded_fields:
+        field_uncertainties[name] = max(bounds[-1], 1e-15)
+    return _task13_calculation(
+        "quadrature",
+        fields,
+        controls,
+        operations=operations,
+        bounded_fields=bounded_fields,
+        error_bound=threshold,
+        field_uncertainties=field_uncertainties,
+        estimates=estimates,
+        error_bounds=bounds,
+        proof_inputs=proof_inputs,
+    )
+
+
+def _task16_triangular_simpson(subintervals):
+    pi_value = 4.0 * math.atan(1.0)
+    endpoint = pi_value / 3.0
+    step = endpoint / subintervals
+    total = math.log(2.0)
+    total += math.log(2.0 * math.cos(endpoint))
+    for index in range(1, subintervals):
+        weight = 4.0 if index % 2 else 2.0
+        total += weight * math.log(
+            2.0 * math.cos(index * step)
+        )
+    return (2.0 / pi_value) * step * total / 3.0
+
+
+def adapter_triangular_ising_af_entropy_quadrature(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("quadrature_absolute_threshold", "quadrature_max_subintervals"),
+    )
+    levels = _task16_nested_even_controls(
+        controls["quadrature_max_subintervals"]
+    )
+    estimate_values = []
+    for level in levels:
+        estimate_values.append(_task16_triangular_simpson(level))
+    estimates = estimate_values
+    bounds = _task16_stable_bounds(estimates)
+    return _task16_quadrature_calculation(
+        {"residual_entropy_per_spin": estimates[-1]},
+        controls,
+        estimates,
+        bounds,
+        sum(levels) + len(levels),
+        {
+            "refinement_controls": levels,
+            "quadrature_rule": "composite_simpson_wannier_integral",
+            "bound_rule": "successive_difference_plus_roundoff_envelope",
+            "raw_integral_estimates": estimates,
+        },
+        bounded_fields=("residual_entropy_per_spin",),
+    )
+
+
+def _task16_kagome_midpoint(grid):
+    pi_value = 4.0 * math.atan(1.0)
+    total = 0.0
+    minimum_argument = None
+    for first_index in range(grid):
+        first = 2.0 * pi_value * (first_index + 0.5) / grid
+        for second_index in range(grid):
+            second = 2.0 * pi_value * (second_index + 0.5) / grid
+            argument = 21.0 - 4.0 * (
+                math.cos(first)
+                + math.cos(second)
+                + math.cos(first + second)
+            )
+            if minimum_argument is None or argument < minimum_argument:
+                minimum_argument = argument
+            total += math.log(argument)
+    return total / (6.0 * grid * grid), minimum_argument
+
+
+def adapter_kagome_ising_af_entropy_quadrature(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("quadrature_absolute_threshold", "quadrature_max_subintervals"),
+    )
+    levels = _task16_nested_even_controls(
+        controls["quadrature_max_subintervals"]
+    )
+    row_values = []
+    for level in levels:
+        row_values.append(_task16_kagome_midpoint(level))
+    rows = row_values
+    estimate_values = []
+    minimum_arguments = []
+    operations = 0
+    for index in range(len(rows)):
+        estimate_values.append(rows[index][0])
+        minimum_arguments.append(rows[index][1])
+        operations += levels[index] * levels[index]
+    estimates = estimate_values
+    bounds = _task16_stable_bounds(estimates)
+    positive_lower_bound = estimates[-1] - bounds[-1]
+    return _task16_quadrature_calculation(
+        {"macroscopic_ground_state_degeneracy": positive_lower_bound > 0.0},
+        controls,
+        estimates,
+        bounds,
+        operations,
+        {
+            "refinement_controls": levels,
+            "quadrature_rule": "periodic_midpoint_kano_naya",
+            "minimum_logarithm_arguments": minimum_arguments,
+            "positive_entropy_lower_bound": positive_lower_bound,
+            "raw_entropy_estimates": estimates,
+        },
+    )
+
+
+def _task16_catalan_entropy(term_count):
+    pi_value = 4.0 * math.atan(1.0)
+    total = 0.0
+    for index in range(term_count):
+        sign = 1.0 if index % 2 == 0 else -1.0
+        total += sign / float((2 * index + 1) ** 2)
+    remainder = 1.0 / (pi_value * float((2 * term_count + 1) ** 2))
+    return total / pi_value, remainder
+
+
+def adapter_fully_frustrated_ising_entropy_series(
+    scientific_inputs, numerical_controls
+):
+    _inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("bond_magnitude",),
+        ("series_refinement_terms", "truncation_cutoff"),
+    )
+    maximum = int(controls["series_refinement_terms"])
+    levels = _task16_nested_even_controls(maximum)
+    row_values = []
+    for level in levels:
+        row_values.append(_task16_catalan_entropy(level))
+    rows = row_values
+    estimate_values = []
+    residual_values = []
+    for row in rows:
+        estimate_values.append(row[0])
+        residual_values.append(row[1])
+    estimates = estimate_values
+    residuals = residual_values
+    positive_lower_bound = estimates[-1] - residuals[-1]
+    return _task13_calculation(
+        "iterative",
+        {"macroscopic_ground_state_degeneracy": positive_lower_bound > 0.0},
+        controls,
+        operations=sum(levels),
+        estimates=estimates,
+        residuals=residuals,
+        refinement_iterations=sum(levels),
+        error_bound=float(controls["truncation_cutoff"]),
+        proof_inputs={
+            "refinement_controls": levels,
+            "series_rule": "alternating_catalan_entropy",
+            "positive_entropy_lower_bound": positive_lower_bound,
+            "raw_entropy_estimates": estimates,
+            "alternating_remainder_bounds": residuals,
+        },
+    )
+
+
+def _task16_xx_midpoint(exchange, grid):
+    pi_value = 4.0 * math.atan(1.0)
+    step = pi_value / grid
+    total = 0.0
+    for index in range(grid):
+        momentum = -0.5 * pi_value + (index + 0.5) * step
+        total += -exchange * math.cos(momentum)
+    return total * step / (2.0 * pi_value)
+
+
+def adapter_xx_chain_fermion_integral(
+    scientific_inputs, numerical_controls
+):
+    inputs, controls = _task13_require_inputs(
+        scientific_inputs,
+        numerical_controls,
+        ("exchange",),
+        ("momentum_refinement_grid", "quadrature_absolute_threshold"),
+    )
+    exchange = float(inputs["exchange"])
+    pi_value = 4.0 * math.atan(1.0)
+    levels = _task16_nested_even_controls(
+        controls["momentum_refinement_grid"]
+    )
+    estimate_values = []
+    for level in levels:
+        estimate_values.append(_task16_xx_midpoint(exchange, level))
+    estimates = estimate_values
+    bounds = _task16_stable_bounds(estimates)
+    return _task16_quadrature_calculation(
+        {"energy_per_site": estimates[-1]},
+        controls,
+        estimates,
+        bounds,
+        sum(levels),
+        {
+            "refinement_controls": levels,
+            "quadrature_rule": "occupied_jordan_wigner_midpoint",
+            "occupied_interval": [-0.5 * pi_value, 0.5 * pi_value],
+            "endpoint_treatment": "open_midpoints",
+            "raw_energy_estimates": estimates,
+        },
+        bounded_fields=("energy_per_site",),
     )

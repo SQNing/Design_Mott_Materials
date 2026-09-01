@@ -4441,7 +4441,7 @@ def test_all_task4_records_are_exact_frozen_sealed_contracts():
             type(f"{record_name}Subclass", (record_type,), {})
 
 
-def test_oracle_contract_is_closed_and_catalog_starts_exactly_empty():
+def test_oracle_contract_is_closed_and_catalog_covers_all_eligible_pairs():
     from validation import literature_evidence_adapter_oracles as oracles
 
     assert {
@@ -4455,7 +4455,13 @@ def test_oracle_contract_is_closed_and_catalog_starts_exactly_empty():
         "convergence_invariant_contract",
         "resource_limits",
     }
-    assert oracles.ORACLE_DEFINITIONS == {}
+    expected_oracle_ids = {
+        decision.oracle_id
+        for decision in adapters.ADAPTER_ELIGIBILITY.values()
+        if decision.disposition == "eligible"
+    }
+    assert len(expected_oracle_ids) == 29
+    assert set(oracles.ORACLE_DEFINITIONS) == expected_oracle_ids
     assert type(oracles.ORACLE_DEFINITIONS) is MappingProxyType
     with pytest.raises(AdapterContractError):
         oracles.get_oracle_definition("not_populated_until_task13")
@@ -31481,3 +31487,478 @@ def test_glt_outer_convergence_rejects_increasing_residual_sequence():
     assert isolation.derive_convergence_decision(
         definition, validated
     ).accepted is False
+
+
+TASK16_ITERATIVE_PAIRS = (
+    (
+        "triangular_ising_af_entropy_quadrature",
+        "triangular_ising_af_entropy_series_oracle",
+        {"exchange": 1.0},
+        {
+            "quadrature_absolute_threshold": 1e-7,
+            "quadrature_max_subintervals": 256,
+        },
+        "residual_entropy_per_spin",
+        0.323065947,
+    ),
+    (
+        "kagome_ising_af_entropy_quadrature",
+        "kagome_ising_af_transfer_count_oracle",
+        {"exchange": 1.0},
+        {
+            "quadrature_absolute_threshold": 1e-6,
+            "quadrature_max_subintervals": 128,
+        },
+        "macroscopic_ground_state_degeneracy",
+        True,
+    ),
+    (
+        "fully_frustrated_ising_entropy_series",
+        "fully_frustrated_ising_transfer_oracle",
+        {"bond_magnitude": 1.0},
+        {"series_refinement_terms": 256, "truncation_cutoff": 1e-5},
+        "macroscopic_ground_state_degeneracy",
+        True,
+    ),
+    (
+        "xx_chain_fermion_integral",
+        "xx_chain_dense_ed_extrapolation_oracle",
+        {"exchange": 1.0},
+        {
+            "momentum_refinement_grid": 512,
+            "quadrature_absolute_threshold": 1e-5,
+        },
+        "energy_per_site",
+        -1.0 / math.pi,
+    ),
+)
+
+
+def _task16_local_result(adapter_id, calculation):
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    body = adapters._task13_materialize_result(definition, calculation)
+    return {
+        **body,
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": adapter_id,
+        "capsule_sha256": _sha256_text(adapter_id + "-iterative-capsule"),
+        "request_sha256": _sha256_text(adapter_id + "-iterative-request"),
+        "worker_started_monotonic_ns": 1,
+        "worker_finished_monotonic_ns": 2,
+    }
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,inputs,controls,selector,expected",
+    TASK16_ITERATIVE_PAIRS,
+)
+def test_iterative_pair_computes_three_refinements_and_independent_oracle(
+    adapter_id, oracle_id, inputs, controls, selector, expected
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    calculation = getattr(adapters, "adapter_" + adapter_id)(inputs, controls)
+    evidence = calculation["raw_convergence_evidence"]
+    sequence = evidence["estimates"]
+    assert len(sequence) >= 3
+    assert all(math.isfinite(value) for value in sequence)
+    if evidence["kind"] == "quadrature":
+        bounds = evidence["error_bounds"]
+    else:
+        bounds = evidence["residuals"]
+    assert len(bounds) == len(sequence)
+    assert all(later <= earlier for earlier, later in zip(bounds, bounds[1:]))
+    assert bounds[-1] <= evidence["error_bound"]
+
+    value = calculation["fields"][selector]
+    if type(expected) is bool:
+        assert value is expected
+        assert calculation["proof_inputs"]["positive_entropy_lower_bound"] > 0.0
+    else:
+        assert value == pytest.approx(expected, abs=3e-5)
+
+    oracle = getattr(oracles, "oracle_" + oracle_id)
+    oracle_result = oracle(
+        {"scientific_inputs": inputs, "adapter_fields": {selector: value}},
+        controls,
+    )
+    assert oracle_result["invariant_satisfied"] is True
+    assert oracle_result["residual_norm"] <= 3e-3
+
+
+@pytest.mark.parametrize(
+    "adapter_id,_oracle_id,inputs,controls,_selector,_expected",
+    TASK16_ITERATIVE_PAIRS,
+)
+def test_iterative_pair_outer_convergence_accepts_computed_trace(
+    adapter_id, _oracle_id, inputs, controls, _selector, _expected
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(inputs, controls)
+    local_result = _task16_local_result(adapter_id, calculation)
+    validated = adapters.validate_local_observable_result(
+        definition, local_result
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is True
+
+
+def test_iterative_pairs_execute_as_fixed_worker_capsules(
+    tmp_path, monkeypatch
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    runtime_snapshots = {}
+    default_file_probe = isolation._default_runtime_file_probe
+
+    def controlled_file_probe(operation, value):
+        if operation != "distribution" or value != "numpy":
+            return default_file_probe(operation, value)
+        distribution = isolation._importlib_metadata.distribution(value)
+        files = []
+        for item in distribution.files:
+            relative = Path(str(item))
+            located = Path(distribution.locate_file(item))
+            if ".." in relative.parts:
+                relative = Path("console_scripts", located.name)
+            files.append((relative.as_posix(), located))
+        return {
+            "name": distribution.metadata.get("Name", value),
+            "version": distribution.version,
+            "files": tuple(files),
+        }
+
+    monkeypatch.setattr(
+        isolation, "_default_runtime_file_probe", controlled_file_probe
+    )
+
+    def execute(capsule, request, stem):
+        case_directory = tmp_path / stem
+        case_directory.mkdir()
+        capsule_path = case_directory / "capsule.py"
+        request_path = case_directory / "request.json"
+        result_path = case_directory / "result.json"
+        capsule_path.write_bytes(capsule)
+        request_path.write_bytes(canonical_json_bytes(request.to_frozen_json()))
+        _task10_execute_fixed_worker(
+            isolation.emit_fixed_worker(),
+            request_path,
+            capsule_path,
+            result_path,
+        )
+        return json.loads(result_path.read_bytes())
+
+    try:
+        for (
+            adapter_id,
+            oracle_id,
+            scientific_inputs,
+            numerical_controls,
+            selector,
+            _expected,
+        ) in TASK16_ITERATIVE_PAIRS:
+            definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+            runtime = definition.runtime_requirements
+            runtime_key = (
+                runtime.interpreter,
+                runtime.packages,
+                runtime.native_libraries,
+                runtime.backend_resources,
+            )
+            if runtime_key not in runtime_snapshots:
+                runtime_snapshots[runtime_key] = (
+                    isolation.build_runtime_snapshot(
+                        runtime,
+                        run_directory=(
+                            tmp_path / ("runtime-" + str(len(runtime_snapshots)))
+                        ),
+                        event_recorder=lambda event_name, details: None,
+                    )
+                )
+            contract = isolation.build_scientific_result_contract(
+                definition, runtime_snapshots[runtime_key]
+            )
+            adapter_closure = isolation.build_scientific_closure(
+                definition.entry_symbol,
+                role="adapter",
+                source_roots=(source_root,),
+            )
+            adapter_capsule = isolation.emit_scientific_capsule(
+                adapter_closure, result_contract=contract
+            )
+            adapter_request = isolation.WorkerRequest(
+                schema_version="worker_request_v1",
+                opaque_run_nonce="task16-adapter-" + adapter_id,
+                adapter_id=adapter_id,
+                scientific_inputs=scientific_inputs,
+                numerical_controls=numerical_controls,
+                capsule_sha256=hashlib.sha256(adapter_capsule).hexdigest(),
+            )
+            adapter_transport = execute(
+                adapter_capsule, adapter_request, adapter_id + "-adapter"
+            )
+            adapter_body = adapter_transport["local_result"]
+            local_result = {
+                "schema_version": "local_observable_result_v1",
+                "adapter_id": adapter_id,
+                "capsule_sha256": adapter_transport["capsule_sha256"],
+                "request_sha256": adapter_transport["request_sha256"],
+                **{
+                    name: adapter_body[name]
+                    for name in (
+                        "observable_identity",
+                        "fields",
+                        "units",
+                        "uncertainty",
+                        "raw_convergence_evidence",
+                        "backend_diagnostics",
+                        "operation_counts_or_sizes",
+                    )
+                },
+                "worker_started_monotonic_ns": 1,
+                "worker_finished_monotonic_ns": 2,
+            }
+            validated = adapters.validate_local_observable_result(
+                definition, local_result
+            )
+            assert isolation.derive_convergence_decision(
+                definition, validated
+            ).accepted
+            derived = isolation.interpret_output_proofs(definition, validated)
+            assert selector in derived["proofs"]
+
+            oracle_definition = oracles.ORACLE_DEFINITIONS[oracle_id]
+            oracle_closure = isolation.build_scientific_closure(
+                oracle_definition.entry_symbol,
+                role="oracle",
+                source_roots=(source_root,),
+            )
+            oracle_capsule = isolation.emit_scientific_capsule(oracle_closure)
+            oracle_request = isolation._make_oracle_worker_request(
+                oracle_definition,
+                opaque_run_nonce="task16-oracle-" + adapter_id,
+                scientific_inputs={
+                    "scientific_inputs": scientific_inputs,
+                    "adapter_fields": adapter_body["fields"],
+                },
+                numerical_controls=numerical_controls,
+                capsule_sha256=hashlib.sha256(oracle_capsule).hexdigest(),
+            )
+            oracle_transport = execute(
+                oracle_capsule, oracle_request, adapter_id + "-oracle"
+            )
+            oracle_body = oracle_transport["local_result"]
+            assert oracle_body["invariant_satisfied"] is True
+            assert oracle_body["residual_norm"] <= 3e-3
+    finally:
+        for snapshot in runtime_snapshots.values():
+            snapshot.revalidate()
+
+
+@pytest.mark.parametrize(
+    "adapter_id,inputs,controls",
+    (
+        (
+            "kagome_ising_af_entropy_quadrature",
+            {"exchange": 1.0},
+            {
+                "quadrature_absolute_threshold": 1e-6,
+                "quadrature_max_subintervals": 128,
+            },
+        ),
+        (
+            "fully_frustrated_ising_entropy_series",
+            {"bond_magnitude": 1.0},
+            {"series_refinement_terms": 256, "truncation_cutoff": 1e-5},
+        ),
+    ),
+)
+def test_iterative_convergence_attack_rejects_nonpositive_entropy_certificate(
+    adapter_id, inputs, controls
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(inputs, controls)
+    calculation["proof_inputs"]["positive_entropy_lower_bound"] = -1.0
+    validated = adapters.validate_local_observable_result(
+        definition, _task16_local_result(adapter_id, calculation)
+    )
+    with pytest.raises(AdapterContractError, match="lower bound"):
+        isolation.interpret_output_proofs(definition, validated)
+
+
+def test_iterative_convergence_attack_rejects_forged_positive_lower_bound():
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "kagome_ising_af_entropy_quadrature"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = adapters.adapter_kagome_ising_af_entropy_quadrature(
+        {"exchange": 1.0},
+        {
+            "quadrature_absolute_threshold": 1e-6,
+            "quadrature_max_subintervals": 128,
+        },
+    )
+    calculation["proof_inputs"]["positive_entropy_lower_bound"] = 0.25
+    validated = adapters.validate_local_observable_result(
+        definition, _task16_local_result(adapter_id, calculation)
+    )
+    with pytest.raises(AdapterContractError, match="raw trace"):
+        isolation.interpret_output_proofs(definition, validated)
+
+
+def test_iterative_convergence_attack_rejects_repeated_refinement_controls():
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "triangular_ising_af_entropy_quadrature"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = adapters.adapter_triangular_ising_af_entropy_quadrature(
+        {"exchange": 1.0},
+        {
+            "quadrature_absolute_threshold": 1e-7,
+            "quadrature_max_subintervals": 256,
+        },
+    )
+    calculation["proof_inputs"]["refinement_controls"] = (64, 128, 128)
+    validated = adapters.validate_local_observable_result(
+        definition, _task16_local_result(adapter_id, calculation)
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is False
+
+
+def test_iterative_pair_accepts_odd_maximum_via_nested_even_levels():
+    from validation import literature_evidence_isolation as isolation
+
+    adapter_id = "triangular_ising_af_entropy_quadrature"
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = adapters.adapter_triangular_ising_af_entropy_quadrature(
+        {"exchange": 1.0},
+        {
+            "quadrature_absolute_threshold": 1e-5,
+            "quadrature_max_subintervals": 33,
+        },
+    )
+    assert calculation["proof_inputs"]["refinement_controls"] == [8, 16, 32]
+    validated = adapters.validate_local_observable_result(
+        definition, _task16_local_result(adapter_id, calculation)
+    )
+    assert isolation.derive_convergence_decision(
+        definition, validated
+    ).accepted is True
+
+
+@pytest.mark.parametrize(
+    "adapter_id,inputs,controls",
+    (
+        (
+            "triangular_ising_af_entropy_quadrature",
+            {"exchange": 1.0},
+            {
+                "quadrature_absolute_threshold": 1e-7,
+                "quadrature_max_subintervals": 256,
+            },
+        ),
+        (
+            "xx_chain_fermion_integral",
+            {"exchange": 1.0},
+            {
+                "momentum_refinement_grid": 512,
+                "quadrature_absolute_threshold": 1e-5,
+            },
+        ),
+    ),
+)
+def test_iterative_convergence_attack_rejects_field_not_derived_from_trace(
+    adapter_id, inputs, controls
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[adapter_id]
+    calculation = getattr(adapters, "adapter_" + adapter_id)(inputs, controls)
+    selector = definition.output_schema.selector_fields[0]
+    calculation["fields"][selector] += 0.1
+    validated = adapters.validate_local_observable_result(
+        definition, _task16_local_result(adapter_id, calculation)
+    )
+    with pytest.raises(AdapterContractError, match="iterative estimate"):
+        isolation.interpret_output_proofs(definition, validated)
+
+
+@pytest.mark.parametrize(
+    "adapter_id,oracle_id,_inputs,_controls,_selector,_expected",
+    TASK16_ITERATIVE_PAIRS,
+)
+def test_iterative_pair_has_disjoint_scannable_scientific_closures(
+    adapter_id, oracle_id, _inputs, _controls, _selector, _expected
+):
+    from validation import literature_evidence_adapter_oracles as oracles
+    from validation import literature_evidence_isolation as isolation
+
+    source_root = PROJECT_ROOT / "scripts"
+    adapter_closure = isolation.build_scientific_closure(
+        adapters.ADAPTER_DEFINITIONS[adapter_id].entry_symbol,
+        role="adapter",
+        source_roots=(source_root,),
+    )
+    oracle_closure = isolation.build_scientific_closure(
+        oracles.ORACLE_DEFINITIONS[oracle_id].entry_symbol,
+        role="oracle",
+        source_roots=(source_root,),
+    )
+    isolation.scan_scientific_closure(
+        adapter_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.scan_scientific_closure(
+        oracle_closure,
+        forbidden_fingerprints=_task6_absent_fingerprints(),
+    )
+    isolation.assert_disjoint_scientific_closures(
+        adapter_closure, oracle_closure
+    )
+
+
+def test_iterative_pair_declared_envelopes_contain_known_numeric_limits():
+    triangular = adapters.adapter_triangular_ising_af_entropy_quadrature(
+        {"exchange": 1.0},
+        {
+            "quadrature_absolute_threshold": 1e-7,
+            "quadrature_max_subintervals": 256,
+        },
+    )
+    triangular_trace = triangular["raw_convergence_evidence"]
+    assert abs(
+        triangular_trace["estimates"][-1] - 0.3230659472194505
+    ) <= triangular_trace["error_bounds"][-1]
+
+    xx_chain = adapters.adapter_xx_chain_fermion_integral(
+        {"exchange": 1.0},
+        {
+            "momentum_refinement_grid": 512,
+            "quadrature_absolute_threshold": 1e-5,
+        },
+    )
+    xx_trace = xx_chain["raw_convergence_evidence"]
+    assert abs(xx_trace["estimates"][-1] + 1.0 / math.pi) <= (
+        xx_trace["error_bounds"][-1]
+    )
+
+
+def test_kagome_transfer_oracle_counts_corner_sharing_three_site_cells():
+    from validation import literature_evidence_adapter_oracles as oracles
+
+    width_two, lower_two = oracles._task16_oracle_kagome_transfer(2, 8)
+    width_three, lower_three = oracles._task16_oracle_kagome_transfer(3, 8)
+    assert lower_two > 0.45
+    assert lower_three > 0.45
+    assert width_two[-1] < width_two[-2] < width_two[-3]
+    assert width_three[-1] < width_three[-2] < width_three[-3]
+    assert lower_three < 0.5018331646 < width_three[-1]

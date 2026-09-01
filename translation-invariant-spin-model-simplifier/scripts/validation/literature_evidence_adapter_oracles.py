@@ -410,6 +410,22 @@ _TASK13_ORACLE_ROWS = (
         "simple_cubic_real_space_energy_oracle",
     ),
     ("tfim_bdg_critical_point", "tfim_duality_gap_oracle"),
+    (
+        "triangular_ising_af_entropy_quadrature",
+        "triangular_ising_af_entropy_series_oracle",
+    ),
+    (
+        "kagome_ising_af_entropy_quadrature",
+        "kagome_ising_af_transfer_count_oracle",
+    ),
+    (
+        "fully_frustrated_ising_entropy_series",
+        "fully_frustrated_ising_transfer_oracle",
+    ),
+    (
+        "xx_chain_fermion_integral",
+        "xx_chain_dense_ed_extrapolation_oracle",
+    ),
 )
 
 
@@ -1674,3 +1690,244 @@ def oracle_tfim_duality_gap_oracle(payload, numerical_controls):
         and spread <= 0.02 * abs(exchange)
     )
     return _task13_oracle_measure(duality_residual, invariant)
+
+
+def _task16_oracle_triangular_series(term_count):
+    pi_value = 4.0 * math.atan(1.0)
+    total = 0.0
+    for index in range(1, term_count + 1):
+        sign = 1.0 if index % 2 == 1 else -1.0
+        total += (
+            sign
+            * math.sin(2.0 * pi_value * index / 3.0)
+            / float(index * index)
+        )
+    return total / pi_value
+
+
+def oracle_triangular_ising_af_entropy_series_oracle(
+    payload, numerical_controls
+):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["exchange"])
+    estimate_values = []
+    for terms in (3000, 6000, 12000):
+        estimate_values.append(_task16_oracle_triangular_series(terms))
+    estimates = tuple(estimate_values)
+    independent = estimates[-1]
+    pi_value = 4.0 * math.atan(1.0)
+    tail_bound = 1.0 / (pi_value * 12000.0)
+    raw_difference = abs(
+        fields["residual_entropy_per_spin"] - independent
+    )
+    residual = max(0.0, raw_difference - tail_bound)
+    invariant = (
+        exchange > 0.0
+        and abs(estimates[-1] - estimates[-2])
+        <= abs(estimates[-2] - estimates[-3])
+        and raw_difference <= tail_bound
+    )
+    return _task13_oracle_measure(residual, invariant)
+
+
+def _task16_oracle_kagome_column_states(width):
+    states = []
+    for state in range(1 << (3 * width)):
+        allowed = True
+        for row in range(width):
+            first = (state >> (3 * row)) & 1
+            second = (state >> (3 * row + 1)) & 1
+            third = (state >> (3 * row + 2)) & 1
+            if first == second and second == third:
+                allowed = False
+                break
+        if allowed:
+            states.append(state)
+    return tuple(states)
+
+
+def _task16_oracle_kagome_columns_compatible(previous, current, width):
+    for row in range(width):
+        previous_row = (row - 1) % width
+        first = (current >> (3 * row)) & 1
+        second = (previous >> (3 * row + 1)) & 1
+        third = (current >> (3 * previous_row + 2)) & 1
+        if first == second and second == third:
+            return False
+    return True
+
+
+def _task16_oracle_kagome_transfer(width, length):
+    states = _task16_oracle_kagome_column_states(width)
+    successors = []
+    minimum_successors = None
+    for previous in states:
+        row_successors = []
+        for current_index in range(len(states)):
+            if _task16_oracle_kagome_columns_compatible(
+                previous, states[current_index], width
+            ):
+                row_successors.append(current_index)
+        successors.append(tuple(row_successors))
+        if (
+            minimum_successors is None
+            or len(row_successors) < minimum_successors
+        ):
+            minimum_successors = len(row_successors)
+    counts = [1] * len(states)
+    estimates = [math.log(float(sum(counts))) / (3.0 * width)]
+    for column in range(1, length):
+        next_counts = [0] * len(states)
+        for previous_index in range(len(states)):
+            for current_index in successors[previous_index]:
+                next_counts[current_index] += counts[previous_index]
+        counts = next_counts
+        estimates.append(
+            math.log(float(sum(counts)))
+            / (3.0 * width * float(column + 1))
+        )
+    lower_bound = math.log(float(minimum_successors)) / (3.0 * width)
+    return tuple(estimates), lower_bound
+
+
+def oracle_kagome_ising_af_transfer_count_oracle(
+    payload, numerical_controls
+):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    width_two, width_two_lower = _task16_oracle_kagome_transfer(2, 8)
+    width_three, width_three_lower = _task16_oracle_kagome_transfer(3, 8)
+    trend = tuple((*width_two[-3:], *width_three[-3:]))
+    positive_lower_bound = min(width_two_lower, width_three_lower)
+    decreasing = True
+    for values in (width_two, width_three):
+        for earlier, later in zip(values, values[1:]):
+            if later >= earlier:
+                decreasing = False
+    invariant = (
+        float(inputs["exchange"]) > 0.0
+        and fields["macroscopic_ground_state_degeneracy"] is True
+        and positive_lower_bound > 0.0
+        and decreasing
+        and min(trend) > positive_lower_bound
+    )
+    return _task13_oracle_measure(0.0, invariant)
+
+
+def _task16_oracle_fully_frustrated_transfer(width, twisted):
+    states = tuple(range(1 << width))
+    transfer = np.zeros((len(states), len(states)), dtype=float)
+    for lower in states:
+        for upper in states:
+            allowed = True
+            for site in range(width):
+                following = (site + 1) % width
+                lower_spin = 1 if (lower >> site) & 1 else -1
+                lower_next = 1 if (lower >> following) & 1 else -1
+                upper_spin = 1 if (upper >> site) & 1 else -1
+                upper_next = 1 if (upper >> following) & 1 else -1
+                lower_sign = (
+                    -1 if twisted and site == width - 1 else 1
+                )
+                upper_sign = lower_sign
+                bonds = (
+                    lower_sign * lower_spin * lower_next,
+                    upper_sign * upper_spin * upper_next,
+                    ((-1) ** site) * lower_spin * upper_spin,
+                    ((-1) ** following) * lower_next * upper_next,
+                )
+                violated_bonds = 0
+                for value in bonds:
+                    if value > 0:
+                        violated_bonds += 1
+                if violated_bonds != 1:
+                    allowed = False
+                    break
+            if allowed:
+                transfer[upper, lower] = 1.0
+    radius = 0.0
+    for value in np.linalg.eigvalsh(transfer):
+        radius = max(radius, abs(complex(value)))
+    return math.log(max(float(radius), 1.0)) / width
+
+
+def oracle_fully_frustrated_ising_transfer_oracle(
+    payload, numerical_controls
+):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    entropy_values = []
+    for width in (4, 6):
+        for twisted in (False, True):
+            entropy_values.append(
+                _task16_oracle_fully_frustrated_transfer(width, twisted)
+            )
+    sector_entropies = tuple(entropy_values)
+    invariant = (
+        float(inputs["bond_magnitude"]) > 0.0
+        and fields["macroscopic_ground_state_degeneracy"] is True
+        and max(sector_entropies) > 0.0
+        and sector_entropies[2] < sector_entropies[0]
+        and sector_entropies[3] > sector_entropies[1]
+    )
+    return _task13_oracle_measure(0.0, invariant)
+
+
+def _task16_oracle_xx_ground_energy(exchange, sites):
+    matrix = np.zeros((sites, sites), dtype=float)
+    for site in range(sites):
+        following = (site + 1) % sites
+        matrix[following, site] += 0.5 * exchange
+        matrix[site, following] += 0.5 * exchange
+    eigenvalues = np.linalg.eigvalsh(matrix)
+    occupied_sum = 0.0
+    for value in eigenvalues:
+        if value < 0.0:
+            occupied_sum += float(value)
+    return occupied_sum / sites
+
+
+def oracle_xx_chain_dense_ed_extrapolation_oracle(
+    payload, numerical_controls
+):
+    inputs, fields = _task13_oracle_unpack(payload, numerical_controls)
+    exchange = float(inputs["exchange"])
+    sizes = (32, 64, 128)
+    density_values = []
+    inverse_values = []
+    for sites in sizes:
+        density_values.append(
+            _task16_oracle_xx_ground_energy(exchange, sites)
+        )
+        inverse_values.append(1.0 / (sites * sites))
+    densities = tuple(density_values)
+    inverse_squared = tuple(inverse_values)
+    extrapolated_values = []
+    for index in range(1, len(sizes)):
+        slope = (densities[index] - densities[index - 1]) / (
+            inverse_squared[index] - inverse_squared[index - 1]
+        )
+        extrapolated_values.append(
+            densities[index] - slope * inverse_squared[index]
+        )
+    extrapolated = tuple(extrapolated_values)
+    extrapolation_bound = abs(extrapolated[-1] - extrapolated[-2])
+    interval_lower = extrapolated[-1] - extrapolation_bound
+    interval_upper = extrapolated[-1] + extrapolation_bound
+    selected = fields["energy_per_site"]
+    if selected < interval_lower:
+        residual = interval_lower - selected
+    elif selected > interval_upper:
+        residual = selected - interval_upper
+    else:
+        residual = 0.0
+    invariant = (
+        exchange > 0.0
+        and densities[0] > densities[1] > densities[2]
+        and densities[2] < 0.0
+        and abs(extrapolated[-1] - extrapolated[-2])
+        < abs(densities[-1] - densities[-2])
+        and extrapolation_bound
+        <= float(numerical_controls["quadrature_absolute_threshold"])
+        and residual
+        <= float(numerical_controls["quadrature_absolute_threshold"])
+    )
+    return _task13_oracle_measure(residual, invariant)
