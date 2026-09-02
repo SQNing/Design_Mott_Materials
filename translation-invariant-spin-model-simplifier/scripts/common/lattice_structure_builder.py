@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from copy import deepcopy
 import re
 
 import numpy as np
-import spglib
 
 from common.bond_orbits import canonicalize_directed_bond
 from common.lattice_geometry import resolve_lattice_vectors
@@ -65,6 +65,8 @@ def _transform_directed_bond_by_symmetry(source, target, translation, rotation, 
 
 
 def _symmetry_dataset(lattice):
+    import spglib
+
     lattice_vectors = np.array(resolve_lattice_vectors(lattice), dtype=float)
     basis_positions = np.array(lattice.get("positions") or [[0.0, 0.0, 0.0]], dtype=float)
     symmetry_positions = np.array(lattice.get("symmetry_positions") or basis_positions, dtype=float)
@@ -247,7 +249,12 @@ def build_lattice_structure(source_model):
     source_model = source_model or {}
     lattice_model = _copy_dict(source_model.get("lattice_model"))
     source_labels = _extract_source_labels(source_model)
-    bond_orbits = _bond_orbits_from_legacy_maps(source_model)
+    explicit_bond_orbits = lattice_model.get("bond_orbits")
+    bond_orbits = (
+        deepcopy(explicit_bond_orbits)
+        if isinstance(explicit_bond_orbits, list)
+        else _bond_orbits_from_legacy_maps(source_model)
+    )
     if not bond_orbits and lattice_model:
         representative = {
             "source": 0,

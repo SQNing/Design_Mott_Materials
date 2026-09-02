@@ -124,6 +124,11 @@ def _resolve_scalar(token, parameters):
     cleaned = str(token).strip()
     if not cleaned:
         raise ValueError("empty coefficient token")
+    if cleaned in parameters:
+        return complex(parameters[cleaned])
+    if cleaned[:1] in {"+", "-"} and cleaned[1:] in parameters:
+        sign = -1.0 if cleaned[0] == "-" else 1.0
+        return sign * complex(parameters[cleaned[1:]])
     if cleaned in {"i", "+i", "j", "+j"}:
         return 0.0 + 1.0j
     if cleaned in {"-i", "-j"}:
@@ -139,8 +144,6 @@ def _resolve_scalar(token, parameters):
     pure_imaginary_i = re.fullmatch(r"(?P<imag>[+\-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?)i$", cleaned)
     if pure_imaginary_i:
         return complex(0.0, float(pure_imaginary_i.group("imag")))
-    if cleaned in parameters:
-        return complex(parameters[cleaned])
     raise ValueError(f"unknown coefficient token: {cleaned}")
 
 
@@ -241,11 +244,17 @@ def _collect_latex_operator_terms(expression, parameters, tolerance):
 
 def _decompose_operator_expression(expression, parameters, tolerance):
     parameters = dict(parameters or {})
-    terms = _collect_operator_basis_terms(expression, parameters, tolerance)
+    terms = sparse_expand_operator_expression(
+        expression, parameters, tolerance
+    )
     if not terms:
-        terms = _collect_latex_operator_terms(expression, parameters, tolerance)
+        terms = _collect_operator_basis_terms(
+            expression, parameters, tolerance
+        )
     if not terms:
-        terms = sparse_expand_operator_expression(expression, parameters, tolerance)
+        terms = _collect_latex_operator_terms(
+            expression, parameters, tolerance
+        )
     if terms:
         return {"mode": "operator-basis", "terms": terms}
     return {

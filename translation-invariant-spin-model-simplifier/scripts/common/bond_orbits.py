@@ -3,7 +3,6 @@ from pathlib import Path
 import sys
 
 import numpy as np
-import spglib
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -63,6 +62,8 @@ def _transform_directed_bond_by_symmetry(source, target, translation, rotation, 
 
 
 def _symmetry_dataset(lattice):
+    import spglib
+
     lattice_vectors = np.array(resolve_lattice_vectors(lattice), dtype=float)
     basis_positions = np.array(lattice.get("positions") or [[0.0, 0.0, 0.0]], dtype=float)
     symmetry_positions = np.array(lattice.get("symmetry_positions") or basis_positions, dtype=float)

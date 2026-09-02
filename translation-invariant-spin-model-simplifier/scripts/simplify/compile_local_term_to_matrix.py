@@ -34,6 +34,32 @@ def _local_basis_order(local_dimension):
     return formatted
 
 
+def _uniform_local_dimension(normalized):
+    local_hilbert = normalized.get("local_hilbert", {})
+    legacy_dimension = local_hilbert.get("dimension")
+    if legacy_dimension is not None:
+        return int(legacy_dimension)
+
+    basis_registry = local_hilbert.get("basis_registry", {})
+    site_records = local_hilbert.get("sites", [])
+    dimensions = []
+    for site in site_records:
+        basis = basis_registry.get(site.get("basis_ref"), {})
+        dimension = basis.get("dimension")
+        if dimension is None:
+            raise LocalMatrixCompilationError(
+                "canonical local Hilbert-space basis has no dimension"
+            )
+        dimensions.append(int(dimension))
+    if not dimensions or any(
+        dimension != dimensions[0] for dimension in dimensions[1:]
+    ):
+        raise LocalMatrixCompilationError(
+            "local matrix compilation requires a uniform local dimension"
+        )
+    return dimensions[0]
+
+
 def _is_compact_operator_expression(expression):
     text = str(expression or "")
     return "@" in text and "\\frac" not in text and "S_i^" not in text and "S_j^" not in text
@@ -52,7 +78,7 @@ def _decomposition_preference(*, representation_kind, support, local_dimension, 
 def compile_local_term_to_matrix(normalized):
     support = list(normalized["local_term"]["support"])
     representation = normalized["local_term"]["representation"]
-    local_dimension = int(normalized["local_hilbert"]["dimension"])
+    local_dimension = _uniform_local_dimension(normalized)
     parameters = dict(normalized.get("parameters", {}))
     coordinate_frame = _coordinate_frame(normalized)
 

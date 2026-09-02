@@ -15,6 +15,53 @@ from common.lattice_structure_builder import (
 
 
 class LatticeStructureBuilderTests(unittest.TestCase):
+    def test_build_lattice_structure_preserves_explicit_bond_orbit_members(self):
+        explicit_orbit = {
+            "orbit_ref": "bond-orbit:nn",
+            "kind": "pair",
+            "directed": False,
+            "orientation_convention": "undirected",
+            "source_labels": ["nn"],
+            "shell": 1,
+            "representative": {
+                "source": 0,
+                "target": 0,
+                "translation": [1, 0, 0],
+            },
+            "members": [
+                {
+                    "source": 0,
+                    "target": 0,
+                    "translation": [1, 0, 0],
+                    "generated_by_operation_ref": "explicit",
+                },
+                {
+                    "source": 0,
+                    "target": 0,
+                    "translation": [0, 1, 0],
+                    "generated_by_operation_ref": "explicit",
+                },
+            ],
+            "reverse_orientation": {
+                "kind": "same_undirected_bond",
+                "source_target_swap": True,
+                "transpose": False,
+                "translation": [-1, 0, 0],
+            },
+            "selection_aliases": ["nn"],
+        }
+
+        lattice_structure = build_lattice_structure(
+            {
+                "lattice_model": {
+                    "positions": [[0.0, 0.0, 0.0]],
+                    "bond_orbits": [explicit_orbit],
+                }
+            }
+        )
+
+        self.assertEqual(lattice_structure["bond_orbits"], [explicit_orbit])
+
     def test_build_lattice_structure_turns_legacy_bond_label_maps_into_canonical_bond_orbits(self):
         source_model = {
             "lattice_model": {

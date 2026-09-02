@@ -377,6 +377,17 @@ def _canonical_local_hilbert(payload, source_model, lattice_structure):
     }
 
 
+def _input_local_hilbert(payload, default_dimension):
+    declared = payload.get("local_hilbert")
+    if (
+        isinstance(declared, Mapping)
+        and declared.get("sites")
+        and declared.get("basis_registry")
+    ):
+        return deepcopy(declared)
+    return {"dimension": int(default_dimension), "uniform": True}
+
+
 def _orbit_ref_from_term(term):
     attach_to = _as_mapping(term.get("attach_to")) if isinstance(term, Mapping) else {}
     return (
@@ -1743,7 +1754,9 @@ def normalize_input(payload):
         value = _require_representation_value(payload, representation)
         return _finalize_normalized_payload({
             "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
-            "local_hilbert": {"dimension": int(payload.get("local_dim", 2)), "uniform": True},
+            "local_hilbert": _input_local_hilbert(
+                payload, payload.get("local_dim", 2)
+            ),
             "lattice": payload.get("lattice", _default_lattice()),
             "lattice_description": _normalize_lattice_description(payload, payload.get("lattice", _default_lattice())),
             "local_term": {
@@ -1796,7 +1809,9 @@ def normalize_input(payload):
         _attach_classical_bond_label_resolution(
             _copy_passthrough_fields(payload, {
                 "system": {"name": payload.get("name", ""), "units": payload.get("units", "arb.")},
-                "local_hilbert": {"dimension": local_dimension, "uniform": True},
+                "local_hilbert": _input_local_hilbert(
+                    payload, local_dimension
+                ),
                 "lattice": legacy_lattice,
                 "lattice_description": lattice_description,
                 "local_term": dict(hamiltonian_description),

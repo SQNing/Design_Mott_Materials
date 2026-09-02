@@ -33,12 +33,14 @@ CATEGORY_COLORS = {
 }
 STRICT_CATEGORY_LABELS = {
     "strict_local_recomputed": "Strict local",
+    "strict_local_source_parsed": "Strict source parse",
     "local_projection_only": "Local projection",
     "executable_projection": "Executable projection",
     "reference_only": "Reference only",
 }
 STRICT_CATEGORY_COLORS = {
     "strict_local_recomputed": ("#DFF1E8", "#2F7D59"),
+    "strict_local_source_parsed": ("#E1EEF8", "#28648C"),
     "local_projection_only": ("#FFF0D6", "#A6641A"),
     "executable_projection": ("#FDE2D3", "#A94420"),
     "reference_only": ("#E9ECF2", "#5D687A"),
@@ -51,7 +53,11 @@ def _wrap(text: object, width: int) -> str:
 
 def build_reproduction_pdf_payload() -> dict[str, object]:
     audit = build_literature_reproduction_audit()
-    strict_count = audit["strict_category_counts"].get("strict_local_recomputed", 0)
+    strict_counts = audit["strict_category_counts"]
+    strict_count = (
+        strict_counts.get("strict_local_recomputed", 0)
+        + strict_counts.get("strict_local_source_parsed", 0)
+    )
     total_count = audit["total_standard_results"]
     remaining_gap_rows = [
         row for row in audit["rows"] if row["strict_literature_match_label"] == "no"
@@ -59,13 +65,13 @@ def build_reproduction_pdf_payload() -> dict[str, object]:
     if strict_count == total_count:
         direct_answer = (
             f"Yes. {strict_count} of {total_count} registered literature entries currently have a strict local "
-            "recomputation, analytic reproduction, or direct published-observable parse matching the registered "
+            "recomputation, analytic reproduction, or direct local-source parse matching the registered "
             "observable."
         )
     else:
         direct_answer = (
             f"No. {strict_count} of {total_count} registered literature entries currently have a strict local "
-            "recomputation/analytic reproduction matching the registered observable; the rest are projections "
+            "recomputation/analytic reproduction/local-source parse matching the registered observable; the rest are projections "
             "or stored references."
         )
     return {
@@ -73,6 +79,14 @@ def build_reproduction_pdf_payload() -> dict[str, object]:
         "total_standard_results": audit["total_standard_results"],
         "category_counts": audit["category_counts"],
         "strict_category_counts": audit["strict_category_counts"],
+        "strict_match_count": strict_count,
+        "strict_category_order": (
+            "strict_local_recomputed",
+            "strict_local_source_parsed",
+            "local_projection_only",
+            "executable_projection",
+            "reference_only",
+        ),
         "rows": audit["rows"],
         "remaining_gap_rows": remaining_gap_rows,
         "direct_answer": direct_answer,
@@ -191,6 +205,7 @@ def write_reproduction_pdf(payload: dict[str, object], pdf_path: Path = OUTPUT_P
         fig.text(0.055, 0.34, "Strict Counts", color="#172033", fontsize=16, weight="bold")
         strict_summary = (
             f"strict_local_recomputed={strict_counts.get('strict_local_recomputed', 0)}, "
+            f"strict_local_source_parsed={strict_counts.get('strict_local_source_parsed', 0)}, "
             f"local_projection_only={strict_counts.get('local_projection_only', 0)}, "
             f"executable_projection={strict_counts.get('executable_projection', 0)}, "
             f"reference_only={strict_counts.get('reference_only', 0)}."
@@ -199,7 +214,7 @@ def write_reproduction_pdf(payload: dict[str, object], pdf_path: Path = OUTPUT_P
         fig.text(0.055, 0.245, "Direct Answer", color="#172033", fontsize=16, weight="bold")
         fig.text(0.055, 0.212, _wrap(payload["direct_answer"], 135), color="#172033", fontsize=10.5, linespacing=1.45)
         fig.text(0.055, 0.145, "Current Truth", color="#172033", fontsize=16, weight="bold")
-        if strict_counts.get("strict_local_recomputed", 0) == payload["total_standard_results"]:
+        if payload["strict_match_count"] == payload["total_standard_results"]:
             truth = (
                 f"All {payload['total_standard_results']} entries currently meet the stricter local "
                 "recomputation, analytic reproduction, or direct published-observable parse criterion. "
@@ -207,8 +222,8 @@ def write_reproduction_pdf(payload: dict[str, object], pdf_path: Path = OUTPUT_P
             )
         else:
             truth = (
-                f"{strict_counts.get('strict_local_recomputed', 0)} of {payload['total_standard_results']} entries "
-                "currently meet the stricter local recomputation/analytic reproduction criterion. The remaining "
+                f"{payload['strict_match_count']} of {payload['total_standard_results']} entries "
+                "currently meet the stricter local recomputation/analytic reproduction/direct-source-parse criterion. The remaining "
                 "entries require stronger numerical workflows, model parameters, finite-size scaling, or "
                 "literature-specific calculations."
             )
@@ -219,7 +234,7 @@ def write_reproduction_pdf(payload: dict[str, object], pdf_path: Path = OUTPUT_P
         page_number += 1
 
         summary_rows = []
-        for category in ("strict_local_recomputed", "local_projection_only", "executable_projection", "reference_only"):
+        for category in payload["strict_category_order"]:
             for row in grouped.get(category, []):
                 if row["audit_category"] == "local_recomputed":
                     evidence = f"{row['local_check_kind']}: {row['local_check_evidence']}"

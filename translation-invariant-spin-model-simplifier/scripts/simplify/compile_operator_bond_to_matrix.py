@@ -80,6 +80,11 @@ def _spin_operator_matrices(local_dimension):
 
 def _resolve_scalar(token, parameters):
     cleaned = str(token).strip()
+    if cleaned in parameters:
+        return complex(parameters[cleaned])
+    if cleaned[:1] in {"+", "-"} and cleaned[1:] in parameters:
+        sign = -1.0 if cleaned[0] == "-" else 1.0
+        return sign * complex(parameters[cleaned[1:]])
     if cleaned in {"i", "+i", "j", "+j"}:
         return 0.0 + 1.0j
     if cleaned in {"-i", "-j"}:
@@ -95,8 +100,6 @@ def _resolve_scalar(token, parameters):
     pure_imaginary_i = re.fullmatch(r"(?P<imag>[+\-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?)i$", cleaned)
     if pure_imaginary_i:
         return complex(0.0, float(pure_imaginary_i.group("imag")))
-    if cleaned in parameters:
-        return complex(parameters[cleaned])
     raise ValueError(f"unknown coefficient token: {cleaned}")
 
 

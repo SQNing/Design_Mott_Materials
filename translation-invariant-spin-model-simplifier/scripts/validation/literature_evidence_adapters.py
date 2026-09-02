@@ -5795,7 +5795,7 @@ def adapter_square_ising_self_dual_tc(
 
 
 def adapter_pauling_entropy_combinatorics(
-    scientific_inputs, numerical_controls
+    scientific_inputs, numerical_controls, scientific_configuration=None
 ):
     inputs, controls = _task13_require_inputs(
         scientific_inputs,
@@ -5804,13 +5804,28 @@ def adapter_pauling_entropy_combinatorics(
         (),
     )
     spin_count = inputs["spins_per_tetrahedron"]
+    canonical_basis = ("spin_0", "spin_1", "spin_2", "spin_3")
+    basis_labels = canonical_basis
+    gauge_inverted = False
+    if scientific_configuration:
+        basis_labels = tuple(scientific_configuration["basis_labels"])
+        gauge_inverted = scientific_configuration["gauge_inverted"]
     allowed_count = 0
     total_count = 0
     for state in range(1 << spin_count):
         total_count += 1
         up_count = 0
-        for index in range(spin_count):
-            up_count += (state >> index) & 1
+        for label in basis_labels:
+            if label == "spin_0":
+                index = 0
+            elif label == "spin_1":
+                index = 1
+            elif label == "spin_2":
+                index = 2
+            else:
+                index = 3
+            spin_value = (state >> index) & 1
+            up_count += 1 - spin_value if gauge_inverted else spin_value
         if up_count * 2 == spin_count:
             allowed_count += 1
     shared_spin_normalization = 2.0 ** (spin_count / 2.0)

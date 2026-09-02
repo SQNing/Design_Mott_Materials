@@ -37,11 +37,23 @@ translation-invariant-spin-model-simplifier/tests/*
 !translation-invariant-spin-model-simplifier/tests/test_cpn_glt_refinement_bounds.py
 !translation-invariant-spin-model-simplifier/tests/test_cpn_glt_continuous_search_failures.py
 !translation-invariant-spin-model-simplifier/tests/test_glt_solver_mode_selection.py
+!translation-invariant-spin-model-simplifier/tests/test_generic_model_analysis.py
+!translation-invariant-spin-model-simplifier/tests/test_literature_generic_workflow.py
 translation-invariant-spin-model-simplifier/scripts/plot_payload.json
 translation-invariant-spin-model-simplifier/scripts/results_bundle_example.json
 session-memory/
 Hamiltonian-transformation/docs/
 Hamiltonian-transformation/session-memory/
 Hamiltonian-transformation/.pytest_cache/
+
+# Keep the literature-to-generic-workflow implementation plan as a deliverable
+# without unignoring the rest of this project's documentation tree.
+!translation-invariant-spin-model-simplifier/docs/
+translation-invariant-spin-model-simplifier/docs/*
+!translation-invariant-spin-model-simplifier/docs/superpowers/
+translation-invariant-spin-model-simplifier/docs/superpowers/*
+!translation-invariant-spin-model-simplifier/docs/superpowers/plans/
+translation-invariant-spin-model-simplifier/docs/superpowers/plans/*
+!translation-invariant-spin-model-simplifier/docs/superpowers/plans/2026-09-02-literature-model-generic-workflow-validation.md
 Hamiltonian-transformation/tests/
 translation-invariant-spin-model-simplifier/tmp/

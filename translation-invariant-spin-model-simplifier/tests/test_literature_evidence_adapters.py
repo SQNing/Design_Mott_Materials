@@ -398,6 +398,33 @@ EXPECTED_ELIGIBILITY = (
 )
 
 
+@dataclasses.dataclass(frozen=True)
+class EligibleProductionRow:
+    benchmark_id: str
+    selector_fields: tuple
+    adapter_id: str
+    oracle_id: str
+
+
+EXPECTED_ELIGIBLE_ROWS = tuple(
+    EligibleProductionRow(
+        benchmark_id=benchmark_id,
+        selector_fields=selector_fields,
+        adapter_id=adapter_id,
+        oracle_id=oracle_id,
+    )
+    for (
+        benchmark_id,
+        selector_fields,
+        disposition,
+        adapter_id,
+        oracle_id,
+        _reason,
+    ) in EXPECTED_ELIGIBILITY
+    if disposition == "eligible"
+)
+
+
 EXPECTED_ELIGIBLE_BY_ADAPTER = {
     adapter_id: (selector_fields, oracle_id)
     for (
@@ -26541,7 +26568,7 @@ def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
 
     assert attestation.point_id == point_id
     assert attestation.mount_facts["visible_top_level"] == (
-        "runtime", "adapter", "input", "output"
+        "runtime", "adapter", "dev", "input", "output"
     )
     assert attestation.mount_facts["supervisor_visible"] is False
     assert attestation.environment_facts["parent_canary_present"] is False
@@ -26784,6 +26811,52 @@ def test_task11_strace_normalizes_host_annotated_private_root_dirfd():
     assert report.passed is True
     assert report.attempted_accesses[-1]["logical_path"] == (
         "/runtime/lib/module.py"
+    )
+
+
+def test_task11_strace_accepts_exact_urandom_character_device_annotation():
+    from validation import literature_evidence_isolation as isolation
+
+    private_root = "/retained/supervisor/private-root"
+    manifest = _task11_trace_manifest()
+    trace = _task11_trace(
+        _task11_isolated_exec(709),
+        '709 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        f'= 4<{private_root}/input/request.json>',
+        '709 open("/dev/urandom", O_RDONLY|O_CLOEXEC) '
+        f'= 3<{private_root}/dev/urandom<char 1:9>>',
+        '709 +++ exited with 0 +++',
+    )
+
+    report = isolation.evaluate_strace(trace, manifest)
+
+    assert report.passed is True
+    assert report.attempted_accesses[-1]["logical_path"] == "/dev/urandom"
+
+
+def test_task11_strace_accepts_closed_dynamic_loader_lookup_shapes():
+    from validation import literature_evidence_isolation as isolation
+
+    private_root = "/retained/supervisor/private-root"
+    trace = _task11_trace(
+        _task11_isolated_exec(710),
+        '710 open("/input/request.json", O_RDONLY|O_CLOEXEC) '
+        f'= 4<{private_root}/input/request.json>',
+        '710 open("/runtime/lib/../lib/module.py", O_RDONLY|O_CLOEXEC) '
+        f'= 3<{private_root}/runtime/lib/module.py>',
+        '710 access("/etc/sysconfig/strcasecmp-nonascii", F_OK) '
+        '= -1 ENOENT (No such file or directory)',
+        '710 +++ exited with 0 +++',
+    )
+
+    report = isolation.evaluate_strace(trace, _task11_trace_manifest())
+
+    assert report.passed is True
+    assert report.attempted_accesses[-2]["logical_path"] == (
+        "/runtime/lib/module.py"
+    )
+    assert report.attempted_accesses[-1]["reason_code"] == (
+        "allowed_platform_probe_miss"
     )
 
 
@@ -31962,3 +32035,384 @@ def test_kagome_transfer_oracle_counts_corner_sharing_three_site_cells():
     assert width_two[-1] < width_two[-2] < width_two[-3]
     assert width_three[-1] < width_three[-2] < width_three[-3]
     assert lower_three < 0.5018331646 < width_three[-1]
+
+
+def _task17_production_authority(row, point):
+    definition = adapters.ADAPTER_DEFINITIONS[row.adapter_id]
+    scientific_inputs = thaw_json(point.scientific_inputs)
+    numerical_controls = thaw_json(point.numerical_controls)
+    parameter_provenance = {}
+    for field_name in scientific_inputs:
+        parameter_provenance[field_name] = {
+            "kind": "canonical_model_parameter",
+            "requirement": {
+                "canonical_path": ["hamiltonian", field_name],
+                "physical_role": "task17 independent canonical parameter",
+            },
+            "locator": {
+                "kind": "canonical_spec_path",
+                "path": ["hamiltonian", field_name],
+            },
+            "commitment_sha256": _sha256_text(
+                "task17-parameter-" + row.adapter_id + "-" + field_name
+            ),
+            "target_equivalent": False,
+        }
+    numerical_control_provenance = {}
+    for field_name in numerical_controls:
+        numerical_control_provenance[field_name] = {
+            "kind": "numerical_control",
+            "locator": "task17-fixed-control-" + field_name,
+            "commitment_sha256": _sha256_text(
+                "task17-control-" + row.adapter_id + "-" + field_name
+            ),
+            "registry_independent": True,
+        }
+    payload = {
+        "schema_version": "adapter_authority_context_v1",
+        "audit_run_id": "task17-production-" + row.adapter_id,
+        "benchmark_name": row.benchmark_id,
+        "producer_id": "task8_canonical_authority_v1",
+        "producer_code_sha256": _sha256_text(
+            "task17-independent-authority-producer-v1"
+        ),
+        "canonical_observable_id": row.adapter_id,
+        "observable_identity": thaw_json(definition.observable_identity),
+        "canonical_spec_path": "task17/" + row.benchmark_id + ".json",
+        "canonical_spec_sha256": _sha256_text(
+            "task17-canonical-spec-" + row.benchmark_id
+        ),
+        "scientific_inputs": scientific_inputs,
+        "parameter_provenance": parameter_provenance,
+        "numerical_controls": numerical_controls,
+        "numerical_control_provenance": numerical_control_provenance,
+        "registry_snapshot_sha256": _sha256_text(
+            "task17-registry-snapshot"
+        ),
+        "selector_sha256": _sha256_text(
+            "task17-selectors-" + "-".join(row.selector_fields)
+        ),
+        "forbidden_output_fingerprints": tuple(
+            sorted(
+                {
+                    _sha256_text("task17-forbidden-numeric-canary"),
+                    _sha256_text("task17-forbidden-categorical-canary"),
+                }
+            )
+        ),
+        "fingerprint_algorithm_version": "canonical_json_sha256_v1",
+    }
+    payload["context_sha256"] = canonical_sha256(payload)
+    return payload
+
+
+def test_task17_infrastructure_semantic_closure_binds_sources_and_external_leaf():
+    from validation import literature_evidence_isolation as isolation
+
+    closure = isolation.build_infrastructure_closure(
+        source_roots=(PROJECT_ROOT / "scripts",)
+    )
+    nodes = {node["qualified_name"]: node for node in closure.nodes}
+    assert closure.roots == isolation._EXPECTED_INFRASTRUCTURE_ROOTS
+    assert set(closure.roots) <= set(nodes)
+    recursive_edges = set(closure.dependency_edges)
+    freeze_name = "validation.literature_evidence_adapters._freeze_json"
+    placement_name = (
+        "validation.literature_evidence_adapters."
+        "_validate_frozen_json_placement"
+    )
+    assert (freeze_name, placement_name) in recursive_edges
+    assert (placement_name, freeze_name) in recursive_edges
+    oracle_loader_name = (
+        "validation.literature_evidence_adapter_oracles."
+        "oracle_definition_from_frozen_json"
+    )
+    contract_error_name = (
+        "validation.literature_evidence_adapters.AdapterContractError"
+    )
+    assert (oracle_loader_name, contract_error_name) in recursive_edges
+    assert nodes[contract_error_name]["node_kind"] == (
+        "project_class_semantic"
+    )
+
+    project_name = (
+        "validation.literature_evidence_adapter_oracles."
+        "validate_oracle_definition"
+    )
+    project_node = nodes[project_name]
+    source_path = PROJECT_ROOT / "scripts" / project_node["relative_path"]
+    assert hashlib.sha256(source_path.read_bytes()).hexdigest() == (
+        project_node["raw_file_sha256"]
+    )
+    material = closure._static_scan_material
+    material_by_name = {
+        item.qualified_name: item for item in material.nodes
+    }
+    freeze_tree = ast.parse(material_by_name[freeze_name].raw_source_span)
+    freeze_expressions = {
+        ast.unparse(candidate)
+        for candidate in ast.walk(freeze_tree)
+        if isinstance(candidate, (ast.Compare, ast.BinOp))
+    }
+    public_freeze_name = (
+        "validation.literature_evidence_adapters.freeze_json"
+    )
+    public_freeze_tree = ast.parse(
+        material_by_name[public_freeze_name].raw_source_span
+    )
+    public_freeze_arguments = {
+        ast.unparse(argument)
+        for candidate in ast.walk(public_freeze_tree)
+        if isinstance(candidate, ast.Call)
+        and isolation._numeric_static_access_name(candidate.func)
+        == "_freeze_json"
+        for argument in candidate.args
+    }
+    assert "depth > _MAX_JSON_NESTING" in freeze_expressions
+    assert "depth + 1" in freeze_expressions
+    assert "0" in public_freeze_arguments
+    assert hashlib.sha256(
+        material_by_name[project_name].raw_source_span
+    ).hexdigest() == project_node["source_span_sha256"]
+
+    external_node = nodes["external_dependency.subprocess.run"]
+    assert external_node["node_kind"] == "external_dependency"
+    assert hashlib.sha256(Path(subprocess.__file__).read_bytes()).hexdigest() == (
+        external_node["raw_file_sha256"]
+    )
+
+
+def test_task17_numeric_provenance_allows_only_nonnumeric_transport_equality():
+    from validation import literature_evidence_isolation as isolation
+
+    provenance = isolation._InfrastructureNumericProvenance
+
+    def expression_and_state(source, names=None):
+        expression = ast.parse(source, mode="eval").body
+        state = isolation._numeric_expression_state(
+            expression,
+            {} if names is None else names,
+            purpose="closure_and_policy_transport",
+            local_names=frozenset(),
+        )
+        return expression, state
+
+    clean_node, clean_state = expression_and_state("b'left' == b'right'")
+    numeric_node, numeric_state = expression_and_state("1 != 2")
+    unknown_node, unknown_state = expression_and_state(
+        "value == b'right'", {"value": provenance.UNKNOWN}
+    )
+    assert clean_state == provenance.COMPARISON_RESULT
+    isolation._validate_numeric_control_sink(
+        clean_state,
+        clean_node,
+        "closure_and_policy_transport",
+        position="if_test",
+    )
+    for node, state in (
+        (numeric_node, numeric_state),
+        (unknown_node, unknown_state),
+    ):
+        assert state & provenance.UNAPPROVED_COMPARISON
+        with pytest.raises(AdapterContractError):
+            isolation._validate_numeric_control_sink(
+                state,
+                node,
+                "closure_and_policy_transport",
+                position="if_test",
+            )
+
+
+def test_task17_numeric_provenance_tracks_comprehension_bindings():
+    from validation import literature_evidence_isolation as isolation
+
+    function = ast.parse(
+        "def transport(values):\n"
+        "    return {name: name for name in values if b'yes' == b'yes'}\n"
+    ).body[0]
+    isolation._validate_numeric_function_for_purpose(
+        function,
+        "closure_and_policy_transport",
+        parameter_states=(
+            int(isolation._InfrastructureNumericProvenance.INPUT_OR_POLICY),
+        ),
+        enforce_return=False,
+    )
+
+
+def test_task17_numeric_provenance_allows_only_exact_project_type_identity():
+    from validation import literature_evidence_isolation as isolation
+
+    provenance = isolation._InfrastructureNumericProvenance
+
+    def validate(test_source, *, approved, globals_=None):
+        function = ast.parse(
+            "def transport(value):\n"
+            f"    if {test_source}:\n"
+            "        return None\n"
+            "    return None\n"
+        ).body[0]
+        isolation._validate_numeric_function_for_purpose(
+            function,
+            "closure_and_policy_transport",
+            parameter_states=(int(provenance.INPUT_OR_POLICY),),
+            global_states={} if globals_ is None else globals_,
+            global_names=frozenset(() if globals_ is None else globals_),
+            approved_project_classes=frozenset(approved),
+        )
+
+    validate("type(value) is not Approved", approved={"Approved"})
+    with pytest.raises(AdapterContractError):
+        validate("type(value) is not Unapproved", approved={"Approved"})
+    with pytest.raises(AdapterContractError):
+        validate(
+            "kind(value) is Approved",
+            approved={"Approved"},
+            globals_={"kind": provenance.UNKNOWN},
+        )
+
+
+def test_task17_handler_types_require_exact_committed_type_tokens():
+    from validation import literature_evidence_isolation as isolation
+
+    assert isolation._external_dependency_node_kind(Exception) == (
+        "external_type_dependency"
+    )
+    assert isolation._external_dependency_node_kind(getattr) == (
+        "external_dependency"
+    )
+    approved = frozenset({"ProjectError", "Exception"})
+    isolation._validate_numeric_handler_type_token(
+        ast.parse("(ProjectError, Exception)", mode="eval").body,
+        approved,
+    )
+    for source in ("factory()", "Unknown"):
+        with pytest.raises(AdapterContractError):
+            isolation._validate_numeric_handler_type_token(
+                ast.parse(source, mode="eval").body,
+                approved,
+            )
+
+
+def test_task17_unknown_helper_parameter_is_not_a_structural_counter():
+    from validation import literature_evidence_isolation as isolation
+
+    function = ast.parse(
+        "def helper(depth):\n"
+        "    if depth > 128:\n"
+        "        return None\n"
+        "    return None\n"
+    ).body[0]
+    with pytest.raises(AdapterContractError):
+        isolation._validate_numeric_function_for_purpose(
+            function,
+            "canonical_transport",
+            parameter_states=(
+                int(isolation._InfrastructureNumericProvenance.UNKNOWN),
+            ),
+        )
+
+
+def test_task17_canonical_effects_require_exact_receivers_and_calls():
+    from validation import literature_evidence_isolation as isolation
+
+    provenance = isolation._InfrastructureNumericProvenance
+    transport = isolation._InfrastructureTransportType
+
+    def state(source, names, types, effects):
+        return isolation._numeric_expression_state(
+            ast.parse(source, mode="eval").body,
+            names,
+            purpose="canonical_transport",
+            local_names=frozenset(names),
+            transport_types=types,
+            approved_transport_effects=frozenset(effects),
+        )
+
+    literal_encode = state(
+        "'payload'.encode('utf-8')",
+        {},
+        {},
+        {"builtins.str.encode"},
+    )
+    unknown_encode = state(
+        "value.encode('utf-8')",
+        {"value": provenance.INPUT_OR_POLICY},
+        {},
+        {"builtins.str.encode"},
+    )
+    square_root = state(
+        "sqrt(value)",
+        {"value": provenance.INPUT_OR_POLICY},
+        {},
+        set(),
+    )
+    assert literal_encode == provenance.NONE
+    assert unknown_encode & provenance.UNKNOWN
+    assert square_root & provenance.UNKNOWN
+    assert transport.EXACT_BYTES != transport.EXACT_STR
+
+
+def test_task17_contract_validation_allows_only_direct_input_identity_equality():
+    from validation import literature_evidence_isolation as isolation
+
+    def validate(source, parameter_state=None):
+        if parameter_state is None:
+            parameter_state = (
+                isolation._InfrastructureNumericProvenance.INPUT_OR_POLICY
+            )
+        function = ast.parse(
+            "def check(left, right, field):\n"
+            f"    if {source}:\n"
+            "        return None\n"
+            "    return None\n"
+        ).body[0]
+        return isolation._validate_numeric_function_for_purpose(
+            function,
+            "contract_validation",
+            parameter_states=(
+                int(parameter_state),
+                int(parameter_state),
+                int(parameter_state),
+            ),
+        )
+
+    validate("left.adapter_id != right.adapter_id")
+    validate("left.units[field] != right.units")
+    validate(
+        "left.units[field] != right.units",
+        isolation._InfrastructureNumericProvenance.UNKNOWN,
+    )
+    for source in (
+        "left.energy > right.energy",
+        "left.energy == 1.25",
+        "left.units[factory()] == right.units",
+    ):
+        with pytest.raises(AdapterContractError):
+            validate(source)
+
+
+@pytest.mark.parametrize(
+    "row", EXPECTED_ELIGIBLE_ROWS, ids=lambda row: row.adapter_id
+)
+def test_every_eligible_adapter_produces_complete_isolated_evidence(
+    row, tmp_path
+):
+    from validation import literature_evidence_isolation as isolation
+
+    definition = adapters.ADAPTER_DEFINITIONS[row.adapter_id]
+    points = isolation.derive_counterfactual_points(definition, b"\x17" * 32)
+    authority = _task17_production_authority(row, points[0])
+    run_parent = tmp_path / "production-runs"
+    run_parent.mkdir()
+
+    outcome = isolation.run_isolated_recomputation(
+        row.adapter_id,
+        authority,
+        run_parent=run_parent,
+    )
+
+    assert outcome.status == "isolated_recomputation_succeeded"
+    assert outcome.failure is None
+    assert outcome.evidence.adapter_id == row.adapter_id
+    assert outcome.evidence.oracle_id == row.oracle_id

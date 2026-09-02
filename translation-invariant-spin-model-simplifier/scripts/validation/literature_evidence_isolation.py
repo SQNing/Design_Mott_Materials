@@ -703,36 +703,64 @@ class WorkerRequest:
                 "scientific_configuration must be an exact mapping"
             )
         if scientific_configuration:
-            if (
-                canonical_definition.backend_kind != "glt_fourier"
-                or set(scientific_configuration) != {
-                    "schema_version",
-                    "representation",
-                    "coordinates",
-                    "gauge_phase_fraction",
-                }
-                or scientific_configuration["schema_version"]
-                != "glt_scientific_configuration_v1"
-                or scientific_configuration["representation"]
-                not in {"real_space", "fourier_space"}
-                or type(scientific_configuration["coordinates"]) is not tuple
-                or len(scientific_configuration["coordinates"]) != 3
-                or any(
-                    type(value) not in {int, float}
-                    or not math.isfinite(value)
-                    for value in scientific_configuration["coordinates"]
+            configuration_version = scientific_configuration.get(
+                "schema_version"
+            )
+            if configuration_version == "glt_scientific_configuration_v1":
+                malformed = (
+                    canonical_definition.backend_kind != "glt_fourier"
+                    or set(scientific_configuration) != {
+                        "schema_version",
+                        "representation",
+                        "coordinates",
+                        "gauge_phase_fraction",
+                    }
+                    or scientific_configuration["representation"]
+                    not in {"real_space", "fourier_space"}
+                    or type(scientific_configuration["coordinates"])
+                    is not tuple
+                    or len(scientific_configuration["coordinates"]) != 3
+                    or any(
+                        type(value) not in {int, float}
+                        or not math.isfinite(value)
+                        for value in scientific_configuration["coordinates"]
+                    )
+                    or type(
+                        scientific_configuration["gauge_phase_fraction"]
+                    )
+                    not in {int, float}
+                    or not math.isfinite(
+                        scientific_configuration["gauge_phase_fraction"]
+                    )
+                    or not 0.0
+                    <= scientific_configuration["gauge_phase_fraction"]
+                    < 1.0
                 )
-                or type(
-                    scientific_configuration["gauge_phase_fraction"]
-                )
-                not in {int, float}
-                or not math.isfinite(
-                    scientific_configuration["gauge_phase_fraction"]
-                )
-                or not 0.0
-                <= scientific_configuration["gauge_phase_fraction"]
-                < 1.0
+            elif configuration_version == (
+                "tetrahedral_basis_configuration_v1"
             ):
+                has_tetrahedral_rule = any(
+                    rule["kind"] == "tetrahedral_positive_integer"
+                    for rule in canonical_definition.counterfactual_domain.valid_rules.values()
+                )
+                labels = scientific_configuration.get("basis_labels")
+                malformed = (
+                    not has_tetrahedral_rule
+                    or set(scientific_configuration) != {
+                        "schema_version",
+                        "basis_labels",
+                        "gauge_inverted",
+                    }
+                    or type(labels) is not tuple
+                    or len(labels) != 4
+                    or set(labels)
+                    != {"spin_0", "spin_1", "spin_2", "spin_3"}
+                    or type(scientific_configuration["gauge_inverted"])
+                    is not bool
+                )
+            else:
+                malformed = True
+            if malformed:
                 raise _ContractError(
                     "scientific_configuration is malformed"
                 )
@@ -953,10 +981,6 @@ def make_worker_request(
     )
     if (
         type(scientific_configuration) is not _FrozenJsonObject
-        or (
-            validated_definition.backend_kind != "glt_fourier"
-            and scientific_configuration
-        )
     ):
         raise _ContractError("worker scientific_configuration is invalid")
     return WorkerRequest(
@@ -1542,7 +1566,57 @@ _AST_NODE_FIELDS = frozenset(
     }
 )
 _AST_NODE_KINDS = frozenset(
-    {"import", "immutable_constant", "function", "class"}
+    {
+        "import",
+        "immutable_constant",
+        "function",
+        "class",
+        "committed_schema",
+        "project_semantic",
+        "project_class_semantic",
+        "external_dependency",
+        "external_type_dependency",
+    }
+)
+_COMMITTED_RECORD_SCHEMA_IDENTITIES = frozenset(
+    {
+        "validation.literature_evidence_adapters.FrozenJsonObject",
+        "validation.literature_evidence_adapters.ValueSchema",
+        "validation.literature_evidence_adapters.OutputFieldBinding",
+        "validation.literature_evidence_adapters.OutputSchema",
+        "validation.literature_evidence_adapters.ParameterSource",
+        "validation.literature_evidence_adapters.CounterfactualDomain",
+        "validation.literature_evidence_adapters.ConvergenceContract",
+        "validation.literature_evidence_adapters.ProblemSizePolicy",
+        "validation.literature_evidence_adapters.RuntimeRequirements",
+        "validation.literature_evidence_adapters.ResourceLimits",
+        "validation.literature_evidence_adapters.AdapterDefinition",
+        "validation.literature_evidence_adapters.EligibilityDecision",
+        "validation.literature_evidence_adapters.LocalObservableResult",
+        "validation.literature_evidence_adapter_oracles.OracleDefinition",
+        "validation.literature_evidence_isolation.AdapterAuthorityContext",
+        "validation.literature_evidence_isolation.WorkerRequest",
+        "validation.literature_evidence_isolation._OracleWorkerRequest",
+        "validation.literature_evidence_isolation.ScientificClosure",
+        "validation.literature_evidence_isolation.ScientificPolicyCommitment",
+        "validation.literature_evidence_isolation.InfrastructureClosure",
+        "validation.literature_evidence_isolation.StaticScanReport",
+        "validation.literature_evidence_isolation.RuntimeResourceManifest",
+        "validation.literature_evidence_isolation.RuntimeSnapshot",
+        "validation.literature_evidence_isolation.CapabilityPreflightReport",
+        "validation.literature_evidence_isolation.CounterfactualPoint",
+        "validation.literature_evidence_isolation._FrozenHashSnapshot",
+        "validation.literature_evidence_isolation.ProcessAttestation",
+        "validation.literature_evidence_isolation.TracePolicyReport",
+        "validation.literature_evidence_isolation.PointExecutionEvidence",
+        "validation.literature_evidence_isolation.ConvergenceDecision",
+        "validation.literature_evidence_isolation.OracleDecision",
+        "validation.literature_evidence_isolation.EventRecord",
+        "validation.literature_evidence_isolation.AdapterExecutionEvidence",
+        "validation.literature_evidence_isolation.AdapterRunFailure",
+        "validation.literature_evidence_isolation.AdapterRunOutcome",
+        "validation.literature_evidence_isolation._RunDirectories",
+    }
 )
 _ENTRY_SYMBOL_PATTERN = re.compile(
     r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+"
@@ -1752,11 +1826,14 @@ class _AstModuleIndex:
 class _ResolvedAstNode:
     source: _AstSourceNode
     dependencies: tuple[str, ...]
+    dependency_bindings: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    transport_effects: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
 @dataclass(frozen=True)
 class _StaticScanNodeMaterial:
     qualified_name: str
+    node_kind: str
     raw_source_span: bytes
     emitted_node: bytes
 
@@ -3179,6 +3256,13 @@ class _AstClosureResolver:
             )
         if not isinstance(binding, _AstSourceNode):
             raise _ContractError("global dependency has an unknown binding")
+        if (
+            self.role == "infrastructure"
+            and requirements == frozenset({_AST_BINDING_RUNTIME})
+            and binding.node_kind == "class"
+            and binding.qualified_name in _COMMITTED_RECORD_SCHEMA_IDENTITIES
+        ):
+            return self._resolve_committed_record_schema(binding)
         if binding.node_kind == "import" and isinstance(
             binding.node, ast.ImportFrom
         ):
@@ -3186,6 +3270,29 @@ class _AstClosureResolver:
                 binding.qualified_name, set()
             ).add(global_name)
         return self._resolve_node(binding)
+
+    def _resolve_committed_record_schema(self, source):
+        qualified_name = source.qualified_name
+        if qualified_name not in _COMMITTED_RECORD_SCHEMA_IDENTITIES:
+            raise _ContractError("record schema identity is not committed")
+        if qualified_name in self.resolved:
+            return qualified_name
+        committed_source = _AstSourceNode(
+            module_name=source.module_name,
+            relative_path=source.relative_path,
+            raw_file_sha256=source.raw_file_sha256,
+            node=source.node,
+            node_kind="committed_schema",
+            qualified_name=qualified_name,
+            bound_names=source.bound_names,
+            source_span=source.source_span,
+            import_module=None,
+        )
+        self.resolved[qualified_name] = _ResolvedAstNode(
+            source=committed_source,
+            dependencies=(),
+        )
+        return qualified_name
 
     def _resolve_node(self, source: _AstSourceNode) -> str:
         qualified_name = source.qualified_name
@@ -3291,8 +3398,13 @@ def _ast_node_ordering_key(
     priority = {
         "import": 0,
         "immutable_constant": 1,
-        "class": 2,
-        "function": 3,
+        "committed_schema": 2,
+        "external_dependency": 3,
+        "external_type_dependency": 4,
+        "project_semantic": 5,
+        "project_class_semantic": 6,
+        "class": 7,
+        "function": 8,
     }
     return (priority[node_kind], qualified_name)
 
@@ -3324,6 +3436,26 @@ def _topological_resolved_nodes(
     return tuple(ordered)
 
 
+def _canonical_resolved_nodes(
+    resolved: Mapping[str, _ResolvedAstNode],
+) -> tuple[_ResolvedAstNode, ...]:
+    live_semantic_kinds = {"project_semantic", "project_class_semantic"}
+    if any(
+        item.source.node_kind in live_semantic_kinds
+        for item in resolved.values()
+    ):
+        return tuple(
+            sorted(
+                resolved.values(),
+                key=lambda item: _ast_node_ordering_key(
+                    item.source.node_kind,
+                    item.source.qualified_name,
+                ),
+            )
+        )
+    return _topological_resolved_nodes(resolved)
+
+
 def _assert_no_emitted_binding_collisions(
     resolved: Mapping[str, _ResolvedAstNode],
 ) -> None:
@@ -3353,10 +3485,53 @@ def _preflight_static_material_totals(
         )
 
 
+def _committed_record_schema_emitted(source):
+    identity = source.qualified_name
+    if identity not in _COMMITTED_RECORD_SCHEMA_IDENTITIES:
+        raise _ContractError("record schema identity is not committed")
+    source_sha256 = hashlib.sha256(source.source_span).hexdigest()
+    binding = "__committed_schema_" + hashlib.sha256(
+        identity.encode("utf-8")
+    ).hexdigest()
+    return (
+        binding
+        + " = (\"committed_record_schema_v1\", "
+        + repr(identity)
+        + ", "
+        + repr(source_sha256)
+        + ")\n"
+    ).encode("utf-8")
+
+
+def _resolved_emitted_node(source):
+    if source.node_kind == "committed_schema":
+        return _committed_record_schema_emitted(source)
+    if source.node_kind in {
+        "project_semantic",
+        "project_class_semantic",
+        "external_dependency",
+        "external_type_dependency",
+    }:
+        binding = "__semantic_dependency_" + hashlib.sha256(
+            source.qualified_name.encode("utf-8")
+        ).hexdigest()
+        return (
+            binding
+            + " = (\"semantic_dependency_v1\", "
+            + repr(source.node_kind)
+            + ", "
+            + repr(source.qualified_name)
+            + ", "
+            + repr(hashlib.sha256(source.source_span).hexdigest())
+            + ")\n"
+        ).encode("utf-8")
+    return _normalized_emitted_node(source.source_span)
+
+
 def _manifest_from_resolved(
     resolved: Mapping[str, _ResolvedAstNode],
 ) -> tuple[tuple[_FrozenJsonObject, ...], tuple[tuple[str, str], ...], bytes]:
-    ordered = _topological_resolved_nodes(resolved)
+    ordered = _canonical_resolved_nodes(resolved)
     manifests = []
     emitted_nodes = []
     all_edges = []
@@ -3370,16 +3545,20 @@ def _manifest_from_resolved(
             )
         raw_bytes += len(source.source_span)
         _preflight_static_material_totals(raw_bytes, emitted_bytes)
-        emitted_node = _normalized_emitted_node(source.source_span)
+        emitted_node = _resolved_emitted_node(source)
         if len(emitted_node) > _STATIC_SCAN_LITERAL_BYTES_LIMIT:
             raise _ContractError(
                 "static scan emitted node exceeds the byte bound"
             )
         emitted_bytes += len(emitted_node) + bool(emitted_nodes)
         _preflight_static_material_totals(raw_bytes, emitted_bytes)
+        if len(set(item.dependencies)) != len(item.dependencies):
+            raise _ContractError(
+                "closure node contains duplicate dependencies"
+            )
         edges = tuple(
             (source.qualified_name, dependency)
-            for dependency in item.dependencies
+            for dependency in sorted(item.dependencies)
         )
         all_edges.extend(edges)
         manifests.append(
@@ -3411,17 +3590,16 @@ def _static_scan_material_from_resolved(
     *,
     closure_bundle_sha256: str,
 ) -> _StaticScanMaterial:
-    ordered = _topological_resolved_nodes(resolved)
+    ordered = _canonical_resolved_nodes(resolved)
     nodes = []
     raw_bytes = 0
     emitted_bytes = 0
     for item in ordered:
         node = _StaticScanNodeMaterial(
             qualified_name=item.source.qualified_name,
+            node_kind=item.source.node_kind,
             raw_source_span=bytes(item.source.source_span),
-            emitted_node=_normalized_emitted_node(
-                item.source.source_span
-            ),
+            emitted_node=_resolved_emitted_node(item.source),
         )
         raw_bytes += len(node.raw_source_span)
         emitted_bytes += len(node.emitted_node) + bool(nodes)
@@ -3502,16 +3680,24 @@ def _validate_manifest_graph(
     all_edges = []
     for node in manifests:
         qualified_name = node["qualified_name"]
-        module_name = qualified_name.rsplit(".", 1)[0]
-        if scientific_role is not None:
-            _require_scientific_module_role(
-                module_name, scientific_role
-            )
-        expected_path = module_name.replace(".", "/") + ".py"
-        if node["relative_path"] != expected_path:
-            raise _ContractError(
-                "closure node path does not match its qualified module"
-            )
+        if node["node_kind"] not in {
+            "external_dependency",
+            "external_type_dependency",
+        }:
+            relative_path = node["relative_path"]
+            if not relative_path.endswith(".py"):
+                raise _ContractError(
+                    "closure node path does not match its qualified module"
+                )
+            source_module = relative_path[:-3].replace("/", ".")
+            if not qualified_name.startswith(source_module + "."):
+                raise _ContractError(
+                    "closure node path does not match its qualified module"
+                )
+            if scientific_role is not None:
+                _require_scientific_module_role(
+                    source_module, scientific_role
+                )
         previous_raw_hash = raw_hash_by_path.setdefault(
             node["relative_path"], node["raw_file_sha256"]
         )
@@ -3539,33 +3725,51 @@ def _validate_manifest_graph(
     if len(set(all_edges)) != len(all_edges):
         raise _ContractError("closure contains duplicate dependency edges")
 
-    pending = set(by_name)
+    live_semantic = any(
+        node["node_kind"]
+        in {"project_semantic", "project_class_semantic"}
+        for node in manifests
+    )
     expected_order = []
-    while pending:
-        ready = [
-            by_name[name]
-            for name in pending
-            if not {
-                destination
-                for _source, destination in by_name[name][
-                    "dependency_edges"
-                ]
-                if destination in by_name
-            }
-            & pending
-        ]
-        if not ready:
-            raise _ContractError("closure manifest dependency graph is cyclic")
-        ready.sort(
-            key=lambda node: _ast_node_ordering_key(
-                node["node_kind"],
-                node["qualified_name"],
+    if live_semantic:
+        expected_order.extend(
+            node["qualified_name"]
+            for node in sorted(
+                manifests,
+                key=lambda node: _ast_node_ordering_key(
+                    node["node_kind"], node["qualified_name"]
+                ),
             )
         )
-        for node in ready:
-            qualified_name = node["qualified_name"]
-            expected_order.append(qualified_name)
-            pending.remove(qualified_name)
+    else:
+        pending = set(by_name)
+        while pending:
+            ready = [
+                by_name[name]
+                for name in pending
+                if not {
+                    destination
+                    for _source, destination in by_name[name][
+                        "dependency_edges"
+                    ]
+                    if destination in by_name
+                }
+                & pending
+            ]
+            if not ready:
+                raise _ContractError(
+                    "closure manifest dependency graph is cyclic"
+                )
+            ready.sort(
+                key=lambda node: _ast_node_ordering_key(
+                    node["node_kind"],
+                    node["qualified_name"],
+                )
+            )
+            for node in ready:
+                qualified_name = node["qualified_name"]
+                expected_order.append(qualified_name)
+                pending.remove(qualified_name)
     supplied_order = tuple(node["qualified_name"] for node in manifests)
     if supplied_order != tuple(expected_order):
         raise _ContractError("closure manifest node ordering is not canonical")
@@ -3710,7 +3914,10 @@ def _validate_infrastructure_closure_record(
     if not set(closure.roots) <= set(qualified_names):
         raise _ContractError("infrastructure closure is missing a root node")
     by_name = {node["qualified_name"]: node for node in manifests}
-    if any(by_name[root]["node_kind"] != "function" for root in closure.roots):
+    if any(
+        by_name[root]["node_kind"] not in {"function", "project_semantic"}
+        for root in closure.roots
+    ):
         raise _ContractError("every infrastructure root must be a function")
     _validate_exact_manifest_reachability(
         manifests, closure.roots, "infrastructure closure"
@@ -4149,7 +4356,7 @@ def _require_json_value(value, depth=0):
         if value != value or value in (float("inf"), float("-inf")):
             raise RuntimeError("worker result contains a nonfinite number")
         return
-    if type(value) is list:
+    if type(value) in (list, tuple):
         for item in value:
             _require_json_value(item, depth + 1)
         return
@@ -4414,6 +4621,18 @@ if os.read(proceed_fd, 1) != b"G":
     raise RuntimeError("bootstrap release token is malformed")
 os.close(ready_fd)
 os.close(proceed_fd)
+distribution_root = "/runtime/distributions"
+try:
+    distribution_names = sorted(os.listdir(distribution_root))
+except FileNotFoundError:
+    distribution_names = []
+for distribution_name in distribution_names:
+    if not distribution_name.isidentifier():
+        raise RuntimeError("runtime distribution name is malformed")
+    distribution_path = distribution_root + "/" + distribution_name
+    if not os.path.isdir(distribution_path):
+        raise RuntimeError("runtime distribution root is not a directory")
+    __import__("sys").path.append(distribution_path)
 worker_globals = {
     "__name__": "__main__",
     "__file__": "/adapter/fixed_worker.py",
@@ -4438,7 +4657,11 @@ try:
         worker_globals,
         worker_globals,
     )
-except BaseException:
+except BaseException as error:
+    diagnostic = (
+        type(error).__name__ + ":" + str(error)
+    ).encode("utf-8", "replace")[:2048]
+    os.write(2, diagnostic)
     os._exit(1)
 """
 
@@ -5190,11 +5413,6 @@ except Exception as error:
     raise RuntimeError("tracee bootstrap readiness is malformed") from error
 
 libc = ctypes.CDLL(None, use_errno=True)
-if libc.umount2(os.fsencode(str(entropy_target)), 0) != 0:
-    tracee.kill()
-    raise OSError(ctypes.get_errno(), "entropy bind unmount failed")
-entropy_target.unlink()
-entropy_directory.rmdir()
 if libc.umount2(os.fsencode(str(loader_target)), 2) != 0:
     tracee.kill()
     raise OSError(ctypes.get_errno(), "loader bind unmount failed")
@@ -5204,7 +5422,7 @@ execute((
     commands["mount"], "-o", "remount,ro,nodev,nosuid", str(root),
 ))
 visible_top_level = sorted(os.listdir(root))
-if visible_top_level != ["adapter", "input", "output", "runtime"]:
+if visible_top_level != ["adapter", "dev", "input", "output", "runtime"]:
     tracee.kill()
     raise RuntimeError("worker-visible root contains an undeclared class")
 if os.write(proceed_write, b"G") != 1:
@@ -5293,7 +5511,9 @@ response = {
         "root_filesystem": root_filesystem,
         "root_read_only": root_read_only,
         "output_writable": True,
-        "visible_top_level": ["runtime", "adapter", "input", "output"],
+        "visible_top_level": [
+            "runtime", "adapter", "dev", "input", "output"
+        ],
         "supervisor_visible": False,
     },
     "environment_facts": {
@@ -6451,6 +6671,8 @@ _TASK11_TRACE_ACCESS_KEYS = (
 )
 _TASK11_ALLOWED_REASON_CODES = frozenset(
     {
+        "allowed_entropy_device_read",
+        "allowed_platform_probe_miss",
         "allowed_output_write",
         "allowed_request_read",
         "allowed_manifest_read",
@@ -6470,6 +6692,16 @@ _TASK11_DENIED_REASON_CODES = frozenset(
         "resolved_path_changed",
     }
 )
+
+
+def _task11_is_platform_probe_path(path):
+    return (
+        path.startswith("/etc/sysconfig/")
+        or path == "/proc/stat"
+        or path == "/proc/cpuinfo"
+        or path == "/sys/devices/system/cpu"
+        or path.startswith("/sys/devices/system/cpu/")
+    )
 
 
 def _task11_validate_access_record_semantics(record):
@@ -6560,6 +6792,19 @@ def _task11_validate_access_record_semantics(record):
         or record["operation"] != "read"
     ):
         raise _ContractError("trace request-read reason is contradictory")
+    if reason_code == "allowed_entropy_device_read" and (
+        logical_path != "/dev/urandom"
+        or record["operation"] != "read"
+        or syscall_name not in {"open", "openat", "read", "close"}
+    ):
+        raise _ContractError("trace entropy-read reason is contradictory")
+    if reason_code == "allowed_platform_probe_miss" and (
+        not _task11_is_platform_probe_path(logical_path)
+        or record["operation"] != "read"
+        or record["succeeded"] is not False
+        or syscall_name not in {"access", "open", "openat", "stat"}
+    ):
+        raise _ContractError("trace platform-probe reason is contradictory")
     if reason_code == "allowed_output_write" and (
         logical_path != "/output/result.json"
         or record["operation"] != "write"
@@ -6731,7 +6976,7 @@ def _task11_trace_operation(syscall_name, arguments):
     return "read"
 
 
-def _task11_trace_has_parent_traversal(arguments):
+def _task11_trace_has_forbidden_parent_traversal(arguments):
     for argument in arguments:
         if not argument.startswith('"'):
             continue
@@ -6739,13 +6984,38 @@ def _task11_trace_has_parent_traversal(arguments):
             value = json.loads(argument)
         except json.JSONDecodeError:
             continue
-        if type(value) is str and ".." in PurePosixPath(value).parts:
+        if (
+            type(value) is str
+            and ".." in PurePosixPath(value).parts
+            and not value.startswith("/runtime/")
+        ):
+            return True
+    return False
+
+
+def _task11_trace_has_runtime_parent_traversal(arguments):
+    for argument in arguments:
+        if not argument.startswith('"'):
+            continue
+        try:
+            value = json.loads(argument)
+        except json.JSONDecodeError:
+            continue
+        if (
+            type(value) is str
+            and value.startswith("/runtime/")
+            and ".." in PurePosixPath(value).parts
+        ):
             return True
     return False
 
 
 def _task11_path_class(path):
-    for root in ("/runtime", "/adapter", "/input", "/output"):
+    for root in (
+        "/runtime", "/adapter", "/input", "/output", "/dev/urandom",
+        "/etc/sysconfig", "/proc/stat", "/proc/cpuinfo",
+        "/sys/devices/system/cpu",
+    ):
         if path == root or path.startswith(root + "/"):
             return path
     return "<outside-private-root>"
@@ -6760,6 +7030,7 @@ def _task11_access_decision(
     *,
     syscall_name,
     parent_traversal,
+    runtime_parent_traversal,
 ):
     if parent_traversal:
         return False, "parent_traversal_forbidden"
@@ -6772,10 +7043,21 @@ def _task11_access_decision(
         return False, "undeclared_write"
     if path == "/input/request.json":
         return True, "allowed_request_read"
+    if path == "/dev/urandom":
+        return True, "allowed_entropy_device_read"
+    if (
+        _task11_is_platform_probe_path(path)
+        and operation == "read"
+        and not succeeded
+        and syscall_name in {"access", "open", "openat", "stat"}
+    ):
+        return True, "allowed_platform_probe_miss"
     if path in manifest_paths or path in manifest_directories:
         return True, "allowed_manifest_read"
     if path == "/runtime" or path.startswith("/runtime/"):
         if not succeeded:
+            if runtime_parent_traversal:
+                return True, "allowed_runtime_lookup_miss"
             basename = PurePosixPath(path).name
             if basename.startswith("lib") and ".so" in basename:
                 return False, "undeclared_native_library"
@@ -7038,7 +7320,9 @@ def evaluate_strace(trace_bytes, mount_manifest):
                 request_seen = True
             resolved_open_matches = True
             if succeeded and syscall_name in {"open", "openat"}:
-                resolved_match = re.fullmatch(r"[0-9]+<([^<>]+)>", result)
+                resolved_match = re.fullmatch(
+                    r"[0-9]+<([^<>]+)(?:<char 1:9>)?>", result
+                )
                 if resolved_match is None:
                     raise _ContractError(
                         "strace successful open lacks a resolved path"
@@ -7075,8 +7359,11 @@ def evaluate_strace(trace_bytes, mount_manifest):
                     if not resolved_logical:
                         resolved_logical = "/"
                     resolved_open_matches = resolved_logical == logical_path
-            parent_traversal = _task11_trace_has_parent_traversal(
+            parent_traversal = _task11_trace_has_forbidden_parent_traversal(
                 arguments
+            )
+            runtime_parent_traversal = (
+                _task11_trace_has_runtime_parent_traversal(arguments)
             )
             for path in paths:
                 allowed, reason_code = _task11_access_decision(
@@ -7087,6 +7374,7 @@ def evaluate_strace(trace_bytes, mount_manifest):
                     manifest_directories,
                     syscall_name=syscall_name,
                     parent_traversal=parent_traversal,
+                    runtime_parent_traversal=runtime_parent_traversal,
                 )
                 if not resolved_open_matches:
                     allowed = False
@@ -7324,6 +7612,14 @@ def _reject_scientific_infrastructure_nodes(
 ) -> None:
     expected = set(_EXPECTED_INFRASTRUCTURE_ROOTS)
     for node in nodes:
+        if node["node_kind"] in {
+            "committed_schema",
+            "external_dependency",
+            "external_type_dependency",
+            "project_semantic",
+            "project_class_semantic",
+        }:
+            continue
         qualified_name = node["qualified_name"]
         if qualified_name in expected:
             continue
@@ -7624,6 +7920,13 @@ class _InfrastructureNumericProvenance(IntFlag):
     UNAPPROVED_COMPARISON = 512
 
 
+class _InfrastructureTransportType(IntFlag):
+    NONE = 0
+    EXACT_STR = 1
+    EXACT_BYTES = 2
+    EXACT_SHA256_RECEIVER = 4
+
+
 _NUMERIC_LITERAL_PROVENANCE = (
     _InfrastructureNumericProvenance.NUMERIC_LITERAL
     | _InfrastructureNumericProvenance.LITERAL_DERIVED_ARITHMETIC
@@ -7659,6 +7962,26 @@ _INFRASTRUCTURE_NUMERIC_PERMISSIONS = frozenset(
             "contract_validation",
             "identity.none",
             "if_expression_test",
+        ),
+        (
+            "contract_validation",
+            "direct_input_identity",
+            "if_test",
+        ),
+        (
+            "contract_validation",
+            "output_proof_uncertainty",
+            "if_test",
+        ),
+        (
+            "contract_validation",
+            "output_contract_field",
+            "index",
+        ),
+        (
+            "contract_validation",
+            "closed_string_membership",
+            "if_test",
         ),
         (
             "contract_validation",
@@ -7705,6 +8028,7 @@ def _numeric_permission(purpose: str, binding: str, position: str) -> bool:
 _NumericAnalysisKey = tuple[
     str,
     str,
+    tuple[int, ...],
     tuple[int, ...],
     tuple[tuple[str, int], ...],
 ]
@@ -7782,6 +8106,258 @@ def _bounded_infrastructure_ast_nodes(node: ast.AST) -> tuple[ast.AST, ...]:
     return tuple(nodes)
 
 
+def _numeric_static_access_name(node: ast.AST) -> str | None:
+    parts = []
+    candidate = node
+    while isinstance(candidate, ast.Attribute):
+        parts.append(candidate.attr)
+        candidate = candidate.value
+    if not isinstance(candidate, ast.Name):
+        return None
+    parts.append(candidate.id)
+    return ".".join(reversed(parts))
+
+
+def _validate_numeric_handler_type_token(
+    node: ast.AST,
+    approved_handler_types: frozenset[str],
+) -> None:
+    if isinstance(node, ast.Tuple):
+        if not node.elts:
+            raise _ContractError(
+                "infrastructure exception handler type tuple is empty"
+            )
+        for element in node.elts:
+            _validate_numeric_handler_type_token(
+                element, approved_handler_types
+            )
+        return
+    access_name = _numeric_static_access_name(node)
+    if access_name not in approved_handler_types:
+        raise _ContractError(
+            "infrastructure exception handler type is not committed"
+        )
+
+
+def _is_committed_exception_diagnostic(
+    node: ast.AST,
+    approved_handler_types: frozenset[str],
+) -> bool:
+    if not (
+        isinstance(node, ast.Call)
+        and _numeric_static_access_name(node.func) in approved_handler_types
+        and len(node.args) == 1
+        and not isinstance(node.args[0], ast.Starred)
+        and not node.keywords
+    ):
+        return False
+
+    def direct_path(candidate: ast.AST) -> bool:
+        if isinstance(candidate, ast.Attribute):
+            return direct_path(candidate.value)
+        if isinstance(candidate, ast.Subscript):
+            return direct_path(candidate.value) and direct_path(candidate.slice)
+        return isinstance(candidate, ast.Name)
+
+    diagnostic = node.args[0]
+    if isinstance(diagnostic, ast.Constant):
+        return type(diagnostic.value) is str
+    if not isinstance(diagnostic, ast.JoinedStr):
+        return False
+    for part in diagnostic.values:
+        if isinstance(part, ast.Constant) and type(part.value) is str:
+            continue
+        if not (
+            isinstance(part, ast.FormattedValue)
+            and part.conversion == -1
+            and part.format_spec is None
+            and direct_path(part.value)
+        ):
+            return False
+    return True
+
+
+def _external_dependency_node_kind(value: object) -> str:
+    return (
+        "external_type_dependency"
+        if type(value) is type
+        else "external_dependency"
+    )
+
+
+def _is_exact_project_type_identity_comparison(
+    node: ast.AST,
+    approved_project_classes: frozenset[str],
+) -> bool:
+    if not (
+        isinstance(node, ast.Compare)
+        and len(node.ops) == 1
+        and isinstance(node.ops[0], (ast.Is, ast.IsNot))
+        and len(node.comparators) == 1
+    ):
+        return False
+
+    def is_exact_type_call(candidate):
+        return (
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Name)
+            and candidate.func.id == "type"
+            and len(candidate.args) == 1
+            and not isinstance(candidate.args[0], ast.Starred)
+            and not candidate.keywords
+        )
+
+    left = node.left
+    right = node.comparators[0]
+    left_is_type = is_exact_type_call(left)
+    right_is_type = is_exact_type_call(right)
+    if left_is_type == right_is_type:
+        return False
+    class_expression = right if left_is_type else left
+    class_access = _numeric_static_access_name(class_expression)
+    return class_access in approved_project_classes
+
+
+def _is_direct_contract_input_identity_comparison(
+    node: ast.AST,
+    state: _InfrastructureNumericProvenance,
+) -> bool:
+    if not (
+        isinstance(node, ast.Compare)
+        and len(node.ops) == 1
+        and isinstance(node.ops[0], (ast.Eq, ast.NotEq))
+        and len(node.comparators) == 1
+    ):
+        return False
+    allowed_state = (
+        _InfrastructureNumericProvenance.INPUT_OR_POLICY
+        | _InfrastructureNumericProvenance.CALLABLE_TRANSPORT
+        | _InfrastructureNumericProvenance.UNKNOWN
+        | _InfrastructureNumericProvenance.COMPARISON_RESULT
+        | _InfrastructureNumericProvenance.UNAPPROVED_COMPARISON
+    )
+    source_state = (
+        _InfrastructureNumericProvenance.INPUT_OR_POLICY
+        | _InfrastructureNumericProvenance.UNKNOWN
+        | _InfrastructureNumericProvenance.CALLABLE_TRANSPORT
+    )
+    if not bool(state & source_state) or bool(state & ~allowed_state):
+        return False
+
+    def direct_input_path(candidate: ast.AST) -> bool:
+        if isinstance(candidate, ast.Attribute):
+            return direct_input_path(candidate.value)
+        if isinstance(candidate, ast.Subscript):
+            return direct_input_path(
+                candidate.value
+            ) and direct_input_path(candidate.slice)
+        return isinstance(candidate, ast.Name)
+
+    return direct_input_path(node.left) and direct_input_path(
+        node.comparators[0]
+    )
+
+
+def _is_output_proof_uncertainty_guard(
+    node: ast.AST,
+) -> bool:
+    if not (
+        isinstance(node, ast.BoolOp)
+        and isinstance(node.op, ast.And)
+        and len(node.values) == 2
+    ):
+        return False
+    proof_guard, uncertainty_guard = node.values
+    if not (
+        isinstance(proof_guard, ast.Compare)
+        and len(proof_guard.ops) == 1
+        and len(proof_guard.comparators) == 1
+        and isinstance(proof_guard.left, ast.Attribute)
+        and proof_guard.left.attr == "proof_kind"
+        and isinstance(uncertainty_guard, ast.Compare)
+        and len(uncertainty_guard.ops) == 1
+        and len(uncertainty_guard.comparators) == 1
+        and isinstance(uncertainty_guard.left, ast.Name)
+        and uncertainty_guard.left.id == "uncertainty"
+        and isinstance(uncertainty_guard.comparators[0], ast.Constant)
+        and type(uncertainty_guard.comparators[0].value) is int
+        and uncertainty_guard.comparators[0].value == 0
+    ):
+        return False
+    exact_guard = (
+        isinstance(proof_guard.ops[0], ast.In)
+        and isinstance(proof_guard.comparators[0], ast.Name)
+        and proof_guard.comparators[0].id == "_EXACT_OUTPUT_PROOF_KINDS"
+        and isinstance(uncertainty_guard.ops[0], ast.NotEq)
+    )
+    bounded_guard = (
+        isinstance(proof_guard.ops[0], ast.Eq)
+        and isinstance(proof_guard.comparators[0], ast.Constant)
+        and proof_guard.comparators[0].value == "bounded_numeric_value"
+        and isinstance(uncertainty_guard.ops[0], ast.LtE)
+    )
+    return exact_guard or bounded_guard
+
+
+def _is_output_contract_field_lookup(node: ast.AST) -> bool:
+    if not (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr in {"fields", "units", "uncertainty"}
+    ):
+        return False
+
+    def direct_path(candidate: ast.AST) -> bool:
+        if isinstance(candidate, ast.Attribute):
+            return direct_path(candidate.value)
+        if isinstance(candidate, ast.Subscript):
+            return direct_path(candidate.value) and direct_path(candidate.slice)
+        return isinstance(candidate, ast.Name)
+
+    return direct_path(node.value.value) and direct_path(node.slice)
+
+
+def _is_closed_string_membership_comparison(node: ast.AST) -> bool:
+    if not (
+        isinstance(node, ast.Compare)
+        and len(node.ops) == 1
+        and len(node.comparators) == 1
+    ):
+        return False
+
+    def direct_field_path(candidate: ast.AST) -> bool:
+        if isinstance(candidate, ast.Attribute):
+            return direct_field_path(candidate.value)
+        if isinstance(candidate, ast.Subscript):
+            string_key = (
+                isinstance(candidate.slice, ast.Constant)
+                and type(candidate.slice.value) is str
+            )
+            return direct_field_path(candidate.value) and (
+                string_key or direct_field_path(candidate.slice)
+            )
+        return isinstance(candidate, ast.Name)
+
+    if not direct_field_path(node.left):
+        return False
+    operator = node.ops[0]
+    comparison = node.comparators[0]
+    if isinstance(operator, (ast.Eq, ast.NotEq)):
+        return (
+            isinstance(comparison, ast.Constant)
+            and type(comparison.value) is str
+        )
+    if not isinstance(operator, (ast.In, ast.NotIn)) or not isinstance(
+        comparison, (ast.Set, ast.Tuple, ast.List)
+    ):
+        return False
+    return bool(comparison.elts) and all(
+        isinstance(element, ast.Constant)
+        and type(element.value) is str
+        for element in comparison.elts
+    )
+
+
 def _numeric_expression_state(
     node: ast.AST,
     names: Mapping[str, _InfrastructureNumericProvenance],
@@ -7811,6 +8387,14 @@ def _numeric_expression_state(
         _NumericAnalysisKey, _InfrastructureNumericProvenance
     ] | None = None,
     requested: set[_NumericAnalysisKey] | None = None,
+    transport_types: Mapping[
+        str, _InfrastructureTransportType
+    ] | None = None,
+    approved_transport_effects: frozenset[str] = frozenset(),
+    transport_summaries: Mapping[
+        _NumericAnalysisKey, _InfrastructureTransportType
+    ] | None = None,
+    result_transport_type: list[_InfrastructureTransportType] | None = None,
 ) -> _InfrastructureNumericProvenance:
     if project_functions is None:
         project_functions = {}
@@ -7824,7 +8408,12 @@ def _numeric_expression_state(
         function_bindings = {}
     if class_attribute_states is None:
         class_attribute_states = {}
+    if transport_types is None:
+        transport_types = {}
+    if transport_summaries is None:
+        transport_summaries = {}
     states: dict[int, _InfrastructureNumericProvenance] = {}
+    transport_states: dict[int, _InfrastructureTransportType] = {}
     pending: list[tuple[ast.AST, bool]] = [(node, False)]
     visited = 0
     while pending:
@@ -7847,12 +8436,20 @@ def _numeric_expression_state(
                 id(child), _InfrastructureNumericProvenance.NONE
             )
         state = _InfrastructureNumericProvenance.NONE
+        transport_state = _InfrastructureTransportType.NONE
         if isinstance(candidate, ast.Constant):
             if type(candidate.value) in (int, float, complex):
                 state = _InfrastructureNumericProvenance.NUMERIC_LITERAL
+            elif type(candidate.value) is str:
+                transport_state = _InfrastructureTransportType.EXACT_STR
+            elif type(candidate.value) is bytes:
+                transport_state = _InfrastructureTransportType.EXACT_BYTES
         elif isinstance(candidate, ast.Name):
             state = names.get(
                 candidate.id, _InfrastructureNumericProvenance.NONE
+            )
+            transport_state = transport_types.get(
+                candidate.id, _InfrastructureTransportType.NONE
             )
         elif isinstance(candidate, ast.UnaryOp):
             operand_state = states.get(
@@ -7918,6 +8515,11 @@ def _numeric_expression_state(
             ) | states.get(
                 id(candidate.orelse), _InfrastructureNumericProvenance.NONE
             )
+            transport_state = transport_states.get(
+                id(candidate.body), _InfrastructureTransportType.NONE
+            ) | transport_states.get(
+                id(candidate.orelse), _InfrastructureTransportType.NONE
+            )
         elif isinstance(candidate, ast.BoolOp):
             state = child_state
         elif isinstance(candidate, (ast.List, ast.Tuple, ast.Set)):
@@ -7945,24 +8547,32 @@ def _numeric_expression_state(
                 id(candidate.func), _InfrastructureNumericProvenance.NONE
             )
             argument_state = _InfrastructureNumericProvenance.NONE
+            argument_transport = []
             for argument in candidate.args:
                 argument_state |= states.get(
                     id(argument), _InfrastructureNumericProvenance.NONE
+                )
+                argument_transport.append(
+                    transport_states.get(
+                        id(argument), _InfrastructureTransportType.NONE
+                    )
                 )
             for keyword in candidate.keywords:
                 argument_state |= states.get(
                     id(keyword.value),
                     _InfrastructureNumericProvenance.NONE,
                 )
-            call_name = (
-                candidate.func.id
-                if isinstance(candidate.func, ast.Name)
-                and candidate.func.id not in local_names
-                else None
-            )
+            call_name = _numeric_static_access_name(candidate.func)
+            if (
+                call_name is not None
+                and call_name.split(".", 1)[0] in local_names
+            ):
+                call_name = None
             project_function = project_functions.get(call_name or "")
             exact_builtin = (
-                call_name is not None and call_name not in global_names
+                call_name is not None
+                and "." not in call_name
+                and call_name not in global_names
             )
             replaces_argument_state = (
                 project_function is not None
@@ -8018,6 +8628,17 @@ def _numeric_expression_state(
                         )
                         for keyword in candidate.keywords
                     ),
+                    tuple(argument_transport),
+                    tuple(
+                        (
+                            keyword.arg,
+                            transport_states.get(
+                                id(keyword.value),
+                                _InfrastructureTransportType.NONE,
+                            ),
+                        )
+                        for keyword in candidate.keywords
+                    ),
                     global_states=function_global_states.get(
                         callee_name, {}
                     ),
@@ -8034,6 +8655,67 @@ def _numeric_expression_state(
                 state = summaries.get(
                     key, _InfrastructureNumericProvenance.NONE
                 )
+                transport_state = transport_summaries.get(
+                    key, _InfrastructureTransportType.NONE
+                )
+            elif (
+                call_name == "json.dumps"
+                and call_name in approved_transport_effects
+            ):
+                state = argument_state
+                transport_state = _InfrastructureTransportType.EXACT_STR
+            elif (
+                call_name == "hashlib.sha256"
+                and call_name in approved_transport_effects
+                and len(candidate.args) == 1
+                and not candidate.keywords
+                and argument_transport
+                and argument_transport[0]
+                == _InfrastructureTransportType.EXACT_BYTES
+            ):
+                state = argument_state
+                transport_state = (
+                    _InfrastructureTransportType.EXACT_SHA256_RECEIVER
+                )
+            elif (
+                isinstance(candidate.func, ast.Attribute)
+                and candidate.func.attr == "encode"
+                and "builtins.str.encode" in approved_transport_effects
+                and transport_states.get(
+                    id(candidate.func.value),
+                    _InfrastructureTransportType.NONE,
+                ) == _InfrastructureTransportType.EXACT_STR
+                and len(candidate.args) == 1
+                and isinstance(candidate.args[0], ast.Constant)
+                and candidate.args[0].value == "utf-8"
+                and not candidate.keywords
+            ):
+                state = (
+                    states.get(
+                        id(candidate.func.value),
+                        _InfrastructureNumericProvenance.NONE,
+                    )
+                    | argument_state
+                )
+                transport_state = _InfrastructureTransportType.EXACT_BYTES
+            elif (
+                isinstance(candidate.func, ast.Attribute)
+                and candidate.func.attr == "hexdigest"
+                and "_hashlib.HASH.hexdigest"
+                in approved_transport_effects
+                and transport_states.get(
+                    id(candidate.func.value),
+                    _InfrastructureTransportType.NONE,
+                )
+                == _InfrastructureTransportType.EXACT_SHA256_RECEIVER
+                and not candidate.args
+                and not candidate.keywords
+            ):
+                state = states.get(
+                    id(candidate.func.value),
+                    _InfrastructureNumericProvenance.NONE,
+                )
+                transport_state = _InfrastructureTransportType.EXACT_STR
             elif (
                 exact_builtin
                 and candidate.func.id == "len"
@@ -8108,7 +8790,20 @@ def _numeric_expression_state(
                 child_state
                 | _InfrastructureNumericProvenance.COMPARISON_RESULT
             )
-            if _is_frozen_threshold_comparison(
+            nonnumeric_transport_equality = (
+                all(isinstance(operator, (ast.Eq, ast.NotEq)) for operator in candidate.ops)
+                and all(
+                    states.get(
+                        id(operand),
+                        _InfrastructureNumericProvenance.NONE,
+                    )
+                    == _InfrastructureNumericProvenance.NONE
+                    for operand in (candidate.left, *candidate.comparators)
+                )
+            )
+            if nonnumeric_transport_equality:
+                pass
+            elif _is_frozen_threshold_comparison(
                 candidate, frozen_threshold_names
             ):
                 state |= (
@@ -8124,6 +8819,9 @@ def _numeric_expression_state(
             state = states.get(
                 id(candidate.value), _InfrastructureNumericProvenance.NONE
             )
+            transport_state = transport_states.get(
+                id(candidate.value), _InfrastructureTransportType.NONE
+            )
         elif isinstance(candidate, ast.Starred):
             state = states.get(
                 id(candidate.value), _InfrastructureNumericProvenance.NONE
@@ -8131,6 +8829,12 @@ def _numeric_expression_state(
         else:
             state = child_state
         states[id(candidate)] = state
+        transport_states[id(candidate)] = transport_state
+    final_transport = transport_states.get(
+        id(node), _InfrastructureTransportType.NONE
+    )
+    if result_transport_type is not None:
+        result_transport_type[:] = [final_transport]
     return states.get(id(node), _InfrastructureNumericProvenance.NONE)
 
 
@@ -8182,6 +8886,10 @@ def _numeric_helper_analysis_key(
     keywords: tuple[
         tuple[str | None, _InfrastructureNumericProvenance], ...
     ],
+    positional_transport: tuple[_InfrastructureTransportType, ...] = (),
+    keyword_transport: tuple[
+        tuple[str | None, _InfrastructureTransportType], ...
+    ] = (),
     *,
     global_states: Mapping[
         str, _InfrastructureNumericProvenance
@@ -8200,10 +8908,18 @@ def _numeric_helper_analysis_key(
         name: _InfrastructureNumericProvenance.NONE
         for name in _numeric_function_parameter_names(node)
     }
+    transports = {
+        name: _InfrastructureTransportType.NONE
+        for name in _numeric_function_parameter_names(node)
+    }
     bound_names = set()
     for index, state in enumerate(positional[:len(ordinary)]):
         states[ordinary[index].arg] |= state
         bound_names.add(ordinary[index].arg)
+    for index, transport in enumerate(
+        positional_transport[:len(ordinary)]
+    ):
+        transports[ordinary[index].arg] |= transport
     remaining = positional[len(ordinary):]
     if node.args.vararg is not None:
         for state in remaining:
@@ -8213,6 +8929,14 @@ def _numeric_helper_analysis_key(
     elif remaining:
         raise _ContractError(
             "infrastructure helper call has incompatible arguments"
+        )
+    remaining_transport = positional_transport[len(ordinary):]
+    if node.args.vararg is not None:
+        for transport in remaining_transport:
+            transports[node.args.vararg.arg] |= transport
+    elif remaining_transport:
+        raise _ContractError(
+            "infrastructure helper call has incompatible transport arguments"
         )
     allowed_keywords = {
         argument.arg for argument in ordinary + keyword_only
@@ -8233,6 +8957,21 @@ def _numeric_helper_analysis_key(
             raise _ContractError(
                 "infrastructure helper call has incompatible arguments"
             )
+    for name, transport in keyword_transport:
+        if name is None:
+            if node.args.kwarg is None:
+                raise _ContractError(
+                    "infrastructure helper call has incompatible transport arguments"
+                )
+            transports[node.args.kwarg.arg] |= transport
+        elif name in allowed_keywords:
+            transports[name] |= transport
+        elif node.args.kwarg is not None:
+            transports[node.args.kwarg.arg] |= transport
+        else:
+            raise _ContractError(
+                "infrastructure helper call has incompatible transport arguments"
+            )
     positional_defaults = zip(
         ordinary[len(ordinary) - len(node.args.defaults):],
         node.args.defaults,
@@ -8251,7 +8990,11 @@ def _numeric_helper_analysis_key(
             global_names=global_names,
             project_functions=project_functions,
             summaries=summaries,
+            transport_types=transports,
+            result_transport_type=(default_transport := []),
         )
+        if default_transport:
+            transports[argument.arg] |= default_transport[0]
     environment = tuple(
         (name, int(global_states.get(
             name, _InfrastructureNumericProvenance.NONE
@@ -8263,6 +9006,10 @@ def _numeric_helper_analysis_key(
         purpose,
         tuple(
             int(states[name])
+            for name in _numeric_function_parameter_names(node)
+        ),
+        tuple(
+            int(transports[name])
             for name in _numeric_function_parameter_names(node)
         ),
         environment,
@@ -8558,6 +9305,16 @@ def _validate_numeric_control_sink(
                 "violates its purpose"
             )
         if (
+            state
+            == _InfrastructureNumericProvenance.COMPARISON_RESULT
+            and isinstance(node, ast.Compare)
+            and all(
+                isinstance(operator, (ast.Eq, ast.NotEq))
+                for operator in node.ops
+            )
+        ):
+            return
+        if (
             _is_input_none_identity_comparison(node, state)
             and _numeric_permission(
                 purpose,
@@ -8571,6 +9328,33 @@ def _validate_numeric_control_sink(
             and _numeric_permission(
                 purpose,
                 "builtins.len",
+                position,
+            )
+        ):
+            return
+        if (
+            _is_direct_contract_input_identity_comparison(node, state)
+            and _numeric_permission(
+                purpose,
+                "direct_input_identity",
+                position,
+            )
+        ):
+            return
+        if (
+            _is_output_proof_uncertainty_guard(node)
+            and _numeric_permission(
+                purpose,
+                "output_proof_uncertainty",
+                position,
+            )
+        ):
+            return
+        if (
+            _is_closed_string_membership_comparison(node)
+            and _numeric_permission(
+                purpose,
+                "closed_string_membership",
                 position,
             )
         ):
@@ -9158,6 +9942,7 @@ def _validate_numeric_function_for_purpose(
     purpose: str,
     *,
     parameter_states: tuple[int, ...] | None = None,
+    parameter_transport_types: tuple[int, ...] | None = None,
     global_states: Mapping[
         str, _InfrastructureNumericProvenance
     ] | None = None,
@@ -9174,6 +9959,8 @@ def _validate_numeric_function_for_purpose(
         Mapping[str, tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]],
     ] | None = None,
     approved_project_classes: frozenset[str] = frozenset(),
+    approved_handler_types: frozenset[str] = frozenset(),
+    approved_transport_effects: frozenset[str] = frozenset(),
     class_attribute_states: Mapping[
         str, _InfrastructureNumericProvenance
     ] | None = None,
@@ -9181,13 +9968,19 @@ def _validate_numeric_function_for_purpose(
     summaries: Mapping[
         _NumericAnalysisKey, _InfrastructureNumericProvenance
     ] | None = None,
+    transport_summaries: Mapping[
+        _NumericAnalysisKey, _InfrastructureTransportType
+    ] | None = None,
     requested: set[_NumericAnalysisKey] | None = None,
+    return_transport_type: list[_InfrastructureTransportType] | None = None,
     enforce_return: bool = True,
 ) -> _InfrastructureNumericProvenance:
     if project_functions is None:
         project_functions = {}
     if summaries is None:
         summaries = {}
+    if transport_summaries is None:
+        transport_summaries = {}
     if global_states is None:
         global_states = {}
     if function_global_states is None:
@@ -9219,15 +10012,29 @@ def _validate_numeric_function_for_purpose(
             )
             for state in default_key[2]
         )
+        parameter_transport_types = default_key[3]
+    if parameter_transport_types is None:
+        parameter_transport_types = tuple(
+            int(_InfrastructureTransportType.NONE)
+            for _name in argument_names
+        )
     if len(parameter_states) != len(argument_names):
         raise _ContractError(
             "infrastructure helper summary has incompatible parameters"
+        )
+    if len(parameter_transport_types) != len(argument_names):
+        raise _ContractError(
+            "infrastructure helper transport summary has incompatible parameters"
         )
     names = dict(global_states)
     names.update({
         name: _InfrastructureNumericProvenance(state)
         for name, state in zip(argument_names, parameter_states)
     })
+    transport_names = {
+        name: _InfrastructureTransportType(state)
+        for name, state in zip(argument_names, parameter_transport_types)
+    }
     counter_names = _event_counter_names(node, purpose)
     frozen_threshold_names = _numeric_frozen_threshold_names(node)
     runtime_nodes, parent_fields = _numeric_runtime_parent_fields(node)
@@ -9250,6 +10057,9 @@ def _validate_numeric_function_for_purpose(
     }
     classified_store_target_ids = set()
     evaluated_project_calls = set()
+    expression_transport_cache: dict[
+        int, _InfrastructureTransportType
+    ] = {}
 
     def mark_expression_tree(expression: ast.AST) -> None:
         covered_expression_ids.update(
@@ -9273,7 +10083,8 @@ def _validate_numeric_function_for_purpose(
         expression: ast.AST,
     ) -> _InfrastructureNumericProvenance:
         mark_expression_tree(expression)
-        return _numeric_expression_state(
+        transport_result: list[_InfrastructureTransportType] = []
+        state = _numeric_expression_state(
             expression,
             names,
             purpose=purpose,
@@ -9290,7 +10101,17 @@ def _validate_numeric_function_for_purpose(
             evaluated_project_calls=evaluated_project_calls,
             summaries=summaries,
             requested=requested,
+            transport_types=transport_names,
+            approved_transport_effects=approved_transport_effects,
+            transport_summaries=transport_summaries,
+            result_transport_type=transport_result,
         )
+        expression_transport_cache[id(expression)] = (
+            transport_result[0]
+            if transport_result
+            else _InfrastructureTransportType.NONE
+        )
+        return state
 
     def sink_state(
         expression: ast.AST,
@@ -9302,6 +10123,10 @@ def _validate_numeric_function_for_purpose(
 
     def validate_control_sink(expression: ast.AST, *, position: str) -> None:
         state = sink_state(expression)
+        if _is_exact_project_type_identity_comparison(
+            expression, approved_project_classes
+        ):
+            return
         if (
             position
             in {
@@ -9326,6 +10151,27 @@ def _validate_numeric_function_for_purpose(
             purpose,
             position=position,
         )
+
+    def is_direct_identity_path_subscript(expression: ast.Subscript) -> bool:
+        candidate: ast.AST = expression
+        while id(candidate) in parent_fields:
+            parent, _field, _index = parent_fields[id(candidate)]
+            if isinstance(parent, ast.Compare):
+                return (
+                    _numeric_permission(
+                        purpose,
+                        "direct_input_identity",
+                        "if_test",
+                    )
+                    and _is_direct_contract_input_identity_comparison(
+                        parent,
+                        expression_state(parent),
+                    )
+                )
+            if not isinstance(parent, (ast.Attribute, ast.Subscript)):
+                return False
+            candidate = parent
+        return False
 
     def validate_return_sink(
         expression: ast.expr,
@@ -9462,6 +10308,9 @@ def _validate_numeric_function_for_purpose(
         targets, value = parts
         assignment = assignments[index]
         source_state = expression_state(value)
+        source_transport = expression_transport_cache.get(
+            id(value), _InfrastructureTransportType.NONE
+        )
         if isinstance(assignment, ast.withitem):
             binding_kind = "with"
         elif isinstance(assignment, ast.AsyncFor):
@@ -9530,20 +10379,30 @@ def _validate_numeric_function_for_purpose(
                 ):
                     state |= _InfrastructureNumericProvenance.UNKNOWN
             updated = previous | state
-            if updated == previous:
-                continue
-            names[target_name] = updated
-            for dependent in reverse_uses.get(target_name, ()):
-                if dependent not in queued:
-                    pending.append(dependent)
-                    queued.add(dependent)
+            previous_transport = transport_names.get(
+                target_name, _InfrastructureTransportType.NONE
+            )
+            updated_transport = previous_transport | source_transport
+            if updated != previous:
+                names[target_name] = updated
+            if updated_transport != previous_transport:
+                transport_names[target_name] = updated_transport
+            if updated != previous or updated_transport != previous_transport:
+                for dependent in reverse_uses.get(target_name, ()):
+                    if dependent not in queued:
+                        pending.append(dependent)
+                        queued.add(dependent)
     return_state = _InfrastructureNumericProvenance.NONE
+    returned_transport = _InfrastructureTransportType.NONE
     for candidate in runtime_nodes:
         if isinstance(candidate, ast.Return):
             if candidate.value is None:
                 continue
             state = expression_state(candidate.value)
             return_state |= state
+            returned_transport |= expression_transport_cache.get(
+                id(candidate.value), _InfrastructureTransportType.NONE
+            )
             if enforce_return:
                 sink_expression_ids.add(id(candidate.value))
                 validate_return_sink(candidate.value, state)
@@ -9608,6 +10467,52 @@ def _validate_numeric_function_for_purpose(
                     position="with_binding",
                 )
             continue
+        if isinstance(candidate, ast.comprehension):
+            iterator_state = sink_state(candidate.iter)
+            _validate_numeric_control_sink(
+                iterator_state,
+                candidate.iter,
+                purpose,
+                position="for_iterator",
+            )
+            inert_expression_ids.update(
+                _numeric_target_inert_expressions(candidate.target)
+            )
+            for expression in _numeric_target_evaluation_roots(
+                candidate.target
+            ):
+                _validate_numeric_general_sink(
+                    sink_state(expression),
+                    purpose,
+                    position="for_target",
+                )
+            leaf_states, classified_ids = _numeric_binding_result_states(
+                candidate.target,
+                candidate.iter,
+                iterator_state,
+                binding_kind="for",
+                expression_state=expression_state,
+                purpose=purpose,
+                local_names=local_names,
+                global_names=global_names,
+                project_functions=project_functions,
+            )
+            classified_store_target_ids.update(classified_ids)
+            for leaf, state in leaf_states:
+                if isinstance(leaf, ast.Name):
+                    names[leaf.id] = names.get(
+                        leaf.id,
+                        _InfrastructureNumericProvenance.NONE,
+                    ) | state
+                elif isinstance(leaf, (ast.Attribute, ast.Subscript)):
+                    _validate_numeric_mutation_sink(
+                        state,
+                        purpose,
+                        position="for_binding",
+                    )
+            for condition in candidate.ifs:
+                validate_control_sink(condition, position="if_test")
+            continue
         if isinstance(candidate, (ast.For, ast.AsyncFor)):
             iterator_state = sink_state(candidate.iter)
             iterator_control_state = iterator_state
@@ -9656,9 +10561,21 @@ def _validate_numeric_function_for_purpose(
                 sink_expression_ids.add(id(candidate.value))
             continue
         if isinstance(candidate, ast.Subscript):
-            _validate_numeric_index_sink(
-                sink_state(candidate.slice), candidate.slice, purpose
+            contract_field_lookup = (
+                _is_output_contract_field_lookup(candidate)
+                and _numeric_permission(
+                    purpose,
+                    "output_contract_field",
+                    "index",
+                )
             )
+            if not (
+                is_direct_identity_path_subscript(candidate)
+                or contract_field_lookup
+            ):
+                _validate_numeric_index_sink(
+                    sink_state(candidate.slice), candidate.slice, purpose
+                )
             continue
         if isinstance(candidate, ast.Expr):
             _validate_numeric_general_sink(
@@ -9671,6 +10588,11 @@ def _validate_numeric_function_for_purpose(
             for expression in (candidate.exc, candidate.cause):
                 if expression is None:
                     continue
+                if _is_committed_exception_diagnostic(
+                    expression, approved_handler_types
+                ):
+                    mark_expression_tree(expression)
+                    continue
                 _validate_numeric_control_sink(
                     sink_state(expression),
                     expression,
@@ -9680,10 +10602,10 @@ def _validate_numeric_function_for_purpose(
             continue
         if isinstance(candidate, ast.ExceptHandler):
             if candidate.type is not None:
-                _validate_numeric_general_sink(
-                    sink_state(candidate.type),
-                    purpose,
-                    position="except_handler_type",
+                mark_expression_tree(candidate.type)
+                _validate_numeric_handler_type_token(
+                    candidate.type,
+                    approved_handler_types,
                 )
             continue
         if isinstance(candidate, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
@@ -9766,9 +10688,9 @@ def _validate_numeric_function_for_purpose(
         id(candidate)
         for candidate in runtime_nodes
         if isinstance(candidate, ast.Call)
-        and isinstance(candidate.func, ast.Name)
-        and candidate.func.id not in local_names
-        and candidate.func.id in project_functions
+        and _numeric_static_access_name(candidate.func) in project_functions
+        and _numeric_static_access_name(candidate.func).split(".", 1)[0]
+        not in local_names
     }
     if project_call_ids - evaluated_project_calls:
         raise _ContractError(
@@ -9787,6 +10709,8 @@ def _validate_numeric_function_for_purpose(
         raise _ContractError(
             "infrastructure expression sink coverage is inconsistent"
         )
+    if return_transport_type is not None:
+        return_transport_type[:] = [returned_transport]
     return return_state
 
 
@@ -9797,9 +10721,18 @@ def _validate_infrastructure_numeric_provenance(
     constant_states: dict[
         str, _InfrastructureNumericProvenance
     ] = {}
-    for item in _topological_resolved_nodes(resolved):
-        if item.source.node_kind != "immutable_constant":
-            continue
+    constant_resolved = {
+        name: item
+        for name, item in resolved.items()
+        if item.source.node_kind == "immutable_constant"
+    }
+    for item in constant_resolved.values():
+        for dependency in item.dependencies:
+            if dependency in resolved and dependency not in constant_resolved:
+                raise _ContractError(
+                    "infrastructure constant has a nonconstant dependency"
+                )
+    for item in _topological_resolved_nodes(constant_resolved):
         node = item.source.node
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
             raise _ContractError(
@@ -9841,11 +10774,18 @@ def _validate_infrastructure_numeric_provenance(
     ] = {}
     function_global_names: dict[str, frozenset[str]] = {}
     function_project_classes: dict[str, frozenset[str]] = {}
+    function_handler_types: dict[str, frozenset[str]] = {}
+    function_transport_effects: dict[str, frozenset[str]] = {}
     for name, node in functions.items():
         bindings = {}
         global_states = {}
         global_names = set()
         approved_classes = set()
+        approved_handler_types = set()
+        approved_transport_effects = {
+            "builtins.str.encode",
+            "_hashlib.HASH.hexdigest",
+        }
         for dependency in resolved[name].dependencies:
             if dependency not in resolved:
                 continue
@@ -9864,14 +10804,80 @@ def _validate_infrastructure_numeric_provenance(
                 continue
             for bound_name in resolved[dependency].source.bound_names:
                 bindings[bound_name] = (dependency, dependency_node)
+        for dependency, access_path in resolved[name].dependency_bindings:
+            if (
+                dependency not in resolved[name].dependencies
+                or dependency not in resolved
+                or not access_path
+                or any(not part.isidentifier() for part in access_path)
+            ):
+                raise _ContractError(
+                    "project semantic dependency binding is inconsistent"
+                )
+            access_name = ".".join(access_path)
+            if dependency in functions:
+                target = (dependency, functions[dependency])
+                previous = bindings.get(access_name)
+                if previous is not None and previous != target:
+                    raise _ContractError(
+                        "project semantic dependency binding is ambiguous"
+                    )
+                bindings[access_name] = target
+            elif (
+                resolved[dependency].source.node_kind
+                in {"project_class_semantic", "committed_schema"}
+                and isinstance(resolved[dependency].source.node, ast.ClassDef)
+            ):
+                approved_classes.add(access_name)
+                approved_handler_types.add(access_name)
+            elif (
+                resolved[dependency].source.node_kind
+                == "external_type_dependency"
+            ):
+                approved_handler_types.add(access_name)
+            else:
+                raise _ContractError(
+                    "project semantic dependency binding target is invalid"
+                )
+            global_names.add(access_path[0])
+            global_states.setdefault(
+                access_path[0],
+                _InfrastructureNumericProvenance.UNKNOWN,
+            )
+        call_accesses = {
+            access
+            for candidate in _bounded_infrastructure_ast_nodes(node)
+            if isinstance(candidate, ast.Call)
+            for access in (_numeric_static_access_name(candidate.func),)
+            if access is not None
+        }
+        for effect, access_path in resolved[name].transport_effects:
+            access_name = ".".join(access_path)
+            if (
+                effect not in {"json.dumps", "hashlib.sha256"}
+                or access_name not in call_accesses
+            ):
+                raise _ContractError(
+                    "project transport effect binding is inconsistent"
+                )
+            approved_transport_effects.add(effect)
         project_functions[name] = bindings
         function_global_states[name] = global_states
         function_global_names[name] = frozenset(global_names)
         function_project_classes[name] = frozenset(approved_classes)
+        function_handler_types[name] = frozenset(approved_handler_types)
+        function_transport_effects[name] = frozenset(
+            approved_transport_effects
+        )
     class_analyses = 0
     for name, item in sorted(resolved.items()):
         class_node = item.source.node
         if not isinstance(class_node, ast.ClassDef):
+            continue
+        if item.source.node_kind in {
+            "committed_schema",
+            "project_class_semantic",
+        }:
             continue
         global_states = {}
         global_names = set()
@@ -9988,6 +10994,9 @@ def _validate_infrastructure_numeric_provenance(
     summaries: dict[
         _NumericAnalysisKey, _InfrastructureNumericProvenance
     ] = {}
+    transport_summaries: dict[
+        _NumericAnalysisKey, _InfrastructureTransportType
+    ] = {}
     callers: dict[_NumericAnalysisKey, set[_NumericAnalysisKey]] = {}
     pending = deque()
     queued = set()
@@ -9999,12 +11008,18 @@ def _validate_infrastructure_numeric_provenance(
                     "infrastructure numeric provenance exceeds its bound"
                 )
             summaries[key] = _InfrastructureNumericProvenance.NONE
+            transport_summaries[key] = _InfrastructureTransportType.NONE
         if key not in queued:
             pending.append(key)
             queued.add(key)
 
-    for name, node in sorted(functions.items()):
-        for purpose in sorted(reaching[name]):
+    for name, purpose in sorted(
+        _INFRASTRUCTURE_PURPOSE_BINDINGS.items()
+    ):
+        if resolved[name].source.node_kind == "project_semantic":
+            continue
+        node = functions[name]
+        for purpose in (purpose,):
             default_key = _numeric_helper_analysis_key(
                 name,
                 node,
@@ -10027,7 +11042,11 @@ def _validate_infrastructure_numeric_provenance(
                         )
                         for state in default_key[2]
                     ),
-                    default_key[3],
+                    tuple(
+                        int(_InfrastructureTransportType.NONE)
+                        for _state in default_key[3]
+                    ),
+                    default_key[4],
                 )
             )
     steps = 0
@@ -10039,7 +11058,13 @@ def _validate_infrastructure_numeric_provenance(
             )
         key = pending.popleft()
         queued.discard(key)
-        name, purpose, parameter_states, environment = key
+        (
+            name,
+            purpose,
+            parameter_states,
+            parameter_transport_types,
+            environment,
+        ) = key
         if purpose not in reaching[name]:
             raise _ContractError(
                 "infrastructure helper purpose context is inconsistent"
@@ -10059,10 +11084,12 @@ def _validate_infrastructure_numeric_provenance(
                 "infrastructure helper environment is inconsistent"
             )
         requested: set[_NumericAnalysisKey] = set()
+        returned_transport: list[_InfrastructureTransportType] = []
         result = _validate_numeric_function_for_purpose(
             functions[name],
             purpose,
             parameter_states=parameter_states,
+            parameter_transport_types=parameter_transport_types,
             global_states=function_global_states[name],
             global_names=function_global_names[name],
             project_functions=project_functions[name],
@@ -10070,8 +11097,12 @@ def _validate_infrastructure_numeric_provenance(
             function_global_names=function_global_names,
             function_bindings=project_functions,
             approved_project_classes=function_project_classes[name],
+            approved_handler_types=function_handler_types[name],
+            approved_transport_effects=function_transport_effects[name],
             summaries=summaries,
+            transport_summaries=transport_summaries,
             requested=requested,
+            return_transport_type=returned_transport,
             enforce_return=name in _INFRASTRUCTURE_PURPOSE_BINDINGS,
         )
         for callee in sorted(requested):
@@ -10082,9 +11113,18 @@ def _validate_infrastructure_numeric_provenance(
             callers.setdefault(callee, set()).add(key)
             enqueue(callee)
         updated = summaries[key] | result
-        if updated == summaries[key]:
+        updated_transport = transport_summaries[key] | (
+            returned_transport[0]
+            if returned_transport
+            else _InfrastructureTransportType.NONE
+        )
+        if (
+            updated == summaries[key]
+            and updated_transport == transport_summaries[key]
+        ):
             continue
         summaries[key] = updated
+        transport_summaries[key] = updated_transport
         for caller in sorted(callers.get(key, ())):
             enqueue(caller)
 
@@ -10225,33 +11265,497 @@ def _scan_infrastructure_ast_content(
             )
 
 
+def _semantic_source_node(value, roots, cache, *, node_kind="project_semantic"):
+    module_name = value.__module__
+    qualname = value.__qualname__
+    if "<lambda>" in qualname:
+        raise _ContractError(
+            "semantic project lambda declarations are not supported"
+        )
+    located = _AstClosureResolver(
+        roots, role="infrastructure"
+    )._find_module_path(module_name, required=True)
+    source_path, source_root = located
+    cache_key = (source_path, source_root)
+    material = cache.get(cache_key)
+    if material is None:
+        relative_path = source_path.relative_to(source_root)
+        raw = _bounded_read_python_source(
+            source_root, relative_path, module_name
+        )
+        tree = _bounded_parse_utf8_python(
+            raw,
+            byte_limit=_STATIC_SCAN_SOURCE_FILE_BYTES_LIMIT,
+            field_name=f"semantic source module {module_name}",
+            filename=str(source_path),
+        )
+        material = (
+            relative_path.as_posix(),
+            raw,
+            hashlib.sha256(raw).hexdigest(),
+            tree,
+        )
+        cache[cache_key] = material
+    relative_path, raw, raw_sha256, tree = material
+    expected_chain = tuple(
+        part for part in qualname.split(".") if part != "<locals>"
+    )
+    candidates = []
+
+    def visit(candidate, declaration_chain):
+        next_chain = declaration_chain
+        if isinstance(
+            candidate, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            next_chain += (candidate.name,)
+            if next_chain == expected_chain:
+                candidates.append(candidate)
+            if (
+                len(next_chain) > len(expected_chain)
+                or next_chain != expected_chain[: len(next_chain)]
+            ):
+                return
+        for child in ast.iter_child_nodes(candidate):
+            visit(child, next_chain)
+
+    visit(tree, ())
+    if isinstance(value, type):
+        candidates = [
+            node for node in candidates if isinstance(node, ast.ClassDef)
+        ]
+    else:
+        code = object.__getattribute__(value, "__code__")
+        first_line = code.co_firstlineno
+        candidates = [
+            node
+            for node in candidates
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and min(
+                [node.lineno]
+                + [decorator.lineno for decorator in node.decorator_list]
+            )
+            == first_line
+        ]
+    if len(candidates) != 1:
+        raise _ContractError(
+            "semantic project declaration source is not unique"
+        )
+    declaration = candidates[0]
+    identity = f"{module_name}.{qualname}"
+    return _AstSourceNode(
+        module_name=module_name,
+        relative_path=relative_path,
+        raw_file_sha256=raw_sha256,
+        node=declaration,
+        node_kind=node_kind,
+        qualified_name=identity,
+        bound_names=(
+            "__semantic_project_"
+            + hashlib.sha256(identity.encode("utf-8")).hexdigest(),
+        ),
+        source_span=_node_source_span(raw, declaration),
+    )
+
+
+def _semantic_external_artifact(module_name, module):
+    namespace = (
+        object.__getattribute__(module, "__dict__")
+        if type(module) is ModuleType
+        else None
+    )
+    if namespace is not None and (
+        type(namespace) is not dict
+        or namespace.get("__name__") != module_name
+    ):
+        raise _ContractError("external module namespace identity is not exact")
+    path_value = namespace.get("__file__") if namespace is not None else None
+    if type(path_value) is str:
+        descriptor = None
+        try:
+            descriptor = os.open(
+                path_value,
+                os.O_RDONLY | os.O_CLOEXEC | getattr(os, "O_NOFOLLOW", 0),
+            )
+            signature = os.fstat(descriptor)
+            if not stat.S_ISREG(signature.st_mode):
+                raise _ContractError(
+                    "external module artifact is not a regular file"
+                )
+            before = os.fstat(descriptor)
+            digest = _task10_descriptor_sha256(descriptor)
+            after = os.fstat(descriptor)
+            size = signature.st_size
+            signature_fields = lambda value: (
+                value.st_dev,
+                value.st_ino,
+                value.st_mode,
+                value.st_nlink,
+                value.st_uid,
+                value.st_gid,
+                value.st_size,
+                value.st_mtime_ns,
+                value.st_ctime_ns,
+            )
+            if (
+                signature_fields(before) != signature_fields(signature)
+                or signature_fields(after) != signature_fields(signature)
+            ):
+                raise _ContractError(
+                    "external module artifact changed during hashing"
+                )
+        except _ContractError:
+            raise
+        except OSError as error:
+            raise _ContractError(
+                "external module artifact cannot be hashed"
+            ) from error
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+        return (
+            "external/" + "/".join(module_name.split(".")) + "/"
+            + path_value.rsplit("/", 1)[-1],
+            digest,
+            {"kind": "regular_file", "size": size},
+        )
+    interpreter = {
+        "kind": "interpreter_owned",
+        "module": module_name,
+        "version": sys.version,
+        "hexversion": sys.hexversion,
+        "executable": sys.executable,
+    }
+    return (
+        "external/" + "/".join(module_name.split(".")) + "/interpreter",
+        _canonical_sha256(interpreter),
+        interpreter,
+    )
+
+
+def _semantic_dependency_source(
+    qualified_name,
+    commitment,
+    *,
+    relative_path,
+    raw_file_sha256,
+    node_kind="external_dependency",
+):
+    raw = _static_commitment_bytes(commitment)
+    return _AstSourceNode(
+        module_name=qualified_name.rsplit(".", 1)[0],
+        relative_path=relative_path,
+        raw_file_sha256=raw_file_sha256,
+        node=ast.Pass(),
+        node_kind=node_kind,
+        qualified_name=qualified_name,
+        bound_names=(
+            "__semantic_external_"
+            + hashlib.sha256(qualified_name.encode("utf-8")).hexdigest(),
+        ),
+        source_span=raw,
+    )
+
+
+def _semantic_external_leaf_name(module_name, path):
+    if (
+        type(module_name) is not str
+        or not module_name
+        or any(not part.isidentifier() for part in module_name.split("."))
+        or type(path) is not tuple
+        or not path
+        or any(type(part) is not str or not part for part in path)
+    ):
+        raise _ContractError("external semantic path is not exact")
+    if all(part.isidentifier() for part in path):
+        suffix = ".".join(path)
+    else:
+        suffix = "__path_" + hashlib.sha256(
+            _static_commitment_bytes(
+                {"module": module_name, "path": path}
+            )
+        ).hexdigest()
+    return "external_dependency." + module_name + "." + suffix
+
+
+def _live_semantic_infrastructure_nodes(roots):
+    resolved = {}
+    source_cache = {}
+    root_memberships = {}
+    dependency_sets = {}
+    dependency_binding_sets = {}
+    transport_effect_sets = {}
+    for qualified_root in _EXPECTED_INFRASTRUCTURE_ROOTS:
+        module_name, qualname = qualified_root.rsplit(".", 1)
+        root_value = _static_exact_project_function(module_name, qualname)
+        state = {
+            "steps": 0,
+            "edges": 0,
+            "attributes": 0,
+            "memo": {},
+            "project_functions": {},
+            "external_function_mode": "infrastructure_external_leaf_v1",
+        }
+        semantic = _static_semantic_value(
+            root_value, state, 0, binding_name=qualified_root
+        )
+        members = set()
+        for identity, function in sorted(state["project_functions"].items()):
+            source = _semantic_source_node(function, roots, source_cache)
+            members.add(source.qualified_name)
+            resolved.setdefault(
+                source.qualified_name,
+                _ResolvedAstNode(source=source, dependencies=()),
+            )
+        for identity, project_class in sorted(
+            state.get("project_classes", {}).items()
+        ):
+            source = _semantic_source_node(
+                project_class,
+                roots,
+                source_cache,
+                node_kind="project_class_semantic",
+            )
+            members.add(identity)
+            resolved.setdefault(
+                identity, _ResolvedAstNode(source=source, dependencies=())
+            )
+        for identity, schema_class in sorted(
+            state.get("project_schemas", {}).items()
+        ):
+            source = _semantic_source_node(
+                schema_class, roots, source_cache, node_kind="committed_schema"
+            )
+            members.add(identity)
+            resolved.setdefault(
+                identity, _ResolvedAstNode(source=source, dependencies=())
+            )
+        for (external_module, path), (value, owners) in sorted(
+            state.get("external_accesses", {}).items()
+        ):
+            module = state.get("external_modules", {}).get(external_module)
+            relative_path, artifact_sha256, artifact = (
+                _semantic_external_artifact(external_module, module)
+            )
+            leaf_state = {
+                "steps": 0, "edges": 0, "attributes": 0, "memo": {},
+                "project_functions": {},
+                "external_function_mode": "infrastructure_external_leaf_v1",
+            }
+            binding = _static_semantic_value(
+                value, leaf_state, 0,
+                binding_name=external_module + "." + ".".join(path),
+            )
+            leaf_name = _semantic_external_leaf_name(
+                external_module, path
+            )
+            source = _semantic_dependency_source(
+                leaf_name,
+                {"schema_version": "external_dependency_v1", "module": external_module,
+                 "path": path, "owners": owners,
+                 "use_category": (
+                     "type_identity" if isinstance(value, type)
+                     else "callable_reference" if callable(value)
+                     else "runtime_value"
+                 ), "artifact": artifact, "binding": binding},
+                relative_path=relative_path,
+                raw_file_sha256=artifact_sha256,
+                node_kind=_external_dependency_node_kind(value),
+            )
+            members.add(leaf_name)
+            resolved.setdefault(leaf_name, _ResolvedAstNode(source=source, dependencies=()))
+        local_edges = {}
+        for parent, children in state.get("project_edges", {}).items():
+            parent_name = ".".join(parent)
+            local_edges.setdefault(parent_name, set()).update(
+                ".".join(child) for child in children
+            )
+        for parent, children in state.get(
+            "project_class_edges", {}
+        ).items():
+            parent_name = ".".join(parent)
+            local_edges.setdefault(parent_name, set()).update(
+                ".".join(child) for child in children
+            )
+        for parent, bindings in state.get(
+            "project_edge_accesses", {}
+        ).items():
+            parent_name = ".".join(parent)
+            for child, access_path in bindings:
+                child_name = ".".join(child)
+                if child_name not in local_edges.get(parent_name, set()):
+                    raise _ContractError(
+                        "project semantic access has no matching edge"
+                    )
+                dependency_binding_sets.setdefault(
+                    parent_name, set()
+                ).add((child_name, tuple(access_path)))
+        for parent, external_keys in state.get(
+            "project_external_edges", {}
+        ).items():
+            parent_name = ".".join(parent)
+            local_edges.setdefault(parent_name, set()).update(
+                _semantic_external_leaf_name(module, path)
+                for module, path in external_keys
+            )
+        for parent, bindings in state.get(
+            "project_external_accesses", {}
+        ).items():
+            parent_name = ".".join(parent)
+            for (module, path), access_path in bindings:
+                child_name = _semantic_external_leaf_name(module, path)
+                if child_name not in local_edges.get(parent_name, set()):
+                    raise _ContractError(
+                        "external semantic access has no matching edge"
+                    )
+                dependency_binding_sets.setdefault(
+                    parent_name, set()
+                ).add((child_name, tuple(access_path)))
+        for parent, effects in state.get(
+            "project_transport_effects", {}
+        ).items():
+            parent_name = ".".join(parent)
+            for effect, access_path in effects:
+                parent_node = resolved.get(parent_name)
+                if parent_node is None:
+                    raise _ContractError(
+                        "transport effect parent is unavailable"
+                    )
+                call_accesses = {
+                    access
+                    for candidate in _bounded_infrastructure_ast_nodes(
+                        parent_node.source.node
+                    )
+                    if isinstance(candidate, ast.Call)
+                    for access in (
+                        _numeric_static_access_name(candidate.func),
+                    )
+                    if access is not None
+                }
+                if ".".join(access_path) not in call_accesses:
+                    continue
+                expected_module, expected_path = (
+                    ("json", ("dumps",))
+                    if effect == "json.dumps"
+                    else ("hashlib", ("sha256",))
+                    if effect == "hashlib.sha256"
+                    else (None, None)
+                )
+                expected_leaf = (
+                    _semantic_external_leaf_name(
+                        expected_module, expected_path
+                    )
+                    if expected_module is not None
+                    else None
+                )
+                if expected_leaf not in local_edges.get(parent_name, set()):
+                    raise _ContractError(
+                        "transport effect has no matching semantic edge"
+                    )
+                transport_effect_sets.setdefault(parent_name, set()).add(
+                    (effect, tuple(access_path))
+                )
+        for parent, schemas in state.get(
+            "project_schema_edges", {}
+        ).items():
+            local_edges.setdefault(".".join(parent), set()).update(schemas)
+        for parent, children in local_edges.items():
+            dependency_sets.setdefault(parent, set()).update(children)
+        reachable = {qualified_root}
+        pending = [qualified_root]
+        while pending:
+            parent = pending.pop()
+            for child in local_edges.get(parent, ()):
+                if child not in reachable:
+                    reachable.add(child)
+                    pending.append(child)
+        root_digest = hashlib.sha256(_static_commitment_bytes(semantic)).hexdigest()
+        anchor_name = "semantic_dependency.infrastructure.root_" + hashlib.sha256(
+            qualified_root.encode("utf-8")
+        ).hexdigest()
+        anchor = _semantic_dependency_source(
+            anchor_name,
+            {"schema_version": "infrastructure_root_semantic_v1",
+             "root": qualified_root, "semantic_sha256": root_digest,
+             "semantic_nodes": state["steps"], "semantic_edges": state["edges"],
+             "semantic_attributes": state["attributes"]},
+            relative_path=resolved[qualified_root].source.relative_path,
+            raw_file_sha256=resolved[qualified_root].source.raw_file_sha256,
+        )
+        resolved[anchor_name] = _ResolvedAstNode(
+            source=anchor,
+            dependencies=tuple(sorted(members - reachable)),
+        )
+        root_memberships[qualified_root] = anchor_name
+    for root, anchor in root_memberships.items():
+        item = resolved[root]
+        dependencies = sorted(dependency_sets.get(root, ())) + [anchor]
+        if root == _COMMITTED_DATA_ROOT:
+            dependencies.extend(sorted(_COMMITTED_DATA_EDGES))
+        resolved[root] = _ResolvedAstNode(
+            source=item.source,
+            dependencies=tuple(dependencies),
+            dependency_bindings=tuple(
+                sorted(dependency_binding_sets.get(root, ()))
+            ),
+            transport_effects=tuple(
+                sorted(transport_effect_sets.get(root, ()))
+            ),
+        )
+    for name, dependencies in dependency_sets.items():
+        if name in root_memberships or name not in resolved:
+            continue
+        item = resolved[name]
+        resolved[name] = _ResolvedAstNode(
+            source=item.source,
+            dependencies=tuple(sorted(dependencies)),
+            dependency_bindings=tuple(
+                sorted(dependency_binding_sets.get(name, ()))
+            ),
+            transport_effects=tuple(
+                sorted(transport_effect_sets.get(name, ()))
+            ),
+        )
+    return resolved
+
+
 def build_infrastructure_closure(*, source_roots):
     """Build the exact planned transport/isolation dependency closure."""
 
     roots = _normalize_source_roots(source_roots)
-    resolver = _AstClosureResolver(roots, role="infrastructure")
-    for qualified_root in _EXPECTED_INFRASTRUCTURE_ROOTS:
-        module_name, root_name = qualified_root.rsplit(".", 1)
-        resolved_root = resolver.resolve_symbol(module_name, root_name)
-        if resolved_root != qualified_root:
+    live_root_parts = __file__.rsplit("/validation/", 1)
+    if len(live_root_parts) != 2:
+        raise _ContractError("infrastructure module path is not canonical")
+    live_root = live_root_parts[0]
+    live_semantic = (
+        len(roots) == 1 and roots[0] == Path(live_root)
+    )
+    if live_semantic:
+        resolved = _live_semantic_infrastructure_nodes(roots)
+    else:
+        resolver = _AstClosureResolver(roots, role="infrastructure")
+        for qualified_root in _EXPECTED_INFRASTRUCTURE_ROOTS:
+            module_name, root_name = qualified_root.rsplit(".", 1)
+            resolved_root = resolver.resolve_symbol(module_name, root_name)
+            if resolved_root != qualified_root:
+                raise _ContractError(
+                    f"infrastructure root {qualified_root} resolves by alias"
+                )
+            if resolver.resolved[resolved_root].source.node_kind != "function":
+                raise _ContractError(
+                    f"infrastructure root {qualified_root} must be a function"
+                )
+        resolver.validate_future_annotation_modes()
+        resolver.validate_external_import_usage()
+        resolved = resolver.resolved
+        try:
+            _scan_infrastructure_ast_content(resolved)
+        except _ContractError as error:
             raise _ContractError(
-                f"infrastructure root {qualified_root} resolves by alias"
-            )
-        if resolver.resolved[resolved_root].source.node_kind != "function":
-            raise _ContractError(
-                f"infrastructure root {qualified_root} must be a function"
-            )
-    resolver.validate_future_annotation_modes()
-    resolver.validate_external_import_usage()
-    try:
-        _scan_infrastructure_ast_content(resolver.resolved)
-    except _ContractError as error:
-        raise _ContractError(
-            "infrastructure purpose scan rejected scientific or "
-            "uncommitted content"
-        ) from error
+                "infrastructure purpose scan rejected scientific or "
+                "uncommitted content"
+            ) from error
     nodes, dependency_edges, _emitted_source = _manifest_from_resolved(
-        resolver.resolved
+        resolved
     )
     try:
         _reject_scientific_infrastructure_nodes(nodes)
@@ -10282,7 +11786,7 @@ def build_infrastructure_closure(*, source_roots):
     )
     validated = _validate_infrastructure_closure_record(closure)
     material = _static_scan_material_from_resolved(
-        resolver.resolved,
+        resolved,
         closure_bundle_sha256=validated.bundle_sha256,
     )
     object.__setattr__(validated, "_static_scan_material", material)
@@ -10435,13 +11939,33 @@ def _scan_policy_forbidden_structures_with_budget(
                 raise _ContractError(
                     "scientific definition contains a post-hoc threshold"
                 )
-            if {"proof", "kind"} <= tokens and (
-                type(item) is not str
-                or item not in _adapters.OUTPUT_PROOF_KINDS
-            ):
-                raise _ContractError(
-                    "scientific definition contains an unknown proof kind"
-                )
+            if {"proof", "kind"} <= tokens:
+                allowed_proof_kinds = _adapters.OUTPUT_PROOF_KINDS
+                if key == "dense_ed_proof_kind":
+                    allowed_proof_kinds = frozenset(
+                        {
+                            "ground_space_covering",
+                            "linked_cell_product_ground_state",
+                        }
+                    )
+                elif key == "glt_proof_kind":
+                    allowed_proof_kinds = frozenset(
+                        {
+                            "xy_bdg_matrix",
+                            "diamond_two_sublattice_kernel",
+                            "kitaev_majorana_two_band",
+                            "pyrochlore_constraint_projector",
+                            "simple_cubic_exchange_kernel",
+                            "tfim_jordan_wigner_bdg",
+                        }
+                    )
+                if (
+                    type(item) is not str
+                    or item not in allowed_proof_kinds
+                ):
+                    raise _ContractError(
+                        "scientific definition contains an unknown proof kind"
+                    )
             _scan_policy_forbidden_structures_with_budget(
                 item,
                 role=role,
@@ -10580,7 +12104,7 @@ _ORACLE_CONVERGENCE_ALLOWED_FIELDS = frozenset(
 )
 _ORACLE_CONVERGENCE_KIND = "residual_bound"
 _ORACLE_CONVERGENCE_RULE = (
-    "independent residual contracts under refinement"
+    "independent equation closure and invariant consistency"
 )
 
 
@@ -11517,6 +13041,8 @@ def _validate_static_scan_material(
             )
         if private_node.qualified_name != manifest["qualified_name"]:
             raise _ContractError("static scan material node order mismatch")
+        if private_node.node_kind != manifest["node_kind"]:
+            raise _ContractError("static scan material node kind mismatch")
         if (
             type(private_node.raw_source_span) is not bytes
             or type(private_node.emitted_node) is not bytes
@@ -11539,9 +13065,44 @@ def _validate_static_scan_material(
             manifest["emitted_node_sha256"]
         ):
             raise _ContractError("static scan emitted node hash mismatch")
-        if private_node.emitted_node != _normalized_emitted_node(
-            private_node.raw_source_span
-        ):
+        if private_node.node_kind == "committed_schema":
+            expected_emitted = _committed_record_schema_emitted(
+                _AstSourceNode(
+                    module_name=private_node.qualified_name.rsplit(".", 1)[0],
+                    relative_path=manifest["relative_path"],
+                    raw_file_sha256=manifest["raw_file_sha256"],
+                    node=ast.Pass(),
+                    node_kind="committed_schema",
+                    qualified_name=private_node.qualified_name,
+                    bound_names=(private_node.qualified_name.rsplit(".", 1)[-1],),
+                    source_span=private_node.raw_source_span,
+                )
+            )
+        elif private_node.node_kind in {
+            "project_semantic",
+            "project_class_semantic",
+            "external_dependency",
+            "external_type_dependency",
+        }:
+            expected_emitted = _resolved_emitted_node(
+                _AstSourceNode(
+                    module_name=(
+                        private_node.qualified_name.rsplit(".", 1)[0]
+                    ),
+                    relative_path=manifest["relative_path"],
+                    raw_file_sha256=manifest["raw_file_sha256"],
+                    node=ast.Pass(),
+                    node_kind=private_node.node_kind,
+                    qualified_name=private_node.qualified_name,
+                    bound_names=(),
+                    source_span=private_node.raw_source_span,
+                )
+            )
+        else:
+            expected_emitted = _normalized_emitted_node(
+                private_node.raw_source_span
+            )
+        if private_node.emitted_node != expected_emitted:
             raise _ContractError(
                 "static scan raw and emitted node material disagree"
             )
@@ -13918,6 +15479,16 @@ def _scan_static_material_content(
         depth_limit=_STATIC_SCAN_AGGREGATE_AST_DEPTH_LIMIT,
     )
     for node in material.nodes:
+        if node.node_kind in {
+            "committed_schema",
+            "external_dependency",
+            "external_type_dependency",
+        } or (
+            role == "infrastructure"
+            and node.node_kind
+            in {"project_semantic", "project_class_semantic"}
+        ):
+            continue
         tree = _bounded_parse_utf8_python(
             node.raw_source_span,
             byte_limit=_STATIC_SCAN_LITERAL_BYTES_LIMIT,
@@ -14047,6 +15618,7 @@ _STATIC_SCANNER_BUILTIN_BINDINGS = frozenset(
         "AttributeError",
         "DeprecationWarning",
         "Exception",
+        "FileExistsError",
         "FutureWarning",
         "Ellipsis",
         "IndexError",
@@ -14193,6 +15765,12 @@ _STATIC_SCANNER_EXTERNAL_RECEIVER_BINDINGS = frozenset(
 )
 _STATIC_SCANNER_EXTERNAL_RECEIVER_SEED_EXCLUSIONS = frozenset(
     {
+        (
+            __name__,
+            "build_infrastructure_closure",
+            "pathlib",
+            "Path",
+        ),
         (
             __name__,
             "_static_external_receiver_class",
@@ -14403,6 +15981,83 @@ def _static_external_instance_slot_manifest() -> list[dict[str, object]]:
     ]
 
 
+def _canonical_transport_effect_rule_manifest() -> list[dict[str, object]]:
+    hash_module = sys.modules.get("_hashlib")
+    if type(hash_module) is not ModuleType:
+        raise _ContractError("canonical hash owner module is unavailable")
+    hash_namespace = object.__getattribute__(hash_module, "__dict__")
+    hash_type = hash_namespace.get("HASH")
+    if type(hash_type) is not type:
+        raise _ContractError("canonical hash receiver type is unavailable")
+    str_owner, str_encode = _static_exact_class_member(str, "encode")
+    hash_owner, hash_hexdigest = _static_exact_class_member(
+        hash_type, "hexdigest"
+    )
+
+    def artifact(module_name, module):
+        relative_path, digest, material = _semantic_external_artifact(
+            module_name, module
+        )
+        return {
+            "relative_path": relative_path,
+            "sha256": digest,
+            "material": material,
+        }
+
+    def identity(value):
+        value_type = type(value)
+        return {
+            "module": object.__getattribute__(value, "__module__"),
+            "qualname": object.__getattribute__(value, "__qualname__"),
+            "type_module": type.__getattribute__(value_type, "__module__"),
+            "type_qualname": type.__getattribute__(value_type, "__qualname__"),
+        }
+
+    def descriptor_identity(value, owner, member_name):
+        if (
+            object.__getattribute__(value, "__objclass__") is not owner
+            or object.__getattribute__(value, "__name__") != member_name
+        ):
+            raise _ContractError(
+                "canonical transport descriptor identity is not exact"
+            )
+        value_type = type(value)
+        return {
+            "owner_module": type.__getattribute__(owner, "__module__"),
+            "owner_qualname": type.__getattribute__(owner, "__qualname__"),
+            "member": member_name,
+            "type_module": type.__getattribute__(value_type, "__module__"),
+            "type_qualname": type.__getattribute__(value_type, "__qualname__"),
+        }
+
+    return [
+        {
+            "effect": "json.dumps",
+            "callable": identity(json.dumps),
+            "access_artifact": artifact("json", json),
+        },
+        {
+            "effect": "hashlib.sha256",
+            "callable": identity(hashlib.sha256),
+            "access_artifact": artifact("hashlib", hashlib),
+        },
+        {
+            "effect": "builtins.str.encode",
+            "owner": identity(str_owner),
+            "descriptor": descriptor_identity(str_encode, str_owner, "encode"),
+            "owner_artifact": artifact("builtins", _builtins),
+        },
+        {
+            "effect": "_hashlib.HASH.hexdigest",
+            "owner": identity(hash_owner),
+            "descriptor": descriptor_identity(
+                hash_hexdigest, hash_owner, "hexdigest"
+            ),
+            "owner_artifact": artifact("_hashlib", hash_module),
+        },
+    ]
+
+
 def _static_scanner_rule_manifest() -> dict[str, object]:
     return {
         "commitment_version": "transitive_semantic_commitment_v6",
@@ -14534,6 +16189,9 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
         ],
         "semantic_external_receiver_bindings": (
             _static_external_receiver_rule_manifest()
+        ),
+        "canonical_transport_effects": (
+            _canonical_transport_effect_rule_manifest()
         ),
         "forbidden_dynamic_calls": sorted(_FORBIDDEN_DYNAMIC_CALLS),
         "entrypoints": list(_STATIC_SCANNER_ENTRYPOINT_NAMES),
@@ -15377,6 +17035,7 @@ def _static_semantic_module(
     *,
     attribute_paths: tuple[tuple[str, ...], ...],
     binding_name: str,
+    access_name: str | None = None,
 ) -> dict[str, object]:
     if type(value) is not ModuleType or type(value.__name__) is not str:
         raise _ContractError("static scanner module dependency is not exact")
@@ -15384,6 +17043,19 @@ def _static_semantic_module(
         "kind": "module",
         "name": value.__name__,
     }
+    capture_external = (
+        state.get("external_function_mode")
+        == "infrastructure_external_leaf_v1"
+        and value.__name__ not in _STATIC_SCANNER_SEMANTIC_MODULES
+    )
+    if capture_external:
+        modules = state.setdefault("external_modules", {})
+        previous_module = modules.get(value.__name__)
+        if previous_module is not None and previous_module is not value:
+            raise _ContractError(
+                "infrastructure external module identity is ambiguous"
+            )
+        modules[value.__name__] = value
     bindings = []
     for path in attribute_paths:
         if not path:
@@ -15403,6 +17075,80 @@ def _static_semantic_module(
             resolved, owners = _static_resolve_attribute_path(
                 value, path, state
             )
+            if (
+                type(resolved) is FunctionType
+                and resolved.__module__ in _STATIC_SCANNER_SEMANTIC_MODULES
+                and state.get("project_function_stack")
+            ):
+                parent = state["project_function_stack"][-1]
+                child = (resolved.__module__, resolved.__qualname__)
+                state.setdefault("project_edges", {}).setdefault(
+                    parent, set()
+                ).add(child)
+                if access_name is not None:
+                    state.setdefault("project_edge_accesses", {}).setdefault(
+                        parent, set()
+                    ).add((child, (access_name,) + path))
+            if (
+                isinstance(resolved, type)
+                and type.__getattribute__(resolved, "__module__")
+                in _STATIC_SCANNER_SEMANTIC_MODULES
+                and state.get("project_function_stack")
+            ):
+                parent = state["project_function_stack"][-1]
+                child = (
+                    type.__getattribute__(resolved, "__module__"),
+                    type.__getattribute__(resolved, "__qualname__"),
+                )
+                state.setdefault("project_class_edges", {}).setdefault(
+                    parent, set()
+                ).add(child)
+                if access_name is not None:
+                    state.setdefault("project_edge_accesses", {}).setdefault(
+                        parent, set()
+                    ).add((child, (access_name,) + path))
+            if capture_external:
+                key = (value.__name__, path)
+                accesses = state.setdefault("external_accesses", {})
+                previous = accesses.get(key)
+                current = (resolved, owners)
+                if previous is not None and (
+                    previous[0] is not resolved or previous[1] != owners
+                ):
+                    raise _ContractError(
+                        "infrastructure external access identity is "
+                        "ambiguous"
+                    )
+                accesses[key] = current
+                if state.get("project_function_stack"):
+                    parent = state["project_function_stack"][-1]
+                    state.setdefault(
+                        "project_external_edges", {}
+                    ).setdefault(
+                        parent, set()
+                    ).add(key)
+                    transport_effect = (
+                        "json.dumps"
+                        if resolved is json.dumps
+                        else "hashlib.sha256"
+                        if resolved is hashlib.sha256
+                        else None
+                    )
+                    if transport_effect is not None and access_name is not None:
+                        state.setdefault(
+                            "project_transport_effects", {}
+                        ).setdefault(parent, set()).add(
+                            (transport_effect, (access_name,) + path)
+                        )
+                    if (
+                        access_name is not None
+                        and type(resolved) is type
+                    ):
+                        state.setdefault(
+                            "project_external_accesses", {}
+                        ).setdefault(
+                            state["project_function_stack"][-1], set()
+                        ).add((key, (access_name,) + path))
             binding = _static_semantic_value(
                 resolved,
                 state,
@@ -15484,6 +17230,7 @@ def _static_semantic_function_globals(
                 depth + 1,
                 attribute_paths=attribute_paths,
                 binding_name=f"{binding_name}.globals.{name}",
+                access_name=name,
             )
         else:
             usage = class_usages.get(name, {})
@@ -15531,6 +17278,44 @@ def _static_semantic_function(
         raise _ContractError(
             "static scanner callable identity is not exact"
         )
+    if (
+        module_name not in _STATIC_SCANNER_SEMANTIC_MODULES
+        and state.get("external_function_mode")
+        == "infrastructure_external_leaf_v1"
+    ):
+        return {
+            "kind": "external_function_leaf",
+            "token": token,
+            "module": module_name,
+            "qualname": qualname,
+            "type_module": type.__getattribute__(
+                type(value), "__module__"
+            ),
+            "type_qualname": type.__getattribute__(
+                type(value), "__qualname__"
+            ),
+            "code": _static_semantic_code(
+                value.__code__, state, depth + 1
+            ),
+            "defaults": _static_semantic_value(
+                value.__defaults__,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.defaults",
+            ),
+            "kwdefaults": _static_semantic_value(
+                value.__kwdefaults__,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.kwdefaults",
+            ),
+            "annotations": _static_semantic_value(
+                value.__annotations__,
+                state,
+                depth + 1,
+                binding_name=f"{binding_name}.annotations",
+            ),
+        }
     if module_name not in _STATIC_SCANNER_SEMANTIC_MODULES or (
         qualname.startswith("__create_fn__.")
     ):
@@ -15595,6 +17380,12 @@ def _static_semantic_function(
             f"{module_name}.{qualname}"
         )
     state["project_functions"][project_function_key] = value
+    project_stack = state.setdefault("project_function_stack", [])
+    if project_stack:
+        state.setdefault("project_edges", {}).setdefault(
+            project_stack[-1], set()
+        ).add(project_function_key)
+    project_stack.append(project_function_key)
     code = value.__code__
     global_accesses, class_members = _static_code_binding_accesses(
         code, value.__globals__
@@ -15621,6 +17412,78 @@ def _static_semantic_function(
                 "static scanner global dependency is not explicitly bound: "
                 f"{binding_name}.{name}"
             )
+        if (
+            state.get("external_function_mode")
+            == "infrastructure_external_leaf_v1"
+            and type(dependency) is not ModuleType
+        ):
+            if type(dependency) is FunctionType or isinstance(
+                dependency, type
+            ) or type(dependency) in {
+                BuiltinFunctionType,
+                ClassMethodDescriptorType,
+                MethodDescriptorType,
+                WrapperDescriptorType,
+            }:
+                if isinstance(dependency, type):
+                    dependency_module = type.__getattribute__(
+                        dependency, "__module__"
+                    )
+                    dependency_qualname = type.__getattribute__(
+                        dependency, "__qualname__"
+                    )
+                else:
+                    dependency_module = object.__getattribute__(
+                        dependency, "__module__"
+                    )
+                    dependency_qualname = object.__getattribute__(
+                        dependency, "__qualname__"
+                    )
+                if (
+                    type(dependency_module) is str
+                    and type(dependency_qualname) is str
+                    and dependency_module
+                    not in _STATIC_SCANNER_SEMANTIC_MODULES
+                ):
+                    access_path = tuple(
+                        dependency_qualname.split(".")
+                    )
+                    key = (dependency_module, access_path)
+                    accesses = state.setdefault(
+                        "external_accesses", {}
+                    )
+                    previous = accesses.get(key)
+                    current = (dependency, (dependency_module,))
+                    if previous is not None and previous[0] is not dependency:
+                        raise _ContractError(
+                            "infrastructure external binding identity is "
+                            "ambiguous"
+                        )
+                    accesses[key] = current
+                    state.setdefault(
+                        "project_external_edges", {}
+                    ).setdefault(project_function_key, set()).add(key)
+                    if type(dependency) is type:
+                        state.setdefault(
+                            "project_external_accesses", {}
+                        ).setdefault(project_function_key, set()).add(
+                            (key, (name,))
+                        )
+        if (
+            isinstance(dependency, type)
+            and type.__getattribute__(dependency, "__module__")
+            in _STATIC_SCANNER_SEMANTIC_MODULES
+        ):
+            child = (
+                type.__getattribute__(dependency, "__module__"),
+                type.__getattribute__(dependency, "__qualname__"),
+            )
+            state.setdefault("project_class_edges", {}).setdefault(
+                project_function_key, set()
+            ).add(child)
+            state.setdefault("project_edge_accesses", {}).setdefault(
+                project_function_key, set()
+            ).add((child, (name,)))
         committed_owner = _COMMITTED_DATA_OWNERS.get((module_name, name))
         if committed_owner is not None:
             dependencies[name] = {
@@ -15635,8 +17498,25 @@ def _static_semantic_function(
                 depth + 1,
                 attribute_paths=attribute_paths,
                 binding_name=f"{binding_name}.{name}",
+                access_name=name,
             )
         else:
+            if (
+                type(dependency) is FunctionType
+                and dependency.__module__
+                in _STATIC_SCANNER_SEMANTIC_MODULES
+            ):
+                state.setdefault("project_edges", {}).setdefault(
+                    project_function_key, set()
+                ).add((dependency.__module__, dependency.__qualname__))
+                state.setdefault("project_edge_accesses", {}).setdefault(
+                    project_function_key, set()
+                ).add(
+                    (
+                        (dependency.__module__, dependency.__qualname__),
+                        (name,),
+                    )
+                )
             usage = class_usages.get(name, {})
             dependencies[name] = _static_semantic_value(
                 dependency,
@@ -15696,7 +17576,7 @@ def _static_semantic_function(
                 binding_name=f"{binding_name}.closure",
             )
         )
-    return {
+    result = {
         "kind": "function",
         "token": token,
         "module": module_name,
@@ -15724,6 +17604,10 @@ def _static_semantic_function(
         "globals": dependencies,
         "receiver_methods": receiver_methods,
     }
+    popped = project_stack.pop()
+    if popped != project_function_key:
+        raise _ContractError("project semantic traversal stack is inconsistent")
+    return result
 
 
 def _static_semantic_class_member(
@@ -15930,6 +17814,40 @@ def _static_semantic_class(
         "qualname": qualname,
         "constructed": constructed,
     }
+    identity = f"{module_name}.{qualname}"
+    if (
+        state.get("external_function_mode")
+        == "infrastructure_external_leaf_v1"
+        and identity in _COMMITTED_RECORD_SCHEMA_IDENTITIES
+    ):
+        schemas = state.setdefault("project_schemas", {})
+        previous_schema = schemas.get(identity)
+        if previous_schema is not None and previous_schema is not value:
+            raise _ContractError(
+                "committed record schema identity is ambiguous"
+            )
+        schemas[identity] = value
+        if state.get("project_function_stack"):
+            state.setdefault("project_schema_edges", {}).setdefault(
+                state["project_function_stack"][-1], set()
+            ).add(identity)
+        return {
+            "kind": "committed_record_schema",
+            "module": module_name,
+            "qualname": qualname,
+        }
+    if (
+        state.get("external_function_mode")
+        == "infrastructure_external_leaf_v1"
+        and module_name in _STATIC_SCANNER_SEMANTIC_MODULES
+    ):
+        classes = state.setdefault("project_classes", {})
+        previous_class = classes.get(identity)
+        if previous_class is not None and previous_class is not value:
+            raise _ContractError(
+                "semantic project class identity is ambiguous"
+            )
+        classes[identity] = value
     active_classes = state.setdefault("active_classes", set())
     class_identity = id(value)
     if class_identity in active_classes:
@@ -17212,9 +19130,11 @@ _RUNTIME_FILE_PURPOSES = frozenset(
 )
 _RUNTIME_BACKEND_CAPABILITIES = frozenset({"single_cpu_core"})
 _RUNTIME_FIXED_STDLIB_MODULES = (
+    "__future__",
     "ctypes",
     "encodings",
     "json",
+    "math",
     "os",
     "resource",
 )
@@ -17447,6 +19367,34 @@ def _default_runtime_command_probe(argv):
     return result.stdout
 
 
+def _default_runtime_distribution_ldd(path, library_directories):
+    try:
+        result = subprocess.run(
+            ("ldd", str(path)),
+            check=False,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env={
+                "LANG": "C",
+                "LC_ALL": "C",
+                "LD_LIBRARY_PATH": os.pathsep.join(
+                    str(item) for item in library_directories
+                ),
+            },
+        )
+    except (OSError, ValueError) as error:
+        raise _ContractError(
+            "distribution extension ldd failed"
+        ) from error
+    if result.returncode != 0:
+        raise _ContractError(
+            "distribution extension ldd returned nonzero"
+        )
+    return result.stdout
+
+
 def _default_runtime_file_probe(operation, value):
     if operation == "resolve_interpreter":
         if value != "python3":
@@ -17463,6 +19411,15 @@ def _default_runtime_file_probe(operation, value):
         files = []
         for item in declared_files:
             relative = Path(str(item))
+            if (
+                len(relative.parts) == 5
+                and relative.parts[:4] == ("..", "..", "..", "bin")
+                and relative.parts[4] not in {"", ".", ".."}
+            ):
+                # Wheel metadata may declare console launchers outside the
+                # import tree.  They are neither imported nor executed by a
+                # scientific capsule, so they are intentionally not copied.
+                continue
             if relative.is_absolute() or any(
                 part in {"", ".", ".."} for part in relative.parts
             ):
@@ -17500,11 +19457,36 @@ def _default_runtime_file_probe(operation, value):
             for name in ("stdlib", "platstdlib")
             if sysconfig.get_path(name)
         }, key=str))
+        package_roots = []
+        for distribution_name in value:
+            try:
+                distribution = _importlib_metadata.distribution(
+                    distribution_name
+                )
+                package_root = Path(
+                    distribution.locate_file("")
+                ).resolve(strict=True)
+            except (
+                _importlib_metadata.PackageNotFoundError,
+                OSError,
+                RuntimeError,
+            ) as error:
+                raise _ContractError(
+                    "declared package import root is unavailable"
+                ) from error
+            if not package_root.is_dir():
+                raise _ContractError(
+                    "declared package import root is not a directory"
+                )
+            package_roots.append(str(package_root))
         probe_source = (
             "import importlib,json,sys\n"
             "if not sys.flags.dont_write_bytecode: raise RuntimeError('bytecode enabled')\n"
+            f"sys.path[:0]={tuple(sorted(set(package_roots)))!r}\n"
             f"names={_RUNTIME_FIXED_STDLIB_MODULES!r}\n"
             "[importlib.import_module(name) for name in names]\n"
+            f"packages={tuple(value)!r}\n"
+            "[importlib.import_module(name) for name in packages]\n"
             "paths=[]\n"
             "for module in tuple(sys.modules.values()):\n"
             " path=getattr(module,'__file__',None)\n"
@@ -17807,6 +19789,7 @@ def discover_runtime_resources(
                 + Path(dependency["resolved_path"]).name
             )
             rows.append(dependency)
+    distribution_extensions = []
     for package in requirements.packages:
         distribution = files("distribution", package)
         if type(distribution) is not dict or set(distribution) != {"name", "version", "files"}:
@@ -17834,17 +19817,83 @@ def discover_runtime_resources(
             ):
                 raise _ContractError("distribution file path is unsafe or duplicated")
             relative_names.add(relative_text)
-            rows.append(
-                _runtime_file_row(
-                    path,
-                    logical_destination=(
-                        f"/runtime/distributions/{package}/{relative_text}"
-                    ),
-                    purpose="declared_distribution_file",
-                    distribution=distribution["name"],
-                    version=distribution["version"],
-                )
+            distribution_row = _runtime_file_row(
+                path,
+                logical_destination=(
+                    f"/runtime/distributions/{package}/{relative_text}"
+                ),
+                purpose="declared_distribution_file",
+                distribution=distribution["name"],
+                version=distribution["version"],
             )
+            rows.append(distribution_row)
+            if default_probes:
+                distribution_metadata = os.stat(
+                    distribution_row["resolved_path"]
+                )
+                known_identities.add(
+                    (
+                        distribution_metadata.st_dev,
+                        distribution_metadata.st_ino,
+                    )
+                )
+            if ".so" in Path(relative_text).name:
+                distribution_extensions.append(Path(path))
+    if default_probes:
+        distribution_dependencies = []
+        distribution_library_directories = tuple(sorted({
+            extension.resolve(strict=True).parent
+            for extension in distribution_extensions
+        } | {
+            Path(row["resolved_path"]).resolve(strict=True).parent
+            for row in rows
+            if row["file_type"] == "regular"
+            and row["purpose"] in {"dynamic_loader", "dynamic_library"}
+        }, key=str))
+        for extension in sorted(distribution_extensions, key=str):
+            extension_output = _default_runtime_distribution_ldd(
+                extension.resolve(strict=True),
+                distribution_library_directories,
+            )
+            if extension_output.strip() == "statically linked":
+                parsed = ()
+            else:
+                parsed = _runtime_ldd_paths(extension_output)
+            if parsed and sum(
+                soname_loader or path_loader
+                for _soname, _path, soname_loader, path_loader in parsed
+            ) != 1:
+                raise _ContractError(
+                    "distribution extension ldd has an ambiguous loader"
+                )
+            for soname, library, soname_loader, path_loader in parsed:
+                dependency = _runtime_file_row(
+                    library,
+                    logical_destination="/runtime/native/pending",
+                    purpose="dynamic_library",
+                )
+                metadata = os.stat(dependency["resolved_path"])
+                identity = (metadata.st_dev, metadata.st_ino)
+                if identity in known_identities:
+                    continue
+                if soname_loader or path_loader:
+                    raise _ContractError(
+                        "distribution extension introduced a second loader"
+                    )
+                known_identities.add(identity)
+                distribution_dependencies.append(
+                    (dependency["resolved_path"], soname, dependency)
+                )
+        for index, (_path, _soname, dependency) in enumerate(
+            sorted(distribution_dependencies, key=lambda item: item[:2])
+        ):
+            dependency["logical_destination"] = (
+                "/runtime/native/distribution-"
+                + str(index)
+                + "-"
+                + Path(dependency["resolved_path"]).name
+            )
+            rows.append(dependency)
     for index, library in enumerate(requirements.native_libraries):
         path = files("native_library", library)
         rows.append(
@@ -23486,6 +25535,14 @@ class AdapterExecutionEvidence:
     def __init__(self, *args, **kwargs):
         _initialize_contract(self, args, kwargs, AdapterExecutionEvidence)
 
+    @property
+    def adapter_id(self) -> str:
+        return self.eligibility_commitments["adapter_id"]
+
+    @property
+    def oracle_id(self) -> str:
+        return self.eligibility_commitments["oracle_id"]
+
     def __post_init__(self) -> None:
         if self.schema_version != "adapter_execution_evidence_v1":
             raise _ContractError(
@@ -24122,6 +26179,8 @@ def validate_adapter_execution_evidence(value):
 
 
 def _coordinator_artifact_material(value, field_name):
+    if type(value) is list:
+        value = tuple(value)
     return _canonical_bytes(
         _adapter_execution_evidence_hash_value(value, field_name)
     )
@@ -24256,6 +26315,15 @@ def _validate_coordinator_artifact_bindings(state, evidence):
     oracle_values = _adapter_evidence_exact_record_values(
         values["oracle_decision"], OracleDecision, "oracle decision"
     )
+    preflight = state.get("capability_preflight")
+    if (
+        type(preflight) is not CapabilityPreflightReport
+        or preflight.report_sha256
+        != values["capability_preflight_sha256"]
+    ):
+        raise _ContractError(
+            "coordinator capability preflight does not match evidence"
+        )
     expected = {
         "scientific_closure": values["adapter_scientific_closure"],
         "oracle_closure": values["oracle_scientific_closure"],
@@ -24267,7 +26335,6 @@ def _validate_coordinator_artifact_bindings(state, evidence):
         "infrastructure_closure": values["infrastructure_closure"],
         "dependency_partition": dependency_partition_sha256,
         "runtime_snapshot": values["runtime_snapshot"],
-        "capability_preflight": values["capability_preflight_sha256"],
         "request_write": tuple(request_hashes),
         "isolation_setup": tuple(attestation_hashes),
         "worker_execution": tuple(adapter_points),
@@ -24716,6 +26783,787 @@ def _make_test_coordinator_dependency_bundle(
     )
 
 
+def _write_production_capsule(path, payload):
+    descriptor = None
+    try:
+        descriptor = os.open(
+            path,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_CLOEXEC
+            | os.O_NOFOLLOW,
+            0o500,
+        )
+        offset = 0
+        while offset < len(payload):
+            written = os.write(descriptor, payload[offset:])
+            if written <= 0:
+                raise _ContractError("production capsule write failed")
+            offset += written
+        os.fsync(descriptor)
+    except _ContractError:
+        raise
+    except OSError as error:
+        raise _ContractError("production capsule write failed") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _production_point_evidence(
+    *,
+    point_id,
+    ingested,
+    capsule_sha256,
+    worker_sha256,
+    trace,
+    process,
+    backend_diagnostics,
+):
+    result_transport = ingested["result"]
+    values = {
+        "schema_version": "point_execution_evidence_v1",
+        "point_id": point_id,
+        "request_sha256": result_transport["request_sha256"],
+        "result_sha256": ingested["result_sha256"],
+        "capsule_sha256": capsule_sha256,
+        "worker_sha256": worker_sha256,
+        "result_transport": result_transport,
+        "trace_policy_report": trace,
+        "process_attestation": process,
+        "backend_diagnostics": backend_diagnostics,
+        "exit_status": 0,
+    }
+    values["execution_sha256"] = _canonical_sha256(
+        {
+            "schema_version": values["schema_version"],
+            "point_id": values["point_id"],
+            "request_sha256": values["request_sha256"],
+            "result_sha256": values["result_sha256"],
+            "capsule_sha256": values["capsule_sha256"],
+            "worker_sha256": values["worker_sha256"],
+            "result_transport": values["result_transport"],
+            "trace_policy_report_sha256": trace.report_sha256,
+            "process_attestation_sha256": process.attestation_sha256,
+            "backend_diagnostics": values["backend_diagnostics"],
+            "exit_status": values["exit_status"],
+        }
+    )
+    return PointExecutionEvidence(**values)
+
+
+class _ProductionCoordinatorTransitions:
+    def __init__(self, oracle_definition):
+        self.oracle_definition = _oracles.validate_oracle_definition(
+            oracle_definition
+        )
+        self.events = []
+        self.adapter_capsule = None
+        self.oracle_capsule = None
+        self.worker_capsule = None
+        self.points = ()
+        self.adapter_runs = []
+        self.oracle_runs = []
+        self.request_hashes = []
+        self.attestation_hashes = []
+        self.trace_hashes = []
+        self.output_hashes = []
+        self.result_hashes = []
+        self.adapter_executions = []
+        self.oracle_executions = []
+        self.adapter_results = []
+        self.oracle_outputs = []
+
+    def record(self, event_name, details):
+        self.events.append(EventRecord(len(self.events), event_name, details))
+
+    def scientific_closure(self, state):
+        source_root = Path(__file__).parent.parent
+        return {
+            "artifact": build_scientific_closure(
+                state["adapter_definition"].entry_symbol,
+                role="adapter",
+                source_roots=(source_root,),
+            )
+        }
+
+    def oracle_closure(self, state):
+        source_root = Path(__file__).parent.parent
+        closure = build_scientific_closure(
+            state["oracle_definition"].entry_symbol,
+            role="oracle",
+            source_roots=(source_root,),
+        )
+        assert_disjoint_scientific_closures(
+            state["scientific_closure"], closure
+        )
+        return {"artifact": closure}
+
+    def static_scan(self, state):
+        fingerprints = tuple(
+            state["authority_context"].forbidden_output_fingerprints
+        )
+        source_root = Path(__file__).parent.parent
+        infrastructure = build_infrastructure_closure(
+            source_roots=(source_root,)
+        )
+        return {
+            "artifact": (
+                scan_scientific_closure(
+                    state["scientific_closure"],
+                    forbidden_fingerprints=fingerprints,
+                ),
+                scan_scientific_closure(
+                    state["oracle_closure"],
+                    forbidden_fingerprints=fingerprints,
+                ),
+                scan_scientific_closure(
+                    infrastructure,
+                    forbidden_fingerprints=fingerprints,
+                ),
+            )
+        }
+
+    def scientific_policy_commitment(self, state):
+        return {
+            "artifact": (
+                build_scientific_policy_commitment(
+                    state["adapter_definition"],
+                    state["scientific_closure"],
+                    role="adapter",
+                ),
+                build_scientific_policy_commitment(
+                    state["oracle_definition"],
+                    state["oracle_closure"],
+                    role="oracle",
+                ),
+            )
+        }
+
+    def infrastructure_closure(self, state):
+        return {
+            "artifact": build_infrastructure_closure(
+                source_roots=(Path(__file__).parent.parent,)
+            )
+        }
+
+    def dependency_partition(self, state):
+        closures = (
+            state["scientific_closure"],
+            state["oracle_closure"],
+            state["infrastructure_closure"],
+        )
+        referenced = tuple(
+            sorted(
+                node["qualified_name"]
+                for closure in closures
+                for node in closure.nodes
+            )
+        )
+        adapter_policy, oracle_policy = state[
+            "scientific_policy_commitment"
+        ]
+        return {
+            "artifact": assert_complete_dependency_partition(
+                state["scientific_closure"],
+                adapter_policy,
+                state["oracle_closure"],
+                oracle_policy,
+                state["infrastructure_closure"],
+                referenced_project_nodes=referenced,
+            )
+        }
+
+    def runtime_snapshot(self, state):
+        adapter = state["adapter_definition"].runtime_requirements
+        oracle = state["oracle_definition"].runtime_requirements
+        requirements = _adapters.RuntimeRequirements(
+            interpreter=adapter.interpreter,
+            packages=tuple(sorted(set(adapter.packages) | set(oracle.packages))),
+            native_libraries=tuple(
+                sorted(
+                    set(adapter.native_libraries)
+                    | set(oracle.native_libraries)
+                )
+            ),
+            backend_resources=tuple(
+                sorted(
+                    set(adapter.backend_resources)
+                    | set(oracle.backend_resources)
+                )
+            ),
+        )
+        material = (
+            state["authority_context"].audit_run_id.encode("utf-8")
+            + b"\0"
+            + str(os.getpid()).encode("ascii")
+            + b"\0"
+            + str(time.monotonic_ns()).encode("ascii")
+        )
+        run_name = "production-runtime-" + hashlib.sha256(material).hexdigest()
+        return {
+            "artifact": build_runtime_snapshot(
+                requirements,
+                run_directory=Path(state["run_parent"]) / run_name,
+                event_recorder=lambda _name, _details: None,
+            )
+        }
+
+    def capability_preflight(self, state):
+        report = _run_capability_preflight(
+            scratch_parent=state["run_parent"],
+            audit_run_id=state["authority_context"].audit_run_id,
+            runner=_production_capability_preflight_runner,
+        )
+        if not report.available:
+            raise _CoordinatorTransitionFailure(
+                "strict_recomputation_unavailable",
+                "capability_preflight_failed",
+            )
+        return {"artifact": report}
+
+    def seed_generation(self, state):
+        definition = state["adapter_definition"]
+        adapter_policy, oracle_policy = state[
+            "scientific_policy_commitment"
+        ]
+        adapter_scan, oracle_scan, infrastructure_scan = state["static_scan"]
+        self.adapter_capsule = emit_scientific_capsule(
+            state["scientific_closure"],
+            result_contract=build_scientific_result_contract(
+                definition, state["runtime_snapshot"]
+            ),
+        )
+        self.oracle_capsule = emit_scientific_capsule(
+            state["oracle_closure"]
+        )
+        self.worker_capsule = emit_fixed_worker()
+        hashes = {
+            "adapter_closure_sha256": state[
+                "scientific_closure"
+            ].bundle_sha256,
+            "oracle_closure_sha256": state["oracle_closure"].bundle_sha256,
+            "adapter_definition_sha256": (
+                adapter_policy.canonical_definition_sha256
+            ),
+            "oracle_definition_sha256": (
+                oracle_policy.canonical_definition_sha256
+            ),
+            "adapter_policy_sha256": adapter_policy.combined_sha256,
+            "oracle_policy_sha256": oracle_policy.combined_sha256,
+            "infrastructure_closure_sha256": state[
+                "infrastructure_closure"
+            ].bundle_sha256,
+            "infrastructure_scan_sha256": infrastructure_scan.report_sha256,
+            "adapter_scan_sha256": adapter_scan.report_sha256,
+            "oracle_scan_sha256": oracle_scan.report_sha256,
+            "scanner_sha256": adapter_scan.scanner_sha256,
+            "dependency_partition_sha256": state["dependency_partition"],
+            "runtime_snapshot_sha256": state[
+                "runtime_snapshot"
+            ].snapshot_sha256,
+            "adapter_capsule_sha256": hashlib.sha256(
+                self.adapter_capsule
+            ).hexdigest(),
+            "oracle_capsule_sha256": hashlib.sha256(
+                self.oracle_capsule
+            ).hexdigest(),
+            "worker_capsule_sha256": hashlib.sha256(
+                self.worker_capsule
+            ).hexdigest(),
+        }
+        preflight = _snapshot_preflight_report(
+            next(
+                value
+                for value in (self._preflight_from_state(state),)
+            )
+        )
+        preflight_values = {
+            name: getattr(preflight, name)
+            for name in _record_field_names(CapabilityPreflightReport)
+        }
+        command_hashes = {
+            name: identity["sha256"]
+            for name, identity in preflight.command_identities.items()
+        }
+        prerequisite_details = _pre_freeze_event_details(
+            {
+                "audit_run_id": state["authority_context"].audit_run_id,
+                "hash_material": hashes,
+                "capability_preflight": preflight_values,
+                "infrastructure_command_hashes": command_hashes,
+            }
+        )
+        for event_name, details in zip(
+            _PRE_FREEZE_EVENT_NAMES, prerequisite_details
+        ):
+            self.record(event_name, details)
+        frozen = record_and_freeze_hashes(
+            definition,
+            audit_run_id=state["authority_context"].audit_run_id,
+            ordered_events=tuple(self.events),
+            hash_material=hashes,
+            capability_preflight=preflight,
+            infrastructure_command_hashes=command_hashes,
+            event_recorder=self.record,
+        )
+        seed = acquire_run_seed(
+            frozen,
+            ordered_events=tuple(self.events),
+            random_bytes=os.urandom,
+            event_recorder=self.record,
+        )
+        generated = derive_counterfactual_points(definition, seed)
+        for point in generated:
+            reason = _counterfactual_validation_reason(definition, point)
+            expected = point.expected_validation
+            if point.kind == "invalid":
+                if reason != expected["reason_code"]:
+                    raise _CoordinatorTransitionFailure(
+                        "input_rejected", "scientific_input_rejected"
+                    )
+            elif reason != "none":
+                raise _CoordinatorTransitionFailure(
+                    "input_rejected", "scientific_input_rejected"
+                )
+        self.points = tuple(
+            point for point in generated if point.kind in {"canonical", "valid"}
+        )
+        self.hash_material = hashes
+        self.preflight = preflight
+        return {"artifact": seed}
+
+    def _preflight_from_state(self, state):
+        report = _snapshot_preflight_report(state["capability_preflight"])
+        audit_run_id = state["authority_context"].audit_run_id
+        if not report.available or report.audit_run_id != audit_run_id:
+            raise _ContractError(
+                "capability preflight is stale before freeze"
+            )
+        return report
+
+    def _prepare_run(self, state, point, role, capsule, request):
+        point_id = point.point_id if role == "adapter" else point.point_id + "_oracle"
+        layout = create_run_directories(
+            scratch_parent=state["run_parent"],
+            audit_run_id=state["authority_context"].audit_run_id + "-" + point_id,
+        )
+        supervisor = Path(layout.supervisor_directory)
+        capsule_path = supervisor / "scientific_capsule.py"
+        worker_path = supervisor / "fixed_worker.py"
+        _write_production_capsule(capsule_path, capsule)
+        _write_production_capsule(worker_path, self.worker_capsule)
+        request_path = write_worker_request_exclusive(
+            request, directory=Path(layout.input_directory)
+        )
+        manifest = construct_private_root(
+            layout,
+            state["runtime_snapshot"],
+            capsule_path=capsule_path,
+            worker_path=worker_path,
+            request_path=request_path,
+        )
+        request_sha256 = hashlib.sha256(request_path.read_bytes()).hexdigest()
+        self.request_hashes.append(request_sha256)
+        return {
+            "point": point,
+            "point_id": point_id,
+            "layout": layout,
+            "capsule_path": capsule_path,
+            "worker_path": worker_path,
+            "request_path": request_path,
+            "manifest": manifest,
+            "request_sha256": request_sha256,
+        }
+
+    def request_write(self, state):
+        capsule_sha256 = self.hash_material["adapter_capsule_sha256"]
+        for point in self.points:
+            request = WorkerRequest(
+                schema_version="worker_request_v1",
+                opaque_run_nonce=point.run_nonce,
+                adapter_id=state["adapter_definition"].adapter_id,
+                scientific_inputs=point.scientific_inputs,
+                numerical_controls=point.numerical_controls,
+                scientific_configuration=point.scientific_configuration,
+                capsule_sha256=capsule_sha256,
+            )
+            self.adapter_runs.append(
+                self._prepare_run(
+                    state, point, "adapter", self.adapter_capsule, request
+                )
+            )
+        self.record(
+            "requests_written",
+            {
+                "audit_run_id": state["authority_context"].audit_run_id,
+                "adapter_request_count": len(self.adapter_runs),
+            },
+        )
+        return {"artifact": self.request_hashes}
+
+    def isolation_setup(self, state):
+        return {"artifact": self.attestation_hashes}
+
+    def worker_execution(self, state):
+        for run in self.adapter_runs:
+            process = launch_traced_tracee(
+                run["layout"],
+                state["runtime_snapshot"],
+                state["adapter_definition"].resource_limits,
+                preflight_report=self.preflight,
+                capsule_path=run["capsule_path"],
+                worker_path=run["worker_path"],
+                request_path=run["request_path"],
+                audit_run_id=state["authority_context"].audit_run_id,
+                point_id=run["point_id"],
+                role="adapter",
+            )
+            run["process"] = process
+            self.attestation_hashes.append(process.attestation_sha256)
+        return {"artifact": self.adapter_executions}
+
+    def trace_policy(self, state):
+        for run in self.adapter_runs:
+            trace = evaluate_strace(
+                (Path(run["layout"].supervisor_directory) / "trace.log").read_bytes(),
+                run["manifest"],
+            )
+            if not trace.passed:
+                raise _CoordinatorTransitionFailure(
+                    "isolation_failed", "trace_policy_violation"
+                )
+            run["trace"] = trace
+            self.trace_hashes.append(trace.report_sha256)
+        return {"artifact": self.trace_hashes}
+
+    def output_ingestion(self, state):
+        for run in self.adapter_runs:
+            try:
+                ingested = ingest_worker_output(
+                    run["layout"],
+                    maximum_bytes=state[
+                        "adapter_definition"
+                    ].resource_limits.output_bytes,
+                    declared_scratch=(),
+                )
+                run["ingested"] = ingested
+                self.output_hashes.append(ingested["result_sha256"])
+            finally:
+                _close_run_directories(run["layout"])
+        return {"artifact": self.output_hashes}
+
+    def result_validation(self, state):
+        definition = state["adapter_definition"]
+        worker_sha256 = self.hash_material["worker_capsule_sha256"]
+        capsule_sha256 = self.hash_material["adapter_capsule_sha256"]
+        for run in self.adapter_runs:
+            local_result = _adapters.validate_local_observable_result(
+                definition, run["ingested"]["result"]["local_result"]
+            )
+            interpret_output_proofs(definition, local_result)
+            evidence = _production_point_evidence(
+                point_id=run["point_id"],
+                ingested=run["ingested"],
+                capsule_sha256=capsule_sha256,
+                worker_sha256=worker_sha256,
+                trace=run["trace"],
+                process=run["process"],
+                backend_diagnostics=local_result["backend_diagnostics"],
+            )
+            self.adapter_results.append(local_result)
+            self.adapter_executions.append(evidence)
+            self.result_hashes.append(evidence.result_sha256)
+        self.record(
+            "adapter_execution_completed",
+            {
+                "audit_run_id": state["authority_context"].audit_run_id,
+                "execution_count": len(self.adapter_executions),
+            },
+        )
+        return {"artifact": self.result_hashes}
+
+    def convergence(self, state):
+        decisions = tuple(
+            derive_convergence_decision(state["adapter_definition"], result)
+            for result in self.adapter_results
+        )
+        accepted = all(decision.accepted for decision in decisions)
+        raw_values = tuple(
+            result["raw_convergence_evidence"]
+            for result in self.adapter_results
+        )
+        values = {
+            "schema_version": "convergence_decision_v1",
+            "kind": state["adapter_definition"].convergence_contract.kind,
+            "accepted": accepted,
+            "raw_evidence_sha256": _canonical_sha256(
+                raw_values[0] if len(raw_values) == 1 else raw_values
+            ),
+            "reason_code": (
+                "outer_convergence_contract_satisfied"
+                if accepted
+                else "outer_convergence_contract_failed"
+            ),
+        }
+        values["decision_sha256"] = _canonical_sha256(values)
+        decision = ConvergenceDecision(**values)
+        if not accepted:
+            raise _CoordinatorTransitionFailure(
+                "convergence_failed", "convergence_contract_failed"
+            )
+        return {"artifact": decision}
+
+    def oracle_isolation(self, state):
+        capsule_sha256 = self.hash_material["oracle_capsule_sha256"]
+        for point, local_result in zip(self.points, self.adapter_results):
+            request = _make_oracle_worker_request(
+                state["oracle_definition"],
+                opaque_run_nonce=hashlib.sha256(
+                    (point.run_nonce + "-oracle").encode("ascii")
+                ).hexdigest(),
+                scientific_inputs={
+                    "scientific_inputs": point.scientific_inputs,
+                    "adapter_fields": local_result["fields"],
+                },
+                numerical_controls=point.numerical_controls,
+                capsule_sha256=capsule_sha256,
+            )
+            run = self._prepare_run(
+                state, point, "oracle", self.oracle_capsule, request
+            )
+            process = launch_traced_tracee(
+                run["layout"],
+                state["runtime_snapshot"],
+                state["oracle_definition"].resource_limits,
+                preflight_report=self.preflight,
+                capsule_path=run["capsule_path"],
+                worker_path=run["worker_path"],
+                request_path=run["request_path"],
+                audit_run_id=state["authority_context"].audit_run_id,
+                point_id=run["point_id"],
+                role="oracle",
+            )
+            run["process"] = process
+            self.attestation_hashes.append(process.attestation_sha256)
+            self.oracle_runs.append(run)
+        return {"artifact": self.oracle_executions}
+
+    def oracle_output(self, state):
+        worker_sha256 = self.hash_material["worker_capsule_sha256"]
+        capsule_sha256 = self.hash_material["oracle_capsule_sha256"]
+        residual_fields = tuple(
+            name
+            for name, schema in state["oracle_definition"].result_schema.properties
+            if schema.kind in {"number", "integer"}
+        )
+        invariant_fields = tuple(
+            name
+            for name, schema in state["oracle_definition"].result_schema.properties
+            if schema.kind == "boolean"
+        )
+        for run in self.oracle_runs:
+            try:
+                trace = evaluate_strace(
+                    (
+                        Path(run["layout"].supervisor_directory) / "trace.log"
+                    ).read_bytes(),
+                    run["manifest"],
+                )
+                if not trace.passed:
+                    raise _CoordinatorTransitionFailure(
+                        "oracle_failed", "oracle_isolation_failed"
+                    )
+                ingested = ingest_worker_output(
+                    run["layout"],
+                    maximum_bytes=state[
+                        "oracle_definition"
+                    ].resource_limits.output_bytes,
+                    declared_scratch=(),
+                )
+            finally:
+                _close_run_directories(run["layout"])
+            output = _snapshot_json(
+                ingested["result"]["local_result"], "oracle local result"
+            )
+            _adapters._validate_value_against_schema(
+                state["oracle_definition"].result_schema,
+                output,
+                "oracle local result",
+            )
+            evidence = _production_point_evidence(
+                point_id=run["point_id"],
+                ingested=ingested,
+                capsule_sha256=capsule_sha256,
+                worker_sha256=worker_sha256,
+                trace=trace,
+                process=run["process"],
+                backend_diagnostics={
+                    "backend_kind": "independent_oracle",
+                    "runtime_snapshot_sha256": state[
+                        "runtime_snapshot"
+                    ].snapshot_sha256,
+                },
+            )
+            self.trace_hashes.append(trace.report_sha256)
+            self.output_hashes.append(evidence.result_sha256)
+            self.result_hashes.append(evidence.result_sha256)
+            self.oracle_outputs.append(output)
+            self.oracle_executions.append(evidence)
+        self.record(
+            "oracle_execution_completed",
+            {
+                "audit_run_id": state["authority_context"].audit_run_id,
+                "execution_count": len(self.oracle_executions),
+            },
+        )
+        return {
+            "artifact": {
+                "residuals": {
+                    name: tuple(output[name] for output in self.oracle_outputs)
+                    for name in residual_fields
+                },
+                "invariants": {
+                    name: tuple(output[name] for output in self.oracle_outputs)
+                    for name in invariant_fields
+                },
+            }
+        }
+
+    def oracle_decision(self, state):
+        controls = _adapter_execution_evidence_hash_value(
+            state["authority_context"].numerical_controls,
+            "numerical controls",
+        )
+        pending = [controls]
+        positive_floats = []
+        while pending:
+            value = pending.pop()
+            if type(value) is dict:
+                pending.extend(value.values())
+            elif type(value) in {tuple, list}:
+                pending.extend(value)
+            elif type(value) is float and math.isfinite(value) and value > 0:
+                positive_floats.append(value)
+        maximum_residual = (
+            min(positive_floats)
+            if positive_floats
+            else float(
+                state["oracle_definition"].convergence_invariant_contract.get(
+                    "secondary_bound", 1.0
+                )
+            )
+        )
+        decision = derive_oracle_decision(
+            state["oracle_definition"],
+            tuple(self.oracle_outputs),
+            execution_evidence_hashes=tuple(
+                point.execution_sha256 for point in self.oracle_executions
+            ),
+            maximum_residual=maximum_residual,
+        )
+        if not decision.accepted:
+            raise _CoordinatorTransitionFailure(
+                "oracle_failed", "oracle_invariant_failed"
+            )
+        return {"artifact": decision}
+
+    def runtime_snapshot_revalidation(self, state):
+        revalidate_runtime_snapshot(state["runtime_snapshot"])
+        return {"artifact": True}
+
+    def evidence_finalization(self, state):
+        authority = state["authority_context"]
+        adapter_policy, oracle_policy = state[
+            "scientific_policy_commitment"
+        ]
+        benchmark_id = authority.benchmark_name
+        catalog_row = _adapters.ADAPTER_ELIGIBILITY[benchmark_id]
+        validated = {
+            "authority_context_sha256": authority.context_sha256,
+            "adapter_id": state["adapter_definition"].adapter_id,
+            "benchmark_id": benchmark_id,
+            "canonical_observable_id": authority.canonical_observable_id,
+            "observable_identity": authority.observable_identity,
+            "scientific_inputs": authority.scientific_inputs,
+            "parameter_provenance": authority.parameter_provenance,
+            "numerical_controls": authority.numerical_controls,
+            "numerical_control_provenance": authority.numerical_control_provenance,
+            "registry_snapshot_sha256": authority.registry_snapshot_sha256,
+            "selector_sha256": authority.selector_sha256,
+        }
+        eligibility = {
+            "benchmark_id": benchmark_id,
+            "disposition": "eligible",
+            "adapter_id": catalog_row.adapter_id,
+            "oracle_id": catalog_row.oracle_id,
+            "eligibility_row_sha256": adapter_policy.eligibility_row_sha256,
+            "eligibility_catalog_sha256": adapter_policy.eligibility_catalog_sha256,
+            "adapter_definition_sha256": adapter_policy.canonical_definition_sha256,
+            "oracle_definition_sha256": oracle_policy.canonical_definition_sha256,
+            "dependency_partition_sha256": state["dependency_partition"],
+            "adapter_capsule_sha256": self.hash_material[
+                "adapter_capsule_sha256"
+            ],
+            "oracle_capsule_sha256": self.hash_material[
+                "oracle_capsule_sha256"
+            ],
+            "worker_capsule_sha256": self.hash_material[
+                "worker_capsule_sha256"
+            ],
+        }
+        self.record(
+            "evidence_finalized",
+            {
+                "audit_run_id": authority.audit_run_id,
+                "point_execution_count": len(self.adapter_executions)
+                + len(self.oracle_executions),
+            },
+        )
+        values = {
+            "schema_version": "adapter_execution_evidence_v1",
+            "status": "isolated_recomputation_succeeded",
+            "authority_context_sha256": authority.context_sha256,
+            "validated_inputs_and_provenance": validated,
+            "eligibility_commitments": eligibility,
+            "adapter_policy_commitment": adapter_policy,
+            "oracle_policy_commitment": oracle_policy,
+            "adapter_scientific_closure": state["scientific_closure"],
+            "oracle_scientific_closure": state["oracle_closure"],
+            "infrastructure_closure": state["infrastructure_closure"],
+            "static_scan_reports": state["static_scan"],
+            "runtime_snapshot": state["runtime_snapshot"],
+            "ordering_events": tuple(self.events),
+            "capability_preflight_sha256": self.preflight.report_sha256,
+            "point_executions": tuple(
+                (*self.adapter_executions, *self.oracle_executions)
+            ),
+            "convergence_decision": state["convergence"],
+            "oracle_decision": state["oracle_decision"],
+            "disclosed_seed_hex": state["seed_generation"].hex(),
+            "bundle_sha256": "0" * 64,
+        }
+        provisional = AdapterExecutionEvidence(**values)
+        values["bundle_sha256"] = _adapter_execution_evidence_sha256(
+            provisional
+        )
+        return {"evidence": AdapterExecutionEvidence(**values)}
+
+
+def _make_production_coordinator_dependency_bundle(oracle_definition):
+    transitions = _ProductionCoordinatorTransitions(oracle_definition)
+    operations = tuple(
+        (stage, getattr(transitions, stage))
+        for stage in _COORDINATOR_TRANSITION_STAGES
+    )
+    return _CoordinatorDependencyBundle(
+        oracle_definition=oracle_definition,
+        transition_operations=operations,
+        authorization=_COORDINATOR_DEPENDENCY_TOKEN,
+    )
+
+
 def _run_isolated_recomputation_core(
     adapter_id,
     authority_context,
@@ -24961,8 +27809,28 @@ def _run_isolated_recomputation_core(
 def run_isolated_recomputation(adapter_id, authority_context, *, run_parent):
     """Run one production-bound recomputation without injectable services."""
 
+    resolved_id = adapter_id
+    catalog_row = (
+        _adapters.ADAPTER_ELIGIBILITY.get(adapter_id)
+        if type(adapter_id) is str
+        else None
+    )
+    if catalog_row is not None and catalog_row.disposition == "eligible":
+        resolved_id = catalog_row.adapter_id
+    definition = _adapters.ADAPTER_DEFINITIONS.get(resolved_id)
+    oracle_definition = (
+        _oracles.ORACLE_DEFINITIONS.get(definition.oracle_id)
+        if definition is not None
+        else None
+    )
+    dependency_bundle = (
+        _make_production_coordinator_dependency_bundle(oracle_definition)
+        if oracle_definition is not None
+        else None
+    )
     return _run_isolated_recomputation_core(
         adapter_id,
         authority_context,
         run_parent=run_parent,
+        dependency_bundle=dependency_bundle,
     )

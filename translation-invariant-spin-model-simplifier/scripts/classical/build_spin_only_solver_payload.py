@@ -5,7 +5,6 @@ from pathlib import Path
 import sys
 
 import numpy as np
-import spglib
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -320,6 +319,8 @@ def _threefold_triangular_bond_label_matrices(canonical_pairs, matrix):
 
 
 def _symmetry_rotated_matrices_for_pairs(lattice, canonical_pairs, representative_pair, matrix):
+    import spglib
+
     basis_positions = np.array(lattice.get("positions") or [[0.0, 0.0, 0.0]], dtype=float)
     lattice_vectors = resolve_lattice_vectors(lattice)
     numbers = _site_numbers(lattice, len(basis_positions))
