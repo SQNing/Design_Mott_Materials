@@ -210,6 +210,38 @@ def validate_term_attachments(payload, context=None):
                 if shape and shape != expected:
                     _raise("matrix-shape-mismatch", f"expected {expected}, got {shape}")
 
+    for term in term_attachments["higher_body_terms"]:
+        _require_mapping(term, "higher-body-term-must-be-object")
+        participates_in_symmetry_contract = any(
+            key in term for key in ("arity", "cluster", "operator_family")
+        )
+        if not participates_in_symmetry_contract:
+            continue
+        try:
+            arity = int(term.get("arity"))
+        except (TypeError, ValueError):
+            _raise("higher-body-arity-invalid")
+        if arity < 3:
+            _raise("higher-body-arity-invalid")
+        cluster = term.get("cluster")
+        if not isinstance(cluster, list) or len(cluster) != arity:
+            _raise("higher-body-cluster-size-mismatch")
+        for entry in cluster:
+            _require_mapping(entry, "higher-body-cluster-entry-must-be-object")
+            if entry.get("site") is None and entry.get("site_ref") is None:
+                _raise("higher-body-cluster-site-required")
+            translation = entry.get("translation", [0, 0, 0])
+            if not isinstance(translation, list) or len(translation) != 3:
+                _raise("higher-body-cluster-translation-invalid")
+        if not str(term.get("operator_family") or "").strip():
+            _raise("higher-body-operator-family-required")
+        if not isinstance(term.get("permutation_action"), Mapping):
+            _raise("higher-body-permutation-action-required")
+        if not isinstance(term.get("adjoint_action"), Mapping):
+            _raise("higher-body-adjoint-action-required")
+        if "coefficient" in term:
+            _validate_scalar(term["coefficient"])
+
     return term_attachments
 
 
@@ -230,4 +262,3 @@ def validate_lattice_term_payload(payload):
     _require_mapping(payload.get("solver_request"), "solver-request-must-be-object")
     _require_mapping(payload.get("provenance"), "provenance-must-be-object")
     return payload
-
