@@ -221,6 +221,27 @@ def test_validated_retained_local_model_is_adapted_before_cpn_solver_core(tmp_pa
     assert result["solver_model_hash"] == result["symmetry_validation_stamp"]["hamiltonian_hash"]
 
 
+def test_repaired_retained_local_model_is_the_model_consumed_by_cpn_core(tmp_path):
+    payload = _symmetric_retained_local_payload()
+    payload["term_attachments"]["bond_terms"] = payload["term_attachments"]["bond_terms"][:1]
+    with patch(
+        "cli.solve_pseudospin_orbital_pipeline._solve_from_parsed_payload_core",
+        return_value={"status": "ok", "warnings": []},
+    ) as solver_core:
+        result = solve_from_parsed_payload(
+            payload,
+            output_dir=tmp_path / "out",
+            docs_dir=tmp_path / "docs",
+            compile_pdf=False,
+            symmetry_repair=True,
+        )
+
+    routed = solver_core.call_args.args[0]
+    assert len(routed["bond_terms"]) == 2
+    assert result["warnings"][0]["code"] == "hamiltonian-symmetry-repaired"
+    assert routed["solver_model_hash"] == result["symmetry_validation_stamp"]["hamiltonian_hash"]
+
+
 def test_cpn_cli_forwards_symmetry_repair_flag(tmp_path, monkeypatch):
     parsed_path = tmp_path / "parsed.json"
     parsed_path.write_text("{}", encoding="utf-8")
