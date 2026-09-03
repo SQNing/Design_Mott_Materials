@@ -7,6 +7,7 @@ import re
 import numpy as np
 
 from common.bond_orbits import canonicalize_directed_bond
+from common.hamiltonian_symmetry_action import axial_spin_rotation
 from common.lattice_geometry import resolve_lattice_vectors
 
 
@@ -302,11 +303,11 @@ def build_lattice_structure(source_model):
     }
 
 
-def _bond_spin_space_rotation_record(operation, source_labels):
+def _bond_spin_space_rotation_record(operation, source_labels, lattice_vectors):
     return {
         "operation_ref": operation["operation_ref"],
         "kind": "axial_vector_rotation",
-        "matrix": [list(row) for row in operation.get("rotation", [])],
+        "matrix": axial_spin_rotation(lattice_vectors, operation.get("rotation", [])).tolist(),
         "source_labels": list(source_labels),
     }
 
@@ -316,6 +317,7 @@ def build_symmetry_record(source_model):
     lattice_model = _copy_dict(source_model.get("lattice_model"))
     hamiltonian_model = _copy_dict(source_model.get("hamiltonian_model"))
     source_labels = _extract_source_labels(source_model)
+    lattice_vectors = resolve_lattice_vectors(lattice_model)
     operations, _basis_positions = _symmetry_operations(lattice_model)
     if not operations:
         operations = [
@@ -340,7 +342,13 @@ def build_symmetry_record(source_model):
 
     for index, operation in enumerate(operations):
         term_ref = spin_term_refs[min(index, len(spin_term_refs) - 1)]
-        spin_space_rotations.append(_bond_spin_space_rotation_record(operation, source_labels or [term_ref]))
+        spin_space_rotations.append(
+            _bond_spin_space_rotation_record(
+                operation,
+                source_labels or [term_ref],
+                lattice_vectors,
+            )
+        )
         local_frame_actions.append(
             {
                 "operation_ref": operation["operation_ref"],

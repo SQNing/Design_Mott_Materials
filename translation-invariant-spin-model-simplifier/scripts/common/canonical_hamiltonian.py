@@ -8,6 +8,8 @@ from copy import deepcopy
 import hashlib
 import json
 
+from common.bond_orbits import canonicalize_directed_bond
+
 
 class CanonicalHamiltonianError(ValueError):
     """Raised when a lattice term cannot be compiled without guessing."""
@@ -80,8 +82,13 @@ def canonicalize_cluster(cluster, family):
     orientation_reversed = False
 
     if str(family) in {"bilinear_exchange_tensor", "bilinear_exchange_matrix", "pair_matrix"} and len(normalized) == 2:
-        reversed_cluster, reversed_translation = _normalized_cluster(list(reversed(cluster)))
-        if _cluster_key(reversed_cluster) < _cluster_key(normalized):
+        source = normalized[0]["site"]
+        target = normalized[1]["site"]
+        relative = normalized[1]["translation"]
+        directed = (source, target, tuple(relative))
+        canonical = canonicalize_directed_bond(source, target, relative)
+        if canonical != directed:
+            reversed_cluster, reversed_translation = _normalized_cluster(list(reversed(cluster)))
             normalized = reversed_cluster
             translated_by = reversed_translation
             permutation = [1, 0]

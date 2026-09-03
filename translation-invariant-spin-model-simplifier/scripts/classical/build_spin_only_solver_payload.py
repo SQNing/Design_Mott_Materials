@@ -11,10 +11,12 @@ if __package__ in {None, ""}:
     from common.bond_orbits import generate_noncull_directed_bond_orbit
     from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
+    from common.hamiltonian_symmetry_action import axial_spin_rotation
 else:
     from common.bond_orbits import generate_noncull_directed_bond_orbit
     from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
+    from common.hamiltonian_symmetry_action import axial_spin_rotation
 
 
 def _selected_bond_label(simplification_payload):
@@ -234,12 +236,7 @@ def _site_numbers(lattice, site_count):
 
 
 def _cartesian_spin_rotation_from_fractional(lattice_vectors, rotation):
-    basis = np.array(lattice_vectors, dtype=float).T
-    cartesian = basis @ np.array(rotation, dtype=float) @ np.linalg.inv(basis)
-    determinant = float(np.linalg.det(cartesian))
-    # Spin components transform as an axial vector, so improper operations pick
-    # up an extra minus sign relative to polar vectors.
-    return cartesian if determinant >= 0.0 else -cartesian
+    return axial_spin_rotation(lattice_vectors, rotation)
 
 
 def _position_to_site_and_offset(position, basis_positions, *, tolerance=1.0e-6):
