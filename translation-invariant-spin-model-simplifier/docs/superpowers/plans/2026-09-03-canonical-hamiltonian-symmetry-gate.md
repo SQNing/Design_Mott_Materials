@@ -19,7 +19,7 @@
 - Reuse `bond_orbits.py`, `lattice_structure_builder.py`, `lt_fourier_exchange.py`, generalized/certified GLT, and existing LSWT/GSWT backends.
 - Do not run pytest, doctest, unittest, build-time test commands, or executable test scripts locally.
 - Every test invocation is submitted as a Slurm job after `ssh login002`; retain job ID, terminal state, exit code, and log path.
-- Remote environment verified on 2026-09-03: default partition `regular`, Python 3.9.13, pytest 7.2.0, NumPy 1.23.5, SciPy 1.13.1, spglib 2.7.0, and the worktree is visible at the same absolute path.
+- Remote environment verified on 2026-09-03: partition `regular` with account `hmt03`, Python 3.9.13, pytest 7.2.0, NumPy 1.23.5, SciPy 1.13.1, spglib 2.7.0, and the worktree is visible at the same absolute path.
 
 ## Remote Test Protocol
 
@@ -29,7 +29,7 @@ Use this exact pattern for every red/green verification, replacing the job name 
 symmetry_worktree=/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier
 symmetry_log_root=/data/work/zhli/job-logs/canonical-hamiltonian-symmetry
 ssh login002 "mkdir -p '$symmetry_log_root'"
-symmetry_job_id=$(ssh login002 "sbatch --parsable --partition=regular --nodes=1 --ntasks=1 --cpus-per-task=2 --mem=4G --time=00:15:00 --job-name=<JOB_NAME> --chdir='$symmetry_worktree' --output='$symmetry_log_root/<JOB_NAME>-%j.out' --wrap='PYTHONPATH=scripts python3 -m pytest <PYTEST_SELECTOR> -v'")
+symmetry_job_id=$(ssh login002 "sbatch --parsable --account=hmt03 --partition=regular --nodes=1 --ntasks=1 --cpus-per-task=2 --mem=4G --time=00:15:00 --job-name=<JOB_NAME> --chdir='$symmetry_worktree' --output='$symmetry_log_root/<JOB_NAME>-%j.out' --wrap='PYTHONPATH=scripts python3 -m pytest <PYTEST_SELECTOR> -v'")
 ssh login002 "squeue -j '$symmetry_job_id' -h -o '%T'"
 ssh login002 "sacct -j '$symmetry_job_id' --format=JobID,State,ExitCode,Elapsed -n -P"
 ssh login002 "sed -n '1,260p' '$symmetry_log_root/<JOB_NAME>-$symmetry_job_id.out'"
