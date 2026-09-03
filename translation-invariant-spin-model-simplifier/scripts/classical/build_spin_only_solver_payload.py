@@ -13,12 +13,14 @@ if __package__ in {None, ""}:
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
     from common.hamiltonian_symmetry_action import axial_spin_rotation
     from common.canonical_hamiltonian import compile_canonical_hamiltonian
+    from common.hamiltonian_symmetry_gate import require_current_symmetry_stamp
 else:
     from common.bond_orbits import generate_noncull_directed_bond_orbit
     from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
     from common.hamiltonian_symmetry_action import axial_spin_rotation
     from common.canonical_hamiltonian import compile_canonical_hamiltonian
+    from common.hamiltonian_symmetry_gate import require_current_symmetry_stamp
 
 
 def _selected_bond_label(simplification_payload):
@@ -644,7 +646,65 @@ def _canonical_spin_only_solver_payload(payload):
     }
 
 
+def _validated_canonical_spin_only_solver_payload(bundle):
+    model = bundle.get("solver_model") if isinstance(bundle, dict) else None
+    if not isinstance(model, dict) or model.get("schema_version") != "canonical-hamiltonian/v1":
+        raise ValueError("canonical solver model required")
+    stamp = require_current_symmetry_stamp(model, bundle.get("symmetry_validation_stamp"))
+    if "unit_vector_sphere" not in _canonical_classical_space_kinds(model):
+        raise ValueError("unsupported-classical-space: spin-only builder requires unit_vector_sphere")
+
+    bonds = []
+    for term in list(model.get("terms") or []):
+        if int(term.get("arity", 0)) != 2 or term.get("operator_family") not in {
+            "bilinear_exchange_tensor",
+            "bilinear_exchange_matrix",
+        }:
+            raise ValueError(
+                f"solver-capability-mismatch: {term.get('term_ref')}[{term.get('operator_family')}]"
+            )
+        cluster = list(term.get("cluster") or [])
+        if len(cluster) != 2:
+            raise ValueError("solver-capability-mismatch: malformed-bilinear-cluster")
+        bonds.append(
+            {
+                "source": int(cluster[0]["site"]),
+                "target": int(cluster[1]["site"]),
+                "vector": [
+                    int(cluster[1]["translation"][axis]) - int(cluster[0]["translation"][axis])
+                    for axis in range(3)
+                ],
+                "term_ref": str(term.get("term_ref") or ""),
+                "matrix": _canonical_matrix_to_float_rows(term.get("coefficient"), {}),
+            }
+        )
+    return {
+        "status": "ok",
+        "payload": {
+            "schema_version": model.get("schema_version"),
+            "lattice_structure": deepcopy(model.get("lattice_structure") or {}),
+            "local_hilbert": deepcopy(model.get("local_hilbert") or {}),
+            "local_dim": _canonical_local_dimension(model),
+            "normalized_model": deepcopy(model),
+            "simplified_model": {"template": "generic"},
+            "bonds": bonds,
+            "classical": {"method": "auto"},
+            "solver_model_hash": stamp["hamiltonian_hash"],
+            "bridge_metadata": {
+                "bridge_kind": "validated_canonical_spin_only",
+                "symmetry_validation_required": True,
+            },
+        },
+    }
+
+
 def build_spin_only_solver_payload(simplification_payload):
+    if (
+        isinstance(simplification_payload, dict)
+        and isinstance(simplification_payload.get("solver_model"), dict)
+        and simplification_payload["solver_model"].get("schema_version") == "canonical-hamiltonian/v1"
+    ):
+        return _validated_canonical_spin_only_solver_payload(simplification_payload)
     if _is_lattice_term_payload(simplification_payload):
         return _canonical_spin_only_solver_payload(simplification_payload)
 

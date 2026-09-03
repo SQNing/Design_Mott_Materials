@@ -108,6 +108,17 @@ def _classical_space_kinds(payload):
 
 
 def _term_payload_kinds(payload):
+    if payload.get("schema_version") == "canonical-hamiltonian/v1":
+        family_to_kind = {
+            "bilinear_exchange_tensor": "bilinear_exchange_matrix",
+            "bilinear_exchange_matrix": "bilinear_exchange_matrix",
+            "pair_matrix": "pair_matrix",
+        }
+        return [
+            family_to_kind.get(str(term.get("operator_family") or ""), str(term.get("operator_family") or ""))
+            for term in list(payload.get("terms") or [])
+            if isinstance(term, Mapping)
+        ]
     term_attachments = payload.get("term_attachments") if isinstance(payload, Mapping) else {}
     kinds = []
     if not isinstance(term_attachments, Mapping):
@@ -143,10 +154,16 @@ def _capability_supports_payload(capability, payload, request):
         return False
     if supported_term_kinds and not payload_term_kinds.issubset(supported_term_kinds):
         return False
+    max_body_order = int((capability.get("limits") or {}).get("max_body_order", 0) or 0)
+    if payload.get("schema_version") == "canonical-hamiltonian/v1" and max_body_order:
+        if any(int(term.get("arity", 0)) > max_body_order for term in list(payload.get("terms") or [])):
+            return False
     return True
 
 
 def _ensure_supported_term_payloads(payload, capabilities):
+    if payload.get("schema_version") == "canonical-hamiltonian/v1":
+        return
     known = set()
     for capability in capabilities:
         supports = capability.get("supports") if isinstance(capability.get("supports"), Mapping) else {}
@@ -171,6 +188,13 @@ def match_solver_capabilities(payload, request=None, *, capabilities=None):
 def select_solver_capability(payload, request=None, *, capabilities=None):
     matches = match_solver_capabilities(payload, request, capabilities=capabilities)
     if not matches:
+        if isinstance(payload, Mapping) and payload.get("schema_version") == "canonical-hamiltonian/v1":
+            unsupported = [
+                f"{term.get('term_ref')}[{term.get('operator_family')},arity={term.get('arity')}]"
+                for term in list(payload.get("terms") or [])
+                if isinstance(term, Mapping)
+            ]
+            _raise("solver-capability-mismatch", ",".join(unsupported))
         _raise("no-solver-capability")
 
     matches.sort(key=lambda capability: int(capability.get("preference_priority", 0)), reverse=True)

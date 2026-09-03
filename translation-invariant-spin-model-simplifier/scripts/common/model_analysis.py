@@ -9,6 +9,9 @@ import re
 
 import numpy as np
 
+from classical.lt_fourier_exchange import fourier_exchange_matrix
+from common.hamiltonian_symmetry_gate import require_current_symmetry_stamp
+
 
 _SCALAR_BINARY_OPERATORS = {
     ast.Add: operator.add,
@@ -1595,6 +1598,10 @@ def _fourier_exchange_spectrum(product_result, request):
             "task": "fourier_exchange_spectrum",
             "blocker": "model simplification did not complete",
         }
+    solver_model = product_result.get("solver_model")
+    if isinstance(solver_model, Mapping) and solver_model.get("schema_version") == "canonical-hamiltonian/v1":
+        return _canonical_tensor_fourier_exchange_spectrum(product_result, request)
+
     normalized = product_result.get("normalized_model", {})
     lattice = normalized.get("lattice", {})
     structure = normalized.get("lattice_structure", {})
@@ -1657,6 +1664,20 @@ def _fourier_exchange_spectrum(product_result, request):
     spectra = []
     flat_projectors = []
     flat_band_count = request.get("flat_band_count")
+    fourier_model = {
+        "lattice": {"sublattices": basis_count},
+        "bonds": [
+            {
+                "source": int(member["source"]),
+                "target": int(member["target"]),
+                "vector": list(member["translation"]),
+                "matrix": (float(couplings[block_kind]) * np.eye(3)).tolist(),
+            }
+            for block_kind, orbit_ref in term_orbit_map.items()
+            for member in orbit_by_ref[orbit_ref].get("members", [])
+        ],
+    }
+    scalar_indices = [3 * site for site in range(basis_count)]
     for momentum_value in momenta:
         if (
             not isinstance(momentum_value, (tuple, list))
@@ -1677,37 +1698,15 @@ def _fourier_exchange_spectrum(product_result, request):
                 "task": "fourier_exchange_spectrum",
                 "blocker": "momenta must be finite",
             }
-        matrix = np.zeros((basis_count, basis_count), dtype=complex)
-        for block_kind, orbit_ref in term_orbit_map.items():
-            coupling = couplings[block_kind]
-            for member in orbit_by_ref[orbit_ref].get("members", []):
-                source = member.get("source")
-                target = member.get("target")
-                translation = member.get("translation")
-                if (
-                    isinstance(source, bool)
-                    or not isinstance(source, int)
-                    or isinstance(target, bool)
-                    or not isinstance(target, int)
-                    or not 0 <= source < basis_count
-                    or not 0 <= target < basis_count
-                    or not isinstance(translation, (tuple, list))
-                    or len(translation) < dimension
-                ):
-                    return {
-                        "status": "invalid_model",
-                        "task": "fourier_exchange_spectrum",
-                        "blocker": "bond-orbit member is malformed",
-                    }
-                phase_angle = 2.0 * math.pi * math.fsum(
-                    momentum[axis] * float(translation[axis])
-                    for axis in range(dimension)
-                )
-                value = coupling * complex(
-                    math.cos(phase_angle), math.sin(phase_angle)
-                )
-                matrix[source, target] += value
-                matrix[target, source] += value.conjugate()
+        try:
+            tensor_matrix = fourier_exchange_matrix(fourier_model, momentum)
+        except (IndexError, KeyError, TypeError, ValueError):
+            return {
+                "status": "invalid_model",
+                "task": "fourier_exchange_spectrum",
+                "blocker": "bond-orbit member is malformed",
+            }
+        matrix = tensor_matrix[np.ix_(scalar_indices, scalar_indices)]
         eigenvalues, eigenvectors = np.linalg.eigh(matrix)
         eigenvalues = eigenvalues.real
         spectra.append(
@@ -1760,7 +1759,121 @@ def _fourier_exchange_spectrum(product_result, request):
         "minimum_eigenvalue": min(
             item["eigenvalues"][0] for item in spectra
         ),
+        "matrix_size": 3 * basis_count,
+        "backend": {
+            "module": "classical.lt_fourier_exchange",
+            "function": "classical.lt_fourier_exchange.fourier_exchange_matrix",
+        },
         **diagnostics,
+    }
+
+
+def _complex_payload(value, *, tolerance=1.0e-14):
+    array = np.asarray(value, dtype=complex)
+
+    def encode(child):
+        if isinstance(child, list):
+            return [encode(entry) for entry in child]
+        scalar = complex(child)
+        real = 0.0 if abs(scalar.real) <= tolerance else float(scalar.real)
+        imag = 0.0 if abs(scalar.imag) <= tolerance else float(scalar.imag)
+        return real if imag == 0.0 else {"real": real, "imag": imag}
+
+    return encode(array.tolist())
+
+
+def _canonical_tensor_fourier_exchange_spectrum(product_result, request):
+    model = product_result["solver_model"]
+    require_current_symmetry_stamp(model, product_result.get("symmetry_validation_stamp"))
+    basis_count = len((model.get("lattice_structure") or {}).get("basis_sites") or [])
+    momenta = request.get("reduced_momenta")
+    if basis_count < 1 or not isinstance(momenta, (list, tuple)) or not momenta:
+        return {
+            "status": "invalid_request",
+            "task": "fourier_exchange_spectrum",
+            "blocker": "analysis requires basis sites and reduced momenta",
+        }
+    bonds = []
+    unsupported = []
+    for term in list(model.get("terms") or []):
+        if int(term.get("arity", 0)) != 2 or term.get("operator_family") not in {
+            "bilinear_exchange_tensor",
+            "bilinear_exchange_matrix",
+        }:
+            unsupported.append(str(term.get("term_ref") or ""))
+            continue
+        cluster = list(term.get("cluster") or [])
+        if len(cluster) != 2:
+            unsupported.append(str(term.get("term_ref") or ""))
+            continue
+        bonds.append(
+            {
+                "source": int(cluster[0]["site"]),
+                "target": int(cluster[1]["site"]),
+                "vector": [
+                    int(cluster[1]["translation"][axis]) - int(cluster[0]["translation"][axis])
+                    for axis in range(3)
+                ],
+                "matrix": term.get("coefficient"),
+            }
+        )
+    if unsupported:
+        return {
+            "status": "unsupported",
+            "task": "fourier_exchange_spectrum",
+            "blocker": "solver-capability-mismatch",
+            "unsupported_term_refs": unsupported,
+        }
+    if not bonds:
+        return {
+            "status": "invalid_model",
+            "task": "fourier_exchange_spectrum",
+            "blocker": "no bilinear exchange terms",
+        }
+    fourier_model = {"lattice": {"sublattices": basis_count}, "bonds": bonds}
+    spectra = []
+    for q_value in momenta:
+        if not isinstance(q_value, (list, tuple)) or not 1 <= len(q_value) <= 3:
+            return {
+                "status": "invalid_request",
+                "task": "fourier_exchange_spectrum",
+                "blocker": "each reduced momentum must have one to three components",
+            }
+        q = [float(value) for value in q_value]
+        if any(not math.isfinite(value) for value in q):
+            return {
+                "status": "invalid_request",
+                "task": "fourier_exchange_spectrum",
+                "blocker": "momenta must be finite",
+            }
+        matrix = fourier_exchange_matrix(fourier_model, q)
+        eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+        projectors = [
+            eigenvectors[:, band : band + 1] @ eigenvectors[:, band : band + 1].conjugate().T
+            for band in range(eigenvectors.shape[1])
+        ]
+        spectra.append(
+            {
+                "reduced_momentum": q,
+                "eigenvalues": [float(value) for value in eigenvalues.real],
+                "eigenvectors": _complex_payload(eigenvectors),
+                "eigenprojectors": [_complex_payload(projector) for projector in projectors],
+            }
+        )
+    return {
+        "status": "ok",
+        "task": "fourier_exchange_spectrum",
+        "observable": request.get("observable", "exchange_eigenvalues"),
+        "units": request.get("units", "model_energy_units"),
+        "value": [record["eigenvalues"] for record in spectra],
+        "spectra": spectra,
+        "minimum_eigenvalue": min(record["eigenvalues"][0] for record in spectra),
+        "matrix_size": 3 * basis_count,
+        "solver_model_hash": product_result["symmetry_validation_stamp"]["hamiltonian_hash"],
+        "backend": {
+            "module": "classical.lt_fourier_exchange",
+            "function": "classical.lt_fourier_exchange.fourier_exchange_matrix",
+        },
     }
 
 
