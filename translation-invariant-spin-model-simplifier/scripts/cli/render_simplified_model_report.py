@@ -373,6 +373,45 @@ def render_simplified_model_report(payload, title="Simplified Model Report"):
     if unsupported:
         lines.append(f"- unsupported_features: `{unsupported}`")
 
+    symmetry_validation = (
+        payload.get("symmetry_validation", {})
+        if isinstance(payload.get("symmetry_validation"), dict)
+        else {}
+    )
+    if symmetry_validation:
+        target = symmetry_validation.get("target_group", {})
+        subgroup = symmetry_validation.get("input_hamiltonian_subgroup", {})
+        failed_refs = [
+            str(record.get("operation_ref") or "")
+            for record in list(symmetry_validation.get("failed_operations") or [])
+            if isinstance(record, dict)
+        ]
+        provenance = (
+            payload.get("hamiltonian_provenance", {})
+            if isinstance(payload.get("hamiltonian_provenance"), dict)
+            else {}
+        )
+        lines.extend(
+            [
+                "",
+                "## Hamiltonian Symmetry",
+                "",
+                f"- target structural space group: `{target.get('international_symbol') or 'unknown'}` ({target.get('operation_count', 0)} operations)",
+                f"- failed operations: `{failed_refs}`",
+                f"- diagnostic input subgroup: `{subgroup.get('status') or 'unavailable'}` `{list(subgroup.get('operation_refs') or [])}`",
+                f"- input model hash: `{(provenance.get('input_model') or {}).get('content_hash')}`",
+                f"- solver model hash: `{(provenance.get('solver_model') or {}).get('content_hash')}`",
+            ]
+        )
+        completion = payload.get("completion", {}) if isinstance(payload.get("completion"), dict) else {}
+        if completion.get("reason") == "hamiltonian-symmetry-validation-failed":
+            lines.append(
+                "- solver execution was blocked. Review the failed terms or rerun with `--symmetry-repair` to request finite-group projection."
+            )
+        for warning in list(payload.get("warnings") or []):
+            if isinstance(warning, dict) and warning.get("code"):
+                lines.append(f"- warning `{warning['code']}`: {warning.get('message', '')}")
+
     interaction = payload.get("interaction", {}) if isinstance(payload.get("interaction"), dict) else {}
     if interaction.get("status") == "needs_input":
         lines.extend(["", "## Interaction", ""])

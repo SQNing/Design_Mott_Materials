@@ -38,6 +38,8 @@ from common.classical_state_result import (
 from common.cpn_classical_state import resolve_cpn_classical_state_payload, resolve_cpn_local_state
 from common.lattice_geometry import lattice_vector_rank, vector_rank
 from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
+from common.canonical_hamiltonian import compile_canonical_hamiltonian
+from common.hamiltonian_symmetry_gate import SymmetryGateRequest, run_hamiltonian_symmetry_gate
 from lswt.build_python_glswt_payload import build_python_glswt_payload
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
 from lswt.single_q_z_harmonic_convergence_driver import run_single_q_z_harmonic_convergence_driver
@@ -2058,10 +2060,23 @@ def solve_from_parsed_payload(
     glt_solver_mode="fast",
     compatibility_export_mode="canonical",
     classical_bond_label=None,
+    symmetry_repair=False,
 ):
     _progress("Loaded parsed CPN payload")
-    return _solve_from_parsed_payload_core(
-        parsed_payload,
+    routed_payload = parsed_payload
+    gate_result = None
+    if isinstance(parsed_payload, dict) and parsed_payload.get("schema_version") == "lattice-term-contract/v1":
+        canonical_model = compile_canonical_hamiltonian(parsed_payload)
+        gate_result = run_hamiltonian_symmetry_gate(
+            canonical_model,
+            SymmetryGateRequest(repair=symmetry_repair),
+        )
+        if gate_result.get("status") != "ok":
+            return gate_result
+        routed_payload = gate_result["solver_model"]
+
+    result = _solve_from_parsed_payload_core(
+        routed_payload,
         output_dir=output_dir,
         docs_dir=docs_dir,
         compile_pdf=compile_pdf,
@@ -2103,6 +2118,16 @@ def solve_from_parsed_payload(
         compatibility_export_mode=compatibility_export_mode,
         classical_bond_label=classical_bond_label,
     )
+    if gate_result is not None:
+        result = dict(result)
+        result["symmetry_validation"] = gate_result["symmetry_validation"]
+        result["symmetry_validation_stamp"] = gate_result["symmetry_validation_stamp"]
+        result["hamiltonian_provenance"] = gate_result["hamiltonian_provenance"]
+        result["warnings"] = list(gate_result.get("warnings") or []) + list(result.get("warnings") or [])
+        result["solver_model_hash"] = gate_result["symmetry_validation_stamp"]["hamiltonian_hash"]
+        if gate_result.get("symmetry_repair_report") is not None:
+            result["symmetry_repair_report"] = gate_result["symmetry_repair_report"]
+    return result
 
 
 def solve_from_files(
@@ -2152,6 +2177,7 @@ def solve_from_files(
     compatibility_export_mode="canonical",
     classical_bond_label=None,
     local_level_to_site_mapping_path=None,
+    symmetry_repair=False,
 ):
     resolved_local_space_mode = (
         str(local_space_mode)
@@ -2167,7 +2193,7 @@ def solve_from_files(
         local_level_to_site_mapping_path=local_level_to_site_mapping_path,
     )
     _progress("Parsed POSCAR + hr.dat payload")
-    return _solve_from_parsed_payload_core(
+    return solve_from_parsed_payload(
         parsed_payload,
         output_dir=output_dir,
         docs_dir=docs_dir,
@@ -2209,6 +2235,7 @@ def solve_from_files(
         glt_solver_mode=glt_solver_mode,
         compatibility_export_mode=compatibility_export_mode,
         classical_bond_label=classical_bond_label,
+        symmetry_repair=symmetry_repair,
     )
 
 
@@ -2221,6 +2248,7 @@ def main():
     parser.add_argument("--docs-dir", required=True)
     parser.add_argument("--no-pdf", action="store_true")
     parser.add_argument("--coefficient-tolerance", type=float, default=1e-10)
+    parser.add_argument("--symmetry-repair", action="store_true")
     parser.add_argument(
         "--local-space-mode",
         choices=["auto", "orbital-times-spin", "generic-multiplet"],
@@ -2371,6 +2399,7 @@ def main():
         local_level_to_site_mapping_path=Path(args.local_level_to_site_mapping)
         if args.local_level_to_site_mapping is not None
         else None,
+        symmetry_repair=bool(args.symmetry_repair),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0

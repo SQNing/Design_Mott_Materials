@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--docs-dir", required=True)
     parser.add_argument("--no-pdf", action="store_true")
+    parser.add_argument("--symmetry-repair", action="store_true")
     parser.add_argument(
         "--classical-bond_label",
         choices=["spin-only", "cpn"],
@@ -85,6 +86,7 @@ def main():
         glt_certification_mode=str(args.glt_certification_mode),
         glt_solver_mode=str(args.glt_solver_mode),
         compatibility_export_mode=str(args.classical_output_compatibility),
+        symmetry_repair=bool(args.symmetry_repair),
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0

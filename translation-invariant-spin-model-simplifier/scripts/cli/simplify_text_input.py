@@ -312,7 +312,10 @@ def run_text_simplification_pipeline(
     selected_model_candidate=None,
     selected_local_bond_bond_label=None,
     selected_coordinate_convention=None,
+    symmetry_repair=False,
 ):
+    if not isinstance(symmetry_repair, bool):
+        raise ValueError("invalid-symmetry-repair-flag")
     normalized_model = normalize_freeform_text(
         text,
         source_path=source_path,
@@ -321,6 +324,7 @@ def run_text_simplification_pipeline(
         selected_local_bond_bond_label=selected_local_bond_bond_label,
         selected_coordinate_convention=selected_coordinate_convention,
     )
+    normalized_model.setdefault("solver_request", {})["symmetry_repair"] = symmetry_repair
     normalized_interaction = (
         normalized_model.get("interaction", {})
         if isinstance(normalized_model.get("interaction"), dict)
@@ -345,6 +349,7 @@ def main():
     parser.add_argument("--selected-model-candidate", default=None)
     parser.add_argument("--selected-local-bond-bond_label", default=None)
     parser.add_argument("--selected-coordinate-convention", default=None)
+    parser.add_argument("--symmetry-repair", action="store_true")
     parser.add_argument("--report-md", default=None)
     parser.add_argument("--report-title", default="Simplified Model Report")
     args = parser.parse_args()
@@ -356,6 +361,7 @@ def main():
         selected_model_candidate=args.selected_model_candidate,
         selected_local_bond_bond_label=args.selected_local_bond_bond_label,
         selected_coordinate_convention=args.selected_coordinate_convention,
+        symmetry_repair=bool(args.symmetry_repair),
     )
     if args.report_md:
         report_markdown = render_simplified_model_report(result, title=str(args.report_title))
