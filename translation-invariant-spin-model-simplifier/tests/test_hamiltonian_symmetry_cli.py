@@ -95,11 +95,13 @@ def test_strict_failure_returns_before_solver_core(tmp_path):
     solver_core.assert_not_called()
 
 
-def test_repair_routes_projected_model_and_binds_result_hash(tmp_path):
+def test_repair_routes_projected_model_to_spin_solver_and_binds_result_hash(tmp_path):
     with patch(
-        "cli.solve_pseudospin_orbital_pipeline._solve_from_parsed_payload_core",
-        return_value={"status": "ok", "solver": {"energy": -1.0}},
-    ) as solver_core:
+        "cli.solve_pseudospin_orbital_pipeline._solve_from_parsed_payload_core"
+    ) as cpn_core, patch(
+        "cli.solve_pseudospin_orbital_pipeline.run_classical_solver",
+        return_value={"status": "ok", "energy": -1.0},
+    ) as spin_solver:
         result = solve_from_parsed_payload(
             _asymmetric_lattice_term_payload(),
             output_dir=tmp_path / "out",
@@ -108,9 +110,14 @@ def test_repair_routes_projected_model_and_binds_result_hash(tmp_path):
             symmetry_repair=True,
         )
 
-    routed_model = solver_core.call_args.args[0]
-    assert routed_model["schema_version"] == "canonical-hamiltonian/v1"
-    assert len(routed_model["terms"]) == 2
+    cpn_core.assert_not_called()
+    spin_payload = spin_solver.call_args.args[0]
+    assert len(spin_payload["bonds"]) == 2
+    assert spin_payload["solver_model_hash"] == result["solver_model_hash"]
+    assert result["solver_execution"] == {
+        "started": True,
+        "backends_run": ["classical.classical_solver_driver.run_classical_solver"],
+    }
     assert result["solver_model_hash"] == result["symmetry_validation_stamp"]["hamiltonian_hash"]
     assert result["warnings"][0]["code"] == "hamiltonian-symmetry-repaired"
 

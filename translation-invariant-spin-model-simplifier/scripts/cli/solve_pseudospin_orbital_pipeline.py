@@ -11,6 +11,8 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from classical.build_pseudospin_orbital_classical_model import build_pseudospin_orbital_classical_model
+from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
+from classical.classical_solver_driver import run_classical_solver
 from classical.build_sun_gswt_classical_payload import build_sun_gswt_classical_payload
 from classical.certified_glt.certify_cpn_glt import certify_cpn_generalized_lt
 from classical.cpn_generalized_lt_solver import solve_cpn_generalized_lt_ground_state
@@ -40,6 +42,7 @@ from common.lattice_geometry import lattice_vector_rank, vector_rank
 from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 from common.canonical_hamiltonian import compile_canonical_hamiltonian
 from common.hamiltonian_symmetry_gate import SymmetryGateRequest, run_hamiltonian_symmetry_gate
+from common.solver_capability_registry import SolverCapabilityError, select_solver_capability
 from lswt.build_python_glswt_payload import build_python_glswt_payload
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
 from lswt.single_q_z_harmonic_convergence_driver import run_single_q_z_harmonic_convergence_driver
@@ -2074,6 +2077,45 @@ def solve_from_parsed_payload(
         if gate_result.get("status") != "ok":
             return gate_result
         routed_payload = gate_result["solver_model"]
+        try:
+            capability = select_solver_capability(routed_payload)
+        except SolverCapabilityError as exc:
+            return {
+                "status": "error",
+                "completion": {
+                    "status": "failed",
+                    "reason": exc.code,
+                    "stopping_condition": "pre-solver-capability-check",
+                },
+                "solver_execution": {"started": False, "backends_run": []},
+                "solver_capability_error": {"code": exc.code, "message": str(exc)},
+                "symmetry_validation": gate_result["symmetry_validation"],
+                "symmetry_validation_stamp": gate_result["symmetry_validation_stamp"],
+                "hamiltonian_provenance": gate_result["hamiltonian_provenance"],
+                "warnings": list(gate_result.get("warnings") or []),
+                "solver_model_hash": gate_result["symmetry_validation_stamp"]["hamiltonian_hash"],
+            }
+        if capability.get("solver_id") == "spin_classical_solver":
+            bridge = build_spin_only_solver_payload(gate_result)
+            solver_payload = bridge["payload"]
+            solver_result = run_classical_solver(solver_payload, starts=starts, seed=seed)
+            result = {
+                "status": "ok",
+                "solver": solver_result,
+                "solver_capability": capability,
+                "solver_execution": {
+                    "started": True,
+                    "backends_run": ["classical.classical_solver_driver.run_classical_solver"],
+                },
+            }
+            result["symmetry_validation"] = gate_result["symmetry_validation"]
+            result["symmetry_validation_stamp"] = gate_result["symmetry_validation_stamp"]
+            result["hamiltonian_provenance"] = gate_result["hamiltonian_provenance"]
+            result["warnings"] = list(gate_result.get("warnings") or [])
+            result["solver_model_hash"] = gate_result["symmetry_validation_stamp"]["hamiltonian_hash"]
+            if gate_result.get("symmetry_repair_report") is not None:
+                result["symmetry_repair_report"] = gate_result["symmetry_repair_report"]
+            return result
 
     result = _solve_from_parsed_payload_core(
         routed_payload,
