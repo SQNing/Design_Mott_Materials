@@ -248,10 +248,22 @@ def _bond_orbit(payload, orbit_ref):
     return matches[0]
 
 
-def _operator_basis_kind(payload, term):
+def _representative_operator_action_is_available(payload, term):
     registry = (payload.get("local_hilbert") or {}).get("operator_bases") or {}
     record = registry.get(term.get("operator_basis_ref"))
-    return str(record.get("kind") or "") if isinstance(record, Mapping) else ""
+    if not isinstance(record, Mapping):
+        return False
+    if str(record.get("kind") or "") == "spin_vector":
+        return True
+    actions = record.get("symmetry_actions")
+    if not isinstance(actions, Mapping):
+        return False
+    operations = list((payload.get("symmetry") or {}).get("operations") or [])
+    return bool(operations) and all(
+        str(operation.get("operation_ref") or "") in actions
+        for operation in operations
+        if isinstance(operation, Mapping)
+    )
 
 
 def _compile_representative_bond_term(source, payload, parameters):
@@ -264,10 +276,7 @@ def _compile_representative_bond_term(source, payload, parameters):
     seed_source = deepcopy(dict(source))
     seed_source["cluster"] = _bond_cluster(representative)
     seed = _compile_term(seed_source, parameters, arity_hint=2)
-    if seed["operator_family"] not in {
-        "bilinear_exchange_tensor",
-        "bilinear_exchange_matrix",
-    } or _operator_basis_kind(payload, seed) != "spin_vector":
+    if not _representative_operator_action_is_available(payload, seed):
         raise CanonicalHamiltonianError(
             "symmetry-representation-unavailable", seed.get("operator_basis_ref")
         )
@@ -290,7 +299,7 @@ def _compile_representative_bond_term(source, payload, parameters):
 
     expanded = {}
     for operation in operations.values():
-        transformed = transform_term(seed, operation, payload.get("lattice_structure") or {})[0]
+        transformed = transform_term(seed, operation, payload)[0]
         key = _cluster_key(transformed["cluster"])
         if key in member_keys and key not in expanded:
             expanded[key] = transformed

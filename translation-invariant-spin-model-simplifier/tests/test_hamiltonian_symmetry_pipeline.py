@@ -246,6 +246,35 @@ def test_representative_pair_matrix_without_local_symmetry_representation_fails(
         compile_canonical_hamiltonian(payload)
 
 
+def test_representative_pair_matrix_uses_declared_local_symmetry_representation():
+    payload = _representative_payload()
+    payload["local_hilbert"]["operator_bases"]["operator-basis:spin"] = {
+        "kind": "dense_local_matrix_units",
+        "dimension": 2,
+        "symmetry_actions": {
+            operation["operation_ref"]: {"matrix": np.eye(2).tolist()}
+            for operation in payload["symmetry"]["operations"]
+        },
+    }
+    term = payload["term_attachments"]["bond_terms"][0]
+    term["operator_channel"] = "pair_matrix"
+    term["payload"] = {
+        "kind": "pair_matrix",
+        "matrix": _structured_matrix([[1.0, 0.25], [0.25, 2.0]]),
+        "orientation_transform": "swap_tensor_factors_then_adjoint",
+    }
+
+    canonical = compile_canonical_hamiltonian(payload)
+
+    assert len(canonical["terms"]) == 2
+    assert {tuple(item["cluster"][1]["translation"]) for item in canonical["terms"]} == {
+        (1, 0, 0),
+        (0, 1, 0),
+    }
+    for item in canonical["terms"]:
+        np.testing.assert_allclose(item["coefficient"], [[1.0, 0.25], [0.25, 2.0]])
+
+
 def test_representative_explicit_and_validated_adapter_paths_are_fourier_equivalent():
     representative_payload = _representative_payload()
     representative_model = compile_canonical_hamiltonian(representative_payload)
