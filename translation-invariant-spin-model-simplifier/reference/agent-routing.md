@@ -50,6 +50,21 @@ Use the input class to choose the first shared backbone:
 If route selection remains physically ambiguous, stop at
 `interaction.status = needs_input` instead of guessing.
 
+## Pre-Solver Hamiltonian Symmetry Gate
+
+After landing and before capability or solver selection, compile the complete
+Hamiltonian into `canonical-hamiltonian/v1` and target the structure's full
+space group. The default route is validate-only. On failure, return the failed
+operations and the verified diagnostic subgroup, suggest `--symmetry-repair`,
+and stop with no solver backend invoked. Do not use the diagnostic subgroup as
+an automatic fallback.
+
+When the user explicitly enables repair, average the full canonical coefficient
+map over the finite target group, revalidate it, and route only the validated
+solver model. Preserve both hashes. Then match solver capability against every
+term family and arity; an unsupported ring or other higher-body term produces
+`solver-capability-mismatch`, never a truncated bilinear calculation.
+
 ## Broad-Text Escalation Checklist
 
 When the user starts from broad text rather than an intrinsic file-backed route,

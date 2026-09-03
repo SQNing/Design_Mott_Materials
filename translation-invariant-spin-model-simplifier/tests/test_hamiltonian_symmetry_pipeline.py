@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 
@@ -11,8 +12,10 @@ if str(SKILL_ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from classical.build_spin_only_solver_payload import build_spin_only_solver_payload
+from classical.lt_fourier_exchange import fourier_exchange_matrix
 from common.canonical_hamiltonian import (
     CanonicalHamiltonianError,
+    coefficient_map,
     compile_canonical_hamiltonian,
 )
 from common.hamiltonian_symmetry_gate import SymmetryGateRequest, run_hamiltonian_symmetry_gate
@@ -241,3 +244,33 @@ def test_representative_pair_matrix_without_local_symmetry_representation_fails(
 
     with pytest.raises(CanonicalHamiltonianError, match="symmetry-representation-unavailable"):
         compile_canonical_hamiltonian(payload)
+
+
+def test_representative_explicit_and_validated_adapter_paths_are_fourier_equivalent():
+    representative_payload = _representative_payload()
+    representative_model = compile_canonical_hamiltonian(representative_payload)
+
+    explicit_payload = _representative_payload()
+    source = explicit_payload["term_attachments"]["bond_terms"][0]
+    source["attach_to"] = {"kind": "explicit_cluster", "orientation": "explicit"}
+    source["cluster"] = [
+        {"site": 0, "translation": [0, 0, 0]},
+        {"site": 0, "translation": [1, 0, 0]},
+    ]
+    y_term = deepcopy(source)
+    y_term["term_ref"] = "term:Jy"
+    y_term["cluster"][1]["translation"] = [0, 1, 0]
+    y_term["payload"]["matrix"] = _structured_matrix(np.diag([2.0, 1.0, 3.0]))
+    explicit_payload["term_attachments"]["bond_terms"] = [source, y_term]
+    explicit_model = compile_canonical_hamiltonian(explicit_payload)
+
+    assert coefficient_map(representative_model) == coefficient_map(explicit_model)
+    gate = run_hamiltonian_symmetry_gate(representative_model, SymmetryGateRequest())
+    representative_bridge = build_spin_only_solver_payload(representative_payload)["payload"]
+    validated_bridge = build_spin_only_solver_payload(gate)["payload"]
+    for q in ([0.0, 0.0, 0.0], [0.137, 0.291, 0.0], [0.5, 0.25, 0.0]):
+        np.testing.assert_allclose(
+            fourier_exchange_matrix(representative_bridge, q),
+            fourier_exchange_matrix(validated_bridge, q),
+            atol=1.0e-12,
+        )

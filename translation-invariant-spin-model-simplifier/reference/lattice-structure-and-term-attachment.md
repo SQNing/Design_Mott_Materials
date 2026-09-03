@@ -26,6 +26,24 @@ Hamiltonian terms should then be interpreted as attachments to that structure:
 - bond terms act on an attached pair together with any direction or shell label
 - higher-body terms act on an attached tuple, cluster, plaquette, or orbit
 
+## Representative And Explicit Terms
+
+`attach_to.orientation = representative` means that the attached term is a
+generator for the referenced structural orbit. The canonical compiler expands
+the orbit and applies the operator-family symmetry action to every coefficient;
+for an anisotropic physical-spin exchange tensor this rotates the full `3x3`
+matrix and applies conjugate transpose when bond canonicalization reverses it.
+
+Without representative metadata, a list of terms is complete and explicit.
+Missing canonical coefficients are zeros, so missing symmetry partners cause a
+strict validation failure. The compiler never infers representative intent from
+the number of listed terms.
+
+Physical spin uses the axial-vector action of the structural operation. A
+pseudospin, orbital, or retained-local-space basis must provide its local
+symmetry/adjoint representation. If that information is absent, orbit expansion
+and repair stop with `symmetry-representation-unavailable`.
+
 ## Bond Label Compatibility
 
 Legacy payloads may still expose `bond_label`, `model_bond_label`, `classical_bond_label`,

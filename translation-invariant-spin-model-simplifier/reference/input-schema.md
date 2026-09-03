@@ -17,6 +17,19 @@ The normalized payload must contain:
 - `user_notes`
 - `provenance`
 
+Runnable payloads also carry `solver_request`. Its symmetry field is:
+
+```yaml
+solver_request:
+  symmetry_repair: false
+```
+
+The field must be a boolean. `false` is the default and means validate the
+complete Hamiltonian against the structural space group, stopping before all
+solvers on failure. `true` requests finite-group projection followed by a full
+postcheck. It does not authorize changing the source file or silently using a
+smaller symmetry subgroup.
+
 `term_attachments.representation.kind` supports:
 
 - `operator`
@@ -65,6 +78,14 @@ Canonical attachment classes are:
 - `site_terms`
 - `bond_terms`
 - `higher_body_terms`
+
+Higher-body records participating in the canonical symmetry gate declare
+`arity >= 3`, an ordered `cluster` of the same length, `operator_family`,
+`permutation_action`, and `adjoint_action`. Built-in families include
+biquadratic exchange, scalar chirality, cyclic ring exchange, and a generic
+local-operator tensor with an explicit representation. A downstream solver
+must support the entire retained term set; otherwise routing returns
+`solver-capability-mismatch`.
 
 Phase-1 canonical site-term kinds support:
 
