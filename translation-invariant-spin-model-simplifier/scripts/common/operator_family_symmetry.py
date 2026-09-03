@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from common.canonical_hamiltonian import CanonicalHamiltonianError
+from common.canonical_hamiltonian import CanonicalHamiltonianError, canonicalize_cluster
 
 
 @dataclass(frozen=True)
@@ -192,6 +192,19 @@ def canonicalize_family_term(term):
     cluster = list(result.get("cluster") or [])
     if len(cluster) != int(result.get("arity", len(cluster))):
         raise CanonicalHamiltonianError("canonical-term-identity-unresolved", result.get("term_ref"))
+
+    if family.permutation_kind == "bond_reverse":
+        canonical = canonicalize_cluster(cluster, family.name)
+        result["cluster"] = canonical["cluster"]
+        if canonical["orientation_reversed"] and isinstance(result.get("coefficient"), list):
+            matrix = np.asarray(result["coefficient"], dtype=complex)
+            result["coefficient"] = _clean_numeric(matrix.conjugate().T)
+        result["canonicalization"] = {
+            "permutation": list(canonical["permutation"]),
+            "translated_by": list(canonical["translated_by"]),
+            "orientation_reversed": bool(canonical["orientation_reversed"]),
+        }
+        return result
 
     if family.permutation_kind not in {"cyclic_oriented", "dihedral"}:
         translated, shift = _translate_sequence(cluster)
