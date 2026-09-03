@@ -479,6 +479,9 @@ def _canonical_provenance(payload, source_model):
 
 
 def _canonical_solver_request(term_attachments, payload, lattice_structure):
+    symmetry_repair = payload.get("symmetry_repair", False)
+    if not isinstance(symmetry_repair, bool):
+        raise ValueError("invalid-symmetry-repair-flag")
     term_sets = list(_as_mapping(term_attachments).get("term_sets") or [])
     selected_term_set_ref = term_sets[0].get("term_set_ref") if term_sets else None
     selected_bond_orbit_refs = []
@@ -493,6 +496,7 @@ def _canonical_solver_request(term_attachments, payload, lattice_structure):
         "selected_term_refs": [],
         "selected_bond_orbit_refs": selected_bond_orbit_refs,
         "selection_policy": "term_set_then_explicit_refs",
+        "symmetry_repair": symmetry_repair,
     }
 
 
@@ -567,6 +571,7 @@ def _copy_passthrough_fields(source, destination):
         "explicit_bond_graph",
         "selected_coordinate_convention",
         "agent_normalization_request",
+        "symmetry_repair",
     ):
         if key in source:
             destination[key] = source[key]
@@ -1485,7 +1490,7 @@ def normalize_freeform_text(
     return _finalize_normalized_payload(normalized)
 
 
-def normalize_input(payload):
+def _normalize_input_impl(payload):
     representation = payload.get("representation", "operator")
     if representation not in SUPPORTED_REPRESENTATIONS:
         raise ValueError("unsupported representation")
@@ -1835,6 +1840,18 @@ def normalize_input(payload):
             bond_label_gate,
         )
     )
+
+
+def normalize_input(payload):
+    symmetry_repair = payload.get("symmetry_repair", False)
+    if not isinstance(symmetry_repair, bool):
+        raise ValueError("invalid-symmetry-repair-flag")
+    normalized = _normalize_input_impl(payload)
+    solver_request = normalized.get("solver_request")
+    if not isinstance(solver_request, dict):
+        raise ValueError("canonical-solver-request-unavailable")
+    solver_request["symmetry_repair"] = symmetry_repair
+    return normalized
 
 
 def _load_payload(path):

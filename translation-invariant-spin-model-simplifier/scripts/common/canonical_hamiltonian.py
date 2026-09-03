@@ -211,6 +211,7 @@ def _compile_term(source, parameters, arity_hint=None):
         "permutation_action": deepcopy(term.get("permutation_action") or {}),
         "adjoint_action": deepcopy(term.get("adjoint_action") or {}),
         "operator_basis_ref": term.get("operator_basis_ref"),
+        "attach_to": deepcopy(term.get("attach_to") or {}),
         "provenance": deepcopy(term.get("provenance") or {}),
     }
     if compiled["arity"] > 2:
@@ -218,6 +219,80 @@ def _compile_term(source, parameters, arity_hint=None):
 
         compiled = canonicalize_family_term(compiled)
     return compiled
+
+
+def _bond_cluster(member):
+    return [
+        {"site": int(member.get("source", 0)), "translation": [0, 0, 0]},
+        {
+            "site": int(member.get("target", 0)),
+            "translation": _translation(member.get("translation")),
+        },
+    ]
+
+
+def _bond_orbit(payload, orbit_ref):
+    lattice_structure = payload.get("lattice_structure") or {}
+    matches = [
+        orbit
+        for orbit in list(lattice_structure.get("bond_orbits") or [])
+        if isinstance(orbit, Mapping) and str(orbit.get("orbit_ref")) == str(orbit_ref)
+    ]
+    if len(matches) != 1:
+        raise CanonicalHamiltonianError("unknown-bond-orbit-ref", orbit_ref)
+    return matches[0]
+
+
+def _operator_basis_kind(payload, term):
+    registry = (payload.get("local_hilbert") or {}).get("operator_bases") or {}
+    record = registry.get(term.get("operator_basis_ref"))
+    return str(record.get("kind") or "") if isinstance(record, Mapping) else ""
+
+
+def _compile_representative_bond_term(source, payload, parameters):
+    attach_to = source.get("attach_to") if isinstance(source.get("attach_to"), Mapping) else {}
+    orbit = _bond_orbit(payload, attach_to.get("orbit_ref"))
+    representative = orbit.get("representative")
+    if not isinstance(representative, Mapping):
+        raise CanonicalHamiltonianError("canonical-term-identity-unresolved", source.get("term_ref"))
+
+    seed_source = deepcopy(dict(source))
+    seed_source["cluster"] = _bond_cluster(representative)
+    seed = _compile_term(seed_source, parameters, arity_hint=2)
+    if seed["operator_family"] not in {
+        "bilinear_exchange_tensor",
+        "bilinear_exchange_matrix",
+    } or _operator_basis_kind(payload, seed) != "spin_vector":
+        raise CanonicalHamiltonianError(
+            "symmetry-representation-unavailable", seed.get("operator_basis_ref")
+        )
+
+    members = list(orbit.get("members") or [representative])
+    member_keys = {
+        _cluster_key(canonicalize_cluster(_bond_cluster(member), seed["operator_family"])["cluster"])
+        for member in members
+        if isinstance(member, Mapping)
+    }
+    operations = {
+        str(operation.get("operation_ref") or ""): operation
+        for operation in list((payload.get("symmetry") or {}).get("operations") or [])
+        if isinstance(operation, Mapping)
+    }
+    if not operations:
+        raise CanonicalHamiltonianError("structural-symmetry-unavailable")
+
+    from common.hamiltonian_symmetry_action import transform_term
+
+    expanded = {}
+    for operation in operations.values():
+        transformed = transform_term(seed, operation, payload.get("lattice_structure") or {})[0]
+        key = _cluster_key(transformed["cluster"])
+        if key in member_keys and key not in expanded:
+            expanded[key] = transformed
+    missing = sorted(member_keys.difference(expanded))
+    if missing:
+        raise CanonicalHamiltonianError("canonical-term-identity-unresolved", missing)
+    return [expanded[key] for key in sorted(expanded)]
 
 
 def compile_canonical_hamiltonian(payload):
@@ -236,7 +311,15 @@ def compile_canonical_hamiltonian(payload):
         ("higher_body_terms", None),
     ):
         for source in list(attachments.get(collection) or []):
-            terms.append(_compile_term(source, parameters, arity_hint=arity_hint))
+            attach_to = source.get("attach_to") if isinstance(source.get("attach_to"), Mapping) else {}
+            if (
+                collection == "bond_terms"
+                and attach_to.get("kind") == "bond_orbit"
+                and attach_to.get("orientation") == "representative"
+            ):
+                terms.extend(_compile_representative_bond_term(source, payload, parameters))
+            else:
+                terms.append(_compile_term(source, parameters, arity_hint=arity_hint))
     terms.sort(key=lambda term: (str(term["term_ref"]), canonical_term_key(term)))
     return {
         "schema_version": "canonical-hamiltonian/v1",

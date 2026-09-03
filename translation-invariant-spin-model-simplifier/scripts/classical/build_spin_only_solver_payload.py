@@ -12,11 +12,13 @@ if __package__ in {None, ""}:
     from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
     from common.hamiltonian_symmetry_action import axial_spin_rotation
+    from common.canonical_hamiltonian import compile_canonical_hamiltonian
 else:
     from common.bond_orbits import generate_noncull_directed_bond_orbit
     from common.classical_bond_label_resolution import resolve_classical_bond_label
     from common.lattice_geometry import enumerate_neighbor_shells, fractional_to_cartesian, resolve_lattice_vectors
     from common.hamiltonian_symmetry_action import axial_spin_rotation
+    from common.canonical_hamiltonian import compile_canonical_hamiltonian
 
 
 def _selected_bond_label(simplification_payload):
@@ -562,48 +564,64 @@ def _canonical_spin_only_solver_payload(payload):
     if "unit_vector_sphere" not in _canonical_classical_space_kinds(payload):
         raise ValueError("unsupported-classical-space: spin-only builder requires unit_vector_sphere")
 
-    parameters = payload.get("parameters", {}) if isinstance(payload.get("parameters"), dict) else {}
     orbit_by_ref = _canonical_bond_orbits_by_ref(payload)
     selected_terms = _canonical_selected_bond_terms(payload)
     if not selected_terms:
         raise ValueError("no canonical spin bond terms selected")
 
+    selected_payload = deepcopy(payload)
+    selected_payload.setdefault("term_attachments", {})["bond_terms"] = deepcopy(selected_terms)
+    selected_payload["term_attachments"]["site_terms"] = []
+    selected_payload["term_attachments"]["higher_body_terms"] = []
+    canonical_model = compile_canonical_hamiltonian(selected_payload)
+
     bonds = []
     term_summaries = []
-    for term in selected_terms:
-        term_payload = term.get("payload", {}) if isinstance(term.get("payload"), dict) else {}
-        if term_payload.get("kind") != "bilinear_exchange_matrix":
-            raise ValueError(f"unsupported-term-payload: {term_payload.get('kind')}")
-        matrix = _canonical_matrix_to_float_rows(term_payload.get("matrix", {}), parameters)
+    counts = {}
+    for term in canonical_model["terms"]:
+        if term.get("operator_family") not in {"bilinear_exchange_tensor", "bilinear_exchange_matrix"}:
+            raise ValueError(f"unsupported-term-payload: {term.get('operator_family')}")
+        matrix = _canonical_matrix_to_float_rows(term.get("coefficient"), {})
         attach_to = term.get("attach_to", {}) if isinstance(term.get("attach_to"), dict) else {}
         orbit_ref = str(attach_to.get("orbit_ref") or "")
         orbit = orbit_by_ref.get(orbit_ref)
         if not isinstance(orbit, dict):
             raise ValueError(f"unknown-bond-orbit-ref: {orbit_ref}")
-        members = list(orbit.get("members") or [])
-        if not members and isinstance(orbit.get("representative"), dict):
-            members = [orbit["representative"]]
-        for member in members:
-            if not isinstance(member, dict):
-                continue
-            bonds.append(
-                {
-                    "source": int(member.get("source", 0)),
-                    "target": int(member.get("target", 0)),
-                    "vector": [int(component) for component in list(member.get("translation") or [0, 0, 0])],
-                    "distance": float(member.get("distance", orbit.get("distance", 0.0)) or 0.0),
-                    "shell_index": int(orbit.get("shell")) if orbit.get("shell") is not None else None,
-                    "term_ref": str(term.get("term_ref") or ""),
-                    "bond_orbit_ref": orbit_ref,
-                    "matrix": deepcopy(matrix),
-                }
-            )
-        term_summaries.append(
+        cluster = term.get("cluster") or []
+        if len(cluster) != 2:
+            raise ValueError("spin-only exchange term must have arity two")
+        vector = [
+            int(cluster[1]["translation"][axis]) - int(cluster[0]["translation"][axis])
+            for axis in range(3)
+        ]
+        member = next(
+            (
+                record
+                for record in list(orbit.get("members") or [orbit.get("representative")])
+                if isinstance(record, dict)
+                and int(record.get("source", 0)) == int(cluster[0]["site"])
+                and int(record.get("target", 0)) == int(cluster[1]["site"])
+                and list(record.get("translation") or [0, 0, 0]) == vector
+            ),
+            {},
+        )
+        bonds.append(
             {
+                "source": int(cluster[0]["site"]),
+                "target": int(cluster[1]["site"]),
+                "vector": vector,
+                "distance": float(member.get("distance", orbit.get("distance", 0.0)) or 0.0),
+                "shell_index": int(orbit.get("shell")) if orbit.get("shell") is not None else None,
                 "term_ref": str(term.get("term_ref") or ""),
                 "bond_orbit_ref": orbit_ref,
-                "member_count": len(members),
+                "matrix": deepcopy(matrix),
             }
+        )
+        summary_key = (str(term.get("term_ref") or ""), orbit_ref)
+        counts[summary_key] = counts.get(summary_key, 0) + 1
+    for (term_ref, orbit_ref), member_count in sorted(counts.items()):
+        term_summaries.append(
+            {"term_ref": term_ref, "bond_orbit_ref": orbit_ref, "member_count": member_count}
         )
 
     return {

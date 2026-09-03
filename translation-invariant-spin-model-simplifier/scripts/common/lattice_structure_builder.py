@@ -272,6 +272,7 @@ def build_lattice_structure(source_model):
             )
         ]
     return {
+        "lattice_vectors": resolve_lattice_vectors(lattice_model),
         "basis_sites": [
             {
                 "site_ref": f"site:{index}",
