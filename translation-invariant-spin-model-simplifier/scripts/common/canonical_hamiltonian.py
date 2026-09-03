@@ -200,7 +200,7 @@ def _compile_term(source, parameters, arity_hint=None):
     if canonical["orientation_reversed"] and isinstance(coefficient, list):
         coefficient = _transpose_conjugate(coefficient)
     orientation_sector = str(term.get("orientation_sector") or "default")
-    return {
+    compiled = {
         "term_ref": str(term.get("term_ref") or "term:unlabeled"),
         "arity": len(canonical["cluster"]),
         "cluster": canonical["cluster"],
@@ -213,6 +213,11 @@ def _compile_term(source, parameters, arity_hint=None):
         "operator_basis_ref": term.get("operator_basis_ref"),
         "provenance": deepcopy(term.get("provenance") or {}),
     }
+    if compiled["arity"] > 2:
+        from common.operator_family_symmetry import canonicalize_family_term
+
+        compiled = canonicalize_family_term(compiled)
+    return compiled
 
 
 def compile_canonical_hamiltonian(payload):

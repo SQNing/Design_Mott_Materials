@@ -8,7 +8,12 @@ from copy import deepcopy
 
 import numpy as np
 
-from common.canonical_hamiltonian import CanonicalHamiltonianError, canonicalize_cluster
+from common.canonical_hamiltonian import CanonicalHamiltonianError
+from common.operator_family_symmetry import (
+    canonicalize_family_term,
+    registered_operator_families,
+    transform_operator_coefficient,
+)
 
 
 def cartesian_rotation(lattice_vectors, fractional_rotation, *, tolerance=1.0e-8):
@@ -149,12 +154,10 @@ def _clean_matrix(matrix, *, tolerance=1.0e-14):
 
 
 def transform_term(term, operation, context):
-    """Transform one onsite or bilinear physical-spin term."""
+    """Transform one term whose local operator representation is available."""
 
     family = str(term.get("operator_family") or "")
-    if family not in {"bilinear_exchange_tensor", "bilinear_exchange_matrix"}:
-        raise CanonicalHamiltonianError("symmetry-projection-unsupported-term", family)
-    if int(term.get("arity", 0)) != 2:
+    if family not in registered_operator_families():
         raise CanonicalHamiltonianError("symmetry-projection-unsupported-term", family)
 
     lattice_structure = context.get("lattice_structure", context) if isinstance(context, Mapping) else context
@@ -164,22 +167,19 @@ def transform_term(term, operation, context):
         operation.get("rotation"),
     )
     actions = _leg_actions(term, mapped_cluster, spin_rotation, lattice_structure)
-    coefficient = np.asarray(term.get("coefficient"), dtype=complex)
-    if coefficient.shape != (3, 3):
-        raise CanonicalHamiltonianError("matrix-shape-mismatch", coefficient.shape)
-    transformed_coefficient = actions[0] @ coefficient @ actions[1].conjugate().T
-
-    canonical = canonicalize_cluster(mapped_cluster, family)
-    if canonical["orientation_reversed"]:
-        transformed_coefficient = transformed_coefficient.conjugate().T
-
     transformed = deepcopy(dict(term))
-    transformed["cluster"] = canonical["cluster"]
-    transformed["coefficient"] = _clean_matrix(transformed_coefficient)
+    transformed["cluster"] = mapped_cluster
+    transformed["coefficient"] = transform_operator_coefficient(
+        term,
+        actions,
+        permutation=list(range(len(mapped_cluster))),
+    )
+    transformed = canonicalize_family_term(transformed)
+    canonicalization = transformed.get("canonicalization", {})
     transformed["symmetry_action"] = {
         "operation_ref": str(operation.get("operation_ref") or ""),
         "leg_actions": [_clean_matrix(action) for action in actions],
-        "permutation": list(canonical["permutation"]),
-        "orientation_reversed": bool(canonical["orientation_reversed"]),
+        "permutation": list(canonicalization.get("permutation") or []),
+        "orientation_reversed": bool(canonicalization.get("orientation_reversed", False)),
     }
     return [transformed]
