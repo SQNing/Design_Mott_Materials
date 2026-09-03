@@ -123,7 +123,58 @@ def _local_frames(lattice_structure):
     return frames
 
 
-def _leg_actions(term, mapped_cluster, spin_rotation, lattice_structure):
+def _operator_basis_record(term, context):
+    if not isinstance(context, Mapping):
+        return None
+    local_hilbert = context.get("local_hilbert")
+    if not isinstance(local_hilbert, Mapping):
+        return None
+    registry = local_hilbert.get("operator_bases")
+    if not isinstance(registry, Mapping):
+        return None
+    record = registry.get(term.get("operator_basis_ref"))
+    return record if isinstance(record, Mapping) else None
+
+
+def _declared_leg_actions(term, operation, mapped_cluster, context):
+    record = _operator_basis_record(term, context)
+    actions = record.get("symmetry_actions") if isinstance(record, Mapping) else None
+    operation_ref = str(operation.get("operation_ref") or "")
+    action_record = actions.get(operation_ref) if isinstance(actions, Mapping) else None
+    if action_record is None:
+        raise CanonicalHamiltonianError(
+            "symmetry-representation-unavailable", term.get("operator_basis_ref")
+        )
+    matrix = action_record.get("matrix") if isinstance(action_record, Mapping) else action_record
+    if matrix is None:
+        raise CanonicalHamiltonianError(
+            "symmetry-representation-unavailable", term.get("operator_basis_ref")
+        )
+    array = np.asarray(matrix, dtype=complex)
+    if array.ndim != 2 or array.shape[0] != array.shape[1]:
+        raise CanonicalHamiltonianError("invalid-operator-representation", operation_ref)
+    return [array.copy() for _entry in mapped_cluster]
+
+
+def _leg_actions(term, mapped_cluster, spin_rotation, lattice_structure, context, operation):
+    family = str(term.get("operator_family") or "")
+    basis_record = _operator_basis_record(term, context)
+    basis_kind = str(basis_record.get("kind") or "") if basis_record is not None else ""
+    physical_spin_family = family in {
+        "spin_vector",
+        "quadratic_spin_tensor",
+        "bilinear_exchange_tensor",
+        "bilinear_exchange_matrix",
+        "biquadratic_exchange",
+        "scalar_chirality",
+        "cyclic_ring_exchange",
+    }
+    physical_spin_basis = basis_kind == "spin_vector" or (
+        basis_record is None and str(term.get("operator_basis_ref") or "") in {"", "operator-basis:spin"}
+    )
+    if not (physical_spin_family and physical_spin_basis):
+        return _declared_leg_actions(term, operation, mapped_cluster, context)
+
     convention = str(term.get("coordinate_convention") or "global_crystallographic")
     if convention == "global_crystallographic":
         return [np.asarray(spin_rotation, dtype=float) for _entry in mapped_cluster]
@@ -166,7 +217,14 @@ def transform_term(term, operation, context):
         _lattice_vectors(lattice_structure),
         operation.get("rotation"),
     )
-    actions = _leg_actions(term, mapped_cluster, spin_rotation, lattice_structure)
+    actions = _leg_actions(
+        term,
+        mapped_cluster,
+        spin_rotation,
+        lattice_structure,
+        context,
+        operation,
+    )
     transformed = deepcopy(dict(term))
     transformed["cluster"] = mapped_cluster
     transformed["coefficient"] = transform_operator_coefficient(

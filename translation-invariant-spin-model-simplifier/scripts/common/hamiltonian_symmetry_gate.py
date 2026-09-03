@@ -148,8 +148,52 @@ def _aggregate_terms(terms):
 def _transform_terms(model, operation):
     transformed = []
     for term in list(model.get("terms") or []):
-        transformed.extend(transform_term(term, operation, model["lattice_structure"]))
+        transformed.extend(transform_term(term, operation, model))
     return transformed
+
+
+def _validate_hermiticity(model, request):
+    tolerance = float(request.absolute_tolerance)
+    for term in list(model.get("terms") or []):
+        family = str(term.get("operator_family") or "")
+        coefficient = term.get("coefficient")
+        valid = True
+        if family == "cyclic_ring_exchange":
+            valid = isinstance(coefficient, Mapping) and np.allclose(
+                complex(coefficient.get("inverse", 0.0)),
+                complex(coefficient.get("forward", 0.0)).conjugate(),
+                atol=tolerance,
+                rtol=0.0,
+            )
+        elif family in {"quadratic_spin_tensor", "pair_matrix"}:
+            array = np.asarray(coefficient, dtype=complex)
+            valid = bool(
+                array.ndim == 2
+                and array.shape[0] == array.shape[1]
+                and np.allclose(array, array.conjugate().T, atol=tolerance, rtol=0.0)
+            )
+        elif family in {"spin_vector", "biquadratic_exchange", "scalar_chirality"}:
+            array = np.asarray(coefficient, dtype=complex)
+            valid = bool(np.max(np.abs(array.imag), initial=0.0) <= tolerance)
+        elif family in {"bilinear_exchange_tensor", "bilinear_exchange_matrix"}:
+            cluster = list(term.get("cluster") or [])
+            if (
+                len(cluster) == 2
+                and int(cluster[0].get("site", -1)) == int(cluster[1].get("site", -2))
+                and list(cluster[0].get("translation") or [0, 0, 0])
+                == list(cluster[1].get("translation") or [0, 0, 0])
+            ):
+                array = np.asarray(coefficient, dtype=complex)
+                valid = bool(
+                    array.ndim == 2
+                    and array.shape[0] == array.shape[1]
+                    and np.allclose(array, array.conjugate().T, atol=tolerance, rtol=0.0)
+                )
+        if not valid:
+            raise HamiltonianSymmetryError(
+                "hamiltonian-not-hermitian",
+                {"term_ref": str(term.get("term_ref") or ""), "operator_family": family},
+            )
 
 
 def _operation_residual(model, operation, request, original_coefficients, original_refs):
@@ -269,6 +313,7 @@ def _diagnostic_subgroup(operations, passing_refs):
 
 def validate_hamiltonian_symmetry(model, request=None):
     request = request or SymmetryGateRequest()
+    _validate_hermiticity(model, request)
     operations = _operations(model)
     original_coefficients, _templates, original_refs = _aggregate_terms(model.get("terms") or [])
     operation_reports = []
@@ -286,12 +331,21 @@ def validate_hamiltonian_symmetry(model, request=None):
     missing = []
     for report in failed:
         missing.extend(report["missing_symmetry_partners"])
+    forbidden = [
+        {
+            "operation_ref": report["operation_ref"],
+            "worst_term": deepcopy(report.get("worst_term")),
+        }
+        for report in failed
+        if not report.get("missing_symmetry_partners") and report.get("worst_term") is not None
+    ]
     return {
         "status": "passed" if not failed else "failed",
         "target_group": _target_group(model, operations),
         "operation_reports": operation_reports,
         "failed_operations": failed,
         "missing_symmetry_partners": missing,
+        "forbidden_terms": forbidden,
         "max_absolute_residual": max(
             [report["max_absolute_residual"] for report in operation_reports] + [0.0]
         ),
@@ -425,6 +479,33 @@ def _validation_stamp(model, validation, request, repaired):
     }
 
 
+def _canonical_model_ref(content_hash):
+    return f"canonical-model:{content_hash}"
+
+
+def _provenance(input_hash, solver_hash, request, target_group=None):
+    return {
+        "input_model": {
+            "content_hash": input_hash,
+            "canonical_model_ref": _canonical_model_ref(input_hash),
+        },
+        "symmetry_operation": {
+            "repair_requested": bool(request.repair),
+            "target_group": deepcopy(target_group),
+            "algorithm_version": "finite-group-average/v1" if request.repair else "validate-only/v1",
+            "tolerance": {
+                "absolute": float(request.absolute_tolerance),
+                "relative": float(request.relative_tolerance),
+                "cleanup": float(request.cleanup_tolerance),
+            },
+        },
+        "solver_model": {
+            "content_hash": solver_hash,
+            "canonical_model_ref": _canonical_model_ref(solver_hash) if solver_hash else None,
+        },
+    }
+
+
 def require_current_symmetry_stamp(model, stamp):
     if not isinstance(stamp, Mapping) or stamp.get("status") != "passed":
         raise HamiltonianSymmetryError("symmetry-validation-stamp-missing")
@@ -433,7 +514,7 @@ def require_current_symmetry_stamp(model, stamp):
     return stamp
 
 
-def _failure(code, validation=None):
+def _failure(code, validation=None, *, input_hash=None, request=None):
     result = {
         "status": "error",
         "completion": {
@@ -446,6 +527,9 @@ def _failure(code, validation=None):
     }
     if validation is not None:
         result["symmetry_validation"] = validation
+    if input_hash is not None and request is not None:
+        target = validation.get("target_group") if isinstance(validation, Mapping) else None
+        result["hamiltonian_provenance"] = _provenance(input_hash, None, request, target)
     return result
 
 
@@ -456,8 +540,14 @@ def run_hamiltonian_symmetry_gate(model, request=None):
         validation_before = validate_hamiltonian_symmetry(model, request)
         if not request.repair:
             if validation_before["status"] != "passed":
-                return _failure("hamiltonian-symmetry-validation-failed", validation_before)
+                return _failure(
+                    "hamiltonian-symmetry-validation-failed",
+                    validation_before,
+                    input_hash=input_hash,
+                    request=request,
+                )
             solver_model = deepcopy(model)
+            solver_hash = canonical_model_hash(solver_model)
             return {
                 "status": "ok",
                 "completion": {"status": "passed", "reason": None, "stopping_condition": "symmetry-validated"},
@@ -466,10 +556,12 @@ def run_hamiltonian_symmetry_gate(model, request=None):
                 "symmetry_validation_stamp": _validation_stamp(
                     solver_model, validation_before, request, repaired=False
                 ),
-                "hamiltonian_provenance": {
-                    "input_model": {"content_hash": input_hash},
-                    "solver_model": {"content_hash": canonical_model_hash(solver_model)},
-                },
+                "hamiltonian_provenance": _provenance(
+                    input_hash,
+                    solver_hash,
+                    request,
+                    validation_before["target_group"],
+                ),
                 "warnings": [],
             }
 
@@ -486,6 +578,14 @@ def run_hamiltonian_symmetry_gate(model, request=None):
                 }
             )
         validation_after = report["validation_after"]
+        solver_hash = canonical_model_hash(solver_model)
+        provenance = _provenance(
+            input_hash,
+            solver_hash,
+            request,
+            validation_after["target_group"],
+        )
+        report["downstream_model_ref"] = provenance["solver_model"]["canonical_model_ref"]
         return {
             "status": "ok",
             "completion": {"status": "passed", "reason": None, "stopping_condition": "symmetry-repaired-and-validated"},
@@ -495,17 +595,10 @@ def run_hamiltonian_symmetry_gate(model, request=None):
             "symmetry_validation_stamp": _validation_stamp(
                 solver_model, validation_after, request, repaired=report["status"] == "repaired"
             ),
-            "hamiltonian_provenance": {
-                "input_model": {"content_hash": input_hash},
-                "solver_model": {"content_hash": canonical_model_hash(solver_model)},
-                "symmetry_operation": {
-                    "repair_requested": True,
-                    "algorithm_version": "finite-group-average/v1",
-                },
-            },
+            "hamiltonian_provenance": provenance,
             "warnings": warnings,
         }
     except HamiltonianSymmetryError as exc:
-        return _failure(exc.code, exc.report)
+        return _failure(exc.code, exc.report, input_hash=input_hash, request=request)
     except CanonicalHamiltonianError as exc:
-        return _failure(exc.code)
+        return _failure(exc.code, input_hash=input_hash, request=request)

@@ -81,7 +81,12 @@ def canonicalize_cluster(cluster, family):
     permutation = list(range(len(normalized)))
     orientation_reversed = False
 
-    if str(family) in {"bilinear_exchange_tensor", "bilinear_exchange_matrix", "pair_matrix"} and len(normalized) == 2:
+    if str(family) in {
+        "bilinear_exchange_tensor",
+        "bilinear_exchange_matrix",
+        "pair_matrix",
+        "biquadratic_exchange",
+    } and len(normalized) == 2:
         source = normalized[0]["site"]
         target = normalized[1]["site"]
         relative = normalized[1]["translation"]
