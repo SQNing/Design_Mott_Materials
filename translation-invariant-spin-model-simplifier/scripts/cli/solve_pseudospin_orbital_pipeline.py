@@ -41,7 +41,11 @@ from common.cpn_classical_state import resolve_cpn_classical_state_payload, reso
 from common.lattice_geometry import lattice_vector_rank, vector_rank
 from common.realize_pseudospin_bond_blocks import realize_pseudospin_bond_blocks
 from common.canonical_hamiltonian import compile_canonical_hamiltonian
-from common.hamiltonian_symmetry_gate import SymmetryGateRequest, run_hamiltonian_symmetry_gate
+from common.hamiltonian_symmetry_gate import (
+    SymmetryGateRequest,
+    require_current_symmetry_stamp,
+    run_hamiltonian_symmetry_gate,
+)
 from common.solver_capability_registry import SolverCapabilityError, select_solver_capability
 from lswt.build_python_glswt_payload import build_python_glswt_payload
 from lswt.build_sun_gswt_payload import build_sun_gswt_payload
@@ -100,6 +104,68 @@ def _write_json_atomically(path, payload):
         json.dump(payload, handle, indent=2, sort_keys=True)
         temp_path = Path(handle.name)
     temp_path.replace(path)
+
+
+def _serialize_cpn_pair_scalar(value):
+    value = complex(value)
+    return {"real": float(value.real), "imag": float(value.imag)}
+
+
+def _validated_canonical_retained_payload(parsed_payload, gate_result):
+    """Lower a stamped canonical pair Hamiltonian into the established CPN payload."""
+
+    model = gate_result.get("solver_model") if isinstance(gate_result, dict) else None
+    if not isinstance(model, dict) or model.get("schema_version") != "canonical-hamiltonian/v1":
+        raise ValueError("canonical solver model required")
+    stamp = require_current_symmetry_stamp(model, gate_result.get("symmetry_validation_stamp"))
+    routed = deepcopy(parsed_payload)
+    bond_terms = []
+    bond_blocks = []
+    for term in list(model.get("terms") or []):
+        cluster = list(term.get("cluster") or [])
+        if int(term.get("arity", 0)) != 2 or term.get("operator_family") != "pair_matrix":
+            raise ValueError(
+                f"solver-capability-mismatch: {term.get('term_ref')}[{term.get('operator_family')}]"
+            )
+        if len(cluster) != 2:
+            raise ValueError("solver-capability-mismatch: malformed-pair-cluster")
+        matrix = [
+            [_serialize_cpn_pair_scalar(value) for value in row]
+            for row in list(term.get("coefficient") or [])
+        ]
+        translation = [
+            int(cluster[1]["translation"][axis]) - int(cluster[0]["translation"][axis])
+            for axis in range(3)
+        ]
+        record = {
+            "source": int(cluster[0]["site"]),
+            "target": int(cluster[1]["site"]),
+            "translation": translation,
+            "matrix_shape": [len(matrix), len(matrix[0]) if matrix else 0],
+            "pair_matrix": matrix,
+            "provenance": deepcopy(term.get("provenance") or {}),
+        }
+        bond_terms.append(record)
+        bond_blocks.append(
+            {
+                "R": list(translation),
+                "source": record["source"],
+                "target": record["target"],
+                "matrix_shape": list(record["matrix_shape"]),
+                "pair_matrix": deepcopy(matrix),
+                "provenance": deepcopy(record["provenance"]),
+            }
+        )
+    routed["model_bond_label"] = "cpn_pair_model"
+    routed["classical_bond_label"] = "cpn"
+    routed["bond_terms"] = bond_terms
+    routed["bond_blocks"] = bond_blocks
+    routed.setdefault("pair_operator_convention", {})["pair_basis_order"] = (
+        "site_i_major_site_j_minor"
+    )
+    routed["solver_model_hash"] = stamp["hamiltonian_hash"]
+    routed["validated_canonical_hamiltonian"] = deepcopy(model)
+    return routed
 
 
 def _build_cpn_local_ray_progress_callback(checkpoint_path):
@@ -2116,6 +2182,8 @@ def solve_from_parsed_payload(
             if gate_result.get("symmetry_repair_report") is not None:
                 result["symmetry_repair_report"] = gate_result["symmetry_repair_report"]
             return result
+        if capability.get("solver_id") == "retained_local_classical_solver":
+            routed_payload = _validated_canonical_retained_payload(parsed_payload, gate_result)
 
     result = _solve_from_parsed_payload_core(
         routed_payload,

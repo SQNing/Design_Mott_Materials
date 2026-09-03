@@ -77,6 +77,82 @@ def _asymmetric_lattice_term_payload():
     }
 
 
+def _symmetric_retained_local_payload():
+    c4 = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=int)
+    operations = [
+        {
+            "operation_ref": f"symop:c4^{power}",
+            "rotation": np.linalg.matrix_power(c4, power).tolist(),
+            "translation": [0.0, 0.0, 0.0],
+        }
+        for power in range(4)
+    ]
+    pair_matrix = np.diag([1.0, 2.0, 2.0, 3.0])
+    terms = []
+    for label, translation in (("x", [1, 0, 0]), ("y", [0, 1, 0])):
+        terms.append(
+            {
+                "term_ref": f"term:J{label}",
+                "cluster": [
+                    {"site": 0, "translation": [0, 0, 0]},
+                    {"site": 0, "translation": translation},
+                ],
+                "operator_basis_ref": "operator-basis:retained",
+                "operator_channel": "pair_matrix",
+                "payload": {
+                    "kind": "pair_matrix",
+                    "matrix": _structured_matrix(pair_matrix),
+                },
+                "attach_to": {"kind": "explicit_cluster", "orientation": "explicit"},
+            }
+        )
+    return {
+        "schema_version": "lattice-term-contract/v1",
+        "model_bond_label": "cpn_pair_model",
+        "classical_bond_label": "cpn",
+        "local_dimension": 2,
+        "local_basis_labels": ["state:0", "state:1"],
+        "inferred": {"local_dimension": 2, "orbital_count": 1},
+        "structure": {
+            "lattice_vectors": np.eye(3).tolist(),
+            "positions": [[0.0, 0.0, 0.0]],
+        },
+        "local_hilbert": {
+            "operator_bases": {
+                "operator-basis:retained": {
+                    "kind": "dense_local_matrix_units",
+                    "dimension": 2,
+                    "symmetry_actions": {
+                        operation["operation_ref"]: {"matrix": np.eye(4).tolist()}
+                        for operation in operations
+                    },
+                }
+            },
+            "classical_spaces": {
+                "classical-space:retained": {"kind": "complex_projective_space", "dimension": 2}
+            },
+        },
+        "lattice_structure": {
+            "lattice_vectors": np.eye(3).tolist(),
+            "basis_sites": [{"site_ref": "site:0", "position": [0.0, 0.0, 0.0]}],
+            "bond_orbits": [],
+        },
+        "symmetry": {
+            "source": {"international_symbol": "P4", "number": 75},
+            "operations": operations,
+            "unresolved": [],
+        },
+        "term_attachments": {
+            "site_terms": [],
+            "bond_terms": terms,
+            "higher_body_terms": [],
+            "term_sets": [],
+        },
+        "solver_request": {"task": "classical_ground_state", "symmetry_repair": False},
+        "parameters": {},
+    }
+
+
 def test_strict_failure_returns_before_solver_core(tmp_path):
     with patch(
         "cli.solve_pseudospin_orbital_pipeline._solve_from_parsed_payload_core"
@@ -120,6 +196,29 @@ def test_repair_routes_projected_model_to_spin_solver_and_binds_result_hash(tmp_
     }
     assert result["solver_model_hash"] == result["symmetry_validation_stamp"]["hamiltonian_hash"]
     assert result["warnings"][0]["code"] == "hamiltonian-symmetry-repaired"
+
+
+def test_validated_retained_local_model_is_adapted_before_cpn_solver_core(tmp_path):
+    with patch(
+        "cli.solve_pseudospin_orbital_pipeline._solve_from_parsed_payload_core",
+        return_value={"status": "ok", "warnings": []},
+    ) as solver_core:
+        result = solve_from_parsed_payload(
+            _symmetric_retained_local_payload(),
+            output_dir=tmp_path / "out",
+            docs_dir=tmp_path / "docs",
+            compile_pdf=False,
+        )
+
+    routed = solver_core.call_args.args[0]
+    assert routed["model_bond_label"] == "cpn_pair_model"
+    assert len(routed["bond_terms"]) == 2
+    assert {tuple(term["translation"]) for term in routed["bond_terms"]} == {
+        (1, 0, 0),
+        (0, 1, 0),
+    }
+    assert routed["solver_model_hash"] == result["solver_model_hash"]
+    assert result["solver_model_hash"] == result["symmetry_validation_stamp"]["hamiltonian_hash"]
 
 
 def test_cpn_cli_forwards_symmetry_repair_flag(tmp_path, monkeypatch):
